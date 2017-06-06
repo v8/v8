@@ -158,13 +158,13 @@ inline unsigned CountTrailingZeros(uint64_t value) {
 }
 
 // Returns true iff |value| is a power of 2.
-inline bool IsPowerOfTwo32(uint32_t value) {
+constexpr inline bool IsPowerOfTwo32(uint32_t value) {
   return value && !(value & (value - 1));
 }
 
 
 // Returns true iff |value| is a power of 2.
-inline bool IsPowerOfTwo64(uint64_t value) {
+constexpr inline bool IsPowerOfTwo64(uint64_t value) {
   return value && !(value & (value - 1));
 }
 

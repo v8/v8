@@ -498,7 +498,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   }
 
   // Function contains break points.
-  if (shared_info->HasDebugInfo()) {
+  if (shared_info->HasBreakInfo()) {
     TRACE("Not inlining %s into %s because callee may contain break points\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -552,12 +552,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  // Remember that we inlined this function. This needs to be called right
-  // after we ensure deoptimization support so that the code flusher
-  // does not remove the code with the deoptimization support.
-  int inlining_id = info_->AddInlinedFunction(
-      shared_info, source_positions_->GetSourcePosition(node));
-
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
@@ -570,6 +564,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Node* context;
   Handle<FeedbackVector> feedback_vector;
   DetermineCallContext(node, context, feedback_vector);
+
+  // Remember that we inlined this function.
+  int inlining_id = info_->AddInlinedFunction(
+      shared_info, source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
   Node* start;
@@ -687,9 +685,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
         result =
             graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                              create, node, merge);
-        NodeProperties::ReplaceUses(node_success, node_success, node_success,
-                                    merge);
-        // Fix input destroyed by the above {ReplaceUses} call.
+        ReplaceWithValue(node_success, node_success, node_success, merge);
+        // Fix input destroyed by the above {ReplaceWithValue} call.
         NodeProperties::ReplaceControlInput(branch_is_undefined, node_success,
                                             0);
       } else {
@@ -702,7 +699,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                              check, node, create);
       }
       receiver = create;  // The implicit receiver.
-      NodeProperties::ReplaceUses(dummy, result);
+      ReplaceWithValue(dummy, result);
     } else if (IsDerivedConstructor(shared_info->kind())) {
       Node* node_success =
           NodeProperties::FindSuccessfulControlProjection(node);
@@ -726,9 +723,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       NodeProperties::MergeControlToEnd(graph(), common(),
                                         branch_is_receiver_false);
 
-      NodeProperties::ReplaceUses(node_success, node_success, node_success,
-                                  branch_is_receiver_true);
-      // Fix input destroyed by the above {ReplaceUses} call.
+      ReplaceWithValue(node_success, node_success, node_success,
+                       branch_is_receiver_true);
+      // Fix input destroyed by the above {ReplaceWithValue} call.
       NodeProperties::ReplaceControlInput(branch_is_receiver, node_success, 0);
     }
     node->ReplaceInput(1, receiver);

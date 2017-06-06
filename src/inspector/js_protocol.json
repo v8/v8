@@ -557,7 +557,8 @@
             {
                 "name": "continueToLocation",
                 "parameters": [
-                    { "name": "location", "$ref": "Location", "description": "Location to continue to." }
+                    { "name": "location", "$ref": "Location", "description": "Location to continue to." },
+                    { "name": "targetCallFrames", "type": "string", "enum": ["any", "current"], "optional": true, "experimental": true }
                 ],
                 "description": "Continues execution until specific location is reached."
             },

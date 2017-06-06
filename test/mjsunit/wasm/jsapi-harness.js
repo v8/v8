@@ -14,6 +14,8 @@ const known_failures = {
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
   "'WebAssembly.Table.prototype.set' method":
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
+  "'WebAssembly.Instance.prototype.exports' accessor property":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=5507'
 };
 
 let failures = [];

@@ -1145,9 +1145,6 @@ function TestForeignVariables() {
   TestCase({baz: 345.7}, 0, NaN, 345, 345.7);
   // Check that undefined values are converted to proper defaults.
   TestCase({qux: 999}, 0, NaN, 0, NaN);
-  // Check that an undefined ffi is ok.
-  // TODO(v8:6127): Fix handling of this case and re-enable.
-//  TestCase(undefined, 0, NaN, 0, NaN);
   // Check that true values are converted properly.
   TestCase({foo: true, bar: true, baz: true}, 1, 1.0, 1, 1.0);
   // Check that false values are converted properly.
@@ -1164,20 +1161,6 @@ function TestForeignVariables() {
   TestCase({foo: [], bar: [], baz: []}, 0, 0, 0, 0);
   // Check that object values are converted properly.
   TestCase({foo: {}, bar: {}, baz: {}}, 0, NaN, 0, NaN);
-  // Check that getter object values are converted properly.
-  var o = {
-    get foo() {
-      return 123.4;
-    }
-  };
-  TestCase({foo: o.foo, bar: o.foo, baz: o.foo}, 123, 123.4, 123, 123.4);
-  // Check that getter object values are converted properly.
-  var o = {
-    get baz() {
-      return 123.4;
-    }
-  };
-  TestCase(o, 0, NaN, 123, 123.4);
   // Check that objects with valueOf are converted properly.
   var o = {
     valueOf: function() { return 99; }
@@ -1185,9 +1168,6 @@ function TestForeignVariables() {
   TestCase({foo: o, bar: o, baz: o}, 99, 99, 99, 99);
   // Check that function values are converted properly.
   TestCase({foo: TestCase, bar: TestCase, qux: TestCase}, 0, NaN, 0, NaN);
-  // Check that a missing ffi object is safe.
-  // TODO(v8:6127): Fix handling of this case and re-enable.
-//  TestCase(undefined, 0, NaN, 0, NaN);
 }
 
 print("TestForeignVariables...");

@@ -50,7 +50,6 @@ bool ScopeInfo::Equals(ScopeInfo* other) const {
         }
       } else {
         UNREACHABLE();
-        return false;
       }
     }
   }
@@ -942,7 +941,6 @@ Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(
     }
   }
   UNREACHABLE();
-  return Handle<ModuleInfoEntry>();
 }
 
 }  // namespace internal

@@ -327,7 +327,6 @@ const char* BinaryOpICState::KindToString(Kind kind) {
       return "Generic";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -348,7 +347,6 @@ AstType* BinaryOpICState::KindToType(Kind kind) {
       return AstType::Any();
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -376,7 +374,6 @@ const char* CompareICState::GetStateName(State state) {
       return "GENERIC";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 AstType* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
@@ -403,7 +400,6 @@ AstType* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
       return AstType::Any();
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -522,7 +518,6 @@ CompareICState::State CompareICState::TargetState(
       return GENERIC;
   }
   UNREACHABLE();
-  return GENERIC;  // Make the compiler happy.
 }
 
 }  // namespace internal

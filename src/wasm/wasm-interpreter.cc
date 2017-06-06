@@ -1104,7 +1104,6 @@ Handle<Object> WasmValToNumber(Factory* factory, WasmVal val,
     case kWasmI64:
       // wasm->js and js->wasm is illegal for i64 type.
       UNREACHABLE();
-      return Handle<Object>::null();
     case kWasmF32:
       return factory->NewNumber(val.to<float>());
     case kWasmF64:
@@ -1419,7 +1418,6 @@ class ThreadImpl {
       }
       default:
         UNREACHABLE();
-        return 0;
     }
   }
 
@@ -2086,14 +2084,6 @@ class ThreadImpl {
   }
 
   sp_t StackHeight() { return sp_ - stack_start_; }
-
-  void TraceStack(const char* phase, pc_t pc) {
-    if (FLAG_trace_wasm_interpreter) {
-      PrintF("%s @%zu", phase, pc);
-      UNIMPLEMENTED();
-      PrintF("\n");
-    }
-  }
 
   void TraceValueStack() {
 #ifdef DEBUG

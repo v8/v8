@@ -46,7 +46,6 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepTagged";
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 std::ostream& operator<<(std::ostream& os, MachineSemantic type) {
@@ -69,7 +68,6 @@ std::ostream& operator<<(std::ostream& os, MachineSemantic type) {
       return os << "kTypeAny";
   }
   UNREACHABLE();
-  return os;
 }
 
 

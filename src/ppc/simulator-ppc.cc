@@ -3294,15 +3294,18 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       int32_t val = ReadW(ra_val + offset, instr);
       float* fptr = reinterpret_cast<float*>(&val);
-// Conversion using double changes sNan to qNan on ia32/x64
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-      if (val == 0x7fa00000) {
-        set_d_register(frt, 0x7ff4000000000000);
+      // Conversion using double changes sNan to qNan on ia32/x64
+      if ((val & 0x7f800000) == 0x7f800000) {
+        int64_t dval = static_cast<int64_t>(val);
+        dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
+               ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29) | 0x0;
+        set_d_register(frt, dval);
       } else {
-#endif
         set_d_register_from_double(frt, static_cast<double>(*fptr));
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       }
+#else
+      set_d_register_from_double(frt, static_cast<double>(*fptr));
 #endif
       if (opcode == LFSU) {
         DCHECK(ra != 0);
@@ -3334,17 +3337,19 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
         float frs_val = static_cast<float>(get_double_from_d_register(frs));
         int32_t* p;
-// Conversion using double changes sNan to qNan on ia32/x64
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-        int64_t frs_isnan = get_d_register(frs);
-        int32_t frs_nan_single = 0x7fa00000;
-        if (frs_isnan == 0x7ff4000000000000) {
-          p = &frs_nan_single;
+        // Conversion using double changes sNan to qNan on ia32/x64
+        int32_t sval = 0;
+        int64_t dval = get_d_register(frs);
+        if ((dval & 0x7ff0000000000000) == 0x7ff0000000000000) {
+          sval = ((dval & 0xc000000000000000) >> 32) |
+                 ((dval & 0x07ffffffe0000000) >> 29);
+          p = &sval;
         } else {
-#endif
           p = reinterpret_cast<int32_t*>(&frs_val);
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
         }
+#else
+        p = reinterpret_cast<int32_t*>(&frs_val);
 #endif
         WriteW(ra_val + offset, *p, instr);
         if (opcode == STFSU) {
@@ -3999,7 +4004,6 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 
     default: {
-printf("opcode = %x \n", instr->InstructionBits());
       UNIMPLEMENTED();
       break;
     }

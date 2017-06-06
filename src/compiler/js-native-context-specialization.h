@@ -8,7 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
-#include "src/feedback-vector.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +16,7 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
+class FeedbackNexus;
 
 namespace compiler {
 
@@ -109,13 +110,11 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   };
 
   // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
-                                         Node* context, Node* frame_state,
-                                         Node* effect, Node* control,
-                                         Handle<Name> name,
-                                         PropertyAccessInfo const& access_info,
-                                         AccessMode access_mode,
-                                         LanguageMode language_mode);
+  ValueEffectControl BuildPropertyAccess(
+      Node* receiver, Node* value, Node* context, Node* frame_state,
+      Node* effect, Node* control, Handle<Name> name,
+      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
+      AccessMode access_mode, LanguageMode language_mode);
 
   // Construct the appropriate subgraph for element access.
   ValueEffectControl BuildElementAccess(Node* receiver, Node* index,

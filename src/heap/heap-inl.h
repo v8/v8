@@ -23,6 +23,7 @@
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/script-inl.h"
 #include "src/string-hasher.h"
 
 namespace v8 {
@@ -235,7 +236,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   }
 
   // String maps are all immortal immovable objects.
-  result->set_map_no_write_barrier(map);
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());
@@ -266,7 +267,7 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map(map);
+  result->set_map_after_allocation(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());
@@ -367,7 +368,7 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
     UpdateAllocationsHash(size_in_bytes);
 
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAlloctionsHash();
+      PrintAllocationsHash();
     }
   }
 
@@ -402,7 +403,7 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     UpdateAllocationsHash(size_in_bytes);
 
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAlloctionsHash();
+      PrintAllocationsHash();
     }
   }
 }
@@ -554,7 +555,6 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return false;
   }
   UNREACHABLE();
-  return false;
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
@@ -621,7 +621,6 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
       UNREACHABLE();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 template <Heap::UpdateAllocationSiteMode mode>

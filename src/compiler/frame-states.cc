@@ -26,7 +26,6 @@ std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
       return os << "PokeAt(" << sc.parameter_ << ")";
   }
   UNREACHABLE();
-  return os;
 }
 
 

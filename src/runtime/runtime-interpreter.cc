@@ -15,6 +15,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
+#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +34,25 @@ RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
       shared, context, vector_cell,
       static_cast<PretenureFlag>(pretenured_flag));
 }
+
+RUNTIME_FUNCTION(Runtime_InterpreterStringConcat) {
+  HandleScope scope(isolate);
+  DCHECK_LE(2, args.length());
+  int const argc = args.length();
+  ScopedVector<Handle<Object>> argv(argc);
+
+  isolate->counters()->string_add_runtime()->Increment();
+  IncrementalStringBuilder builder(isolate);
+  for (int i = 0; i < argc; ++i) {
+    Handle<String> str = Handle<String>::cast(args.at(i));
+    if (str->length() != 0) {
+      builder.AppendString(str);
+    }
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
+}
+
+#ifdef V8_TRACE_IGNITION
 
 namespace {
 
@@ -109,17 +129,22 @@ void PrintRegisters(std::ostream& os, bool is_input,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
+  if (!FLAG_trace_ignition) {
+    return isolate->heap()->undefined_value();
+  }
+
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
   CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
-  OFStream os(stdout);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
   AdvanceToOffsetForTracing(bytecode_iterator, offset);
   if (offset == bytecode_iterator.current_offset()) {
+    OFStream os(stdout);
+
     // Print bytecode.
     const uint8_t* base_address = bytecode_array->GetFirstBytecodeAddress();
     const uint8_t* bytecode_address = base_address + offset;
@@ -137,6 +162,10 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
 }
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
+  if (!FLAG_trace_ignition) {
+    return isolate->heap()->undefined_value();
+  }
+
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
@@ -159,6 +188,8 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   }
   return isolate->heap()->undefined_value();
 }
+
+#endif
 
 RUNTIME_FUNCTION(Runtime_InterpreterAdvanceBytecodeOffset) {
   SealHandleScope shs(isolate);

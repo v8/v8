@@ -124,6 +124,17 @@ V8_INLINE Dest bit_cast(Source const& source) {
   TypeName() = delete;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
+// A macro to disallow the dynamic allocation.
+// This should be used in the private: declarations for a class
+// Declaring operator new and delete as deleted is not spec compliant.
+// Extract from 3.2.2 of C++11 spec:
+//  [...] A non-placement deallocation function for a class is
+//  odr-used by the definition of the destructor of that class, [...]
+#define DISALLOW_NEW_AND_DELETE()                            \
+  void* operator new(size_t) { base::OS::Abort(); }          \
+  void* operator new[](size_t) { base::OS::Abort(); };       \
+  void operator delete(void*, size_t) { base::OS::Abort(); } \
+  void operator delete[](void*, size_t) { base::OS::Abort(); }
 
 // Newly written code should use V8_INLINE and V8_NOINLINE directly.
 #define INLINE(declarator)    V8_INLINE declarator

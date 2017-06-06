@@ -31,6 +31,7 @@
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-info.h"
 #include "src/objects/regexp-match-info.h"
@@ -66,79 +67,6 @@ int PropertyDetails::field_width_in_words() const {
   if (kDoubleSize == kPointerSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
 }
-
-#define INT_ACCESSORS(holder, name, offset)                                   \
-  int holder::name() const { return READ_INT_FIELD(this, offset); }           \
-  void holder::set_##name(int value) { WRITE_INT_FIELD(this, offset, value); }
-
-#define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
-                           set_condition)                             \
-  type* holder::name() const {                                        \
-    DCHECK(get_condition);                                            \
-    return type::cast(READ_FIELD(this, offset));                      \
-  }                                                                   \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {       \
-    DCHECK(set_condition);                                            \
-    WRITE_FIELD(this, offset, value);                                 \
-    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);  \
-  }
-#define ACCESSORS_CHECKED(holder, name, type, offset, condition) \
-  ACCESSORS_CHECKED2(holder, name, type, offset, condition, condition)
-
-#define ACCESSORS(holder, name, type, offset) \
-  ACCESSORS_CHECKED(holder, name, type, offset, true)
-
-// Getter that returns a Smi as an int and writes an int as a Smi.
-#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition) \
-  int holder::name() const {                                   \
-    DCHECK(condition);                                         \
-    Object* value = READ_FIELD(this, offset);                  \
-    return Smi::cast(value)->value();                          \
-  }                                                            \
-  void holder::set_##name(int value) {                         \
-    DCHECK(condition);                                         \
-    WRITE_FIELD(this, offset, Smi::FromInt(value));            \
-  }
-
-#define SMI_ACCESSORS(holder, name, offset) \
-  SMI_ACCESSORS_CHECKED(holder, name, offset, true)
-
-#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)    \
-  int holder::synchronized_##name() const {                 \
-    Object* value = ACQUIRE_READ_FIELD(this, offset);       \
-    return Smi::cast(value)->value();                       \
-  }                                                         \
-  void holder::synchronized_set_##name(int value) {         \
-    RELEASE_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
-  }
-
-#define NOBARRIER_SMI_ACCESSORS(holder, name, offset)          \
-  int holder::nobarrier_##name() const {                       \
-    Object* value = NOBARRIER_READ_FIELD(this, offset);        \
-    return Smi::cast(value)->value();                          \
-  }                                                            \
-  void holder::nobarrier_set_##name(int value) {               \
-    NOBARRIER_WRITE_FIELD(this, offset, Smi::FromInt(value));  \
-  }
-
-#define BOOL_GETTER(holder, field, name, offset)           \
-  bool holder::name() const {                              \
-    return BooleanBit::get(field(), offset);               \
-  }                                                        \
-
-
-#define BOOL_ACCESSORS(holder, field, name, offset)        \
-  bool holder::name() const {                              \
-    return BooleanBit::get(field(), offset);               \
-  }                                                        \
-  void holder::set_##name(bool value) {                    \
-    set_##field(BooleanBit::set(field(), offset, value));  \
-  }
-
-#define TYPE_CHECKER(type, instancetype)           \
-  bool HeapObject::Is##type() const {              \
-    return map()->instance_type() == instancetype; \
-  }
 
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
 TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
@@ -181,20 +109,19 @@ TYPE_CHECKER(Map, MAP_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
-TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(TypeFeedbackInfo, TUPLE3_TYPE)
 TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
 TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 
 #define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
   TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
 TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
 #undef TYPED_ARRAY_TYPE_CHECKER
 
-#undef TYPE_CHECKER
 
 bool HeapObject::IsFixedArrayBase() const {
   return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
@@ -383,9 +310,7 @@ bool HeapObject::IsArrayList() const { return IsFixedArray(); }
 
 bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArray(); }
 
-bool Object::IsLayoutDescriptor() const {
-  return IsSmi() || IsFixedTypedArrayBase();
-}
+bool Object::IsLayoutDescriptor() const { return IsSmi() || IsByteArray(); }
 
 bool HeapObject::IsFeedbackVector() const {
   return map() == GetHeap()->feedback_vector_map();
@@ -523,24 +448,6 @@ bool HeapObject::IsNormalizedMapCache() const {
   return NormalizedMapCache::IsNormalizedMapCache(this);
 }
 
-int NormalizedMapCache::GetIndex(Handle<Map> map) {
-  return map->Hash() % NormalizedMapCache::kEntries;
-}
-
-bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
-  if (!obj->IsFixedArray()) return false;
-  if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
-    return false;
-  }
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj))
-        ->NormalizedMapCacheVerify();
-  }
-#endif
-  return true;
-}
-
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 
 bool HeapObject::IsCodeCacheHashTable() const { return IsHashTable(); }
@@ -620,9 +527,15 @@ bool Object::IsMinusZero() const {
 // Cast operations
 
 CAST_ACCESSOR(AbstractCode)
+CAST_ACCESSOR(AccessCheckInfo)
+CAST_ACCESSOR(AccessorInfo)
+CAST_ACCESSOR(AccessorPair)
+CAST_ACCESSOR(AliasedArgumentsEntry)
+CAST_ACCESSOR(AllocationMemento)
+CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(ArrayList)
+CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BoilerplateDescription)
-CAST_ACCESSOR(BreakPointInfo)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(CallHandlerInfo)
@@ -630,6 +543,7 @@ CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ConstantElementsPair)
+CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
@@ -642,19 +556,23 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
+CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(JSArgumentsObject);
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
+CAST_ACCESSOR(JSArrayIterator)
+CAST_ACCESSOR(JSAsyncFromSyncIterator)
+CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSBoundFunction)
 CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSGeneratorObject)
-CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMap)
@@ -662,65 +580,65 @@ CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSModuleNamespace)
 CAST_ACCESSOR(JSObject)
+CAST_ACCESSOR(JSPromise)
+CAST_ACCESSOR(JSPromiseCapability)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
-CAST_ACCESSOR(JSPromiseCapability)
-CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSSloppyArgumentsObject)
-CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSStringIterator)
-CAST_ACCESSOR(JSArrayIterator)
 CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakCollection)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
-CAST_ACCESSOR(Map)
+CAST_ACCESSOR(Module)
 CAST_ACCESSOR(ModuleInfo)
+CAST_ACCESSOR(ModuleInfoEntry)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(Object)
-CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(ObjectHashSet)
+CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(ObjectTemplateInfo)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
+CAST_ACCESSOR(PromiseReactionJobInfo)
+CAST_ACCESSOR(PromiseResolveThenableJobInfo)
 CAST_ACCESSOR(PropertyCell)
-CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
 CAST_ACCESSOR(SeqOneByteString)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqTwoByteString)
-CAST_ACCESSOR(SharedFunctionInfo)
-CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(SloppyArgumentsElements)
 CAST_ACCESSOR(Smi)
+CAST_ACCESSOR(SourcePositionTableWithFrameCache)
+CAST_ACCESSOR(StackFrameInfo)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Symbol)
 CAST_ACCESSOR(TemplateInfo)
+CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(ThinString)
+CAST_ACCESSOR(Tuple2)
+CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(TypeFeedbackInfo)
 CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
+CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
-
-#define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
-STRUCT_LIST(MAKE_STRUCT_CAST)
-#undef MAKE_STRUCT_CAST
-
-#undef CAST_ACCESSOR
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -1286,150 +1204,6 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   return true;
 }
 
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-#define FIELD_ADDR_CONST(p, offset) \
-  (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
-
-#define READ_FIELD(p, offset) \
-  (*reinterpret_cast<Object* const*>(FIELD_ADDR_CONST(p, offset)))
-
-#define ACQUIRE_READ_FIELD(p, offset)           \
-  reinterpret_cast<Object*>(base::Acquire_Load( \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
-
-#define NOBARRIER_READ_FIELD(p, offset)           \
-  reinterpret_cast<Object*>(base::NoBarrier_Load( \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
-
-#if V8_CONCURRENT_MARKING
-#define WRITE_FIELD(p, offset, value)                             \
-  base::NoBarrier_Store(                                          \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
-#else
-#define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
-#endif
-
-#define RELEASE_WRITE_FIELD(p, offset, value)                     \
-  base::Release_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
-
-#define NOBARRIER_WRITE_FIELD(p, offset, value)                   \
-  base::NoBarrier_Store(                                          \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
-
-#define WRITE_BARRIER(heap, object, offset, value)          \
-  heap->incremental_marking()->RecordWrite(                 \
-      object, HeapObject::RawField(object, offset), value); \
-  heap->RecordWrite(object, offset, value);
-
-#define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
-  do {                                                                 \
-    heap->RecordFixedArrayElements(array, start, length);              \
-    heap->incremental_marking()->IterateBlackObject(array);            \
-  } while (false)
-
-#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode) \
-  if (mode != SKIP_WRITE_BARRIER) {                                  \
-    if (mode == UPDATE_WRITE_BARRIER) {                              \
-      heap->incremental_marking()->RecordWrite(                      \
-          object, HeapObject::RawField(object, offset), value);      \
-    }                                                                \
-    heap->RecordWrite(object, offset, value);                        \
-  }
-
-#define READ_DOUBLE_FIELD(p, offset) \
-  ReadDoubleValue(FIELD_ADDR_CONST(p, offset))
-
-#define WRITE_DOUBLE_FIELD(p, offset, value) \
-  WriteDoubleValue(FIELD_ADDR(p, offset), value)
-
-#define READ_INT_FIELD(p, offset) \
-  (*reinterpret_cast<const int*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_INT_FIELD(p, offset, value) \
-  (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_INTPTR_FIELD(p, offset) \
-  (*reinterpret_cast<const intptr_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_INTPTR_FIELD(p, offset, value) \
-  (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_UINT8_FIELD(p, offset) \
-  (*reinterpret_cast<const uint8_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_UINT8_FIELD(p, offset, value) \
-  (*reinterpret_cast<uint8_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_INT8_FIELD(p, offset) \
-  (*reinterpret_cast<const int8_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_INT8_FIELD(p, offset, value) \
-  (*reinterpret_cast<int8_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_UINT16_FIELD(p, offset) \
-  (*reinterpret_cast<const uint16_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_UINT16_FIELD(p, offset, value) \
-  (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_INT16_FIELD(p, offset) \
-  (*reinterpret_cast<const int16_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_INT16_FIELD(p, offset, value) \
-  (*reinterpret_cast<int16_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_UINT32_FIELD(p, offset) \
-  (*reinterpret_cast<const uint32_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_UINT32_FIELD(p, offset, value) \
-  (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_INT32_FIELD(p, offset) \
-  (*reinterpret_cast<const int32_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_INT32_FIELD(p, offset, value) \
-  (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_FLOAT_FIELD(p, offset) \
-  (*reinterpret_cast<const float*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_FLOAT_FIELD(p, offset, value) \
-  (*reinterpret_cast<float*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_UINT64_FIELD(p, offset) \
-  (*reinterpret_cast<const uint64_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_UINT64_FIELD(p, offset, value) \
-  (*reinterpret_cast<uint64_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_INT64_FIELD(p, offset) \
-  (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_INT64_FIELD(p, offset, value) \
-  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_BYTE_FIELD(p, offset) \
-  (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
-
-#define NOBARRIER_READ_BYTE_FIELD(p, offset) \
-  static_cast<byte>(base::NoBarrier_Load(    \
-      reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset))))
-
-#define WRITE_BYTE_FIELD(p, offset, value) \
-  (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
-
-#define NOBARRIER_WRITE_BYTE_FIELD(p, offset, value)           \
-  base::NoBarrier_Store(                                       \
-      reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::Atomic8>(value));
-
 Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
   return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
 }
@@ -1485,21 +1259,22 @@ Isolate* HeapObject::GetIsolate() const {
   return GetHeap()->isolate();
 }
 
-
 Map* HeapObject::map() const {
   return map_word().ToMap();
 }
 
 
 void HeapObject::set_map(Map* value) {
+  if (value != nullptr) {
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
+  }
   set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
-#ifdef VERIFY_HEAP
-    value->GetHeap()->VerifyObjectLayoutChange(this, value);
-#endif
   }
 }
 
@@ -1510,26 +1285,38 @@ Map* HeapObject::synchronized_map() {
 
 
 void HeapObject::synchronized_set_map(Map* value) {
+  if (value != nullptr) {
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
+  }
   synchronized_set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
-#ifdef VERIFY_HEAP
-    value->GetHeap()->VerifyObjectLayoutChange(this, value);
-#endif
   }
-}
-
-
-void HeapObject::synchronized_set_map_no_write_barrier(Map* value) {
-  synchronized_set_map_word(MapWord::FromMap(value));
 }
 
 
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map* value) {
+  if (value != nullptr) {
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
+  }
   set_map_word(MapWord::FromMap(value));
+}
+
+void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
+  set_map_word(MapWord::FromMap(value));
+  if (mode != SKIP_WRITE_BARRIER) {
+    DCHECK(value != nullptr);
+    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // evacuation candidate.
+    value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
+  }
 }
 
 HeapObject** HeapObject::map_slot() {
@@ -1538,13 +1325,13 @@ HeapObject** HeapObject::map_slot() {
 
 MapWord HeapObject::map_word() const {
   return MapWord(
-      reinterpret_cast<uintptr_t>(NOBARRIER_READ_FIELD(this, kMapOffset)));
+      reinterpret_cast<uintptr_t>(RELAXED_READ_FIELD(this, kMapOffset)));
 }
 
 
 void HeapObject::set_map_word(MapWord map_word) {
-  NOBARRIER_WRITE_FIELD(
-      this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
+  RELAXED_WRITE_FIELD(this, kMapOffset,
+                      reinterpret_cast<Object*>(map_word.value_));
 }
 
 
@@ -1995,18 +1782,6 @@ InterceptorInfo* JSObject::GetNamedInterceptor() {
   return map()->GetNamedInterceptor();
 }
 
-InterceptorInfo* Map::GetNamedInterceptor() {
-  DCHECK(has_named_interceptor());
-  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
-  return InterceptorInfo::cast(info->named_property_handler());
-}
-
-InterceptorInfo* Map::GetIndexedInterceptor() {
-  DCHECK(has_indexed_interceptor());
-  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
-  return InterceptorInfo::cast(info->indexed_property_handler());
-}
-
 double Oddball::to_number_raw() const {
   return READ_DOUBLE_FIELD(this, kToNumberRawOffset);
 }
@@ -2172,7 +1947,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
         return JSArrayIterator::kSize;
       }
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -2407,7 +2181,7 @@ void Object::VerifyApiCallResultType() {
 
 Object* FixedArray::get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->length());
-  return NOBARRIER_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
 Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
@@ -2436,7 +2210,7 @@ void FixedArray::set(int index, Smi* value) {
   DCHECK(index >= 0 && index < this->length());
   DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
 }
 
 
@@ -2446,7 +2220,7 @@ void FixedArray::set(int index, Object* value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
@@ -2671,7 +2445,7 @@ void FixedArray::set(int index,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
@@ -2683,7 +2457,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray* array,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!array->GetHeap()->InNewSpace(value));
-  NOBARRIER_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -3283,43 +3057,19 @@ FixedTypedArray<Traits>::cast(const Object* object) {
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
 }
 
-
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)       \
-  type* DeoptimizationInputData::name() {                \
-    return type::cast(get(k##name##Index));              \
-  }                                                      \
-  void DeoptimizationInputData::Set##name(type* value) { \
-    set(k##name##Index, value);                          \
-  }
-
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrAstId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(WeakCellCache, Object)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
-
-#undef DEFINE_DEOPT_ELEMENT_ACCESSORS
-
-
-#define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type* DeoptimizationInputData::name(int i) {                  \
-    return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
-  }                                                             \
-  void DeoptimizationInputData::Set##name(int i, type* value) { \
-    set(IndexForEntry(i) + k##name##Offset, value);             \
-  }
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(AstIdRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
-
-#undef DEFINE_DEOPT_ENTRY_ACCESSORS
-
 
 BailoutId DeoptimizationInputData::AstId(int i) {
   return BailoutId(AstIdRaw(i)->value());
@@ -3430,7 +3180,7 @@ SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
-NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
+RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
@@ -3442,7 +3192,7 @@ int FreeSpace::Size() { return size(); }
 FreeSpace* FreeSpace::next() {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
-  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   return reinterpret_cast<FreeSpace*>(
       Memory::Address_at(address() + kNextOffset));
 }
@@ -3451,8 +3201,8 @@ FreeSpace* FreeSpace::next() {
 void FreeSpace::set_next(FreeSpace* next) {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
-  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
-  base::NoBarrier_Store(
+  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
+  base::Relaxed_Store(
       reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
       reinterpret_cast<base::AtomicWord>(next));
 }
@@ -3568,7 +3318,6 @@ uint16_t String::Get(int index) {
   }
 
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -3653,7 +3402,6 @@ ConsString* String::VisitFlat(Visitor* visitor,
 
       default:
         UNREACHABLE();
-        return NULL;
     }
   }
 }
@@ -3944,7 +3692,7 @@ void StringCharacterStream::VisitTwoByteString(
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
 
-byte ByteArray::get(int index) {
+byte ByteArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
@@ -3968,7 +3716,7 @@ void ByteArray::copy_out(int index, byte* buffer, int length) {
   memcpy(buffer, src_addr, length);
 }
 
-int ByteArray::get_int(int index) {
+int ByteArray::get_int(int index) const {
   DCHECK(index >= 0 && index < this->length() / kIntSize);
   return READ_INT_FIELD(this, kHeaderSize + index * kIntSize);
 }
@@ -3978,11 +3726,22 @@ void ByteArray::set_int(int index, int value) {
   WRITE_INT_FIELD(this, kHeaderSize + index * kIntSize, value);
 }
 
+uint32_t ByteArray::get_uint32(int index) const {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  return READ_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size);
+}
+
+void ByteArray::set_uint32(int index, uint32_t value) {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  WRITE_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size, value);
+}
+
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
 }
 
+int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 
@@ -4127,7 +3886,6 @@ int FixedTypedArrayBase::ElementSize(InstanceType type) {
 #undef TYPED_ARRAY_CASE
     default:
       UNREACHABLE();
-      return 0;
   }
   return element_size;
 }
@@ -4200,7 +3958,7 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
 
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
-  DCHECK((index >= 0) && (index < this->length()));
+  CHECK((index >= 0) && (index < this->length()));
   ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
   ptr[index] = value;
 }
@@ -4336,8 +4094,7 @@ void Map::set_visitor_id(int id) {
 
 
 int Map::instance_size() {
-  return NOBARRIER_READ_BYTE_FIELD(
-      this, kInstanceSizeOffset) << kPointerSizeLog2;
+  return RELAXED_READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
 }
 
 
@@ -4417,7 +4174,7 @@ int HeapObject::SizeFromMap(Map* map) {
     return reinterpret_cast<BytecodeArray*>(this)->BytecodeArraySize();
   }
   if (instance_type == FREE_SPACE_TYPE) {
-    return reinterpret_cast<FreeSpace*>(this)->nobarrier_size();
+    return reinterpret_cast<FreeSpace*>(this)->relaxed_read_size();
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {
@@ -4435,6 +4192,9 @@ int HeapObject::SizeFromMap(Map* map) {
     return reinterpret_cast<FixedTypedArrayBase*>(
         this)->TypedArraySize(instance_type);
   }
+  if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
+    return reinterpret_cast<SmallOrderedHashSet*>(this)->Size();
+  }
   DCHECK(instance_type == CODE_TYPE);
   return reinterpret_cast<Code*>(this)->CodeSize();
 }
@@ -4444,8 +4204,7 @@ void Map::set_instance_size(int value) {
   DCHECK_EQ(0, value & (kPointerSize - 1));
   value >>= kPointerSizeLog2;
   DCHECK(0 <= value && value < 256);
-  NOBARRIER_WRITE_BYTE_FIELD(
-      this, kInstanceSizeOffset, static_cast<byte>(value));
+  RELAXED_WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
 }
 
 
@@ -5020,6 +4779,26 @@ inline void Code::set_is_exception_caught(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
+  // An exception is uncaught if both is_promise_rejection and
+  // is_exception_caught bits are set.
+  if (is_promise_rejection() && is_exception_caught()) {
+    return HandlerTable::UNCAUGHT;
+  }
+
+  if (is_promise_rejection()) {
+    return HandlerTable::PROMISE;
+  }
+
+  // This the exception throw in PromiseHandle which doesn't
+  // cause a promise rejection.
+  if (is_exception_caught()) {
+    return HandlerTable::CAUGHT;
+  }
+
+  UNREACHABLE();
+}
+
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
   unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
@@ -5398,15 +5177,14 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
 }
 
-
-LayoutDescriptor* Map::layout_descriptor_gc_safe() {
-  Object* layout_desc = READ_FIELD(this, kLayoutDescriptorOffset);
+LayoutDescriptor* Map::layout_descriptor_gc_safe() const {
+  Object* layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::cast_gc_safe(layout_desc);
 }
 
 
 bool Map::HasFastPointerLayout() const {
-  Object* layout_desc = READ_FIELD(this, kLayoutDescriptorOffset);
+  Object* layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
@@ -5815,89 +5593,6 @@ ACCESSORS(AllocationSite, dependent_code, DependentCode,
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
-ACCESSORS(Script, source, Object, kSourceOffset)
-ACCESSORS(Script, name, Object, kNameOffset)
-SMI_ACCESSORS(Script, id, kIdOffset)
-SMI_ACCESSORS(Script, line_offset, kLineOffsetOffset)
-SMI_ACCESSORS(Script, column_offset, kColumnOffsetOffset)
-ACCESSORS(Script, context_data, Object, kContextOffset)
-ACCESSORS(Script, wrapper, HeapObject, kWrapperOffset)
-SMI_ACCESSORS(Script, type, kTypeOffset)
-ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
-ACCESSORS_CHECKED(Script, eval_from_shared, Object, kEvalFromSharedOffset,
-                  this->type() != TYPE_WASM)
-SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
-                      this->type() != TYPE_WASM)
-ACCESSORS(Script, shared_function_infos, FixedArray, kSharedFunctionInfosOffset)
-SMI_ACCESSORS(Script, flags, kFlagsOffset)
-ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
-ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
-ACCESSORS_CHECKED(Script, wasm_compiled_module, Object, kEvalFromSharedOffset,
-                  this->type() == TYPE_WASM)
-ACCESSORS(Script, preparsed_scope_data, PodArray<uint32_t>,
-          kPreParsedScopeDataOffset)
-
-Script::CompilationType Script::compilation_type() {
-  return BooleanBit::get(flags(), kCompilationTypeBit) ?
-      COMPILATION_TYPE_EVAL : COMPILATION_TYPE_HOST;
-}
-void Script::set_compilation_type(CompilationType type) {
-  set_flags(BooleanBit::set(flags(), kCompilationTypeBit,
-      type == COMPILATION_TYPE_EVAL));
-}
-Script::CompilationState Script::compilation_state() {
-  return BooleanBit::get(flags(), kCompilationStateBit) ?
-      COMPILATION_STATE_COMPILED : COMPILATION_STATE_INITIAL;
-}
-void Script::set_compilation_state(CompilationState state) {
-  set_flags(BooleanBit::set(flags(), kCompilationStateBit,
-      state == COMPILATION_STATE_COMPILED));
-}
-ScriptOriginOptions Script::origin_options() {
-  return ScriptOriginOptions((flags() & kOriginOptionsMask) >>
-                             kOriginOptionsShift);
-}
-void Script::set_origin_options(ScriptOriginOptions origin_options) {
-  DCHECK(!(origin_options.Flags() & ~((1 << kOriginOptionsSize) - 1)));
-  set_flags((flags() & ~kOriginOptionsMask) |
-            (origin_options.Flags() << kOriginOptionsShift));
-}
-
-
-ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
-SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsIndex)
-ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayIndex)
-ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
-
-bool DebugInfo::HasDebugBytecodeArray() {
-  return debug_bytecode_array()->IsBytecodeArray();
-}
-
-bool DebugInfo::HasDebugCode() {
-  Code* code = shared()->code();
-  bool has = code->kind() == Code::FUNCTION;
-  DCHECK(!has || code->has_debug_break_slots());
-  return has;
-}
-
-BytecodeArray* DebugInfo::OriginalBytecodeArray() {
-  DCHECK(HasDebugBytecodeArray());
-  return shared()->bytecode_array();
-}
-
-BytecodeArray* DebugInfo::DebugBytecodeArray() {
-  DCHECK(HasDebugBytecodeArray());
-  return BytecodeArray::cast(debug_bytecode_array());
-}
-
-Code* DebugInfo::DebugCode() {
-  DCHECK(HasDebugCode());
-  return shared()->code();
-}
-
-SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
-ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
-
 SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
 SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)
 SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdIndex)
@@ -5916,22 +5611,6 @@ ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
           UnseededNumberDictionary, kStackFrameCacheIndex)
 
-ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
-ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
-          kFeedbackMetadataOffset)
-SMI_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
-#if TRACE_MAPS
-SMI_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
-#endif
-ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
-          kInstanceClassNameOffset)
-ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
-ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
-ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
-ACCESSORS(SharedFunctionInfo, function_identifier, Object,
-          kFunctionIdentifierOffset)
-
 SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
@@ -5946,506 +5625,6 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache,
                kDoNotCacheBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                kAcceptAnyReceiver)
-BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_named_expression,
-               kIsNamedExpressionBit)
-BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
-               kIsTopLevelBit)
-
-#if V8_HOST_ARCH_32_BIT
-SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
-              kFormalParameterCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-              kExpectedNofPropertiesOffset)
-SMI_ACCESSORS(SharedFunctionInfo, start_position_and_type,
-              kStartPositionAndTypeOffset)
-SMI_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
-SMI_ACCESSORS(SharedFunctionInfo, function_token_position,
-              kFunctionTokenPositionOffset)
-SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
-              kCompilerHintsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
-              kOptCountAndBailoutReasonOffset)
-SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
-
-#else
-
-#if V8_TARGET_LITTLE_ENDIAN
-#define PSEUDO_SMI_LO_ALIGN 0
-#define PSEUDO_SMI_HI_ALIGN kIntSize
-#else
-#define PSEUDO_SMI_LO_ALIGN kIntSize
-#define PSEUDO_SMI_HI_ALIGN 0
-#endif
-
-#define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)                          \
-  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_LO_ALIGN);         \
-  int holder::name() const {                                                   \
-    int value = READ_INT_FIELD(this, offset);                                  \
-    DCHECK(kHeapObjectTag == 1);                                               \
-    DCHECK((value & kHeapObjectTag) == 0);                                     \
-    return value >> 1;                                                         \
-  }                                                                            \
-  void holder::set_##name(int value) {                                         \
-    DCHECK(kHeapObjectTag == 1);                                               \
-    DCHECK((value & 0xC0000000) == 0xC0000000 || (value & 0xC0000000) == 0x0); \
-    WRITE_INT_FIELD(this, offset, (value << 1) & ~kHeapObjectTag);             \
-  }
-
-#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)                  \
-  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_HI_ALIGN); \
-  INT_ACCESSORS(holder, name, offset)
-
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
-                        kFormalParameterCountOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        expected_nof_properties,
-                        kExpectedNofPropertiesOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, end_position, kEndPositionOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        start_position_and_type,
-                        kStartPositionAndTypeOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        function_token_position,
-                        kFunctionTokenPositionOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        compiler_hints,
-                        kCompilerHintsOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        opt_count_and_bailout_reason,
-                        kOptCountAndBailoutReasonOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, counters, kCountersOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        ast_node_count,
-                        kAstNodeCountOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        profiler_ticks,
-                        kProfilerTicksOffset)
-
-#endif
-
-AbstractCode* SharedFunctionInfo::abstract_code() {
-  if (HasBytecodeArray()) {
-    return AbstractCode::cast(bytecode_array());
-  } else {
-    return AbstractCode::cast(code());
-  }
-}
-
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
-               kAllowLazyCompilation)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
-               kUsesArguments)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, has_duplicate_parameters,
-               kHasDuplicateParameters)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
-               kIsDeclaration)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
-               kMarkedForTierUp)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
-               has_concurrent_optimization_job, kHasConcurrentOptimizationJob)
-
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
-               kNeedsHomeObject)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
-               kMustUseIgnitionTurbo)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
-               kIsAsmWasmBroken)
-
-BOOL_GETTER(SharedFunctionInfo, compiler_hints, optimization_disabled,
-            kOptimizationDisabled)
-
-void SharedFunctionInfo::set_optimization_disabled(bool disable) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kOptimizationDisabled,
-                                     disable));
-}
-
-LanguageMode SharedFunctionInfo::language_mode() {
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  return construct_language_mode(
-      BooleanBit::get(compiler_hints(), kStrictModeFunction));
-}
-
-void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  // We only allow language mode transitions that set the same language mode
-  // again or go up in the chain:
-  DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
-  int hints = compiler_hints();
-  hints = BooleanBit::set(hints, kStrictModeFunction, is_strict(language_mode));
-  set_compiler_hints(hints);
-}
-
-
-bool SharedFunctionInfo::typed() {
-  return BooleanBit::get(compiler_hints(), kTypedFunction);
-}
-
-
-void SharedFunctionInfo::set_typed(bool typed) {
-  int hints = compiler_hints();
-  hints = BooleanBit::set(hints, kTypedFunction, typed);
-  set_compiler_hints(hints);
-}
-
-
-FunctionKind SharedFunctionInfo::kind() const {
-  return FunctionKindBits::decode(compiler_hints());
-}
-
-void SharedFunctionInfo::set_kind(FunctionKind kind) {
-  DCHECK(IsValidFunctionKind(kind));
-  int hints = compiler_hints();
-  hints = FunctionKindBits::update(hints, kind);
-  set_compiler_hints(hints);
-}
-
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints,
-               name_should_print_as_anonymous, kNameShouldPrintAsAnonymous)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
-               kIsAnonymousExpression)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized, kDeserialized)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
-               kHasNoSideEffect)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_has_no_side_effect,
-               kComputedHasNoSideEffect)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
-               kDebugIsBlackboxed)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_debug_is_blackboxed,
-               kComputedDebugIsBlackboxed)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_reported_binary_coverage,
-               kHasReportedBinaryCoverage)
-
-bool Script::HasValidSource() {
-  Object* src = this->source();
-  if (!src->IsString()) return true;
-  String* src_str = String::cast(src);
-  if (!StringShape(src_str).IsExternal()) return true;
-  if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != NULL;
-  } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != NULL;
-  }
-  return true;
-}
-
-
-void SharedFunctionInfo::DontAdaptArguments() {
-  DCHECK(code()->kind() == Code::BUILTIN || code()->kind() == Code::STUB);
-  set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
-}
-
-
-int SharedFunctionInfo::start_position() const {
-  return start_position_and_type() >> kStartPositionShift;
-}
-
-
-void SharedFunctionInfo::set_start_position(int start_position) {
-  set_start_position_and_type((start_position << kStartPositionShift)
-    | (start_position_and_type() & ~kStartPositionMask));
-}
-
-
-Code* SharedFunctionInfo::code() const {
-  return Code::cast(READ_FIELD(this, kCodeOffset));
-}
-
-
-void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
-  DCHECK(value->kind() != Code::OPTIMIZED_FUNCTION);
-  // If the SharedFunctionInfo has bytecode we should never mark it for lazy
-  // compile, since the bytecode is never flushed.
-  DCHECK(value != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy) ||
-         !HasBytecodeArray());
-  WRITE_FIELD(this, kCodeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
-}
-
-
-void SharedFunctionInfo::ReplaceCode(Code* value) {
-  // If the GC metadata field is already used then the function was
-  // enqueued as a code flushing candidate and we remove it now.
-  if (code()->gc_metadata() != NULL) {
-    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
-    flusher->EvictCandidate(this);
-  }
-
-  DCHECK(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
-#ifdef DEBUG
-  Code::VerifyRecompiledCode(code(), value);
-#endif  // DEBUG
-
-  set_code(value);
-}
-
-bool SharedFunctionInfo::IsInterpreted() const {
-  return code()->is_interpreter_trampoline_builtin();
-}
-
-bool SharedFunctionInfo::HasBaselineCode() const {
-  return code()->kind() == Code::FUNCTION;
-}
-
-ScopeInfo* SharedFunctionInfo::scope_info() const {
-  return reinterpret_cast<ScopeInfo*>(READ_FIELD(this, kScopeInfoOffset));
-}
-
-
-void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
-                                        WriteBarrierMode mode) {
-  WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
-  CONDITIONAL_WRITE_BARRIER(GetHeap(),
-                            this,
-                            kScopeInfoOffset,
-                            reinterpret_cast<Object*>(value),
-                            mode);
-}
-
-ACCESSORS(SharedFunctionInfo, outer_scope_info, HeapObject,
-          kOuterScopeInfoOffset)
-
-bool SharedFunctionInfo::is_compiled() const {
-  Builtins* builtins = GetIsolate()->builtins();
-  DCHECK(code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent));
-  DCHECK(code() != builtins->builtin(Builtins::kCompileOptimized));
-  return code() != builtins->builtin(Builtins::kCompileLazy);
-}
-
-int SharedFunctionInfo::GetLength() const {
-  DCHECK(is_compiled());
-  DCHECK(HasLength());
-  return length();
-}
-
-bool SharedFunctionInfo::HasLength() const {
-  DCHECK_IMPLIES(length() < 0, length() == kInvalidLength);
-  return length() != kInvalidLength;
-}
-
-bool SharedFunctionInfo::has_simple_parameters() {
-  return scope_info()->HasSimpleParameters();
-}
-
-bool SharedFunctionInfo::HasDebugInfo() const {
-  bool has_debug_info = !debug_info()->IsSmi();
-  DCHECK_EQ(debug_info()->IsStruct(), has_debug_info);
-  DCHECK(!has_debug_info || HasDebugCode());
-  return has_debug_info;
-}
-
-DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
-  DCHECK(HasDebugInfo());
-  return DebugInfo::cast(debug_info());
-}
-
-bool SharedFunctionInfo::HasDebugCode() const {
-  if (HasBaselineCode()) return code()->has_debug_break_slots();
-  return HasBytecodeArray();
-}
-
-int SharedFunctionInfo::debugger_hints() const {
-  if (HasDebugInfo()) return GetDebugInfo()->debugger_hints();
-  return Smi::cast(debug_info())->value();
-}
-
-void SharedFunctionInfo::set_debugger_hints(int value) {
-  if (HasDebugInfo()) {
-    GetDebugInfo()->set_debugger_hints(value);
-  } else {
-    set_debug_info(Smi::FromInt(value));
-  }
-}
-
-bool SharedFunctionInfo::IsApiFunction() {
-  return function_data()->IsFunctionTemplateInfo();
-}
-
-
-FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
-  DCHECK(IsApiFunction());
-  return FunctionTemplateInfo::cast(function_data());
-}
-
-void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
-  DCHECK(function_data()->IsUndefined(GetIsolate()));
-  set_function_data(data);
-}
-
-bool SharedFunctionInfo::HasBytecodeArray() const {
-  return function_data()->IsBytecodeArray();
-}
-
-BytecodeArray* SharedFunctionInfo::bytecode_array() const {
-  DCHECK(HasBytecodeArray());
-  return BytecodeArray::cast(function_data());
-}
-
-void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
-  DCHECK(function_data()->IsUndefined(GetIsolate()));
-  set_function_data(bytecode);
-}
-
-void SharedFunctionInfo::ClearBytecodeArray() {
-  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasBytecodeArray());
-  set_function_data(GetHeap()->undefined_value());
-}
-
-bool SharedFunctionInfo::HasAsmWasmData() const {
-  return function_data()->IsFixedArray();
-}
-
-FixedArray* SharedFunctionInfo::asm_wasm_data() const {
-  DCHECK(HasAsmWasmData());
-  return FixedArray::cast(function_data());
-}
-
-void SharedFunctionInfo::set_asm_wasm_data(FixedArray* data) {
-  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasAsmWasmData());
-  set_function_data(data);
-}
-
-void SharedFunctionInfo::ClearAsmWasmData() {
-  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasAsmWasmData());
-  set_function_data(GetHeap()->undefined_value());
-}
-
-bool SharedFunctionInfo::HasBuiltinFunctionId() {
-  return function_identifier()->IsSmi();
-}
-
-BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
-  DCHECK(HasBuiltinFunctionId());
-  return static_cast<BuiltinFunctionId>(
-      Smi::cast(function_identifier())->value());
-}
-
-void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
-  set_function_identifier(Smi::FromInt(id));
-}
-
-bool SharedFunctionInfo::HasInferredName() {
-  return function_identifier()->IsString();
-}
-
-String* SharedFunctionInfo::inferred_name() {
-  if (HasInferredName()) {
-    return String::cast(function_identifier());
-  }
-  Isolate* isolate = GetIsolate();
-  DCHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId());
-  return isolate->heap()->empty_string();
-}
-
-void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
-  DCHECK(function_identifier()->IsUndefined(GetIsolate()) || HasInferredName());
-  set_function_identifier(inferred_name);
-}
-
-int SharedFunctionInfo::ic_age() {
-  return ICAgeBits::decode(counters());
-}
-
-
-void SharedFunctionInfo::set_ic_age(int ic_age) {
-  set_counters(ICAgeBits::update(counters(), ic_age));
-}
-
-
-int SharedFunctionInfo::deopt_count() {
-  return DeoptCountBits::decode(counters());
-}
-
-
-void SharedFunctionInfo::set_deopt_count(int deopt_count) {
-  set_counters(DeoptCountBits::update(counters(), deopt_count));
-}
-
-
-void SharedFunctionInfo::increment_deopt_count() {
-  int value = counters();
-  int deopt_count = DeoptCountBits::decode(value);
-  // Saturate the deopt count when incrementing, rather than overflowing.
-  if (deopt_count < DeoptCountBits::kMax) {
-    set_counters(DeoptCountBits::update(value, deopt_count + 1));
-  }
-}
-
-
-int SharedFunctionInfo::opt_reenable_tries() {
-  return OptReenableTriesBits::decode(counters());
-}
-
-
-void SharedFunctionInfo::set_opt_reenable_tries(int tries) {
-  set_counters(OptReenableTriesBits::update(counters(), tries));
-}
-
-
-int SharedFunctionInfo::opt_count() {
-  return OptCountBits::decode(opt_count_and_bailout_reason());
-}
-
-
-void SharedFunctionInfo::set_opt_count(int opt_count) {
-  set_opt_count_and_bailout_reason(
-      OptCountBits::update(opt_count_and_bailout_reason(), opt_count));
-}
-
-
-BailoutReason SharedFunctionInfo::disable_optimization_reason() {
-  return static_cast<BailoutReason>(
-      DisabledOptimizationReasonBits::decode(opt_count_and_bailout_reason()));
-}
-
-
-bool SharedFunctionInfo::has_deoptimization_support() {
-  Code* code = this->code();
-  return code->kind() == Code::FUNCTION && code->has_deoptimization_support();
-}
-
-
-void SharedFunctionInfo::TryReenableOptimization() {
-  int tries = opt_reenable_tries();
-  set_opt_reenable_tries((tries + 1) & OptReenableTriesBits::kMax);
-  // We reenable optimization whenever the number of tries is a large
-  // enough power of 2.
-  if (tries >= 16 && (((tries - 1) & tries) == 0)) {
-    set_optimization_disabled(false);
-    set_deopt_count(0);
-  }
-}
-
-
-void SharedFunctionInfo::set_disable_optimization_reason(BailoutReason reason) {
-  set_opt_count_and_bailout_reason(DisabledOptimizationReasonBits::update(
-      opt_count_and_bailout_reason(), reason));
-}
-
-bool SharedFunctionInfo::IsUserJavaScript() {
-  Object* script_obj = script();
-  if (script_obj->IsUndefined(GetIsolate())) return false;
-  Script* script = Script::cast(script_obj);
-  return script->IsUserJavaScript();
-}
-
-bool SharedFunctionInfo::IsSubjectToDebugging() {
-  return IsUserJavaScript() && !HasAsmWasmData();
-}
 
 FeedbackVector* JSFunction::feedback_vector() const {
   DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
@@ -6698,6 +5877,12 @@ void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
 }
 
+template <class Derived>
+void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, Object* value) {
+  int offset = GetDataEntryOffset(entry);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  WRITE_BARRIER(GetHeap(), this, offset, value);
+}
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
@@ -6786,7 +5971,6 @@ void Code::WipeOutHeader() {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
-  WRITE_FIELD(this, kGCMetadataOffset, NULL);
 }
 
 
@@ -6824,7 +6008,6 @@ void Code::set_stub_key(uint32_t key) {
 }
 
 
-ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
 INT_ACCESSORS(Code, ic_age, kICAgeOffset)
 
 
@@ -6935,6 +6118,31 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
 
+void* JSArrayBuffer::allocation_base() const {
+  intptr_t ptr = READ_INTPTR_FIELD(this, kAllocationBaseOffset);
+  return reinterpret_cast<void*>(ptr);
+}
+
+void JSArrayBuffer::set_allocation_base(void* value, WriteBarrierMode mode) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(this, kAllocationBaseOffset, ptr);
+}
+
+size_t JSArrayBuffer::allocation_length() const {
+  return *reinterpret_cast<const size_t*>(
+      FIELD_ADDR_CONST(this, kAllocationLengthOffset));
+}
+
+void JSArrayBuffer::set_allocation_length(size_t value) {
+  (*reinterpret_cast<size_t*>(FIELD_ADDR(this, kAllocationLengthOffset))) =
+      value;
+}
+
+ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
+  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
+  return has_guard_region() ? AllocationMode::kReservation
+                            : AllocationMode::kNormal;
+}
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   if (kInt32Size != kPointerSize) {
@@ -6957,7 +6165,6 @@ bool JSArrayBuffer::is_external() { return IsExternal::decode(bit_field()); }
 
 
 void JSArrayBuffer::set_is_external(bool value) {
-  DCHECK(!value || !has_guard_region());
   set_bit_field(IsExternal::update(bit_field(), value));
 }
 
@@ -6987,7 +6194,7 @@ void JSArrayBuffer::set_is_shared(bool value) {
   set_bit_field(IsShared::update(bit_field(), value));
 }
 
-bool JSArrayBuffer::has_guard_region() {
+bool JSArrayBuffer::has_guard_region() const {
   return HasGuardRegion::decode(bit_field());
 }
 
@@ -7121,7 +6328,6 @@ int JSRegExp::CaptureCount() {
       return Smi::cast(DataAt(kIrregexpCaptureCountIndex))->value();
     default:
       UNREACHABLE();
-      return -1;
   }
 }
 
@@ -7881,12 +7087,6 @@ Handle<ObjectHashTable> ObjectHashTable::Shrink(
   return DerivedHashTable::Shrink(table, key);
 }
 
-
-Object* OrderedHashMap::ValueAt(int entry) {
-  return get(EntryToIndex(entry) + kValueOffset);
-}
-
-
 template <int entrysize>
 bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
   if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
@@ -8228,52 +7428,6 @@ ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
-
-#undef INT_ACCESSORS
-#undef ACCESSORS
-#undef ACCESSORS_CHECKED
-#undef ACCESSORS_CHECKED2
-#undef SMI_ACCESSORS
-#undef SYNCHRONIZED_SMI_ACCESSORS
-#undef NOBARRIER_SMI_ACCESSORS
-#undef BOOL_GETTER
-#undef BOOL_ACCESSORS
-#undef FIELD_ADDR
-#undef FIELD_ADDR_CONST
-#undef READ_FIELD
-#undef NOBARRIER_READ_FIELD
-#undef WRITE_FIELD
-#undef NOBARRIER_WRITE_FIELD
-#undef WRITE_BARRIER
-#undef CONDITIONAL_WRITE_BARRIER
-#undef READ_DOUBLE_FIELD
-#undef WRITE_DOUBLE_FIELD
-#undef READ_INT_FIELD
-#undef WRITE_INT_FIELD
-#undef READ_INTPTR_FIELD
-#undef WRITE_INTPTR_FIELD
-#undef READ_UINT8_FIELD
-#undef WRITE_UINT8_FIELD
-#undef READ_INT8_FIELD
-#undef WRITE_INT8_FIELD
-#undef READ_UINT16_FIELD
-#undef WRITE_UINT16_FIELD
-#undef READ_INT16_FIELD
-#undef WRITE_INT16_FIELD
-#undef READ_UINT32_FIELD
-#undef WRITE_UINT32_FIELD
-#undef READ_INT32_FIELD
-#undef WRITE_INT32_FIELD
-#undef READ_FLOAT_FIELD
-#undef WRITE_FLOAT_FIELD
-#undef READ_UINT64_FIELD
-#undef WRITE_UINT64_FIELD
-#undef READ_INT64_FIELD
-#undef WRITE_INT64_FIELD
-#undef READ_BYTE_FIELD
-#undef WRITE_BYTE_FIELD
-#undef NOBARRIER_READ_BYTE_FIELD
-#undef NOBARRIER_WRITE_BYTE_FIELD
 
 }  // namespace internal
 }  // namespace v8

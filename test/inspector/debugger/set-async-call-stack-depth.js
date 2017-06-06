@@ -4,9 +4,9 @@
 
 // TODO(kozyatinskiy): fix or remove it later with new stack traces it's almost
 // imposible to hit limit.
-InspectorTest.log('Checks that we report not more then maxDepth call chains.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that we report not more then maxDepth call chains.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function promisesChain(num) {
   var p = Promise.resolve();
   for (var i = 0; i < num - 1; ++i) {

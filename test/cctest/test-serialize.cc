@@ -1127,6 +1127,7 @@ TEST(CodeSerializerLargeCodeObject) {
 }
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
+  FLAG_stress_incremental_marking = false;
   FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
   // This test relies on (full-codegen) code objects going to large object
@@ -1876,7 +1877,7 @@ TEST(CodeSerializerCell) {
     masm->movp(rax, Operand(rax, 0));
     masm->ret(0);
     CodeDesc desc;
-    masm->GetCode(&desc);
+    masm->GetCode(isolate, &desc);
     code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
                                        masm->CodeObject());
     code->set_has_reloc_info_for_serialization(true);
@@ -1925,7 +1926,7 @@ TEST(CodeSerializerEmbeddedObject) {
     MacroAssembler* masm = &assembler;
     masm->Push(number);
     CodeDesc desc;
-    masm->GetCode(&desc);
+    masm->GetCode(isolate, &desc);
     code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
                                        masm->CodeObject());
     code->set_has_reloc_info_for_serialization(true);

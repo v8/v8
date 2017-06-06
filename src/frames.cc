@@ -752,7 +752,6 @@ int StandardFrame::ComputeExpressionsCount() const {
 Object* StandardFrame::GetParameter(int index) const {
   // StandardFrame does not define any parameters.
   UNREACHABLE();
-  return nullptr;
 }
 
 int StandardFrame::ComputeParametersCount() const { return 0; }
@@ -2086,7 +2085,6 @@ Code* StubFailureTrampolineFrame::unchecked_code() const {
   }
 
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -2101,7 +2099,6 @@ JavaScriptFrame* StackFrameLocator::FindJavaScriptFrame(int n) {
     iterator_.Advance();
   }
   UNREACHABLE();
-  return NULL;
 }
 
 

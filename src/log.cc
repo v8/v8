@@ -559,7 +559,7 @@ class Profiler: public base::Thread {
     if (paused_)
       return;
 
-    if (Succ(head_) == static_cast<int>(base::NoBarrier_Load(&tail_))) {
+    if (Succ(head_) == static_cast<int>(base::Relaxed_Load(&tail_))) {
       overflow_ = true;
     } else {
       buffer_[head_] = *sample;
@@ -578,10 +578,10 @@ class Profiler: public base::Thread {
   // Waits for a signal and removes profiling data.
   bool Remove(v8::TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
-    *sample = buffer_[base::NoBarrier_Load(&tail_)];
+    *sample = buffer_[base::Relaxed_Load(&tail_)];
     bool result = overflow_;
-    base::NoBarrier_Store(&tail_, static_cast<base::Atomic32>(
-                                      Succ(base::NoBarrier_Load(&tail_))));
+    base::Relaxed_Store(
+        &tail_, static_cast<base::Atomic32>(Succ(base::Relaxed_Load(&tail_))));
     overflow_ = false;
     return result;
   }
@@ -667,8 +667,8 @@ Profiler::Profiler(Isolate* isolate)
       buffer_semaphore_(0),
       engaged_(false),
       paused_(false) {
-  base::NoBarrier_Store(&tail_, 0);
-  base::NoBarrier_Store(&running_, 0);
+  base::Relaxed_Store(&tail_, 0);
+  base::Relaxed_Store(&running_, 0);
 }
 
 
@@ -685,7 +685,7 @@ void Profiler::Engage() {
   }
 
   // Start thread processing the profiler buffer.
-  base::NoBarrier_Store(&running_, 1);
+  base::Relaxed_Store(&running_, 1);
   Start();
 
   // Register to get ticks.
@@ -705,7 +705,7 @@ void Profiler::Disengage() {
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for
   // the thread to terminate.
-  base::NoBarrier_Store(&running_, 0);
+  base::Relaxed_Store(&running_, 0);
   v8::TickSample sample;
   // Reset 'paused_' flag, otherwise semaphore may not be signalled.
   resume();
@@ -719,7 +719,7 @@ void Profiler::Disengage() {
 void Profiler::Run() {
   v8::TickSample sample;
   bool overflow = Remove(&sample);
-  while (base::NoBarrier_Load(&running_)) {
+  while (base::Relaxed_Load(&running_)) {
     LOG(isolate_, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }

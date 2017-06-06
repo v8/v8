@@ -77,7 +77,6 @@ struct WasmVal {
     FOREACH_UNION_MEMBER(CHECK_VAL_EQ)
 #undef CHECK_VAL_EQ
     UNREACHABLE();
-    return false;
   }
 
   template <typename T>

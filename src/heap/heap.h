@@ -91,6 +91,7 @@ using v8::MemoryPressureLevel;
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
   V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
+  V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
@@ -315,6 +316,7 @@ using v8::MemoryPressureLevel;
   V(OnePointerFillerMap)                \
   V(OptimizedOut)                       \
   V(OrderedHashTableMap)                \
+  V(SmallOrderedHashSetMap)             \
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
   V(SharedFunctionInfoMap)              \
@@ -337,6 +339,12 @@ using v8::MemoryPressureLevel;
   V(WeakCellMap)                        \
   V(WithContextMap)                     \
   PRIVATE_SYMBOL_LIST(V)
+
+#define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
+  do {                                                                 \
+    heap->RecordFixedArrayElements(array, start, length);              \
+    heap->incremental_marking()->IterateBlackObject(array);            \
+  } while (false)
 
 // Forward declarations.
 class AllocationObserver;
@@ -614,28 +622,13 @@ class Heap {
 #endif
 
   // The new space size has to be a power of 2. Sizes are in MB.
-  static const int kMaxSemiSpaceSizeLowMemoryDevice = 1 * kPointerMultiplier;
-  static const int kMaxSemiSpaceSizeMediumMemoryDevice = 4 * kPointerMultiplier;
-  static const int kMaxSemiSpaceSizeHighMemoryDevice = 8 * kPointerMultiplier;
-  static const int kMaxSemiSpaceSizeHugeMemoryDevice = 8 * kPointerMultiplier;
+  static const int kMinSemiSpaceSize = 1 * kPointerMultiplier;
+  static const int kMaxSemiSpaceSize = 8 * kPointerMultiplier;
 
   // The old space size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
-  static const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeMediumMemoryDevice =
-      256 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHugeMemoryDevice = 1024 * kPointerMultiplier;
-
-  // The executable size has to be a multiple of Page::kPageSize.
-  // Sizes are in MB.
-  static const int kMaxExecutableSizeLowMemoryDevice = 96 * kPointerMultiplier;
-  static const int kMaxExecutableSizeMediumMemoryDevice =
-      192 * kPointerMultiplier;
-  static const int kMaxExecutableSizeHighMemoryDevice =
-      256 * kPointerMultiplier;
-  static const int kMaxExecutableSizeHugeMemoryDevice =
-      256 * kPointerMultiplier;
+  static const int kMinOldSpaceSize = 128 * kPointerMultiplier;
+  static const int kMaxOldSpaceSize = 1024 * kPointerMultiplier;
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -692,8 +685,6 @@ class Heap {
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
-
-  static bool IsUnmodifiedHeapObject(Object** p);
 
   // Zapping is needed for verify heap, and always done in debug builds.
   static inline bool ShouldZapGarbage() {
@@ -906,9 +897,7 @@ class Heap {
   // disposal. We use it to flush inline caches.
   int global_ic_age() { return global_ic_age_; }
 
-  void AgeInlineCaches() {
-    global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
-  }
+  void AgeInlineCaches();
 
   int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
 
@@ -961,10 +950,12 @@ class Heap {
   bool ShouldOptimizeForMemoryUsage();
 
   bool IsLowMemoryDevice() {
+    const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kPointerMultiplier;
     return max_old_generation_size_ <= kMaxOldSpaceSizeLowMemoryDevice;
   }
 
   bool IsMemoryConstrainedDevice() {
+    const int kMaxOldSpaceSizeMediumMemoryDevice = 256 * kPointerMultiplier;
     return max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice;
   }
 
@@ -1184,6 +1175,14 @@ class Heap {
   // completes incremental marking in order to free external resources.
   void ReportExternalMemoryPressure();
 
+  typedef v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback
+      GetExternallyAllocatedMemoryInBytesCallback;
+
+  void SetGetExternallyAllocatedMemoryInBytesCallback(
+      GetExternallyAllocatedMemoryInBytesCallback callback) {
+    external_memory_callback_ = callback;
+  }
+
   // Invoked when GC was requested via the stack guard.
   void HandleGCRequest();
 
@@ -1258,11 +1257,9 @@ class Heap {
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
-  // A layout change is unsafe if
-  // - it removes a tagged in-object field.
-  // - it replaces a tagged in-objects field with an untagged in-object field.
   void NotifyObjectLayoutChange(HeapObject* object,
                                 const DisallowHeapAllocation&);
+
 #ifdef VERIFY_HEAP
   // This function checks that either
   // - the map transition is safe,
@@ -1356,6 +1353,27 @@ class Heap {
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
+
+  static size_t ComputeMaxOldGenerationSize(uint64_t physical_memory) {
+    const int old_space_physical_memory_factor = 4;
+    int computed_size =
+        static_cast<int>(physical_memory / i::MB /
+                         old_space_physical_memory_factor * kPointerMultiplier);
+    return Max(Min(computed_size, kMaxOldSpaceSize), kMinOldSpaceSize);
+  }
+
+  static size_t ComputeMaxSemiSpaceSize(uint64_t physical_memory) {
+    const uint64_t min_physical_memory = 512 * MB;
+    const uint64_t max_physical_memory = 2 * static_cast<uint64_t>(GB);
+
+    uint64_t capped_physical_memory =
+        Max(Min(physical_memory, max_physical_memory), min_physical_memory);
+    // linearly scale max semi-space size: (X-A)/(B-A)*(D-C)+C
+    return static_cast<int>(((capped_physical_memory - min_physical_memory) *
+                             (kMaxSemiSpaceSize - kMinSemiSpaceSize)) /
+                                (max_physical_memory - min_physical_memory) +
+                            kMinSemiSpaceSize);
+  }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -1654,6 +1672,10 @@ class Heap {
     return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
   }
 
+  static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
+    return 0;
+  }
+
 #define ROOT_ACCESSOR(type, name, camel_name) \
   inline void set_##name(type* value);
   ROOT_LIST(ROOT_ACCESSOR)
@@ -1781,7 +1803,7 @@ class Heap {
 
   inline void UpdateAllocationsHash(HeapObject* object);
   inline void UpdateAllocationsHash(uint32_t value);
-  void PrintAlloctionsHash();
+  void PrintAllocationsHash();
 
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
@@ -2000,6 +2022,9 @@ class Heap {
   // Allocates a fixed array initialized with undefined values
   MUST_USE_RESULT AllocationResult
   AllocateFixedArray(int length, PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT AllocationResult AllocateSmallOrderedHashSet(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.  This is the single choke-point for allocations
@@ -2268,6 +2293,8 @@ class Heap {
 
   List<GCCallbackPair> gc_epilogue_callbacks_;
   List<GCCallbackPair> gc_prologue_callbacks_;
+
+  GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
   int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 

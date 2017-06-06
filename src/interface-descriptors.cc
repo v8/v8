@@ -447,8 +447,18 @@ void CallTrampolineDescriptor::InitializePlatformIndependent(
 
 void CallForwardVarargsDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kTarget, kStartIndex
+  // kTarget, kActualArgumentsCount, kStartIndex
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void ConstructForwardVarargsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kStartIndex
   MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(), MachineType::Int32(),
                                  MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);

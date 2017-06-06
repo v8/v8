@@ -95,10 +95,10 @@ function testForLoop() {
 |R|}
 
 function testForOfLoop() {
-  for (var k |C|of []) {}
-  for (var k |C|of |_|[1]) |_|k;
+  for (var |_|k of []) {}
+  for (var |_|k of |_|[1]) |_|k;
   var a = |_|[];
-  for (var k |C|of |_|a) {}
+  for (var |_|k of |_|a) {}
 |R|}
 
 function testForInLoop() {
@@ -204,17 +204,17 @@ function testClasses() {
 |R|}
 
 async function asyncFoo() {
-  |_|await Promise.resolve().then(v => v |_|* 2|R|);
+  |_|await Promise.|C|resolve().|C|then(v => v |_|* 2|R|);
   |C|return42();
   |_|await |C|asyncBoo();
 |R|}
 
 async function asyncBoo() {
-  |_|await Promise.resolve();
+  |_|await Promise.|C|resolve();
 |R|}
 
 async function testAsyncAwait() {
-  |_|await asyncFoo();
+  |_|await |C|asyncFoo();
   |_|await |C|awaitBoo();
 |R|}
 
@@ -227,7 +227,7 @@ async function testPromiseAsyncWithCode() {
       var resolveNested;
       var p = |C|new Promise(resolve => resolveNested |_|= resolve|R|);
       |C|setTimeout(resolveNested, 0);
-      |_|await |_|p;
+      |_|await |C|p;
     |R|}
     |C|setTimeout(returnCall, 0);
     |_|await |C|foo();
@@ -247,12 +247,12 @@ async function testPromiseComplex() {
   var testPromise = |C|new Promise(resolve => nextTest |_|= resolve|R|);
   async function main() {
     async function foo() {
-      |_|await Promise.resolve();
+      |_|await Promise.|C|resolve();
       |_|return 42;
     |R|}
     var x = |_|1;
     var y = |_|2;
-    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = |_|await |C|foo((a => 2 |_|*a|R|)|C|(5));
+    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = await |C|foo((a => 2 |_|*a|R|)|C|(5));
     |C|nextTest();
   |R|}
   |C|main();
@@ -266,5 +266,6 @@ function twiceDefined() {
 function twiceDefined() {
   |_|return a + b;
 |R|}
+
 
 

@@ -188,14 +188,14 @@ inline bool IsAddressAligned(Address addr,
 
 // Returns the maximum of the two parameters.
 template <typename T>
-T Max(T a, T b) {
+constexpr T Max(T a, T b) {
   return a < b ? b : a;
 }
 
 
 // Returns the minimum of the two parameters.
 template <typename T>
-T Min(T a, T b) {
+constexpr T Min(T a, T b) {
   return a < b ? a : b;
 }
 
@@ -265,25 +265,6 @@ inline double Pow(double x, double y) {
 inline int32_t WhichPowerOf2Abs(int32_t x) {
   return (x == kMinInt) ? 31 : WhichPowerOf2(Abs(x));
 }
-
-
-// Obtains the unsigned type corresponding to T
-// available in C++11 as std::make_unsigned
-template<typename T>
-struct make_unsigned {
-  typedef T type;
-};
-
-
-// Template specializations necessary to have make_unsigned work
-template<> struct make_unsigned<int32_t> {
-  typedef uint32_t type;
-};
-
-
-template<> struct make_unsigned<int64_t> {
-  typedef uint64_t type;
-};
 
 
 // ----------------------------------------------------------------------------

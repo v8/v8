@@ -16,6 +16,7 @@
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
@@ -467,7 +468,6 @@ CodeEventListener::DeoptKind DeoptKindOfBailoutType(
       return CodeEventListener::kLazy;
   }
   UNREACHABLE();
-  return CodeEventListener::kEager;
 }
 
 }  // namespace
@@ -1263,7 +1263,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
-  Object* bytecode_array = shared->HasDebugInfo()
+  Object* bytecode_array = shared->HasBreakInfo()
                                ? shared->GetDebugInfo()->DebugBytecodeArray()
                                : shared->bytecode_array();
   WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
@@ -2320,7 +2320,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   MemoryChunk* chunk = data->deopt_entry_code_[type];
@@ -2335,6 +2335,12 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   Assembler::FlushICache(isolate, chunk->area_start(), desc.instr_size);
 
   data->deopt_entry_code_entries_[type] = entry_count;
+}
+
+void Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate) {
+  EnsureCodeForDeoptimizationEntry(isolate, EAGER, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, LAZY, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, SOFT, kMaxNumberOfEntries - 1);
 }
 
 FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
@@ -2620,7 +2626,6 @@ const char* Translation::StringFor(Opcode opcode) {
   }
 #undef TRANSLATION_OPCODE_CASE
   UNREACHABLE();
-  return "";
 }
 
 #endif
@@ -3246,7 +3251,6 @@ int TranslatedFrame::GetValueCount() {
       break;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -4057,35 +4061,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_length(*array_length);
       return object;
     }
-    case JS_FUNCTION_TYPE: {
-      Handle<SharedFunctionInfo> temporary_shared =
-          isolate_->factory()->NewSharedFunctionInfo(
-              isolate_->factory()->empty_string(), MaybeHandle<Code>(), false);
-      Handle<JSFunction> object =
-          isolate_->factory()->NewFunctionFromSharedFunctionInfo(
-              map, temporary_shared, isolate_->factory()->undefined_value(),
-              NOT_TENURED);
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> prototype = materializer.FieldAt(value_index);
-      Handle<Object> shared = materializer.FieldAt(value_index);
-      Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> vector_cell = materializer.FieldAt(value_index);
-      Handle<Object> entry = materializer.FieldAt(value_index);
-      Handle<Object> next_link = materializer.FieldAt(value_index);
-      object->ReplaceCode(*isolate_->builtins()->CompileLazy());
-      object->set_map(*map);
-      object->set_properties(FixedArray::cast(*properties));
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_prototype_or_initial_map(*prototype);
-      object->set_shared(SharedFunctionInfo::cast(*shared));
-      object->set_context(Context::cast(*context));
-      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
-      CHECK(entry->IsNumber());  // Entry to compile lazy stub.
-      CHECK(next_link->IsUndefined(isolate_));
-      return object;
-    }
     case CONS_STRING_TYPE: {
       Handle<ConsString> object = Handle<ConsString>::cast(
           isolate_->factory()
@@ -4184,6 +4159,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_VALUE_TYPE:
+    case JS_FUNCTION_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -4236,6 +4212,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
+    case SMALL_ORDERED_HASH_SET_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
@@ -4251,7 +4228,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       break;
   }
   UNREACHABLE();
-  return Handle<Object>::null();
 }
 
 Handle<Object> TranslatedState::MaterializeAt(int frame_index,

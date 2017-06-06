@@ -20,7 +20,7 @@ const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 const uint8_t kResizableMaximumFlag = 1;
 
-enum SectionCode {
+enum SectionCode : int8_t {
   kUnknownSectionCode = 0,   // code for unknown sections
   kTypeSectionCode = 1,      // Function signature declarations
   kImportSectionCode = 2,    // Import declarations
@@ -34,6 +34,9 @@ enum SectionCode {
   kCodeSectionCode = 10,     // Function code
   kDataSectionCode = 11,     // Data segments
   kNameSectionCode = 12,     // Name section (encoded as a string)
+
+  // Helper values
+  kFirstSectionInModule = kTypeSectionCode,
 };
 
 enum NameSectionType : uint8_t { kFunction = 1, kLocal = 2 };

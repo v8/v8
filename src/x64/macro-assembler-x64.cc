@@ -292,7 +292,7 @@ void MacroAssembler::RecordWriteField(
   leap(dst, FieldOperand(object, offset));
   if (emit_debug_code()) {
     Label ok;
-    testb(dst, Immediate((1 << kPointerSizeLog2) - 1));
+    testb(dst, Immediate(kPointerSize - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -2501,6 +2501,14 @@ void MacroAssembler::Move(Register dst, Register src) {
   }
 }
 
+void MacroAssembler::MoveNumber(Register dst, double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) {
+    Move(dst, Smi::FromInt(smi));
+  } else {
+    movp_heap_number(dst, value);
+  }
+}
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MAP_RECONFIGURER_H_
-#define V8_MAP_RECONFIGURER_H_
+#ifndef V8_MAP_UPDATER_H_
+#define V8_MAP_UPDATER_H_
 
 #include "src/elements-kind.h"
+#include "src/field-type.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/objects.h"
+#include "src/objects/map.h"
 #include "src/property-details.h"
 
 namespace v8 {
@@ -180,4 +181,4 @@ class MapUpdater {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MAP_RECONFIGURER_H_
+#endif  // V8_MAP_UPDATER_H_

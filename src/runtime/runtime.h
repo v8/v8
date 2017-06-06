@@ -216,10 +216,18 @@ namespace internal {
   F(ForInFilter, 2, 1)              \
   F(ForInHasProperty, 2, 1)
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F) \
-  F(InterpreterNewClosure, 4, 1)          \
-  F(InterpreterTraceBytecodeEntry, 3, 1)  \
-  F(InterpreterTraceBytecodeExit, 3, 1)   \
+#ifdef V8_TRACE_IGNITION
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
+  F(InterpreterTraceBytecodeEntry, 3, 1)        \
+  F(InterpreterTraceBytecodeExit, 3, 1)
+#else
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)
+#endif
+
+#define FOR_EACH_INTRINSIC_INTERPRETER(F)      \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)      \
+  F(InterpreterNewClosure, 4, 1)               \
+  F(InterpreterStringConcat, -1 /* >= 2 */, 1) \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
@@ -384,6 +392,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_OBJECT(F)                            \
   F(AddDictionaryProperty, 3, 1)                                \
   F(GetPrototype, 1, 1)                                         \
+  F(ObjectKeys, 1, 1)                                           \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectCreate, 2, 1)                                         \
   F(InternalSetPrototype, 2, 1)                                 \
@@ -641,7 +650,8 @@ namespace internal {
   F(IsTypedArray, 1, 1)                  \
   F(IsSharedTypedArray, 1, 1)            \
   F(IsSharedIntegerTypedArray, 1, 1)     \
-  F(IsSharedInteger32TypedArray, 1, 1)
+  F(IsSharedInteger32TypedArray, 1, 1)   \
+  F(TypedArraySpeciesCreateByLength, 2, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F)     \
   F(WasmGrowMemory, 1, 1)              \

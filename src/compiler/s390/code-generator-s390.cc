@@ -48,7 +48,6 @@ class S390OperandConverter final : public InstructionOperandConverter {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   Operand InputImmediate(size_t index) {
@@ -72,7 +71,6 @@ class S390OperandConverter final : public InstructionOperandConverter {
         break;
     }
     UNREACHABLE();
-    return Operand::Zero();
   }
 
   MemOperand MemoryOperand(AddressingMode* mode, size_t* first_index) {
@@ -96,7 +94,6 @@ class S390OperandConverter final : public InstructionOperandConverter {
                           InputInt32(index + 2));
     }
     UNREACHABLE();
-    return MemOperand(r0);
   }
 
   MemOperand MemoryOperand(AddressingMode* mode = NULL,
@@ -335,7 +332,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       break;
   }
   UNREACHABLE();
-  return kNoCondition;
 }
 
 #define GET_MEMOPERAND32(ret, fi)                                       \
@@ -467,7 +463,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 
 static int nullInstr() {
   UNREACHABLE();
-  return -1;
 }
 
 template <int numOfOperand, class RType, class MType, class IType>
@@ -481,7 +476,6 @@ static inline int AssembleOp(Instruction* instr, RType r, MType m, IType i) {
     return i();
   } else {
     UNREACHABLE();
-    return -1;
   }
 }
 
@@ -2503,7 +2497,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret();
       } else {
         gen_->AssembleSourcePosition(instr_);
-        __ Call(handle(isolate()->builtins()->builtin(trap_id), isolate()),
+        __ Call(isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -2613,7 +2607,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (isolate()->NeedsSourcePositionsForProfiling()) {
+  if (info()->is_source_positions_enabled()) {
     __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);

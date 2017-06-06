@@ -1446,8 +1446,6 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
                          code->type_feedback_info(),
                          Code::kTypeFeedbackInfoOffset);
   }
-  SetInternalReference(code, entry, "gc_metadata", code->gc_metadata(),
-                       Code::kGCMetadataOffset);
 }
 
 void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {

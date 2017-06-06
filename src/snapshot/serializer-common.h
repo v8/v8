@@ -271,13 +271,12 @@ class SerializedData {
 
  protected:
   void SetHeaderValue(int offset, uint32_t value) {
-    uint32_t* address = reinterpret_cast<uint32_t*>(data_ + offset);
-    memcpy(reinterpret_cast<uint32_t*>(address), &value, sizeof(value));
+    memcpy(data_ + offset, &value, sizeof(value));
   }
 
   uint32_t GetHeaderValue(int offset) const {
     uint32_t value;
-    memcpy(&value, reinterpret_cast<int*>(data_ + offset), sizeof(value));
+    memcpy(&value, data_ + offset, sizeof(value));
     return value;
   }
 

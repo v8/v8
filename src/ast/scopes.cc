@@ -350,6 +350,7 @@ void Scope::SetDefaults() {
 
   inner_scope_calls_eval_ = false;
   force_context_allocation_ = false;
+  force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
 
@@ -647,7 +648,7 @@ void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate,
   }
 
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode())) {
-    AstNodeFactory factory(info->ast_value_factory());
+    AstNodeFactory factory(info->ast_value_factory(), info->zone());
     scope->HoistSloppyBlockFunctions(&factory);
   }
 
@@ -1045,8 +1046,8 @@ Variable* DeclarationScope::DeclareParameter(
 }
 
 Variable* DeclarationScope::DeclareParameterName(
-    const AstRawString* name, bool is_rest,
-    AstValueFactory* ast_value_factory) {
+    const AstRawString* name, bool is_rest, AstValueFactory* ast_value_factory,
+    bool declare_as_local, bool add_parameter) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(!has_rest_ || is_rest);
@@ -1056,8 +1057,16 @@ Variable* DeclarationScope::DeclareParameterName(
     has_arguments_parameter_ = true;
   }
   if (FLAG_experimental_preparser_scope_analysis) {
-    Variable* var = Declare(zone(), name, VAR);
-    params_.Add(var, zone());
+    Variable* var;
+    if (declare_as_local) {
+      var = Declare(zone(), name, VAR);
+    } else {
+      var = new (zone())
+          Variable(this, name, TEMPORARY, NORMAL_VARIABLE, kCreatedInitialized);
+    }
+    if (add_parameter) {
+      params_.Add(var, zone());
+    }
     return var;
   }
   DeclareVariableName(name, VAR);
@@ -1382,9 +1391,10 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
     if (s->is_catch_scope()) continue;
     // With scopes do not introduce variables that need allocation.
     if (s->is_with_scope()) continue;
-    // If everything is guaranteed to be context allocated we can ignore the
-    // scope.
-    if (s->has_forced_context_allocation()) continue;
+    // Module scopes context-allocate all variables, and have no
+    // {this} or {arguments} variables whose existence depends on
+    // references to them.
+    if (s->is_module_scope()) continue;
     // Only block scopes and function scopes should disallow preparsing.
     DCHECK(s->is_block_scope() || s->is_function_scope());
     return false;
@@ -1416,19 +1426,6 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
   }
 
   return result;
-}
-
-int Scope::MaxNestedContextChainLength() {
-  int max_context_chain_length = 0;
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    if (scope->is_function_scope()) continue;
-    max_context_chain_length = std::max(scope->MaxNestedContextChainLength(),
-                                        max_context_chain_length);
-  }
-  if (NeedsContext()) {
-    max_context_chain_length += 1;
-  }
-  return max_context_chain_length;
 }
 
 DeclarationScope* Scope::GetDeclarationScope() {
@@ -1544,8 +1541,10 @@ void DeclarationScope::AnalyzePartially(
     PreParsedScopeData* preparsed_scope_data) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
+  bool need_preparsed_scope_data = FLAG_experimental_preparser_scope_analysis &&
+                                   preparsed_scope_data->Producing();
 
-  if (!outer_scope_->is_script_scope()) {
+  if (!outer_scope_->is_script_scope() || need_preparsed_scope_data) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
@@ -1563,8 +1562,7 @@ void DeclarationScope::AnalyzePartially(
       arguments_ = nullptr;
     }
 
-    if (FLAG_experimental_preparser_scope_analysis &&
-        preparsed_scope_data->Producing()) {
+    if (need_preparsed_scope_data) {
       // Store the information needed for allocating the locals of this scope
       // and its inner scopes.
       preparsed_scope_data->SaveData(this);
@@ -1602,7 +1600,6 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case WITH_SCOPE: return "with";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 void Indent(int n, const char* str) { PrintF("%*s%s", n, "", str); }
@@ -1965,7 +1962,7 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   // the source physically located after the initializer of the variable,
   // and that the initializer cannot be skipped due to a nonlinear scope.
   //
-  // The condition on the declaration scopes is a conservative check for
+  // The condition on the closure scopes is a conservative check for
   // nested functions that access a binding and are called before the
   // binding is initialized:
   //   function() { f(); let x = 1; function f() { x = 2; } }
@@ -1975,12 +1972,12 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   //   switch (1) { case 0: let x = 2; case 1: f(x); }
   // The scope of the variable needs to be checked, in case the use is
   // in a sub-block which may be linear.
-  if (var->scope()->GetDeclarationScope() != scope->GetDeclarationScope()) {
+  if (var->scope()->GetClosureScope() != scope->GetClosureScope()) {
     return SetNeedsHoleCheck(var, proxy);
   }
 
   if (var->is_this()) {
-    DCHECK(IsDerivedConstructor(scope->GetDeclarationScope()->function_kind()));
+    DCHECK(IsDerivedConstructor(scope->GetClosureScope()->function_kind()));
     // TODO(littledan): implement 'this' hole check elimination.
     return SetNeedsHoleCheck(var, proxy);
   }
@@ -2207,7 +2204,8 @@ void DeclarationScope::AllocateParameterLocals() {
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
   if (MustAllocate(var)) {
-    if (MustAllocateInContext(var)) {
+    if (has_forced_context_allocation_for_parameters() ||
+        MustAllocateInContext(var)) {
       DCHECK(var->IsUnallocated() || var->IsContextSlot());
       if (var->IsUnallocated()) {
         AllocateHeapSlot(var);

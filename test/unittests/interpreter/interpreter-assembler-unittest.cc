@@ -392,6 +392,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           case interpreter::OperandType::kRegList:
           case interpreter::OperandType::kReg:
           case interpreter::OperandType::kRegOut:
+          case interpreter::OperandType::kRegOutList:
           case interpreter::OperandType::kRegOutPair:
           case interpreter::OperandType::kRegOutTriple:
           case interpreter::OperandType::kRegPair:

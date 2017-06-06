@@ -138,7 +138,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   parsing_module_ = parsing_module;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
-  track_unresolved_variables_ = is_inner_function;
+  track_unresolved_variables_ =
+      is_inner_function || FLAG_experimental_preparser_scope_analysis;
 #ifdef DEBUG
   function_scope->set_is_being_lazily_parsed(true);
 #endif
@@ -233,7 +234,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     function_scope->DeclareArguments(ast_value_factory());
 
     if (FLAG_experimental_preparser_scope_analysis &&
-        preparsed_scope_data_ != nullptr) {
+        preparsed_scope_data_ != nullptr && result != kLazyParsingAborted) {
       // We're not going to skip this function, but it might contain skippable
       // functions inside it.
       preparsed_scope_data_->AddFunction(
@@ -416,13 +417,9 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
     PreParserIdentifier name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
   if (track_unresolved_variables_) {
-    AstNodeFactory factory(ast_value_factory());
-    // Setting the Zone is necessary because zone_ might be the temp Zone, and
-    // AstValueFactory doesn't know about it.
-    factory.set_zone(zone());
     DCHECK_NOT_NULL(name.string_);
-    proxy = scope()->NewUnresolved(&factory, name.string_, start_position,
-                                   NORMAL_VARIABLE);
+    proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
+                                   start_position, NORMAL_VARIABLE);
   }
   return PreParserExpression::FromIdentifier(name, proxy, zone());
 }

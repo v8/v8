@@ -181,8 +181,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   bool GeneratePreagedPrologue() const {
     // Generate a pre-aged prologue if we are optimizing for size, which
-    // will make code flushing more aggressive. Only apply to Code::FUNCTION,
-    // since StaticMarkingVisitor::IsFlushable only flushes proper functions.
+    // will make code old more aggressive. Only apply to Code::FUNCTION,
+    // since only functions are aged in the compilation cache.
     return FLAG_optimize_for_size && FLAG_age_code && !is_debug() &&
            output_code_kind() == Code::FUNCTION;
   }
@@ -280,18 +280,11 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   struct InlinedFunctionHolder {
     Handle<SharedFunctionInfo> shared_info;
 
-    // Root that holds the unoptimized code of the inlined function alive
-    // (and out of reach of code flushing) until we finish compilation.
-    // Do not remove.
-    Handle<Code> inlined_code_object_root;
-
     InliningPosition position;
 
     InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
-                          Handle<Code> inlined_code_object_root,
                           SourcePosition pos)
-        : shared_info(inlined_shared_info),
-          inlined_code_object_root(inlined_code_object_root) {
+        : shared_info(inlined_shared_info) {
       position.position = pos;
       // initialized when generating the deoptimization literals
       position.inlined_function_id = DeoptimizationInputData::kNotInlinedIndex;

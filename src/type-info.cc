@@ -10,6 +10,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -190,13 +191,14 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
       return AstType::InternalizedString();
     case CompareOperationHint::kString:
       return AstType::String();
+    case CompareOperationHint::kSymbol:
+      UNREACHABLE();
     case CompareOperationHint::kReceiver:
       return AstType::Receiver();
     case CompareOperationHint::kAny:
       return AstType::Any();
   }
   UNREACHABLE();
-  return AstType::None();
 }
 
 AstType* BinaryOpFeedbackToType(int hint) {
@@ -216,7 +218,6 @@ AstType* BinaryOpFeedbackToType(int hint) {
       return AstType::Any();
   }
   UNREACHABLE();
-  return AstType::None();
 }
 
 }  // end anonymous namespace

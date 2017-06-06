@@ -14,11 +14,11 @@
 namespace v8 {
 namespace internal {
 
-MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
+static Handle<Object> CreateLiteralBoilerplate(
     Isolate* isolate, Handle<FeedbackVector> vector,
     Handle<FixedArray> compile_time_value);
 
-MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
+static Handle<Object> CreateObjectLiteralBoilerplate(
     Isolate* isolate, Handle<FeedbackVector> vector,
     Handle<BoilerplateDescription> boilerplate_description,
     bool use_fast_elements, bool has_null_prototype) {
@@ -60,27 +60,23 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       // The value contains the CompileTimeValue with the boilerplate properties
       // of a simple object or array literal.
       Handle<FixedArray> compile_time_value = Handle<FixedArray>::cast(value);
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, value,
-          CreateLiteralBoilerplate(isolate, vector, compile_time_value),
-          Object);
+      value = CreateLiteralBoilerplate(isolate, vector, compile_time_value);
     }
-    MaybeHandle<Object> maybe_result;
     uint32_t element_index = 0;
     if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
       if (value->IsUninitialized(isolate)) {
         value = handle(Smi::kZero, isolate);
       }
-      maybe_result = JSObject::SetOwnElementIgnoreAttributes(
-          boilerplate, element_index, value, NONE);
+      JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
+                                              NONE)
+          .Check();
     } else {
       Handle<String> name = Handle<String>::cast(key);
       DCHECK(!name->AsArrayIndex(&element_index));
-      maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name,
-                                                              value, NONE);
+      JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
+          .Check();
     }
-    RETURN_ON_EXCEPTION(isolate, maybe_result, Object);
   }
 
   if (map->is_dictionary_map() && !has_null_prototype) {
@@ -93,7 +89,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   return boilerplate;
 }
 
-static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
+static Handle<Object> CreateArrayLiteralBoilerplate(
     Isolate* isolate, Handle<FeedbackVector> vector,
     Handle<ConstantElementsPair> elements) {
   // Create the JSArray.
@@ -149,11 +145,8 @@ static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
               // array literal.
               Handle<FixedArray> compile_time_value(
                   FixedArray::cast(fixed_array_values->get(i)));
-              Handle<Object> result;
-              ASSIGN_RETURN_ON_EXCEPTION(
-                  isolate, result,
-                  CreateLiteralBoilerplate(isolate, vector, compile_time_value),
-                  Object);
+              Handle<Object> result =
+                  CreateLiteralBoilerplate(isolate, vector, compile_time_value);
               fixed_array_values_copy->set(i, *result);
             }
           });
@@ -166,7 +159,7 @@ static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
   return object;
 }
 
-MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
+static Handle<Object> CreateLiteralBoilerplate(
     Isolate* isolate, Handle<FeedbackVector> vector,
     Handle<FixedArray> compile_time_value) {
   Handle<HeapObject> elements =
@@ -228,11 +221,9 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
   if (literal_site->IsUndefined(isolate)) {
-    Handle<Object> raw_boilerplate;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, raw_boilerplate,
+    Handle<Object> raw_boilerplate =
         CreateObjectLiteralBoilerplate(isolate, vector, boilerplate_description,
-                                       use_fast_elements, has_null_prototype));
+                                       use_fast_elements, has_null_prototype);
     boilerplate = Handle<JSObject>::cast(raw_boilerplate);
 
     AllocationSiteCreationContext creation_context(isolate);
@@ -264,11 +255,8 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
   Handle<Object> literal_site(vector->Get(literals_slot), isolate);
   Handle<AllocationSite> site;
   if (literal_site->IsUndefined(isolate)) {
-    Handle<Object> boilerplate;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, boilerplate,
-        CreateArrayLiteralBoilerplate(isolate, vector, elements),
-        AllocationSite);
+    Handle<Object> boilerplate =
+        CreateArrayLiteralBoilerplate(isolate, vector, elements);
 
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();

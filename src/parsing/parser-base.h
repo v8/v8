@@ -244,7 +244,7 @@ class ParserBase {
         extension_(extension),
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
-        ast_node_factory_(ast_value_factory),
+        ast_node_factory_(ast_value_factory, zone),
         runtime_call_stats_(runtime_call_stats),
         parsing_on_main_thread_(parsing_on_main_thread),
         parsing_module_(false),
@@ -619,6 +619,7 @@ class ParserBase {
 
       ExpressionT pattern;
       int initializer_position;
+      int value_beg_position = kNoSourcePosition;
       ExpressionT initializer;
     };
 
@@ -1459,28 +1460,22 @@ class ParserBase {
   // Convenience method which determines the type of return statement to emit
   // depending on the current function type.
   inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
-    if (is_generator() && !is_async_generator()) {
-      expr = impl()->BuildIteratorResult(expr, true);
-    }
-
     if (is_async_function()) {
       return factory()->NewAsyncReturnStatement(expr, pos);
     }
     return factory()->NewReturnStatement(expr, pos);
   }
 
-  inline SuspendExpressionT BuildSuspend(ExpressionT generator,
-                                         ExpressionT expr, int pos,
-                                         Suspend::OnException on_exception,
-                                         SuspendFlags suspend_type) {
+  inline SuspendExpressionT BuildSuspend(
+      ExpressionT expr, int pos, Suspend::OnAbruptResume on_abrupt_resume,
+      SuspendFlags suspend_type) {
     DCHECK_EQ(0,
               static_cast<int>(suspend_type & ~SuspendFlags::kSuspendTypeMask));
     if (V8_UNLIKELY(is_async_generator())) {
       suspend_type = static_cast<SuspendFlags>(suspend_type |
                                                SuspendFlags::kAsyncGenerator);
     }
-    return factory()->NewSuspend(generator, expr, pos, on_exception,
-                                 suspend_type);
+    return factory()->NewSuspend(expr, pos, on_abrupt_resume, suspend_type);
   }
 
   // Parsing optional types.
@@ -2649,7 +2644,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       return impl()->EmptyClassLiteralProperty();
   }
   UNREACHABLE();
-  return impl()->EmptyClassLiteralProperty();
 }
 
 template <typename Impl>
@@ -2880,7 +2874,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
   }
 
   UNREACHABLE();
-  return impl()->EmptyObjectLiteralProperty();
 }
 
 template <typename Impl>
@@ -3256,8 +3249,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   classifier()->RecordFormalParameterInitializerError(
       scanner()->peek_location(), MessageTemplate::kYieldInParameter);
   Expect(Token::YIELD, CHECK_OK);
-  ExpressionT generator_object =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The following initialization is necessary.
   ExpressionT expression = impl()->EmptyExpression();
   bool delegating = false;  // yield*
@@ -3286,20 +3277,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   }
 
   if (delegating) {
-    return impl()->RewriteYieldStar(generator_object, expression, pos);
-  }
-
-  if (!is_async_generator()) {
-    // Async generator yield is rewritten in Ignition, and doesn't require
-    // producing an Iterator Result.
-    expression = impl()->BuildIteratorResult(expression, false);
+    return impl()->RewriteYieldStar(expression, pos);
   }
 
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  ExpressionT yield =
-      BuildSuspend(generator_object, expression, pos,
-                   Suspend::kOnExceptionThrow, SuspendFlags::kYield);
+  ExpressionT yield = BuildSuspend(expression, pos, Suspend::kOnExceptionThrow,
+                                   SuspendFlags::kYield);
   return yield;
 }
 
@@ -4192,7 +4176,10 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
     ExpressionT value = impl()->EmptyExpression();
     int initializer_position = kNoSourcePosition;
+    int value_beg_position = kNoSourcePosition;
     if (Check(Token::ASSIGN)) {
+      value_beg_position = peek_position();
+
       ExpressionClassifier classifier(this);
       value = ParseAssignmentExpression(var_context != kForStatement,
                                         typesystem::kNoCover,
@@ -4241,6 +4228,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
     typename DeclarationParsingResult::Declaration decl(
         pattern, initializer_position, value);
+    decl.value_beg_position = value_beg_position;
     if (var_context == kForStatement) {
       // Save the declaration for further handling in ParseForStatement.
       parsing_result->declarations.Add(decl);
@@ -4489,7 +4477,9 @@ void ParserBase<Impl>::ParseFunctionBody(
   {
     BlockState block_state(&scope_, inner_scope);
 
-    if (IsGeneratorFunction(kind)) {
+    if (IsAsyncGeneratorFunction(kind)) {
+      impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body, ok);
+    } else if (IsGeneratorFunction(kind)) {
       impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
     } else if (IsAsyncFunction(kind)) {
       const bool accept_IN = true;
@@ -4685,32 +4675,22 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // FIXME(marja): Arrow function parameters will be parsed even if the
         // body is preparsed; move relevant parts of parameter handling to
         // simulate consistent parameter handling.
-        Scanner::BookmarkScope bookmark(scanner());
-        bookmark.Set();
+
         // For arrow functions, we don't need to retrieve data about function
         // parameters.
         int dummy_num_parameters = -1;
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
-        LazyParsingResult result = impl()->SkipFunction(
-            kind, formal_parameters.scope, &dummy_num_parameters, false,
-            typesystem::kNormalTypes, true, CHECK_OK);
+        LazyParsingResult result =
+            impl()->SkipFunction(kind, formal_parameters.scope,
+                                 &dummy_num_parameters, false,
+                                 typesystem::kNormalTypes, false, CHECK_OK);
+        DCHECK_NE(result, kLazyParsingAborted);
         DCHECK_NE(result, kLazyParsingSignature);
-        formal_parameters.scope->ResetAfterPreparsing(
-            ast_value_factory_, result == kLazyParsingAborted);
+        USE(result);
+        formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
+                                                      false);
 
-        if (result == kLazyParsingAborted) {
-          bookmark.Apply();
-          // Trigger eager (re-)parsing, just below this block.
-          is_lazy_top_level_function = false;
-
-          // This is probably an initialization function. Inform the compiler it
-          // should also eager-compile this function, and that we expect it to
-          // be used once.
-          eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
-          should_be_used_once_hint = true;
-        }
-      }
-      if (!is_lazy_top_level_function) {
+      } else {
         Consume(Token::LBRACE);
         body = impl()->NewStatementList(8);
         impl()->ParseFunctionBody(body, impl()->EmptyIdentifier(),
@@ -5450,7 +5430,6 @@ ParserBase<Impl>::ParseStatementAsUnlabelled(
       return ParseTryStatement(ok);
     default:
       UNREACHABLE();
-      return impl()->NullStatement();
   }
 }
 
@@ -6110,8 +6089,6 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   auto loop = factory()->NewForEachStatement(for_info->mode, labels, stmt_pos);
   typename Types::Target target(this, loop);
 
-  int each_keyword_pos = scanner()->location().beg_pos;
-
   ExpressionT enumerable = impl()->EmptyExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
     ExpressionClassifier classifier(this);
@@ -6138,8 +6115,8 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     impl()->DesugarBindingInForEachStatement(for_info, &body_block,
                                              &each_variable, CHECK_OK);
     body_block->statements()->Add(body, zone());
-    final_loop = impl()->InitializeForEachStatement(
-        loop, each_variable, enumerable, body_block, each_keyword_pos);
+    final_loop = impl()->InitializeForEachStatement(loop, each_variable,
+                                                    enumerable, body_block);
 
     scope()->set_end_position(scanner()->location().end_pos);
     body_block->set_scope(scope()->FinalizeBlockScope());
@@ -6176,8 +6153,6 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   auto loop = factory()->NewForEachStatement(for_info->mode, labels, stmt_pos);
   typename Types::Target target(this, loop);
 
-  int each_keyword_pos = scanner()->location().beg_pos;
-
   ExpressionT enumerable = impl()->EmptyExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
     ExpressionClassifier classifier(this);
@@ -6199,8 +6174,8 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
 
     StatementT body = ParseStatement(nullptr, CHECK_OK);
     scope()->set_end_position(scanner()->location().end_pos);
-    StatementT final_loop = impl()->InitializeForEachStatement(
-        loop, expression, enumerable, body, each_keyword_pos);
+    StatementT final_loop =
+        impl()->InitializeForEachStatement(loop, expression, enumerable, body);
 
     for_scope = for_scope->FinalizeBlockScope();
     USE(for_scope);

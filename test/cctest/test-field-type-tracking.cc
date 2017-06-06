@@ -261,7 +261,6 @@ class Expectations {
       } else {
         // kAccessor
         UNREACHABLE();
-        return false;
       }
     } else {
       // kDescriptor
@@ -277,7 +276,6 @@ class Expectations {
       }
     }
     UNREACHABLE();
-    return false;
   }
 
   bool Check(Map* map, int expected_nof) const {

@@ -17,7 +17,48 @@
 namespace v8 {
 namespace internal {
 
+void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
+  Generate_ForwardVarargs(masm, masm->isolate()->builtins()->Construct());
+}
+
+void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
+  Generate_ForwardVarargs(masm,
+                          masm->isolate()->builtins()->ConstructFunction());
+}
+
 typedef compiler::Node Node;
+
+Node* ConstructorBuiltinsAssembler::CopyFixedArrayBase(Node* fixed_array) {
+  Label if_fixed_array(this), if_fixed_double_array(this), done(this);
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Node* capacity = LoadAndUntagFixedArrayBaseLength(fixed_array);
+  Branch(IsFixedDoubleArrayMap(LoadMap(fixed_array)), &if_fixed_double_array,
+         &if_fixed_array);
+  BIND(&if_fixed_double_array);
+  {
+    ElementsKind kind = FAST_DOUBLE_ELEMENTS;
+    Node* copy = AllocateFixedArray(kind, capacity);
+    CopyFixedArrayElements(kind, fixed_array, kind, copy, capacity, capacity,
+                           SKIP_WRITE_BARRIER);
+    result.Bind(copy);
+    Goto(&done);
+  }
+
+  BIND(&if_fixed_array);
+  {
+    ElementsKind kind = FAST_ELEMENTS;
+    Node* copy = AllocateFixedArray(kind, capacity);
+    CopyFixedArrayElements(kind, fixed_array, kind, copy, capacity, capacity,
+                           UPDATE_WRITE_BARRIER);
+    result.Bind(copy);
+    Goto(&done);
+  }
+  BIND(&done);
+  // Manually copy over the map of the incoming array to preserve the elements
+  // kind.
+  StoreMap(result.value(), LoadMap(fixed_array));
+  return result.value();
+}
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
                                                        Node* feedback_vector,
@@ -469,22 +510,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
   GotoIf(IsFixedArrayMap(elements_map), &fast_elements);
   {
     Comment("fast double elements path");
-    if (FLAG_debug_code) {
-      Label correct_elements_map(this), abort(this, Label::kDeferred);
-      Branch(IsFixedDoubleArrayMap(elements_map), &correct_elements_map,
-             &abort);
-
-      BIND(&abort);
-      {
-        Node* abort_id = SmiConstant(
-            Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
-        CallRuntime(Runtime::kAbort, context, abort_id);
-        result.Bind(UndefinedConstant());
-        Goto(&return_result);
-      }
-      BIND(&correct_elements_map);
-    }
-
+    if (FLAG_debug_code) CSA_CHECK(this, IsFixedDoubleArrayMap(elements_map));
     Node* array =
         NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
                              allocation_site, capacity, FAST_DOUBLE_ELEMENTS);
@@ -571,77 +597,92 @@ TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
-    Label* call_runtime, Node* closure, Node* literals_index,
-    Node* fast_properties_count) {
-  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
-  Node* allocation_site = LoadFixedArrayElement(
-      feedback_vector, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
-  GotoIf(IsUndefined(allocation_site), call_runtime);
+    Label* call_runtime, Node* closure, Node* literals_index) {
+  Node* allocation_site;
+  {
+    // Load the alloation site.
+    Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+    Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+    allocation_site = LoadFixedArrayElement(feedback_vector, literals_index, 0,
+                                            CodeStubAssembler::SMI_PARAMETERS);
+    GotoIf(IsUndefined(allocation_site), call_runtime);
+  }
 
   Node* boilerplate =
       LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
   Node* boilerplate_map = LoadMap(boilerplate);
-  Variable properties(this, MachineRepresentation::kTagged,
-                      EmptyFixedArrayConstant());
-  // TODO(cbruni): directly use the property count from the boilerplate map.
-  Variable in_object_property_count(this, MachineType::PointerRepresentation(),
-                                    fast_properties_count);
-  // Directly copy over the property store for dict-mode boilerplates.
-  Label dict_properties(this), allocate_object(this);
-  Branch(IsDictionaryMap(boilerplate_map), &dict_properties, &allocate_object);
-  Bind(&dict_properties);
+
+  VARIABLE(var_properties, MachineRepresentation::kTagged);
   {
-    properties.Bind(
-        CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
-    in_object_property_count.Bind(IntPtrConstant(0));
-    Goto(&allocate_object);
+    // Directly copy over the property store for dict-mode boilerplates.
+    Label if_dictionary(this), if_fast(this), done(this);
+    Branch(IsDictionaryMap(boilerplate_map), &if_dictionary, &if_fast);
+    BIND(&if_dictionary);
+    {
+      Comment("Copy dictionary properties");
+      var_properties.Bind(
+          CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
+      // Slow objects have no in-object properties.
+      Goto(&done);
+    }
+    BIND(&if_fast);
+    {
+      // TODO(cbruni): support copying out-of-object properties.
+      Node* boilerplate_properties = LoadProperties(boilerplate);
+      GotoIfNot(IsEmptyFixedArray(boilerplate_properties), call_runtime);
+      var_properties.Bind(EmptyFixedArrayConstant());
+      Goto(&done);
+    }
+    BIND(&done);
   }
-  Bind(&allocate_object);
 
-  // Calculate the object and allocation size based on the properties count.
-  Node* object_size =
-      IntPtrAdd(WordShl(in_object_property_count.value(), kPointerSizeLog2),
-                IntPtrConstant(JSObject::kHeaderSize));
-  Node* allocation_size = object_size;
+  VARIABLE(var_elements, MachineRepresentation::kTagged);
+  {
+    // Copy the elements backing store, assuming that it's flat.
+    Label if_empty_fixed_array(this), if_copy_elements(this), done(this);
+    Node* boilerplate_elements = LoadElements(boilerplate);
+    Branch(IsEmptyFixedArray(boilerplate_elements), &if_empty_fixed_array,
+           &if_copy_elements);
+
+    BIND(&if_empty_fixed_array);
+    var_elements.Bind(boilerplate_elements);
+    Goto(&done);
+
+    BIND(&if_copy_elements);
+    CSA_ASSERT(this,
+               Word32Not(IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
+    var_elements.Bind(CopyFixedArrayBase(boilerplate_elements));
+    Goto(&done);
+    BIND(&done);
+  }
+
+  // Ensure new-space allocation for a fresh JSObject so we can skip write
+  // barriers when copying all object fields.
+  STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
+  Node* instance_size = TimesPointerSize(LoadMapInstanceSize(boilerplate_map));
+  Node* allocation_size = instance_size;
   if (FLAG_allocation_site_pretenuring) {
+    // Prepare for inner-allocating the AllocationMemento.
     allocation_size =
-        IntPtrAdd(object_size, IntPtrConstant(AllocationMemento::kSize));
+        IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
   }
-
-  Node* instance_size = LoadMapInstanceSize(boilerplate_map);
-  Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
-  GotoIfNot(WordEqual(instance_size, size_in_words), call_runtime);
 
   Node* copy = AllocateInNewSpace(allocation_size);
-  // Copy boilerplate elements.
-  VARIABLE(offset, MachineType::PointerRepresentation());
-  offset.Bind(IntPtrConstant(-kHeapObjectTag));
-  Node* end_offset = IntPtrAdd(object_size, offset.value());
-  Label loop_body(this, &offset), loop_check(this, &offset);
-  // We should always have an object size greater than zero.
-  Goto(&loop_body);
-  BIND(&loop_body);
   {
-    // The Allocate above guarantees that the copy lies in new space. This
-    // allows us to skip write barriers. This is necessary since we may also be
-    // copying unboxed doubles.
-    Node* field = Load(MachineType::IntPtr(), boilerplate, offset.value());
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), copy,
-                        offset.value(), field);
-    Goto(&loop_check);
-  }
-  BIND(&loop_check);
-  {
-    offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
-    GotoIfNot(IntPtrGreaterThanOrEqual(offset.value(), end_offset), &loop_body);
+    Comment("Initialize Literal Copy");
+    // Initialize Object fields.
+    StoreMapNoWriteBarrier(copy, boilerplate_map);
+    StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
+                                   var_properties.value());
+    StoreObjectFieldNoWriteBarrier(copy, JSObject::kElementsOffset,
+                                   var_elements.value());
   }
 
-  StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
-                                 properties.value());
-
+  // Initialize the AllocationMemento before potential GCs due to heap number
+  // allocation when copying the in-object properties.
   if (FLAG_allocation_site_pretenuring) {
-    Node* memento = InnerAllocate(copy, object_size);
+    Comment("Initialize AllocationMemento");
+    Node* memento = InnerAllocate(copy, instance_size);
     StoreMapNoWriteBarrier(memento, Heap::kAllocationMementoMapRootIndex);
     StoreObjectFieldNoWriteBarrier(
         memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
@@ -654,47 +695,95 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
                                    memento_create_count);
   }
 
-  // TODO(verwaest): Allocate and fill in double boxes.
+  {
+    // Copy over in-object properties.
+    Label continue_with_write_barrier(this), done_init(this);
+    VARIABLE(offset, MachineType::PointerRepresentation(),
+             IntPtrConstant(JSObject::kHeaderSize));
+    // Mutable heap numbers only occur on 32-bit platforms.
+    bool may_use_mutable_heap_numbers =
+        FLAG_track_double_fields && !FLAG_unbox_double_fields;
+    {
+      Comment("Copy in-object properties fast");
+      Label continue_fast(this, &offset);
+      Branch(WordEqual(offset.value(), instance_size), &done_init,
+             &continue_fast);
+      BIND(&continue_fast);
+      Node* field = LoadObjectField(boilerplate, offset.value());
+      if (may_use_mutable_heap_numbers) {
+        Label store_field(this);
+        GotoIf(TaggedIsSmi(field), &store_field);
+        GotoIf(IsMutableHeapNumber(field), &continue_with_write_barrier);
+        Goto(&store_field);
+        BIND(&store_field);
+      }
+      StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
+      offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
+      Branch(WordNotEqual(offset.value(), instance_size), &continue_fast,
+             &done_init);
+    }
+
+    if (!may_use_mutable_heap_numbers) {
+      BIND(&done_init);
+      return copy;
+    }
+    // Continue initializing the literal after seeing the first sub-object
+    // potentially causing allocation. In this case we prepare the new literal
+    // by copying all pending fields over from the boilerplate and emit full
+    // write barriers from here on.
+    BIND(&continue_with_write_barrier);
+    {
+      Comment("Copy in-object properties slow");
+      BuildFastLoop(offset.value(), instance_size,
+                    [=](Node* offset) {
+                      Node* field = LoadObjectField(boilerplate, offset);
+                      StoreObjectFieldNoWriteBarrier(copy, offset, field);
+                    },
+                    kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      Comment("Copy mutable HeapNumber values");
+      BuildFastLoop(offset.value(), instance_size,
+                    [=](Node* offset) {
+                      Node* field = LoadObjectField(copy, offset);
+                      Label copy_mutable_heap_number(this, Label::kDeferred),
+                          continue_loop(this);
+                      // We only have to clone complex field values.
+                      GotoIf(TaggedIsSmi(field), &continue_loop);
+                      Branch(IsMutableHeapNumber(field),
+                             &copy_mutable_heap_number, &continue_loop);
+                      BIND(&copy_mutable_heap_number);
+                      {
+                        Node* double_value = LoadHeapNumberValue(field);
+                        Node* mutable_heap_number =
+                            AllocateHeapNumberWithValue(double_value, MUTABLE);
+                        StoreObjectField(copy, offset, mutable_heap_number);
+                        Goto(&continue_loop);
+                      }
+                      BIND(&continue_loop);
+                    },
+                    kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      Goto(&done_init);
+    }
+    BIND(&done_init);
+  }
   return copy;
 }
 
-template <typename Descriptor>
-void ConstructorBuiltinsAssembler::CreateFastCloneShallowObjectBuiltin(
-    int properties_count) {
-  DCHECK_GE(properties_count, 0);
-  DCHECK_LE(properties_count,
-            ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
+TF_BUILTIN(FastCloneShallowObject, ConstructorBuiltinsAssembler) {
   Label call_runtime(this);
   Node* closure = Parameter(Descriptor::kClosure);
   Node* literals_index = Parameter(Descriptor::kLiteralIndex);
-
-  Node* properties_count_node =
-      IntPtrConstant(ConstructorBuiltins::FastCloneShallowObjectPropertiesCount(
-          properties_count));
-  Node* copy = EmitFastCloneShallowObject(
-      &call_runtime, closure, literals_index, properties_count_node);
+  Node* copy =
+      EmitFastCloneShallowObject(&call_runtime, closure, literals_index);
   Return(copy);
 
   BIND(&call_runtime);
-  Node* constant_properties = Parameter(Descriptor::kConstantProperties);
+  Node* boilerplate_description =
+      Parameter(Descriptor::kBoilerplateDescription);
   Node* flags = Parameter(Descriptor::kFlags);
   Node* context = Parameter(Descriptor::kContext);
   TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                  literals_index, constant_properties, flags);
+                  literals_index, boilerplate_description, flags);
 }
-
-#define SHALLOW_OBJECT_BUILTIN(props)                                       \
-  TF_BUILTIN(FastCloneShallowObject##props, ConstructorBuiltinsAssembler) { \
-    CreateFastCloneShallowObjectBuiltin<Descriptor>(props);                 \
-  }
-
-SHALLOW_OBJECT_BUILTIN(0);
-SHALLOW_OBJECT_BUILTIN(1);
-SHALLOW_OBJECT_BUILTIN(2);
-SHALLOW_OBJECT_BUILTIN(3);
-SHALLOW_OBJECT_BUILTIN(4);
-SHALLOW_OBJECT_BUILTIN(5);
-SHALLOW_OBJECT_BUILTIN(6);
 
 }  // namespace internal
 }  // namespace v8

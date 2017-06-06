@@ -334,7 +334,6 @@ MemoryChunk* MemoryChunkIterator::next() {
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 Page* FreeListCategory::page() const {

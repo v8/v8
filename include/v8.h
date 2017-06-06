@@ -869,8 +869,6 @@ class V8_EXPORT HandleScope {
 
   HandleScope(const HandleScope&) = delete;
   void operator=(const HandleScope&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  protected:
   V8_INLINE HandleScope() {}
@@ -881,6 +879,13 @@ class V8_EXPORT HandleScope {
                                          internal::Object* value);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   // Uses heap_object to obtain the current Isolate.
   static internal::Object** CreateHandle(internal::HeapObject* heap_object,
                                          internal::Object* value);
@@ -921,10 +926,15 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
 
   EscapableHandleScope(const EscapableHandleScope&) = delete;
   void operator=(const EscapableHandleScope&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   internal::Object** Escape(internal::Object** escape_value);
   internal::Object** escape_slot_;
 };
@@ -941,10 +951,15 @@ class V8_EXPORT SealHandleScope {
 
   SealHandleScope(const SealHandleScope&) = delete;
   void operator=(const SealHandleScope&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   internal::Isolate* const isolate_;
   internal::Object** prev_limit_;
   int prev_sealed_level_;
@@ -1032,7 +1047,6 @@ class ScriptOrigin {
   Local<Value> source_map_url_;
 };
 
-
 /**
  * A compiled JavaScript script, not yet tied to a Context.
  */
@@ -1095,11 +1109,15 @@ class V8_EXPORT Module {
   /**
    * ModuleDeclarationInstantiation
    *
-   * Returns false if an exception occurred during instantiation. (In the case
-   * where the callback throws an exception, that exception is propagated.)
+   * Returns an empty Maybe<bool> if an exception occurred during
+   * instantiation. (In the case where the callback throws an exception, that
+   * exception is propagated.)
    */
-  V8_WARN_UNUSED_RESULT bool Instantiate(Local<Context> context,
-                                         ResolveCallback callback);
+  V8_DEPRECATED("Use Maybe<bool> version",
+                bool Instantiate(Local<Context> context,
+                                 ResolveCallback callback));
+  V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
+                                                      ResolveCallback callback);
 
   /**
    * ModuleEvaluation
@@ -1121,14 +1139,14 @@ class V8_EXPORT DynamicImportResult {
    * Resolves the promise with the namespace object of the given
    * module.
    */
-  V8_WARN_UNUSED_RESULT bool FinishDynamicImportSuccess(Local<Context> context,
-                                                        Local<Module> module);
+  V8_WARN_UNUSED_RESULT Maybe<bool> FinishDynamicImportSuccess(
+      Local<Context> context, Local<Module> module);
 
   /**
    * Rejects the promise with the given exception.
    */
-  V8_WARN_UNUSED_RESULT bool FinishDynamicImportFailure(Local<Context> context,
-                                                        Local<Value> exception);
+  V8_WARN_UNUSED_RESULT Maybe<bool> FinishDynamicImportFailure(
+      Local<Context> context, Local<Value> exception);
 };
 
 /**
@@ -1265,11 +1283,6 @@ class V8_EXPORT ScriptCompiler {
      * wait for the data, if the embedder doesn't have data yet. Returns the
      * length of the data returned. When the data ends, GetMoreData should
      * return 0. Caller takes ownership of the data.
-     *
-     * When streaming UTF-8 data, V8 handles multi-byte characters split between
-     * two data chunks, but doesn't handle multi-byte characters split between
-     * more than two data chunks. The embedder can avoid this problem by always
-     * returning at least 2 bytes of data.
      *
      * If the embedder wants to cancel the streaming, they should make the next
      * GetMoreData call return 0. V8 will interpret it as end of data (and most
@@ -3053,12 +3066,9 @@ class V8_EXPORT Object : public Value {
   //
   // Note also that this only works for named properties.
   V8_DEPRECATED("Use CreateDataProperty / DefineOwnProperty",
-                bool ForceSet(Local<Value> key, Local<Value> value,
-                              PropertyAttribute attribs = None));
-  V8_DEPRECATE_SOON("Use CreateDataProperty / DefineOwnProperty",
-                    Maybe<bool> ForceSet(Local<Context> context,
-                                         Local<Value> key, Local<Value> value,
-                                         PropertyAttribute attribs = None));
+                Maybe<bool> ForceSet(Local<Context> context, Local<Value> key,
+                                     Local<Value> value,
+                                     PropertyAttribute attribs = None));
 
   V8_DEPRECATE_SOON("Use maybe version", Local<Value> Get(Local<Value> key));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
@@ -3079,12 +3089,12 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Value> key);
 
   /**
-   * Returns Object.getOwnPropertyDescriptor as per ES5 section 15.2.3.3.
+   * Returns Object.getOwnPropertyDescriptor as per ES2016 section 19.1.2.6.
    */
   V8_DEPRECATED("Use maybe version",
-                Local<Value> GetOwnPropertyDescriptor(Local<String> key));
+                Local<Value> GetOwnPropertyDescriptor(Local<Name> key));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> GetOwnPropertyDescriptor(
-      Local<Context> context, Local<String> key);
+      Local<Context> context, Local<Name> key);
 
   V8_DEPRECATE_SOON("Use maybe version", bool Has(Local<Value> key));
   /**
@@ -3861,6 +3871,10 @@ class V8_EXPORT Function : public Object {
   static void CheckCast(Value* obj);
 };
 
+#ifndef V8_PROMISE_INTERNAL_FIELD_COUNT
+// The number of required internal fields can be defined by embedder.
+#define V8_PROMISE_INTERNAL_FIELD_COUNT 0
+#endif
 
 /**
  * An instance of the built-in Promise constructor (ES6 draft).
@@ -3941,6 +3955,8 @@ class V8_EXPORT Promise : public Object {
   PromiseState State();
 
   V8_INLINE static Promise* Cast(Value* obj);
+
+  static const int kEmbedderFieldCount = V8_PROMISE_INTERNAL_FIELD_COUNT;
 
  private:
   Promise();
@@ -4187,10 +4203,40 @@ class V8_EXPORT ArrayBuffer : public Object {
     virtual void* AllocateUninitialized(size_t length) = 0;
 
     /**
+     * Reserved |length| bytes, but do not commit the memory. Must call
+     * |SetProtection| to make memory accessible.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void* Reserve(size_t length);
+
+    /**
      * Free the memory block of size |length|, pointed to by |data|.
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
     virtual void Free(void* data, size_t length) = 0;
+
+    enum class AllocationMode { kNormal, kReservation };
+
+    /**
+     * Free the memory block of size |length|, pointed to by |data|.
+     * That memory is guaranteed to be previously allocated by |Allocate| or
+     * |Reserve|, depending on |mode|.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void Free(void* data, size_t length, AllocationMode mode);
+
+    enum class Protection { kNoAccess, kReadWrite };
+
+    /**
+     * Change the protection on a region of memory.
+     *
+     * On platforms that make a distinction between reserving and committing
+     * memory, changing the protection to kReadWrite must also ensure the memory
+     * is committed.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void SetProtection(void* data, size_t length,
+                               Protection protection);
 
     /**
      * malloc/free based convenience allocator.
@@ -5910,8 +5956,12 @@ class V8_EXPORT ResourceConstraints {
   void set_max_old_space_size(int limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
   }
-  int max_executable_size() const { return max_executable_size_; }
-  void set_max_executable_size(int limit_in_mb) {
+  V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
+                    int max_executable_size() const) {
+    return max_executable_size_;
+  }
+  V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
+                    void set_max_executable_size(int limit_in_mb)) {
     max_executable_size_ = limit_in_mb;
   }
   uint32_t* stack_limit() const { return stack_limit_; }
@@ -6156,6 +6206,10 @@ typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
 
 // --- WASM compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
+
+// --- Callback for APIs defined on v8-supported objects, but implemented
+// by the embedder. Example: WebAssembly.{compile|instantiate}Streaming ---
+typedef void (*ApiImplementationCallback)(const FunctionCallbackInfo<Value>&);
 
 // --- Garbage Collection Callbacks ---
 
@@ -6580,8 +6634,7 @@ class V8_EXPORT Isolate {
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
           external_references(nullptr),
-          allow_atomics_wait(true),
-          host_import_module_dynamically_callback_(nullptr) {}
+          allow_atomics_wait(true) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6644,16 +6697,6 @@ class V8_EXPORT Isolate {
      * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
     bool allow_atomics_wait;
-
-    /**
-     * This is an unfinished experimental feature, and is only exposed
-     * here for internal testing purposes. DO NOT USE.
-     *
-     * This specifies the callback called by the upcoming dynamic
-     * import() language feature to load modules.
-     */
-    HostImportModuleDynamicallyCallback
-        host_import_module_dynamically_callback_;
   };
 
 
@@ -6843,6 +6886,16 @@ class V8_EXPORT Isolate {
   typedef bool (*AbortOnUncaughtExceptionCallback)(Isolate*);
   void SetAbortOnUncaughtExceptionCallback(
       AbortOnUncaughtExceptionCallback callback);
+
+  /**
+   * This is an unfinished experimental feature, and is only exposed
+   * here for internal testing purposes. DO NOT USE.
+   *
+   * This specifies the callback called by the upcoming dynamic
+   * import() language feature to load modules.
+   */
+  void SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallback callback);
 
   /**
    * Optional notification that the system is running low on memory.
@@ -7092,6 +7145,17 @@ class V8_EXPORT Isolate {
    * AddGCEpilogueCallback function.
    */
   void RemoveGCEpilogueCallback(GCCallback callback);
+
+  typedef size_t (*GetExternallyAllocatedMemoryInBytesCallback)();
+
+  /**
+   * Set the callback that tells V8 how much memory is currently allocated
+   * externally of the V8 heap. Ideally this memory is somehow connected to V8
+   * objects and may get freed-up when the corresponding V8 objects get
+   * collected by a V8 garbage collection.
+   */
+  void SetGetExternallyAllocatedMemoryInBytesCallback(
+      GetExternallyAllocatedMemoryInBytesCallback callback);
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -7417,6 +7481,8 @@ class V8_EXPORT Isolate {
   void SetWasmInstanceCallback(ExtensionCallback callback);
   void SetWasmInstantiateCallback(ExtensionCallback callback);
 
+  void SetWasmCompileStreamingCallback(ApiImplementationCallback callback);
+
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after
   * fatal errors such as out-of-memory situations.
@@ -7512,14 +7578,19 @@ class V8_EXPORT Isolate {
   ~Isolate() = delete;
   Isolate(const Isolate&) = delete;
   Isolate& operator=(const Isolate&) = delete;
+  // Deleting operator new and delete here is allowed as ctor and dtor is also
+  // deleted.
   void* operator new(size_t size) = delete;
+  void* operator new[](size_t size) = delete;
   void operator delete(void*, size_t) = delete;
+  void operator delete[](void*, size_t) = delete;
 
  private:
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
 
   void ReportExternalAllocationLimitReached();
+  void CheckMemoryPressure();
 };
 
 class V8_EXPORT StartupData {
@@ -7879,7 +7950,7 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#if V8_OS_POSIX
   /**
    * Give the V8 signal handler a chance to handle a fault.
    *
@@ -7900,7 +7971,7 @@ class V8_EXPORT V8 {
    * points to a ucontext_t structure.
    */
   static bool TryHandleSignal(int signal_number, void* info, void* context);
-#endif  // V8_OS_LINUX
+#endif  // V8_OS_POSIX
 
   /**
    * Enable the default signal handler rather than using one provided by the
@@ -8239,10 +8310,15 @@ class V8_EXPORT TryCatch {
 
   TryCatch(const TryCatch&) = delete;
   void operator=(const TryCatch&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   void ResetInternal();
 
   internal::Isolate* isolate_;
@@ -8742,6 +8818,8 @@ class Internals {
   static const int kExternalMemoryOffset = 4 * kApiPointerSize;
   static const int kExternalMemoryLimitOffset =
       kExternalMemoryOffset + kApiInt64Size;
+  static const int kExternalMemoryAtLastMarkCompactOffset =
+      kExternalMemoryLimitOffset + kApiInt64Size;
   static const int kIsolateRootsOffset = kExternalMemoryLimitOffset +
                                          kApiInt64Size + kApiInt64Size +
                                          kApiPointerSize + kApiPointerSize;
@@ -8761,8 +8839,8 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSApiObjectType = 0xbb;
-  static const int kJSObjectType = 0xbc;
+  static const int kJSApiObjectType = 0xbc;
+  static const int kJSObjectType = 0xbd;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x82;
   static const int kForeignType = 0x86;
@@ -9959,13 +10037,28 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
+  const int64_t kMemoryReducerActivationLimit = 1024 * 1024;
   typedef internal::Internals I;
   int64_t* external_memory = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
   const int64_t external_memory_limit = *reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryLimitOffset);
+  int64_t* external_memory_at_last_mc =
+      reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
+                                 I::kExternalMemoryAtLastMarkCompactOffset);
   const int64_t amount = *external_memory + change_in_bytes;
+
   *external_memory = amount;
+
+  int64_t allocation_diff_since_last_mc =
+      *external_memory_at_last_mc - *external_memory;
+  allocation_diff_since_last_mc = allocation_diff_since_last_mc < 0
+                                      ? -allocation_diff_since_last_mc
+                                      : allocation_diff_since_last_mc;
+  if (allocation_diff_since_last_mc > kMemoryReducerActivationLimit) {
+    CheckMemoryPressure();
+  }
+
   if (change_in_bytes > 0 && amount > external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }

@@ -47,11 +47,31 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   GotoIf(SmiLessThan(receiver_continuation, closed), &if_receiverisrunning);
 
   // Resume the {receiver} using our trampoline.
+  VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
+  Label if_exception(this, Label::kDeferred), if_final_return(this);
   Node* result =
       CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
                receiver, SmiConstant(resume_mode),
                SmiConstant(static_cast<int>(SuspendFlags::kGeneratorYield)));
+  // Make sure we close the generator if there was an exception.
+  GotoIfException(result, &if_exception, &var_exception);
+
+  // If the generator is not suspended (i.e., it's state is 'closed'),
+  // wrap the return value in IteratorResult.
+  Node* result_continuation =
+      LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset);
+  GotoIf(SmiEqual(result_continuation, closed), &if_final_return);
   Return(result);
+
+  Callable create_iter_result_object =
+      CodeFactory::CreateIterResultObject(isolate());
+
+  BIND(&if_final_return);
+  {
+    // Return the wrapped result.
+    Return(
+        CallStub(create_iter_result_object, context, result, TrueConstant()));
+  }
 
   BIND(&if_receiverisincompatible);
   {
@@ -65,9 +85,6 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 
   BIND(&if_receiverisclosed);
   {
-    Callable create_iter_result_object =
-        CodeFactory::CreateIterResultObject(isolate());
-
     // The {receiver} is closed already.
     Node* result = nullptr;
     switch (resume_mode) {
@@ -89,6 +106,14 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   BIND(&if_receiverisrunning);
   {
     CallRuntime(Runtime::kThrowGeneratorRunning, context);
+    Unreachable();
+  }
+
+  BIND(&if_exception);
+  {
+    StoreObjectFieldNoWriteBarrier(
+        receiver, JSGeneratorObject::kContinuationOffset, closed);
+    CallRuntime(Runtime::kReThrow, context, var_exception.value());
     Unreachable();
   }
 }

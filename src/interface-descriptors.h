@@ -48,6 +48,7 @@ class PlatformInterfaceDescriptor;
   V(CallConstruct)                         \
   V(CallTrampoline)                        \
   V(ConstructStub)                         \
+  V(ConstructForwardVarargs)               \
   V(ConstructTrampoline)                   \
   V(TransitionElementsKind)                \
   V(AllocateHeapNumber)                    \
@@ -98,13 +99,12 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
       PlatformInterfaceDescriptor* platform_descriptor = NULL);
 
   // if machine_types is null, then an array of size
-  // (register_parameter_count + extra_parameter_count) will be created
-  // with MachineType::AnyTagged() for each member.
+  // (parameter_count + extra_parameter_count) will be created with
+  // MachineType::AnyTagged() for each member.
   //
   // if machine_types is not null, then it should be of the size
-  // register_parameter_count. Those members of the parameter array
-  // will be initialized from {machine_types}, and the rest initialized
-  // to MachineType::AnyTagged().
+  // parameter_count. Those members of the parameter array will be initialized
+  // from {machine_types}, and the rest initialized to MachineType::AnyTagged().
   void InitializePlatformIndependent(int parameter_count,
                                      int extra_parameter_count,
                                      const MachineType* machine_types);
@@ -545,7 +545,7 @@ class FastCloneShallowArrayDescriptor : public CallInterfaceDescriptor {
 
 class FastCloneShallowObjectDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kConstantProperties, kFlags)
+  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kBoilerplateDescription, kFlags)
   DECLARE_DESCRIPTOR(FastCloneShallowObjectDescriptor, CallInterfaceDescriptor)
 };
 
@@ -575,9 +575,16 @@ class CallTrampolineDescriptor : public CallInterfaceDescriptor {
 
 class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kStartIndex)
+  DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kStartIndex)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallForwardVarargsDescriptor,
                                                CallInterfaceDescriptor)
+};
+
+class ConstructForwardVarargsDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kStartIndex)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      ConstructForwardVarargsDescriptor, CallInterfaceDescriptor)
 };
 
 class ConstructStubDescriptor : public CallInterfaceDescriptor {

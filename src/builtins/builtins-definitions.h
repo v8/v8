@@ -90,6 +90,8 @@ namespace internal {
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
   ASM(Construct)                                                               \
   ASM(ConstructWithSpread)                                                     \
+  ASM(ConstructForwardVarargs)                                                 \
+  ASM(ConstructFunctionForwardVarargs)                                         \
   ASM(JSConstructStubApi)                                                      \
   ASM(JSConstructStubGenericRestrictedReturn)                                  \
   ASM(JSConstructStubGenericUnrestrictedReturn)                                \
@@ -103,13 +105,7 @@ namespace internal {
   TFC(FastCloneRegExp, FastCloneRegExp, 1)                                     \
   TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
   TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
-  TFC(FastCloneShallowObject0, FastCloneShallowObject, 1)                      \
-  TFC(FastCloneShallowObject1, FastCloneShallowObject, 1)                      \
-  TFC(FastCloneShallowObject2, FastCloneShallowObject, 1)                      \
-  TFC(FastCloneShallowObject3, FastCloneShallowObject, 1)                      \
-  TFC(FastCloneShallowObject4, FastCloneShallowObject, 1)                      \
-  TFC(FastCloneShallowObject5, FastCloneShallowObject, 1)                      \
-  TFC(FastCloneShallowObject6, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject, FastCloneShallowObject, 1)                       \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(Apply)                                                                   \
@@ -262,6 +258,7 @@ namespace internal {
   TFJ(FastArrayPush, SharedFunctionInfo::kDontAdaptArgumentsSentinel)          \
   /* ES6 #sec-array.prototype.shift */                                         \
   CPP(ArrayShift)                                                              \
+  TFJ(FastArrayShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   /* ES6 #sec-array.prototype.slice */                                         \
   CPP(ArraySlice)                                                              \
   /* ES6 #sec-array.prototype.splice */                                        \
@@ -541,6 +538,11 @@ namespace internal {
   TFH(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, kNoExtraICState,     \
       LoadGlobal)                                                              \
                                                                                \
+  /* Map */                                                                    \
+  TFJ(MapConstructor, 1, kIterable)                                            \
+  TFJ(MapGet, 1, kKey)                                                         \
+  TFJ(MapHas, 1, kKey)                                                         \
+                                                                               \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
   TFJ(MathAbs, 1, kX)                                                          \
@@ -682,7 +684,7 @@ namespace internal {
   CPP(ObjectIsExtensible)                                                      \
   CPP(ObjectIsFrozen)                                                          \
   CPP(ObjectIsSealed)                                                          \
-  CPP(ObjectKeys)                                                              \
+  TFJ(ObjectKeys, 1, kObject)                                                  \
   CPP(ObjectLookupGetter)                                                      \
   CPP(ObjectLookupSetter)                                                      \
   CPP(ObjectPreventExtensions)                                                 \
@@ -812,6 +814,9 @@ namespace internal {
   TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
   /* ES #sec-regexp.prototype-@@split */                                       \
   TFJ(RegExpPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
+                                                                               \
+  /* Set */                                                                    \
+  TFJ(SetHas, 1, kKey)                                                         \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
@@ -949,6 +954,11 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.reduceRight */                                 \
   TFJ(TypedArrayPrototypeReduceRight,                                          \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES6 %TypedArray%.prototype.map */                                         \
+  TFJ(TypedArrayPrototypeMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
+  /* ES6 %TypedArray%.prototype.forEach */                                     \
+  TFJ(TypedArrayPrototypeForEach,                                              \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
@@ -1038,6 +1048,12 @@ namespace internal {
   V(ResolvePromise)
 
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
+
+#define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) \
+  V(MapConstructor)                                   \
+  V(GeneratorPrototypeNext)                           \
+  V(GeneratorPrototypeReturn)                         \
+  V(GeneratorPrototypeThrow)
 
 #define IGNORE_BUILTIN(...)
 

@@ -39,7 +39,6 @@ MachineType MachineTypeFor(ValueType type) {
       return MachineType::Simd128();
     default:
       UNREACHABLE();
-      return MachineType::AnyTagged();
   }
 }
 

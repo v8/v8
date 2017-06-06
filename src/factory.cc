@@ -13,6 +13,7 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module-info.h"
 #include "src/objects/scope-info.h"
@@ -237,6 +238,15 @@ Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
       NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
   result->set(FrameArray::kFrameCountIndex, Smi::kZero);
   return Handle<FrameArray>::cast(result);
+}
+
+Handle<SmallOrderedHashSet> Factory::NewSmallOrderedHashSet(
+    int size, PretenureFlag pretenure) {
+  DCHECK_LE(0, size);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateSmallOrderedHashSet(size, pretenure),
+      SmallOrderedHashSet);
 }
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
@@ -927,6 +937,9 @@ Handle<JSPromise> Factory::NewJSPromise() {
   Handle<JSPromise> promise = Handle<JSPromise>::cast(promise_obj);
   promise->set_status(v8::Promise::kPending);
   promise->set_flags(0);
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    promise->SetEmbedderField(i, Smi::kZero);
+  }
 
   isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
   return promise;
@@ -1710,7 +1723,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowHeapAllocation no_gc;
-  code->set_gc_metadata(Smi::kZero);
   code->set_ic_age(isolate()->heap()->global_ic_age());
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
@@ -2084,7 +2096,6 @@ ExternalArrayType Factory::GetArrayTypeFromElementsKind(ElementsKind kind) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
-      return kExternalInt8Array;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2097,7 +2108,6 @@ size_t Factory::GetExternalArrayElementSize(ExternalArrayType type) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
-      return 0;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2112,7 +2122,6 @@ ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
   }
   UNREACHABLE();
-  return FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
 #undef TYPED_ARRAY_CASE
 }
 
@@ -2124,7 +2133,6 @@ size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
-      return 0;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2142,7 +2150,6 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
 
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
@@ -2159,7 +2166,6 @@ JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
 
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
@@ -2489,7 +2495,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       FeedbackMetadata::New(isolate(), &empty_spec);
   share->set_feedback_metadata(*feedback_metadata, SKIP_WRITE_BARRIER);
   share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
   share->set_profiler_ticks(0);
@@ -2586,28 +2592,15 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo());
-  // Allocate initial fixed array for active break points before allocating the
-  // debug info object to avoid allocation while setting up the debug info
-  // object.
-  Handle<FixedArray> break_points(
-      NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
+  Heap* heap = isolate()->heap();
 
-  // Make a copy of the bytecode array if available.
-  Handle<Object> maybe_debug_bytecode_array = undefined_value();
-  if (shared->HasBytecodeArray()) {
-    Handle<BytecodeArray> original(shared->bytecode_array());
-    maybe_debug_bytecode_array = CopyBytecodeArray(original);
-  }
-
-  // Create and set up the debug info object. Debug info contains function, a
-  // copy of the original code, the executing code and initial fixed array for
-  // active break points.
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
+  debug_info->set_flags(DebugInfo::kNone);
   debug_info->set_shared(*shared);
   debug_info->set_debugger_hints(shared->debugger_hints());
-  debug_info->set_debug_bytecode_array(*maybe_debug_bytecode_array);
-  debug_info->set_break_points(*break_points);
+  debug_info->set_debug_bytecode_array(heap->undefined_value());
+  debug_info->set_break_points(heap->empty_fixed_array());
 
   // Link debug info to function.
   shared->set_debug_info(*debug_info);
@@ -2802,7 +2795,6 @@ Handle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
       return string_string();
   }
   UNREACHABLE();
-  return Handle<String>::null();
 }
 
 Handle<Map> Factory::CreateSloppyFunctionMap(FunctionMode function_mode) {

@@ -70,7 +70,8 @@ TEST(ModuleInstantiationFailures) {
   // Instantiation should fail.
   {
     v8::TryCatch inner_try_catch(isolate);
-    CHECK(!module->Instantiate(env.local(), FailAlwaysResolveCallback));
+    CHECK(module->InstantiateModule(env.local(), FailAlwaysResolveCallback)
+              .IsNothing());
     CHECK(inner_try_catch.HasCaught());
     CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
   }
@@ -82,7 +83,9 @@ TEST(ModuleInstantiationFailures) {
   g_count = 0;
   {
     v8::TryCatch inner_try_catch(isolate);
-    CHECK(!module->Instantiate(env.local(), FailOnSecondCallResolveCallback));
+    CHECK(
+        module->InstantiateModule(env.local(), FailOnSecondCallResolveCallback)
+            .IsNothing());
     CHECK(inner_try_catch.HasCaught());
     CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("booom")));
   }
@@ -111,8 +114,10 @@ TEST(ModuleEvaluation) {
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  CHECK(module->Instantiate(env.local(),
-                            CompileSpecifierAsModuleResolveCallback));
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
   CHECK(!module->Evaluate(env.local()).IsEmpty());
   ExpectInt32("Object.expando", 10);
 
@@ -151,8 +156,10 @@ TEST(ModuleEvaluationCompletion1) {
     ScriptCompiler::Source source(source_text, origin);
     Local<Module> module =
         ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-    CHECK(module->Instantiate(env.local(),
-                              CompileSpecifierAsModuleResolveCallback));
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
     CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
   }
 
@@ -190,8 +197,10 @@ TEST(ModuleEvaluationCompletion2) {
     ScriptCompiler::Source source(source_text, origin);
     Local<Module> module =
         ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-    CHECK(module->Instantiate(env.local(),
-                              CompileSpecifierAsModuleResolveCallback));
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
     CHECK(module->Evaluate(env.local())
               .ToLocalChecked()
               ->StrictEquals(v8_str("gaga")));

@@ -378,11 +378,11 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    imm32_ = reinterpret_cast<intptr_t>(handle.location());
+    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // no relocation needed
-    imm32_ = reinterpret_cast<intptr_t>(obj);
+    value_.immediate = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE32;
   }
 }
@@ -417,6 +417,14 @@ Operand::Operand(Register rm, ShiftOp shift_op, Register rs) {
   rs_ = rs;
 }
 
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_number_ = true;
+  result.value_.heap_number = value;
+  return result;
+}
 
 MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am) {
   rn_ = rn;
@@ -549,6 +557,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   next_buffer_check_ = 0;
+  code_target_sharing_blocked_nesting_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -565,16 +574,19 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
-  DCHECK(const_pool_blocked_nesting_ == 0);
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(code_target_sharing_blocked_nesting_, 0);
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
   int constant_pool_offset = 0;
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
   DCHECK(pending_64_bit_constants_.empty());
+
+  AllocateRequestedHeapNumbers(isolate);
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -1093,24 +1105,23 @@ static bool fits_shifter(uint32_t imm32,
   return false;
 }
 
+namespace {
 
 // We have to use the temporary register for things that can be relocated even
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-bool Operand::must_output_reloc_info(const Assembler* assembler) const {
-  if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
+bool must_output_reloc_info(RelocInfo::Mode rmode, const Assembler* assembler) {
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != NULL && assembler->predictable_code_size()) return true;
     return assembler->serializer_enabled();
-  } else if (RelocInfo::IsNone(rmode_)) {
+  } else if (RelocInfo::IsNone(rmode)) {
     return false;
   }
   return true;
 }
 
-
-static bool use_mov_immediate_load(const Operand& x,
-                                   const Assembler* assembler) {
+bool use_mov_immediate_load(const Operand& x, const Assembler* assembler) {
   DCHECK(assembler != nullptr);
   if (x.must_output_reloc_info(assembler)) {
     // Prefer constant pool if data is likely to be patched.
@@ -1121,6 +1132,11 @@ static bool use_mov_immediate_load(const Operand& x,
   }
 }
 
+}  // namespace
+
+bool Operand::must_output_reloc_info(const Assembler* assembler) const {
+  return v8::internal::must_output_reloc_info(rmode_, assembler);
+}
 
 int Operand::instructions_required(const Assembler* assembler,
                                    Instr instr) const {
@@ -1128,14 +1144,15 @@ int Operand::instructions_required(const Assembler* assembler,
   if (rm_.is_valid()) return 1;
   uint32_t dummy1, dummy2;
   if (must_output_reloc_info(assembler) ||
-      !fits_shifter(imm32_, &dummy1, &dummy2, &instr)) {
+      !fits_shifter(immediate(), &dummy1, &dummy2, &instr)) {
     // The immediate operand cannot be encoded as a shifter operand, or use of
     // constant pool is required.  First account for the instructions required
     // for the constant pool or immediate load
     int instructions;
     if (use_mov_immediate_load(*this, assembler)) {
-      // A movw / movt or mov / orr immediate load.
-      instructions = CpuFeatures::IsSupported(ARMv7) ? 2 : 4;
+      DCHECK(CpuFeatures::IsSupported(ARMv7));
+      // A movw / movt immediate load.
+      instructions = 2;
     } else {
       // A small constant pool load.
       instructions = 1;
@@ -1158,11 +1175,6 @@ int Operand::instructions_required(const Assembler* assembler,
 void Assembler::move_32_bit_immediate(Register rd,
                                       const Operand& x,
                                       Condition cond) {
-  uint32_t imm32 = static_cast<uint32_t>(x.imm32_);
-  if (x.must_output_reloc_info(this)) {
-    RecordRelocInfo(x.rmode_);
-  }
-
   if (use_mov_immediate_load(x, this)) {
     // use_mov_immediate_load should return false when we need to output
     // relocation info, since we prefer the constant pool for values that
@@ -1170,6 +1182,7 @@ void Assembler::move_32_bit_immediate(Register rd,
     DCHECK(!x.must_output_reloc_info(this));
     Register target = rd.code() == pc.code() ? ip : rd;
     if (CpuFeatures::IsSupported(ARMv7)) {
+      uint32_t imm32 = static_cast<uint32_t>(x.immediate());
       CpuFeatureScope scope(this, ARMv7);
       movw(target, imm32 & 0xffff, cond);
       movt(target, imm32 >> 16, cond);
@@ -1178,10 +1191,14 @@ void Assembler::move_32_bit_immediate(Register rd,
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    ConstantPoolEntry::Access access =
-        ConstantPoolAddEntry(pc_offset(), x.rmode_, x.imm32_);
-    DCHECK(access == ConstantPoolEntry::REGULAR);
-    USE(access);
+    int32_t immediate;
+    if (x.is_heap_number()) {
+      RequestHeapNumber(x.heap_number());
+      immediate = 0;
+    } else {
+      immediate = x.immediate();
+    }
+    ConstantPoolAddEntry(pc_offset(), x.rmode_, immediate);
     ldr(rd, MemOperand(pc, 0), cond);
   }
 }
@@ -1198,7 +1215,7 @@ void Assembler::addrmod1(Instr instr,
     uint32_t rotate_imm;
     uint32_t immed_8;
     if (x.must_output_reloc_info(this) ||
-        !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
+        !fits_shifter(x.immediate(), &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
       // However, if the original instruction is a 'mov rd, x' (not setting the
@@ -2012,7 +2029,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     uint32_t rotate_imm;
     uint32_t immed_8;
     if (src.must_output_reloc_info(this) ||
-        !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
+        !fits_shifter(src.immediate(), &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       move_32_bit_immediate(ip, src);
       msr(fields, Operand(ip), cond);
@@ -2725,9 +2742,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     //           The code could also randomize the order of values, though
     //           that's tricky because vldr has a limited reach. Furthermore
     //           it breaks load locality.
-    ConstantPoolEntry::Access access = ConstantPoolAddEntry(pc_offset(), imm);
-    DCHECK(access == ConstantPoolEntry::REGULAR);
-    USE(access);
+    ConstantPoolAddEntry(pc_offset(), imm);
     vldr(dst, MemOperand(pc, 0));
   } else {
     // Synthesise the double from ARM immediates.
@@ -2898,7 +2913,6 @@ static bool IsSignedVFPType(VFPType type) {
       return false;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 
@@ -2913,7 +2927,6 @@ static bool IsIntegerVFPType(VFPType type) {
       return false;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 
@@ -2926,7 +2939,6 @@ static bool IsDoubleVFPType(VFPType type) {
       return true;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 
@@ -3910,19 +3922,47 @@ void Assembler::vdup(NeonSize size, QwNeonRegister dst, Register src) {
        0xB * B8 | d * B7 | E * B5 | B4);
 }
 
-void Assembler::vdup(QwNeonRegister dst, SwVfpRegister src) {
+enum NeonRegType { NEON_D, NEON_Q };
+
+void NeonSplitCode(NeonRegType type, int code, int* vm, int* m, int* encoding) {
+  if (type == NEON_D) {
+    DwVfpRegister::split_code(code, vm, m);
+  } else {
+    DCHECK_EQ(type, NEON_Q);
+    QwNeonRegister::split_code(code, vm, m);
+    *encoding |= B6;
+  }
+}
+
+static Instr EncodeNeonDupOp(NeonSize size, NeonRegType reg_type, int dst_code,
+                             DwVfpRegister src, int index) {
+  DCHECK_NE(Neon64, size);
+  int sz = static_cast<int>(size);
+  DCHECK_LE(0, index);
+  DCHECK_GT(kSimd128Size / (1 << sz), index);
+  int imm4 = (1 << sz) | ((index << (sz + 1)) & 0xF);
+  int qbit = 0;
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &qbit);
+  int vm, m;
+  src.split_code(&vm, &m);
+
+  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | imm4 * B16 | vd * B12 |
+         0x18 * B7 | qbit | m * B5 | vm;
+}
+
+void Assembler::vdup(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int index) {
   DCHECK(IsEnabled(NEON));
   // Instruction details available in ARM DDI 0406C.b, A8-884.
-  int index = src.code() & 1;
-  int d_reg = src.code() / 2;
-  int imm4 = 4 | index << 3;  // esize = 32, index in bit 3.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  DwVfpRegister::from_code(d_reg).split_code(&vm, &m);
+  emit(EncodeNeonDupOp(size, NEON_D, dst.code(), src, index));
+}
 
-  emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | imm4 * B16 | vd * B12 | 0x18 * B7 |
-       B6 | m * B5 | vm);
+void Assembler::vdup(NeonSize size, QwNeonRegister dst, DwVfpRegister src,
+                     int index) {
+  // Instruction details available in ARM DDI 0406C.b, A8-884.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonDupOp(size, NEON_Q, dst.code(), src, index));
 }
 
 // Encode NEON vcvt.src_type.dst_type instruction.
@@ -3975,18 +4015,6 @@ void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(VfpRegisterIsAvailable(src));
   emit(EncodeNeonVCVT(U32, dst, F32, src));
-}
-
-enum NeonRegType { NEON_D, NEON_Q };
-
-void NeonSplitCode(NeonRegType type, int code, int* vm, int* m, int* encoding) {
-  if (type == NEON_D) {
-    DwVfpRegister::split_code(code, vm, m);
-  } else {
-    DCHECK_EQ(type, NEON_Q);
-    QwNeonRegister::split_code(code, vm, m);
-    *encoding |= B6;
-  }
 }
 
 enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF };
@@ -4403,30 +4431,55 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VMAX, dt, dst, src1, src2));
 }
 
-enum NeonShiftOp { VSHL, VSHR };
+enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
 
-static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonDataType dt,
-                               QwNeonRegister dst, QwNeonRegister src,
+static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
+                               NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int size_in_bits = kBitsPerByte << NeonSz(dt);
-  int op_encoding = 0;
   int imm6 = 0;
-  if (op == VSHL) {
-    DCHECK(shift >= 0 && size_in_bits > shift);
-    imm6 = size_in_bits + shift;
-    op_encoding = 0x5 * B8;
-  } else {
-    DCHECK_EQ(VSHR, op);
-    DCHECK(shift > 0 && size_in_bits >= shift);
-    imm6 = 2 * size_in_bits - shift;
-    op_encoding = NeonU(dt) * B24;
+  int size_in_bits = kBitsPerByte << static_cast<int>(size);
+  int op_encoding = 0;
+  switch (op) {
+    case VSHL: {
+      DCHECK(shift >= 0 && size_in_bits > shift);
+      imm6 = size_in_bits + shift;
+      op_encoding = 0x5 * B8;
+      break;
+    }
+    case VSHR: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      if (is_unsigned) op_encoding |= B24;
+      break;
+    }
+    case VSLI: {
+      DCHECK(shift >= 0 && size_in_bits > shift);
+      imm6 = size_in_bits + shift;
+      int L = imm6 >> 6;
+      imm6 &= 0x3F;
+      op_encoding = B24 | 0x5 * B8 | L * B7;
+      break;
+    }
+    case VSRI: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      int L = imm6 >> 6;
+      imm6 &= 0x3F;
+      op_encoding = B24 | 0x4 * B8 | L * B7;
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
-  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | B6 | m * B5 | B4 |
-         vm | op_encoding;
+
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+
+  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | m * B5 | B4 | vm |
+         op_encoding;
 }
 
 void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4434,7 +4487,8 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   DCHECK(IsEnabled(NEON));
   // Qd = vshl(Qm, bits) SIMD shift left immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1046.
-  emit(EncodeNeonShiftOp(VSHL, dt, dst, src, shift));
+  emit(EncodeNeonShiftOp(VSHL, NeonDataTypeToSize(dt), false, NEON_Q,
+                         dst.code(), src.code(), shift));
 }
 
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4442,7 +4496,26 @@ void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   DCHECK(IsEnabled(NEON));
   // Qd = vshl(Qm, bits) SIMD shift right immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1052.
-  emit(EncodeNeonShiftOp(VSHR, dt, dst, src, shift));
+  emit(EncodeNeonShiftOp(VSHR, NeonDataTypeToSize(dt), NeonU(dt), NEON_Q,
+                         dst.code(), src.code(), shift));
+}
+
+void Assembler::vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsli(Dm, bits) SIMD shift left and insert.
+  // Instruction details available in ARM DDI 0406C.b, A8-1056.
+  emit(EncodeNeonShiftOp(VSLI, size, false, NEON_D, dst.code(), src.code(),
+                         shift));
+}
+
+void Assembler::vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsri(Dm, bits) SIMD shift right and insert.
+  // Instruction details available in ARM DDI 0406C.b, A8-1062.
+  emit(EncodeNeonShiftOp(VSRI, size, false, NEON_D, dst.code(), src.code(),
+                         shift));
 }
 
 static Instr EncodeNeonEstimateOp(bool is_rsqrt, QwNeonRegister dst,
@@ -4539,7 +4612,7 @@ void Assembler::vpadd(NeonSize size, DwVfpRegister dst, DwVfpRegister src1,
   DCHECK(IsEnabled(NEON));
   // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
   // Instruction details available in ARM DDI 0406C.b, A8-980.
-  emit(EncodeNeonPairwiseOp(VPADD, NeonSizeToDatatype(size), dst, src1, src2));
+  emit(EncodeNeonPairwiseOp(VPADD, NeonSizeToDataType(size), dst, src1, src2));
 }
 
 void Assembler::vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
@@ -4958,7 +5031,6 @@ void Assembler::emit_code_stub_address(Code* stub) {
   pc_ += sizeof(uint32_t);
 }
 
-
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
@@ -4975,41 +5047,83 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-
-ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
-                                                          RelocInfo::Mode rmode,
-                                                          intptr_t value) {
+void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
+                                     intptr_t value) {
   DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL &&
          rmode != RelocInfo::NONE64);
   bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                    !(serializer_enabled() || rmode < RelocInfo::CELL);
+                    (rmode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
   DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
   }
-  ConstantPoolEntry entry(position, value, sharing_ok);
+  ConstantPoolEntry entry(position, value,
+                          sharing_ok || (rmode == RelocInfo::CODE_TARGET &&
+                                         IsCodeTargetSharingAllowed()));
+
+  bool shared = false;
+  if (sharing_ok) {
+    // Merge the constant, if possible.
+    for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
+      ConstantPoolEntry& current_entry = pending_32_bit_constants_[i];
+      if (!current_entry.sharing_ok()) continue;
+      if (entry.value() == current_entry.value()) {
+        entry.set_merged_index(i);
+        shared = true;
+        break;
+      }
+    }
+  }
+
+  if (rmode == RelocInfo::CODE_TARGET && IsCodeTargetSharingAllowed()) {
+    // Sharing entries here relies on canonicalized handles - without them, we
+    // will miss the optimisation opportunity.
+    Address handle_address = reinterpret_cast<Address>(value);
+    auto existing = handle_to_index_map_.find(handle_address);
+    if (existing != handle_to_index_map_.end()) {
+      int index = existing->second;
+      entry.set_merged_index(index);
+      shared = true;
+    } else {
+      // Keep track of this code handle.
+      handle_to_index_map_[handle_address] =
+          static_cast<int>(pending_32_bit_constants_.size());
+    }
+  }
+
   pending_32_bit_constants_.push_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
   BlockConstPoolFor(1);
-  return ConstantPoolEntry::REGULAR;
+
+  // Emit relocation info.
+  if (must_output_reloc_info(rmode, this) && !shared) {
+    RecordRelocInfo(rmode);
+  }
 }
 
-
-ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
-                                                          double value) {
+void Assembler::ConstantPoolAddEntry(int position, double value) {
   DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
   if (pending_64_bit_constants_.empty()) {
     first_const_pool_64_use_ = position;
   }
   ConstantPoolEntry entry(position, value);
+
+  // Merge the constant, if possible.
+  for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
+    ConstantPoolEntry& current_entry = pending_64_bit_constants_[i];
+    DCHECK(current_entry.sharing_ok());
+    if (entry.value() == current_entry.value()) {
+      entry.set_merged_index(i);
+      break;
+    }
+  }
   pending_64_bit_constants_.push_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
   BlockConstPoolFor(1);
-  return ConstantPoolEntry::REGULAR;
 }
 
 
@@ -5110,29 +5224,12 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   int size_after_marker = estimated_size_after_marker;
   for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_64_bit_constants_[i];
-    DCHECK(!entry.is_merged());
-    for (size_t j = 0; j < i; j++) {
-      if (entry.value64() == pending_64_bit_constants_[j].value64()) {
-        DCHECK(!pending_64_bit_constants_[j].is_merged());
-        entry.set_merged_index(j);
-        size_after_marker -= kDoubleSize;
-        break;
-      }
-    }
+    if (entry.is_merged()) size_after_marker -= kDoubleSize;
   }
 
   for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_32_bit_constants_[i];
-    DCHECK(!entry.is_merged());
-    if (!entry.sharing_ok()) continue;
-    for (size_t j = 0; j < i; j++) {
-      if (entry.value() == pending_32_bit_constants_[j].value()) {
-        DCHECK(!pending_32_bit_constants_[j].is_merged());
-        entry.set_merged_index(j);
-        size_after_marker -= kPointerSize;
-        break;
-      }
-    }
+    if (entry.is_merged()) size_after_marker -= kPointerSize;
   }
 
   int size = size_up_to_marker + size_after_marker;
@@ -5231,6 +5328,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     pending_32_bit_constants_.clear();
     pending_64_bit_constants_.clear();
+    handle_to_index_map_.clear();
+
     first_const_pool_32_use_ = -1;
     first_const_pool_64_use_ = -1;
 

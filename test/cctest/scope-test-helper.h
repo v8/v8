@@ -23,31 +23,38 @@ class ScopeTestHelper {
 
   static void CompareScopes(Scope* baseline, Scope* scope,
                             bool precise_maybe_assigned) {
-    if (!scope->is_hidden()) {
-      for (auto baseline_local = baseline->locals()->begin(),
-                scope_local = scope->locals()->begin();
-           baseline_local != baseline->locals()->end();
-           ++baseline_local, ++scope_local) {
-        if (scope_local->mode() == VAR || scope_local->mode() == LET ||
-            scope_local->mode() == CONST) {
-          // Sanity check the variable name. If this fails, the variable order
-          // is not deterministic.
-          CHECK_EQ(scope_local->raw_name()->length(),
-                   baseline_local->raw_name()->length());
-          for (int i = 0; i < scope_local->raw_name()->length(); ++i) {
-            CHECK_EQ(scope_local->raw_name()->raw_data()[i],
-                     baseline_local->raw_name()->raw_data()[i]);
-          }
+    CHECK_EQ(baseline->scope_type(), scope->scope_type());
+    CHECK_IMPLIES(baseline->is_declaration_scope(),
+                  baseline->AsDeclarationScope()->function_kind() ==
+                      scope->AsDeclarationScope()->function_kind());
 
-          CHECK_EQ(scope_local->location(), baseline_local->location());
-          if (precise_maybe_assigned) {
-            CHECK_EQ(scope_local->maybe_assigned(),
-                     baseline_local->maybe_assigned());
-          } else {
-            STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
-            CHECK_GE(scope_local->maybe_assigned(),
-                     baseline_local->maybe_assigned());
-          }
+    if (!PreParsedScopeData::ScopeNeedsData(baseline)) {
+      return;
+    }
+
+    for (auto baseline_local = baseline->locals()->begin(),
+              scope_local = scope->locals()->begin();
+         baseline_local != baseline->locals()->end();
+         ++baseline_local, ++scope_local) {
+      if (scope_local->mode() == VAR || scope_local->mode() == LET ||
+          scope_local->mode() == CONST) {
+        // Sanity check the variable name. If this fails, the variable order
+        // is not deterministic.
+        CHECK_EQ(scope_local->raw_name()->length(),
+                 baseline_local->raw_name()->length());
+        for (int i = 0; i < scope_local->raw_name()->length(); ++i) {
+          CHECK_EQ(scope_local->raw_name()->raw_data()[i],
+                   baseline_local->raw_name()->raw_data()[i]);
+        }
+
+        CHECK_EQ(scope_local->location(), baseline_local->location());
+        if (precise_maybe_assigned) {
+          CHECK_EQ(scope_local->maybe_assigned(),
+                   baseline_local->maybe_assigned());
+        } else {
+          STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
+          CHECK_GE(scope_local->maybe_assigned(),
+                   baseline_local->maybe_assigned());
         }
       }
     }

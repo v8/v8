@@ -57,7 +57,8 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   // site pointer.
   AllocationMemento* memento =
       reinterpret_cast<AllocationMemento*>(new_space->top() + kHeapObjectTag);
-  memento->set_map_no_write_barrier(heap->allocation_memento_map());
+  memento->set_map_after_allocation(heap->allocation_memento_map(),
+                                    SKIP_WRITE_BARRIER);
   memento->set_allocation_site(
       reinterpret_cast<AllocationSite*>(kHeapObjectTag), SKIP_WRITE_BARRIER);
 }

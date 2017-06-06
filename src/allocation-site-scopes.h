@@ -53,6 +53,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
 
   Handle<AllocationSite> EnterNewScope();
   void ExitScope(Handle<AllocationSite> site, Handle<JSObject> object);
+  static const bool kCopying = false;
 };
 
 
@@ -86,6 +87,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
   }
 
   bool ShouldCreateMemento(Handle<JSObject> object);
+  static const bool kCopying = true;
 
  private:
   Handle<AllocationSite> top_site_;

@@ -276,7 +276,7 @@ void MacroAssembler::RecordWriteField(
   lay(dst, MemOperand(object, offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    AndP(r0, dst, Operand((1 << kPointerSizeLog2) - 1));
+    AndP(r0, dst, Operand(kPointerSize - 1));
     beq(&ok, Label::kNear);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -329,7 +329,7 @@ void MacroAssembler::RecordWriteForMap(Register object, Register map,
   lay(dst, MemOperand(object, HeapObject::kMapOffset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    AndP(r0, dst, Operand((1 << kPointerSizeLog2) - 1));
+    AndP(r0, dst, Operand(kPointerSize - 1));
     beq(&ok, Label::kNear);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -3104,7 +3104,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
     return candidate;
   }
   UNREACHABLE();
-  return no_reg;
 }
 
 void MacroAssembler::mov(Register dst, const Operand& src) {

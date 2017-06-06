@@ -190,6 +190,19 @@ void AssemblerBase::Print(Isolate* isolate) {
   v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
 }
 
+AssemblerBase::RequestedHeapNumber::RequestedHeapNumber(double value,
+                                                        int offset)
+    : value(value), offset(offset) {
+  DCHECK(!IsSmiDouble(value));
+}
+
+void AssemblerBase::AllocateRequestedHeapNumbers(Isolate* isolate) {
+  for (auto& heap_number : heap_numbers_) {
+    Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
+        heap_number.value, IMMUTABLE, TENURED);
+    Assembler::set_heap_number(object, buffer_ + heap_number.offset);
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of PredictableCodeSizeScope
@@ -772,7 +785,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
-      return "number_of_modes";
   }
   return "unknown relocation type";
 }
@@ -895,7 +907,6 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
       return ExternalReference::BUILTIN_CALL_TRIPLE;
   }
   UNREACHABLE();
-  return ExternalReference::BUILTIN_CALL;
 }
 
 
@@ -1555,6 +1566,14 @@ ExternalReference ExternalReference::libc_memcpy_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memcpy)));
 }
 
+void* libc_memmove(void* dest, const void* src, size_t n) {
+  return memmove(dest, src, n);
+}
+
+ExternalReference ExternalReference::libc_memmove_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memmove)));
+}
+
 void* libc_memset(void* dest, int byte, size_t n) {
   DCHECK_EQ(static_cast<char>(byte), byte);
   return memset(dest, byte, n);
@@ -1567,6 +1586,20 @@ ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+template <typename CollectionType, int entrysize>
+ExternalReference ExternalReference::orderedhashtable_get_raw(
+    Isolate* isolate) {
+  auto f = OrderedHashTable<CollectionType, entrysize>::Get;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+template <typename CollectionType, int entrysize>
+ExternalReference ExternalReference::orderedhashtable_has_raw(
+    Isolate* isolate) {
+  auto f = OrderedHashTable<CollectionType, entrysize>::HasKey;
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 
@@ -1599,6 +1632,16 @@ template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uint8_t>(Isolate*);
 template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uc16>(Isolate*);
+
+template ExternalReference
+ExternalReference::orderedhashtable_get_raw<OrderedHashMap, 2>(Isolate*);
+template ExternalReference
+ExternalReference::orderedhashtable_get_raw<OrderedHashSet, 1>(Isolate*);
+
+template ExternalReference
+ExternalReference::orderedhashtable_has_raw<OrderedHashMap, 2>(Isolate*);
+template ExternalReference
+ExternalReference::orderedhashtable_has_raw<OrderedHashSet, 1>(Isolate*);
 
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +
@@ -1985,5 +2028,6 @@ void Assembler::DataAlign(int m) {
     db(0);
   }
 }
+
 }  // namespace internal
 }  // namespace v8

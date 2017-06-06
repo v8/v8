@@ -13,6 +13,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-info.h"
 #include "src/ostreams.h"
@@ -247,6 +248,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_DATA_VIEW_TYPE:
       JSDataView::cast(this)->JSDataViewVerify();
+      break;
+    case SMALL_ORDERED_HASH_SET_TYPE:
+      SmallOrderedHashSet::cast(this)->SmallOrderedHashSetVerify();
       break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -514,16 +518,14 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
     CHECK(arg_elements == isolate->heap()->empty_fixed_array());
     return;
   }
-  int nofMappedParameters =
-      length() - SloppyArgumentsElements::kParameterMapStart;
-  CHECK_LE(nofMappedParameters, context_object->length());
-  CHECK_LE(nofMappedParameters, arg_elements->length());
   ElementsAccessor* accessor;
   if (is_fast) {
     accessor = ElementsAccessor::ForKind(FAST_HOLEY_ELEMENTS);
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
   }
+  int nofMappedParameters = 0;
+  int maxMappedIndex = 0;
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
@@ -536,12 +538,20 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
       CHECK(accessor->HasElement(holder, i, arg_elements));
       continue;
     }
-    Object* value = context_object->get(Smi::cast(mapped)->value());
+    int mappedIndex = Smi::cast(mapped)->value();
+    nofMappedParameters++;
+    CHECK_LE(maxMappedIndex, mappedIndex);
+    maxMappedIndex = mappedIndex;
+    Object* value = context_object->get(mappedIndex);
     CHECK(value->IsObject());
     // None of the context-mapped entries should exist in the arguments
     // elements.
     CHECK(!accessor->HasElement(holder, i, arg_elements));
   }
+  CHECK_LE(nofMappedParameters, context_object->length());
+  CHECK_LE(nofMappedParameters, arg_elements->length());
+  CHECK_LE(maxMappedIndex, context_object->length());
+  CHECK_LE(maxMappedIndex, arg_elements->length());
 }
 
 void JSGeneratorObject::JSGeneratorObjectVerify() {
@@ -1010,6 +1020,35 @@ void JSPromise::JSPromiseVerify() {
   CHECK(reject_reactions()->IsUndefined(isolate) ||
         reject_reactions()->IsSymbol() || reject_reactions()->IsCallable() ||
         reject_reactions()->IsFixedArray());
+}
+
+void SmallOrderedHashSet::SmallOrderedHashSetVerify() {
+  CHECK(IsSmallOrderedHashSet());
+  Isolate* isolate = GetIsolate();
+
+  for (int entry = 0; entry < NumberOfBuckets(); entry++) {
+    int bucket = GetFirstEntry(entry);
+    if (bucket == kNotFound) continue;
+    Object* val = GetDataEntry(bucket);
+    CHECK(!val->IsTheHole(isolate));
+  }
+
+  for (int entry = 0; entry < NumberOfElements(); entry++) {
+    int chain = GetNextEntry(entry);
+    if (chain == kNotFound) continue;
+    Object* val = GetDataEntry(chain);
+    CHECK(!val->IsTheHole(isolate));
+  }
+
+  for (int entry = 0; entry < NumberOfElements(); entry++) {
+    Object* val = GetDataEntry(entry);
+    VerifyPointer(val);
+  }
+
+  for (int entry = NumberOfElements(); entry < Capacity(); entry++) {
+    Object* val = GetDataEntry(entry);
+    CHECK(val->IsTheHole(isolate));
+  }
 }
 
 void JSRegExp::JSRegExpVerify() {

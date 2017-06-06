@@ -134,9 +134,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;
-  int holder_depth = 0;
-  optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup,
-                                          &holder_depth);
+  optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup);
   switch (holder_lookup) {
     case CallOptimization::kHolderIsReceiver:
       __ Mov(holder, receiver);
@@ -144,10 +142,6 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     case CallOptimization::kHolderFound:
       __ Ldr(holder, FieldMemOperand(receiver, HeapObject::kMapOffset));
       __ Ldr(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
-      for (int i = 1; i < holder_depth; i++) {
-        __ Ldr(holder, FieldMemOperand(holder, HeapObject::kMapOffset));
-        __ Ldr(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
-      }
       break;
     case CallOptimization::kHolderNotFound:
       UNREACHABLE();

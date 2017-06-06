@@ -18,7 +18,10 @@ All arguments are optional. Most combinations should work, e.g.:
 """
 # See HELP below for additional documentation.
 
+from __future__ import print_function
+import errno
 import os
+import pty
 import subprocess
 import sys
 
@@ -142,6 +145,32 @@ def _Call(cmd, silent=False):
   if not silent: print("# %s" % cmd)
   return subprocess.call(cmd, shell=True)
 
+def _CallWithOutput(cmd):
+  print("# %s" % cmd)
+  # The following trickery is required so that the 'cmd' thinks it's running
+  # in a real terminal, while this script gets to intercept its output.
+  master, slave = pty.openpty()
+  p = subprocess.Popen(cmd, shell=True, stdin=slave, stdout=slave, stderr=slave)
+  os.close(slave)
+  output = []
+  try:
+    while True:
+      try:
+        data = os.read(master, 512)
+      except OSError as e:
+        if e.errno != errno.EIO: raise
+        break # EIO means EOF on some systems
+      else:
+        if not data: # EOF
+          break
+        print(data, end="")
+        sys.stdout.flush()
+        output.append(data)
+  finally:
+    os.close(master)
+    p.wait()
+  return p.returncode, "".join(output)
+
 def _Which(cmd):
   for path in os.environ["PATH"].split(os.pathsep):
     if os.path.exists(os.path.join(path, cmd)):
@@ -202,7 +231,20 @@ class Config(object):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
     targets = " ".join(self.targets)
-    return _Call("ninja -C %s %s %s" % (path, BUILD_OPTS, targets))
+    # The implementation of mksnapshot failure detection relies on
+    # the "pty" module and GDB presence, so skip it on non-Linux.
+    if "linux" not in sys.platform:
+      return _Call("ninja -C %s %s %s" % (path, BUILD_OPTS, targets))
+
+    return_code, output = _CallWithOutput("ninja -C %s %s %s" %
+                                          (path, BUILD_OPTS, targets))
+    if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
+      print("Detected mksnapshot failure, re-running in GDB...")
+      _Call("gdb -args %(path)s/mksnapshot "
+            "--startup_src %(path)s/gen/snapshot.cc "
+            "--random-seed 314159265 "
+            "--startup-blob %(path)s/snapshot_blob.bin" % {"path": path})
+    return return_code
 
   def RunTests(self):
     if not self.tests: return 0

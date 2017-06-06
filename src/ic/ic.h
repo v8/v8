@@ -10,6 +10,7 @@
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -121,11 +122,9 @@ class IC {
   Handle<Object> ComputeHandler(LookupIterator* lookup);
   virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
     UNREACHABLE();
-    return Handle<Code>::null();
   }
   virtual Handle<Code> CompileHandler(LookupIterator* lookup) {
     UNREACHABLE();
-    return Handle<Code>::null();
   }
 
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);

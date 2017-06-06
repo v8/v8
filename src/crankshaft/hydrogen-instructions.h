@@ -709,7 +709,6 @@ class HValue : public ZoneObject {
   virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) {
     UNREACHABLE();
-    return false;
   }
 
   // Check if this instruction has some reason that prevents elimination.
@@ -743,7 +742,6 @@ class HValue : public ZoneObject {
   // compare the non-Operand parts of the instruction.
   virtual bool DataEquals(HValue* other) {
     UNREACHABLE();
-    return false;
   }
 
   bool ToStringOrToNumberCanBeObserved() const {
@@ -2312,7 +2310,6 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
           return Representation::Integer32();
         default:
           UNREACHABLE();
-          return Representation::None();
       }
     }
   }
@@ -2659,7 +2656,6 @@ class HCheckInstanceType final : public HUnaryOperation {
       case IS_INTERNALIZED_STRING: return HType::String();
     }
     UNREACHABLE();
-    return HType::Tagged();
   }
 
   HValue* Canonicalize() override;

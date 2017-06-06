@@ -31,6 +31,10 @@ void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
                                  SmiConstant(v8::Promise::kPending));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
                                  SmiConstant(0));
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    int offset = JSPromise::kSize + i * kPointerSize;
+    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::kZero));
+  }
 }
 
 Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context) {
@@ -62,6 +66,10 @@ Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(Node* context,
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kResultOffset, result);
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
                                  SmiConstant(0));
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    int offset = JSPromise::kSize + i * kPointerSize;
+    StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(Smi::kZero));
+  }
 
   Label out(this);
   GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &out);
@@ -97,6 +105,10 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
   if (debug_event == nullptr) {
     debug_event = TrueConstant();
   }
+
+  Label if_not_constructor(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(constructor), &if_not_constructor);
+  GotoIfNot(IsConstructorMap(LoadMap(constructor)), &if_not_constructor);
 
   Node* native_context = LoadNativeContext(context);
 
@@ -178,6 +190,13 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     StoreObjectField(capability, JSPromiseCapability::kRejectOffset,
                      UndefinedConstant());
     CallRuntime(Runtime::kThrowTypeError, context, message);
+    Unreachable();
+  }
+
+  BIND(&if_not_constructor);
+  {
+    Node* const message_id = SmiConstant(MessageTemplate::kNotConstructor);
+    CallRuntime(Runtime::kThrowTypeError, context, message_id, constructor);
     Unreachable();
   }
 
@@ -304,6 +323,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
 
   // 7. If IsConstructor(S) is true, return S.
   Label throw_error(this);
+  GotoIf(TaggedIsSmi(species), &throw_error);
   Node* species_bitfield = LoadMapBitField(LoadMap(species));
   GotoIfNot(Word32Equal(Word32And(species_bitfield,
                                   Int32Constant((1 << Map::kIsConstructor))),
@@ -1314,9 +1334,8 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
   BIND(&if_rejectpromise);
   {
-    Callable promise_handle_reject = CodeFactory::PromiseHandleReject(isolate);
-    CallStub(promise_handle_reject, context, deferred_promise,
-             deferred_on_reject, var_reason.value());
+    CallBuiltin(Builtins::kPromiseHandleReject, context, deferred_promise,
+                deferred_on_reject, var_reason.value());
     Goto(&promisehook_after);
   }
 

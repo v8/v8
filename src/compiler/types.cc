@@ -80,7 +80,6 @@ double Type::Min() {
   if (this->IsOtherNumberConstant())
     return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
-  return 0;
 }
 
 double Type::Max() {
@@ -97,7 +96,6 @@ double Type::Max() {
   if (this->IsOtherNumberConstant())
     return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
-  return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -142,14 +140,11 @@ Type::bitset BitsetType::Lub(Type* type) {
   if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
-  return kNone;
 }
 
 Type::bitset BitsetType::Lub(i::Map* map) {
   DisallowHeapAllocation no_allocation;
   switch (map->instance_type()) {
-    case STRING_TYPE:
-    case ONE_BYTE_STRING_TYPE:
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
@@ -162,16 +157,20 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SHORT_EXTERNAL_STRING_TYPE:
     case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return kOtherString;
-    case INTERNALIZED_STRING_TYPE:
-    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+      return kOtherNonSeqString;
+    case STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+      return kOtherSeqString;
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
     case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return kInternalizedString;
+      return kInternalizedNonSeqString;
+    case INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+      return kInternalizedSeqString;
     case SYMBOL_TYPE:
       return kSymbol;
     case ODDBALL_TYPE: {
@@ -321,6 +320,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case DEBUG_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
     case WEAK_CELL_TYPE:
+    case SMALL_ORDERED_HASH_SET_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
@@ -331,10 +331,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PADDING_TYPE_3:
     case PADDING_TYPE_4:
       UNREACHABLE();
-      return kNone;
   }
   UNREACHABLE();
-  return kNone;
 }
 
 Type::bitset BitsetType::Lub(i::Object* value) {
@@ -499,7 +497,6 @@ bool Type::SimplyEquals(Type* that) {
     return true;
   }
   UNREACHABLE();
-  return false;
 }
 
 // Check if [this] <= [that].

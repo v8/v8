@@ -334,7 +334,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   }
 
   UNREACHABLE();
-  return UNCHANGED;
 }
 
 JsonStringifier::Result JsonStringifier::SerializeJSValue(

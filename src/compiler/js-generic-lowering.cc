@@ -50,11 +50,11 @@ Reduction JSGenericLowering::Reduce(Node* node) {
   return Changed(node);
 }
 
-#define REPLACE_STUB_CALL(Name)                                \
-  void JSGenericLowering::LowerJS##Name(Node* node) {          \
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node); \
-    Callable callable = CodeFactory::Name(isolate());          \
-    ReplaceWithStubCall(node, callable, flags);                \
+#define REPLACE_STUB_CALL(Name)                                              \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                        \
+    CallDescriptor::Flags flags = FrameStateFlagForCall(node);               \
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::k##Name); \
+    ReplaceWithStubCall(node, callable, flags);                              \
   }
 REPLACE_STUB_CALL(Add)
 REPLACE_STUB_CALL(Subtract)
@@ -129,7 +129,7 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   // The ToBoolean conversion doesn't need the current context.
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  Callable callable = CodeFactory::ToBoolean(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToBoolean);
   node->AppendInput(zone(), graph()->start());
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
                       Operator::kEliminatable);
@@ -147,7 +147,7 @@ void JSGenericLowering::LowerJSClassOf(Node* node) {
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
   // The typeof operator doesn't need the current context.
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  Callable callable = CodeFactory::Typeof(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   node->AppendInput(zone(), graph()->start());
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
                       Operator::kEliminatable);
@@ -471,8 +471,7 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
       p.length() <=
           ConstructorBuiltins::kMaximumClonedShallowObjectProperties) {
-    Callable callable =
-        CodeFactory::FastCloneShallowObject(isolate(), p.length());
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate());
     ReplaceWithStubCall(node, callable, flags);
   } else {
     ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
@@ -523,6 +522,28 @@ void JSGenericLowering::LowerJSCreateScriptContext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kNewScriptContext);
 }
 
+void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
+  ConstructForwardVarargsParameters p =
+      ConstructForwardVarargsParametersOf(node->op());
+  int const arg_count = static_cast<int>(p.arity() - 2);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::ConstructForwardVarargs(isolate());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), arg_count + 1, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* start_index = jsgraph()->Uint32Constant(p.start_index());
+  Node* new_target = node->InputAt(arg_count + 1);
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->RemoveInput(arg_count + 1);  // Drop new target.
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, new_target);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, start_index);
+  node->InsertInput(zone(), 5, receiver);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+}
+
 void JSGenericLowering::LowerJSConstruct(Node* node) {
   ConstructParameters const& p = ConstructParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
@@ -563,17 +584,20 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
 
 void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
-  Callable callable = CodeFactory::CallForwardVarargs(isolate());
+  int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::CallForwardVarargs(isolate());
   if (p.tail_call_mode() == TailCallMode::kAllow) {
     flags |= CallDescriptor::kSupportsTailCalls;
   }
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 1, flags);
+      isolate(), zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
   Node* start_index = jsgraph()->Uint32Constant(p.start_index());
   node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 2, start_index);
+  node->InsertInput(zone(), 2, stub_arity);
+  node->InsertInput(zone(), 3, start_index);
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 

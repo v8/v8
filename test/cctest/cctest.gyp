@@ -176,6 +176,7 @@
       'test-mementos.cc',
       'test-modules.cc',
       'test-object.cc',
+      'test-orderedhashtable.cc',
       'test-parsing.cc',
       'test-platform.cc',
       'test-profile-generator.cc',
@@ -335,6 +336,7 @@
         '../..',
       ],
       'sources': [
+        '../common/wasm/flag-utils.h',
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-macro-gen.h',
         '../common/wasm/wasm-module-runner.cc',
@@ -443,6 +445,9 @@
           'defines': [ 'BUILDING_V8_SHARED', ]
         }, {
           'dependencies': ['../../src/v8.gyp:v8'],
+        }],
+        ['v8_use_snapshot=="true"', {
+          'dependencies': ['../../src/v8.gyp:v8_builtins_generators'],
         }],
       ],
     },

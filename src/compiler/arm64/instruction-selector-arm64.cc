@@ -103,13 +103,13 @@ class Arm64OperandGenerator final : public OperandGenerator {
       case kArithmeticImm:
         return Assembler::IsImmAddSub(value);
       case kLoadStoreImm8:
-        return IsLoadStoreImmediate(value, LSByte);
+        return IsLoadStoreImmediate(value, 0);
       case kLoadStoreImm16:
-        return IsLoadStoreImmediate(value, LSHalfword);
+        return IsLoadStoreImmediate(value, 1);
       case kLoadStoreImm32:
-        return IsLoadStoreImmediate(value, LSWord);
+        return IsLoadStoreImmediate(value, 2);
       case kLoadStoreImm64:
-        return IsLoadStoreImmediate(value, LSDoubleWord);
+        return IsLoadStoreImmediate(value, 3);
       case kNoImmediate:
         return false;
       case kShift32Imm:  // Fall through.
@@ -130,7 +130,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
   }
 
  private:
-  bool IsLoadStoreImmediate(int64_t value, LSDataSize size) {
+  bool IsLoadStoreImmediate(int64_t value, unsigned size) {
     return Assembler::IsImmLSScaled(value, size) ||
            Assembler::IsImmLSUnscaled(value);
   }
@@ -390,7 +390,6 @@ uint8_t GetBinopProperties(InstructionCode opcode) {
       break;
     default:
       UNREACHABLE();
-      return 0;
   }
   DCHECK_IMPLIES(MustCommuteCondField::decode(result),
                  CanCommuteField::decode(result));
@@ -526,6 +525,15 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
 }
 
 }  // namespace
+
+void InstructionSelector::VisitStackSlot(Node* node) {
+  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+  int slot = frame_->AllocateSpillSlot(rep.size());
+  OperandGenerator g(this);
+
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
               ImmediateMode immediate_mode, MachineRepresentation rep,
@@ -1889,7 +1897,6 @@ FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
       return kNotEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 
@@ -1952,7 +1959,6 @@ FlagsCondition MapForTbz(FlagsCondition cond) {
       return kEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 
@@ -1970,7 +1976,6 @@ FlagsCondition MapForCbz(FlagsCondition cond) {
       return kNotEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 

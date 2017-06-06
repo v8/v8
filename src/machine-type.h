@@ -238,7 +238,6 @@ class MachineType {
         return MachineType::TaggedPointer();
       default:
         UNREACHABLE();
-        return MachineType::None();
     }
   }
 
@@ -303,7 +302,6 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
       break;
   }
   UNREACHABLE();
-  return -1;
 }
 
 typedef Signature<MachineType> MachineSignature;

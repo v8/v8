@@ -254,7 +254,6 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 
@@ -651,7 +650,6 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -669,7 +667,6 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -687,7 +684,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -705,7 +701,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {

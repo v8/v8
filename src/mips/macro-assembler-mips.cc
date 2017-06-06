@@ -219,7 +219,7 @@ void MacroAssembler::RecordWriteField(
   Addu(dst, object, Operand(offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    And(t8, dst, Operand((1 << kPointerSizeLog2) - 1));
+    And(t8, dst, Operand(kPointerSize - 1));
     Branch(&ok, eq, t8, Operand(zero_reg));
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -287,7 +287,7 @@ void MacroAssembler::RecordWriteForMap(Register object,
   Addu(dst, object, Operand(HeapObject::kMapOffset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    And(at, dst, Operand((1 << kPointerSizeLog2) - 1));
+    And(at, dst, Operand(kPointerSize - 1));
     Branch(&ok, eq, at, Operand(zero_reg));
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -1406,11 +1406,11 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       addiu(rd, zero_reg, j.imm32_);
     } else if (!(j.imm32_ & kHiMask)) {
       ori(rd, zero_reg, j.imm32_);
-    } else if (!(j.imm32_ & kImm16Mask)) {
-      lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
     } else {
       lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
-      ori(rd, rd, (j.imm32_ & kImm16Mask));
+      if (j.imm32_ & kImm16Mask) {
+        ori(rd, rd, (j.imm32_ & kImm16Mask));
+      }
     }
   } else {
     if (MustUseReg(j.rmode_)) {
@@ -2316,6 +2316,82 @@ void MacroAssembler::BranchShortF(SecondaryField sizeField, Label* target,
   }
 }
 
+void MacroAssembler::BranchMSA(Label* target, MSABranchDF df,
+                               MSABranchCondition cond, MSARegister wt,
+                               BranchDelaySlot bd) {
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+
+    if (target) {
+      bool long_branch =
+          target->is_bound() ? !is_near(target) : is_trampoline_emitted();
+      if (long_branch) {
+        Label skip;
+        MSABranchCondition neg_cond = NegateMSABranchCondition(cond);
+        BranchShortMSA(df, &skip, neg_cond, wt, bd);
+        BranchLong(target, bd);
+        bind(&skip);
+      } else {
+        BranchShortMSA(df, target, cond, wt, bd);
+      }
+    }
+  }
+}
+
+void MacroAssembler::BranchShortMSA(MSABranchDF df, Label* target,
+                                    MSABranchCondition cond, MSARegister wt,
+                                    BranchDelaySlot bd) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (target) {
+      switch (cond) {
+        case all_not_zero:
+          switch (df) {
+            case MSA_BRANCH_D:
+              bnz_d(wt, target);
+              break;
+            case MSA_BRANCH_W:
+              bnz_w(wt, target);
+              break;
+            case MSA_BRANCH_H:
+              bnz_h(wt, target);
+              break;
+            case MSA_BRANCH_B:
+            default:
+              bnz_b(wt, target);
+          }
+          break;
+        case one_elem_not_zero:
+          bnz_v(wt, target);
+          break;
+        case one_elem_zero:
+          switch (df) {
+            case MSA_BRANCH_D:
+              bz_d(wt, target);
+              break;
+            case MSA_BRANCH_W:
+              bz_w(wt, target);
+              break;
+            case MSA_BRANCH_H:
+              bz_h(wt, target);
+              break;
+            case MSA_BRANCH_B:
+            default:
+              bz_b(wt, target);
+          }
+          break;
+        case all_zero:
+          bz_v(wt, target);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+  if (bd == PROTECT) {
+    nop();
+  }
+}
 
 void MacroAssembler::FmoveLow(FPURegister dst, Register src_low) {
   if (IsFp32Mode()) {
@@ -6544,7 +6620,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
     return candidate;
   }
   UNREACHABLE();
-  return no_reg;
 }
 
 bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,

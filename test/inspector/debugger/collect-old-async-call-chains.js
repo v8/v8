@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that we drop old async call chains.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that we drop old async call chains.');
 
 Protocol.Debugger.enable();
 Protocol.Runtime.enable();

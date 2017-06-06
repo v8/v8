@@ -267,7 +267,6 @@ void AstExpressionRewriter::VisitAssignment(Assignment* node) {
 
 void AstExpressionRewriter::VisitSuspend(Suspend* node) {
   REWRITE_THIS(node);
-  AST_REWRITE_PROPERTY(Expression, node, generator_object);
   AST_REWRITE_PROPERTY(Expression, node, expression);
 }
 

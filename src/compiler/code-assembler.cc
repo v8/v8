@@ -1037,13 +1037,25 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
   for (auto var : variable_phis_) {
     CodeAssemblerVariable::Impl* var_impl = var.first;
     auto i = variable_merges_.find(var_impl);
-    // If the following asserts fire, then a variable that has been marked as
-    // being merged at the label--either by explicitly marking it so in the
-    // label constructor or by having seen different bound values at branches
-    // into the label--doesn't have a bound value along all of the paths that
-    // have been merged into the label up to this point.
-    DCHECK(i != variable_merges_.end());
-    DCHECK_EQ(i->second.size(), merge_count_);
+#if DEBUG
+    bool not_found = i == variable_merges_.end();
+    if (not_found || i->second.size() != merge_count_) {
+      std::stringstream str;
+      str << "A variable that has been marked as beeing merged at the label"
+          << "\n# doesn't have a bound value along all of the paths that "
+          << "\n# have been merged into the label up to this point."
+          << "\n#"
+          << "\n# This can happen in the following cases:"
+          << "\n# - By explicitly marking it so in the label constructor"
+          << "\n# - By having seen different bound values at branches"
+          << "\n#"
+          << "\n# Merge count:     expected=" << merge_count_
+          << " vs. found=" << (not_found ? 0 : i->second.size())
+          << "\n# Variable:      " << *var_impl
+          << "\n# Current Block: " << *label_->block();
+      FATAL(str.str().c_str());
+    }
+#endif  // DEBUG
     Node* phi = state_->raw_assembler_->Phi(
         var.first->rep_, static_cast<int>(merge_count_), &(i->second[0]));
     variable_phis_[var_impl] = phi;

@@ -205,10 +205,10 @@ namespace compiler {
   V(Mips64I32x4SConvertF32x4)       \
   V(Mips64I32x4UConvertF32x4)       \
   V(Mips64I32x4Neg)                 \
-  V(Mips64I32x4LtS)                 \
-  V(Mips64I32x4LeS)                 \
-  V(Mips64I32x4LtU)                 \
-  V(Mips64I32x4LeU)                 \
+  V(Mips64I32x4GtS)                 \
+  V(Mips64I32x4GeS)                 \
+  V(Mips64I32x4GtU)                 \
+  V(Mips64I32x4GeU)                 \
   V(Mips64I16x8Splat)               \
   V(Mips64I16x8ExtractLane)         \
   V(Mips64I16x8ReplaceLane)         \
@@ -225,14 +225,14 @@ namespace compiler {
   V(Mips64I16x8MinS)                \
   V(Mips64I16x8Eq)                  \
   V(Mips64I16x8Ne)                  \
-  V(Mips64I16x8LtS)                 \
-  V(Mips64I16x8LeS)                 \
+  V(Mips64I16x8GtS)                 \
+  V(Mips64I16x8GeS)                 \
   V(Mips64I16x8AddSaturateU)        \
   V(Mips64I16x8SubSaturateU)        \
   V(Mips64I16x8MaxU)                \
   V(Mips64I16x8MinU)                \
-  V(Mips64I16x8LtU)                 \
-  V(Mips64I16x8LeU)                 \
+  V(Mips64I16x8GtU)                 \
+  V(Mips64I16x8GeU)                 \
   V(Mips64I8x16Splat)               \
   V(Mips64I8x16ExtractLane)         \
   V(Mips64I8x16ReplaceLane)         \
@@ -240,7 +240,37 @@ namespace compiler {
   V(Mips64I8x16Shl)                 \
   V(Mips64I8x16ShrS)                \
   V(Mips64S16x8Select)              \
-  V(Mips64S8x16Select)
+  V(Mips64S8x16Select)              \
+  V(Mips64I8x16Add)                 \
+  V(Mips64I8x16AddSaturateS)        \
+  V(Mips64I8x16Sub)                 \
+  V(Mips64I8x16SubSaturateS)        \
+  V(Mips64I8x16Mul)                 \
+  V(Mips64I8x16MaxS)                \
+  V(Mips64I8x16MinS)                \
+  V(Mips64I8x16Eq)                  \
+  V(Mips64I8x16Ne)                  \
+  V(Mips64I8x16GtS)                 \
+  V(Mips64I8x16GeS)                 \
+  V(Mips64I8x16ShrU)                \
+  V(Mips64I8x16AddSaturateU)        \
+  V(Mips64I8x16SubSaturateU)        \
+  V(Mips64I8x16MaxU)                \
+  V(Mips64I8x16MinU)                \
+  V(Mips64I8x16GtU)                 \
+  V(Mips64I8x16GeU)                 \
+  V(Mips64S128And)                  \
+  V(Mips64S128Or)                   \
+  V(Mips64S128Xor)                  \
+  V(Mips64S128Not)                  \
+  V(Mips64S1x4AnyTrue)              \
+  V(Mips64S1x4AllTrue)              \
+  V(Mips64S1x8AnyTrue)              \
+  V(Mips64S1x8AllTrue)              \
+  V(Mips64S1x16AnyTrue)             \
+  V(Mips64S1x16AllTrue)             \
+  V(Mips64MsaLd)                    \
+  V(Mips64MsaSt)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

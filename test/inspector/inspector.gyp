@@ -20,9 +20,9 @@
         '../..',
       ],
       'sources': [
-        'inspector-impl.cc',
-        'inspector-impl.h',
         'inspector-test.cc',
+        'isolate-data.cc',
+        'isolate-data.h',
         'task-runner.cc',
         'task-runner.h',
       ],

@@ -200,8 +200,7 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
 // performance of using object literals is not worse than using constructor
 // functions, see crbug.com/v8/6211 for details.
 const int kMaxFastLiteralDepth = 3;
-const int kMaxFastLiteralProperties =
-    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
+const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
 }  // namespace
 

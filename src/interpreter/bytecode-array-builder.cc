@@ -38,8 +38,8 @@ class RegisterTransferWriter final
 };
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(
-    Isolate* isolate, Zone* zone, int parameter_count, int context_count,
-    int locals_count, FunctionLiteral* literal,
+    Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
+    FunctionLiteral* literal,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),
       literal_(literal),
@@ -49,13 +49,11 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       return_seen_in_block_(false),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
-      context_register_count_(context_count),
       register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
       register_optimizer_(nullptr) {
   DCHECK_GE(parameter_count_, 0);
-  DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
 
   if (FLAG_ignition_reo) {
@@ -65,16 +63,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   }
 
   return_position_ = literal ? literal->return_position() : kNoSourcePosition;
-}
-
-Register BytecodeArrayBuilder::first_context_register() const {
-  DCHECK_GT(context_register_count_, 0);
-  return Register(local_register_count_);
-}
-
-Register BytecodeArrayBuilder::last_context_register() const {
-  DCHECK_GT(context_register_count_, 0);
-  return Register(local_register_count_ + context_register_count_ - 1);
 }
 
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
@@ -215,7 +203,6 @@ class UnsignedOperandHelper {
         return value <= kMaxUInt32;
       default:
         UNREACHABLE();
-        return false;
     }
   }
 };
@@ -271,6 +258,15 @@ class OperandHelper<OperandType::kRegOut> {
  public:
   INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder, Register reg)) {
     return builder->GetOutputRegisterOperand(reg);
+  }
+};
+
+template <>
+class OperandHelper<OperandType::kRegOutList> {
+ public:
+  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                 RegisterList reg_list)) {
+    return builder->GetOutputRegisterListOperand(reg_list);
   }
 };
 
@@ -990,21 +986,31 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToObject(
-    Register out) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToObject(Register out) {
   OutputToObject(out);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToName(
-    Register out) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
   OutputToName(out);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToNumber(
-    Register out, int feedback_slot) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(Register out,
+                                                     int feedback_slot) {
   OutputToNumber(out, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToPrimitiveToString(
+    Register out, int feedback_slot) {
+  OutputToPrimitiveToString(out, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StringConcat(
+    RegisterList operand_registers) {
+  OutputStringConcat(operand_registers, operand_registers.register_count());
   return *this;
 }
 
@@ -1238,15 +1244,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadModuleVariable(int cell_index,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
-    Register generator, SuspendFlags flags) {
-  OutputSuspendGenerator(generator,
+    Register generator, RegisterList registers, SuspendFlags flags) {
+  OutputSuspendGenerator(generator, registers, registers.register_count(),
                          SuspendGeneratorBytecodeFlags::Encode(flags));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
+BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorState(
     Register generator) {
-  OutputResumeGenerator(generator);
+  OutputRestoreGeneratorState(generator);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorRegisters(
+    Register generator, RegisterList registers) {
+  OutputRestoreGeneratorRegisters(generator, registers,
+                                  registers.register_count());
   return *this;
 }
 
@@ -1518,7 +1531,6 @@ std::ostream& operator<<(std::ostream& os,
       return os << "ConvertToBoolean";
   }
   UNREACHABLE();
-  return os;
 }
 
 }  // namespace interpreter

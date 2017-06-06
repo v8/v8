@@ -234,8 +234,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
            SmiConstant(resume_mode),
            SmiConstant(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
 
-  TailCallStub(CodeFactory::AsyncGeneratorResumeNext(isolate()), context,
-               generator);
+  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
 }
 
 template <typename Descriptor>

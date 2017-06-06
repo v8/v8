@@ -163,6 +163,15 @@ TEST(PreParserScopeAnalysis) {
 
       // Methods containing skippable functions. Cannot test at the laziness
       // boundary, since there's no way to force eager parsing of a method.
+      {"class MyClass { constructor() {",
+       "} }",
+       " function test(%s) { %s }",
+       "(function test(%s) { %s })()",
+       true,
+       true,
+       false,
+       {0, 0, 0}},
+
       {"class MyClass { mymethod() {",
        "} }",
        " function test(%s) { %s }",
@@ -618,7 +627,6 @@ TEST(PreParserScopeAnalysis) {
       {"try { } catch(var1) { var var1 = 3; function f() { var1 = 3; } }"},
 
       // Classes
-      // FIXME(marja): Add more complex class cases.
       {"class MyClass {}"},
       {"var1 = class MyClass {}"},
       {"var var1 = class MyClass {}"},
@@ -627,6 +635,12 @@ TEST(PreParserScopeAnalysis) {
       {"var var1 = class {}"},
       {"let var1 = class {}"},
       {"const var1 = class {}"},
+
+      {"class MyClass { constructor() {} }"},
+      {"class MyClass { constructor() { var var1; } }"},
+      {"class MyClass { constructor() { var var1 = 11; } }"},
+      {"class MyClass { constructor() { var var1; function foo() { var1 = 11; "
+       "} } }"},
 
       {"class MyClass { m() {} }"},
       {"class MyClass { m() { var var1; } }"},
@@ -638,6 +652,28 @@ TEST(PreParserScopeAnalysis) {
       {"class MyClass { static m() { var var1 = 11; } }"},
       {"class MyClass { static m() { var var1; function foo() { var1 = 11; } } "
        "}"},
+
+      {"class MyBase {} class MyClass extends MyBase {}"},
+      {"class MyClass extends MyBase { constructor() {} }"},
+      {"class MyClass extends MyBase { constructor() { super(); } }"},
+      {"class MyClass extends MyBase { constructor() { var var1; } }"},
+      {"class MyClass extends MyBase { constructor() { var var1 = 11; } }"},
+      {"class MyClass extends MyBase { constructor() { var var1; function "
+       "foo() { var1 = 11; } } }"},
+
+      {"class MyClass extends MyBase { m() {} }"},
+      {"class MyClass extends MyBase { m() { super.foo; } }"},
+      {"class MyClass extends MyBase { m() { var var1; } }"},
+      {"class MyClass extends MyBase { m() { var var1 = 11; } }"},
+      {"class MyClass extends MyBase { m() { var var1; function foo() { var1 = "
+       "11; } } }"},
+
+      {"class MyClass extends MyBase { static m() {} }"},
+      {"class MyClass extends MyBase { static m() { super.foo; } }"},
+      {"class MyClass extends MyBase { static m() { var var1; } }"},
+      {"class MyClass extends MyBase { static m() { var var1 = 11; } }"},
+      {"class MyClass extends MyBase { static m() { var var1; function foo() { "
+       "var1 = 11; } } }"},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
@@ -734,8 +770,8 @@ TEST(PreParserScopeAnalysis) {
       CHECK_NULL(unallocated_scope->sibling());
       CHECK(unallocated_scope->is_function_scope());
 
-      uint32_t index = 0;
-      lazy_info.preparsed_scope_data()->RestoreData(unallocated_scope, &index);
+      lazy_info.preparsed_scope_data()->RestoreData(
+          unallocated_scope->AsDeclarationScope());
       i::ScopeTestHelper::AllocateWithoutVariableResolution(unallocated_scope);
 
       i::ScopeTestHelper::CompareScopes(

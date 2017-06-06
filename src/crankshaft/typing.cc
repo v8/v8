@@ -468,7 +468,6 @@ void AstTyper::VisitAssignment(Assignment* expr) {
 }
 
 void AstTyper::VisitSuspend(Suspend* expr) {
-  RECURSE(Visit(expr->generator_object()));
   RECURSE(Visit(expr->expression()));
 
   // We don't know anything about the result type.

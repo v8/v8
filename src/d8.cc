@@ -73,9 +73,37 @@ const int kMaxSerializerMemoryUsage = 1 * MB;  // Arbitrary maximum for testing.
 // array buffers storing the lengths as a SMI internally.
 #define TWO_GB (2u * 1024u * 1024u * 1024u)
 
-class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+// Forwards memory reservation and protection functions to the V8 default
+// allocator. Used by ShellArrayBufferAllocator and MockArrayBufferAllocator.
+class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
+  std::unique_ptr<Allocator> allocator_ =
+      std::unique_ptr<Allocator>(NewDefaultAllocator());
+
  public:
-  virtual void* Allocate(size_t length) {
+  void* Reserve(size_t length) override { return allocator_->Reserve(length); }
+
+  void Free(void*, size_t) override = 0;
+
+  void Free(void* data, size_t length, AllocationMode mode) override {
+    switch (mode) {
+      case AllocationMode::kNormal: {
+        return Free(data, length);
+      }
+      case AllocationMode::kReservation: {
+        return allocator_->Free(data, length, mode);
+      }
+    }
+  }
+
+  void SetProtection(void* data, size_t length,
+                     Protection protection) override {
+    allocator_->SetProtection(data, length, protection);
+  }
+};
+
+class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
+ public:
+  void* Allocate(size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
       void* data = VirtualMemoryAllocate(length);
@@ -95,7 +123,7 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     void* data = AllocateUninitialized(length);
     return data == NULL ? data : memset(data, 0, length);
   }
-  virtual void* AllocateUninitialized(size_t length) {
+  void* AllocateUninitialized(size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) return VirtualMemoryAllocate(length);
 #endif
@@ -107,7 +135,8 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return malloc(length);
 #endif
   }
-  virtual void Free(void* data, size_t length) {
+  using ArrayBufferAllocatorBase::Free;
+  void Free(void* data, size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
       base::VirtualMemory::ReleaseRegion(data, length);
@@ -139,85 +168,84 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 #endif
 };
 
+class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
+  const size_t kAllocationLimit = 10 * MB;
+  size_t get_actual_length(size_t length) const {
+    return length > kAllocationLimit ? base::OS::CommitPageSize() : length;
+  }
 
-class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   void* Allocate(size_t length) override {
-    size_t actual_length = length > 10 * MB ? 1 : length;
+    const size_t actual_length = get_actual_length(length);
     void* data = AllocateUninitialized(actual_length);
     return data == NULL ? data : memset(data, 0, actual_length);
   }
   void* AllocateUninitialized(size_t length) override {
-    return length > 10 * MB ? malloc(1) : malloc(length);
+    return malloc(get_actual_length(length));
   }
   void Free(void* p, size_t) override { free(p); }
+  void Free(void* data, size_t length, AllocationMode mode) override {
+    ArrayBufferAllocatorBase::Free(data, get_actual_length(length), mode);
+  }
+  void* Reserve(size_t length) override {
+    return ArrayBufferAllocatorBase::Reserve(get_actual_length(length));
+  }
 };
 
-
-// Predictable v8::Platform implementation. All background and foreground
-// tasks are run immediately, delayed tasks are not executed at all.
+// Predictable v8::Platform implementation. Background tasks and idle tasks are
+// disallowed, and the time reported by {MonotonicallyIncreasingTime} is
+// deterministic.
 class PredictablePlatform : public Platform {
  public:
-  PredictablePlatform() {}
+  explicit PredictablePlatform(std::unique_ptr<Platform> platform)
+      : platform_(std::move(platform)) {
+    DCHECK_NOT_NULL(platform_);
+  }
 
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override {
+    // It's not defined when background tasks are being executed, so we can just
+    // execute them right away.
     task->Run();
     delete task;
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    task->Run();
-    delete task;
+    platform_->CallOnForegroundThread(isolate, task);
   }
 
   void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
                                      double delay_in_seconds) override {
-    delete task;
+    platform_->CallDelayedOnForegroundThread(isolate, task, delay_in_seconds);
   }
 
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  IdleTask* task) override {
+  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {
     UNREACHABLE();
   }
 
-  bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
+  bool IdleTasksEnabled(Isolate* isolate) override { return false; }
 
   double MonotonicallyIncreasingTime() override {
     return synthetic_time_in_sec_ += 0.00001;
   }
 
-  using Platform::AddTraceEvent;
-  uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, const char* scope, uint64_t id,
-                         uint64_t bind_id, int numArgs, const char** argNames,
-                         const uint8_t* argTypes, const uint64_t* argValues,
-                         unsigned int flags) override {
-    return 0;
-  }
-
-  void UpdateTraceEventDuration(const uint8_t* categoryEnabledFlag,
-                                const char* name, uint64_t handle) override {}
-
-  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
-    static uint8_t no = 0;
-    return &no;
-  }
-
-  const char* GetCategoryGroupName(
-      const uint8_t* categoryEnabledFlag) override {
-    static const char* dummy = "dummy";
-    return dummy;
-  }
+  Platform* platform() const { return platform_.get(); }
 
  private:
   double synthetic_time_in_sec_ = 0.0;
+  std::unique_ptr<Platform> platform_;
 
   DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
 };
 
 
 v8::Platform* g_platform = NULL;
+
+v8::Platform* GetDefaultPlatform() {
+  return i::FLAG_verify_predictable
+             ? static_cast<PredictablePlatform*>(g_platform)->platform()
+             : g_platform;
+}
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
@@ -453,9 +481,9 @@ ScriptCompiler::CachedData* CompileForCachedData(
   }
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
   Isolate* temp_isolate = Isolate::New(create_params);
+  temp_isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
   ScriptCompiler::CachedData* result = NULL;
   {
     Isolate::Scope isolate_scope(temp_isolate);
@@ -798,12 +826,14 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     root_module = module_it->second.Get(isolate);
   } else if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
-    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception()));
+    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception())
+              .FromJust());
     return;
   }
 
   MaybeLocal<Value> maybe_result;
-  if (root_module->Instantiate(realm, ResolveModuleCallback)) {
+  if (root_module->InstantiateModule(realm, ResolveModuleCallback)
+          .FromMaybe(false)) {
     maybe_result = root_module->Evaluate(realm);
     EmptyMessageQueues(isolate);
   }
@@ -811,12 +841,13 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Value> module;
   if (!maybe_result.ToLocal(&module)) {
     DCHECK(try_catch.HasCaught());
-    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception()));
+    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception())
+              .FromJust());
     return;
   }
 
   DCHECK(!try_catch.HasCaught());
-  CHECK(result->FinishDynamicImportSuccess(realm, root_module));
+  CHECK(result->FinishDynamicImportSuccess(realm, root_module).FromJust());
 }
 
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
@@ -841,7 +872,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   }
 
   MaybeLocal<Value> maybe_result;
-  if (root_module->Instantiate(realm, ResolveModuleCallback)) {
+  if (root_module->InstantiateModule(realm, ResolveModuleCallback)
+          .FromMaybe(false)) {
     maybe_result = root_module->Evaluate(realm);
     EmptyMessageQueues(isolate);
   }
@@ -1347,8 +1379,6 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
                  const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&args));
 }
 
-// Note that both WaitUntilDone and NotifyDone are no-op when
-// --verify-predictable. See comment in Shell::EnsureEventLoopInitialized.
 void Shell::WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
   SetWaitUntilDone(args.GetIsolate(), true);
 }
@@ -2098,6 +2128,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
   void flushProtocolNotifications() override {}
 
   void Send(const v8_inspector::StringView& string) {
+    v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     int length = static_cast<int>(string.length());
     DCHECK(length < v8::String::kMaxLength);
     Local<String> message =
@@ -2287,9 +2318,9 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
 
   Shell::EnsureEventLoopInitialized(isolate);
   D8Console console(isolate);
@@ -2408,7 +2439,7 @@ std::unique_ptr<SerializationData> Worker::GetMessage() {
   while (!out_queue_.Dequeue(&result)) {
     // If the worker is no longer running, and there are no messages in the
     // queue, don't expect any more messages from it.
-    if (!base::NoBarrier_Load(&running_)) break;
+    if (!base::Relaxed_Load(&running_)) break;
     out_semaphore_.Wait();
   }
   return result;
@@ -2416,7 +2447,7 @@ std::unique_ptr<SerializationData> Worker::GetMessage() {
 
 
 void Worker::Terminate() {
-  base::NoBarrier_Store(&running_, false);
+  base::Relaxed_Store(&running_, false);
   // Post NULL to wake the Worker thread message loop, and tell it to stop
   // running.
   PostMessage(NULL);
@@ -2432,9 +2463,9 @@ void Worker::WaitForThread() {
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   {
@@ -2725,13 +2756,8 @@ void Shell::CollectGarbage(Isolate* isolate) {
 }
 
 void Shell::EnsureEventLoopInitialized(Isolate* isolate) {
-  // When using PredictablePlatform (i.e. FLAG_verify_predictable),
-  // we don't need event loop support, because tasks are completed
-  // immediately - both background and foreground ones.
-  if (!i::FLAG_verify_predictable) {
-    v8::platform::EnsureEventLoopInitialized(g_platform, isolate);
-    SetWaitUntilDone(isolate, false);
-  }
+  v8::platform::EnsureEventLoopInitialized(GetDefaultPlatform(), isolate);
+  SetWaitUntilDone(isolate, false);
 }
 
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
@@ -2750,29 +2776,32 @@ bool Shell::IsWaitUntilDone(Isolate* isolate) {
 }
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  // See comment in EnsureEventLoopInitialized.
-  if (i::FLAG_verify_predictable) return;
+  Platform* platform = GetDefaultPlatform();
   while (v8::platform::PumpMessageLoop(
-      g_platform, isolate,
+      platform, isolate,
       Shell::IsWaitUntilDone(isolate)
           ? platform::MessageLoopBehavior::kWaitForWork
           : platform::MessageLoopBehavior::kDoNotWait)) {
     isolate->RunMicrotasks();
   }
-  v8::platform::RunIdleTasks(g_platform, isolate,
-                             50.0 / base::Time::kMillisecondsPerSecond);
+  if (platform->IdleTasksEnabled(isolate)) {
+    v8::platform::RunIdleTasks(platform, isolate,
+                               50.0 / base::Time::kMillisecondsPerSecond);
+  }
 }
 
 void Shell::EmptyMessageQueues(Isolate* isolate) {
-  if (i::FLAG_verify_predictable) return;
+  Platform* platform = GetDefaultPlatform();
   // Pump the message loop until it is empty.
   while (v8::platform::PumpMessageLoop(
-      g_platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
+      platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
     isolate->RunMicrotasks();
   }
   // Run the idle tasks.
-  v8::platform::RunIdleTasks(g_platform, isolate,
-                             50.0 / base::Time::kMillisecondsPerSecond);
+  if (platform->IdleTasksEnabled(isolate)) {
+    v8::platform::RunIdleTasks(platform, isolate,
+                               50.0 / base::Time::kMillisecondsPerSecond);
+  }
 }
 
 class Serializer : public ValueSerializer::Delegate {
@@ -3030,14 +3059,14 @@ int Shell::Main(int argc, char* argv[]) {
           ? v8::platform::InProcessStackDumping::kDisabled
           : v8::platform::InProcessStackDumping::kEnabled;
 
-  g_platform = i::FLAG_verify_predictable
-                   ? new PredictablePlatform()
-                   : v8::platform::CreateDefaultPlatform(
-                         0, v8::platform::IdleTaskSupport::kEnabled,
-                         in_process_stack_dumping);
+  g_platform = v8::platform::CreateDefaultPlatform(
+      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping);
+  if (i::FLAG_verify_predictable) {
+    g_platform = new PredictablePlatform(std::unique_ptr<Platform>(g_platform));
+  }
 
   platform::tracing::TracingController* tracing_controller;
-  if (options.trace_enabled) {
+  if (options.trace_enabled && !i::FLAG_verify_predictable) {
     trace_file.open("v8_trace.json");
     tracing_controller = new platform::tracing::TracingController();
     platform::tracing::TraceBuffer* trace_buffer =
@@ -3045,9 +3074,7 @@ int Shell::Main(int argc, char* argv[]) {
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing_controller->Initialize(trace_buffer);
-    if (!i::FLAG_verify_predictable) {
-      platform::SetTracingController(g_platform, tracing_controller);
-    }
+    platform::SetTracingController(g_platform, tracing_controller);
   }
 
   v8::V8::InitializePlatform(g_platform);
@@ -3085,9 +3112,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
-
   if (i::trap_handler::UseTrapHandler()) {
     if (!v8::V8::RegisterDefaultSignalHandler()) {
       fprintf(stderr, "Could not register signal handler");
@@ -3096,6 +3120,9 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
+
   D8Console console(isolate);
   {
     Isolate::Scope scope(isolate);
@@ -3165,9 +3192,6 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;
-  if (i::FLAG_verify_predictable) {
-    delete tracing_controller;
-  }
 
   return result;
 }

@@ -29,6 +29,7 @@
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/messages.h"
+#include "src/objects/map.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -906,7 +907,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   info->SetOptimizingForOsr(osr_ast_id, osr_frame);
 
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
-  if (info->shared_info()->HasDebugInfo()) {
+  if (info->shared_info()->HasBreakInfo()) {
     info->AbortOptimization(kFunctionBeingDebugged);
     return MaybeHandle<Code>();
   }
@@ -1006,7 +1007,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
   // Shared function no longer needs to be tiered up.
   shared->set_marked_for_tier_up(false);
 
-  DCHECK(!shared->HasDebugInfo());
+  DCHECK(!shared->HasBreakInfo());
 
   // 1) Optimization on the concurrent thread may have failed.
   // 2) The function may have already been optimized by OSR.  Simply continue.

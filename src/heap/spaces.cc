@@ -634,22 +634,6 @@ void MemoryChunk::Unlink() {
   set_next_chunk(NULL);
 }
 
-void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
-  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(GetCommitPageSize()));
-  DCHECK_EQ(0u, bytes_to_shrink % GetCommitPageSize());
-  Address free_start = chunk->area_end_ - bytes_to_shrink;
-  // Don't adjust the size of the page. The area is just uncomitted but not
-  // released.
-  chunk->area_end_ -= bytes_to_shrink;
-  UncommitBlock(free_start, bytes_to_shrink);
-  if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-    if (chunk->reservation_.IsReserved())
-      chunk->reservation_.Guard(chunk->area_end_);
-    else
-      base::OS::Guard(chunk->area_end_, GetCommitPageSize());
-  }
-}
-
 MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                             size_t commit_area_size,
                                             Executability executable,
@@ -797,6 +781,11 @@ size_t Page::AvailableInFreeList() {
 }
 
 size_t Page::ShrinkToHighWaterMark() {
+  // Shrinking only makes sense outside of the CodeRange, where we don't care
+  // about address space fragmentation.
+  base::VirtualMemory* reservation = reserved_memory();
+  if (!reservation->IsReserved()) return 0;
+
   // Shrink pages to high water mark. The water mark points either to a filler
   // or the area_end.
   HeapObject* filler = HeapObject::FromAddress(HighWaterMark());
@@ -826,6 +815,7 @@ size_t Page::ShrinkToHighWaterMark() {
       static_cast<size_t>(area_end() - filler->address() - FreeSpace::kSize),
       MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
+    DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
                    reinterpret_cast<void*>(this),
@@ -836,7 +826,8 @@ size_t Page::ShrinkToHighWaterMark() {
         filler->address(),
         static_cast<int>(area_end() - filler->address() - unused),
         ClearRecordedSlots::kNo);
-    heap()->memory_allocator()->ShrinkChunk(this, unused);
+    heap()->memory_allocator()->PartialFreeMemory(this,
+                                                  address() + size() - unused);
     CHECK(filler->IsFiller());
     CHECK_EQ(filler->address() + filler->Size(), area_end());
   }
@@ -850,8 +841,9 @@ void Page::CreateBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState::Internal(this).bitmap()->SetRange(AddressToMarkbitIndex(start),
                                                   AddressToMarkbitIndex(end));
-  MarkingState::Internal(this).IncrementLiveBytes(
-      static_cast<int>(end - start));
+  MarkingState::Internal(this)
+      .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
+          static_cast<int>(end - start));
 }
 
 void Page::DestroyBlackArea(Address start, Address end) {
@@ -861,29 +853,32 @@ void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState::Internal(this).bitmap()->ClearRange(
       AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
-  MarkingState::Internal(this).IncrementLiveBytes(
-      -static_cast<int>(end - start));
+  MarkingState::Internal(this)
+      .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
+          -static_cast<int>(end - start));
 }
 
-void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
-                                        Address start_free) {
-  // We do not allow partial shrink for code.
-  DCHECK(chunk->executable() == NOT_EXECUTABLE);
-
-  intptr_t size;
+size_t MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
+                                          Address start_free) {
   base::VirtualMemory* reservation = chunk->reserved_memory();
   DCHECK(reservation->IsReserved());
-  size = static_cast<intptr_t>(reservation->size());
-
-  size_t to_free_size = size - (start_free - chunk->address());
-
-  DCHECK(size_.Value() >= to_free_size);
+  const size_t to_free_size =
+      reservation->size() - (start_free - chunk->address());
+  DCHECK_GE(size_.Value(), to_free_size);
   size_.Decrement(to_free_size);
   isolate_->counters()->memory_allocated()->Decrement(
       static_cast<int>(to_free_size));
-  chunk->set_size(size - to_free_size);
-
+  chunk->size_ -= to_free_size;
+  chunk->area_end_ -= to_free_size;
+  if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(chunk->area_end_) %
+                     static_cast<uintptr_t>(GetCommitPageSize()));
+    DCHECK_EQ(chunk->address() + chunk->size(),
+              chunk->area_end() + CodePageGuardSize());
+    chunk->reservation_.Guard(chunk->area_end_);
+  }
   reservation->ReleasePartial(start_free);
+  return to_free_size;
 }
 
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
@@ -1110,6 +1105,10 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
 
 // -----------------------------------------------------------------------------
 // MemoryChunk implementation
+
+bool MemoryChunk::contains_array_buffers() {
+  return local_tracker() != nullptr && !local_tracker()->IsEmpty();
+}
 
 void MemoryChunk::ReleaseAllocatedMemory() {
   if (skip_list_ != nullptr) {
@@ -1403,9 +1402,7 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
     DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
     size_t unused = page->ShrinkToHighWaterMark();
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
-    // Do not account for the unused space as uncommitted because the counter
-    // is kept in sync with page size which is also not adjusted for those
-    // chunks.
+    AccountUncommitted(unused);
   }
 }
 
@@ -1496,8 +1493,9 @@ void PagedSpace::EmptyAllocationInfo() {
       MarkingState::Internal(page).bitmap()->ClearRange(
           page->AddressToMarkbitIndex(current_top),
           page->AddressToMarkbitIndex(current_limit));
-      MarkingState::Internal(page).IncrementLiveBytes(
-          -static_cast<int>(current_limit - current_top));
+      MarkingState::Internal(page)
+          .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
+              -static_cast<int>(current_limit - current_top));
     }
   }
 
@@ -1777,6 +1775,8 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 void NewSpace::UpdateAllocationInfo() {
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(to_space_.page_low(), to_space_.page_high());
+  original_top_.SetValue(top());
+  original_limit_.SetValue(limit());
   UpdateInlineAllocationLimit(0);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
@@ -2214,7 +2214,6 @@ void SemiSpace::set_age_mark(Address mark) {
 std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator() {
   // Use the NewSpace::NewObjectIterator to iterate the ToSpace.
   UNREACHABLE();
-  return std::unique_ptr<ObjectIterator>();
 }
 
 #ifdef DEBUG
@@ -2838,7 +2837,7 @@ size_t FreeListCategory::SumFreeList() {
   FreeSpace* cur = top();
   while (cur != NULL) {
     DCHECK(cur->map() == cur->GetHeap()->root(Heap::kFreeSpaceMapRootIndex));
-    sum += cur->nobarrier_size();
+    sum += cur->relaxed_read_size();
     cur = cur->next();
   }
   return sum;
@@ -3240,18 +3239,20 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
 }
 
 void LargeObjectSpace::FreeUnmarkedObjects() {
-  LargePage* previous = NULL;
+  LargePage* previous = nullptr;
   LargePage* current = first_page_;
-  while (current != NULL) {
+  while (current != nullptr) {
     HeapObject* object = current->GetObject();
     DCHECK(!ObjectMarking::IsGrey(object, MarkingState::Internal(object)));
     if (ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
       Address free_start;
       if ((free_start = current->GetAddressToShrink()) != 0) {
-        // TODO(hpayer): Perform partial free concurrently.
         current->ClearOutOfLiveRangeSlots(free_start);
         RemoveChunkMapEntries(current, free_start);
-        heap()->memory_allocator()->PartialFreeMemory(current, free_start);
+        const size_t freed =
+            heap()->memory_allocator()->PartialFreeMemory(current, free_start);
+        size_ -= freed;
+        AccountUncommitted(freed);
       }
       previous = current;
       current = current->next_page();
@@ -3259,7 +3260,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       LargePage* page = current;
       // Cut the chunk out from the chunk list.
       current = current->next_page();
-      if (previous == NULL) {
+      if (previous == nullptr) {
         first_page_ = current;
       } else {
         previous->set_next_page(current);

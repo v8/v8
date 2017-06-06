@@ -82,6 +82,7 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kAny:
       case CompareOperationHint::kNone:
       case CompareOperationHint::kString:
+      case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kInternalizedString:
         break;
@@ -117,7 +118,6 @@ class JSSpeculativeBinopBuilder final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
@@ -138,7 +138,6 @@ class JSSpeculativeBinopBuilder final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   Node* BuildSpeculativeOperation(const Operator* op) {

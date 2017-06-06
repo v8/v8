@@ -159,6 +159,7 @@
   V(JSCreateScriptContext)
 
 #define JS_OTHER_OP_LIST(V)         \
+  V(JSConstructForwardVarargs)      \
   V(JSConstruct)                    \
   V(JSConstructWithSpread)          \
   V(JSCallForwardVarargs)           \
@@ -310,6 +311,7 @@
   V(BooleanNot)                     \
   V(StringCharAt)                   \
   V(StringCharCodeAt)               \
+  V(SeqStringCharCodeAt)            \
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \
   V(StringIndexOf)                  \
@@ -320,6 +322,8 @@
   V(CheckInternalizedString)        \
   V(CheckReceiver)                  \
   V(CheckString)                    \
+  V(CheckSeqString)                 \
+  V(CheckSymbol)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \
   V(CheckFloat64Hole)               \

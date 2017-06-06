@@ -459,13 +459,12 @@ void V8ConsoleMessageStorage::addMessage(
   V8InspectorImpl* inspector = m_inspector;
   if (message->type() == ConsoleAPIType::kClear) clear();
 
-  V8InspectorSessionImpl* session =
-      inspector->sessionForContextGroup(contextGroupId);
-  if (session) {
-    if (message->origin() == V8MessageOrigin::kConsole)
-      session->consoleAgent()->messageAdded(message.get());
-    session->runtimeAgent()->messageAdded(message.get());
-  }
+  inspector->forEachSession(
+      contextGroupId, [&message](V8InspectorSessionImpl* session) {
+        if (message->origin() == V8MessageOrigin::kConsole)
+          session->consoleAgent()->messageAdded(message.get());
+        session->runtimeAgent()->messageAdded(message.get());
+      });
   if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
 
   DCHECK(m_messages.size() <= maxConsoleMessageCount);
@@ -486,10 +485,10 @@ void V8ConsoleMessageStorage::addMessage(
 void V8ConsoleMessageStorage::clear() {
   m_messages.clear();
   m_estimatedSize = 0;
-  if (V8InspectorSessionImpl* session =
-          m_inspector->sessionForContextGroup(m_contextGroupId)) {
-    session->releaseObjectGroup("console");
-  }
+  m_inspector->forEachSession(m_contextGroupId,
+                              [](V8InspectorSessionImpl* session) {
+                                session->releaseObjectGroup("console");
+                              });
   m_data.clear();
 }
 

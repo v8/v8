@@ -224,6 +224,12 @@ namespace interpreter {
   V(ToNumber, AccumulatorUse::kRead, OperandType::kRegOut, OperandType::kIdx)  \
   V(ToObject, AccumulatorUse::kRead, OperandType::kRegOut)                     \
                                                                                \
+  /* String concatenation */                                                   \
+  V(ToPrimitiveToString, AccumulatorUse::kRead, OperandType::kRegOut,          \
+    OperandType::kIdx)                                                         \
+  V(StringConcat, AccumulatorUse::kWrite, OperandType::kRegList,               \
+    OperandType::kRegCount)                                                    \
+                                                                               \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
     OperandType::kIdx, OperandType::kFlag8)                                    \
@@ -309,9 +315,11 @@ namespace interpreter {
   V(Return, AccumulatorUse::kRead)                                             \
                                                                                \
   /* Generators */                                                             \
+  V(RestoreGeneratorState, AccumulatorUse::kWrite, OperandType::kReg)          \
   V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg,                \
-    OperandType::kFlag8)                                                       \
-  V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg)                \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kFlag8)        \
+  V(RestoreGeneratorRegisters, AccumulatorUse::kNone, OperandType::kReg,       \
+    OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \
@@ -470,7 +478,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
         return Bytecode::kWide;
       default:
         UNREACHABLE();
-        return Bytecode::kIllegal;
     }
   }
 
@@ -491,7 +498,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
         return OperandScale::kDouble;
       default:
         UNREACHABLE();
-        return OperandScale::kSingle;
     }
   }
 
@@ -626,7 +632,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     return (IsAccumulatorLoadWithoutEffects(bytecode) ||
             IsRegisterLoadWithoutEffects(bytecode) ||
             IsCompareWithoutEffects(bytecode) || bytecode == Bytecode::kNop ||
-            IsJumpWithoutEffects(bytecode));
+            IsJumpWithoutEffects(bytecode) || IsSwitch(bytecode));
   }
 
   // Returns true if the bytecode is Ldar or Star.
@@ -783,7 +789,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
         return ConvertReceiverMode::kAny;
       default:
         UNREACHABLE();
-        return ConvertReceiverMode::kAny;
     }
   }
 
@@ -818,13 +823,12 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case OperandType::kRegOutTriple:
         return 3;
       case OperandType::kRegList:
+      case OperandType::kRegOutList:
         UNREACHABLE();
-        return 0;
       default:
         return 0;
     }
     UNREACHABLE();
-    return 0;
   }
 
   // Returns the size of |operand| for |operand_scale|.

@@ -67,7 +67,6 @@ const char* Bytecodes::ToString(Bytecode bytecode) {
 #undef CASE
   }
   UNREACHABLE();
-  return "";
 }
 
 // static
@@ -101,7 +100,6 @@ Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
   DEBUG_BREAK_PLAIN_BYTECODE_LIST(RETURN_IF_DEBUG_BREAK_SIZE_MATCHES)
 #undef RETURN_IF_DEBUG_BREAK_SIZE_MATCHES
   UNREACHABLE();
-  return Bytecode::kIllegal;
 }
 
 // static
@@ -133,7 +131,6 @@ Bytecode Bytecodes::GetJumpWithoutToBoolean(Bytecode bytecode) {
       break;
   }
   UNREACHABLE();
-  return Bytecode::kIllegal;
 }
 
 // static
@@ -275,7 +272,6 @@ bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
 #undef CASE
   }
   UNREACHABLE();
-  return false;
 }
 
 // static

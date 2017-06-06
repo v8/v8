@@ -45,5 +45,37 @@ TEST(Heap, HeapGrowingFactor) {
                     Heap::HeapGrowingFactor(400, 1));
 }
 
+TEST(Heap, SemiSpaceSize) {
+  uint64_t configurations[][2] = {
+      {0, 1 * i::Heap::kPointerMultiplier},
+      {512 * i::MB, 1 * i::Heap::kPointerMultiplier},
+      {1 * i::GB, 3 * i::Heap::kPointerMultiplier},
+      {2 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize},
+      {4 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize},
+      {8 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize}};
+
+  for (auto configuration : configurations) {
+    ASSERT_EQ(configuration[1],
+              static_cast<uint64_t>(
+                  i::Heap::ComputeMaxSemiSpaceSize(configuration[0])));
+  }
+}
+
+TEST(Heap, OldGenerationSize) {
+  uint64_t configurations[][2] = {
+      {0, i::Heap::kMinOldSpaceSize},
+      {512, i::Heap::kMinOldSpaceSize},
+      {1 * i::GB, 256 * i::Heap::kPointerMultiplier},
+      {2 * static_cast<uint64_t>(i::GB), 512 * i::Heap::kPointerMultiplier},
+      {4 * static_cast<uint64_t>(i::GB), i::Heap::kMaxOldSpaceSize},
+      {8 * static_cast<uint64_t>(i::GB), i::Heap::kMaxOldSpaceSize}};
+
+  for (auto configuration : configurations) {
+    ASSERT_EQ(configuration[1],
+              static_cast<uint64_t>(
+                  i::Heap::ComputeMaxOldGenerationSize(configuration[0])));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

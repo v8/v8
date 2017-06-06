@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions');
 
 var source = `
 function test() {
@@ -17,7 +17,7 @@ function test() {
   nested2();
 }
 //# sourceURL=test.js`;
-InspectorTest.addScript(source);
+contextGroup.addScript(source);
 
 var scriptId;
 Protocol.Debugger.onceScriptParsed().then(message => {
@@ -25,32 +25,35 @@ Protocol.Debugger.onceScriptParsed().then(message => {
     scriptId = message.params.scriptId;
 }).then(() => InspectorTest.runTestSuite(tests));
 
-InspectorTest.setupScriptMap();
-Protocol.Debugger.onPaused(dumpBreakLocationInSourceAndResume);
+session.setupScriptMap();
+Protocol.Debugger.onPaused(message => {
+  session.logSourceLocation(message.params.callFrames[0].location);
+  Protocol.Debugger.resume();
+});
 
 Protocol.Debugger.enable();
 var tests = [
   function testWholeFunction(next) {
     Protocol.Debugger.getPossibleBreakpoints({ start: location(1, 18), ignoreNestedFunctions: false })
-      .then(dumpAllLocations)
+      .then(message => session.logBreakLocations(message.result.locations))
       .then(next);
   },
 
   function testWholeFunctionWithoutNested(next) {
     Protocol.Debugger.getPossibleBreakpoints({ start: location(1, 18), ignoreNestedFunctions: true })
-      .then(dumpAllLocations)
+      .then(message => session.logBreakLocations(message.result.locations))
       .then(next);
   },
 
   function testPartOfFunctionWithoutNested(next) {
     Protocol.Debugger.getPossibleBreakpoints({ start: location(1, 18), end: location(2, 18), ignoreNestedFunctions: true })
-      .then(dumpAllLocations)
+      .then(message => session.logBreakLocations(message.result.locations))
       .then(next);
   },
 
   function testNestedFunction(next) {
     Protocol.Debugger.getPossibleBreakpoints({ start: location(4, 0), ignoreNestedFunctions: true })
-      .then(dumpAllLocations)
+      .then(message => session.logBreakLocations(message.result.locations))
       .then(setAllBreakpoints)
       .then(() => InspectorTest.log('Run test() to check breakpoints..'))
       .then(() => Protocol.Runtime.evaluate({ expression: 'test()' }))
@@ -62,9 +65,9 @@ function location(lineNumber, columnNumber) {
   return { lineNumber: lineNumber, columnNumber: columnNumber, scriptId: scriptId };
 }
 
-function setAllBreakpoints(message) {
+function setAllBreakpoints(locations) {
   var promises = [];
-  for (var location of message.result.locations)
+  for (var location of locations)
     promises.push(Protocol.Debugger.setBreakpoint({ location: location }).then(checkBreakpoint));
   return Promise.all(promises);
 }
@@ -79,42 +82,4 @@ function checkBreakpoint(message) {
   if (parseInt(id_data[1]) !== message.result.actualLocation.lineNumber || parseInt(id_data[2]) !== message.result.actualLocation.columnNumber) {
     InspectorTest.log('FAIL: possible breakpoint was resolved in another location');
   }
-}
-
-function dumpAllLocations(message) {
-  if (message.error) {
-    InspectorTest.logMessage(message);
-    return;
-  }
-
-  var sourceLines = source.split('\n')
-  var lineOffsets = Array(sourceLines.length).fill(0);
-  for (var location of message.result.locations) {
-    var lineNumber = location.lineNumber;
-    var columnNumber = location.columnNumber;
-    var line = sourceLines[lineNumber] || '';
-    var offset = lineOffsets[lineNumber];
-    line = line.slice(0, columnNumber + offset) + '#' + line.slice(columnNumber + offset);
-    ++lineOffsets[lineNumber];
-    sourceLines[lineNumber] = line;
-  }
-  InspectorTest.log(sourceLines.join('\n'));
-  return message;
-}
-
-function dumpBreakLocationInSourceAndResume(message) {
-  InspectorTest.logCallFrames([ message.params.callFrames[0] ]);
-
-  var location = message.params.callFrames[0].location;
-  var sourceLines = source.split('\n')
-
-  var lineNumber = location.lineNumber
-  var columnNumber = location.columnNumber;
-
-  var line = sourceLines[lineNumber];
-  line = line.slice(0, columnNumber) + '^' + line.slice(columnNumber);
-  sourceLines[lineNumber] = line;
-  InspectorTest.log(sourceLines.join('\n'));
-  InspectorTest.log('');
-  Protocol.Debugger.resume();
 }

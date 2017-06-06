@@ -296,7 +296,7 @@ class WasmGraphBuilder {
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
-
+  const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndianness(Node* node, MachineType type,
                               wasm::ValueType wasmtype = wasm::kWasmStmt);
 

@@ -630,7 +630,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register debug_info = kInterpreterBytecodeArrayRegister;
   __ mov(debug_info, FieldOperand(eax, SharedFunctionInfo::kDebugInfoOffset));
   __ mov(kInterpreterBytecodeArrayRegister,
-         FieldOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
+         FieldOperand(debug_info, DebugInfo::kDebugBytecodeArrayOffset));
   __ jmp(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying

@@ -110,6 +110,8 @@ namespace internal {
 #define V8_DEFAULT_STACK_SIZE_KB 984
 #endif
 
+// Minimum stack size in KB required by compilers.
+const int kStackSpaceRequiredForCompilation = 40;
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT
@@ -118,7 +120,10 @@ namespace internal {
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
 
-#define V8_CONCURRENT_MARKING 0
+// Some types of tracing require the SFI to store a unique ID.
+#if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
+#define V8_SFI_HAS_UNIQUE_ID 1
+#endif
 
 typedef uint8_t byte;
 typedef byte* Address;
@@ -148,6 +153,7 @@ const int kShortSize = sizeof(short);  // NOLINT
 const int kIntSize = sizeof(int);
 const int kInt32Size = sizeof(int32_t);
 const int kInt64Size = sizeof(int64_t);
+const int kUInt32Size = sizeof(uint32_t);
 const int kSizetSize = sizeof(size_t);
 const int kFloatSize = sizeof(float);
 const int kDoubleSize = sizeof(double);
@@ -353,7 +359,6 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Soft";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Mask for the sign bit in a smi.
@@ -532,7 +537,6 @@ inline std::ostream& operator<<(std::ostream& os, Decision decision) {
       return os << "False";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Supported write barrier modes.
@@ -559,7 +563,6 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
       return os << "FullWriteBarrier";
   }
   UNREACHABLE();
-  return os;
 }
 
 // A flag that indicates whether objects should be pretenured when
@@ -576,7 +579,6 @@ inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
       return os << "Tenured";
   }
   UNREACHABLE();
-  return os;
 }
 
 enum MinimumCapacity {
@@ -590,6 +592,7 @@ enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode {
   VISIT_ALL,
+  VISIT_ALL_IN_MINOR_MC_MARK,
   VISIT_ALL_IN_MINOR_MC_UPDATE,
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
@@ -828,7 +831,6 @@ inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
       return os << "ANY";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Defines whether tail call optimization is allowed.
@@ -844,7 +846,6 @@ inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
       return os << "DISALLOW_TAIL_CALLS";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Valid hints for the abstract operation OrdinaryToPrimitive,
@@ -876,7 +877,6 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
       return os << "REST_PARAMETER";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Used to specify if a macro instruction must perform a smi check on tagged
@@ -978,7 +978,6 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "TEMPORARY";
   }
   UNREACHABLE();
-  return NULL;
 }
 #endif
 
@@ -1229,7 +1228,6 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "Other";
   }
   UNREACHABLE();
-  return os;
 }
 
 inline uint32_t ObjectHash(Address address) {
@@ -1238,6 +1236,15 @@ inline uint32_t ObjectHash(Address address) {
   return static_cast<uint32_t>(bit_cast<uintptr_t>(address) >>
                                kPointerSizeLog2);
 }
+
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kString          -> kAny
+class ToPrimitiveToStringFeedback {
+ public:
+  enum { kNone = 0x0, kString = 0x1, kAny = 0x3 };
+};
 
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
@@ -1266,6 +1273,7 @@ class BinaryOperationFeedback {
 // to a more generic type when we combine feedback.
 // kSignedSmall        -> kNumber   -> kAny
 // kInternalizedString -> kString   -> kAny
+//                        kSymbol   -> kAny
 //                        kReceiver -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
@@ -1277,8 +1285,9 @@ class CompareOperationFeedback {
     kNumberOrOddball = 0x7,
     kInternalizedString = 0x8,
     kString = 0x18,
-    kReceiver = 0x20,
-    kAny = 0x7F
+    kSymbol = 0x20,
+    kReceiver = 0x40,
+    kAny = 0xff
   };
 };
 
@@ -1300,7 +1309,6 @@ inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
       return os << "UTF32";
   }
   UNREACHABLE();
-  return os;
 }
 
 enum class IterationKind { kKeys, kValues, kEntries };
@@ -1315,7 +1323,6 @@ inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
       return os << "IterationKind::kEntries";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Flags for the runtime function kDefineDataPropertyInLiteral. A property can
@@ -1395,7 +1402,6 @@ inline const char* SuspendTypeFor(SuspendFlags flags) {
       break;
   }
   UNREACHABLE();
-  return "";
 }
 
 struct AssemblerDebugInfo {

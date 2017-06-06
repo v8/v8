@@ -330,6 +330,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool has_forced_context_allocation() const {
     return force_context_allocation_;
   }
+  void ForceContextAllocationForParameters() {
+    DCHECK(!already_resolved_);
+    force_context_allocation_for_parameters_ = true;
+  }
+  bool has_forced_context_allocation_for_parameters() const {
+    return force_context_allocation_for_parameters_;
+  }
 
   // ---------------------------------------------------------------------------
   // Predicates.
@@ -410,10 +417,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // The number of contexts between this and the outermost context that has a
   // sloppy eval call. One if this->calls_sloppy_eval().
   int ContextChainLengthUntilOutermostSloppyEval() const;
-
-  // The maximum number of nested contexts required for this scope and any inner
-  // scopes.
-  int MaxNestedContextChainLength();
 
   // Find the first function, script, eval or (declaration) block scope. This is
   // the scope where var declarations will be hoisted to in the implementation.
@@ -589,6 +592,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if one of the inner scopes or the scope itself calls eval.
   bool inner_scope_calls_eval_ : 1;
   bool force_context_allocation_ : 1;
+  bool force_context_allocation_for_parameters_ : 1;
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
@@ -675,7 +679,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
 
   // Inform the scope that the corresponding code uses "super".
-  void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
+  void RecordSuperPropertyUsage() {
+    DCHECK((IsConciseMethod(function_kind()) ||
+            IsAccessorFunction(function_kind()) ||
+            IsClassConstructor(function_kind())));
+    scope_uses_super_property_ = true;
+  }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
 
@@ -739,7 +748,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Declares that a parameter with the name exists. Creates a Variable and
   // returns it if FLAG_preparser_scope_analysis is on.
   Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
-                                 AstValueFactory* ast_value_factory);
+                                 AstValueFactory* ast_value_factory,
+                                 bool declare_local, bool add_parameter);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner

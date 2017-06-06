@@ -17,6 +17,7 @@
 #include "src/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
@@ -177,10 +178,7 @@ class CodeBreakIterator : public BreakIterator {
 
   void SkipToPosition(int position, BreakPositionAlignment alignment);
 
-  int code_offset() override {
-    return static_cast<int>(rinfo()->pc() -
-                            debug_info_->DebugCode()->instruction_start());
-  }
+  int code_offset() override;
 
  private:
   int GetModeMask();
@@ -334,9 +332,9 @@ class Debug {
   void SetDebugDelegate(debug::DebugDelegate* delegate, bool pass_ownership);
 
   // Returns whether the operation succeeded.
-  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
-  void CreateDebugInfo(Handle<SharedFunctionInfo> shared);
-  static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
+  bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
+  void CreateBreakInfo(Handle<SharedFunctionInfo> shared);
+  Handle<DebugInfo> GetOrCreateDebugInfo(Handle<SharedFunctionInfo> shared);
 
   template <typename C>
   bool CompileToRevealInnerFunctions(C* compilable);
@@ -381,7 +379,7 @@ class Debug {
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
-        base::NoBarrier_Load(&thread_local_.current_debug_scope_));
+        base::Relaxed_Load(&thread_local_.current_debug_scope_));
   }
   inline Handle<Context> debug_context() { return debug_context_; }
 
@@ -393,7 +391,7 @@ class Debug {
   inline bool is_active() const { return is_active_; }
   inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool in_debug_scope() const {
-    return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
+    return !!base::Relaxed_Load(&thread_local_.current_debug_scope_);
   }
   void set_break_points_active(bool v) { break_points_active_ = v; }
   bool break_points_active() const { return break_points_active_; }
@@ -498,7 +496,6 @@ class Debug {
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
-  void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
@@ -515,6 +512,11 @@ class Debug {
   void ThreadInit();
 
   void PrintBreakLocation();
+
+  void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
+  void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
+                     DebugInfoListNode** curr);
+  void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
   // Global handles.
   Handle<Context> debug_context_;

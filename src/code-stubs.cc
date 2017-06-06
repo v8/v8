@@ -144,7 +144,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 
   // Create the code object.
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Code::Flags flags = Code::ComputeFlags(GetCodeKind(), GetExtraICState());
   Handle<Code> new_object = factory->NewCode(
@@ -164,6 +164,9 @@ Handle<Code> CodeStub::GetCode() {
 
   {
     HandleScope scope(isolate());
+    // Canonicalize handles, so that we can share constant pool entries pointing
+    // to code targets without dereferencing their handles.
+    CanonicalHandleScope canonical(isolate());
 
     Handle<Code> new_object = GenerateCode();
     new_object->set_stub_key(GetKey());
@@ -211,7 +214,6 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "<NoCache>Stub";
     case NUMBER_OF_IDS:
       UNREACHABLE();
-      return NULL;
   }
   return NULL;
 }
@@ -385,7 +387,6 @@ InlineCacheState CompareICStub::GetICState() const {
       return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
-  return ::v8::internal::UNINITIALIZED;
 }
 
 

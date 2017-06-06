@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/objects.h"
+#include "src/objects/script.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-limits.h"
 
@@ -103,7 +104,7 @@ class WasmMemoryObject : public JSObject {
   };
 
   DECLARE_CASTS(WasmMemoryObject);
-  DECLARE_OPTIONAL_ACCESSORS(buffer, JSArrayBuffer);
+  DECLARE_ACCESSORS(buffer, JSArrayBuffer);
   DECLARE_OPTIONAL_ACCESSORS(instances_link, WasmInstanceWrapper);
 
   void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);

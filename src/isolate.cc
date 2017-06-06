@@ -62,7 +62,7 @@ namespace internal {
 base::Atomic32 ThreadId::highest_thread_id_ = 0;
 
 int ThreadId::AllocateThreadId() {
-  int new_id = base::NoBarrier_AtomicIncrement(&highest_thread_id_, 1);
+  int new_id = base::Relaxed_AtomicIncrement(&highest_thread_id_, 1);
   return new_id;
 }
 
@@ -189,7 +189,7 @@ void Isolate::InitializeOncePerProcess() {
   CHECK(thread_data_table_ == NULL);
   isolate_key_ = base::Thread::CreateThreadLocalKey();
 #if DEBUG
-  base::NoBarrier_Store(&isolate_key_created_, 1);
+  base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
   thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
@@ -428,7 +428,6 @@ class StackTraceHelper {
         return !skip_next_frame_;
     }
     UNREACHABLE();
-    return false;
   }
 
   bool IsNotHidden(JSFunction* fun) {
@@ -658,7 +657,6 @@ class CaptureStackTraceHelper {
     if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
     if (summ.IsWasm()) return NewStackFrameObject(summ.AsWasm());
     UNREACHABLE();
-    return factory()->NewStackFrameInfo();
   }
 
   Handle<StackFrameInfo> NewStackFrameObject(
@@ -1224,7 +1222,8 @@ Object* Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
-        if (!FLAG_wasm_eh_prototype || !is_catchable_by_wasm(exception)) break;
+        if (!FLAG_experimental_wasm_eh || !is_catchable_by_wasm(exception))
+          break;
         int stack_slots = 0;  // Will contain stack slot count of frame.
         WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
         int offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
@@ -1378,18 +1377,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       for (const FrameSummary& summary : summaries) {
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
-          if (code->GetCode()->is_promise_rejection()) {
-            return HandlerTable::PROMISE;
-          }
-
-          // This the exception throw in PromiseHandle which doesn't
-          // cause a promise rejection.
-          if (code->GetCode()->is_exception_caught()) {
-            return HandlerTable::CAUGHT;
-          }
-
-          // The built-in must be marked with an exception prediction.
-          UNREACHABLE();
+          return code->GetCode()->GetBuiltinCatchPrediction();
         }
 
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
@@ -1412,6 +1400,23 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
     return prediction;
   }
   return HandlerTable::UNCAUGHT;
+}
+
+Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
+  switch (prediction) {
+    case HandlerTable::UNCAUGHT:
+      return Isolate::NOT_CAUGHT;
+    case HandlerTable::CAUGHT:
+      return Isolate::CAUGHT_BY_JAVASCRIPT;
+    case HandlerTable::PROMISE:
+      return Isolate::CAUGHT_BY_PROMISE;
+    case HandlerTable::DESUGARING:
+      return Isolate::CAUGHT_BY_DESUGARING;
+    case HandlerTable::ASYNC_AWAIT:
+      return Isolate::CAUGHT_BY_ASYNC_AWAIT;
+    default:
+      UNREACHABLE();
+  }
 }
 }  // anonymous namespace
 
@@ -1442,37 +1447,18 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       case StackFrame::INTERPRETED:
       case StackFrame::BUILTIN: {
         JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-        HandlerTable::CatchPrediction prediction = PredictException(js_frame);
-        switch (prediction) {
-          case HandlerTable::UNCAUGHT:
-            break;
-          case HandlerTable::CAUGHT:
-            return CAUGHT_BY_JAVASCRIPT;
-          case HandlerTable::PROMISE:
-            return CAUGHT_BY_PROMISE;
-          case HandlerTable::DESUGARING:
-            return CAUGHT_BY_DESUGARING;
-          case HandlerTable::ASYNC_AWAIT:
-            return CAUGHT_BY_ASYNC_AWAIT;
-        }
+        Isolate::CatchType prediction = ToCatchType(PredictException(js_frame));
+        if (prediction == NOT_CAUGHT) break;
+        return prediction;
       } break;
 
       case StackFrame::STUB: {
         Handle<Code> code(frame->LookupCode());
         if (code->kind() == Code::BUILTIN && code->is_turbofanned() &&
             code->handler_table()->length()) {
-          if (code->is_promise_rejection()) {
-            return CAUGHT_BY_PROMISE;
-          }
-
-          // This the exception throw in PromiseHandle which doesn't
-          // cause a promise rejection.
-          if (code->is_exception_caught()) {
-            return CAUGHT_BY_JAVASCRIPT;
-          }
-
-          // The built-in must be marked with an exception prediction.
-          UNREACHABLE();
+          CatchType prediction = ToCatchType(code->GetBuiltinCatchPrediction());
+          if (prediction == NOT_CAUGHT) break;
+          return prediction;
         }
       } break;
 
@@ -1755,6 +1741,9 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
 
 void Isolate::ReportPendingMessages() {
   DCHECK(AllowExceptions::IsAllowed(this));
+
+  // The embedder might run script in response to an exception.
+  AllowJavascriptExecutionDebugOnly allow_script(this);
 
   Object* exception = pending_exception();
 
@@ -2346,7 +2335,7 @@ Isolate::Isolate(bool enable_serializer)
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
       next_optimization_id_(0),
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
 #endif
       is_running_microtasks_(false),
@@ -2359,7 +2348,7 @@ Isolate::Isolate(bool enable_serializer)
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     CHECK(thread_data_table_);
   }
-  id_ = base::NoBarrier_AtomicIncrement(&isolate_counter_, 1);
+  id_ = base::Relaxed_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
@@ -2405,7 +2394,7 @@ void Isolate::TearDown() {
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
   PerIsolateThreadData* saved_data = CurrentPerIsolateThreadData();
-  DCHECK(base::NoBarrier_Load(&isolate_key_created_) == 1);
+  DCHECK(base::Relaxed_Load(&isolate_key_created_) == 1);
   Isolate* saved_isolate =
       reinterpret_cast<Isolate*>(base::Thread::GetThreadLocal(isolate_key_));
   SetIsolateThreadLocals(this, NULL);
@@ -2555,7 +2544,6 @@ Isolate::~Isolate() {
   store_stub_cache_ = NULL;
   delete code_aging_helper_;
   code_aging_helper_ = NULL;
-  delete stats_table_;
   stats_table_ = NULL;
 
   delete materialized_object_store_;
@@ -2564,7 +2552,6 @@ Isolate::~Isolate() {
   delete logger_;
   logger_ = NULL;
 
-  delete counters_;
   counters_ = NULL;
 
   delete handle_scope_implementer_;
@@ -2650,16 +2637,34 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   return true;
 }
 
+static base::LazyMutex initialize_counters_mutex = LAZY_MUTEX_INITIALIZER;
+
+bool Isolate::InitializeCounters() {
+  if (counters_ != nullptr) return false;
+  base::LockGuard<base::Mutex> guard(initialize_counters_mutex.Pointer());
+  if (counters_ != nullptr) return false;
+  counters_shared_ = std::make_shared<Counters>(this);
+  counters_ = counters_shared_.get();
+  return true;
+}
 
 void Isolate::InitializeLoggingAndCounters() {
   if (logger_ == NULL) {
     logger_ = new Logger(this);
   }
-  if (counters_ == NULL) {
-    counters_ = new Counters(this);
-  }
+  InitializeCounters();
 }
 
+namespace {
+void PrintBuiltinSizes(Isolate* isolate) {
+  Builtins* builtins = isolate->builtins();
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    const char* name = builtins->name(i);
+    Code* code = builtins->builtin(static_cast<Builtins::Name>(i));
+    PrintF(stdout, "%s: %d\n", name, code->instruction_size());
+  }
+}
+}  // namespace
 
 bool Isolate::Init(Deserializer* des) {
   TRACE_ISOLATE(init);
@@ -2799,6 +2804,8 @@ bool Isolate::Init(Deserializer* des) {
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 
+  if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
+
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
   clear_pending_message();
@@ -2824,6 +2831,9 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kExternalMemoryOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_limit_)),
            Internals::kExternalMemoryLimitOffset);
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
+           Internals::kExternalMemoryAtLastMarkCompactOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
@@ -2852,10 +2862,9 @@ bool Isolate::Init(Deserializer* des) {
 // Initialized lazily to allow early
 // v8::V8::SetAddHistogramSampleFunction calls.
 StatsTable* Isolate::stats_table() {
-  if (stats_table_ == NULL) {
-    stats_table_ = new StatsTable;
-  }
-  return stats_table_;
+  if (stats_table_ != nullptr) return stats_table_;
+  InitializeCounters();
+  return stats_table_ = counters_->stats_table();
 }
 
 
@@ -3361,9 +3370,11 @@ void Isolate::RunHostImportModuleDynamicallyCallback(
   if (host_import_module_dynamically_callback_ == nullptr) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
-    CHECK(result->FinishDynamicImportFailure(
-        v8::Utils::ToLocal(handle(context(), this)),
-        v8::Utils::ToLocal(exception)));
+    CHECK(result
+              ->FinishDynamicImportFailure(
+                  v8::Utils::ToLocal(handle(context(), this)),
+                  v8::Utils::ToLocal(exception))
+              .FromJust());
     return;
   }
 

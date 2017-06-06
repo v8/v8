@@ -35,8 +35,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   BytecodeArrayBuilder(
-      Isolate* isolate, Zone* zone, int parameter_count, int context_count,
-      int locals_count, FunctionLiteral* literal = nullptr,
+      Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
+      FunctionLiteral* literal = nullptr,
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
@@ -54,17 +54,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     return local_register_count_;
   }
 
-  // Get number of contexts required for bytecode array.
-  int context_count() const {
-    DCHECK_GE(context_register_count_, 0);
-    return context_register_count_;
-  }
-
-  Register first_context_register() const;
-  Register last_context_register() const;
-
   // Returns the number of fixed (non-temporary) registers.
-  int fixed_register_count() const { return context_count() + locals_count(); }
+  int fixed_register_count() const { return locals_count(); }
 
   // Returns the number of fixed and temporary registers.
   int total_register_count() const {
@@ -352,10 +343,16 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
       TestTypeOfFlags::LiteralFlag literal_flag);
 
   // Converts accumulator and stores result in register |out|.
-  BytecodeArrayBuilder& ConvertAccumulatorToObject(Register out);
-  BytecodeArrayBuilder& ConvertAccumulatorToName(Register out);
-  BytecodeArrayBuilder& ConvertAccumulatorToNumber(Register out,
-                                                   int feedback_slot);
+  BytecodeArrayBuilder& ToObject(Register out);
+  BytecodeArrayBuilder& ToName(Register out);
+  BytecodeArrayBuilder& ToNumber(Register out, int feedback_slot);
+
+  // Converts accumulator to a primitive and then to a string, and stores result
+  // in register |out|.
+  BytecodeArrayBuilder& ToPrimitiveToString(Register out, int feedback_slot);
+  // Concatenate all the string values in |operand_registers| into a string
+  // and store result in the accumulator.
+  BytecodeArrayBuilder& StringConcat(RegisterList operand_registers);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
@@ -404,8 +401,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Generators.
   BytecodeArrayBuilder& SuspendGenerator(Register generator,
+                                         RegisterList registers,
                                          SuspendFlags flags);
-  BytecodeArrayBuilder& ResumeGenerator(Register generator);
+  BytecodeArrayBuilder& RestoreGeneratorState(Register generator);
+  BytecodeArrayBuilder& RestoreGeneratorRegisters(Register generator,
+                                                  RegisterList registers);
 
   // Exception handling.
   BytecodeArrayBuilder& MarkHandler(int handler_id,
@@ -552,7 +552,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   bool return_seen_in_block_;
   int parameter_count_;
   int local_register_count_;
-  int context_register_count_;
   int return_position_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;

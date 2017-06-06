@@ -351,29 +351,29 @@ TEST(TryToName) {
       m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
                   &if_bailout);
 
-      m.Bind(&if_keyisindex);
+      m.BIND(&if_keyisindex);
       m.GotoIfNot(m.WordEqual(expected_result,
                               m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
                   &failed);
       m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
                &passed, &failed);
 
-      m.Bind(&if_keyisunique);
+      m.BIND(&if_keyisunique);
       m.GotoIfNot(m.WordEqual(expected_result,
                               m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
                   &failed);
       m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
     }
 
-    m.Bind(&if_bailout);
+    m.BIND(&if_bailout);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 
@@ -535,22 +535,22 @@ void TestNameDictionaryLookup() {
 
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
                                        &var_name_index, &if_not_found);
-    m.Bind(&if_found);
+    m.BIND(&if_found);
     m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_name_index.value()),
              &passed, &failed);
 
-    m.Bind(&if_not_found);
+    m.BIND(&if_not_found);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 
@@ -642,22 +642,22 @@ void TestNumberDictionaryLookup() {
 
     m.NumberDictionaryLookup<Dictionary>(dictionary, key, &if_found, &var_entry,
                                          &if_not_found);
-    m.Bind(&if_found);
+    m.BIND(&if_found);
     m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_entry.value()), &passed,
              &failed);
 
-    m.Bind(&if_not_found);
+    m.BIND(&if_not_found);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 
@@ -782,24 +782,24 @@ TEST(TryHasOwnProperty) {
     m.TryHasOwnProperty(object, map, instance_type, unique_name, &if_found,
                         &if_not_found, &if_bailout);
 
-    m.Bind(&if_found);
+    m.BIND(&if_found);
     m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
              &passed, &failed);
 
-    m.Bind(&if_not_found);
+    m.BIND(&if_not_found);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
-    m.Bind(&if_bailout);
+    m.BIND(&if_bailout);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 
@@ -971,13 +971,13 @@ TEST(TryGetOwnProperty) {
                         unique_name, &if_found, &var_value, &if_not_found,
                         &if_bailout);
 
-    m.Bind(&if_found);
+    m.BIND(&if_found);
     m.Return(var_value.value());
 
-    m.Bind(&if_not_found);
+    m.BIND(&if_not_found);
     m.Return(m.HeapConstant(not_found_symbol));
 
-    m.Bind(&if_bailout);
+    m.BIND(&if_bailout);
     m.Return(m.HeapConstant(bailout_symbol));
   }
 
@@ -1186,28 +1186,28 @@ TEST(TryLookupElement) {
     m.TryLookupElement(object, map, instance_type, index, &if_found, &if_absent,
                        &if_not_found, &if_bailout);
 
-    m.Bind(&if_found);
+    m.BIND(&if_found);
     m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
              &passed, &failed);
 
-    m.Bind(&if_absent);
+    m.BIND(&if_absent);
     m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
              &passed, &failed);
 
-    m.Bind(&if_not_found);
+    m.BIND(&if_not_found);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
-    m.Bind(&if_bailout);
+    m.BIND(&if_bailout);
     m.Branch(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 
@@ -1757,9 +1757,9 @@ TEST(IsDebugActive) {
   CodeAssemblerLabel if_active(&m), if_not_active(&m);
 
   m.Branch(m.IsDebugActive(), &if_active, &if_not_active);
-  m.Bind(&if_active);
+  m.BIND(&if_active);
   m.Return(m.TrueConstant());
-  m.Bind(&if_not_active);
+  m.BIND(&if_not_active);
   m.Return(m.FalseConstant());
 
   Handle<Code> code = data.GenerateCode();
@@ -1811,7 +1811,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
                                       arg_index, &bailout);
     Return(length);
 
-    Bind(&bailout);
+    BIND(&bailout);
     Return(SmiTag(IntPtrAdd(arg_index.value(), IntPtrConstant(2))));
 
     Handle<Code> code = tester->GenerateCode();
@@ -2486,7 +2486,7 @@ TEST(DirectMemoryTest8BitWord32Immediate) {
 
   m.Return(m.SmiConstant(1));
 
-  m.Bind(&bad);
+  m.BIND(&bad);
   m.Return(m.SmiConstant(0));
 
   Handle<Code> code = data.GenerateCode();
@@ -2523,7 +2523,7 @@ TEST(DirectMemoryTest16BitWord32Immediate) {
 
   m.Return(m.SmiConstant(1));
 
-  m.Bind(&bad);
+  m.BIND(&bad);
   m.Return(m.SmiConstant(0));
 
   Handle<Code> code = data.GenerateCode();
@@ -2572,7 +2572,7 @@ TEST(DirectMemoryTest8BitWord32) {
 
   m.Return(m.SmiConstant(1));
 
-  m.Bind(&bad);
+  m.BIND(&bad);
   m.Return(m.SmiConstant(0));
 
   Handle<Code> code = data.GenerateCode();
@@ -2635,7 +2635,7 @@ TEST(DirectMemoryTest16BitWord32) {
 
   m.Return(m.SmiConstant(1));
 
-  m.Bind(&bad);
+  m.BIND(&bad);
   m.Return(m.SmiConstant(0));
 
   Handle<Code> code = data.GenerateCode();

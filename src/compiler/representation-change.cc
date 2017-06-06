@@ -42,7 +42,6 @@ const char* Truncation::description() const {
       }
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -114,7 +113,6 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
       return rep2 == TruncationKind::kAny;
   }
   UNREACHABLE();
-  return false;
 }
 
 // static
@@ -203,7 +201,6 @@ Node* RepresentationChanger::GetRepresentationFor(
       return node;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
@@ -876,7 +873,6 @@ const Operator* RepresentationChanger::Int32OperatorFor(
       return machine()->Int32LessThanOrEqual();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -893,7 +889,6 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
       return simplified()->CheckedInt32Mod();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -911,7 +906,6 @@ const Operator* RepresentationChanger::TaggedSignedOperatorFor(
                                : machine()->Word64Equal();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -946,7 +940,6 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
       return machine()->Int32Mul();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -959,7 +952,6 @@ const Operator* RepresentationChanger::Uint32OverflowOperatorFor(
       return simplified()->CheckedUint32Mod();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -1052,7 +1044,6 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64SilenceNaN();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 

@@ -40,7 +40,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return LeaveRC;
     }
     UNREACHABLE();
-    return LeaveRC;
   }
 
   bool CompareLogical() const {
@@ -54,7 +53,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   Operand InputImmediate(size_t index) {
@@ -78,7 +76,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         break;
     }
     UNREACHABLE();
-    return Operand::Zero();
   }
 
   MemOperand MemoryOperand(AddressingMode* mode, size_t* first_index) {
@@ -95,7 +92,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
     }
     UNREACHABLE();
-    return MemOperand(r0);
   }
 
   MemOperand MemoryOperand(AddressingMode* mode, size_t first_index = 0) {
@@ -293,7 +289,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       break;
   }
   UNREACHABLE();
-  return kNoCondition;
 }
 
 }  // namespace
@@ -592,11 +587,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     AddressingMode mode = kMode_None;                    \
     MemOperand operand = i.MemoryOperand(&mode, &index); \
     DoubleRegister value = i.InputDoubleRegister(index); \
-    __ frsp(kScratchDoubleReg, value);                   \
+    /* removed frsp as instruction-selector checked */   \
+    /* value to be kFloat32 */                           \
     if (mode == kMode_MRI) {                             \
-      __ stfs(kScratchDoubleReg, operand);               \
+      __ stfs(value, operand);                           \
     } else {                                             \
-      __ stfsx(kScratchDoubleReg, operand);              \
+      __ stfsx(value, operand);                          \
     }                                                    \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
   } while (0)
@@ -704,11 +700,13 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ bge(&done);                                      \
     DoubleRegister value = i.InputDoubleRegister(3);    \
     __ frsp(kScratchDoubleReg, value);                  \
+    /* removed frsp as instruction-selector checked */  \
+    /* value to be kFloat32 */                          \
     if (mode == kMode_MRI) {                            \
-      __ stfs(kScratchDoubleReg, operand);              \
+      __ stfs(value, operand);                          \
     } else {                                            \
       CleanUInt32(offset);                              \
-      __ stfsx(kScratchDoubleReg, operand);             \
+      __ stfsx(value, operand);                         \
     }                                                   \
     __ bind(&done);                                     \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                \
@@ -2083,7 +2081,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret();
       } else {
         gen_->AssembleSourcePosition(instr_);
-        __ Call(handle(isolate()->builtins()->builtin(trap_id), isolate()),
+        __ Call(isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -2221,7 +2219,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (isolate()->NeedsSourcePositionsForProfiling()) {
+  if (info()->is_source_positions_enabled()) {
     __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
@@ -2453,21 +2451,30 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
       double value;
-// bit_cast of snan is converted to qnan on ia32/x64
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-      intptr_t valueInt = (src.type() == Constant::kFloat32)
-                              ? src.ToFloat32AsInt()
-                              : src.ToFloat64AsInt();
-      if (valueInt == ((src.type() == Constant::kFloat32)
-                           ? 0x7fa00000
-                           : 0x7fa0000000000000)) {
-        value = bit_cast<double, int64_t>(0x7ff4000000000000L);
+      // casting double precision snan to single precision
+      // converts it to qnan on ia32/x64
+      if (src.type() == Constant::kFloat32) {
+        int32_t val = src.ToFloat32AsInt();
+        if ((val & 0x7f800000) == 0x7f800000) {
+          int64_t dval = static_cast<int64_t>(val);
+          dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
+                 ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29);
+          value = bit_cast<double, int64_t>(dval);
+        } else {
+          value = src.ToFloat32();
+        }
       } else {
-#endif
-        value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                   : src.ToFloat64();
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+        int64_t val = src.ToFloat64AsInt();
+        if ((val & 0x7f80000000000000) == 0x7f80000000000000) {
+          value = bit_cast<double, int64_t>(val);
+        } else {
+          value = src.ToFloat64();
+        }
       }
+#else
+      value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
+                                                   : src.ToFloat64();
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {

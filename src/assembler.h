@@ -35,6 +35,8 @@
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
+#include <forward_list>
+
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
 #include "src/deoptimize-reason.h"
@@ -108,7 +110,6 @@ class AssemblerBase: public Malloced {
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();
-      return false;
     }
   }
 
@@ -148,6 +149,17 @@ class AssemblerBase: public Malloced {
   // The program counter, which points into the buffer above and moves forward.
   byte* pc_;
 
+  // The following two functions help with avoiding allocations of heap numbers
+  // during the code assembly phase. {RequestHeapNumber} records the need for a
+  // future heap number allocation, together with the current pc offset. After
+  // code assembly, {AllocateRequestedHeapNumbers} will allocate these numbers
+  // and, with the help of {Assembler::set_heap_number}, place them where they
+  // are expected (determined by the recorded pc offset).
+  void RequestHeapNumber(double value) {
+    heap_numbers_.emplace_front(value, pc_offset());
+  }
+  void AllocateRequestedHeapNumbers(Isolate* isolate);
+
  private:
   IsolateData isolate_data_;
   uint64_t enabled_cpu_features_;
@@ -161,6 +173,16 @@ class AssemblerBase: public Malloced {
   // Constant pool.
   friend class FrameAndConstantPoolScope;
   friend class ConstantPoolUnavailableScope;
+
+  // Delayed allocation of heap numbers.
+  struct RequestedHeapNumber {
+    RequestedHeapNumber(double value, int offset);
+    double value;  // The number for which we later need to create a HeapObject.
+    int offset;  // The {buffer_} offset where we emitted a dummy that needs to
+                 // get replaced by the actual HeapObject via
+                 // {Assembler::set_heap_number}.
+  };
+  std::forward_list<RequestedHeapNumber> heap_numbers_;
 };
 
 
@@ -989,6 +1011,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference libc_memchr_function(Isolate* isolate);
   static ExternalReference libc_memcpy_function(Isolate* isolate);
+  static ExternalReference libc_memmove_function(Isolate* isolate);
   static ExternalReference libc_memset_function(Isolate* isolate);
 
   static ExternalReference try_internalize_string_function(Isolate* isolate);
@@ -1000,6 +1023,12 @@ class ExternalReference BASE_EMBEDDED {
 
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw(Isolate* isolate);
+
+  template <typename CollectionType, int entrysize>
+  static ExternalReference orderedhashtable_get_raw(Isolate* isolate);
+
+  template <typename CollectionType, int entrysize>
+  static ExternalReference orderedhashtable_has_raw(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 
@@ -1166,6 +1195,7 @@ class ConstantPoolEntry {
     return merged_index_;
   }
   void set_merged_index(int index) {
+    DCHECK(sharing_ok());
     merged_index_ = index;
     DCHECK(is_merged());
   }

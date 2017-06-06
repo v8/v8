@@ -203,7 +203,6 @@ class AstValue : public ZoneObject {
     if (IsHeapNumber()) return number_;
     if (IsSmi()) return smi_;
     UNREACHABLE();
-    return 0;
   }
 
   Smi* AsSmi() const {

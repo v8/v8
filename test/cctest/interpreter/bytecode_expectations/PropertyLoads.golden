@@ -94,7 +94,7 @@ parameter count: 2
 bytecode array length: 14
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   25 S> */ B(Nop),
+  /*   24 S> */ B(Nop),
   /*   25 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(3),
                 B(Star), R(0),
   /*   32 S> */ B(LdaSmi), I8(-124),

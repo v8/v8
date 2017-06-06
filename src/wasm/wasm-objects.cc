@@ -10,6 +10,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-interface.h"
 #include "src/objects-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-module.h"
@@ -346,15 +347,14 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
   if (!old_buffer.is_null()) {
-    DCHECK(old_buffer->byte_length()->IsNumber());
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
-    old_size = old_buffer->byte_length()->Number();
+    CHECK(old_buffer->byte_length()->ToUint32(&old_size));
   }
+  DCHECK_EQ(0, old_size % WasmModule::kPageSize);
+  uint32_t old_pages = old_size / WasmModule::kPageSize;
   DCHECK_GE(std::numeric_limits<uint32_t>::max(),
             old_size + pages * WasmModule::kPageSize);
-  uint32_t new_size = old_size + pages * WasmModule::kPageSize;
-  if (new_size <= old_size || max_pages * WasmModule::kPageSize < new_size ||
-      FLAG_wasm_max_mem_pages * WasmModule::kPageSize < new_size) {
+  if (old_pages > max_pages || pages > max_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
 
@@ -363,6 +363,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   const bool enable_guard_regions =
       (old_buffer.is_null() && EnableGuardRegions()) ||
       (!old_buffer.is_null() && old_buffer->has_guard_region());
+  size_t new_size =
+      static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
   Handle<JSArrayBuffer> new_buffer =
       NewArrayBuffer(isolate, new_size, enable_guard_regions);
   if (new_buffer.is_null()) return new_buffer;
@@ -407,9 +409,12 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
   memory_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
-  buffer.is_null() ? memory_obj->SetEmbedderField(
-                         kArrayBuffer, isolate->heap()->undefined_value())
-                   : memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
+  if (buffer.is_null()) {
+    const bool enable_guard_regions = EnableGuardRegions();
+    buffer = SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
+                              enable_guard_regions);
+  }
+  memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   memory_obj->SetEmbedderField(kMaximum, *max);
   Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
@@ -417,8 +422,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   return Handle<WasmMemoryObject>::cast(memory_obj);
 }
 
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer,
-                              JSArrayBuffer)
+DEFINE_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer, JSArrayBuffer)
 DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
                               WasmInstanceWrapper)
 
@@ -465,23 +469,19 @@ void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
-  Handle<JSArrayBuffer> old_buffer;
+  Handle<JSArrayBuffer> old_buffer(memory_object->buffer());
   uint32_t old_size = 0;
-  Address old_mem_start = nullptr;
-  if (memory_object->has_buffer()) {
-    old_buffer = handle(memory_object->buffer());
-    old_size = old_buffer->byte_length()->Number();
-    old_mem_start = static_cast<Address>(old_buffer->backing_store());
-  }
+  CHECK(old_buffer->byte_length()->ToUint32(&old_size));
   Handle<JSArrayBuffer> new_buffer;
   // Return current size if grow by 0.
   if (pages == 0) {
     // Even for pages == 0, we need to attach a new JSArrayBuffer with the same
     // backing store and neuter the old one to be spec compliant.
-    if (!old_buffer.is_null() && old_size != 0) {
-      new_buffer = SetupArrayBuffer(isolate, old_buffer->backing_store(),
-                                    old_size, old_buffer->is_external(),
-                                    old_buffer->has_guard_region());
+    if (old_size != 0) {
+      new_buffer = SetupArrayBuffer(
+          isolate, old_buffer->allocation_base(),
+          old_buffer->allocation_length(), old_buffer->backing_store(),
+          old_size, old_buffer->is_external(), old_buffer->has_guard_region());
       memory_object->set_buffer(*new_buffer);
     }
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
@@ -512,6 +512,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     if (new_buffer.is_null()) return -1;
     DCHECK(!instance_wrapper->has_previous());
     SetInstanceMemory(isolate, instance, new_buffer);
+    Address old_mem_start = static_cast<Address>(old_buffer->backing_store());
     UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
     while (instance_wrapper->has_next()) {
       instance_wrapper = instance_wrapper->next_wrapper();
@@ -1135,7 +1136,7 @@ MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
   DCHECK_GE(module_bytes->length(), offset);
   DCHECK_GE(module_bytes->length() - offset, size);
   // UTF8 validation happens at decode time.
-  DCHECK(unibrow::Utf8::Validate(
+  DCHECK(unibrow::Utf8::ValidateEncoding(
       reinterpret_cast<const byte*>(module_bytes->GetCharsAddress() + offset),
       size));
   DCHECK_GE(kMaxInt, offset);

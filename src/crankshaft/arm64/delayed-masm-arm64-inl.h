@@ -44,14 +44,12 @@ void DelayedMasm::Mov(const Register& rd,
   __ Mov(rd, operand, discard_mode);
 }
 
-
-void DelayedMasm::Fmov(FPRegister fd, FPRegister fn) {
+void DelayedMasm::Fmov(VRegister fd, VRegister fn) {
   EmitPending();
   __ Fmov(fd, fn);
 }
 
-
-void DelayedMasm::Fmov(FPRegister fd, double imm) {
+void DelayedMasm::Fmov(VRegister fd, double imm) {
   EmitPending();
   __ Fmov(fd, imm);
 }

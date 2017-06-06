@@ -121,7 +121,6 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return TypedFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
-  return 0;
 }
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
@@ -176,6 +175,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineFixedArrayGet:
     case Runtime::kInlineFixedArraySet:
     case Runtime::kInlineGeneratorClose:
+    case Runtime::kInlineGeneratorGetContext:
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:

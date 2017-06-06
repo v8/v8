@@ -1051,16 +1051,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
   __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  Register debug_info = kInterpreterBytecodeArrayRegister;
-  DCHECK(!debug_info.is(r0));
-  __ ldr(debug_info, FieldMemOperand(r0, SharedFunctionInfo::kDebugInfoOffset));
-  __ SmiTst(debug_info);
-  // Load original bytecode array or the debug copy.
   __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset), eq);
-  __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex), ne);
+         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
+  __ ldr(r2, FieldMemOperand(r0, SharedFunctionInfo::kDebugInfoOffset));
+  __ SmiTst(r2);
+  __ b(ne, &maybe_load_debug_bytecode_array);
+  __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
   // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
@@ -1149,6 +1147,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in r0.
   LeaveInterpreterFrame(masm, r2);
   __ Jump(lr);
+
+  // Load debug copy of the bytecode array if it exists.
+  // kInterpreterBytecodeArrayRegister is already loaded with
+  // SharedFunctionInfo::kFunctionDataOffset.
+  __ bind(&maybe_load_debug_bytecode_array);
+  __ ldr(r9, FieldMemOperand(r2, DebugInfo::kFlagsOffset));
+  __ SmiUntag(r9);
+  __ tst(r9, Operand(DebugInfo::kHasBreakInfo));
+  __ ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(r2, DebugInfo::kDebugBytecodeArrayOffset), ne);
+  __ b(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying
   // function has been switched to a different kind of code and we heal the
@@ -2153,54 +2162,54 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
-                                           Handle<Code> code) {
+void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
+                                       Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- r1    : the target to call (can be any Object)
-  //  -- r2    : start index (to support rest parameters)
-  //  -- lr    : return address.
-  //  -- sp[0] : thisArgument
+  //  -- r0 : the number of arguments (not including the receiver)
+  //  -- r3 : the new.target (for [[Construct]] calls)
+  //  -- r1 : the target to call (can be any Object)
+  //  -- r2 : start index (to support rest parameters)
   // -----------------------------------
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
-  __ ldr(r3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(ip, MemOperand(r3, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ ldr(r4, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(ip, MemOperand(r4, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ cmp(ip, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &arguments_adaptor);
   {
-    __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r0, FieldMemOperand(
-                   r0, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(r3, fp);
+    __ ldr(r5, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ ldr(r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
+    __ ldr(r5, FieldMemOperand(
+                   r5, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ mov(r4, fp);
   }
   __ b(&arguments_done);
   __ bind(&arguments_adaptor);
   {
     // Load the length from the ArgumentsAdaptorFrame.
-    __ ldr(r0, MemOperand(r3, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ ldr(r5, MemOperand(r4, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ bind(&arguments_done);
 
-  Label stack_empty, stack_done, stack_overflow;
-  __ SmiUntag(r0);
-  __ sub(r0, r0, r2, SetCC);
-  __ b(le, &stack_empty);
+  Label stack_done, stack_overflow;
+  __ SmiUntag(r5);
+  __ sub(r5, r5, r2, SetCC);
+  __ b(le, &stack_done);
   {
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, r0, r2, &stack_overflow);
+    Generate_StackOverflowCheck(masm, r5, r2, &stack_overflow);
 
     // Forward the arguments from the caller frame.
     {
       Label loop;
-      __ add(r3, r3, Operand(kPointerSize));
-      __ mov(r2, r0);
+      __ add(r4, r4, Operand(kPointerSize));
+      __ add(r0, r0, r5);
       __ bind(&loop);
       {
-        __ ldr(ip, MemOperand(r3, r2, LSL, kPointerSizeLog2));
+        __ ldr(ip, MemOperand(r4, r5, LSL, kPointerSizeLog2));
         __ push(ip);
-        __ sub(r2, r2, Operand(1), SetCC);
+        __ sub(r5, r5, Operand(1), SetCC);
         __ b(ne, &loop);
       }
     }
@@ -2208,13 +2217,9 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ b(&stack_done);
   __ bind(&stack_overflow);
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
-  __ bind(&stack_empty);
-  {
-    // We just pass the receiver, which is already on the stack.
-    __ mov(r0, Operand(0));
-  }
   __ bind(&stack_done);
 
+  // Tail-call to the {code} handler.
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 

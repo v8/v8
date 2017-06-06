@@ -174,6 +174,8 @@ class PipelineData {
   }
 
   ~PipelineData() {
+    delete code_generator_;  // Must happen before zones are destroyed.
+    code_generator_ = nullptr;
     DeleteRegisterAllocationZone();
     DeleteInstructionZone();
     DeleteGraphZone();
@@ -195,6 +197,8 @@ class PipelineData {
     DCHECK(code_.is_null());
     code_ = code;
   }
+
+  CodeGenerator* code_generator() const { return code_generator_; }
 
   // RawMachineAssembler generally produces graphs which cannot be verified.
   bool MayHaveUnverifiableGraph() const { return outer_zone_ == nullptr; }
@@ -314,6 +318,11 @@ class PipelineData {
                                sequence(), debug_name());
   }
 
+  void InitializeCodeGenerator(Linkage* linkage) {
+    DCHECK_NULL(code_generator_);
+    code_generator_ = new CodeGenerator(frame(), linkage, sequence(), info());
+  }
+
   void BeginPhaseKind(const char* phase_kind_name) {
     if (pipeline_statistics() != nullptr) {
       pipeline_statistics()->BeginPhaseKind(phase_kind_name);
@@ -339,6 +348,7 @@ class PipelineData {
   bool verify_graph_ = false;
   bool is_asm_ = false;
   Handle<Code> code_ = Handle<Code>::null();
+  CodeGenerator* code_generator_ = nullptr;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -356,8 +366,7 @@ class PipelineData {
 
   // All objects in the following group of fields are allocated in
   // instruction_zone_.  They are all set to nullptr when the instruction_zone_
-  // is
-  // destroyed.
+  // is destroyed.
   ZoneStats::Scope instruction_zone_scope_;
   Zone* instruction_zone_;
   InstructionSequence* sequence_ = nullptr;
@@ -400,8 +409,11 @@ class PipelineImpl final {
   // Run the concurrent optimization passes.
   bool OptimizeGraph(Linkage* linkage);
 
-  // Perform the actual code generation and return handle to a code object.
-  Handle<Code> GenerateCode(Linkage* linkage);
+  // Run the code assembly pass.
+  void AssembleCode(Linkage* linkage);
+
+  // Run the code finalization pass.
+  Handle<Code> FinalizeCode();
 
   bool ScheduleAndSelectInstructions(Linkage* linkage, bool trim_graph);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
@@ -615,6 +627,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     return AbortOptimization(kGraphBuildingFailed);
   }
 
+  // Make sure that we have generated the maximal number of deopt entries.
+  // This is in order to avoid triggering the generation of deopt entries later
+  // during code assembly.
+  Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(isolate());
+
   return SUCCEEDED;
 }
 
@@ -624,7 +641,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
-  Handle<Code> code = pipeline_.GenerateCode(linkage_);
+  pipeline_.AssembleCode(linkage_);
+  Handle<Code> code = pipeline_.FinalizeCode();
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
       return AbortOptimization(kCodeGenerationFailed);
@@ -711,7 +729,8 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::FinalizeJobImpl() {
-  pipeline_.GenerateCode(&linkage_);
+  pipeline_.AssembleCode(&linkage_);
+  pipeline_.FinalizeCode();
   return SUCCEEDED;
 }
 
@@ -753,8 +772,6 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    bool succeeded = false;
-
     if (data->info()->is_optimizing_from_bytecode()) {
       // Bytecode graph builder assumes deoptimziation is enabled.
       DCHECK(data->info()->is_deoptimization_enabled());
@@ -767,16 +784,14 @@ struct GraphBuilderPhase {
           handle(data->info()->closure()->feedback_vector()),
           data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
           data->source_positions(), SourcePosition::kNotInlined, flags);
-      succeeded = graph_builder.CreateGraph();
+      graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
           data->loop_assignment(), data->source_positions());
-      succeeded = graph_builder.CreateGraph();
-    }
-
-    if (!succeeded) {
-      data->set_compilation_failed();
+      if (!graph_builder.CreateGraph()) {
+        data->set_compilation_failed();
+      }
     }
   }
 };
@@ -1448,14 +1463,19 @@ struct JumpThreadingPhase {
   }
 };
 
+struct AssembleCodePhase {
+  static const char* phase_name() { return "assemble code"; }
 
-struct GenerateCodePhase {
-  static const char* phase_name() { return "generate code"; }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->code_generator()->AssembleCode();
+  }
+};
 
-  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    CodeGenerator generator(data->frame(), linkage, data->sequence(),
-                            data->info());
-    data->set_code(generator.GenerateCode());
+struct FinalizeCodePhase {
+  static const char* phase_name() { return "finalize code"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->set_code(data->code_generator()->FinalizeCode());
   }
 };
 
@@ -1724,7 +1744,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
 
   if (!pipeline.CreateGraph()) return Handle<Code>::null();
   if (!pipeline.OptimizeGraph(&linkage)) return Handle<Code>::null();
-  return pipeline.GenerateCode(&linkage);
+  pipeline.AssembleCode(&linkage);
+  return pipeline.FinalizeCode();
 }
 
 // static
@@ -1900,13 +1921,16 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
   return true;
 }
 
-Handle<Code> PipelineImpl::GenerateCode(Linkage* linkage) {
+void PipelineImpl::AssembleCode(Linkage* linkage) {
   PipelineData* data = this->data_;
-
   data->BeginPhaseKind("code generation");
+  data->InitializeCodeGenerator(linkage);
+  Run<AssembleCodePhase>();
+}
 
-  // Generate final machine code.
-  Run<GenerateCodePhase>(linkage);
+Handle<Code> PipelineImpl::FinalizeCode() {
+  PipelineData* data = this->data_;
+  Run<FinalizeCodePhase>();
 
   Handle<Code> code = data->code();
   if (data->profiler_data()) {
@@ -1954,7 +1978,8 @@ Handle<Code> PipelineImpl::ScheduleAndGenerateCode(
   if (!ScheduleAndSelectInstructions(&linkage, false)) return Handle<Code>();
 
   // Generate the final machine code.
-  return GenerateCode(&linkage);
+  AssembleCode(&linkage);
+  return FinalizeCode();
 }
 
 void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
@@ -2013,6 +2038,14 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();
+
+  // TODO(chromium:725559): remove this check once
+  // we understand the cause of the bug. We keep just the
+  // check at the end of the allocation.
+  if (verifier != nullptr) {
+    verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
+  }
+
   Run<PopulateReferenceMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
@@ -2031,7 +2064,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   if (verifier != nullptr) {
-    verifier->VerifyAssignment();
+    verifier->VerifyAssignment("End of regalloc pipeline.");
     verifier->VerifyGapMoves();
   }
 

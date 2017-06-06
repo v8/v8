@@ -20,7 +20,7 @@ namespace wasm {
 
 class ZoneBuffer : public ZoneObject {
  public:
-  static const uint32_t kInitialSize = 4096;
+  static constexpr size_t kInitialSize = 1024;
   explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
       : zone_(zone), buffer_(reinterpret_cast<byte*>(zone->New(initial))) {
     pos_ = buffer_;
@@ -125,7 +125,7 @@ class ZoneBuffer : public ZoneObject {
 
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
-      size_t new_size = 4096 + size + (end_ - buffer_) * 3;
+      size_t new_size = size + (end_ - buffer_) * 2;
       byte* new_buffer = reinterpret_cast<byte*>(zone_->New(new_size));
       memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);

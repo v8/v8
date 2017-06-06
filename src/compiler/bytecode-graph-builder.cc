@@ -522,7 +522,7 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   return VectorSlotPair(feedback_vector(), slot);
 }
 
-bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
+void BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
@@ -544,8 +544,6 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   Node** const inputs = &exit_controls_.front();
   Node* end = graph()->NewNode(common()->End(input_count), input_count, inputs);
   graph()->SetEnd(end);
-
-  return true;
 }
 
 void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
@@ -2091,6 +2089,14 @@ void BytecodeGraphBuilder::VisitToNumber() {
                               Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitToPrimitiveToString() {
+  UNREACHABLE();  // TODO(rmcilroy): Implement this.
+}
+
+void BytecodeGraphBuilder::VisitStringConcat() {
+  UNREACHABLE();  // TODO(rmcilroy): Implement this.
+}
+
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }
 
 void BytecodeGraphBuilder::VisitJumpConstant() { BuildJump(); }
@@ -2165,24 +2171,25 @@ void BytecodeGraphBuilder::VisitJumpIfNotUndefinedConstant() {
 
 void BytecodeGraphBuilder::VisitJumpLoop() { BuildJump(); }
 
+void BytecodeGraphBuilder::BuildSwitchOnSmi(Node* condition) {
+  interpreter::JumpTableTargetOffsets offsets =
+      bytecode_iterator().GetJumpTableTargetOffsets();
+
+  NewSwitch(condition, offsets.size() + 1);
+  for (const auto& entry : offsets) {
+    SubEnvironment sub_environment(this);
+    NewIfValue(entry.case_value);
+    MergeIntoSuccessorEnvironment(entry.target_offset);
+  }
+  NewIfDefault();
+}
+
 void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   PrepareEagerCheckpoint();
 
   Node* acc = environment()->LookupAccumulator();
-
-  for (const auto& entry : bytecode_iterator().GetJumpTableTargetOffsets()) {
-    // TODO(leszeks): This should be a switch, but under OSR we fail to type the
-    // input correctly so we have to do a JS strict equal instead.
-    NewBranch(
-        NewNode(javascript()->StrictEqual(CompareOperationHint::kSignedSmall),
-                acc, jsgraph()->SmiConstant(entry.case_value)));
-    {
-      SubEnvironment sub_environment(this);
-      NewIfTrue();
-      MergeIntoSuccessorEnvironment(entry.target_offset);
-    }
-    NewIfFalse();
-  }
+  Node* acc_smi = NewNode(simplified()->CheckSmi(), acc);
+  BuildSwitchOnSmi(acc_smi);
 }
 
 void BytecodeGraphBuilder::VisitStackCheck() {
@@ -2270,15 +2277,20 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   Node* state = environment()->LookupAccumulator();
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
+  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
+  // We assume we are storing a range starting from index 0.
+  CHECK_EQ(0, first_reg.index());
+  int register_count =
+      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
   SuspendFlags flags = interpreter::SuspendGeneratorBytecodeFlags::Decode(
-      bytecode_iterator().GetFlagOperand(1));
+      bytecode_iterator().GetFlagOperand(3));
+
   // The offsets used by the bytecode iterator are relative to a different base
   // than what is used in the interpreter, hence the addition.
   Node* offset =
       jsgraph()->Constant(bytecode_iterator().current_offset() +
                           (BytecodeArray::kHeaderSize - kHeapObjectTag));
 
-  int register_count = environment()->register_count();
   int value_input_count = 3 + register_count;
 
   Node** value_inputs = local_zone()->NewArray<Node*>(value_input_count);
@@ -2294,23 +2306,31 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
            value_input_count, value_inputs, false);
 }
 
-void BytecodeGraphBuilder::VisitResumeGenerator() {
-  PrepareEagerCheckpoint();
-
+void BytecodeGraphBuilder::VisitRestoreGeneratorState() {
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
-
-  // Bijection between registers and array indices must match that used in
-  // InterpreterAssembler::ExportRegisterFile.
-  for (int i = 0; i < environment()->register_count(); ++i) {
-    Node* value = NewNode(javascript()->GeneratorRestoreRegister(i), generator);
-    environment()->BindRegister(interpreter::Register(i), value);
-  }
 
   Node* state =
       NewNode(javascript()->GeneratorRestoreContinuation(), generator);
 
   environment()->BindAccumulator(state, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitRestoreGeneratorRegisters() {
+  Node* generator =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
+  // We assume we are restoring registers starting fromm index 0.
+  CHECK_EQ(0, first_reg.index());
+  int register_count =
+      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
+
+  // Bijection between registers and array indices must match that used in
+  // InterpreterAssembler::ExportRegisterFile.
+  for (int i = 0; i < register_count; ++i) {
+    Node* value = NewNode(javascript()->GeneratorRestoreRegister(i), generator);
+    environment()->BindRegister(interpreter::Register(i), value);
+  }
 }
 
 void BytecodeGraphBuilder::VisitWide() {

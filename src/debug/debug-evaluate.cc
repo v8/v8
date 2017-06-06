@@ -319,6 +319,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringParseInt)                  \
   V(StringCharCodeAtRT)              \
   V(StringIndexOfUnchecked)          \
+  V(StringEqual)                     \
   V(SymbolDescriptiveString)         \
   V(GenerateRandomNumbers)           \
   V(ExternalStringGetChar)           \
@@ -340,6 +341,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ForInPrepare)                    \
   V(Call)                            \
   V(MaxSmi)                          \
+  V(NewObject)                       \
+  V(FinalizeInstanceSize)            \
   V(HasInPrototypeChain)
 
 #define CASE(Name)       \
@@ -524,6 +527,9 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kDatePrototypeToJson:
     case Builtins::kDatePrototypeToPrimitive:
     case Builtins::kDatePrototypeValueOf:
+    // Map builtins.
+    case Builtins::kMapConstructor:
+    case Builtins::kMapGet:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -679,6 +685,7 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
     if (builtin_index >= 0 && builtin_index < Builtins::builtin_count &&
         BuiltinHasNoSideEffect(static_cast<Builtins::Name>(builtin_index))) {
 #ifdef DEBUG
+      // TODO(yangguo): Check builtin-to-builtin calls too.
       int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
       bool failed = false;
       for (RelocIterator it(info->code(), mode); !it.done(); it.next()) {

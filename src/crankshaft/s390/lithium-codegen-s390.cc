@@ -412,7 +412,6 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
     return scratch;
   }
   UNREACHABLE();
-  return scratch;
 }
 
 void LCodeGen::EmitLoadIntegerConstant(LConstantOperand* const_op,
@@ -494,7 +493,6 @@ Operand LCodeGen::ToOperand(LOperand* op) {
   }
   // Stack slots not implemented, use ToMemOperand instead.
   UNREACHABLE();
-  return Operand::Zero();
 }
 
 static int ArgumentsOffsetWithoutFrame(int index) {
@@ -2432,7 +2430,6 @@ static Condition ComputeCompareCondition(Token::Value op) {
       return ge;
     default:
       UNREACHABLE();
-      return kNoCondition;
   }
 }
 
@@ -2462,7 +2459,6 @@ static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
   if (to == LAST_TYPE) return ge;
   if (from == FIRST_TYPE) return le;
   UNREACHABLE();
-  return eq;
 }
 
 void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
@@ -5300,7 +5296,7 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
   __ mov(r2, Operand(isolate()->factory()->number_string()));
   __ b(&end);
   __ bind(&do_call);
-  Callable callable = CodeFactory::Typeof(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   CallCode(callable.code(), RelocInfo::CODE_TARGET, instr);
   __ bind(&end);
 }

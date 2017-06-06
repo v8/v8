@@ -95,7 +95,16 @@ for (var constructor of typedArrayConstructors) {
 for (var constructor1 of typedArrayConstructors) {
   for (var constructor2 of typedArrayConstructors) {
     testCustomSubclass(constructor1, constructor2);
+    testSpeciesConstructor(constructor1, constructor2);
   }
+}
+
+function testSpeciesConstructor(cons1, cons2) {
+  var ta = new cons1([1, 2, 3, 4, 5, 6]);
+  ta.constructor = {
+    [Symbol.species]: cons2
+  };
+  assertArrayEquals([4, 5, 6], ta.slice(3));
 }
 
 function testCustomSubclass(superClass, speciesClass) {

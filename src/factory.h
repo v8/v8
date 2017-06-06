@@ -17,8 +17,10 @@
 namespace v8 {
 namespace internal {
 
+class BreakPointInfo;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class DebugInfo;
 
 enum FunctionMode {
   // With prototype.
@@ -79,6 +81,10 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
+
+  Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
+      int size = SmallOrderedHashSet::kMinCapacity,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();

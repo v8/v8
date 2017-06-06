@@ -27,6 +27,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckReceiver:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
+    case IrOpcode::kCheckSeqString:
     case IrOpcode::kCheckTaggedHole:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedInt32Add:

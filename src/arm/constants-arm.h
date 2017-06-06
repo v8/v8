@@ -342,8 +342,13 @@ inline int NeonU(NeonDataType dt) { return static_cast<int>(dt) >> 2; }
 inline int NeonSz(NeonDataType dt) { return static_cast<int>(dt) & 0x3; }
 
 // Convert sizes to data types (U bit is clear).
-inline NeonDataType NeonSizeToDatatype(NeonSize size) {
+inline NeonDataType NeonSizeToDataType(NeonSize size) {
+  DCHECK_NE(Neon64, size);
   return static_cast<NeonDataType>(size);
+}
+
+inline NeonSize NeonDataTypeToSize(NeonDataType dt) {
+  return static_cast<NeonSize>(NeonSz(dt));
 }
 
 enum NeonListType {

@@ -1,0 +1,17 @@
+Tests that multiple sessions can record profiles concurrently.
+console.profile in 1
+console profile started from 2: one
+console profile started from 1: one
+console profile finished from 2: one
+console profile finished from 1: one
+console.profile in 2
+console profile started from 2: two
+console profile started from 1: two
+console profile finished from 2: two
+console profile finished from 1: two
+starting in 1
+starting in 2
+stopping in 1
+stopped in 1
+stopping in 2
+stopped in 2

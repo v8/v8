@@ -831,7 +831,6 @@ StackFrameBase* FrameArrayIterator::Frame() {
       return &asm_wasm_frame_;
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 

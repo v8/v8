@@ -84,8 +84,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Int32Constant(int32_t value) {
     return AddNode(common()->Int32Constant(value));
   }
-  Node* StackSlot(MachineRepresentation rep) {
-    return AddNode(machine()->StackSlot(rep));
+  Node* StackSlot(MachineRepresentation rep, int alignment = 0) {
+    return AddNode(machine()->StackSlot(rep, alignment));
   }
   Node* Int64Constant(int64_t value) {
     return AddNode(common()->Int64Constant(value));

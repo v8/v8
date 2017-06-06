@@ -137,12 +137,12 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
         function_index_.GetFunctionData(scope->start_position());
     DCHECK(data.is_valid());
     DCHECK_EQ(data.end, scope->end_position());
-    // FIXME(marja): unify num_parameters too and DCHECK here.
+    DCHECK_EQ(data.num_parameters, scope->num_parameters());
     DCHECK_EQ(data.language_mode, scope->language_mode());
     DCHECK_EQ(data.uses_super_property,
               scope->AsDeclarationScope()->uses_super_property());
     uint32_t index_from_data = 0;
-    FindFunctionData(scope->start_position(), &index_from_data);
+    DCHECK(FindFunctionData(scope->start_position(), &index_from_data));
     DCHECK_EQ(index_from_data, index);
   }
 #endif
@@ -335,8 +335,7 @@ bool PreParsedScopeData::ScopeNeedsData(Scope* scope) {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     // Default constructors don't need data (they cannot contain inner functions
     // defined by the user). Other functions do.
-    return (scope->AsDeclarationScope()->function_kind() &
-            kDefaultConstructor) == 0;
+    return !IsDefaultConstructor(scope->AsDeclarationScope()->function_kind());
   }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {

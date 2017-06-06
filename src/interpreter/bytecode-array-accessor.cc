@@ -142,7 +142,8 @@ int BytecodeArrayAccessor::GetRegisterOperandRange(int operand_index) const {
       Bytecodes::GetOperandTypes(current_bytecode());
   OperandType operand_type = operand_types[operand_index];
   DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
-  if (operand_type == OperandType::kRegList) {
+  if (operand_type == OperandType::kRegList ||
+      operand_type == OperandType::kRegOutList) {
     return GetRegisterCountOperand(operand_index + 1);
   } else {
     return Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
@@ -191,7 +192,6 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     return GetAbsoluteOffset(smi->value());
   } else {
     UNREACHABLE();
-    return kMinInt;
   }
 }
 
@@ -236,6 +236,15 @@ JumpTableTargetOffsets::iterator JumpTableTargetOffsets::begin() const {
 JumpTableTargetOffsets::iterator JumpTableTargetOffsets::end() const {
   return iterator(case_value_base_ + table_size_, table_start_ + table_size_,
                   table_start_ + table_size_, accessor_);
+}
+int JumpTableTargetOffsets::size() const {
+  int ret = 0;
+  // TODO(leszeks): Is there a more efficient way of doing this than iterating?
+  for (const auto& entry : *this) {
+    USE(entry);
+    ret++;
+  }
+  return ret;
 }
 
 JumpTableTargetOffsets::iterator::iterator(

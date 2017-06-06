@@ -602,7 +602,7 @@ void Sampler::Stop() {
 
 
 void Sampler::IncreaseProfilingDepth() {
-  base::NoBarrier_AtomicIncrement(&profiling_, 1);
+  base::Relaxed_AtomicIncrement(&profiling_, 1);
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
 #endif
@@ -613,7 +613,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
   SignalHandler::DecreaseSamplerCount();
 #endif
-  base::NoBarrier_AtomicIncrement(&profiling_, -1);
+  base::Relaxed_AtomicIncrement(&profiling_, -1);
 }
 
 

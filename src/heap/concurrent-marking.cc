@@ -59,7 +59,7 @@ class ConcurrentMarkingVisitor final
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       Object* object = reinterpret_cast<Object*>(
-          base::NoBarrier_Load(reinterpret_cast<const base::AtomicWord*>(p)));
+          base::Relaxed_Load(reinterpret_cast<const base::AtomicWord*>(p)));
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
     }
@@ -98,8 +98,12 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) override {
-    // TODO(ulan): implement iteration with prefetched length.
-    return BaseClass::VisitFixedArray(map, object);
+    int length = object->length();
+    int size = FixedArray::SizeFor(length);
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    FixedArray::BodyDescriptor::IterateBody(object, size, this);
+    return size;
   }
 
   // ===========================================================================
@@ -183,7 +187,7 @@ class ConcurrentMarkingVisitor final
                        Object** end) override {
       for (Object** p = start; p < end; p++) {
         Object* object = reinterpret_cast<Object*>(
-            base::NoBarrier_Load(reinterpret_cast<const base::AtomicWord*>(p)));
+            base::Relaxed_Load(reinterpret_cast<const base::AtomicWord*>(p)));
         slot_snapshot_->add(p, object);
       }
     }
@@ -193,6 +197,8 @@ class ConcurrentMarkingVisitor final
   };
 
   const SlotSnapshot& MakeSlotSnapshot(Map* map, HeapObject* object, int size) {
+    // TODO(ulan): Iterate only the existing fields and skip slack at the end
+    // of the object.
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));
@@ -236,10 +242,10 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, ConcurrentMarkingDeque* deque)
       deque_(deque),
       visitor_(new ConcurrentMarkingVisitor(deque_)),
       is_task_pending_(false) {
-  // Concurrent marking does not work with double unboxing.
-  STATIC_ASSERT(!(V8_CONCURRENT_MARKING && V8_DOUBLE_FIELDS_UNBOXING));
   // The runtime flag should be set only if the compile time flag was set.
-  CHECK(!FLAG_concurrent_marking || V8_CONCURRENT_MARKING);
+#ifndef V8_CONCURRENT_MARKING
+  CHECK(!FLAG_concurrent_marking);
+#endif
 }
 
 ConcurrentMarking::~ConcurrentMarking() { delete visitor_; }
@@ -253,7 +259,14 @@ void ConcurrentMarking::Run() {
     HeapObject* object;
     while ((object = deque_->Pop(MarkingThread::kConcurrent)) != nullptr) {
       base::LockGuard<base::Mutex> guard(relocation_mutex);
-      bytes_marked += visitor_->Visit(object);
+      Address new_space_top = heap_->new_space()->original_top();
+      Address new_space_limit = heap_->new_space()->original_limit();
+      Address addr = object->address();
+      if (new_space_top <= addr && addr < new_space_limit) {
+        deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+      } else {
+        bytes_marked += visitor_->Visit(object);
+      }
     }
   }
   if (FLAG_trace_concurrent_marking) {

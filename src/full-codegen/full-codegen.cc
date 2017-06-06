@@ -614,7 +614,8 @@ void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
 
 
 void FullCodeGenerator::EmitToString(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToString(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToString));
 }
 
 
@@ -632,7 +633,8 @@ void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToObject(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToObject));
 }
 
 

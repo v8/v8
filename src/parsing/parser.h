@@ -366,6 +366,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
                                             ZoneList<Statement*>* body,
                                             bool* ok);
+  void ParseAndRewriteAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
+                                                 ZoneList<Statement*>* body,
+                                                 bool* ok);
   void CreateFunctionNameAssignment(const AstRawString* function_name, int pos,
                                     FunctionLiteral::FunctionType function_type,
                                     DeclarationScope* function_scope,
@@ -472,6 +475,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     PatternContext context_;
     Expression* pattern_;
     int initializer_position_;
+    int value_beg_position_;
     Block* block_;
     const DeclarationDescriptor* descriptor_;
     ZoneList<const AstRawString*>* names_;
@@ -495,7 +499,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Initialize the components of a for-in / for-of statement.
   Statement* InitializeForEachStatement(ForEachStatement* stmt,
                                         Expression* each, Expression* subject,
-                                        Statement* body, int each_keyword_pos);
+                                        Statement* body);
   Statement* InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
                                       Expression* iterable, Statement* body,
                                       bool finalize, IteratorType type,
@@ -705,8 +709,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                           Block* block,
                                           Expression* return_value, bool* ok);
 
-  Expression* RewriteYieldStar(Expression* generator, Expression* expression,
-                               int pos);
+  Expression* RewriteYieldStar(Expression* expression, int pos);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos,
@@ -895,8 +898,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // ~ foo -> foo ^(~0)
   Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
                                    int pos);
-
-  Expression* BuildIteratorResult(Expression* value, bool done);
 
   // Generate AST node that throws a ReferenceError with the given type.
   V8_INLINE Expression* NewThrowReferenceError(

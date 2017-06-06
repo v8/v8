@@ -43,6 +43,7 @@
     'v8_enable_i18n_support%': 1,
     'v8_deprecation_warnings': 1,
     'v8_imminent_deprecation_warnings': 1,
+    'v8_check_microtasks_scopes_consistency': 'true',
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.7',
     'release_extra_cflags%': '',
@@ -696,12 +697,15 @@
           ['sysroot!="" and clang==1', {
             'target_conditions': [
               ['_toolset=="target"', {
+                'variables': {
+                  'ld_paths': ['<!(<(DEPTH)/build/linux/sysroot_ld_path.sh <(sysroot))'],
+                },
                 'cflags': [
                   '--sysroot=<(sysroot)',
                 ],
                 'ldflags': [
                   '--sysroot=<(sysroot)',
-                  '<!(<(DEPTH)/build/linux/sysroot_ld_path.sh <(sysroot))',
+                  '<!(<(base_dir)/gypfiles/sysroot_ld_flags.sh <@(ld_paths))',
                 ],
               }]]
           }],

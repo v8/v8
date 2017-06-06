@@ -7533,6 +7533,7 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
+  i::FLAG_stress_incremental_marking = false;
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Local<Context> context = Context::New(iso);
@@ -14558,6 +14559,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 
 UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
+  // FLAG_stress_incremental_marking = false;
   i::FLAG_incremental_marking = false;
   if (i::FLAG_never_compact) return;
   const char* script =
@@ -15476,10 +15478,10 @@ class RegExpInterruptionThread : public v8::base::Thread {
       : Thread(Options("TimeoutThread")), isolate_(isolate) {}
 
   virtual void Run() {
-    for (v8::base::NoBarrier_Store(&regexp_interruption_data.loop_count, 0);
-         v8::base::NoBarrier_Load(&regexp_interruption_data.loop_count) < 7;
-         v8::base::NoBarrier_AtomicIncrement(
-             &regexp_interruption_data.loop_count, 1)) {
+    for (v8::base::Relaxed_Store(&regexp_interruption_data.loop_count, 0);
+         v8::base::Relaxed_Load(&regexp_interruption_data.loop_count) < 7;
+         v8::base::Relaxed_AtomicIncrement(&regexp_interruption_data.loop_count,
+                                           1)) {
       // Wait a bit before requesting GC.
       v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
       reinterpret_cast<i::Isolate*>(isolate_)->stack_guard()->RequestGC();
@@ -15496,7 +15498,7 @@ class RegExpInterruptionThread : public v8::base::Thread {
 
 void RunBeforeGC(v8::Isolate* isolate, v8::GCType type,
                  v8::GCCallbackFlags flags) {
-  if (v8::base::NoBarrier_Load(&regexp_interruption_data.loop_count) != 2) {
+  if (v8::base::Relaxed_Load(&regexp_interruption_data.loop_count) != 2) {
     return;
   }
   v8::HandleScope scope(isolate);
@@ -23935,7 +23937,7 @@ TEST(EventLogging) {
   isolate->SetEventLogger(StoringEventLoggerCallback);
   v8::internal::HistogramTimer histogramTimer(
       "V8.Test", 0, 10000, v8::internal::HistogramTimer::MILLISECOND, 50,
-      reinterpret_cast<v8::internal::Isolate*>(isolate));
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->counters());
   histogramTimer.Start();
   CHECK_EQ(0, strcmp("V8.Test", last_event_message));
   CHECK_EQ(0, last_event_status);
@@ -24514,12 +24516,13 @@ TEST(GetOwnPropertyDescriptor) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   CompileRun(
-    "var x = { value : 13};"
-    "Object.defineProperty(x, 'p0', {value : 12});"
-    "Object.defineProperty(x, 'p1', {"
-    "  set : function(value) { this.value = value; },"
-    "  get : function() { return this.value; },"
-    "});");
+      "var x = { value : 13};"
+      "Object.defineProperty(x, 'p0', {value : 12});"
+      "Object.defineProperty(x, Symbol.toStringTag, {value: 'foo'});"
+      "Object.defineProperty(x, 'p1', {"
+      "  set : function(value) { this.value = value; },"
+      "  get : function() { return this.value; },"
+      "});");
   Local<Object> x = Local<Object>::Cast(
       env->Global()->Get(env.local(), v8_str("x")).ToLocalChecked());
   Local<Value> desc =
@@ -24552,6 +24555,14 @@ TEST(GetOwnPropertyDescriptor) {
   CHECK(v8_num(14)
             ->Equals(env.local(),
                      get->Call(env.local(), x, 0, NULL).ToLocalChecked())
+            .FromJust());
+  desc =
+      x->GetOwnPropertyDescriptor(env.local(), Symbol::GetToStringTag(isolate))
+          .ToLocalChecked();
+  CHECK(v8_str("foo")
+            ->Equals(env.local(), Local<Object>::Cast(desc)
+                                      ->Get(env.local(), v8_str("value"))
+                                      .ToLocalChecked())
             .FromJust());
 }
 
@@ -26575,6 +26586,24 @@ TEST(SetPrototypeTemplate) {
   CHECK(env->Global()->Set(env.local(), v8_str("Image"), Image).FromJust());
 
   ExpectTrue("Image.prototype === HTMLImageElement.prototype");
+}
+
+void ensure_receiver_is_global_proxy(
+    v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSGlobalProxy());
+}
+
+THREADED_TEST(GlobalAccessorInfo) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
+  global_template->SetAccessor(
+      v8::String::NewFromUtf8(isolate, "prop", v8::NewStringType::kInternalized)
+          .ToLocalChecked(),
+      &ensure_receiver_is_global_proxy);
+  LocalContext env(NULL, global_template);
+  CompileRun("for (var i = 0; i < 10; i++) this.prop");
+  CompileRun("for (var i = 0; i < 10; i++) prop");
 }
 
 UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {

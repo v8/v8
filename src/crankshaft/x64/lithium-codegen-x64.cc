@@ -2319,7 +2319,6 @@ static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
   if (to == LAST_TYPE) return above_equal;
   if (from == FIRST_TYPE) return below_equal;
   UNREACHABLE();
-  return equal;
 }
 
 
@@ -5089,7 +5088,7 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
   __ Move(rax, isolate()->factory()->number_string());
   __ jmp(&end);
   __ bind(&do_call);
-  Callable callable = CodeFactory::Typeof(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   CallCode(callable.code(), RelocInfo::CODE_TARGET, instr);
   __ bind(&end);
 }

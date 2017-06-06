@@ -258,7 +258,6 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfJSReceiverConstant;
     default:
       UNREACHABLE();
-      return Bytecode::kIllegal;
   }
 }
 
@@ -423,6 +422,10 @@ void BytecodeArrayWriter::EmitSwitch(BytecodeNode* node,
   DCHECK(Bytecodes::IsSwitch(node->bytecode()));
 
   size_t current_offset = bytecodes()->size();
+  if (node->operand_scale() > OperandScale::kSingle) {
+    // Adjust for scaling byte prefix.
+    current_offset += 1;
+  }
   jump_table->set_switch_bytecode_offset(current_offset);
 
   EmitBytecode(node);

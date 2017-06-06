@@ -33,6 +33,7 @@ class StackFrame {
   int lineNumber() const;    // 0-based.
   int columnNumber() const;  // 0-based.
   std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject() const;
+  bool isEqual(StackFrame* frame) const;
 
  private:
   String16 m_functionName;
@@ -72,11 +73,27 @@ class V8StackTraceImpl : public V8StackTrace {
       const override;
   std::unique_ptr<StringBuffer> toString() const override;
 
+  bool isEqualIgnoringTopFrame(V8StackTraceImpl* stackTrace) const;
+
  private:
   V8StackTraceImpl(std::vector<std::shared_ptr<StackFrame>> frames,
                    int maxAsyncDepth,
                    std::shared_ptr<AsyncStackTrace> asyncParent,
                    std::shared_ptr<AsyncStackTrace> asyncCreation);
+
+  class StackFrameIterator {
+   public:
+    explicit StackFrameIterator(const V8StackTraceImpl* stackTrace);
+
+    void next();
+    StackFrame* frame();
+    bool done();
+
+   private:
+    std::vector<std::shared_ptr<StackFrame>>::const_iterator m_currentIt;
+    std::vector<std::shared_ptr<StackFrame>>::const_iterator m_currentEnd;
+    AsyncStackTrace* m_parent;
+  };
 
   std::vector<std::shared_ptr<StackFrame>> m_frames;
   int m_maxAsyncDepth;
@@ -105,6 +122,9 @@ class AsyncStackTrace {
   void setDescription(const String16& description) {
     // TODO(kozyatinskiy): implement it without hack.
     m_description = description;
+  }
+  const std::vector<std::shared_ptr<StackFrame>>& frames() const {
+    return m_frames;
   }
 
  private:

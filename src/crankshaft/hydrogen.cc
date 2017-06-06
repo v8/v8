@@ -42,6 +42,7 @@
 // GetRootConstructor
 #include "src/ic/ic-inl.h"
 #include "src/isolate-inl.h"
+#include "src/objects/map.h"
 #include "src/runtime/runtime.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -184,10 +185,13 @@ HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
           : new (info()->zone()) HOptimizedGraphBuilder(info(), false);
 
   // Type-check the function.
-  AstTyper(info()->isolate(), info()->zone(), info()->closure(),
-           info()->scope(), info()->osr_ast_id(), info()->literal(),
-           graph_builder->bounds())
-      .Run();
+  AstTyper ast_typer(info()->isolate(), info()->zone(), info()->closure(),
+                     info()->scope(), info()->osr_ast_id(), info()->literal(),
+                     graph_builder->bounds());
+  ast_typer.Run();
+  if (ast_typer.HasStackOverflow()) {
+    return FAILED;
+  }
 
   graph_ = graph_builder->CreateGraph();
 
@@ -633,7 +637,6 @@ int HBasicBlock::PredecessorIndexOf(HBasicBlock* predecessor) const {
     if (predecessors_[i] == predecessor) return i;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -3167,7 +3170,6 @@ class PostorderProcessor : public ZoneObject {
         return father_;
     }
     UNREACHABLE();
-    return NULL;
   }
 
   // Walks up the stack.
@@ -4928,7 +4930,6 @@ bool HOptimizedGraphBuilder::CanInlineGlobalPropertyAccess(
       UNREACHABLE();
   }
   UNREACHABLE();
-  return false;
 }
 
 
@@ -6939,10 +6940,12 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   // Get transition target for each map (NULL == no transition).
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
+    // Don't generate elements kind transitions from stable maps.
     Map* transitioned_map =
-        map->FindElementsKindTransitionedMap(possible_transitioned_maps);
+        map->is_stable()
+            ? nullptr
+            : map->FindElementsKindTransitionedMap(possible_transitioned_maps);
     if (transitioned_map != nullptr) {
-      DCHECK(!map->is_stable());
       transition_target.push_back(handle(transitioned_map));
     } else {
       transition_target.push_back(Handle<Map>());
@@ -7873,7 +7876,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  if (target_shared->HasDebugInfo()) {
+  if (target_shared->HasBreakInfo()) {
     TraceInline(target, caller, "target is being debugged");
     return false;
   }
@@ -7949,12 +7952,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  // Remember that we inlined this function. This needs to be called right
-  // after the EnsureDeoptimizationSupport call so that the code flusher
-  // does not remove the code with the deoptimization support.
-  int inlining_id = top_info()->AddInlinedFunction(target_info.shared_info(),
-                                                   source_position());
-
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function (so
   // TryInline should always return true).
@@ -7964,10 +7961,18 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   // Type-check the inlined function.
   DCHECK(target_shared->has_deoptimization_support());
-  AstTyper(target_info.isolate(), target_info.zone(), target_info.closure(),
-           target_info.scope(), target_info.osr_ast_id(), target_info.literal(),
-           &bounds_)
-      .Run();
+  AstTyper ast_typer(target_info.isolate(), target_info.zone(),
+                     target_info.closure(), target_info.scope(),
+                     target_info.osr_ast_id(), target_info.literal(), &bounds_);
+  ast_typer.Run();
+  if (ast_typer.HasStackOverflow()) {
+    TraceInline(target, caller, "stack overflow");
+    return false;
+  }
+
+  // Remember that we inlined this function.
+  int inlining_id = top_info()->AddInlinedFunction(target_info.shared_info(),
+                                                   source_position());
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
@@ -11537,7 +11542,7 @@ void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
   if (input->type().IsString()) {
     return ast_context()->ReturnValue(input);
   } else {
-    Callable callable = CodeFactory::ToString(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToString);
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {input};
     HInstruction* result = New<HCallWithDescriptor>(

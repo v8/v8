@@ -25,39 +25,40 @@ namespace v8 {
 namespace internal {
 
 #define VISITOR_ID_LIST(V) \
-  V(SeqOneByteString)      \
-  V(SeqTwoByteString)      \
-  V(ShortcutCandidate)     \
+  V(AllocationSite)        \
   V(ByteArray)             \
   V(BytecodeArray)         \
-  V(FreeSpace)             \
+  V(Cell)                  \
+  V(Code)                  \
+  V(ConsString)            \
+  V(DataObject)            \
   V(FixedArray)            \
   V(FixedDoubleArray)      \
-  V(FixedTypedArrayBase)   \
   V(FixedFloat64Array)     \
-  V(NativeContext)         \
-  V(AllocationSite)        \
-  V(DataObject)            \
-  V(JSObjectFast)          \
-  V(JSObject)              \
+  V(FixedTypedArrayBase)   \
+  V(FreeSpace)             \
   V(JSApiObject)           \
-  V(Struct)                \
-  V(ConsString)            \
-  V(SlicedString)          \
-  V(ThinString)            \
-  V(Symbol)                \
-  V(Oddball)               \
-  V(Code)                  \
-  V(Map)                   \
-  V(Cell)                  \
-  V(PropertyCell)          \
-  V(WeakCell)              \
-  V(TransitionArray)       \
-  V(SharedFunctionInfo)    \
-  V(JSFunction)            \
-  V(JSWeakCollection)      \
   V(JSArrayBuffer)         \
-  V(JSRegExp)
+  V(JSFunction)            \
+  V(JSObject)              \
+  V(JSObjectFast)          \
+  V(JSRegExp)              \
+  V(JSWeakCollection)      \
+  V(Map)                   \
+  V(NativeContext)         \
+  V(Oddball)               \
+  V(PropertyCell)          \
+  V(SeqOneByteString)      \
+  V(SeqTwoByteString)      \
+  V(SharedFunctionInfo)    \
+  V(ShortcutCandidate)     \
+  V(SlicedString)          \
+  V(SmallOrderedHashSet)   \
+  V(Struct)                \
+  V(Symbol)                \
+  V(ThinString)            \
+  V(TransitionArray)       \
+  V(WeakCell)
 
 // For data objects, JS objects and structs along with generic visitor which
 // can visit object of any size we provide visitors specialized by
@@ -99,7 +100,7 @@ class VisitorDispatchTable {
     // every element of callbacks_ array will remain correct
     // pointer (memcpy might be implemented as a byte copying loop).
     for (int i = 0; i < kVisitorIdCount; i++) {
-      base::NoBarrier_Store(&callbacks_[i], other->callbacks_[i]);
+      base::Relaxed_Store(&callbacks_[i], other->callbacks_[i]);
     }
   }
 
@@ -183,7 +184,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
  private:
   inline static int UnreachableVisitor(Map* map, HeapObject* object) {
     UNREACHABLE();
-    return 0;
   }
 
   INLINE(static int VisitByteArray(Map* map, HeapObject* object)) {
@@ -292,17 +292,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // Mark pointers in a Map treating some elements of the descriptor array weak.
   static void MarkMapContents(Heap* heap, Map* map);
 
-  // Code flushing support.
-  INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));
-  INLINE(static bool IsFlushable(Heap* heap, SharedFunctionInfo* shared_info));
-
-  // Helpers used by code flushing support that visit pointer fields and treat
-  // references to code objects either strongly or weakly.
-  static void VisitSharedFunctionInfoStrongCode(Map* map, HeapObject* object);
-  static void VisitSharedFunctionInfoWeakCode(Map* map, HeapObject* object);
-  static void VisitJSFunctionStrongCode(Map* map, HeapObject* object);
-  static void VisitJSFunctionWeakCode(Map* map, HeapObject* object);
-
   class DataObjectVisitor {
    public:
     template <int size>
@@ -371,9 +360,10 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
   V(SeqTwoByteString)            \
   V(SharedFunctionInfo)          \
   V(SlicedString)                \
+  V(SmallOrderedHashSet)         \
   V(Symbol)                      \
-  V(TransitionArray)             \
   V(ThinString)                  \
+  V(TransitionArray)             \
   V(WeakCell)
 
 // The base class for visitors that need to dispatch on object type.

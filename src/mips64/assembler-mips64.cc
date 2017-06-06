@@ -291,8 +291,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   ClearRecordedAstId();
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitForbiddenSlotInstruction();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
   // Set up code descriptor.
@@ -461,6 +460,29 @@ const int kEndOfChain = -4;
 // Determines the end of the Jump chain (a subset of the label link chain).
 const int kEndOfJumpChain = 0;
 
+bool Assembler::IsMsaBranch(Instr instr) {
+  uint32_t opcode = GetOpcodeField(instr);
+  uint32_t rs_field = GetRsField(instr);
+  if (opcode == COP1) {
+    switch (rs_field) {
+      case BZ_V:
+      case BZ_B:
+      case BZ_H:
+      case BZ_W:
+      case BZ_D:
+      case BNZ_V:
+      case BNZ_B:
+      case BNZ_H:
+      case BNZ_W:
+      case BNZ_D:
+        return true;
+      default:
+        return false;
+    }
+  } else {
+    return false;
+  }
+}
 
 bool Assembler::IsBranch(Instr instr) {
   uint32_t opcode   = GetOpcodeField(instr);
@@ -474,7 +496,7 @@ bool Assembler::IsBranch(Instr instr) {
                             rt_field == BLTZAL || rt_field == BGEZAL)) ||
       (opcode == COP1 && rs_field == BC1) ||  // Coprocessor branch.
       (opcode == COP1 && rs_field == BC1EQZ) ||
-      (opcode == COP1 && rs_field == BC1NEZ);
+      (opcode == COP1 && rs_field == BC1NEZ) || IsMsaBranch(instr);
   if (!isBranch && kArchVariant == kMips64r6) {
     // All the 3 variants of POP10 (BOVC, BEQC, BEQZALC) and
     // POP30 (BNVC, BNEC, BNEZALC) are branch ops.
@@ -4005,7 +4027,6 @@ Address Assembler::target_address_at(Address pc) {
   }
   // We should never get here, force a bad address if we do.
   UNREACHABLE();
-  return (Address)0x0;
 }
 
 

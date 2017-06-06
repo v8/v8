@@ -9,6 +9,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -833,18 +834,16 @@ TEST_F(WasmSignatureDecodeTest, TooManyParams) {
 }
 
 TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
-  bool prev = FLAG_wasm_mv_prototype;
   for (int i = 0; i < 2; i++) {
-    FLAG_wasm_mv_prototype = i != 0;
-    const int max_return_count =
-        static_cast<int>(FLAG_wasm_mv_prototype ? kV8MaxWasmFunctionMultiReturns
-                                                : kV8MaxWasmFunctionReturns);
+    EnableFlagScope flag_scope(&FLAG_experimental_wasm_mv, i != 0);
+    const int max_return_count = static_cast<int>(
+        FLAG_experimental_wasm_mv ? kV8MaxWasmFunctionMultiReturns
+                                  : kV8MaxWasmFunctionReturns);
     byte data[] = {kWasmFunctionTypeForm, 0, WASM_I32V_3(max_return_count + 1),
                    kLocalI32};
     FunctionSig* sig =
         DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
     EXPECT_EQ(nullptr, sig);
-    FLAG_wasm_mv_prototype = prev;
   }
 }
 

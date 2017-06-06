@@ -47,6 +47,7 @@ class JSBinopReduction final {
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
         case CompareOperationHint::kString:
+        case CompareOperationHint::kSymbol:
         case CompareOperationHint::kReceiver:
         case CompareOperationHint::kInternalizedString:
           break;
@@ -81,6 +82,16 @@ class JSBinopReduction final {
       return (CompareOperationHintOf(node_->op()) ==
               CompareOperationHint::kString) &&
              BothInputsMaybe(Type::String());
+    }
+    return false;
+  }
+
+  bool IsSymbolCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kSymbol) &&
+             BothInputsMaybe(Type::Symbol());
     }
     return false;
   }
@@ -132,6 +143,24 @@ class JSBinopReduction final {
     if (!right_type()->Is(Type::Receiver())) {
       Node* right_input = graph()->NewNode(simplified()->CheckReceiver(),
                                            right(), effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  // Checks that both inputs are Symbol, and if we don't know
+  // statically that one side is already a Symbol, insert a
+  // CheckSymbol node.
+  void CheckInputsToSymbol() {
+    if (!left_type()->Is(Type::Symbol())) {
+      Node* left_input = graph()->NewNode(simplified()->CheckSymbol(), left(),
+                                          effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type()->Is(Type::Symbol())) {
+      Node* right_input = graph()->NewNode(simplified()->CheckSymbol(), right(),
+                                           effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -307,7 +336,6 @@ class JSBinopReduction final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   const Operator* NumberOpFromSpeculativeNumberOp() {
@@ -332,7 +360,6 @@ class JSBinopReduction final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   bool LeftInputIs(Type* t) { return left_type()->Is(t); }
@@ -488,13 +515,13 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      pointer_comparable_type_(Type::Union(
-          Type::Oddball(),
-          Type::Union(
-              Type::SymbolOrReceiver(),
-              Type::HeapConstant(factory()->empty_string(), graph()->zone()),
-              graph()->zone()),
-          graph()->zone())),
+      empty_string_type_(
+          Type::HeapConstant(factory()->empty_string(), graph()->zone())),
+      pointer_comparable_type_(
+          Type::Union(Type::Oddball(),
+                      Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
+                                  graph()->zone()),
+                      graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -534,6 +561,23 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   if (r.OneInputIs(Type::String())) {
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
+    }
+    // Eliminate useless concatenation of empty string.
+    if ((flags() & kDeoptimizationEnabled) &&
+        BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      if (r.LeftInputIs(empty_string_type_)) {
+        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
+                                                r.right(), effect, control);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      } else if (r.RightInputIs(empty_string_type_)) {
+        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
+                                                r.left(), effect, control);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
     }
     StringAddFlags flags = STRING_ADD_CHECK_NONE;
     if (!r.LeftInputIs(Type::String())) {
@@ -879,6 +923,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
     return r.ChangeToPureOperator(simplified()->StringEqual());
+  } else if (r.IsSymbolCompareOperation()) {
+    r.CheckInputsToSymbol();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   return NoChange();
 }
@@ -936,6 +983,9 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
     return r.ChangeToPureOperator(simplified()->StringEqual());
+  } else if (r.IsSymbolCompareOperation()) {
+    r.CheckInputsToSymbol();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   return NoChange();
 }
@@ -1155,7 +1205,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   Node* rfalse;
   {
     // Convert {receiver} using the ToObjectStub.
-    Callable callable = CodeFactory::ToObject(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
@@ -1517,7 +1567,7 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
     {
       // Convert {receiver} using the ToObjectStub. The call does not require a
       // frame-state in this case, because neither null nor undefined is passed.
-      Callable callable = CodeFactory::ToObject(isolate());
+      Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
       CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0,
           CallDescriptor::kNoFlags, node->op()->properties());
@@ -1575,7 +1625,7 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   {
     // Convert {receiver} using the ToObjectStub. The call does not require a
     // frame-state in this case, because neither null nor undefined is passed.
-    Callable callable = CodeFactory::ToObject(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNoFlags, node->op()->properties());
@@ -1703,6 +1753,38 @@ bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
 
 }  // namespace
 
+Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstructForwardVarargs, node->opcode());
+  ConstructForwardVarargsParameters p =
+      ConstructForwardVarargsParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  int const start_index = static_cast<int>(p.start_index());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Type* target_type = NodeProperties::GetType(target);
+  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+
+  // Check if {target} is a JSFunction.
+  if (target_type->Is(Type::Function())) {
+    // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
+    Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
+    node->RemoveInput(arity + 1);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->InsertInput(graph()->zone(), 2, new_target);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(start_index));
+    node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  CallDescriptor::kNeedsFrameState)));
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
@@ -1781,6 +1863,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallForwardVarargs, node->opcode());
   CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  int const start_index = static_cast<int>(p.start_index());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type* target_type = NodeProperties::GetType(target);
 
@@ -1796,11 +1881,12 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(p.start_index()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
-        node,
-        common()->Call(Linkage::GetStubCallDescriptor(
-            isolate(), graph()->zone(), callable.descriptor(), 1, flags)));
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  flags)));
     return Changed(node);
   }
 
@@ -2176,6 +2262,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSStoreModule(node);
     case IrOpcode::kJSConvertReceiver:
       return ReduceJSConvertReceiver(node);
+    case IrOpcode::kJSConstructForwardVarargs:
+      return ReduceJSConstructForwardVarargs(node);
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
     case IrOpcode::kJSCallForwardVarargs:

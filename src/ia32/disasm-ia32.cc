@@ -2407,7 +2407,6 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 const char* NameConverter::NameInCode(byte* addr) const {
   // IA32 does not embed debug strings at the moment.
   UNREACHABLE();
-  return "";
 }
 
 

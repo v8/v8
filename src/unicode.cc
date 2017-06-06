@@ -273,7 +273,6 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   }
 
   UNREACHABLE();
-  return kBadChar;
 }
 
 uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
@@ -361,17 +360,51 @@ uchar Utf8::ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer) {
   }
 }
 
-bool Utf8::Validate(const byte* bytes, size_t length) {
-  size_t cursor = 0;
+bool Utf8::ValidateEncoding(const byte* bytes, size_t length) {
+  const byte* cursor = bytes;
+  const byte* end = bytes + length;
 
-  // Performance optimization: Skip over single-byte values first.
-  while (cursor < length && bytes[cursor] <= kMaxOneByteChar) {
-    ++cursor;
-  }
+  while (cursor < end) {
+    // Skip over single-byte values.
+    if (*cursor <= kMaxOneByteChar) {
+      ++cursor;
+      continue;
+    }
 
-  while (cursor < length) {
-    uchar c = ValueOf(bytes + cursor, length - cursor, &cursor);
-    if (!IsValidCharacter(c)) return false;
+    // Get the length the the character.
+    size_t seq_length = NonASCIISequenceLength(*cursor);
+    // For some invalid characters NonASCIISequenceLength returns 0.
+    if (seq_length == 0) return false;
+
+    const byte* char_end = cursor + seq_length;
+
+    // Return false if we do not have enough bytes for the character.
+    if (char_end > end) return false;
+
+    // Check if the bytes of the character are continuation bytes.
+    for (const byte* i = cursor + 1; i < char_end; ++i) {
+      if (!IsContinuationCharacter(*i)) return false;
+    }
+
+    // Check overly long sequences & other conditions.
+    if (seq_length == 3) {
+      if (cursor[0] == 0xE0 && (cursor[1] < 0xA0 || cursor[1] > 0xBF)) {
+        // Overlong three-byte sequence?
+        return false;
+      } else if (cursor[0] == 0xED && (cursor[1] < 0x80 || cursor[1] > 0x9F)) {
+        // High and low surrogate halves?
+        return false;
+      }
+    } else if (seq_length == 4) {
+      if (cursor[0] == 0xF0 && (cursor[1] < 0x90 || cursor[1] > 0xBF)) {
+        // Overlong four-byte sequence.
+        return false;
+      } else if (cursor[0] == 0xF4 && (cursor[1] < 0x80 || cursor[1] > 0x8F)) {
+        // Code points outside of the unicode range.
+        return false;
+      }
+    }
+    cursor = char_end;
   }
   return true;
 }

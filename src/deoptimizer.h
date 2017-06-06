@@ -373,7 +373,6 @@ class Deoptimizer : public Malloced {
         return "TOS_REGISTER";
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   struct DeoptInfo {
@@ -540,6 +539,7 @@ class Deoptimizer : public Malloced {
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                BailoutType type,
                                                int max_entry_id);
+  static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
 

@@ -222,10 +222,10 @@ class Interpreter;
 class ThreadId {
  public:
   // Creates an invalid ThreadId.
-  ThreadId() { base::NoBarrier_Store(&id_, kInvalidId); }
+  ThreadId() { base::Relaxed_Store(&id_, kInvalidId); }
 
   ThreadId& operator=(const ThreadId& other) {
-    base::NoBarrier_Store(&id_, base::NoBarrier_Load(&other.id_));
+    base::Relaxed_Store(&id_, base::Relaxed_Load(&other.id_));
     return *this;
   }
 
@@ -237,17 +237,17 @@ class ThreadId {
 
   // Compares ThreadIds for equality.
   INLINE(bool Equals(const ThreadId& other) const) {
-    return base::NoBarrier_Load(&id_) == base::NoBarrier_Load(&other.id_);
+    return base::Relaxed_Load(&id_) == base::Relaxed_Load(&other.id_);
   }
 
   // Checks whether this ThreadId refers to any thread.
   INLINE(bool IsValid() const) {
-    return base::NoBarrier_Load(&id_) != kInvalidId;
+    return base::Relaxed_Load(&id_) != kInvalidId;
   }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::GetCurrentThreadId).
-  int ToInteger() const { return static_cast<int>(base::NoBarrier_Load(&id_)); }
+  int ToInteger() const { return static_cast<int>(base::Relaxed_Load(&id_)); }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::TerminateExecution).
@@ -256,7 +256,7 @@ class ThreadId {
  private:
   static const int kInvalidId = -1;
 
-  explicit ThreadId(int id) { base::NoBarrier_Store(&id_, id); }
+  explicit ThreadId(int id) { base::Relaxed_Store(&id_, id); }
 
   static int AllocateThreadId();
 
@@ -407,6 +407,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ExtensionCallback, wasm_compile_callback, &NoExtension)                   \
   V(ExtensionCallback, wasm_instantiate_callback, &NoExtension)               \
+  V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
     nullptr)                                                                  \
   /* State for Relocatable. */                                                \
@@ -523,7 +524,7 @@ class Isolate {
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
-    DCHECK(base::NoBarrier_Load(&isolate_key_created_) == 1);
+    DCHECK(base::Relaxed_Load(&isolate_key_created_) == 1);
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
     DCHECK(isolate != NULL);
@@ -536,6 +537,7 @@ class Isolate {
   //
   // Safe to call more than once.
   void InitializeLoggingAndCounters();
+  bool InitializeCounters();  // Returns false if already initialized.
 
   bool Init(Deserializer* des);
 
@@ -872,6 +874,7 @@ class Isolate {
     DCHECK(counters_ != NULL);
     return counters_;
   }
+  std::shared_ptr<Counters> counters_shared() { return counters_shared_; }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -1167,7 +1170,7 @@ class Isolate {
 
   std::string GetTurboCfgFileName();
 
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
@@ -1427,6 +1430,7 @@ class Isolate {
   Bootstrapper* bootstrapper_;
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
+  std::shared_ptr<Counters> counters_shared_;
   Counters* counters_;
   base::RecursiveMutex break_access_;
   Logger* logger_;
@@ -1541,7 +1545,7 @@ class Isolate {
 
   int next_optimization_id_;
 
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
   int next_unique_sfi_id_;
 #endif
 

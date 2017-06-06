@@ -36,6 +36,7 @@
 /base
 /build
 /buildtools
+/gypfiles/.gold_plugin
 /gypfiles/win_toolchain.json
 /hydrogen.cfg
 /obj
@@ -50,10 +51,6 @@
 /test/fuzzer/wasm_corpus.tar.gz
 /test/fuzzer/wasm_asmjs_corpus
 /test/fuzzer/wasm_asmjs_corpus.tar.gz
-/test/fuzzer/wasm
-/test/fuzzer/wasm.tar.gz
-/test/fuzzer/wasm_asmjs
-/test/fuzzer/wasm_asmjs.tar.gz
 /test/mozilla/data
 /test/promises-aplus/promises-tests
 /test/promises-aplus/promises-tests.tar.gz

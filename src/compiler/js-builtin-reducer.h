@@ -61,6 +61,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceArrayShift(Node* node);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
+  Reduction ReduceFunctionBind(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMathAbs(Node* node);

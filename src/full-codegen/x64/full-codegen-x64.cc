@@ -1185,8 +1185,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ Move(rbx, SmiFromSlot(expr->literal_slot()));
     __ Move(rcx, constant_properties);
     __ Move(rdx, Smi::FromInt(flags));
-    Callable callable = CodeFactory::FastCloneShallowObject(
-        isolate(), expr->properties_count());
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate());
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }

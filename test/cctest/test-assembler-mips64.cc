@@ -46,7 +46,7 @@ typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(int64_t x, int64_t y, int64_t p2, int64_t p3, int64_t p4);
-
+typedef Object* (*F5)(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -63,7 +63,7 @@ TEST(MIPS0) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
@@ -99,7 +99,7 @@ TEST(MIPS1) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F1 f = FUNCTION_CAST<F1>(code->entry());
@@ -245,7 +245,7 @@ TEST(MIPS2) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
@@ -348,7 +348,7 @@ TEST(MIPS3) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -442,7 +442,7 @@ TEST(MIPS4) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -508,7 +508,7 @@ TEST(MIPS5) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -578,7 +578,7 @@ TEST(MIPS6) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -665,7 +665,7 @@ TEST(MIPS7) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -763,7 +763,7 @@ TEST(MIPS8) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -809,7 +809,7 @@ TEST(MIPS9) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 }
@@ -885,7 +885,7 @@ TEST(MIPS10) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1021,7 +1021,7 @@ TEST(MIPS11) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1146,7 +1146,7 @@ TEST(MIPS12) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1200,7 +1200,7 @@ TEST(MIPS13) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1321,7 +1321,7 @@ TEST(MIPS14) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1451,7 +1451,7 @@ TEST(MIPS16) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1580,7 +1580,7 @@ TEST(seleqz_selnez) {
     __ jr(ra);
     __ nop();
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1696,7 +1696,7 @@ TEST(min_max) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1805,7 +1805,7 @@ TEST(rint_d)  {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1853,7 +1853,7 @@ TEST(sel) {
     __ jr(ra);
     __ nop();
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1986,7 +1986,7 @@ TEST(rint_s)  {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2072,7 +2072,7 @@ TEST(mina_maxa) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2154,7 +2154,7 @@ TEST(trunc_l) {
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2235,7 +2235,7 @@ TEST(movz_movn) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2336,7 +2336,7 @@ TEST(movt_movd) {
         __ nop();
 
         CodeDesc desc;
-        assm.GetCode(&desc);
+        assm.GetCode(isolate, &desc);
         Handle<Code> code = isolate->factory()->NewCode(
             desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
         F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2422,7 +2422,7 @@ TEST(cvt_w_d) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2489,7 +2489,7 @@ TEST(trunc_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2558,7 +2558,7 @@ TEST(round_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2629,7 +2629,7 @@ TEST(round_l) {
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2701,7 +2701,7 @@ TEST(sub) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2773,7 +2773,7 @@ TEST(sqrt_rsqrt_recip) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2851,7 +2851,7 @@ TEST(neg) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2909,7 +2909,7 @@ TEST(mul) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2964,7 +2964,7 @@ TEST(mov) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3031,7 +3031,7 @@ TEST(floor_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3102,7 +3102,7 @@ TEST(floor_l) {
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3173,7 +3173,7 @@ TEST(ceil_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3244,7 +3244,7 @@ TEST(ceil_l) {
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3315,7 +3315,7 @@ TEST(jump_tables1) {
   CHECK_EQ(0, assm.UnboundLabelsCount());
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -3385,7 +3385,7 @@ TEST(jump_tables2) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -3465,7 +3465,7 @@ TEST(jump_tables3) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -3539,7 +3539,7 @@ TEST(BITSWAP) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3682,7 +3682,7 @@ TEST(class_fmt) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3776,7 +3776,7 @@ TEST(ABS) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3869,7 +3869,7 @@ TEST(ADD_FMT) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4024,7 +4024,7 @@ TEST(C_COND_FMT) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4225,7 +4225,7 @@ TEST(CMP_COND_FMT) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4403,7 +4403,7 @@ TEST(CVT) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4574,7 +4574,7 @@ TEST(DIV_FMT) {
   __ jr(ra);
   __ nop();
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4665,7 +4665,7 @@ uint64_t run_align(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4718,7 +4718,7 @@ uint64_t run_dalign(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4776,7 +4776,7 @@ uint64_t run_aluipc(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4830,7 +4830,7 @@ uint64_t run_auipc(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4885,7 +4885,7 @@ uint64_t run_aui(uint64_t rs, uint16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4911,7 +4911,7 @@ uint64_t run_daui(uint64_t rs, uint16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4937,7 +4937,7 @@ uint64_t run_dahi(uint64_t rs, uint16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4963,7 +4963,7 @@ uint64_t run_dati(uint64_t rs, uint16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5053,22 +5053,24 @@ TEST(r6_aui_family) {
   }
 }
 
-
-uint64_t run_li_macro(uint64_t rs, LiFlags mode) {
+uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
-  __ li(a0, rs, mode);
-  __ mov(v0, a0);
+  Label code_start;
+  __ bind(&code_start);
+  __ li(v0, imm, mode);
+  if (num_instr > 0) {
+    CHECK_EQ(assm.InstructionsGeneratedSince(&code_start), num_instr);
+  }
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
@@ -5081,23 +5083,146 @@ uint64_t run_li_macro(uint64_t rs, LiFlags mode) {
 TEST(li_macro) {
   CcTest::InitializeVM();
 
-  uint64_t inputs[] = {
-      0x0000000000000000, 0x000000000000ffff, 0x00000000ffffffff,
-      0x0000ffffffffffff, 0xffffffffffffffff, 0xffff000000000000,
-      0xffffffff00000000, 0xffffffffffff0000, 0xffff0000ffff0000,
-      0x0000ffffffff0000, 0x0000ffff0000ffff, 0x00007fffffffffff,
-      0x7fffffffffffffff, 0x000000007fffffff, 0x00007fff7fffffff,
+  // Test li macro-instruction for border cases.
+
+  struct TestCase_li {
+    uint64_t imm;
+    int32_t r2_num_instr;
+    int32_t r6_num_instr;
   };
 
-  size_t nr_test_cases = sizeof(inputs) / sizeof(inputs[0]);
+  // We call li(v0, imm) to test cases listed below.
+  struct TestCase_li tc[] = {
+      //              imm, r2_num_instr, r6_num_instr
+      {0xffffffffffff8000, 1, 1},  // min_int16
+      // The test case above generates daddiu instruction.
+      // This is int16 value and we can load it using just daddiu.
+      {0x8000, 1, 1},  // max_int16 + 1
+      // Generates ori
+      // max_int16 + 1 is not int16 but is uint16, just use ori.
+      {0xffffffffffff7fff, 2, 2},  // min_int16 - 1
+      // Generates lui + ori
+      // We load int32 value using lui + ori.
+      {0x8001, 1, 1},  // max_int16 + 2
+      // Generates ori
+      // Also an uint16 value, use ori.
+      {0x00010000, 1, 1},  // max_uint16 + 1
+      // Generates lui
+      // Low 16 bits are 0, load value using lui.
+      {0x00010001, 2, 2},  // max_uint16 + 2
+      // Generates lui + ori
+      // We have to generate two instructions in this case.
+      {0x00000000ffffffff, 2, 2},  // max_uint32
+      // r2 - daddiu + dsrl32
+      // r6 - daddiu + dahi
+      {0x00000000fffffffe, 3, 2},  // max_uint32 - 1
+      // r2 - lui + ori + dsll
+      // r6 - daddiu + dahi
+      {0x00ffff000000fffe, 3, 3},
+      // ori + dsll32 + ori
+      {0x00000001fffffffe, 4, 2},  // max_uint32 << 1
+      // r2 - lui + ori + dsll + ori
+      // r6 - daddiu + dahi
+      {0x0000fffffffffffe, 5, 2},  // max_uint48 - 1
+      // r2 - ori + dsll + ori + dsll + ori
+      // r6 - daddiu + dati
+      {0xffffffff00000000, 2, 2},  // max_uint32 << 32
+      // r2 - daddiu + dsll32
+      // r6 - ori + dahi
+      // We need ori to clear register before loading value using dahi.
+      {0xffffffff80000000, 1, 1},  // min_int32
+      // The test case above generates lui instruction.
+      {0x0000000080000000, 2, 2},  // max_int32 + 1
+      // r2 - ori + dsll
+      // r6 - lui + dahi
+      {0x0000800000000000, 2, 2},
+      // ori + dsll32
+      {0xffff800000000000, 2, 2},
+      // r2 - daddiu + dsll32
+      // r6 - ori + dahi
+      {0xffff80000000ffff, 3, 2},
+      // r2 - daddiu + dsll32 + ori
+      // r6 - ori + dahi
+      {0xffffff123000ffff, 3, 3},
+      // daddiu + dsll + ori
+      {0xffff00000000ffff, 3, 2},
+      // r2 - daddiu + dsll32 + ori
+      // r6 - ori + dati
+      {0xffff8000ffff0000, 3, 2},
+      // r2 - lui + ori + dsll
+      // r6 - lui + dahi
+      {0x1234ffff80000000, 3, 2},
+      // r2 - lui + ori + dsll
+      // r6 - lui + dati
+      {0x1234ffff80010000, 5, 2},
+      // r2 - lui + ori + dsll + ori + dsll
+      // r6 - lui + dati
+      {0xffff8000ffff8000, 2, 2},
+      // r2 - daddiu + dinsu
+      // r6 - daddiu + dahi
+      {0xffff0000ffff8000, 5, 3},
+      // r2 - lui + dsll + ori + dsll + ori
+      // r6 - daddiu + dahi + dati
+      {0x8000000080000000, 2, 2},
+      // lui + dinsu
+      {0xabcd0000abcd0000, 2, 2},
+      // lui + dinsu
+      {0x8000800080008000, 3, 3},
+      // lui + ori + dinsu
+      {0xabcd1234abcd1234, 3, 3},
+      // The test case above generates lui + ori + dinsu instruction sequence.
+      {0xffff800080008000, 4, 3},
+      // r2 - lui + ori + dsll + ori
+      // r6 - lui + ori + dahi
+      {0xffffabcd, 3, 2},
+      // r2 - ori + dsll + ori
+      // r6 - daddiu + dahi
+      {0x1ffffabcd, 4, 2},
+      // r2 - lui + ori + dsll + ori
+      // r6 - daddiu + dahi
+      {0xffffffffabcd, 5, 2},
+      // r2 - ori + dsll + ori + dsll + ori
+      // r6 - daddiu + dati
+      {0x1ffffffffabcd, 6, 2},
+      // r2 - lui + ori + dsll + ori + dsll + ori
+      // r6 - daddiu + dati
+      {0xffff7fff80010000, 5, 2},
+      // r2 - lui + ori + dsll + ori + dsll
+      // r6 - lui + dahi
+      // Here lui sets high 32 bits to 1 so dahi can be used to get target
+      // value.
+      {0x00007fff7fff0000, 3, 2},
+      // r2 - lui + ori + dsll
+      // r6 - lui + dahi
+      // High 32 bits are not set so dahi can be used to get target value.
+      {0xffff7fff7fff0000, 5, 3},
+      // r2 - lui + ori + dsll + ori + dsll
+      // r6 - lui + dahi + dati
+      // High 32 bits are not set so just dahi can't be used to get target
+      // value.
+      {0x00007fff80010000, 3, 3},
+      // r2 - lui + ori + dsll
+      // r6 - lui + ori + dsll
+      // High 32 bits are set so can't just use lui + dahi to get target value.
+      {0x1234abcd87654321, 6, 4},
+      // The test case above generates:
+      // r2 - lui + ori + dsll + ori + dsll + ori instruction sequence,
+      // r6 - lui + ori + dahi + dati.
+      // Load using full instruction sequence.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCase_li);
   for (size_t i = 0; i < nr_test_cases; ++i) {
-    uint64_t res = run_li_macro(inputs[i], OPTIMIZE_SIZE);
-    CHECK_EQ(inputs[i], res);
-    res = run_li_macro(inputs[i], CONSTANT_SIZE);
-    CHECK_EQ(inputs[i], res);
-    if (is_int48(inputs[i])) {
-      res = run_li_macro(inputs[i], ADDRESS_LOAD);
-      CHECK_EQ(inputs[i], res);
+    if (kArchVariant == kMips64r2) {
+      CHECK_EQ(tc[i].imm,
+               run_li_macro(tc[i].imm, OPTIMIZE_SIZE, tc[i].r2_num_instr));
+    } else {
+      CHECK_EQ(tc[i].imm,
+               run_li_macro(tc[i].imm, OPTIMIZE_SIZE, tc[i].r6_num_instr));
+    }
+    CHECK_EQ(tc[i].imm, run_li_macro(tc[i].imm, CONSTANT_SIZE));
+    if (is_int48(tc[i].imm)) {
+      CHECK_EQ(tc[i].imm, run_li_macro(tc[i].imm, ADDRESS_LOAD));
     }
   }
 }
@@ -5136,7 +5261,7 @@ uint64_t run_lwpc(int offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5212,7 +5337,7 @@ uint64_t run_lwupc(int offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5296,7 +5421,7 @@ uint64_t run_jic(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5368,7 +5493,7 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5462,7 +5587,7 @@ uint64_t run_jialc(int16_t offset) {
 
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5514,7 +5639,7 @@ uint64_t run_addiupc(int32_t imm19) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5590,7 +5715,7 @@ uint64_t run_ldpc(int offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5679,7 +5804,7 @@ int64_t run_bc(int32_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5761,7 +5886,7 @@ int64_t run_balc(int32_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5811,7 +5936,7 @@ uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5867,7 +5992,7 @@ uint64_t run_bal(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5921,7 +6046,7 @@ TEST(Trampoline) {
   __ mov(v0, zero_reg);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
@@ -5988,7 +6113,7 @@ void helper_madd_msub_maddf_msubf(F func) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -6057,6 +6182,173 @@ TEST(maddf_msubf_d) {
   });
 }
 
+uint64_t run_Subu(uint64_t imm, int32_t num_instr) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  Label code_start;
+  __ bind(&code_start);
+  __ Subu(v0, zero_reg, Operand(imm));
+  CHECK_EQ(assm.InstructionsGeneratedSince(&code_start), num_instr);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Subu) {
+  CcTest::InitializeVM();
+
+  // Test Subu macro-instruction for min_int16 and max_int16 border cases.
+  // For subtracting int16 immediate values we use addiu.
+
+  struct TestCaseSubu {
+    uint64_t imm;
+    uint64_t expected_res;
+    int32_t num_instr;
+  };
+
+  // We call Subu(v0, zero_reg, imm) to test cases listed below.
+  // 0 - imm = expected_res
+  struct TestCaseSubu tc[] = {
+      //        imm, expected_res, num_instr
+      {0xffffffffffff8000, 0x8000, 2},  // min_int16
+      // The test case above generates ori + addu instruction sequence.
+      // We can't have just addiu because -min_int16 > max_int16 so use
+      // register. We can load min_int16 to at register with addiu and then
+      // subtract at with subu, but now we use ori + addu because -min_int16 can
+      // be loaded using ori.
+      {0x8000, 0xffffffffffff8000, 1},  // max_int16 + 1
+      // Generates addiu
+      // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use addiu.
+      {0xffffffffffff7fff, 0x8001, 2},  // min_int16 - 1
+      // Generates ori + addu
+      // To load this value to at we need two instructions and another one to
+      // subtract, lui + ori + subu. But we can load -value to at using just
+      // ori and then add at register with addu.
+      {0x8001, 0xffffffffffff7fff, 2},  // max_int16 + 2
+      // Generates ori + subu
+      // Not int16 but is uint16, load value to at with ori and subtract with
+      // subu.
+      {0x00010000, 0xffffffffffff0000, 2},
+      // Generates lui + subu
+      // Load value using lui to at and subtract with subu.
+      {0x00010001, 0xfffffffffffeffff, 3},
+      // Generates lui + ori + subu
+      // We have to generate three instructions in this case.
+      {0x7fffffff, 0xffffffff80000001, 3},  // max_int32
+      // Generates lui + ori + subu
+      {0xffffffff80000000, 0xffffffff80000000, 2},  // min_int32
+      // The test case above generates lui + subu intruction sequence.
+      // The result of 0 - min_int32 eqauls max_int32 + 1, which wraps around to
+      // min_int32 again.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseSubu);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_Subu(tc[i].imm, tc[i].num_instr));
+  }
+}
+
+uint64_t run_Dsubu(uint64_t imm, int32_t num_instr) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  Label code_start;
+  __ bind(&code_start);
+  __ Dsubu(v0, zero_reg, Operand(imm));
+  CHECK_EQ(assm.InstructionsGeneratedSince(&code_start), num_instr);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Dsubu) {
+  CcTest::InitializeVM();
+
+  // Test Dsubu macro-instruction for min_int16 and max_int16 border cases.
+  // For subtracting int16 immediate values we use daddiu.
+
+  struct TestCaseDsubu {
+    uint64_t imm;
+    uint64_t expected_res;
+    int32_t num_instr;
+  };
+
+  // We call Dsubu(v0, zero_reg, imm) to test cases listed below.
+  // 0 - imm = expected_res
+  struct TestCaseDsubu tc[] = {
+      //        imm, expected_res, num_instr
+      {0xffffffffffff8000, 0x8000, 2},  // min_int16
+      // The test case above generates ori + daddu instruction sequence.
+      // We can't have just daddiu because -min_int16 > max_int16 so use
+      // register. We can load min_int16 to at register with daddiu and then
+      // subtract at with dsubu, but now we use ori + daddu because -min_int16
+      // can be loaded using ori.
+      {0x8000, 0xffffffffffff8000, 1},  // max_int16 + 1
+      // Generates daddiu
+      // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use daddiu.
+      {0xffffffffffff7fff, 0x8001, 2},  // min_int16 - 1
+      // Generates ori + daddu
+      // To load this value to at we need two instructions and another one to
+      // subtract, lui + ori + dsubu. But we can load -value to at using just
+      // ori and then dadd at register with daddu.
+      {0x8001, 0xffffffffffff7fff, 2},  // max_int16 + 2
+      // Generates ori + dsubu
+      // Not int16 but is uint16, load value to at with ori and subtract with
+      // dsubu.
+      {0x00010000, 0xffffffffffff0000, 2},
+      // Generates lui + dsubu
+      // Load value using lui to at and subtract with dsubu.
+      {0x00010001, 0xfffffffffffeffff, 3},
+      // Generates lui + ori + dsubu
+      // We have to generate three instructions in this case.
+      {0x7fffffff, 0xffffffff80000001, 3},  // max_int32
+      // Generates lui + ori + dsubu
+      {0xffffffff80000000, 0x0000000080000000, 2},  // min_int32
+      // Generates lui + dsubu
+      // The result of 0 - min_int32 eqauls max_int32 + 1, which fits into a 64
+      // bit register, Dsubu gives a different result here.
+      {0x7fffffffffffffff, 0x8000000000000001, 3},  // max_int64
+      // r2 - Generates daddiu + dsrl + dsubu
+      // r6 - Generates daddiu + dati + dsubu
+      {0x8000000000000000, 0x8000000000000000, 3},  // min_int64
+      // The test case above generates:
+      // r2 - daddiu + dsrl32 + dsubu instruction sequence,
+      // r6 - ori + dati + dsubu.
+      // The result of 0 - min_int64 eqauls max_int64 + 1, which wraps around to
+      // min_int64 again.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDsubu);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_Dsubu(tc[i].imm, tc[i].num_instr));
+  }
+}
+
 uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -6070,7 +6362,7 @@ uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
@@ -6098,21 +6390,574 @@ TEST(Dins) {
   // Dins(v0, t0, pos, size) to test cases listed below.
   struct TestCaseDins tc[] = {
       // imm, source, pos, size, expected_res
-      {0x5555555555555555, 0x1ABCDEF01, 31, 1, 0x55555555D5555555},
-      {0x5555555555555555, 0x1ABCDEF02, 30, 2, 0x5555555595555555},
-      {0x201234567, 0x1FABCDEFF, 0, 32, 0x2FABCDEFF},
-      {0x201234567, 0x7FABCDEFF, 31, 2, 0x381234567},
-      {0x800000000, 0x7FABCDEFF, 0, 33, 0x9FABCDEFF},
-      {0x1234, 0xABCDABCDABCDABCD, 0, 64, 0xABCDABCDABCDABCD},
-      {0xABCD, 0xABCEABCF, 32, 1, 0x10000ABCD},
-      {0xABCD, 0xABCEABCF, 63, 1, 0x800000000000ABCD},
-      {0xABCD, 0xABC1ABC2ABC3ABC4, 32, 32, 0xABC3ABC40000ABCD},
+      {0x5555555555555555, 0x1abcdef01, 31, 1, 0x55555555d5555555},
+      {0x5555555555555555, 0x1abcdef02, 30, 2, 0x5555555595555555},
+      {0x201234567, 0x1fabcdeff, 0, 32, 0x2fabcdeff},
+      {0x201234567, 0x7fabcdeff, 31, 2, 0x381234567},
+      {0x800000000, 0x7fabcdeff, 0, 33, 0x9fabcdeff},
+      {0x1234, 0xabcdabcdabcdabcd, 0, 64, 0xabcdabcdabcdabcd},
+      {0xabcd, 0xabceabcf, 32, 1, 0x10000abcd},
+      {0xabcd, 0xabceabcf, 63, 1, 0x800000000000abcd},
+      {0x10000abcd, 0xabc1abc2abc3abc4, 32, 32, 0xabc3abc40000abcd},
   };
 
   size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDins);
   for (size_t i = 0; i < nr_test_cases; ++i) {
     CHECK_EQ(tc[i].expected_res,
              run_Dins(tc[i].imm, tc[i].source, tc[i].pos, tc[i].size));
+  }
+}
+
+TEST(MSA_fill_copy) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint64_t u8;
+    uint64_t u16;
+    uint64_t u32;
+    uint64_t s8;
+    uint64_t s16;
+    uint64_t s32;
+    uint64_t s64;
+  } T;
+  T t;
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0x9e7689aca512b683);
+
+    __ fill_b(w0, t0);
+    __ fill_h(w2, t0);
+    __ fill_w(w4, t0);
+    __ fill_d(w6, t0);
+    __ copy_u_b(t1, w0, 11);
+    __ sd(t1, MemOperand(a0, offsetof(T, u8)));
+    __ copy_u_h(t1, w2, 6);
+    __ sd(t1, MemOperand(a0, offsetof(T, u16)));
+    __ copy_u_w(t1, w4, 3);
+    __ sd(t1, MemOperand(a0, offsetof(T, u32)));
+
+    __ copy_s_b(t1, w0, 8);
+    __ sd(t1, MemOperand(a0, offsetof(T, s8)));
+    __ copy_s_h(t1, w2, 5);
+    __ sd(t1, MemOperand(a0, offsetof(T, s16)));
+    __ copy_s_w(t1, w4, 1);
+    __ sd(t1, MemOperand(a0, offsetof(T, s32)));
+    __ copy_s_d(t1, w6, 0);
+    __ sd(t1, MemOperand(a0, offsetof(T, s64)));
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x83u, t.u8);
+  CHECK_EQ(0xb683u, t.u16);
+  CHECK_EQ(0xa512b683u, t.u32);
+  CHECK_EQ(0xffffffffffffff83u, t.s8);
+  CHECK_EQ(0xffffffffffffb683u, t.s16);
+  CHECK_EQ(0xffffffffa512b683u, t.s32);
+  CHECK_EQ(0x9e7689aca512b683u, t.s64);
+}
+
+TEST(MSA_fill_copy_2) {
+  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // FPU registers with same numbers
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint64_t d0;
+    uint64_t d1;
+  } T;
+  T t[2];
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xaaaaaaaaaaaaaaaa);
+    __ li(t1, 0x5555555555555555);
+
+    __ fill_d(w0, t0);
+    __ fill_d(w2, t0);
+
+    __ Move(f0, t1);
+    __ Move(f2, t1);
+
+#define STORE_MSA_REG(w_reg, base, scratch)          \
+  __ copy_s_d(scratch, w_reg, 0);                    \
+  __ sd(scratch, MemOperand(base, offsetof(T, d0))); \
+  __ copy_s_d(scratch, w_reg, 1);                    \
+  __ sd(scratch, MemOperand(base, offsetof(T, d1)));
+
+    STORE_MSA_REG(w0, a0, t2)
+    STORE_MSA_REG(w2, a1, t2)
+#undef STORE_MSA_REG
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t[0], &t[1], 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x5555555555555555, t[0].d0);
+  CHECK_EQ(0xaaaaaaaaaaaaaaaa, t[0].d1);
+  CHECK_EQ(0x5555555555555555, t[1].d0);
+  CHECK_EQ(0xaaaaaaaaaaaaaaaa, t[1].d1);
+}
+
+TEST(MSA_fill_copy_3) {
+  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // FPU registers with same numbers
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint64_t d0;
+    uint64_t d1;
+  } T;
+  T t[2];
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xaaaaaaaaaaaaaaaa);
+    __ li(t1, 0x5555555555555555);
+
+    __ Move(f0, t0);
+    __ Move(f2, t0);
+
+    __ fill_d(w0, t1);
+    __ fill_d(w2, t1);
+
+    __ Sdc1(f0, MemOperand(a0, offsetof(T, d0)));
+    __ Sdc1(f2, MemOperand(a1, offsetof(T, d0)));
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t[0], &t[1], 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x5555555555555555, t[0].d0);
+  CHECK_EQ(0x5555555555555555, t[1].d0);
+}
+
+typedef union {
+  uint8_t b[16];
+  uint16_t h[8];
+  uint32_t w[4];
+  uint64_t d[2];
+} msa_reg_t;
+
+template <typename T>
+void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+  __ li(t0, -1);
+  __ li(t1, rs_value);
+  __ fill_w(w0, t0);
+
+  if (std::is_same<T, int8_t>::value) {
+    DCHECK(n < 16);
+    __ insert_b(w0, n, t1);
+  } else if (std::is_same<T, int16_t>::value) {
+    DCHECK(n < 8);
+    __ insert_h(w0, n, t1);
+  } else if (std::is_same<T, int32_t>::value) {
+    DCHECK(n < 4);
+    __ insert_w(w0, n, t1);
+  } else if (std::is_same<T, int64_t>::value) {
+    DCHECK(n < 2);
+    __ insert_d(w0, n, t1);
+  } else {
+    UNREACHABLE();
+  }
+
+  __ copy_u_w(t2, w0, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w0, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w0, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w0, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, w, 0, 0, 0, 0));
+}
+
+TEST(MSA_insert) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseInsert {
+    uint64_t input;
+    int n;
+    uint64_t exp_res_lo;
+    uint64_t exp_res_hi;
+  };
+
+  struct TestCaseInsert tc_b[] = {
+      // input, n,        exp_res_lo,          exp_res_hi
+      {0xa2, 13, 0xffffffffffffffffu, 0xffffa2ffffffffffu},
+      {0x73, 10, 0xffffffffffffffffu, 0xffffffffff73ffffu},
+      {0x3494, 5, 0xffff94ffffffffffu, 0xffffffffffffffffu},
+      {0xa6b8, 1, 0xffffffffffffb8ffu, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int8_t>(tc_b[i].input, tc_b[i].n, &res);
+    CHECK_EQ(tc_b[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_b[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_h[] = {
+      // input, n,         exp_res_lo,          exp_res_hi
+      {0x85a2, 7, 0xffffffffffffffffu, 0x85a2ffffffffffffu},
+      {0xe873, 5, 0xffffffffffffffffu, 0xffffffffe873ffffu},
+      {0x3494, 3, 0x3494ffffffffffffu, 0xffffffffffffffffu},
+      {0xa6b8, 1, 0xffffffffa6b8ffffu, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_h) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int16_t>(tc_h[i].input, tc_h[i].n, &res);
+    CHECK_EQ(tc_h[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_h[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_w[] = {
+      //     input, n,          exp_res_lo,          exp_res_hi
+      {0xd2f085a2u, 3, 0xffffffffffffffffu, 0xd2f085a2ffffffffu},
+      {0x4567e873u, 2, 0xffffffffffffffffu, 0xffffffff4567e873u},
+      {0xacdb3494u, 1, 0xacdb3494ffffffffu, 0xffffffffffffffffu},
+      {0x89aba6b8u, 0, 0xffffffff89aba6b8u, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_w) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int32_t>(tc_w[i].input, tc_w[i].n, &res);
+    CHECK_EQ(tc_w[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_w[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_d[] = {
+      //            input, n,         exp_res_lo,          exp_res_hi
+      {0xf35862e13e38f8b0, 1, 0xffffffffffffffffu, 0xf35862e13e38f8b0},
+      {0x4f41ffdef2bfe636, 0, 0x4f41ffdef2bfe636, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int64_t>(tc_d[i].input, tc_d[i].n, &res);
+    CHECK_EQ(tc_d[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_d[i].exp_res_hi, res.d[1]);
+  }
+}
+
+struct ExpResShf {
+  uint8_t i8;
+  uint64_t lo;
+  uint64_t hi;
+};
+
+void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
+                uint8_t i8) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+  uint64_t wd_lo = 0xf35862e13e38f8b0;
+  uint64_t wd_hi = 0x4f41ffdef2bfe636;
+
+#define LOAD_W_REG(lo, hi, w_reg) \
+  __ li(t0, lo);                  \
+  __ li(t1, hi);                  \
+  __ insert_d(w_reg, 0, t0);      \
+  __ insert_d(w_reg, 1, t1);
+
+  LOAD_W_REG(ws_lo, ws_hi, w0)
+
+  switch (opcode) {
+    case ANDI_B:
+      __ andi_b(w2, w0, i8);
+      break;
+    case ORI_B:
+      __ ori_b(w2, w0, i8);
+      break;
+    case NORI_B:
+      __ nori_b(w2, w0, i8);
+      break;
+    case XORI_B:
+      __ xori_b(w2, w0, i8);
+      break;
+    case BMNZI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bmnzi_b(w2, w0, i8);
+      break;
+    case BMZI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bmzi_b(w2, w0, i8);
+      break;
+    case BSELI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bseli_b(w2, w0, i8);
+      break;
+    case SHF_B:
+      __ shf_b(w2, w0, i8);
+      break;
+    case SHF_H:
+      __ shf_h(w2, w0, i8);
+      break;
+    case SHF_W:
+      __ shf_w(w2, w0, i8);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+#undef LOAD_W_REG
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  uint64_t mask = i8 * 0x0101010101010101ull;
+  switch (opcode) {
+    case ANDI_B:
+      CHECK_EQ(ws_lo & mask, res.d[0]);
+      CHECK_EQ(ws_hi & mask, res.d[1]);
+      break;
+    case ORI_B:
+      CHECK_EQ(ws_lo | mask, res.d[0]);
+      CHECK_EQ(ws_hi | mask, res.d[1]);
+      break;
+    case NORI_B:
+      CHECK_EQ(~(ws_lo | mask), res.d[0]);
+      CHECK_EQ(~(ws_hi | mask), res.d[1]);
+      break;
+    case XORI_B:
+      CHECK_EQ(ws_lo ^ mask, res.d[0]);
+      CHECK_EQ(ws_hi ^ mask, res.d[1]);
+      break;
+    case BMNZI_B:
+      CHECK_EQ((ws_lo & mask) | (wd_lo & ~mask), res.d[0]);
+      CHECK_EQ((ws_hi & mask) | (wd_hi & ~mask), res.d[1]);
+      break;
+    case BMZI_B:
+      CHECK_EQ((ws_lo & ~mask) | (wd_lo & mask), res.d[0]);
+      CHECK_EQ((ws_hi & ~mask) | (wd_hi & mask), res.d[1]);
+      break;
+    case BSELI_B:
+      CHECK_EQ((ws_lo & ~wd_lo) | (mask & wd_lo), res.d[0]);
+      CHECK_EQ((ws_hi & ~wd_hi) | (mask & wd_hi), res.d[1]);
+      break;
+    case SHF_B: {
+      struct ExpResShf exp_b[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0x11111111b9b9b9b9, 0xf7f7f7f7c8c8c8c8},
+          {0x0u, 0x62626262dfdfdfdf, 0xd6d6d6d6c8c8c8c8},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0x1b756911c3d9a7b9, 0xae94a5f79c8aefc8},
+          {0xb1u, 0x662b6253e8c4df12, 0x0d3ad6803f8bc88b},
+          {0x4eu, 0x62e1f358f8b03e38, 0xffde4f41e636f2bf},
+          {0x27u, 0x1b697511c3a7d9b9, 0xaea594f79cef8ac8}};
+      for (size_t i = 0; i < sizeof(exp_b) / sizeof(ExpResShf); ++i) {
+        if (exp_b[i].i8 == i8) {
+          CHECK_EQ(exp_b[i].lo, res.d[0]);
+          CHECK_EQ(exp_b[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    case SHF_H: {
+      struct ExpResShf exp_h[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0x1169116911691169, 0xf7a5f7a5f7a5f7a5},
+          {0x0u, 0x12df12df12df12df, 0x8bc88bc88bc88bc8},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0xd9c3b9a7751b1169, 0x8a9cc8ef94aef7a5},
+          {0xb1u, 0x53622b6612dfc4e8, 0x80d63a0d8bc88b3f},
+          {0x4eu, 0x3e38f8b0f35862e1, 0xf2bfe6364f41ffde},
+          {0x27u, 0xd9c3751bb9a71169, 0x8a9c94aec8eff7a5}};
+      for (size_t i = 0; i < sizeof(exp_h) / sizeof(ExpResShf); ++i) {
+        if (exp_h[i].i8 == i8) {
+          CHECK_EQ(exp_h[i].lo, res.d[0]);
+          CHECK_EQ(exp_h[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    case SHF_W: {
+      struct ExpResShf exp_w[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0xf7a594aef7a594ae, 0xf7a594aef7a594ae},
+          {0x0u, 0xc4e812dfc4e812df, 0xc4e812dfc4e812df},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0xc8ef8a9cf7a594ae, 0xb9a7d9c31169751b},
+          {0xb1u, 0xc4e812df2b665362, 0x8b3f8bc83a0d80d6},
+          {0x4eu, 0x4f41ffdef2bfe636, 0xf35862e13e38f8b0},
+          {0x27u, 0x1169751bf7a594ae, 0xb9a7d9c3c8ef8a9c}};
+      for (size_t i = 0; i < sizeof(exp_w) / sizeof(ExpResShf); ++i) {
+        if (exp_w[i].i8 == i8) {
+          CHECK_EQ(exp_w[i].lo, res.d[0]);
+          CHECK_EQ(exp_w[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+struct TestCaseMsaI8 {
+  uint64_t input_lo;
+  uint64_t input_hi;
+  uint8_t i8;
+};
+
+TEST(MSA_andi_ori_nori_xori) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {//         input_lo,           input_hi,    i8
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x3bu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xd9u}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(ANDI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(ORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(NORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(XORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+TEST(MSA_bmnzi_bmzi_bseli) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {//         input_lo,           input_hi,    i8
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x3bu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xd9u}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(BMNZI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(BMZI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(BSELI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+TEST(MSA_shf) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {
+      //          input_lo,           input_hi,    i8
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},  // 3333
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},   // 0000
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xe4u},  // 3210
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x1bu},  // 0123
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xb1u},  // 2301
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x4eu},  // 1032
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x27u}   // 0213
+  };
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(SHF_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(SHF_H, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(SHF_W, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
   }
 }
 

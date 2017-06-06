@@ -65,8 +65,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return MarkingState::Internal(chunk);
   }
 
-  // Transfers mark bits without requiring proper object headers.
-  void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
+  void NotifyLeftTrimming(HeapObject* from, HeapObject* to);
 
   // Transfers color including live byte count, requiring properly set up
   // objects.
@@ -182,7 +181,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static const intptr_t kActivationThreshold = 0;
 #endif
 
-#if V8_CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
   static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::ATOMIC;
 #else
   static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::NON_ATOMIC;

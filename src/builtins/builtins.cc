@@ -69,28 +69,6 @@ Handle<Code> Builtins::NewCloneShallowArray(
   return Handle<Code>::null();
 }
 
-Handle<Code> Builtins::NewCloneShallowObject(int length) {
-  switch (length) {
-    case 0:
-      return FastCloneShallowObject0();
-    case 1:
-      return FastCloneShallowObject1();
-    case 2:
-      return FastCloneShallowObject2();
-    case 3:
-      return FastCloneShallowObject3();
-    case 4:
-      return FastCloneShallowObject4();
-    case 5:
-      return FastCloneShallowObject5();
-    case 6:
-      return FastCloneShallowObject6();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:
@@ -101,7 +79,6 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
       return NonPrimitiveToPrimitive_String();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
@@ -112,7 +89,10 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
       return OrdinaryToPrimitive_String();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
+}
+
+Handle<Code> Builtins::builtin_handle(Name name) {
+  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(name)));
 }
 
 // static
@@ -127,7 +107,6 @@ int Builtins::GetBuiltinParameterCount(Name name) {
 #undef TFJ_CASE
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -152,7 +131,6 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     }
     default:
       UNREACHABLE();
-      return Callable(Handle<Code>::null(), VoidDescriptor(isolate));
   }
   CallInterfaceDescriptor descriptor(isolate, key);
   return Callable(code, descriptor);

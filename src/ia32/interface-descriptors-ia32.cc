@@ -156,9 +156,20 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
 
 void CallForwardVarargsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
+  // eax : number of arguments
   // ecx : start index (to support rest parameters)
   // edi : the target to call
-  Register registers[] = {edi, ecx};
+  Register registers[] = {edi, eax, ecx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructForwardVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // eax : number of arguments
+  // edx : the new target
+  // ecx : start index (to support rest parameters)
+  // edi : the target to call
+  Register registers[] = {edi, edx, eax, ecx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

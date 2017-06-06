@@ -38,6 +38,7 @@
 #define V8_X64_ASSEMBLER_X64_H_
 
 #include <deque>
+#include <forward_list>
 
 #include "src/assembler.h"
 #include "src/x64/sse-instr.h"
@@ -488,12 +489,12 @@ class Assembler : public AssemblerBase {
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
-  virtual ~Assembler() { }
+  virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
@@ -695,6 +696,21 @@ class Assembler : public AssemblerBase {
 
   // Loads a pointer into a register with a relocation mode.
   void movp(Register dst, void* ptr, RelocInfo::Mode rmode);
+
+  // Load a heap number into a register.
+  // The heap number will not be allocated and embedded into the code right
+  // away. Instead, we emit the load of a dummy object. Later, when calling
+  // Assembler::GetCode, the heap number will be allocated and the code will be
+  // patched by replacing the dummy with the actual object. The RelocInfo for
+  // the embedded object gets already recorded correctly when emitting the dummy
+  // move.
+  void movp_heap_number(Register dst, double value);
+
+  // Patch the dummy heap number that we emitted at {pc} during code assembly
+  // with the actual heap object (handle).
+  static void set_heap_number(Handle<HeapObject> number, Address pc) {
+    Memory::Object_Handle_at(pc) = number;
+  }
 
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value,

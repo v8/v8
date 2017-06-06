@@ -6,9 +6,10 @@
 
 // Flags: --embed 'function c(f, ...args) { return f(...args); }'
 
-InspectorTest.setupScriptMap();
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that stepping works on snapshotted function');
+session.setupScriptMap();
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function test() {
   function f(x) {
     return x * 2;
@@ -21,7 +22,7 @@ function test() {
 Protocol.Debugger.onPaused(message => {
   InspectorTest.log("paused");
   var frames = message.params.callFrames;
-  InspectorTest.logSourceLocation(frames[0].location);
+  session.logSourceLocation(frames[0].location);
   Protocol.Debugger.stepInto();
 })
 

@@ -50,7 +50,7 @@ Paused #2
   - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":12}
   - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Paused #3
-  - [0] {"functionName":"generateAsmJs","function_lineNumber":1,"function_columnNumber":24,"lineNumber":3,"columnNumber":30}
+  - [0] {"functionName":"generateAsmJs","function_lineNumber":1,"function_columnNumber":24,"lineNumber":3,"columnNumber":23}
   - [1] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":12}
   - [2] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Paused #4

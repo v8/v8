@@ -16,10 +16,7 @@
 using namespace v8::base;
 using namespace v8::internal;
 
-
-static const int kMaxInobjectProperties =
-    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
-
+static const int kMaxInobjectProperties = JSObject::kMaxInObjectProperties;
 
 template <typename T>
 static Handle<T> OpenHandle(v8::Local<v8::Value> value) {

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests stepping through wasm scripts');
+
 utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 

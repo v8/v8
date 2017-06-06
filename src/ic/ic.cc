@@ -50,7 +50,6 @@ char IC::TransitionMarkFromState(IC::State state) {
       return 'G';
   }
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -277,7 +276,6 @@ InlineCacheState IC::StateFromCode(Code* code) {
     default:
       if (code->is_debug_stub()) return UNINITIALIZED;
       UNREACHABLE();
-      return UNINITIALIZED;
   }
 }
 
@@ -1149,7 +1147,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         }
 
         // When debugging we need to go the slow path to flood the accessor.
-        if (GetHostFunction()->shared()->HasDebugInfo()) {
+        if (GetHostFunction()->shared()->HasBreakInfo()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
         }
@@ -1285,7 +1283,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup) {
   Handle<Object> accessors = lookup->GetAccessors();
   DCHECK(accessors->IsAccessorPair());
   DCHECK(holder->HasFastProperties());
-  DCHECK(!GetHostFunction()->shared()->HasDebugInfo());
+  DCHECK(!GetHostFunction()->shared()->HasBreakInfo());
   Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                         isolate());
   CallOptimization call_optimization(getter);
@@ -2034,8 +2032,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   List<Handle<Object>> handlers(static_cast<int>(target_receiver_maps.size()));
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
-  DCHECK_LE(1, target_receiver_maps.size());
-  if (target_receiver_maps.size() == 1) {
+  if (target_receiver_maps.size() == 0) {
+    ConfigureVectorState(PREMONOMORPHIC, Handle<Name>());
+  } else if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0],
                          handlers.at(0));
   } else {
@@ -2070,7 +2069,6 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
       return map;
   }
   UNREACHABLE();
-  return MaybeHandle<Map>().ToHandleChecked();
 }
 
 Handle<Object> KeyedStoreIC::StoreElementHandler(

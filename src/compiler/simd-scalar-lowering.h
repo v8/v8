@@ -32,8 +32,10 @@ class SimdScalarLowering {
     kFloat32x4,
     kInt32x4,
     kInt16x8,
+    kInt8x16,
     kSimd1x4,
-    kSimd1x8
+    kSimd1x8,
+    kSimd1x16
   };
 
 #if defined(V8_TARGET_BIG_ENDIAN)

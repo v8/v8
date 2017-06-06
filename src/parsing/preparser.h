@@ -730,11 +730,15 @@ PreParserFormalParameter::Unnamed(const PreParserType& type) {
 
 class PreParserFactory {
  public:
-  explicit PreParserFactory(AstValueFactory* ast_value_factory)
-      : ast_value_factory_(ast_value_factory),
-        zone_(ast_value_factory->zone()) {}
+  explicit PreParserFactory(AstValueFactory* ast_value_factory, Zone* zone)
+      : ast_node_factory_(ast_value_factory, zone), zone_(zone) {}
 
-  void set_zone(Zone* zone) { zone_ = zone; }
+  void set_zone(Zone* zone) {
+    ast_node_factory_.set_zone(zone);
+    zone_ = zone;
+  }
+
+  AstNodeFactory* ast_node_factory() { return &ast_node_factory_; }
 
   PreParserExpression NewStringLiteral(PreParserIdentifier identifier,
                                        int pos) {
@@ -743,10 +747,8 @@ class PreParserFactory {
     PreParserExpression expression = PreParserExpression::Default();
     if (identifier.string_ != nullptr) {
       DCHECK(FLAG_lazy_inner_functions);
-      AstNodeFactory factory(ast_value_factory_);
-      factory.set_zone(zone_);
-      VariableProxy* variable =
-          factory.NewVariableProxy(identifier.string_, NORMAL_VARIABLE);
+      VariableProxy* variable = ast_node_factory_.NewVariableProxy(
+          identifier.string_, NORMAL_VARIABLE);
       expression.AddVariable(variable, zone_);
     }
     return expression;
@@ -826,9 +828,8 @@ class PreParserFactory {
     // default value inside an arrow function parameter list.
     return PreParserExpression::Assignment(left.variables_);
   }
-  PreParserExpression NewSuspend(PreParserExpression generator_object,
-                                 PreParserExpression expression, int pos,
-                                 Suspend::OnException on_exception,
+  PreParserExpression NewSuspend(PreParserExpression expression, int pos,
+                                 Suspend::OnAbruptResume on_abrupt_resume,
                                  SuspendFlags flags) {
     return PreParserExpression::Default();
   }
@@ -1084,7 +1085,9 @@ class PreParserFactory {
   }
 
  private:
-  AstValueFactory* ast_value_factory_;
+  // For creating VariableProxy objects (if
+  // PreParser::track_unresolved_variables_ is used).
+  AstNodeFactory ast_node_factory_;
   Zone* zone_;
 };
 
@@ -1258,7 +1261,6 @@ class PreParser : public ParserBase<PreParser> {
                                            typesystem::TypeFlags type_flags,
                                            bool may_abort, bool* ok) {
     UNREACHABLE();
-    return kLazyParsingComplete;
   }
   Expression ParseFunctionLiteral(Identifier name,
                                   Scanner::Location function_name_location,
@@ -1321,8 +1323,7 @@ class PreParser : public ParserBase<PreParser> {
                                           PreParserStatement block,
                                           PreParserExpression return_value,
                                           bool* ok) {}
-  V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression generator,
-                                                 PreParserExpression expression,
+  V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression expression,
                                                  int pos) {
     return PreParserExpression::Default();
   }
@@ -1382,6 +1383,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void ParseAndRewriteGeneratorFunctionBody(
+      int pos, FunctionKind kind, PreParserStatementList body, bool* ok) {
+    ParseStatementList(body, Token::RBRACE, ok);
+  }
+  V8_INLINE void ParseAndRewriteAsyncGeneratorFunctionBody(
       int pos, FunctionKind kind, PreParserStatementList body, bool* ok) {
     ParseStatementList(body, Token::RBRACE, ok);
   }
@@ -1602,11 +1607,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  V8_INLINE PreParserExpression BuildIteratorResult(PreParserExpression value,
-                                                    bool done) {
-    return PreParserExpression::Default();
-  }
-
   V8_INLINE PreParserStatement
   BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                            ZoneList<const AstRawString*>* names, bool* ok) {
@@ -1618,10 +1618,9 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  V8_INLINE PreParserStatement
-  InitializeForEachStatement(PreParserStatement stmt, PreParserExpression each,
-                             PreParserExpression subject,
-                             PreParserStatement body, int each_keyword_pos) {
+  V8_INLINE PreParserStatement InitializeForEachStatement(
+      PreParserStatement stmt, PreParserExpression each,
+      PreParserExpression subject, PreParserStatement body) {
     MarkExpressionAsAssigned(each);
     return stmt;
   }
@@ -1864,12 +1863,9 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
     ZoneList<VariableProxy*>* variables = nullptr;
     if (track_unresolved_variables_) {
-      AstNodeFactory factory(ast_value_factory());
-      // Setting the Zone is necessary because zone_ might be the temp Zone, and
-      // AstValueFactory doesn't know about it.
-      factory.set_zone(zone());
       VariableProxy* proxy = scope()->NewUnresolved(
-          &factory, ast_value_factory()->this_string(), pos, THIS_VARIABLE);
+          factory()->ast_node_factory(), ast_value_factory()->this_string(),
+          pos, THIS_VARIABLE);
 
       variables = new (zone()) ZoneList<VariableProxy*>(1, zone());
       variables->Add(proxy, zone());
@@ -1878,10 +1874,29 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
+    if (track_unresolved_variables_) {
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_function_string(), pos,
+                             NORMAL_VARIABLE);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_string(), pos,
+                             THIS_VARIABLE);
+    }
     return PreParserExpression::Default();
   }
 
   V8_INLINE PreParserExpression NewSuperCallReference(int pos) {
+    if (track_unresolved_variables_) {
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_function_string(), pos,
+                             NORMAL_VARIABLE);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->new_target_string(), pos,
+                             NORMAL_VARIABLE);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_string(), pos,
+                             THIS_VARIABLE);
+    }
     return PreParserExpression::SuperCallReference();
   }
 
@@ -1967,11 +1982,28 @@ class PreParser : public ParserBase<PreParser> {
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
       for (auto parameter : parameters) {
+        DCHECK_IMPLIES(is_simple, parameter->variables_ != nullptr);
+        DCHECK_IMPLIES(is_simple, parameter->variables_->length() == 1);
+        // Make sure each parameter is added only once even if it's a
+        // destructuring parameter which contains multiple names.
+        bool add_parameter = true;
         if (parameter->variables_ != nullptr) {
           for (auto variable : (*parameter->variables_)) {
-            scope->DeclareParameterName(
-                variable->raw_name(), parameter->is_rest, ast_value_factory());
+            // We declare the parameter name for all names, but only create a
+            // parameter entry for the first one.
+            scope->DeclareParameterName(variable->raw_name(),
+                                        parameter->is_rest, ast_value_factory(),
+                                        true, add_parameter);
+            add_parameter = false;
           }
+        }
+        if (add_parameter) {
+          // No names were declared; declare a dummy one here to up the
+          // parameter count.
+          DCHECK(!is_simple);
+          scope->DeclareParameterName(ast_value_factory()->empty_string(),
+                                      parameter->is_rest, ast_value_factory(),
+                                      false, add_parameter);
         }
       }
     }

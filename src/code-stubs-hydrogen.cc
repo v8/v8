@@ -230,7 +230,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
 
   // Create the code object.
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate(), &desc);
 
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(

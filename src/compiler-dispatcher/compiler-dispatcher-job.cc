@@ -524,7 +524,6 @@ double CompilerDispatcherJob::EstimateRuntimeOfNextStepInMs() const {
   }
 
   UNREACHABLE();
-  return 0.0;
 }
 
 void CompilerDispatcherJob::ShortPrint() {

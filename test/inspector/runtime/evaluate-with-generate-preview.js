@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Tests that Runtime.evaluate will generate correct previews.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.evaluate will generate correct previews.");
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `
 var f1 = function(){};
 
@@ -65,7 +65,7 @@ var objInheritsGetterProperty = {__proto__: parentObj};
 inspector.allowAccessorFormatting(objInheritsGetterProperty);
 `);
 
-InspectorTest.setupInjectedScriptEnvironment();
+contextGroup.setupInjectedScriptEnvironment();
 
 InspectorTest.runTestSuite([
   function testObjectPropertiesPreview(next)

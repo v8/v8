@@ -364,7 +364,7 @@ Response V8ProfilerAgentImpl::getBestEffortCoverage(
 
 String16 V8ProfilerAgentImpl::nextProfileId() {
   return String16::fromInteger(
-      v8::base::NoBarrier_AtomicIncrement(&s_lastProfileId, 1));
+      v8::base::Relaxed_AtomicIncrement(&s_lastProfileId, 1));
 }
 
 void V8ProfilerAgentImpl::startProfiling(const String16& title) {

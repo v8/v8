@@ -378,6 +378,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringLessThanOrEqual();
   const Operator* StringCharAt();
   const Operator* StringCharCodeAt();
+  const Operator* SeqStringCharCodeAt();
   const Operator* StringFromCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
@@ -414,6 +415,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckNumber();
   const Operator* CheckSmi();
   const Operator* CheckString();
+  const Operator* CheckSeqString();
+  const Operator* CheckSymbol();
   const Operator* CheckReceiver();
 
   const Operator* CheckedInt32Add();

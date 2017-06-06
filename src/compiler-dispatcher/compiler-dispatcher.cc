@@ -129,7 +129,7 @@ class MemoryPressureTask : public CancelableTask {
 MemoryPressureTask::MemoryPressureTask(Isolate* isolate,
                                        CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
-    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
 MemoryPressureTask::~MemoryPressureTask() {}
 
@@ -157,7 +157,7 @@ class CompilerDispatcher::AbortTask : public CancelableTask {
 CompilerDispatcher::AbortTask::AbortTask(Isolate* isolate,
                                          CancelableTaskManager* task_manager,
                                          CompilerDispatcher* dispatcher)
-    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
 CompilerDispatcher::AbortTask::~AbortTask() {}
 
@@ -183,7 +183,7 @@ class CompilerDispatcher::BackgroundTask : public CancelableTask {
 CompilerDispatcher::BackgroundTask::BackgroundTask(
     Isolate* isolate, CancelableTaskManager* task_manager,
     CompilerDispatcher* dispatcher)
-    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
 CompilerDispatcher::BackgroundTask::~BackgroundTask() {}
 
@@ -209,7 +209,7 @@ class CompilerDispatcher::IdleTask : public CancelableIdleTask {
 CompilerDispatcher::IdleTask::IdleTask(Isolate* isolate,
                                        CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
-    : CancelableIdleTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableIdleTask(task_manager), dispatcher_(dispatcher) {}
 
 CompilerDispatcher::IdleTask::~IdleTask() {}
 

@@ -13,5 +13,5 @@ function f() {
 }
 f();
 f();
-% OptimizeFunctionOnNextCall(f);
+%OptimizeFunctionOnNextCall(f);
 f();
