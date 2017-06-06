@@ -169,7 +169,22 @@ class Bitmap {
     for (int i = 0; i < CellsCount(); i++) cells()[i] = 0;
   }
 
+  // Clears bits in the given cell. The mask specifies bits to clear: if a
+  // bit is set in the mask then the corresponding bit is cleared in the cell.
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  void ClearBitsInCell(uint32_t cell_index, uint32_t mask);
+
+  // Sets bits in the given cell. The mask specifies bits to set: if a
+  // bit is set in the mask then the corresponding bit is set in the cell.
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  void SetBitsInCell(uint32_t cell_index, uint32_t mask);
+
   // Sets all bits in the range [start_index, end_index).
+  // If the access mode is ATOMIC then the cells at the boundary of the range
+  // are updated with atomic compare and swap operation. The inner cells are
+  // updated with ordinary write, so the caller must ensure exclusive access
+  // to the inner cells.
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   void SetRange(uint32_t start_index, uint32_t end_index) {
     unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
     MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
@@ -180,19 +195,26 @@ class Bitmap {
     if (start_cell_index != end_cell_index) {
       // Firstly, fill all bits from the start address to the end of the first
       // cell with 1s.
-      cells()[start_cell_index] |= ~(start_index_mask - 1);
+      SetBitsInCell<mode>(start_cell_index, ~(start_index_mask - 1));
       // Then fill all in between cells with 1s.
       for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
+        // The callers must ensure that the inner cells in the range are not
+        // accessed concurrently.
         cells()[i] = ~0u;
       }
       // Finally, fill all bits until the end address in the last cell with 1s.
-      cells()[end_cell_index] |= (end_index_mask - 1);
+      SetBitsInCell<mode>(end_cell_index, (end_index_mask - 1));
     } else {
-      cells()[start_cell_index] |= end_index_mask - start_index_mask;
+      SetBitsInCell<mode>(start_cell_index, end_index_mask - start_index_mask);
     }
   }
 
   // Clears all bits in the range [start_index, end_index).
+  // If the access mode is ATOMIC then the cells at the boundary of the range
+  // are updated with atomic compare and swap operation. The inner cells are
+  // updated with ordinary write, so the caller must ensure exclusive access
+  // to the inner cells.
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   void ClearRange(uint32_t start_index, uint32_t end_index) {
     unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
     MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
@@ -203,15 +225,18 @@ class Bitmap {
     if (start_cell_index != end_cell_index) {
       // Firstly, fill all bits from the start address to the end of the first
       // cell with 0s.
-      cells()[start_cell_index] &= (start_index_mask - 1);
+      ClearBitsInCell<mode>(start_cell_index, ~(start_index_mask - 1));
       // Then fill all in between cells with 0s.
       for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
+        // The callers must ensure that the inner cells in the range are not
+        // accessed concurrently.
         cells()[i] = 0;
       }
       // Finally, set all bits until the end address in the last cell with 0s.
-      cells()[end_cell_index] &= ~(end_index_mask - 1);
+      ClearBitsInCell<mode>(end_cell_index, (end_index_mask - 1));
     } else {
-      cells()[start_cell_index] &= ~(end_index_mask - start_index_mask);
+      ClearBitsInCell<mode>(start_cell_index,
+                            (end_index_mask - start_index_mask));
     }
   }
 
@@ -339,6 +364,46 @@ class Bitmap {
     return true;
   }
 };
+
+template <>
+inline void Bitmap::SetBitsInCell<MarkBit::NON_ATOMIC>(uint32_t cell_index,
+                                                       uint32_t mask) {
+  cells()[cell_index] |= mask;
+}
+
+template <>
+inline void Bitmap::SetBitsInCell<MarkBit::ATOMIC>(uint32_t cell_index,
+                                                   uint32_t mask) {
+  base::Atomic32* cell =
+      reinterpret_cast<base::Atomic32*>(cells() + cell_index);
+  base::Atomic32 old_value;
+  base::Atomic32 new_value;
+  do {
+    old_value = base::Relaxed_Load(cell);
+    new_value = old_value | mask;
+  } while (base::Release_CompareAndSwap(cell, old_value, new_value) !=
+           old_value);
+}
+
+template <>
+inline void Bitmap::ClearBitsInCell<MarkBit::NON_ATOMIC>(uint32_t cell_index,
+                                                         uint32_t mask) {
+  cells()[cell_index] &= ~mask;
+}
+
+template <>
+inline void Bitmap::ClearBitsInCell<MarkBit::ATOMIC>(uint32_t cell_index,
+                                                     uint32_t mask) {
+  base::Atomic32* cell =
+      reinterpret_cast<base::Atomic32*>(cells() + cell_index);
+  base::Atomic32 old_value;
+  base::Atomic32 new_value;
+  do {
+    old_value = base::Relaxed_Load(cell);
+    new_value = old_value & ~mask;
+  } while (base::Release_CompareAndSwap(cell, old_value, new_value) !=
+           old_value);
+}
 
 class Marking : public AllStatic {
  public:

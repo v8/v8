@@ -839,8 +839,10 @@ void Page::CreateBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_NE(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  MarkingState::Internal(this).bitmap()->SetRange(AddressToMarkbitIndex(start),
-                                                  AddressToMarkbitIndex(end));
+  MarkingState::Internal(this)
+      .bitmap()
+      ->SetRange<IncrementalMarking::kAtomicity>(AddressToMarkbitIndex(start),
+                                                 AddressToMarkbitIndex(end));
   MarkingState::Internal(this)
       .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
           static_cast<int>(end - start));
@@ -851,8 +853,10 @@ void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_NE(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  MarkingState::Internal(this).bitmap()->ClearRange(
-      AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
+  MarkingState::Internal(this)
+      .bitmap()
+      ->ClearRange<IncrementalMarking::kAtomicity>(AddressToMarkbitIndex(start),
+                                                   AddressToMarkbitIndex(end));
   MarkingState::Internal(this)
       .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
           -static_cast<int>(end - start));
@@ -3147,7 +3151,8 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                ClearRecordedSlots::kNo);
 
   if (heap()->incremental_marking()->black_allocation()) {
-    ObjectMarking::WhiteToBlack(object, MarkingState::Internal(object));
+    ObjectMarking::WhiteToBlack<IncrementalMarking::kAtomicity>(
+        object, MarkingState::Internal(object));
   }
   return object;
 }
