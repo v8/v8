@@ -853,23 +853,6 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
   return result;
 }
 
-Maybe<bool> Object::IsArray(Handle<Object> object) {
-  if (object->IsJSArray()) return Just(true);
-  if (object->IsJSProxy()) {
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    Isolate* isolate = proxy->GetIsolate();
-    if (proxy->IsRevoked()) {
-      isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyRevoked,
-          isolate->factory()->NewStringFromAsciiChecked("IsArray")));
-      return Nothing<bool>();
-    }
-    return Object::IsArray(handle(proxy->target(), isolate));
-  }
-  return Just(false);
-}
-
-
 // static
 MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
                                       Handle<Name> name) {
@@ -5068,6 +5051,27 @@ void JSProxy::Revoke(Handle<JSProxy> proxy) {
   DCHECK(proxy->IsRevoked());
 }
 
+// static
+Maybe<bool> JSProxy::IsArray(Handle<JSProxy> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<JSReceiver> object = Handle<JSReceiver>::cast(proxy);
+  for (int i = 0; i < JSProxy::kMaxIterationLimit; i++) {
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    if (proxy->IsRevoked()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyRevoked,
+          isolate->factory()->NewStringFromAsciiChecked("IsArray")));
+      return Nothing<bool>();
+    }
+    object = handle(proxy->target(), isolate);
+    if (object->IsJSArray()) return Just(true);
+    if (!object->IsJSProxy()) return Just(false);
+  }
+
+  // Too deep recursion, throw a RangeError.
+  isolate->StackOverflow();
+  return Nothing<bool>();
+}
 
 Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                  Handle<Name> name) {

@@ -469,6 +469,15 @@ bool Object::IsPrimitive() const {
   return IsSmi() || HeapObject::cast(this)->map()->IsPrimitiveMap();
 }
 
+// static
+Maybe<bool> Object::IsArray(Handle<Object> object) {
+  if (object->IsSmi()) return Just(false);
+  Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+  if (heap_object->IsJSArray()) return Just(true);
+  if (!heap_object->IsJSProxy()) return Just(false);
+  return JSProxy::IsArray(Handle<JSProxy>::cast(object));
+}
+
 bool HeapObject::IsJSGlobalProxy() const {
   bool result = map()->instance_type() == JS_GLOBAL_PROXY_TYPE;
   DCHECK(!result || map()->is_access_check_needed());
