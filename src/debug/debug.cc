@@ -488,6 +488,8 @@ void Debug::Unload() {
   // Return debugger is not loaded.
   if (!is_loaded()) return;
 
+  if (FLAG_block_coverage) RemoveAllCoverageInfos();
+
   // Clear debugger context global handle.
   GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
   debug_context_ = Handle<Context>();
@@ -821,20 +823,10 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
 
 // Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
-  DebugInfoListNode* prev = nullptr;
-  DebugInfoListNode* current = debug_info_list_;
-  while (current != nullptr) {
-    DebugInfoListNode* next = current->next();
-    Handle<DebugInfo> debug_info = current->debug_info();
-    ClearBreakPoints(debug_info);
-    if (debug_info->ClearBreakInfo()) {
-      FreeDebugInfoListNode(prev, current);
-      current = next;
-    } else {
-      prev = current;
-      current = next;
-    }
-  }
+  ClearAllDebugInfos([=](Handle<DebugInfo> info) {
+    ClearBreakPoints(info);
+    return info->ClearBreakInfo();
+  });
 }
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
@@ -1618,6 +1610,25 @@ Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
   return debug_info;
 }
 
+void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
+                                Handle<CoverageInfo> coverage_info) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK(!coverage_info.is_null());
+
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
+
+  DCHECK(!debug_info->HasCoverageInfo());
+
+  debug_info->set_flags(debug_info->flags() | DebugInfo::kHasCoverageInfo);
+  debug_info->set_coverage_info(*coverage_info);
+}
+
+void Debug::RemoveAllCoverageInfos() {
+  DCHECK(FLAG_block_coverage);
+  ClearAllDebugInfos(
+      [=](Handle<DebugInfo> info) { return info->ClearCoverageInfo(); });
+}
+
 void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
                           DebugInfoListNode** prev, DebugInfoListNode** curr) {
   HandleScope scope(isolate_);
@@ -1630,6 +1641,22 @@ void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
   }
 
   UNREACHABLE();
+}
+
+void Debug::ClearAllDebugInfos(DebugInfoClearFunction clear_function) {
+  DebugInfoListNode* prev = nullptr;
+  DebugInfoListNode* current = debug_info_list_;
+  while (current != nullptr) {
+    DebugInfoListNode* next = current->next();
+    Handle<DebugInfo> debug_info = current->debug_info();
+    if (clear_function(debug_info)) {
+      FreeDebugInfoListNode(prev, current);
+      current = next;
+    } else {
+      prev = current;
+      current = next;
+    }
+  }
 }
 
 void Debug::RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info) {

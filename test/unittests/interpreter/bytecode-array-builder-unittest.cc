@@ -375,6 +375,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     builder.Debugger();
   }
 
+  // Emit block counter increments.
+  builder.IncBlockCounter(0);
+
   // Bind labels for long jumps at the very end.
   for (size_t i = 0; i < arraysize(end); i++) {
     builder.Bind(&end[i]);

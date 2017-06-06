@@ -165,6 +165,23 @@ Handle<Object> DebugInfo::FindBreakPointInfo(
   return isolate->factory()->undefined_value();
 }
 
+bool DebugInfo::HasCoverageInfo() const {
+  return (flags() & kHasCoverageInfo) != 0;
+}
+
+bool DebugInfo::ClearCoverageInfo() {
+  DCHECK(FLAG_block_coverage);
+  DCHECK(HasCoverageInfo());
+  Isolate* isolate = GetIsolate();
+
+  set_coverage_info(isolate->heap()->undefined_value());
+
+  int new_flags = flags() & ~kHasCoverageInfo;
+  set_flags(new_flags);
+
+  return new_flags == kNone;
+}
+
 // Remove the specified break point object.
 void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
                                      Handle<Object> break_point_object) {
@@ -263,6 +280,50 @@ int BreakPointInfo::GetBreakPointCount() {
   if (!break_point_objects()->IsFixedArray()) return 1;
   // Multiple break points.
   return FixedArray::cast(break_point_objects())->length();
+}
+
+int CoverageInfo::SlotCount() const {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_EQ(kFirstSlotIndex, length() % kSlotIndexCount);
+  return (length() - kFirstSlotIndex) / kSlotIndexCount;
+}
+
+int CoverageInfo::StartSourcePosition(int slot_index) const {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_LT(slot_index, SlotCount());
+  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
+  return Smi::cast(get(slot_start + kSlotStartSourcePositionIndex))->value();
+}
+
+int CoverageInfo::EndSourcePosition(int slot_index) const {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_LT(slot_index, SlotCount());
+  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
+  return Smi::cast(get(slot_start + kSlotEndSourcePositionIndex))->value();
+}
+
+int CoverageInfo::BlockCount(int slot_index) const {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_LT(slot_index, SlotCount());
+  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
+  return Smi::cast(get(slot_start + kSlotBlockCountIndex))->value();
+}
+
+void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_LT(slot_index, SlotCount());
+  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
+  set(slot_start + kSlotStartSourcePositionIndex, Smi::FromInt(from_pos));
+  set(slot_start + kSlotEndSourcePositionIndex, Smi::FromInt(to_pos));
+  set(slot_start + kSlotBlockCountIndex, Smi::kZero);
+}
+
+void CoverageInfo::IncrementBlockCount(int slot_index) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_LT(slot_index, SlotCount());
+  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
+  const int old_count = BlockCount(slot_index);
+  set(slot_start + kSlotBlockCountIndex, Smi::FromInt(old_count + 1));
 }
 
 }  // namespace internal

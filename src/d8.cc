@@ -1849,6 +1849,33 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
       JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
+namespace {
+int LineFromOffset(Local<debug::Script> script, int offset) {
+  debug::Location location = script->GetSourceLocation(offset);
+  return location.GetLineNumber();
+}
+
+void WriteLcovDataForRange(std::vector<uint32_t>& lines, int start_line,
+                           int end_line, uint32_t count) {
+  // Ensure space in the array.
+  lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()), 0);
+  // Boundary lines could be shared between two functions with different
+  // invocation counts. Take the maximum.
+  lines[start_line] = std::max(lines[start_line], count);
+  lines[end_line] = std::max(lines[end_line], count);
+  // Invocation counts for non-boundary lines are overwritten.
+  for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+}
+
+void WriteLcovDataForNamedRange(std::ostream& sink,
+                                std::vector<uint32_t>& lines, std::string name,
+                                int start_line, int end_line, uint32_t count) {
+  WriteLcovDataForRange(lines, start_line, end_line, count);
+  sink << "FN:" << start_line + 1 << "," << name << std::endl;
+  sink << "FNDA:" << count << "," << name << std::endl;
+}
+}  // namespace
+
 // Write coverage data in LCOV format. See man page for geninfo(1).
 void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
   if (!file) return;
@@ -1870,33 +1897,38 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
     for (size_t j = 0; j < script_data.FunctionCount(); j++) {
       debug::Coverage::FunctionData function_data =
           script_data.GetFunctionData(j);
-      debug::Location start =
-          script->GetSourceLocation(function_data.StartOffset());
-      debug::Location end =
-          script->GetSourceLocation(function_data.EndOffset());
-      int start_line = start.GetLineNumber();
-      int end_line = end.GetLineNumber();
-      uint32_t count = function_data.Count();
-      // Ensure space in the array.
-      lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()),
-                   0);
-      // Boundary lines could be shared between two functions with different
-      // invocation counts. Take the maximum.
-      lines[start_line] = std::max(lines[start_line], count);
-      lines[end_line] = std::max(lines[end_line], count);
-      // Invocation counts for non-boundary lines are overwritten.
-      for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+
       // Write function stats.
-      Local<String> name;
-      std::stringstream name_stream;
-      if (function_data.Name().ToLocal(&name)) {
-        name_stream << ToSTLString(name);
-      } else {
-        name_stream << "<" << start_line + 1 << "-";
-        name_stream << start.GetColumnNumber() << ">";
+      {
+        debug::Location start =
+            script->GetSourceLocation(function_data.StartOffset());
+        debug::Location end =
+            script->GetSourceLocation(function_data.EndOffset());
+        int start_line = start.GetLineNumber();
+        int end_line = end.GetLineNumber();
+        uint32_t count = function_data.Count();
+
+        Local<String> name;
+        std::stringstream name_stream;
+        if (function_data.Name().ToLocal(&name)) {
+          name_stream << ToSTLString(name);
+        } else {
+          name_stream << "<" << start_line + 1 << "-";
+          name_stream << start.GetColumnNumber() << ">";
+        }
+
+        WriteLcovDataForNamedRange(sink, lines, name_stream.str(), start_line,
+                                   end_line, count);
       }
-      sink << "FN:" << start_line + 1 << "," << name_stream.str() << std::endl;
-      sink << "FNDA:" << count << "," << name_stream.str() << std::endl;
+
+      // Process inner blocks.
+      for (size_t k = 0; k < function_data.BlockCount(); k++) {
+        debug::Coverage::BlockData block_data = function_data.GetBlockData(k);
+        int start_line = LineFromOffset(script, block_data.StartOffset());
+        int end_line = LineFromOffset(script, block_data.EndOffset());
+        uint32_t count = block_data.Count();
+        WriteLcovDataForRange(lines, start_line, end_line, count);
+      }
     }
     // Write per-line coverage. LCOV uses 1-based line numbers.
     for (size_t i = 0; i < lines.size(); i++) {
@@ -2706,7 +2738,10 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   {
     EnsureEventLoopInitialized(isolate);
     if (options.lcov_file) {
-      debug::Coverage::SelectMode(isolate, debug::Coverage::kPreciseCount);
+      debug::Coverage::Mode mode = i::FLAG_block_coverage
+                                       ? debug::Coverage::kBlockCount
+                                       : debug::Coverage::kPreciseCount;
+      debug::Coverage::SelectMode(isolate, mode);
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);

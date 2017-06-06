@@ -737,6 +737,36 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   bool has_constant_pool_entry_;
 };
 
+// Used to generate IncBlockCounter bytecodes and the {source range, slot}
+// mapping for block coverage.
+class BytecodeGenerator::BlockCoverageBuilder final : public ZoneObject {
+ public:
+  explicit BlockCoverageBuilder(Zone* zone, BytecodeArrayBuilder* builder)
+      : slots_(0, zone), builder_(builder) {}
+
+  static const int kNoCoverageArraySlot = -1;
+
+  int AllocateBlockCoverageSlot(SourceRange range) {
+    if (range.IsEmpty()) return kNoCoverageArraySlot;
+    const int slot = static_cast<int>(slots_.size());
+    slots_.emplace_back(range);
+    return slot;
+  }
+
+  void IncrementBlockCounter(int coverage_array_slot) {
+    if (coverage_array_slot == kNoCoverageArraySlot) return;
+    builder_->IncBlockCounter(coverage_array_slot);
+  }
+
+  const ZoneVector<SourceRange>& slots() const { return slots_; }
+
+ private:
+  // Contains source range information for allocated block coverage counter
+  // slots. Slot i covers range slots_[i].
+  ZoneVector<SourceRange> slots_;
+  BytecodeArrayBuilder* builder_;
+};
+
 class BytecodeGenerator::CurrentScope final {
  public:
   CurrentScope(BytecodeGenerator* generator, Scope* scope)
@@ -767,6 +797,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->zone())),
+      block_coverage_builder_(nullptr),
       global_declarations_(0, info->zone()),
       function_literals_(0, info->zone()),
       native_function_literals_(0, info->zone()),
@@ -780,10 +811,23 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       generator_state_(),
       loop_depth_(0) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
+  if (info->is_block_coverage_enabled()) {
+    DCHECK(FLAG_block_coverage);
+    block_coverage_builder_ =
+        new (zone()) BlockCoverageBuilder(zone(), builder());
+  }
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
+  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+
   AllocateDeferredConstants(isolate);
+
+  if (info()->is_block_coverage_enabled()) {
+    info()->set_coverage_info(
+        isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
+  }
+
   if (HasStackOverflow()) return Handle<BytecodeArray>();
   return builder()->ToBytecodeArray(isolate);
 }
@@ -1190,12 +1234,18 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
   builder()->SetStatementPosition(stmt);
+
+  int then_slot = AllocateBlockCoverageSlotIfEnabled(stmt->then_range());
+  int else_slot = AllocateBlockCoverageSlotIfEnabled(stmt->else_range());
+
   if (stmt->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
+    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
     Visit(stmt->then_statement());
   } else if (stmt->condition()->ToBooleanIsFalse()) {
     // Generate else block unconditionally if it exists.
     if (stmt->HasElseStatement()) {
+      BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
       Visit(stmt->else_statement());
     }
   } else {
@@ -1208,11 +1258,13 @@ void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
                  TestFallthrough::kThen);
 
     then_labels.Bind(builder());
+    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
     Visit(stmt->then_statement());
 
     if (stmt->HasElseStatement()) {
       builder()->Jump(&end_label);
       else_labels.Bind(builder());
+      BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
       Visit(stmt->else_statement());
     } else {
       else_labels.Bind(builder());
@@ -3854,6 +3906,19 @@ void BytecodeGenerator::BuildLoadPropertyKey(LiteralProperty* property,
   } else {
     VisitForAccumulatorValue(property->key());
     builder()->ToName(out_reg);
+  }
+}
+
+int BytecodeGenerator::AllocateBlockCoverageSlotIfEnabled(SourceRange range) {
+  return (block_coverage_builder_ == nullptr)
+             ? BlockCoverageBuilder::kNoCoverageArraySlot
+             : block_coverage_builder_->AllocateBlockCoverageSlot(range);
+}
+
+void BytecodeGenerator::BuildIncrementBlockCoverageCounterIfEnabled(
+    int coverage_array_slot) {
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(coverage_array_slot);
   }
 }
 

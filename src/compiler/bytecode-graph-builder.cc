@@ -2302,6 +2302,18 @@ void BytecodeGraphBuilder::VisitDebugger() {
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK
 
+void BytecodeGraphBuilder::VisitIncBlockCounter() {
+  DCHECK(FLAG_block_coverage);
+
+  Node* closure = GetFunctionClosure();
+  Node* coverage_array_slot =
+      jsgraph()->Constant(bytecode_iterator().GetIndexOperand(0));
+
+  const Operator* op = javascript()->CallRuntime(Runtime::kIncBlockCounter);
+
+  NewNode(op, closure, coverage_array_slot);
+}
+
 void BytecodeGraphBuilder::VisitForInPrepare() {
   PrepareEagerCheckpoint();
   Node* receiver =

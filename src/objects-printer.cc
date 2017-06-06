@@ -1476,6 +1476,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - debug bytecode array: " << Brief(debug_bytecode_array());
   os << "\n - break_points: ";
   break_points()->Print(os);
+  os << "\n - coverage_info: " << Brief(coverage_info());
 }
 
 

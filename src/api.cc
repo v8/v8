@@ -9803,6 +9803,10 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   }
 }
 
+int debug::Coverage::BlockData::StartOffset() const { return block_->start; }
+int debug::Coverage::BlockData::EndOffset() const { return block_->end; }
+uint32_t debug::Coverage::BlockData::Count() const { return block_->count; }
+
 int debug::Coverage::FunctionData::StartOffset() const {
   return function_->start;
 }
@@ -9813,6 +9817,15 @@ uint32_t debug::Coverage::FunctionData::Count() const {
 
 MaybeLocal<String> debug::Coverage::FunctionData::Name() const {
   return ToApiHandle<String>(function_->name);
+}
+
+size_t debug::Coverage::FunctionData::BlockCount() const {
+  return function_->blocks.size();
+}
+
+debug::Coverage::BlockData debug::Coverage::FunctionData::GetBlockData(
+    size_t i) const {
+  return BlockData(&function_->blocks.at(i));
 }
 
 Local<debug::Script> debug::Coverage::ScriptData::GetScript() const {

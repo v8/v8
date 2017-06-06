@@ -3474,6 +3474,20 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK
 
+// IncBlockCounter <slot>
+//
+// Increment the execution count for the given slot. Used for block code
+// coverage.
+IGNITION_HANDLER(IncBlockCounter, InterpreterAssembler) {
+  Node* closure = LoadRegister(Register::function_closure());
+  Node* coverage_array_slot = BytecodeOperandIdxSmi(0);
+  Node* context = GetContext();
+
+  CallRuntime(Runtime::kIncBlockCounter, context, closure, coverage_array_slot);
+
+  Dispatch();
+}
+
 class InterpreterForInPrepareAssembler : public InterpreterAssembler {
  public:
   InterpreterForInPrepareAssembler(CodeAssemblerState* state, Bytecode bytecode,

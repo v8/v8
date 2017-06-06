@@ -341,6 +341,9 @@ namespace interpreter {
   V(DebugBreakWide, AccumulatorUse::kRead)                                     \
   V(DebugBreakExtraWide, AccumulatorUse::kRead)                                \
                                                                                \
+  /* Block Coverage */                                                         \
+  V(IncBlockCounter, AccumulatorUse::kNone, OperandType::kIdx)                 \
+                                                                               \
   /* Illegal bytecode (terminates execution) */                                \
   V(Illegal, AccumulatorUse::kNone)                                            \
                                                                                \

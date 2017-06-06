@@ -182,6 +182,11 @@ class AstProperties final BASE_EMBEDDED {
 
 DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 
+struct SourceRange {
+  SourceRange() : start(kNoSourcePosition), end(kNoSourcePosition) {}
+  bool IsEmpty() const { return start == kNoSourcePosition; }
+  int32_t start, end;
+};
 
 class AstNode: public ZoneObject {
  public:
@@ -1001,6 +1006,9 @@ class IfStatement final : public Statement {
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
 
+  SourceRange then_range() const { return then_range_; }
+  SourceRange else_range() const { return else_range_; }
+
   void set_condition(Expression* e) { condition_ = e; }
   void set_then_statement(Statement* s) { then_statement_ = s; }
   void set_else_statement(Statement* s) { else_statement_ = s; }
@@ -1020,12 +1028,15 @@ class IfStatement final : public Statement {
   friend class AstNodeFactory;
 
   IfStatement(Expression* condition, Statement* then_statement,
-              Statement* else_statement, int pos)
+              Statement* else_statement, int pos, SourceRange then_range,
+              SourceRange else_range)
       : Statement(pos, kIfStatement),
         base_id_(BailoutId::None().ToInt()),
         condition_(condition),
         then_statement_(then_statement),
-        else_statement_(else_statement) {}
+        else_statement_(else_statement),
+        then_range_(then_range),
+        else_range_(else_range) {}
 
   static int parent_num_ids() { return 0; }
   int base_id() const {
@@ -1038,6 +1049,8 @@ class IfStatement final : public Statement {
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
+  SourceRange then_range_;
+  SourceRange else_range_;
 };
 
 
@@ -3314,12 +3327,12 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) WithStatement(scope, expression, statement, pos);
   }
 
-  IfStatement* NewIfStatement(Expression* condition,
-                              Statement* then_statement,
-                              Statement* else_statement,
-                              int pos) {
-    return new (zone_)
-        IfStatement(condition, then_statement, else_statement, pos);
+  IfStatement* NewIfStatement(Expression* condition, Statement* then_statement,
+                              Statement* else_statement, int pos,
+                              SourceRange then_range = {},
+                              SourceRange else_range = {}) {
+    return new (zone_) IfStatement(condition, then_statement, else_statement,
+                                   pos, then_range, else_range);
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,

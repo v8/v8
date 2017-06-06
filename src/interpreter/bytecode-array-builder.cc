@@ -1215,6 +1215,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::IncBlockCounter(
+    int coverage_array_slot) {
+  OutputIncBlockCounter(coverage_array_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
     Register receiver, RegisterList cache_info_triple) {
   DCHECK_EQ(3, cache_info_triple.register_count());

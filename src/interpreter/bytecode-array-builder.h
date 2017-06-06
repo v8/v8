@@ -393,6 +393,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Debugger.
   BytecodeArrayBuilder& Debugger();
 
+  // Increment the block counter at the given slot (block code coverage).
+  BytecodeArrayBuilder& IncBlockCounter(int slot);
+
   // Complex flow control.
   BytecodeArrayBuilder& ForInPrepare(Register receiver,
                                      RegisterList cache_info_triple);

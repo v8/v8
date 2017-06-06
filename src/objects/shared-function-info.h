@@ -177,6 +177,10 @@ class SharedFunctionInfo : public HeapObject {
   // to simplify access.
   bool HasBreakInfo() const;
 
+  // Coverage infos are contained in DebugInfo, this is a convenience method
+  // to simplify access.
+  bool HasCoverageInfo() const;
+
   // A function has debug code if the compiled code has debug break slots.
   inline bool HasDebugCode() const;
 

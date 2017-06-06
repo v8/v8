@@ -20,7 +20,9 @@ namespace internal {
 class BreakPointInfo;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class CoverageInfo;
 class DebugInfo;
+struct SourceRange;
 
 enum FunctionMode {
   // With prototype.
@@ -777,6 +779,8 @@ class V8_EXPORT_PRIVATE Factory final {
                                              Handle<Object> stack_frames);
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
   // Return a map for given number of properties using the map cache in the
   // native context.

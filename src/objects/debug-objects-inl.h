@@ -17,12 +17,14 @@ namespace internal {
 
 CAST_ACCESSOR(BreakPointInfo)
 CAST_ACCESSOR(DebugInfo)
+CAST_ACCESSOR(CoverageInfo)
 
 SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsOffset)
 ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayOffset)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
+ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
 
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionOffset)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsOffset)

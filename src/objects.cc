@@ -13397,6 +13397,14 @@ bool SharedFunctionInfo::HasBreakInfo() const {
   return has_break_info;
 }
 
+bool SharedFunctionInfo::HasCoverageInfo() const {
+  if (!HasDebugInfo()) return false;
+  DebugInfo* info = DebugInfo::cast(debug_info());
+  bool has_coverage_info = info->HasCoverageInfo();
+  DCHECK_IMPLIES(has_coverage_info, FLAG_block_coverage);
+  return has_coverage_info;
+}
+
 DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
   DCHECK(HasDebugInfo());
   return DebugInfo::cast(debug_info());

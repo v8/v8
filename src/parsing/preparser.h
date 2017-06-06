@@ -720,8 +720,9 @@ class PreParserFactory {
 
   PreParserStatement NewIfStatement(PreParserExpression condition,
                                     PreParserStatement then_statement,
-                                    PreParserStatement else_statement,
-                                    int pos) {
+                                    PreParserStatement else_statement, int pos,
+                                    SourceRange then_range = {},
+                                    SourceRange else_range = {}) {
     // This must return a jump statement iff both clauses are jump statements.
     return else_statement.IsJumpStatement() ? then_statement : else_statement;
   }

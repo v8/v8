@@ -2608,6 +2608,22 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   return debug_info;
 }
 
+Handle<CoverageInfo> Factory::NewCoverageInfo(
+    const ZoneVector<SourceRange>& slots) {
+  const int slot_count = static_cast<int>(slots.size());
+
+  const int length = CoverageInfo::FixedArrayLengthForSlotCount(slot_count);
+  Handle<CoverageInfo> info =
+      Handle<CoverageInfo>::cast(NewUninitializedFixedArray(length));
+
+  for (int i = 0; i < slot_count; i++) {
+    SourceRange range = slots[i];
+    info->InitializeSlot(i, range.start, range.end);
+  }
+
+  return info;
+}
+
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   Handle<BreakPointInfo> new_break_point_info =
       Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE));
