@@ -2871,6 +2871,10 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_buffer_neutering_protector(*cell);
 
+  cell = factory->NewPropertyCell();
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_hole_check_protector(*cell);
+
   set_serialized_templates(empty_fixed_array());
   set_serialized_global_proxy_sizes(empty_fixed_array());
 

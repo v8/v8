@@ -2987,29 +2987,6 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
   Dispatch();
 }
 
-// JumpIfNotHole <imm>
-//
-// Jump by the number of bytes represented by an immediate operand if the object
-// referenced by the accumulator is the hole.
-IGNITION_HANDLER(JumpIfNotHole, InterpreterAssembler) {
-  Node* accumulator = GetAccumulator();
-  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
-  Node* relative_jump = BytecodeOperandUImmWord(0);
-  JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
-}
-
-// JumpIfNotHoleConstant <idx>
-//
-// Jump by the number of bytes in the Smi in the |idx| entry in the constant
-// pool if the object referenced by the accumulator is the hole constant.
-IGNITION_HANDLER(JumpIfNotHoleConstant, InterpreterAssembler) {
-  Node* accumulator = GetAccumulator();
-  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
-  Node* index = BytecodeOperandIdx(0);
-  Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
-}
-
 // JumpLoop <imm> <loop_depth>
 //
 // Jump by the number of bytes represented by the immediate operand |imm|. Also
@@ -3412,6 +3389,65 @@ IGNITION_HANDLER(Return, InterpreterAssembler) {
   UpdateInterruptBudgetOnReturn();
   Node* accumulator = GetAccumulator();
   Return(accumulator);
+}
+
+// ThrowReferenceErrorIfHole <variable_name>
+//
+// Throws an exception if the value in the accumulator is TheHole.
+IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
+  Node* value = GetAccumulator();
+  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
+
+  Label throw_error(this, Label::kDeferred);
+  GotoIf(WordEqual(value, the_hole_value), &throw_error);
+  Dispatch();
+
+  BIND(&throw_error);
+  {
+    Node* name = LoadConstantPoolEntry(BytecodeOperandIdx(0));
+    CallRuntime(Runtime::kThrowReferenceErrorOnHole, GetContext(), name);
+    // We shouldn't ever return from a throw.
+    Abort(kUnexpectedReturnFromThrow);
+  }
+}
+
+// ThrowSuperNotCalledIfHole
+//
+// Throws an exception if the value in the accumulator is TheHole.
+IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
+  Node* value = GetAccumulator();
+  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
+
+  Label throw_error(this, Label::kDeferred);
+  GotoIf(WordEqual(value, the_hole_value), &throw_error);
+  Dispatch();
+
+  BIND(&throw_error);
+  {
+    CallRuntime(Runtime::kThrowSuperNotCalled, GetContext());
+    // We shouldn't ever return from a throw.
+    Abort(kUnexpectedReturnFromThrow);
+  }
+}
+
+// ThrowSuperAlreadyCalledIfNotHole
+//
+// Throws SuperAleradyCalled exception if the value in the accumulator is not
+// TheHole.
+IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
+  Node* value = GetAccumulator();
+  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
+
+  Label throw_error(this, Label::kDeferred);
+  GotoIf(WordNotEqual(value, the_hole_value), &throw_error);
+  Dispatch();
+
+  BIND(&throw_error);
+  {
+    CallRuntime(Runtime::kThrowSuperAlreadyCalledError, GetContext());
+    // We shouldn't ever return from a throw.
+    Abort(kUnexpectedReturnFromThrow);
+  }
 }
 
 // Debugger

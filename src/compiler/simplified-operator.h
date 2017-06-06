@@ -439,6 +439,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckTaggedHole();
+  const Operator* CheckNotTaggedHole();
   const Operator* ConvertTaggedHoleToUndefined();
 
   const Operator* ObjectIsDetectableCallable();

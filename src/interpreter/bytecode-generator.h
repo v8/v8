@@ -120,9 +120,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAsyncGeneratorReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
-  void BuildThrowIfHole(Variable* variable);
-  void BuildThrowReferenceError(const AstRawString* name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
+  void BuildThrowIfHole(Variable* variable);
 
   // Build jump to targets[value], where
   // start_index <= value < start_index + size.

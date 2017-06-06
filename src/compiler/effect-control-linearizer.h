@@ -107,6 +107,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerStringLessThanOrEqual(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckTaggedHole(Node* node, Node* frame_state);
+  Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
   Node* LowerConvertTaggedHoleToUndefined(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);

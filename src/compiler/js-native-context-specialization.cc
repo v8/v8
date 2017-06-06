@@ -2181,8 +2181,8 @@ JSNativeContextSpecialization::BuildElementAccess(
                                    value);
         } else {
           // Bailout if we see the hole.
-          value = effect = graph()->NewNode(simplified()->CheckTaggedHole(),
-                                            value, effect, control);
+          effect = graph()->NewNode(simplified()->CheckNotTaggedHole(), value,
+                                    effect, control);
         }
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.

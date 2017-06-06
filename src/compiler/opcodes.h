@@ -222,7 +222,9 @@
   V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)
+  V(CheckedTaggedToTaggedPointer)     \
+  V(CheckTaggedHole)                  \
+  V(CheckNotTaggedHole)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -327,7 +329,6 @@
   V(CheckSmi)                       \
   V(CheckHeapObject)                \
   V(CheckFloat64Hole)               \
-  V(CheckTaggedHole)                \
   V(ConvertTaggedHoleToUndefined)   \
   V(Allocate)                       \
   V(LoadField)                      \

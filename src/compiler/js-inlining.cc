@@ -581,7 +581,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
     BytecodeGraphBuilder graph_builder(
         parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
-        jsgraph(), call.frequency(), source_positions_, inlining_id, flags);
+        jsgraph(), call.frequency(), info_->dependencies(), source_positions_,
+        inlining_id, flags);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.

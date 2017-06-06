@@ -3225,6 +3225,15 @@ void Isolate::InvalidateArrayBufferNeuteringProtector() {
   DCHECK(!IsArrayBufferNeuteringIntact());
 }
 
+void Isolate::InvalidateHoleCheckProtector() {
+  DCHECK(factory()->hole_check_protector()->value()->IsSmi());
+  DCHECK(IsHoleCheckProtectorIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->hole_check_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsHoleCheckProtectorIntact());
+}
+
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);

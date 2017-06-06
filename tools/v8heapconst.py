@@ -303,9 +303,10 @@ KNOWN_OBJECTS = {
   ("OLD_SPACE", 0x02929): "FastArrayIterationProtector",
   ("OLD_SPACE", 0x02939): "ArrayIteratorProtector",
   ("OLD_SPACE", 0x02959): "ArrayBufferNeuteringProtector",
-  ("OLD_SPACE", 0x02979): "InfinityValue",
-  ("OLD_SPACE", 0x02989): "MinusZeroValue",
-  ("OLD_SPACE", 0x02999): "MinusInfinityValue",
+  ("OLD_SPACE", 0x02979): "HoleCheckProtector",
+  ("OLD_SPACE", 0x02999): "InfinityValue",
+  ("OLD_SPACE", 0x029a9): "MinusZeroValue",
+  ("OLD_SPACE", 0x029b9): "MinusInfinityValue",
 }
 
 # List of known V8 Frame Markers.

@@ -106,7 +106,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 45
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
@@ -120,19 +120,14 @@ bytecodes: [
   /*  118 E> */ B(Construct), R(2), R(3), U8(1), U8(3),
                 B(Star), R(2),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(4),
-                B(Jump), U8(7),
-  /*  118 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
+  /*  118 E> */ B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(2), R(this),
   /*  128 S> */ B(Ldar), R(this),
-                B(JumpIfNotHole), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
-                B(Star), R(2),
+                B(ThrowSuperNotCalledIfHole),
                 B(LdaSmi), I8(2),
   /*  136 E> */ B(StaNamedPropertyStrict), R(2), U8(0), U8(5),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
+                B(ThrowSuperNotCalledIfHole),
   /*  141 S> */ B(Return),
 ]
 constant pool: [
@@ -156,7 +151,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 41
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
@@ -168,19 +163,14 @@ bytecodes: [
   /*  117 E> */ B(Construct), R(2), R(0), U8(0), U8(3),
                 B(Star), R(2),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(4),
-                B(Jump), U8(7),
-  /*  117 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
+  /*  117 E> */ B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(2), R(this),
   /*  126 S> */ B(Ldar), R(this),
-                B(JumpIfNotHole), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
-                B(Star), R(2),
+                B(ThrowSuperNotCalledIfHole),
                 B(LdaSmi), I8(2),
   /*  134 E> */ B(StaNamedPropertyStrict), R(2), U8(0), U8(5),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
+                B(ThrowSuperNotCalledIfHole),
   /*  139 S> */ B(Return),
 ]
 constant pool: [

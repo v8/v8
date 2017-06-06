@@ -153,6 +153,10 @@ bool Isolate::IsArrayIteratorLookupChainIntact() {
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
+bool Isolate::IsHoleCheckProtectorIntact() {
+  PropertyCell* hole_check_cell = heap()->hole_check_protector();
+  return hole_check_cell->value() == Smi::FromInt(kProtectorValid);
+}
 }  // namespace internal
 }  // namespace v8
 
