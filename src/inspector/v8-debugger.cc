@@ -198,6 +198,10 @@ void V8Debugger::disable() {
   m_isolate->RestoreOriginalHeapLimit();
 }
 
+bool V8Debugger::isPausedInContextGroup(int contextGroupId) const {
+  return isPaused() && m_pausedContextGroupId == contextGroupId;
+}
+
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
 
 void V8Debugger::getCompiledScripts(

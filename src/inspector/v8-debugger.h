@@ -83,6 +83,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void disable();
 
   bool isPaused() const { return m_pausedContextGroupId; }
+  bool isPausedInContextGroup(int contextGroupId) const;
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }

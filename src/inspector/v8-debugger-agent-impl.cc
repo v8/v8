@@ -1035,9 +1035,7 @@ V8DebuggerAgentImpl::currentAsyncStackTrace() {
 }
 
 bool V8DebuggerAgentImpl::isPaused() const {
-  // TODO(dgozman): this check allows once context group to resume the other,
-  // since they share debugger.
-  return m_debugger->isPaused();
+  return m_debugger->isPausedInContextGroup(m_session->contextGroupId());
 }
 
 void V8DebuggerAgentImpl::didParseSource(
