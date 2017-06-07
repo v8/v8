@@ -19,10 +19,6 @@
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
 
-#define DEFINE_DUAL_IMPLICATION(whenflag, thenflag) \
-  DEFINE_IMPLICATION(whenflag, thenflag)            \
-  DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag)
-
 // We want to declare the names of the variables for the header file.  Normally
 // this will just be an extern declaration, but for a readonly flag we let the
 // compiler make better optimizations by giving it the value.
@@ -273,8 +269,8 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 DEFINE_IMPLICATION(future, turbo)
 
-DEFINE_DUAL_IMPLICATION(turbo, ignition)
-DEFINE_DUAL_IMPLICATION(turbo, thin_strings)
+DEFINE_IMPLICATION(turbo, ignition)
+DEFINE_IMPLICATION(turbo, thin_strings)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
