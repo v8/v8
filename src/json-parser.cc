@@ -80,6 +80,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
 
 bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                             Handle<String> name) {
+  STACK_CHECK(isolate_, false);
+
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result, InternalizeJsonProperty(holder, name), false);
