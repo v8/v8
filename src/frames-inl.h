@@ -183,7 +183,9 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
-  DCHECK(-1 <= index && index < param_count);
+  DCHECK(-1 <= index &&
+         (index < param_count ||
+          param_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   int parameter_offset = (param_count - index - 1) * kPointerSize;
   return caller_sp() + parameter_offset;
 }
@@ -278,6 +280,14 @@ inline StubFailureTrampolineFrame::StubFailureTrampolineFrame(
 inline ConstructFrame::ConstructFrame(StackFrameIteratorBase* iterator)
     : InternalFrame(iterator) {
 }
+
+inline BuiltinContinuationFrame::BuiltinContinuationFrame(
+    StackFrameIteratorBase* iterator)
+    : InternalFrame(iterator) {}
+
+inline JavaScriptBuiltinContinuationFrame::JavaScriptBuiltinContinuationFrame(
+    StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
 
 inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)

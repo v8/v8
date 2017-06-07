@@ -98,23 +98,25 @@ class StackHandler BASE_EMBEDDED {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };
 
-#define STACK_FRAME_TYPE_LIST(V)                         \
-  V(ENTRY, EntryFrame)                                   \
-  V(ENTRY_CONSTRUCT, EntryConstructFrame)                \
-  V(EXIT, ExitFrame)                                     \
-  V(JAVA_SCRIPT, JavaScriptFrame)                        \
-  V(OPTIMIZED, OptimizedFrame)                           \
-  V(WASM_COMPILED, WasmCompiledFrame)                    \
-  V(WASM_TO_JS, WasmToJsFrame)                           \
-  V(JS_TO_WASM, JsToWasmFrame)                           \
-  V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)   \
-  V(INTERPRETED, InterpretedFrame)                       \
-  V(STUB, StubFrame)                                     \
-  V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
-  V(INTERNAL, InternalFrame)                             \
-  V(CONSTRUCT, ConstructFrame)                           \
-  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)            \
-  V(BUILTIN, BuiltinFrame)                               \
+#define STACK_FRAME_TYPE_LIST(V)                                          \
+  V(ENTRY, EntryFrame)                                                    \
+  V(ENTRY_CONSTRUCT, EntryConstructFrame)                                 \
+  V(EXIT, ExitFrame)                                                      \
+  V(JAVA_SCRIPT, JavaScriptFrame)                                         \
+  V(OPTIMIZED, OptimizedFrame)                                            \
+  V(WASM_COMPILED, WasmCompiledFrame)                                     \
+  V(WASM_TO_JS, WasmToJsFrame)                                            \
+  V(JS_TO_WASM, JsToWasmFrame)                                            \
+  V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
+  V(INTERPRETED, InterpretedFrame)                                        \
+  V(STUB, StubFrame)                                                      \
+  V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame)                  \
+  V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION, JavaScriptBuiltinContinuationFrame) \
+  V(INTERNAL, InternalFrame)                                              \
+  V(CONSTRUCT, ConstructFrame)                                            \
+  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)                             \
+  V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)
 
 // Every pointer in a frame has a slot id. On 32-bit platforms, doubles consume
@@ -359,6 +361,15 @@ class ConstructFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(4);
 };
 
+class BuiltinContinuationFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative.
+  static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static const int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static const int kArgCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  DEFINE_TYPED_FRAME_SIZES(2);
+};
+
 class StubFailureTrampolineFrameConstants : public InternalFrameConstants {
  public:
   static const int kArgumentsArgumentsOffset =
@@ -525,6 +536,12 @@ class StackFrame BASE_EMBEDDED {
   bool is_stub_failure_trampoline() const {
     return type() == STUB_FAILURE_TRAMPOLINE;
   }
+  bool is_builtin_continuation() const {
+    return type() == BUILTIN_CONTINUATION;
+  }
+  bool is_java_script_builtin_continuation() const {
+    return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION;
+  }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
   virtual bool is_standard() const { return false; }
@@ -532,7 +549,8 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script() const {
     Type type = this->type();
     return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
-           (type == INTERPRETED) || (type == BUILTIN);
+           (type == INTERPRETED) || (type == BUILTIN) ||
+           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION);
   }
   bool is_wasm() const {
     Type type = this->type();
@@ -1460,6 +1478,40 @@ class ConstructFrame: public InternalFrame {
   friend class StackFrameIteratorBase;
 };
 
+class BuiltinContinuationFrame : public InternalFrame {
+ public:
+  Type type() const override { return BUILTIN_CONTINUATION; }
+
+  static BuiltinContinuationFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_builtin_continuation());
+    return static_cast<BuiltinContinuationFrame*>(frame);
+  }
+
+ protected:
+  inline explicit BuiltinContinuationFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
+ public:
+  Type type() const override { return JAVA_SCRIPT_BUILTIN_CONTINUATION; }
+
+  static JavaScriptBuiltinContinuationFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_java_script_builtin_continuation());
+    return static_cast<JavaScriptBuiltinContinuationFrame*>(frame);
+  }
+
+  int ComputeParametersCount() const override;
+
+ protected:
+  inline explicit JavaScriptBuiltinContinuationFrame(
+      StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
 
 class StackFrameIteratorBase BASE_EMBEDDED {
  public:

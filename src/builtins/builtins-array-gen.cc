@@ -1200,6 +1200,38 @@ TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
+TF_BUILTIN(ArrayForEachLoopEagerDeoptContinuation,
+           ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(Builtins::CallableFor(isolate(),
+                                      Builtins::kArrayForEachLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg,
+                  UndefinedConstant(), receiver, initial_k, len,
+                  UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayForEachLoopLazyDeoptContinuation,
+           ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(Builtins::CallableFor(isolate(),
+                                      Builtins::kArrayForEachLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg,
+                  UndefinedConstant(), receiver, initial_k, len,
+                  UndefinedConstant()));
+}
+
 TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));

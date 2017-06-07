@@ -158,6 +158,33 @@ namespace internal {
   ASM(NotifyLazyDeoptimized)                                                   \
   ASM(NotifyStubFailure)                                                       \
   ASM(NotifyStubFailureSaveDoubles)                                            \
+  ASM(NotifyBuiltinContinuation)                                               \
+                                                                               \
+  /* Trampolines called when returning from a deoptimization that expects   */ \
+  /* to continue in a JavaScript builtin to finish the functionality of a   */ \
+  /* an TF-inlined version of builtin that has side-effects.                */ \
+  /*                                                                        */ \
+  /* The trampolines work as follows:                                       */ \
+  /*   1. Trampoline restores input register values that                    */ \
+  /*      the builtin expects from a BuiltinContinuationFrame.              */ \
+  /*   2. Trampoline tears down BuiltinContinuationFrame.                   */ \
+  /*   3. Trampoline jumps to the builtin's address.                        */ \
+  /*   4. Builtin executes as if invoked by the frame above it.             */ \
+  /*   5. When the builtin returns, execution resumes normally in the       */ \
+  /*      calling frame, processing any return result from the JavaScript   */ \
+  /*      builtin as if it had called the builtin directly.                 */ \
+  /*                                                                        */ \
+  /* There are two variants of the stub that differ in their handling of a  */ \
+  /* value returned by the next frame deeper on the stack. For LAZY deopts, */ \
+  /* the return value (e.g. rax on x64) is explicitly passed as an extra    */ \
+  /* stack parameter to the JavaScript builtin by the "WithResult"          */ \
+  /* trampoline variant. The plain variant is used in EAGER deopt contexts  */ \
+  /* and has no such special handling. */                                      \
+  ASM(ContinueToCodeStubBuiltin)                                               \
+  ASM(ContinueToCodeStubBuiltinWithResult)                                     \
+  ASM(ContinueToJavaScriptBuiltin)                                             \
+  ASM(ContinueToJavaScriptBuiltinWithResult)                                   \
+                                                                               \
   ASM(OnStackReplacement)                                                      \
                                                                                \
   /* API callback handling */                                                  \
@@ -270,6 +297,10 @@ namespace internal {
   /* ES6 #sec-array.prototype.foreach */                                       \
   TFS(ArrayForEachLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,  \
       kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayForEachLoopEagerDeoptContinuation, 4, kCallbackFn, kThisArg,        \
+      kInitialK, kLength)                                                      \
+  TFJ(ArrayForEachLoopLazyDeoptContinuation, 5, kCallbackFn, kThisArg,         \
+      kInitialK, kLength, kResult)                                             \
   TFJ(ArrayForEach, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   /* ES6 #sec-array.prototype.every */                                         \
   TFS(ArrayEveryLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,    \
@@ -1076,6 +1107,14 @@ namespace internal {
 #define BUILTIN_LIST_TFS(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFJ(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFC(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTINS_WITH_UNTAGGED_PARAMS(V) V(WasmCompileLazy)
 

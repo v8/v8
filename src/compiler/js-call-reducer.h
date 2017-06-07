@@ -50,6 +50,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectGetPrototypeOf(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
+  Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
   Reduction ReduceSpreadCall(Node* node, int arity);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);

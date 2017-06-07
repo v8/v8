@@ -504,6 +504,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case ENTRY:
     case ENTRY_CONSTRUCT:
     case EXIT:
+    case BUILTIN_CONTINUATION:
+    case JAVA_SCRIPT_BUILTIN_CONTINUATION:
     case BUILTIN_EXIT:
     case STUB:
     case STUB_FAILURE_TRAMPOLINE:
@@ -802,6 +804,8 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case ENTRY:
       case ENTRY_CONSTRUCT:
       case EXIT:
+      case BUILTIN_CONTINUATION:
+      case JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case BUILTIN_EXIT:
       case STUB_FAILURE_TRAMPOLINE:
       case ARGUMENTS_ADAPTOR:
@@ -1143,6 +1147,12 @@ int JavaScriptFrame::ComputeParametersCount() const {
   return GetNumberOfIncomingArguments();
 }
 
+int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
+  Object* argc_object =
+      Memory::Object_at(fp() + BuiltinContinuationFrameConstants::kArgCOffset);
+  return Smi::cast(argc_object)->value();
+}
+
 namespace {
 
 bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
@@ -1377,7 +1387,8 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
   while (jsframe_count != 0) {
     frame_opcode = static_cast<Translation::Opcode>(it.Next());
     if (frame_opcode == Translation::JS_FRAME ||
-        frame_opcode == Translation::INTERPRETED_FRAME) {
+        frame_opcode == Translation::INTERPRETED_FRAME ||
+        frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
       jsframe_count--;
       BailoutId const bailout_id = BailoutId(it.Next());
       SharedFunctionInfo* const shared_info =
@@ -1429,6 +1440,11 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
             Deoptimizer::GetOutputInfo(output_data, bailout_id, shared_info);
         code_offset = FullCodeGenerator::PcField::decode(entry);
         abstract_code = AbstractCode::cast(code);
+      } else if (frame_opcode ==
+                 Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
+        code_offset = 0;
+        abstract_code = AbstractCode::cast(isolate()->builtins()->builtin(
+            Builtins::GetBuiltinFromBailoutId(bailout_id)));
       } else {
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
         code_offset = bailout_id.ToInt();  // Points to current bytecode.
@@ -1537,7 +1553,8 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   while (jsframe_count != 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     if (opcode == Translation::JS_FRAME ||
-        opcode == Translation::INTERPRETED_FRAME) {
+        opcode == Translation::INTERPRETED_FRAME ||
+        opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
       it.Next();  // Skip bailout id.
       jsframe_count--;
 

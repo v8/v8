@@ -922,6 +922,8 @@ class BailoutId {
   V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&, BailoutId);
 
  private:
+  friend class Builtins;
+
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
@@ -939,6 +941,11 @@ class BailoutId {
 
   // Every compiled stub starts with this id.
   static const int kStubEntryId = 6;
+
+  // Builtin continuations bailout ids start here. If you need to add a
+  // non-builtin BailoutId, add it before this id so that this Id has the
+  // highest number.
+  static const int kFirstBuiltinContinuationId = 7;
 
   int id_;
 };

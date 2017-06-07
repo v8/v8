@@ -813,6 +813,22 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           descriptor->bailout_id(), shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
       break;
+    case FrameStateType::kBuiltinContinuation: {
+      BailoutId bailout_id = descriptor->bailout_id();
+      int parameter_count =
+          static_cast<unsigned int>(descriptor->parameters_count());
+      translation->BeginBuiltinContinuationFrame(bailout_id, shared_info_id,
+                                                 parameter_count);
+      break;
+    }
+    case FrameStateType::kJavaScriptBuiltinContinuation: {
+      BailoutId bailout_id = descriptor->bailout_id();
+      int parameter_count =
+          static_cast<unsigned int>(descriptor->parameters_count());
+      translation->BeginJavaScriptBuiltinContinuationFrame(
+          bailout_id, shared_info_id, parameter_count);
+      break;
+    }
     case FrameStateType::kGetterStub:
       translation->BeginGetterStubFrame(shared_info_id);
       break;

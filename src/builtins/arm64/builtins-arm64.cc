@@ -1694,6 +1694,75 @@ void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
   Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
 }
 
+void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // Preserve possible return result from lazy deopt.
+    __ Push(x0);
+    // Pass the function and deoptimization type to the runtime system.
+    __ CallRuntime(Runtime::kNotifyStubFailure, false);
+    __ Pop(x0);
+  }
+
+  // Ignore state (pushed by Deoptimizer::EntryGenerator::Generate).
+  __ Drop(1);
+
+  // Jump to the ContinueToBuiltin stub. Deoptimizer::EntryGenerator::Generate
+  // loads this into lr before it jumps here.
+  __ Br(lr);
+}
+
+namespace {
+void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
+                                      bool java_script_builtin,
+                                      bool with_result) {
+  const RegisterConfiguration* config(RegisterConfiguration::Turbofan());
+  int allocatable_register_count = config->num_allocatable_general_registers();
+  if (with_result) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point.
+    __ Str(x0, MemOperand(
+                   jssp,
+                   config->num_allocatable_general_registers() * kPointerSize +
+                       BuiltinContinuationFrameConstants::kFixedFrameSize));
+  }
+  for (int i = allocatable_register_count - 1; i >= 0; --i) {
+    int code = config->GetAllocatableGeneralCode(i);
+    __ Pop(Register::from_code(code));
+    if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
+      __ SmiUntag(Register::from_code(code));
+    }
+  }
+  __ ldr(fp,
+         MemOperand(jssp,
+                    BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
+  __ Pop(ip0);
+  __ Add(jssp, jssp,
+         Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
+  __ Pop(lr);
+  __ Add(ip0, ip0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Br(ip0);
+}
+}  // namespace
+
+void Builtins::Generate_ContinueToCodeStubBuiltin(MacroAssembler* masm) {
+  Generate_ContinueToBuiltinHelper(masm, false, false);
+}
+
+void Builtins::Generate_ContinueToCodeStubBuiltinWithResult(
+    MacroAssembler* masm) {
+  Generate_ContinueToBuiltinHelper(masm, false, true);
+}
+
+void Builtins::Generate_ContinueToJavaScriptBuiltin(MacroAssembler* masm) {
+  Generate_ContinueToBuiltinHelper(masm, true, false);
+}
+
+void Builtins::Generate_ContinueToJavaScriptBuiltinWithResult(
+    MacroAssembler* masm) {
+  Generate_ContinueToBuiltinHelper(masm, true, true);
+}
+
 static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
                                              Deoptimizer::BailoutType type) {
   {
