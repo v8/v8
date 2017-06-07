@@ -603,10 +603,10 @@
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
 }],  # asan == True
 
-['asan and variant in [noturbofan, noturbofan_stress, fullcode]', {
+['asan and variant in [noturbofan, fullcode]', {
   # Demands too many resources to test the old pipeline with asan.
   '*': [SKIP],
-}],  # asan and variant in [noturbofan, noturbofan_stress, fullcode]
+}],  # asan and variant in [noturbofan, fullcode]
 
 ['asan == True or msan == True or tsan == True', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639

@@ -31,14 +31,14 @@
 }],  # ALWAYS
 
 ##############################################################################
-['variant == stress or variant == noturbofan_stress', {
+['variant == stress', {
   # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
   # with Turbofan, which has issues with the debugger issues.
   'debug/debug-evaluate-locals': [FAIL],
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
-}],  # variant == stress or variant == noturbofan_stress
+}],  # variant == stress
 
 ##############################################################################
 ['gc_stress == True', {
@@ -80,10 +80,10 @@
 }],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
-['variant in [noturbofan, noturbofan_stress] and system == macos and asan', {
+['variant == noturbofan and system == macos and asan', {
   # Too slow for old pipeline and mac asan.
   'debug/*': [SKIP],
-}],  # variant in [noturbofan, noturbofan_stress] and system == macos and asan
+}],  # variant == noturbofan and system == macos and asan
 
 ##############################################################################
 ['arch == s390 or arch == s390x', {

@@ -621,17 +621,6 @@
 }],  # variant == stress
 
 ##############################################################################
-['variant == noturbofan_stress', {
-  # Slow tests.
-  'ignition/regress-599001-verifyheap': [SKIP],
-  'regress/regress-2185-2': [SKIP],
-
-  # Crankshaft bug, wrong elements kind: crbug.com/v8/6342
-  'regress/regress-2671': [SKIP],
-  'regress/regress-2671-1': [SKIP],
-}],  # variant == noturbofan_stress
-
-##############################################################################
 ['variant == nooptimization', {
   # Slow tests.
   'regress/regress-2185-2': [SKIP],

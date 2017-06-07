@@ -113,7 +113,6 @@ VARIANTS = ["default", "noturbofan"]
 
 MORE_VARIANTS = [
   "stress",
-  "noturbofan_stress",
   "nooptimization",
   "asm_wasm",
   "wasm_traps",
