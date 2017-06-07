@@ -504,7 +504,7 @@ DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
-DEFINE_BOOL(turbo_inline_array_builtins, false,
+DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(turbo_load_elimination, true, "enable load elimination in TurboFan")
 DEFINE_BOOL(trace_turbo_load_elimination, false,
