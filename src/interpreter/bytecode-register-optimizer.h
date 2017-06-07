@@ -178,6 +178,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     return equivalence_id_;
   }
 
+  void AllocateRegister(RegisterInfo* info);
+
   Zone* zone() { return zone_; }
 
   const Register accumulator_;

@@ -416,8 +416,15 @@ void BytecodeRegisterOptimizer::GrowRegisterMap(Register reg) {
   }
 }
 
+void BytecodeRegisterOptimizer::AllocateRegister(RegisterInfo* info) {
+  info->set_allocated(true);
+  if (!info->materialized()) {
+    info->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
+  }
+}
+
 void BytecodeRegisterOptimizer::RegisterAllocateEvent(Register reg) {
-  GetOrCreateRegisterInfo(reg)->set_allocated(true);
+  AllocateRegister(GetOrCreateRegisterInfo(reg));
 }
 
 void BytecodeRegisterOptimizer::RegisterListAllocateEvent(
@@ -426,7 +433,7 @@ void BytecodeRegisterOptimizer::RegisterListAllocateEvent(
     int first_index = reg_list.first_register().index();
     GrowRegisterMap(Register(first_index + reg_list.register_count() - 1));
     for (int i = 0; i < reg_list.register_count(); i++) {
-      GetRegisterInfo(Register(first_index + i))->set_allocated(true);
+      AllocateRegister(GetRegisterInfo(Register(first_index + i)));
     }
   }
 }
