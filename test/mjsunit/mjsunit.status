@@ -634,20 +634,6 @@
 }],  # variant == noturbofan and no_snap
 
 ##############################################################################
-['variant == turbofan_opt', {
-  'es6/array-iterator-turbo': [SKIP],
-
-  # TODO(jgruber): Fails in --turbo --always-opt mode.
-  'regress/regress-105': [FAIL],
-
-  # Too slow.
-  'big-object-literal': [SKIP],
-  'ignition/regress-599001-verifyheap': [SKIP],
-  'unicode-test': [SKIP],
-
-}],  # variant == turbofan_opt
-
-##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],

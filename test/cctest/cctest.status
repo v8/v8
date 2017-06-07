@@ -403,18 +403,6 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['variant == turbofan_opt', {
-  # BUG(v8:5457)
-  'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
-}],  # variant == turbofan_opt
-
-##############################################################################
-['variant == turbofan', {
-  # BUG(4751). Flaky with Ignition.
-  'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # variant == turbofan
-
-##############################################################################
 ['variant == noturbofan and no_snap', {
   # Too slow for old pipeline and nosnap.
   'test-lockers/SeparateIsolatesLocksNonexclusive': [SKIP],

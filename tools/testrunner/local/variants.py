@@ -6,8 +6,6 @@
 ALL_VARIANT_FLAGS = {
   "default": [[]],
   "stress": [["--stress-opt", "--always-opt"]],
-  "turbofan": [["--turbo"]],
-  "turbofan_opt": [["--turbo", "--always-opt"]],
   "noturbofan": [["--no-turbo"]],
   "fullcode": [["--noopt", "--no-turbo"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
@@ -22,7 +20,6 @@ ALL_VARIANT_FLAGS = {
 FAST_VARIANT_FLAGS = {
   "default": [[]],
   "stress": [["--stress-opt"]],
-  "turbofan": [["--turbo"]],
   "noturbofan": [["--no-turbo"]],
   "fullcode": [["--noopt", "--no-turbo"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
@@ -33,6 +30,5 @@ FAST_VARIANT_FLAGS = {
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
-ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "noturbofan", "fullcode", "nooptimization", "asm_wasm",
-                    "wasm_traps"])
+ALL_VARIANTS = set(["default", "stress", "noturbofan", "fullcode",
+                    "nooptimization", "asm_wasm", "wasm_traps"])
