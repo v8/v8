@@ -792,7 +792,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     Label done_loop, loop;
     __ bind(&loop);
-    __ sub(r3, r3, Operand(Smi::FromInt(1)), SetCC);
+    __ sub(r3, r3, Operand(1), SetCC);
     __ b(mi, &done_loop);
     __ PushRoot(Heap::kTheHoleValueRootIndex);
     __ b(&loop);
@@ -812,7 +812,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ ldr(r0, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
     __ ldr(r0, FieldMemOperand(
                    r0, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ SmiUntag(r0);
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
@@ -2252,11 +2251,11 @@ void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
   {
     // Load the length from the ArgumentsAdaptorFrame.
     __ ldr(r5, MemOperand(r4, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiUntag(r5);
   }
   __ bind(&arguments_done);
 
   Label stack_done, stack_overflow;
-  __ SmiUntag(r5);
   __ sub(r5, r5, r2, SetCC);
   __ b(le, &stack_done);
   {
@@ -2368,7 +2367,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ ldr(caller_args_count_reg,
          FieldMemOperand(scratch1,
                          SharedFunctionInfo::kFormalParameterCountOffset));
-  __ SmiUntag(caller_args_count_reg);
 
   __ bind(&formal_parameter_count_loaded);
 
@@ -2476,7 +2474,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ ldr(r2,
          FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ SmiUntag(r2);
   ParameterCount actual(r0);
   ParameterCount expected(r2);
   __ InvokeFunctionCode(r1, no_reg, expected, actual, JUMP_FUNCTION,

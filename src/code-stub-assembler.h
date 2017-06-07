@@ -108,6 +108,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return value;
   }
 
+  Node* Word32ToParameter(Node* value, ParameterMode mode) {
+    return WordToParameter(ChangeUint32ToWord(value), mode);
+  }
+
   Node* ParameterToTagged(Node* value, ParameterMode mode) {
     if (mode != SMI_PARAMETERS) value = SmiTag(value);
     return value;
@@ -411,13 +415,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the constructor of a Map (equivalent to
   // Map::GetConstructor()).
   Node* LoadMapConstructor(Node* map);
-  // Loads a value from the specially encoded integer fields in the
-  // SharedFunctionInfo object.
-  // TODO(danno): This currently only works for the integer fields that are
-  // mapped to the upper part of 64-bit words. We should customize
-  // SFI::BodyDescriptor and store int32 values directly.
-  Node* LoadSharedFunctionInfoSpecialField(Node* shared, int offset,
-                                           ParameterMode param_mode);
 
   // Check if the map is set for slow properties.
   Node* IsDictionaryMap(Node* map);

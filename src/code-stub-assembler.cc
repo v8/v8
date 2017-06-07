@@ -1214,26 +1214,6 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
   return result.value();
 }
 
-Node* CodeStubAssembler::LoadSharedFunctionInfoSpecialField(
-    Node* shared, int offset, ParameterMode mode) {
-  CSA_SLOW_ASSERT(this, HasInstanceType(shared, SHARED_FUNCTION_INFO_TYPE));
-  if (Is64()) {
-    Node* result = LoadObjectField(shared, offset, MachineType::Int32());
-    if (mode == SMI_PARAMETERS) {
-      result = SmiTag(result);
-    } else {
-      result = ChangeUint32ToWord(result);
-    }
-    return result;
-  } else {
-    Node* result = LoadObjectField(shared, offset);
-    if (mode != SMI_PARAMETERS) {
-      result = SmiUntag(result);
-    }
-    return result;
-  }
-}
-
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
   CSA_ASSERT(this, IsName(name));
   return LoadObjectField(name, Name::kHashFieldOffset, MachineType::Uint32());

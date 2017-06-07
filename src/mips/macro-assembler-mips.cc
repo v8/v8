@@ -4930,7 +4930,6 @@ void MacroAssembler::InvokeFunction(Register function,
   lw(expected_reg,
      FieldMemOperand(temp_reg,
                      SharedFunctionInfo::kFormalParameterCountOffset));
-  sra(expected_reg, expected_reg, kSmiTagSize);
 
   ParameterCount expected(expected_reg);
   InvokeFunctionCode(function, new_target, expected, actual, flag,

@@ -637,8 +637,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // values have already been copied into the context and these dummy values
   // will never be used.
   __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadSharedFunctionInfoSpecialField(
-      rcx, rcx, SharedFunctionInfo::kFormalParameterCountOffset);
+  __ movl(rcx,
+          FieldOperand(rcx, SharedFunctionInfo::kFormalParameterCountOffset));
   {
     Label done_loop, loop;
     __ bind(&loop);
@@ -661,8 +661,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     __ PushReturnAddressFrom(rax);
     __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadSharedFunctionInfoSpecialField(
-        rax, rax, SharedFunctionInfo::kFormalParameterCountOffset);
+    __ movsxlq(rax, FieldOperand(
+                        rax, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
@@ -2505,8 +2505,8 @@ void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
   {
     __ movp(r8, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ movp(r8, FieldOperand(r8, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadSharedFunctionInfoSpecialField(
-        r8, r8, SharedFunctionInfo::kFormalParameterCountOffset);
+    __ movl(r8,
+            FieldOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
     __ movp(rbx, rbp);
   }
   __ jmp(&arguments_done, Label::kNear);
@@ -2623,9 +2623,9 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ movp(scratch1, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ movp(scratch1,
           FieldOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadSharedFunctionInfoSpecialField(
-      caller_args_count_reg, scratch1,
-      SharedFunctionInfo::kFormalParameterCountOffset);
+  __ movsxlq(
+      caller_args_count_reg,
+      FieldOperand(scratch1, SharedFunctionInfo::kFormalParameterCountOffset));
 
   __ bind(&formal_parameter_count_loaded);
 
@@ -2741,8 +2741,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     PrepareForTailCall(masm, rax, rbx, rcx, r8);
   }
 
-  __ LoadSharedFunctionInfoSpecialField(
-      rbx, rdx, SharedFunctionInfo::kFormalParameterCountOffset);
+  __ movsxlq(
+      rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(rax);
   ParameterCount expected(rbx);
 

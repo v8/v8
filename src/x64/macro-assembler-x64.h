@@ -817,10 +817,6 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  void LoadSharedFunctionInfoSpecialField(Register dst,
-                                          Register base,
-                                          int offset);
-
   // Handle support
   void Move(Register dst, Handle<Object> source);
   void Move(const Operand& dst, Handle<Object> source);

@@ -1414,9 +1414,6 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   LoadW(expected_reg,
         FieldMemOperand(temp_reg,
                         SharedFunctionInfo::kFormalParameterCountOffset));
-#if !defined(V8_TARGET_ARCH_S390X)
-  SmiUntag(expected_reg);
-#endif
 
   ParameterCount expected(expected_reg);
   InvokeFunctionCode(fun, new_target, expected, actual, flag, call_wrapper);

@@ -811,7 +811,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ CmpP(r2, Operand::Zero());
     __ beq(&done_loop);
 #else
-    __ SmiUntag(r2);
     __ LoadAndTestP(r2, r2);
     __ beq(&done_loop);
 #endif
@@ -2271,16 +2270,11 @@ void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
   {
     // Load the length from the ArgumentsAdaptorFrame.
     __ LoadP(r7, MemOperand(r6, ArgumentsAdaptorFrameConstants::kLengthOffset));
-#if V8_TARGET_ARCH_S390X
     __ SmiUntag(r7);
-#endif
   }
   __ bind(&arguments_done);
 
   Label stack_done, stack_overflow;
-#if !V8_TARGET_ARCH_S390X
-  __ SmiUntag(r7);
-#endif
   __ SubP(r7, r7, r4);
   __ CmpP(r7, Operand::Zero());
   __ ble(&stack_done);
@@ -2396,9 +2390,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ LoadW(caller_args_count_reg,
            FieldMemOperand(scratch1,
                            SharedFunctionInfo::kFormalParameterCountOffset));
-#if !V8_TARGET_ARCH_S390X
-  __ SmiUntag(caller_args_count_reg);
-#endif
 
   __ bind(&formal_parameter_count_loaded);
 
@@ -2507,9 +2498,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ LoadW(
       r4, FieldMemOperand(r4, SharedFunctionInfo::kFormalParameterCountOffset));
-#if !V8_TARGET_ARCH_S390X
-  __ SmiUntag(r4);
-#endif
   ParameterCount actual(r2);
   ParameterCount expected(r4);
   __ InvokeFunctionCode(r3, no_reg, expected, actual, JUMP_FUNCTION,

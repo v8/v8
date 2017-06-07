@@ -39,10 +39,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_named_expression,
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
 
-#if V8_HOST_ARCH_32_BIT
-SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
+INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
+INT_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
+#if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
 SMI_ACCESSORS(SharedFunctionInfo, start_position_and_type,
@@ -84,10 +84,6 @@ SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 #define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)                  \
   STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_HI_ALIGN); \
   INT_ACCESSORS(holder, name, offset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
-                        kFormalParameterCountOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, expected_nof_properties,
                         kExpectedNofPropertiesOffset)

@@ -39,8 +39,12 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
       MachineType::Pointer());
   Node* shared =
       LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
-  Node* formal_parameter_count = LoadSharedFunctionInfoSpecialField(
-      shared, SharedFunctionInfo::kFormalParameterCountOffset, mode);
+  CSA_SLOW_ASSERT(this, HasInstanceType(shared, SHARED_FUNCTION_INFO_TYPE));
+  Node* formal_parameter_count =
+      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
+                      MachineType::Int32());
+  formal_parameter_count = Word32ToParameter(formal_parameter_count, mode);
+
   argument_count.Bind(formal_parameter_count);
   Node* marker_or_function = LoadBufferObject(
       frame_ptr_above, CommonFrameConstants::kContextOrFrameTypeOffset);

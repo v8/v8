@@ -3054,21 +3054,6 @@ void MacroAssembler::PopQuad(const Operand& dst) {
 }
 
 
-void MacroAssembler::LoadSharedFunctionInfoSpecialField(Register dst,
-                                                        Register base,
-                                                        int offset) {
-  DCHECK(offset > SharedFunctionInfo::kLengthOffset &&
-         offset <= SharedFunctionInfo::kSize &&
-         (((offset - SharedFunctionInfo::kLengthOffset) / kIntSize) % 2 == 1));
-  if (kPointerSize == kInt64Size) {
-    movsxlq(dst, FieldOperand(base, offset));
-  } else {
-    movp(dst, FieldOperand(base, offset));
-    SmiToInteger32(dst, dst);
-  }
-}
-
-
 void MacroAssembler::Jump(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -3921,8 +3906,8 @@ void MacroAssembler::InvokeFunction(Register function,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
   movp(rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  LoadSharedFunctionInfoSpecialField(
-      rbx, rbx, SharedFunctionInfo::kFormalParameterCountOffset);
+  movsxlq(rbx,
+          FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount expected(rbx);
   InvokeFunction(function, new_target, expected, actual, flag, call_wrapper);

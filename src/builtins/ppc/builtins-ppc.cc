@@ -827,7 +827,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ cmpi(r3, Operand::Zero());
     __ beq(&done_loop);
 #else
-    __ SmiUntag(r3, SetRC);
     __ beq(&done_loop, cr0);
 #endif
     __ mtctr(r3);
@@ -2275,16 +2274,11 @@ void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
   {
     // Load the length from the ArgumentsAdaptorFrame.
     __ LoadP(r8, MemOperand(r7, ArgumentsAdaptorFrameConstants::kLengthOffset));
-#if V8_TARGET_ARCH_PPC64
     __ SmiUntag(r8);
-#endif
   }
   __ bind(&arguments_done);
 
   Label stack_done, stack_overflow;
-#if !V8_TARGET_ARCH_PPC64
-  __ SmiUntag(r8);
-#endif
   __ sub(r8, r8, r5);
   __ cmpi(r8, Operand::Zero());
   __ ble(&stack_done);
@@ -2401,9 +2395,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
       caller_args_count_reg,
       FieldMemOperand(scratch1,
                       SharedFunctionInfo::kFormalParameterCountOffset));
-#if !V8_TARGET_ARCH_PPC64
-  __ SmiUntag(caller_args_count_reg);
-#endif
 
   __ bind(&formal_parameter_count_loaded);
 
@@ -2512,9 +2503,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ LoadWordArith(
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
-#if !V8_TARGET_ARCH_PPC64
-  __ SmiUntag(r5);
-#endif
   ParameterCount actual(r3);
   ParameterCount expected(r5);
   __ InvokeFunctionCode(r4, no_reg, expected, actual, JUMP_FUNCTION,

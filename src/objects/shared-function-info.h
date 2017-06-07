@@ -471,10 +471,11 @@ class SharedFunctionInfo : public HeapObject {
   static const int kLastPointerFieldOffset = kFunctionLiteralIdOffset;
 #endif
 
+  static const int kLengthOffset = kLastPointerFieldOffset + kPointerSize;
+  static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
+
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
-  static const int kLengthOffset = kLastPointerFieldOffset + kPointerSize;
-  static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
   static const int kNumLiteralsOffset =
@@ -506,9 +507,6 @@ class SharedFunctionInfo : public HeapObject {
 // thus this word cannot be treated as pointer to HeapObject during old space
 // traversal.
 #if V8_TARGET_LITTLE_ENDIAN
-  static const int kLengthOffset = kLastPointerFieldOffset + kPointerSize;
-  static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
-
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
   static const int kNumLiteralsOffset = kExpectedNofPropertiesOffset + kIntSize;
@@ -532,11 +530,7 @@ class SharedFunctionInfo : public HeapObject {
   static const int kSize = kProfilerTicksOffset + kIntSize;
 
 #elif V8_TARGET_BIG_ENDIAN
-  static const int kFormalParameterCountOffset =
-      kLastPointerFieldOffset + kPointerSize;
-  static const int kLengthOffset = kFormalParameterCountOffset + kIntSize;
-
-  static const int kNumLiteralsOffset = kLengthOffset + kIntSize;
+  static const int kNumLiteralsOffset = kFormalParameterCountOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset = kNumLiteralsOffset + kIntSize;
 
   static const int kStartPositionAndTypeOffset =

@@ -563,7 +563,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     Label done_loop, loop;
     __ bind(&loop);
-    __ sub(ecx, Immediate(Smi::FromInt(1)));
+    __ sub(ecx, Immediate(1));
     __ j(carry, &done_loop, Label::kNear);
     __ PushRoot(Heap::kTheHoleValueRootIndex);
     __ jmp(&loop);
@@ -2410,11 +2410,11 @@ void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
   {
     // Just load the length from the ArgumentsAdaptorFrame.
     __ mov(edx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiUntag(edx);
   }
   __ bind(&arguments_done);
 
   Label stack_done;
-  __ SmiUntag(edx);
   __ sub(edx, ecx);
   __ j(less_equal, &stack_done);
   {
@@ -2539,7 +2539,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ mov(
       caller_args_count_reg,
       FieldOperand(scratch1, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ SmiUntag(caller_args_count_reg);
 
   __ bind(&formal_parameter_count_loaded);
 
@@ -2652,7 +2651,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ mov(ebx,
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ SmiUntag(ebx);
   ParameterCount actual(eax);
   ParameterCount expected(ebx);
   __ InvokeFunctionCode(edi, no_reg, expected, actual, JUMP_FUNCTION,
