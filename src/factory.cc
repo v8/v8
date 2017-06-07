@@ -2329,7 +2329,7 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
                         ? isolate()->bound_function_with_constructor_map()
                         : isolate()->bound_function_without_constructor_map();
   if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+    map = Map::TransitionToPrototype(map, prototype);
   }
   DCHECK_EQ(target_function->IsConstructor(), map->is_constructor());
 

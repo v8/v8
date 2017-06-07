@@ -3855,7 +3855,7 @@ void JSObject::ForceSetPrototype(Handle<JSObject> object,
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map());
   Handle<Map> new_map = Map::Copy(old_map, "ForceSetPrototype");
-  Map::SetPrototype(new_map, proto, FAST_PROTOTYPE);
+  Map::SetPrototype(new_map, proto);
   JSObject::MigrateToMap(object, new_map);
 }
 
@@ -4732,7 +4732,7 @@ Handle<Map> Map::GetObjectCreateMap(Handle<HeapObject> prototype) {
   if (prototype->IsJSObject()) {
     Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
     if (!js_prototype->map()->is_prototype_map()) {
-      JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
+      JSObject::OptimizeAsPrototype(js_prototype);
     }
     Handle<PrototypeInfo> info =
         Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
@@ -4741,13 +4741,13 @@ Handle<Map> Map::GetObjectCreateMap(Handle<HeapObject> prototype) {
       map = handle(info->ObjectCreateMap(), isolate);
     } else {
       map = Map::CopyInitialMap(map);
-      Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
+      Map::SetPrototype(map, prototype);
       PrototypeInfo::SetObjectCreateMap(info, map);
     }
     return map;
   }
 
-  return Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+  return Map::TransitionToPrototype(map, prototype);
 }
 
 template <class T>
@@ -12197,16 +12197,15 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
       if (current_map->should_be_fast_prototype_map()) return;
       Handle<Map> map(current_map);
       Map::SetShouldBeFastPrototypeMap(map, true, isolate);
-      JSObject::OptimizeAsPrototype(current_obj, FAST_PROTOTYPE);
+      JSObject::OptimizeAsPrototype(current_obj);
     }
   }
 }
 
 // static
-void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
-                                   PrototypeOptimizationMode mode) {
+void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
   if (object->IsJSGlobalObject()) return;
-  if (mode == FAST_PROTOTYPE && PrototypeBenefitsFromNormalization(object)) {
+  if (PrototypeBenefitsFromNormalization(object)) {
     // First normalize to ensure all JSFunctions are DATA_CONSTANT.
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "NormalizeAsPrototype");
@@ -12246,7 +12245,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
 void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
   if (!object->map()->is_prototype_map()) return;
   if (!object->map()->should_be_fast_prototype_map()) return;
-  OptimizeAsPrototype(object, FAST_PROTOTYPE);
+  OptimizeAsPrototype(object);
 }
 
 
@@ -12453,14 +12452,13 @@ Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSObject> prototype,
 }
 
 // static
-void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
-                       PrototypeOptimizationMode proto_mode) {
+void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype) {
   RuntimeCallTimerScope stats_scope(*map, &RuntimeCallStats::Map_SetPrototype);
 
   bool is_hidden = false;
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
-    JSObject::OptimizeAsPrototype(prototype_jsobj, proto_mode);
+    JSObject::OptimizeAsPrototype(prototype_jsobj);
 
     Object* maybe_constructor = prototype_jsobj->map()->GetConstructor();
     if (maybe_constructor->IsJSFunction()) {
@@ -12556,8 +12554,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     function->set_prototype_or_initial_map(*value);
     if (value->IsJSObject()) {
       // Optimize as prototype to detach it from its transition tree.
-      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value),
-                                    FAST_PROTOTYPE);
+      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
     }
   }
   isolate->heap()->ClearInstanceofCache();
@@ -12630,9 +12627,7 @@ bool JSFunction::RemovePrototype() {
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<Object> prototype) {
-  if (map->prototype() != *prototype) {
-    Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
-  }
+  if (map->prototype() != *prototype) Map::SetPrototype(map, prototype);
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
 #if V8_TRACE_MAPS
@@ -12864,9 +12859,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
   map->set_new_target_is_base(false);
   DCHECK(prototype->IsJSReceiver());
-  if (map->prototype() != *prototype) {
-    Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
-  }
+  if (map->prototype() != *prototype) Map::SetPrototype(map, prototype);
   map->SetConstructor(*constructor);
   return map;
 }
@@ -15173,15 +15166,13 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   UNREACHABLE();
 }
 
-
 Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
-                                       Handle<Object> prototype,
-                                       PrototypeOptimizationMode mode) {
+                                       Handle<Object> prototype) {
   Handle<Map> new_map = TransitionArray::GetPrototypeTransition(map, prototype);
   if (new_map.is_null()) {
     new_map = Copy(map, "TransitionToPrototype");
     TransitionArray::PutPrototypeTransition(map, prototype, new_map);
-    Map::SetPrototype(new_map, prototype, mode);
+    Map::SetPrototype(new_map, prototype);
   }
   return new_map;
 }
@@ -15356,9 +15347,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
   isolate->UpdateArrayProtectorOnSetPrototype(real_receiver);
 
-  PrototypeOptimizationMode mode =
-      from_javascript ? REGULAR_PROTOTYPE : FAST_PROTOTYPE;
-  Handle<Map> new_map = Map::TransitionToPrototype(map, value, mode);
+  Handle<Map> new_map = Map::TransitionToPrototype(map, value);
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 

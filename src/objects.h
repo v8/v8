@@ -227,14 +227,6 @@ enum PropertyNormalizationMode {
 };
 
 
-// Indicates how aggressively the prototype should be optimized. FAST_PROTOTYPE
-// will give the fastest result by tailoring the map to the prototype, but that
-// will cause polymorphism with other objects. REGULAR_PROTOTYPE is to be used
-// (at least for now) when dynamically modifying the prototype chain of an
-// object using __proto__ or Object.setPrototypeOf.
-enum PrototypeOptimizationMode { REGULAR_PROTOTYPE, FAST_PROTOTYPE };
-
-
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
@@ -2283,8 +2275,7 @@ class JSObject: public JSReceiver {
                                             Handle<Object> value,
                                             PropertyAttributes attributes);
 
-  static void OptimizeAsPrototype(Handle<JSObject> object,
-                                  PrototypeOptimizationMode mode);
+  static void OptimizeAsPrototype(Handle<JSObject> object);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
   static void MakePrototypesFast(Handle<Object> receiver,
                                  WhereToStart where_to_start, Isolate* isolate);

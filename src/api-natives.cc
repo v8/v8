@@ -402,7 +402,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, object,
                              JSObject::New(constructor, new_target), JSObject);
 
-  if (is_prototype) JSObject::OptimizeAsPrototype(object, FAST_PROTOTYPE);
+  if (is_prototype) JSObject::OptimizeAsPrototype(object);
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
