@@ -527,7 +527,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(CheckSeqString, 1, 1)              \
   V(CheckSymbol, 1, 1)                 \
   V(CheckTaggedHole, 1, 0)             \
-  V(CheckNotTaggedHole, 1, 0)          \
+  V(CheckNotTaggedHole, 1, 1)          \
   V(CheckedInt32Add, 2, 1)             \
   V(CheckedInt32Sub, 2, 1)             \
   V(CheckedInt32Div, 2, 1)             \

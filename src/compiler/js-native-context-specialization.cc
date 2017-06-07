@@ -2183,8 +2183,8 @@ JSNativeContextSpecialization::BuildElementAccess(
                                    value);
         } else {
           // Bailout if we see the hole.
-          effect = graph()->NewNode(simplified()->CheckNotTaggedHole(), value,
-                                    effect, control);
+          value = effect = graph()->NewNode(simplified()->CheckNotTaggedHole(),
+                                            value, effect, control);
         }
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.
