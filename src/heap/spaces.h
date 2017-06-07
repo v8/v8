@@ -695,7 +695,9 @@ class MarkingState {
   }
 
   Bitmap* bitmap() const { return bitmap_; }
-  intptr_t live_bytes() const { return *live_bytes_; }
+
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  inline intptr_t live_bytes() const;
 
  private:
   Bitmap* bitmap_;
@@ -712,6 +714,16 @@ template <>
 inline void MarkingState::IncrementLiveBytes<MarkBit::ATOMIC>(
     intptr_t by) const {
   reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Increment(by);
+}
+
+template <>
+inline intptr_t MarkingState::live_bytes<MarkBit::NON_ATOMIC>() const {
+  return *live_bytes_;
+}
+
+template <>
+inline intptr_t MarkingState::live_bytes<MarkBit::ATOMIC>() const {
+  return reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Value();
 }
 
 // -----------------------------------------------------------------------------

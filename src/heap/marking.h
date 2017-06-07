@@ -197,10 +197,9 @@ class Bitmap {
       // cell with 1s.
       SetBitsInCell<mode>(start_cell_index, ~(start_index_mask - 1));
       // Then fill all in between cells with 1s.
+      base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
       for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-        // The callers must ensure that the inner cells in the range are not
-        // accessed concurrently.
-        cells()[i] = ~0u;
+        base::Relaxed_Store(cell_base + i, ~0u);
       }
       // Finally, fill all bits until the end address in the last cell with 1s.
       SetBitsInCell<mode>(end_cell_index, (end_index_mask - 1));
@@ -227,10 +226,9 @@ class Bitmap {
       // cell with 0s.
       ClearBitsInCell<mode>(start_cell_index, ~(start_index_mask - 1));
       // Then fill all in between cells with 0s.
+      base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
       for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-        // The callers must ensure that the inner cells in the range are not
-        // accessed concurrently.
-        cells()[i] = 0;
+        base::Relaxed_Store(cell_base + i, 0);
       }
       // Finally, set all bits until the end address in the last cell with 0s.
       ClearBitsInCell<mode>(end_cell_index, (end_index_mask - 1));

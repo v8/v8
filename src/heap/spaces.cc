@@ -1504,9 +1504,11 @@ void PagedSpace::EmptyAllocationInfo() {
 
     // Clear the bits in the unused black area.
     if (current_top != current_limit) {
-      MarkingState::Internal(page).bitmap()->ClearRange(
-          page->AddressToMarkbitIndex(current_top),
-          page->AddressToMarkbitIndex(current_limit));
+      MarkingState::Internal(page)
+          .bitmap()
+          ->ClearRange<IncrementalMarking::kAtomicity>(
+              page->AddressToMarkbitIndex(current_top),
+              page->AddressToMarkbitIndex(current_limit));
       MarkingState::Internal(page)
           .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
               -static_cast<int>(current_limit - current_top));
@@ -1595,7 +1597,8 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
-    CHECK_LE(black_size, MarkingState::Internal(page).live_bytes());
+    CHECK_LE(black_size,
+             MarkingState::Internal(page).live_bytes<MarkBit::ATOMIC>());
   }
   CHECK(allocation_pointer_found_in_space);
 }
