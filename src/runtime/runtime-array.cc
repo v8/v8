@@ -610,9 +610,9 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
       LookupIterator it = LookupIterator::PropertyOrElement(
           isolate, object, index_obj, &success);
       DCHECK(success);
-      if (!JSReceiver::HasProperty(&it).FromJust()) {
-        continue;
-      }
+      Maybe<bool> present = JSReceiver::HasProperty(&it);
+      MAYBE_RETURN(present, isolate->heap()->exception());
+      if (!present.FromJust()) continue;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
                                          Object::GetProperty(&it));
       if (search_element->StrictEquals(*element_k)) {
