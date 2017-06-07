@@ -87,6 +87,8 @@ def DetectGoma():
   home_goma = os.path.expanduser("~/goma")
   if os.path.exists(home_goma):
     return home_goma
+  if os.environ.get("GOMA_DIR"):
+    return os.environ.get("GOMA_DIR")
   if os.environ.get("GOMADIR"):
     return os.environ.get("GOMADIR")
   return None
@@ -102,11 +104,12 @@ is_component_build = false
 is_debug = false
 %s
 use_goma = {GOMA}
+goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
-""".replace("{GOMA}", USE_GOMA)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", GOMADIR)
 
 DEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -114,10 +117,11 @@ is_debug = true
 symbol_level = 2
 %s
 use_goma = {GOMA}
+goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", GOMADIR)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -125,10 +129,11 @@ is_debug = true
 symbol_level = 1
 %s
 use_goma = {GOMA}
+goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", GOMADIR)
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
