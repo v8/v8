@@ -272,9 +272,7 @@ GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
 	   test/cctest/cctest.gyp test/fuzzer/fuzzer.gyp \
 	   test/unittests/unittests.gyp src/v8.gyp \
 	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
-	   buildtools/third_party/libc++abi/libc++abi.gyp \
-	   buildtools/third_party/libc++/libc++.gyp samples/samples.gyp \
-	   src/third_party/vtune/v8vtune.gyp src/d8.gyp
+	   samples/samples.gyp src/third_party/vtune/v8vtune.gyp src/d8.gyp
 
 # If vtunejit=on, the v8vtune.gyp will be appended.
 ifeq ($(vtunejit), on)
