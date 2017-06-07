@@ -119,26 +119,6 @@ function GetHash(key) {
 // -------------------------------------------------------------------
 // Harmony Set
 
-function SetConstructor(iterable) {
-  if (IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kConstructorNotFunction, "Set");
-  }
-
-  %_SetInitialize(this);
-
-  if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    var adder = this.add;
-    if (!IS_CALLABLE(adder)) {
-      throw %make_type_error(kPropertyNotFunction, adder, 'add', this);
-    }
-
-    for (var value of iterable) {
-      %_Call(adder, this, value);
-    }
-  }
-}
-
-
 function SetAdd(key) {
   if (!IS_SET(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver, 'Set.prototype.add', this);
@@ -239,12 +219,6 @@ function SetForEach(f, receiver) {
 }
 
 // -------------------------------------------------------------------
-
-%SetCode(GlobalSet, SetConstructor);
-%FunctionSetLength(GlobalSet, 0);
-%AddNamedProperty(GlobalSet.prototype, "constructor", GlobalSet, DONT_ENUM);
-%AddNamedProperty(GlobalSet.prototype, toStringTagSymbol, "Set",
-                  DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(SetForEach, 1);
 

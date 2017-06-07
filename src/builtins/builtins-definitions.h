@@ -849,6 +849,7 @@ namespace internal {
   TFJ(RegExpPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
                                                                                \
   /* Set */                                                                    \
+  TFJ(SetConstructor, 1, kIterable)                                            \
   TFJ(SetHas, 1, kKey)                                                         \
                                                                                \
   /* SharedArrayBuffer */                                                      \
@@ -1062,6 +1063,8 @@ namespace internal {
   CPP(StringPrototypeNormalize)
 #endif  // V8_INTL_SUPPORT
 
+// The exception thrown in the following builtins are caught
+// internally and result in a promise rejection.
 #define BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(V) \
   V(AsyncFromSyncIteratorPrototypeNext)              \
   V(AsyncFromSyncIteratorPrototypeReturn)            \
@@ -1080,10 +1083,15 @@ namespace internal {
   V(ResolveNativePromise)                            \
   V(ResolvePromise)
 
+// The exception thrown in the following builtins are caught
+// internally and should not trigger the catch prediction heuristic.
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
 
+// The exception thrown in the following builtins are not caught
+// internally and should trigger the catch prediction heuristic.
 #define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) \
   V(MapConstructor)                                   \
+  V(SetConstructor)                                   \
   V(GeneratorPrototypeNext)                           \
   V(GeneratorPrototypeReturn)                         \
   V(GeneratorPrototypeThrow)

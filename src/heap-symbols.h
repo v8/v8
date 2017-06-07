@@ -8,6 +8,7 @@
 #define INTERNALIZED_STRING_LIST(V)                                \
   V(anonymous_function_string, "(anonymous function)")             \
   V(anonymous_string, "anonymous")                                 \
+  V(add_string, "add")                                             \
   V(apply_string, "apply")                                         \
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \

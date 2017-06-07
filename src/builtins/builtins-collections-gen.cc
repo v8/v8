@@ -18,13 +18,15 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  Node* AllocateJSMap(Node* js_map_function);
+  Node* AllocateJSCollection(Node* js_map_function);
   Node* CallGetRaw(Node* const table, Node* const key);
   template <typename CollectionType, int entrysize>
   Node* CallHasRaw(Node* const table, Node* const key);
 };
 
-Node* CollectionsBuiltinsAssembler::AllocateJSMap(Node* js_map_function) {
+Node* CollectionsBuiltinsAssembler::AllocateJSCollection(
+    Node* js_map_function) {
+  CSA_ASSERT(this, IsConstructorMap(LoadMap(js_map_function)));
   Node* const initial_map = LoadObjectField(
       js_map_function, JSFunction::kPrototypeOrInitialMapOffset);
   Node* const instance = AllocateJSObjectFromMap(initial_map);
@@ -57,7 +59,7 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
 
   BIND(&if_targetisnotmodified);
   {
-    Node* const instance = AllocateJSMap(js_map_fun);
+    Node* const instance = AllocateJSCollection(js_map_fun);
     var_result.Bind(instance);
     Goto(&init);
   }
@@ -137,7 +139,7 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   BIND(&if_notcallable);
   {
     Node* const message_id = SmiConstant(MessageTemplate::kPropertyNotFunction);
-    Node* const receiver_str = HeapConstant(isolate()->factory()->set_string());
+    Node* const receiver_str = HeapConstant(isolate()->factory()->add_string());
     CallRuntime(Runtime::kThrowTypeError, context, message_id, adder,
                 receiver_str, var_result.value());
     Unreachable();
@@ -147,7 +149,111 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   {
     Node* const message_id =
         SmiConstant(MessageTemplate::kConstructorNotFunction);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, new_target);
+    CallRuntime(Runtime::kThrowTypeError, context, message_id,
+                HeapConstant(isolate()->factory()->Map_string()));
+    Unreachable();
+  }
+
+  BIND(&exit);
+  Return(var_result.value());
+}
+
+TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
+  // TODO(gsathya): Don't use arguments adaptor
+  Node* const iterable = Parameter(Descriptor::kIterable);
+  Node* const new_target = Parameter(Descriptor::kNewTarget);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Label if_target_is_undefined(this, Label::kDeferred);
+  GotoIf(IsUndefined(new_target), &if_target_is_undefined);
+
+  Node* const native_context = LoadNativeContext(context);
+  Node* const js_set_fun =
+      LoadContextElement(native_context, Context::JS_SET_FUN_INDEX);
+
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+
+  Label init(this), exit(this), if_targetisnotmodified(this),
+      if_targetismodified(this);
+  Branch(WordEqual(js_set_fun, new_target), &if_targetisnotmodified,
+         &if_targetismodified);
+
+  BIND(&if_targetisnotmodified);
+  {
+    Node* const instance = AllocateJSCollection(js_set_fun);
+    var_result.Bind(instance);
+    Goto(&init);
+  }
+
+  BIND(&if_targetismodified);
+  {
+    ConstructorBuiltinsAssembler constructor_assembler(this->state());
+    Node* const instance = constructor_assembler.EmitFastNewObject(
+        context, js_set_fun, new_target);
+    var_result.Bind(instance);
+    Goto(&init);
+  }
+
+  BIND(&init);
+  // TODO(gsathya): Remove runtime call once OrderedHashTable is ported.
+  CallRuntime(Runtime::kSetInitialize, context, var_result.value());
+
+  GotoIf(Word32Or(IsUndefined(iterable), IsNull(iterable)), &exit);
+
+  Label if_notcallable(this);
+  // TODO(gsathya): Add fast path for unmodified maps.
+  Node* const adder = GetProperty(context, var_result.value(),
+                                  isolate()->factory()->add_string());
+  GotoIf(TaggedIsSmi(adder), &if_notcallable);
+  GotoIfNot(IsCallable(adder), &if_notcallable);
+
+  IteratorBuiltinsAssembler iterator_assembler(this->state());
+  Node* const iterator = iterator_assembler.GetIterator(context, iterable);
+  GotoIf(IsUndefined(iterator), &exit);
+
+  Node* const fast_iterator_result_map =
+      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+
+  VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
+
+  Label loop(this), if_notobject(this), if_exception(this);
+  Goto(&loop);
+
+  BIND(&loop);
+  {
+    Node* const next = iterator_assembler.IteratorStep(
+        context, iterator, &exit, fast_iterator_result_map);
+
+    Node* const next_value = iterator_assembler.IteratorValue(
+        context, next, fast_iterator_result_map);
+
+    Node* add_call = CallJS(CodeFactory::Call(isolate()), context, adder,
+                            var_result.value(), next_value);
+
+    GotoIfException(add_call, &if_exception, &var_exception);
+    Goto(&loop);
+  }
+
+  BIND(&if_exception);
+  {
+    iterator_assembler.IteratorClose(context, iterator, var_exception.value());
+  }
+
+  BIND(&if_notcallable);
+  {
+    Node* const message_id = SmiConstant(MessageTemplate::kPropertyNotFunction);
+    Node* const receiver_str = HeapConstant(isolate()->factory()->add_string());
+    CallRuntime(Runtime::kThrowTypeError, context, message_id, adder,
+                receiver_str, var_result.value());
+    Unreachable();
+  }
+
+  BIND(&if_target_is_undefined);
+  {
+    Node* const message_id =
+        SmiConstant(MessageTemplate::kConstructorNotFunction);
+    CallRuntime(Runtime::kThrowTypeError, context, message_id,
+                HeapConstant(isolate()->factory()->Set_string()));
     Unreachable();
   }
 

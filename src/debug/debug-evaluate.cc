@@ -314,6 +314,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(GenericHash)                     \
   V(MapIteratorInitialize)           \
   V(MapInitialize)                   \
+  V(SetInitialize)                   \
   /* Called from builtins */         \
   V(StringParseFloat)                \
   V(StringParseInt)                  \
@@ -583,6 +584,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kNumberPrototypeToPrecision:
     case Builtins::kNumberPrototypeToString:
     case Builtins::kNumberPrototypeValueOf:
+    // Set builtins.
+    case Builtins::kSetConstructor:
     // String builtins. Strings are immutable.
     case Builtins::kStringFromCharCode:
     case Builtins::kStringFromCodePoint:
