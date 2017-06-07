@@ -4061,6 +4061,23 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_length(*array_length);
       return object;
     }
+    case JS_BOUND_FUNCTION_TYPE: {
+      Handle<JSBoundFunction> object = Handle<JSBoundFunction>::cast(
+          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+      slot->value_ = object;
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> bound_target_function = materializer.FieldAt(value_index);
+      Handle<Object> bound_this = materializer.FieldAt(value_index);
+      Handle<Object> bound_arguments = materializer.FieldAt(value_index);
+      object->set_properties(FixedArray::cast(*properties));
+      object->set_elements(FixedArrayBase::cast(*elements));
+      object->set_bound_target_function(
+          JSReceiver::cast(*bound_target_function));
+      object->set_bound_this(*bound_this);
+      object->set_bound_arguments(FixedArray::cast(*bound_arguments));
+      return object;
+    }
     case CONS_STRING_TYPE: {
       Handle<ConsString> object = Handle<ConsString>::cast(
           isolate_->factory()
@@ -4178,7 +4195,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
-    case JS_BOUND_FUNCTION_TYPE:
     case JS_PROXY_TYPE:
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
