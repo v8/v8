@@ -1196,6 +1196,13 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Error loading file");
     return;
   }
+  if (args.Length() == 2) {
+    String::Utf8Value format(args[1]);
+    if (*format && std::strcmp(*format, "binary") == 0) {
+      ReadBuffer(args);
+      return;
+    }
+  }
   Local<String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
     Throw(args.GetIsolate(), "Error loading file");
