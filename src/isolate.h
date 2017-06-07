@@ -1048,7 +1048,6 @@ class Isolate {
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
-  inline bool IsHoleCheckProtectorIntact();
 
   // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
   inline bool IsFastArrayIterationIntact();
@@ -1075,7 +1074,6 @@ class Isolate {
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
-  void InvalidateHoleCheckProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

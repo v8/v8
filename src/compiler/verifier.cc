@@ -1226,9 +1226,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
       break;
-    case IrOpcode::kCheckTaggedHole:
-      CheckValueInputIs(node, 0, Type::Any());
-      break;
     case IrOpcode::kCheckNotTaggedHole:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::NonInternal());

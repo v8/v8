@@ -48,10 +48,6 @@ RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
 RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  // Invalidate the hole check protector.
-  if (isolate->IsHoleCheckProtectorIntact()) {
-    isolate->InvalidateHoleCheckProtector();
-  }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kSuperAlreadyCalled));
 }
@@ -59,10 +55,6 @@ RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
 RUNTIME_FUNCTION(Runtime_ThrowSuperNotCalled) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  // Invalidate the hole check protector.
-  if (isolate->IsHoleCheckProtectorIntact()) {
-    isolate->InvalidateHoleCheckProtector();
-  }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kSuperNotCalled));
 }

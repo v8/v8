@@ -2783,10 +2783,6 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kCheckTaggedHole: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        return;
-      }
       case IrOpcode::kCheckNotTaggedHole: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         return;

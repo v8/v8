@@ -303,18 +303,6 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
       isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, type));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowReferenceErrorOnHole) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  // Invalidate the protector.
-  if (isolate->IsHoleCheckProtectorIntact()) {
-    isolate->InvalidateHoleCheckProtector();
-  }
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
-}
-
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

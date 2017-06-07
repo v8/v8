@@ -224,8 +224,7 @@
   V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)     \
-  V(CheckTaggedHole)
+  V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \

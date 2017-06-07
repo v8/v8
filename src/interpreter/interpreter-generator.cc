@@ -3147,7 +3147,7 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
   BIND(&throw_error);
   {
     Node* name = LoadConstantPoolEntry(BytecodeOperandIdx(0));
-    CallRuntime(Runtime::kThrowReferenceErrorOnHole, GetContext(), name);
+    CallRuntime(Runtime::kThrowReferenceError, GetContext(), name);
     // We shouldn't ever return from a throw.
     Abort(kUnexpectedReturnFromThrow);
   }

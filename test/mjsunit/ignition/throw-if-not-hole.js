@@ -23,12 +23,4 @@ test = new B(0);
 assertOptimized(B);
 // Check that hole checks are handled correctly in optimized code.
 assertThrowsEquals(() => {new B(1)}, ReferenceError());
-// First time it should Deopt.
-assertUnoptimized(B);
-assertTrue(%GetDeoptCount(B) > 0);
-%OptimizeFunctionOnNextCall(B);
-test = new B(0);
-assertThrowsEquals(() => {new B(1)}, ReferenceError());
-// Second time it should generate normal control flow, to avoid
-// deopt loop.
 assertOptimized(B);
