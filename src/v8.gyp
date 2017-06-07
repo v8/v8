@@ -1475,6 +1475,8 @@
         'wasm/leb-helper.h',
         'wasm/local-decl-encoder.cc',
         'wasm/local-decl-encoder.h',
+        'wasm/module-compiler.cc',
+        'wasm/module-compiler.h',
         'wasm/module-decoder.cc',
         'wasm/module-decoder.h',
         'wasm/signature-map.cc',

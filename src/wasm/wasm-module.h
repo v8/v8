@@ -441,9 +441,19 @@ void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
                                    Handle<JSArrayBuffer> buffer,
                                    bool free_memory);
 
+// The returned pointer is owned by the wasm instance target belongs to. The
+// result is alive as long as the instance exists.
+WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
+                                              Handle<Object> target);
+
+Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper);
+
 void TableSet(ErrorThrower* thrower, Isolate* isolate,
               Handle<WasmTableObject> table, int32_t index,
               Handle<JSFunction> function);
+
+void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
+                          int index, WasmFunction* function, Handle<Code> code);
 
 //============================================================================
 //== Compilation and instantiation ===========================================
