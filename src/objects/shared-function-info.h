@@ -471,90 +471,26 @@ class SharedFunctionInfo : public HeapObject {
   static const int kLastPointerFieldOffset = kFunctionLiteralIdOffset;
 #endif
 
+  // Raw data fields.
   static const int kLengthOffset = kLastPointerFieldOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
-
-#if V8_HOST_ARCH_32_BIT
-  // Smi fields.
-  static const int kExpectedNofPropertiesOffset =
-      kFormalParameterCountOffset + kPointerSize;
-  static const int kNumLiteralsOffset =
-      kExpectedNofPropertiesOffset + kPointerSize;
-  static const int kStartPositionAndTypeOffset =
-      kNumLiteralsOffset + kPointerSize;
-  static const int kEndPositionOffset =
-      kStartPositionAndTypeOffset + kPointerSize;
-  static const int kFunctionTokenPositionOffset =
-      kEndPositionOffset + kPointerSize;
-  static const int kCompilerHintsOffset =
-      kFunctionTokenPositionOffset + kPointerSize;
-  static const int kOptCountAndBailoutReasonOffset =
-      kCompilerHintsOffset + kPointerSize;
-  static const int kCountersOffset =
-      kOptCountAndBailoutReasonOffset + kPointerSize;
-  static const int kAstNodeCountOffset = kCountersOffset + kPointerSize;
-  static const int kProfilerTicksOffset = kAstNodeCountOffset + kPointerSize;
-
-  // Total size.
-  static const int kSize = kProfilerTicksOffset + kPointerSize;
-#else
-// The only reason to use smi fields instead of int fields is to allow
-// iteration without maps decoding during garbage collections.
-// To avoid wasting space on 64-bit architectures we use the following trick:
-// we group integer fields into pairs
-// The least significant integer in each pair is shifted left by 1.  By doing
-// this we guarantee that LSB of each kPointerSize aligned word is not set and
-// thus this word cannot be treated as pointer to HeapObject during old space
-// traversal.
-#if V8_TARGET_LITTLE_ENDIAN
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
+  // TODO(ishell): Drop this unused field.
   static const int kNumLiteralsOffset = kExpectedNofPropertiesOffset + kIntSize;
-
-  static const int kEndPositionOffset = kNumLiteralsOffset + kIntSize;
-  static const int kStartPositionAndTypeOffset = kEndPositionOffset + kIntSize;
-
-  static const int kFunctionTokenPositionOffset =
-      kStartPositionAndTypeOffset + kIntSize;
+  static const int kStartPositionAndTypeOffset = kNumLiteralsOffset + kIntSize;
+  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
+  static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
-
   static const int kOptCountAndBailoutReasonOffset =
       kCompilerHintsOffset + kIntSize;
   static const int kCountersOffset = kOptCountAndBailoutReasonOffset + kIntSize;
-
   static const int kAstNodeCountOffset = kCountersOffset + kIntSize;
   static const int kProfilerTicksOffset = kAstNodeCountOffset + kIntSize;
 
   // Total size.
   static const int kSize = kProfilerTicksOffset + kIntSize;
-
-#elif V8_TARGET_BIG_ENDIAN
-  static const int kNumLiteralsOffset = kFormalParameterCountOffset + kIntSize;
-  static const int kExpectedNofPropertiesOffset = kNumLiteralsOffset + kIntSize;
-
-  static const int kStartPositionAndTypeOffset =
-      kExpectedNofPropertiesOffset + kIntSize;
-  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
-
-  static const int kCompilerHintsOffset = kEndPositionOffset + kIntSize;
-  static const int kFunctionTokenPositionOffset =
-      kCompilerHintsOffset + kIntSize;
-
-  static const int kCountersOffset = kFunctionTokenPositionOffset + kIntSize;
-  static const int kOptCountAndBailoutReasonOffset = kCountersOffset + kIntSize;
-
-  static const int kProfilerTicksOffset =
-      kOptCountAndBailoutReasonOffset + kIntSize;
-  static const int kAstNodeCountOffset = kProfilerTicksOffset + kIntSize;
-
-  // Total size.
-  static const int kSize = kAstNodeCountOffset + kIntSize;
-
-#else
-#error Unknown byte ordering
-#endif  // Big endian
-#endif  // 64-bit
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
@@ -573,6 +509,7 @@ class SharedFunctionInfo : public HeapObject {
   static const int kStartPositionShift = 2;
   static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
 
+  // TODO(ishell): turn this into a set of BitFields.
   // Bit positions in compiler_hints.
   enum CompilerHints {
     // byte 0
@@ -631,36 +568,22 @@ class SharedFunctionInfo : public HeapObject {
 
   inline int length() const;
 
-#if V8_HOST_ARCH_32_BIT
-  // On 32 bit platforms, compiler hints is a smi.
-  static const int kCompilerHintsSmiTagSize = kSmiTagSize;
-  static const int kCompilerHintsSize = kPointerSize;
-#else
-  // On 64 bit platforms, compiler hints is not a smi, see comment above.
-  static const int kCompilerHintsSmiTagSize = 0;
   static const int kCompilerHintsSize = kIntSize;
-#endif
 
-  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount +
-                    SharedFunctionInfo::kCompilerHintsSmiTagSize <=
+  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount <=
                 SharedFunctionInfo::kCompilerHintsSize * kBitsPerByte);
 
  public:
   // Constants for optimizing codegen for strict mode function and
   // native tests when using integer-width instructions.
-  static const int kStrictModeBit =
-      kStrictModeFunction + kCompilerHintsSmiTagSize;
-  static const int kNativeBit = kNative + kCompilerHintsSmiTagSize;
-  static const int kHasDuplicateParametersBit =
-      kHasDuplicateParameters + kCompilerHintsSmiTagSize;
+  static const int kStrictModeBit = kStrictModeFunction;
+  static const int kNativeBit = kNative;
+  static const int kHasDuplicateParametersBit = kHasDuplicateParameters;
 
-  static const int kFunctionKindShift =
-      kFunctionKind + kCompilerHintsSmiTagSize;
-  static const int kAllFunctionKindBitsMask = FunctionKindBits::kMask
-                                              << kCompilerHintsSmiTagSize;
+  static const int kFunctionKindShift = kFunctionKind;
+  static const int kAllFunctionKindBitsMask = FunctionKindBits::kMask;
 
-  static const int kMarkedForTierUpBit =
-      kMarkedForTierUp + kCompilerHintsSmiTagSize;
+  static const int kMarkedForTierUpBit = kMarkedForTierUp;
 
   // Constants for optimizing codegen for strict mode function and
   // native tests.
@@ -671,11 +594,11 @@ class SharedFunctionInfo : public HeapObject {
       kHasDuplicateParametersBit % kBitsPerByte;
 
   static const int kClassConstructorBitsWithinByte =
-      FunctionKind::kClassConstructor << kCompilerHintsSmiTagSize;
+      FunctionKind::kClassConstructor;
   STATIC_ASSERT(kClassConstructorBitsWithinByte < (1 << kBitsPerByte));
 
   static const int kDerivedConstructorBitsWithinByte =
-      FunctionKind::kDerivedConstructor << kCompilerHintsSmiTagSize;
+      FunctionKind::kDerivedConstructor;
   STATIC_ASSERT(kDerivedConstructorBitsWithinByte < (1 << kBitsPerByte));
 
   static const int kMarkedForTierUpBitWithinByte =
@@ -683,12 +606,11 @@ class SharedFunctionInfo : public HeapObject {
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 #define BYTE_OFFSET(compiler_hint) \
-  kCompilerHintsOffset +           \
-      (compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte
+  kCompilerHintsOffset + (compiler_hint) / kBitsPerByte
 #elif defined(V8_TARGET_BIG_ENDIAN)
 #define BYTE_OFFSET(compiler_hint)                  \
   kCompilerHintsOffset + (kCompilerHintsSize - 1) - \
-      ((compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte)
+      ((compiler_hint) / kBitsPerByte)
 #else
 #error Unknown byte ordering
 #endif

@@ -42,70 +42,19 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
-#if V8_HOST_ARCH_32_BIT
-SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
+INT_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
-SMI_ACCESSORS(SharedFunctionInfo, start_position_and_type,
+INT_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
+INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
               kStartPositionAndTypeOffset)
-SMI_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
-SMI_ACCESSORS(SharedFunctionInfo, function_token_position,
+INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
-SMI_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
+INT_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
+INT_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
               kOptCountAndBailoutReasonOffset)
-SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
-
-#else
-
-#if V8_TARGET_LITTLE_ENDIAN
-#define PSEUDO_SMI_LO_ALIGN 0
-#define PSEUDO_SMI_HI_ALIGN kIntSize
-#else
-#define PSEUDO_SMI_LO_ALIGN kIntSize
-#define PSEUDO_SMI_HI_ALIGN 0
-#endif
-
-#define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)                          \
-  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_LO_ALIGN);         \
-  int holder::name() const {                                                   \
-    int value = READ_INT_FIELD(this, offset);                                  \
-    DCHECK(kHeapObjectTag == 1);                                               \
-    DCHECK((value & kHeapObjectTag) == 0);                                     \
-    return value >> 1;                                                         \
-  }                                                                            \
-  void holder::set_##name(int value) {                                         \
-    DCHECK(kHeapObjectTag == 1);                                               \
-    DCHECK((value & 0xC0000000) == 0xC0000000 || (value & 0xC0000000) == 0x0); \
-    WRITE_INT_FIELD(this, offset, (value << 1) & ~kHeapObjectTag);             \
-  }
-
-#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)                  \
-  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_HI_ALIGN); \
-  INT_ACCESSORS(holder, name, offset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, expected_nof_properties,
-                        kExpectedNofPropertiesOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, end_position, kEndPositionOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, start_position_and_type,
-                        kStartPositionAndTypeOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, function_token_position,
-                        kFunctionTokenPositionOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, compiler_hints,
-                        kCompilerHintsOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, opt_count_and_bailout_reason,
-                        kOptCountAndBailoutReasonOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, counters, kCountersOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, profiler_ticks,
-                        kProfilerTicksOffset)
-
-#endif
+INT_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
+INT_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
+INT_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 bool SharedFunctionInfo::has_shared_name() const {
   return raw_name() != kNoSharedNameSentinel;
@@ -147,14 +96,8 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
                kMustUseIgnitionTurbo)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                kIsAsmWasmBroken)
-
-BOOL_GETTER(SharedFunctionInfo, compiler_hints, optimization_disabled,
-            kOptimizationDisabled)
-
-void SharedFunctionInfo::set_optimization_disabled(bool disable) {
-  set_compiler_hints(
-      BooleanBit::set(compiler_hints(), kOptimizationDisabled, disable));
-}
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, optimization_disabled,
+               kOptimizationDisabled)
 
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 2);

@@ -2907,9 +2907,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
            FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
 
     // Do not transform the receiver to object for builtins.
-    int32_t strict_mode_function_mask =
-        1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
-    int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
+    int32_t strict_mode_function_mask = 1
+                                        << (SharedFunctionInfo::kStrictModeBit);
+    int32_t native_mask = 1 << (SharedFunctionInfo::kNativeBit);
     __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
     __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
   }

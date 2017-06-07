@@ -2979,12 +2979,12 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
            FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ ldr(scratch,
            FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    int mask = 1 << (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
+    int mask = 1 << (SharedFunctionInfo::kStrictModeBit);
     __ tst(scratch, Operand(mask));
     __ b(ne, &result_in_receiver);
 
     // Do not transform the receiver to object for builtins.
-    __ tst(scratch, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
+    __ tst(scratch, Operand(1 << (SharedFunctionInfo::kNativeBit)));
     __ b(ne, &result_in_receiver);
   }
 
