@@ -243,7 +243,8 @@ InspectorTest.Session = class {
     return this.logSourceLocation(locations[0]).then(() => this.logSourceLocations(locations.splice(1)));
   }
 
-  async logBreakLocations(locations) {
+  async logBreakLocations(inputLocations) {
+    let locations = inputLocations.slice();
     let scriptId = locations[0].scriptId;
     let script = this._scriptMap.get(scriptId);
     if (!script.scriptSource) {
@@ -262,7 +263,7 @@ InspectorTest.Session = class {
     }
     lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
     InspectorTest.log(lines.join('\n') + '\n');
-    return locations;
+    return inputLocations;
 
     function locationMark(type) {
       if (type === 'return') return '|R|';
