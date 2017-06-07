@@ -864,7 +864,7 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString(context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   Label if_isfastpath(this), if_isslowpath(this);
   Branch(IsFastRegExpNoPrototype(context, receiver), &if_isfastpath,
@@ -1050,13 +1050,13 @@ Node* RegExpBuiltinsAssembler::RegExpInitialize(Node* const context,
   // Normalize pattern.
   Node* const pattern =
       Select(IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
-             [=] { return ToString(context, maybe_pattern); },
+             [=] { return ToString_Inline(context, maybe_pattern); },
              MachineRepresentation::kTagged);
 
   // Normalize flags.
   Node* const flags =
       Select(IsUndefined(maybe_flags), [=] { return EmptyStringConstant(); },
-             [=] { return ToString(context, maybe_flags); },
+             [=] { return ToString_Inline(context, maybe_flags); },
              MachineRepresentation::kTagged);
 
   // Initialize.
@@ -1578,7 +1578,7 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString(context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
@@ -1910,7 +1910,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
           {
             // TODO(ishell): Use GetElement stub once it's available.
             Node* const match = GetProperty(context, result, smi_zero);
-            var_match.Bind(ToString(context, match));
+            var_match.Bind(ToString_Inline(context, match));
             Goto(&if_didmatch);
           }
         }
@@ -1984,7 +1984,7 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString(context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
@@ -2111,7 +2111,7 @@ TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString(context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
@@ -2457,7 +2457,7 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString(context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   Label stub(this), runtime(this, Label::kDeferred);
   BranchIfFastRegExp(context, receiver, &stub, &runtime);
@@ -2600,14 +2600,14 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
       BIND(&if_isstring);
       {
-        CSA_ASSERT(this, IsStringInstanceType(LoadInstanceType(elem)));
+        CSA_ASSERT(this, IsString(elem));
 
         Callable call_callable = CodeFactory::Call(isolate);
         Node* const replacement_obj =
             CallJS(call_callable, context, replace_callable, undefined, elem,
                    var_match_start.value(), string);
 
-        Node* const replacement_str = ToString(context, replacement_obj);
+        Node* const replacement_str = ToString_Inline(context, replacement_obj);
         StoreFixedArrayElement(res_elems, i, replacement_str);
 
         Node* const elem_length = LoadStringLength(elem);
@@ -2660,7 +2660,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
                     // we got back from the callback function.
 
                     Node* const replacement_str =
-                        ToString(context, replacement_obj);
+                        ToString_Inline(context, replacement_obj);
                     StoreFixedArrayElement(res_elems, index, replacement_str);
 
                     Goto(&do_continue);
