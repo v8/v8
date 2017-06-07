@@ -1919,13 +1919,14 @@ void Simulator::LoadStoreHelper(Instruction* instr,
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
   uintptr_t stack = 0;
 
-  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
-  if (instr->IsLoad()) {
-    local_monitor_.NotifyLoad(address);
-  } else {
-    local_monitor_.NotifyStore(address);
-    global_monitor_.Pointer()->NotifyStore_Locked(address,
-                                                  &global_monitor_processor_);
+  {
+    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    if (instr->IsLoad()) {
+      local_monitor_.NotifyLoad();
+    } else {
+      local_monitor_.NotifyStore();
+      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+    }
   }
 
   // Handle the writeback for stores before the store. On a CPU the writeback
@@ -2052,17 +2053,14 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   uintptr_t address2 = address + access_size;
   uintptr_t stack = 0;
 
-  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
-  if (instr->IsLoad()) {
-    local_monitor_.NotifyLoad(address);
-    local_monitor_.NotifyLoad(address2);
-  } else {
-    local_monitor_.NotifyStore(address);
-    local_monitor_.NotifyStore(address2);
-    global_monitor_.Pointer()->NotifyStore_Locked(address,
-                                                  &global_monitor_processor_);
-    global_monitor_.Pointer()->NotifyStore_Locked(address2,
-                                                  &global_monitor_processor_);
+  {
+    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    if (instr->IsLoad()) {
+      local_monitor_.NotifyLoad();
+    } else {
+      local_monitor_.NotifyStore();
+      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+    }
   }
 
   // Handle the writeback for stores before the store. On a CPU the writeback
@@ -2206,8 +2204,10 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
   uintptr_t address = instr->LiteralAddress();
   unsigned rt = instr->Rt();
 
-  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
-  local_monitor_.NotifyLoad(address);
+  {
+    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    local_monitor_.NotifyLoad();
+  }
 
   switch (instr->Mask(LoadLiteralMask)) {
     // Use _no_log variants to suppress the register trace (LOG_REGS,
@@ -2301,7 +2301,7 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
       global_monitor_.Pointer()->NotifyLoadExcl_Locked(
           address, &global_monitor_processor_);
     } else {
-      local_monitor_.NotifyLoad(address);
+      local_monitor_.NotifyLoad();
     }
     switch (op) {
       case LDAR_b:
@@ -2346,9 +2346,8 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
         set_wreg(rs, 1);
       }
     } else {
-      local_monitor_.NotifyStore(address);
-      global_monitor_.Pointer()->NotifyStore_Locked(address,
-                                                    &global_monitor_processor_);
+      local_monitor_.NotifyStore();
+      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
       switch (op) {
         case STLR_b:
           MemoryWrite<uint8_t>(address, wreg(rt));
@@ -4650,6 +4649,16 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
       UNIMPLEMENTED();
   }
 
+  {
+    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    if (log_read) {
+      local_monitor_.NotifyLoad();
+    } else {
+      local_monitor_.NotifyStore();
+      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+    }
+  }
+
   // Explicitly log the register update whilst we have type information.
   for (int i = 0; i < count; i++) {
     // For de-interleaving loads, only print the base address.
@@ -4881,6 +4890,16 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
       break;
     default:
       UNIMPLEMENTED();
+  }
+
+  {
+    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    if (do_load) {
+      local_monitor_.NotifyLoad();
+    } else {
+      local_monitor_.NotifyStore();
+      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+    }
   }
 
   if (addr_mode == PostIndex) {
@@ -5856,7 +5875,7 @@ void Simulator::LocalMonitor::Clear() {
   size_ = TransactionSize::None;
 }
 
-void Simulator::LocalMonitor::NotifyLoad(uintptr_t addr) {
+void Simulator::LocalMonitor::NotifyLoad() {
   if (access_state_ == MonitorAccess::Exclusive) {
     // A non exclusive load could clear the local monitor. As a result, it's
     // most strict to unconditionally clear the local monitor on load.
@@ -5871,7 +5890,7 @@ void Simulator::LocalMonitor::NotifyLoadExcl(uintptr_t addr,
   size_ = size;
 }
 
-void Simulator::LocalMonitor::NotifyStore(uintptr_t addr) {
+void Simulator::LocalMonitor::NotifyStore() {
   if (access_state_ == MonitorAccess::Exclusive) {
     // A non exclusive store could clear the local monitor. As a result, it's
     // most strict to unconditionally clear the local monitor on store.
@@ -5919,7 +5938,7 @@ void Simulator::GlobalMonitor::Processor::NotifyLoadExcl_Locked(
 }
 
 void Simulator::GlobalMonitor::Processor::NotifyStore_Locked(
-    uintptr_t addr, bool is_requesting_processor) {
+    bool is_requesting_processor) {
   if (access_state_ == MonitorAccess::Exclusive) {
     // A non exclusive store could clear the global monitor. As a result, it's
     // most strict to unconditionally clear global monitors on store.
@@ -5965,12 +5984,11 @@ void Simulator::GlobalMonitor::NotifyLoadExcl_Locked(uintptr_t addr,
   PrependProcessor_Locked(processor);
 }
 
-void Simulator::GlobalMonitor::NotifyStore_Locked(uintptr_t addr,
-                                                  Processor* processor) {
+void Simulator::GlobalMonitor::NotifyStore_Locked(Processor* processor) {
   // Notify each processor of the store operation.
   for (Processor* iter = head_; iter; iter = iter->next_) {
     bool is_requesting_processor = iter == processor;
-    iter->NotifyStore_Locked(addr, is_requesting_processor);
+    iter->NotifyStore_Locked(is_requesting_processor);
   }
 }
 

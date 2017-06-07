@@ -2280,9 +2280,9 @@ class Simulator : public DecoderVisitor {
     // not actually perform loads and stores. NotifyStoreExcl only returns
     // true if the exclusive store is allowed; the global monitor will still
     // have to be checked to see whether the memory should be updated.
-    void NotifyLoad(uintptr_t addr);
+    void NotifyLoad();
     void NotifyLoadExcl(uintptr_t addr, TransactionSize size);
-    void NotifyStore(uintptr_t addr);
+    void NotifyStore();
     bool NotifyStoreExcl(uintptr_t addr, TransactionSize size);
 
    private:
@@ -2307,7 +2307,7 @@ class Simulator : public DecoderVisitor {
       // not actually perform loads and stores.
       void Clear_Locked();
       void NotifyLoadExcl_Locked(uintptr_t addr);
-      void NotifyStore_Locked(uintptr_t addr, bool is_requesting_processor);
+      void NotifyStore_Locked(bool is_requesting_processor);
       bool NotifyStoreExcl_Locked(uintptr_t addr, bool is_requesting_processor);
 
       MonitorAccess access_state_;
@@ -2326,7 +2326,7 @@ class Simulator : public DecoderVisitor {
     base::Mutex mutex;
 
     void NotifyLoadExcl_Locked(uintptr_t addr, Processor* processor);
-    void NotifyStore_Locked(uintptr_t addr, Processor* processor);
+    void NotifyStore_Locked(Processor* processor);
     bool NotifyStoreExcl_Locked(uintptr_t addr, Processor* processor);
 
     // Called when the simulator is destroyed.
