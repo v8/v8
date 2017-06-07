@@ -114,6 +114,7 @@ VARIANTS = ["default", "noturbofan"]
 MORE_VARIANTS = [
   "stress",
   "nooptimization",
+  "fullcode",
   "asm_wasm",
   "wasm_traps",
 ]
@@ -125,8 +126,9 @@ VARIANT_ALIASES = {
   "dev": VARIANTS,
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
+  # TODO(machenbach): Deprecate this after the step is removed on infra side.
   # Additional variants, run on a subset of bots.
-  "extra": ["fullcode"],
+  "extra": [],
 }
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
