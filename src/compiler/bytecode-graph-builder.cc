@@ -2176,7 +2176,16 @@ void BytecodeGraphBuilder::VisitToNumber() {
 void BytecodeGraphBuilder::VisitToPrimitiveToString() {
   PrepareEagerCheckpoint();
   Node* object = environment()->LookupAccumulator();
-  Node* node = NewNode(javascript()->ToPrimitiveToString(), object);
+
+  Node* node = nullptr;
+  FeedbackSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  if (Node* simplified = TryBuildSimplifiedToPrimitiveToString(object, slot)) {
+    node = simplified;
+  } else {
+    node = NewNode(javascript()->ToPrimitiveToString(), object);
+  }
+
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node,
                               Environment::kAttachFrameState);
 }
@@ -2660,6 +2669,20 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceToNumberOperation(
       value, effect, control, slot);
+  if (early_reduction.Changed()) {
+    ApplyEarlyReduction(early_reduction);
+    return early_reduction.replacement();
+  }
+  return nullptr;
+}
+
+Node* BytecodeGraphBuilder::TryBuildSimplifiedToPrimitiveToString(
+    Node* value, FeedbackSlot slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  Reduction early_reduction =
+      type_hint_lowering().ReduceToPrimitiveToStringOperation(value, effect,
+                                                              control, slot);
   if (early_reduction.Changed()) {
     ApplyEarlyReduction(early_reduction);
     return early_reduction.replacement();

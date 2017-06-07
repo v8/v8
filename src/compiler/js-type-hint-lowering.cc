@@ -256,6 +256,19 @@ Reduction JSTypeHintLowering::ReduceToNumberOperation(Node* input, Node* effect,
   return Reduction();
 }
 
+Reduction JSTypeHintLowering::ReduceToPrimitiveToStringOperation(
+    Node* input, Node* effect, Node* control, FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
+  BinaryOpICNexus nexus(feedback_vector(), slot);
+  BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
+  if (hint == BinaryOperationHint::kString) {
+    Node* node = jsgraph()->graph()->NewNode(
+        jsgraph()->simplified()->CheckString(), input, effect, control);
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
 Reduction JSTypeHintLowering::ReduceLoadNamedOperation(
     const Operator* op, Node* obj, Node* effect, Node* control,
     FeedbackSlot slot) const {

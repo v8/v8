@@ -4937,18 +4937,18 @@ TEST(InterpreterToPrimitiveToString) {
   } test_cases[] = {
       {factory->NewStringFromAsciiChecked("Foo"),
        factory->NewStringFromAsciiChecked("Foo"),
-       ToPrimitiveToStringFeedback::kString},
+       BinaryOperationFeedback::kString},
       {handle(Smi::FromInt(123), isolate),
        factory->NewStringFromAsciiChecked("123"),
-       ToPrimitiveToStringFeedback::kAny},
+       BinaryOperationFeedback::kAny},
       {factory->NewHeapNumber(2.45), factory->NewStringFromAsciiChecked("2.45"),
-       ToPrimitiveToStringFeedback::kAny},
+       BinaryOperationFeedback::kAny},
       {factory->undefined_value(),
        factory->NewStringFromAsciiChecked("undefined"),
-       ToPrimitiveToStringFeedback::kAny},
+       BinaryOperationFeedback::kAny},
       {InterpreterTester::NewObject("({ val : 123 })"),
        factory->NewStringFromAsciiChecked("[object Object]"),
-       ToPrimitiveToStringFeedback::kAny},
+       BinaryOperationFeedback::kAny},
   };
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {

@@ -146,7 +146,7 @@ compiler::Node* ConversionBuiltinsAssembler::ToPrimitiveToString(
   BIND(&to_string);
   {
     if (feedback) {
-      feedback->Bind(SmiConstant(ToPrimitiveToStringFeedback::kAny));
+      feedback->Bind(SmiConstant(BinaryOperationFeedback::kAny));
     }
     result.Bind(CallBuiltin(Builtins::kToString, context, result.value()));
     Goto(&done);
@@ -155,7 +155,7 @@ compiler::Node* ConversionBuiltinsAssembler::ToPrimitiveToString(
   BIND(&is_string);
   {
     if (feedback) {
-      feedback->Bind(SmiConstant(ToPrimitiveToStringFeedback::kString));
+      feedback->Bind(SmiConstant(BinaryOperationFeedback::kString));
     }
     Goto(&done);
   }
