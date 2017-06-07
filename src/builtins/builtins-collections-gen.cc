@@ -38,10 +38,16 @@ Node* CollectionsBuiltinsAssembler::AllocateJSCollection(
 }
 
 TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
-  // TODO(gsathya): Don't use arguments adaptor
-  Node* const iterable = Parameter(Descriptor::kIterable);
-  Node* const new_target = Parameter(Descriptor::kNewTarget);
-  Node* const context = Parameter(Descriptor::kContext);
+  const int kIterableArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const iterable =
+      args.GetOptionalArgumentValue(kIterableArg, UndefinedConstant());
+  Node* const new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   Label if_target_is_undefined(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &if_target_is_undefined);
@@ -155,14 +161,20 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   }
 
   BIND(&exit);
-  Return(var_result.value());
+  args.PopAndReturn(var_result.value());
 }
 
 TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
-  // TODO(gsathya): Don't use arguments adaptor
-  Node* const iterable = Parameter(Descriptor::kIterable);
-  Node* const new_target = Parameter(Descriptor::kNewTarget);
-  Node* const context = Parameter(Descriptor::kContext);
+  const int kIterableArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const iterable =
+      args.GetOptionalArgumentValue(kIterableArg, UndefinedConstant());
+  Node* const new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   Label if_target_is_undefined(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &if_target_is_undefined);
@@ -258,7 +270,7 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
   }
 
   BIND(&exit);
-  Return(var_result.value());
+  args.PopAndReturn(var_result.value());
 }
 
 Node* CollectionsBuiltinsAssembler::CallGetRaw(Node* const table,

@@ -572,7 +572,7 @@ namespace internal {
       LoadGlobal)                                                              \
                                                                                \
   /* Map */                                                                    \
-  TFJ(MapConstructor, 1, kIterable)                                            \
+  TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(MapGet, 1, kKey)                                                         \
   TFJ(MapHas, 1, kKey)                                                         \
                                                                                \
@@ -849,7 +849,7 @@ namespace internal {
   TFJ(RegExpPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
                                                                                \
   /* Set */                                                                    \
-  TFJ(SetConstructor, 1, kIterable)                                            \
+  TFJ(SetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(SetHas, 1, kKey)                                                         \
                                                                                \
   /* SharedArrayBuffer */                                                      \

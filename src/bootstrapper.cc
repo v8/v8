@@ -2933,7 +2933,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<SharedFunctionInfo> shared(js_map_fun->shared(), isolate);
     shared->SetConstructStub(*isolate->builtins()->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->Map_string());
-    shared->set_internal_formal_parameter_count(1);
+    shared->DontAdaptArguments();
     shared->set_length(0);
 
     // Install the "constructor" property on the {prototype}.
@@ -2970,7 +2970,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<SharedFunctionInfo> shared(js_set_fun->shared(), isolate);
     shared->SetConstructStub(*isolate->builtins()->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->Set_string());
-    shared->set_internal_formal_parameter_count(1);
+    shared->DontAdaptArguments();
     shared->set_length(0);
 
     // Install the "constructor" property on the {prototype}.
