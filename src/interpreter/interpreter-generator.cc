@@ -9,7 +9,9 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 #include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-conversion-gen.h"
 #include "src/builtins/builtins-forin-gen.h"
+#include "src/builtins/builtins-string-gen.h"
 #include "src/code-events.h"
 #include "src/code-factory.h"
 #include "src/factory.h"
@@ -1474,290 +1476,38 @@ IGNITION_HANDLER(ToObject, InterpreterAssembler) {
 // Convert the object referenced by the accumulator to a primitive, and then
 // convert the operand to a string, in preparation to be used by StringConcat.
 IGNITION_HANDLER(ToPrimitiveToString, InterpreterAssembler) {
-  Label is_string(this), to_primitive(this, Label::kDeferred),
-      to_string(this, Label::kDeferred), done(this);
-  Node* input = GetAccumulator();
-  VARIABLE(result, MachineRepresentation::kTagged, input);
   VARIABLE(feedback, MachineRepresentation::kTagged);
+  ConversionBuiltinsAssembler conversions_assembler(state());
+  Node* result = conversions_assembler.ToPrimitiveToString(
+      GetContext(), GetAccumulator(), &feedback);
 
-  GotoIf(TaggedIsSmi(input), &to_string);
-  GotoIf(IsString(input), &is_string);
-  BranchIfJSReceiver(input, &to_primitive, &to_string);
-
-  BIND(&to_primitive);
-  {
-    Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
-    result.Bind(CallStub(callable, GetContext(), input));
-    Goto(&to_string);
-  }
-
-  BIND(&to_string);
-  {
-    feedback.Bind(SmiConstant(ToPrimitiveToStringFeedback::kAny));
-    result.Bind(CallBuiltin(Builtins::kToString, GetContext(), result.value()));
-    Goto(&done);
-  }
-
-  BIND(&is_string);
-  {
-    feedback.Bind(SmiConstant(ToPrimitiveToStringFeedback::kString));
-    Goto(&done);
-  }
-
-  BIND(&done);
   UpdateFeedback(feedback.value(), LoadFeedbackVector(), BytecodeOperandIdx(1));
-  StoreRegister(result.value(), BytecodeOperandReg(0));
+  StoreRegister(result, BytecodeOperandReg(0));
   Dispatch();
 }
-
-class InterpreterStringConcatAssembler : public InterpreterAssembler {
- public:
-  InterpreterStringConcatAssembler(CodeAssemblerState* state, Bytecode bytecode,
-                                   OperandScale operand_scale)
-      : InterpreterAssembler(state, bytecode, operand_scale) {}
-
-  void CopySequentialStrings(Node* result, Node* first_reg_index,
-                             Node* last_reg_index, Node* final_size,
-                             String::Encoding encoding) {
-    VARIABLE(copy_reg_index, MachineType::PointerRepresentation(),
-             first_reg_index);
-    VARIABLE(copy_str_index, MachineRepresentation::kTaggedSigned,
-             SmiConstant(Smi::kZero));
-
-    Label copy_loop(this, {&copy_reg_index, &copy_str_index}),
-        done_copy_loop(this);
-
-    Goto(&copy_loop);
-    BIND(&copy_loop);
-    {
-      VARIABLE(next_string, MachineRepresentation::kTagged);
-      Label deref_indirect(this, Label::kDeferred),
-          is_sequential(this, &next_string);
-
-      next_string.Bind(LoadRegister(copy_reg_index.value()));
-
-      // Check if we need to dereference an indirect string.
-      Node* instance_type = LoadInstanceType(next_string.value());
-      Branch(IsSequentialStringInstanceType(instance_type), &is_sequential,
-             &deref_indirect);
-
-      BIND(&is_sequential);
-      {
-        Node* next_length = LoadStringLength(next_string.value());
-        CopyStringCharacters(next_string.value(), result,
-                             SmiConstant(Smi::kZero), copy_str_index.value(),
-                             next_length, encoding, encoding, SMI_PARAMETERS);
-        copy_str_index.Bind(SmiAdd(copy_str_index.value(), next_length));
-
-        copy_reg_index.Bind(NextRegister(copy_reg_index.value()));
-        Branch(IntPtrGreaterThan(copy_reg_index.value(), last_reg_index),
-               &copy_loop, &done_copy_loop);
-      }
-
-      BIND(&deref_indirect);
-      {
-        DerefIndirectString(&next_string, instance_type);
-        Goto(&is_sequential);
-      }
-    }
-    BIND(&done_copy_loop);
-    CSA_ASSERT(this, SmiEqual(copy_str_index.value(), final_size));
-  }
-};
 
 // StringConcat <first_reg> <reg_count>
 //
 // Concatenates the string values in registers <first_reg> to
 // <first_reg> + <reg_count - 1> and saves the result in the accumulator.
-IGNITION_HANDLER(StringConcat, InterpreterStringConcatAssembler) {
-  Label do_flat_string(this), do_cons_string(this), done_native(this),
-      done(this), call_runtime(this, Label::kDeferred);
-  Node* first_reg_index = BytecodeOperandReg(0);
+IGNITION_HANDLER(StringConcat, InterpreterAssembler) {
+  Label call_runtime(this, Label::kDeferred), done(this);
+
+  Node* first_reg_ptr = RegisterLocation(BytecodeOperandReg(0));
   Node* reg_count = BytecodeOperandCount(1);
   Node* context = GetContext();
 
-  // There must be at least two strings being concatenated.
-  CSA_ASSERT(this, Uint32GreaterThanOrEqual(reg_count, Int32Constant(2)));
-  // Register indexes are negative, so subtract reg_count-1 from first_index to
-  // get the last register to be concatenated.
-  Node* last_reg_index =
-      IntPtrSub(first_reg_index,
-                IntPtrAdd(ChangeUint32ToWord(reg_count), IntPtrConstant(-1)));
-
-  VARIABLE(reg_index, MachineType::PointerRepresentation(), first_reg_index);
-  VARIABLE(current_string, MachineRepresentation::kTagged,
-           LoadRegister(reg_index.value()));
-  VARIABLE(total_length, MachineRepresentation::kTaggedSigned,
-           SmiConstant(Smi::kZero));
   VARIABLE(result, MachineRepresentation::kTagged);
-
-  Node* string_encoding = Word32And(LoadInstanceType(current_string.value()),
-                                    Int32Constant(kStringEncodingMask));
-
-  Label flat_length_loop(this, {&reg_index, &current_string, &total_length}),
-      done_flat_length_loop(this);
-  Goto(&flat_length_loop);
-  BIND(&flat_length_loop);
-  {
-    Comment("Loop to find length and type of initial flat-string");
-    Label is_sequential_or_can_deref(this);
-
-    // Increment total_length by the current string's length.
-    Node* string_length = LoadStringLength(current_string.value());
-    CSA_ASSERT(this, TaggedIsSmi(string_length));
-    total_length.Bind(SmiAdd(total_length.value(), string_length));
-
-    // If we are above the min cons string length, bailout.
-    GotoIf(SmiAboveOrEqual(total_length.value(),
-                           SmiConstant(ConsString::kMinLength)),
-           &done_flat_length_loop);
-
-    // Check that all the strings have the same encoding type. If we got here
-    // we are still under ConsString::kMinLength so need to bailout to the
-    // runtime if the strings have different encodings.
-    Node* instance_type = LoadInstanceType(current_string.value());
-    GotoIf(Word32NotEqual(
-               string_encoding,
-               Word32And(instance_type, Int32Constant(kStringEncodingMask))),
-           &call_runtime);
-
-    // Check if the new string is sequential or can be dereferenced as a
-    // sequential string. If it can't and we've reached here, we are still under
-    // ConsString::kMinLength so need to bailout to the runtime.
-    GotoIf(IsSequentialStringInstanceType(instance_type),
-           &is_sequential_or_can_deref);
-    BranchIfCanDerefIndirectString(current_string.value(), instance_type,
-                                   &is_sequential_or_can_deref, &call_runtime);
-    BIND(&is_sequential_or_can_deref);
-
-    reg_index.Bind(NextRegister(reg_index.value()));
-    GotoIf(IntPtrLessThan(reg_index.value(), last_reg_index),
-           &done_flat_length_loop);
-    current_string.Bind(LoadRegister(reg_index.value()));
-    Goto(&flat_length_loop);
-  }
-  BIND(&done_flat_length_loop);
-
-  // If new length is greater than String::kMaxLength, goto runtime to throw.
-  GotoIf(SmiAboveOrEqual(total_length.value(), SmiConstant(String::kMaxLength)),
-         &call_runtime);
-
-  // If new length is less than ConsString::kMinLength, concatenate all operands
-  // as a flat string.
-  GotoIf(SmiLessThan(total_length.value(), SmiConstant(ConsString::kMinLength)),
-         &do_flat_string);
-
-  // If the new length is is greater than ConsString::kMinLength, create a flat
-  // string for first_reg_index to reg_index-1 if there is at least two strings
-  // between.
-  {
-    Comment("New length is greater than ConsString::kMinLength");
-
-    // Subtract length of the last string that pushed us over the edge.
-    Node* string_length = LoadStringLength(current_string.value());
-    total_length.Bind(SmiSub(total_length.value(), string_length));
-
-    // If we have 2 or more operands under ConsString::kMinLength, concatenate
-    // them as a flat string before concatenating the rest as a cons string. We
-    // concatenate the initial string as a flat string even though we will end
-    // up with a cons string since the time and memory overheads of that initial
-    // flat string will be less than they would be for concatenating the whole
-    // string as cons strings.
-    GotoIf(
-        IntPtrGreaterThanOrEqual(IntPtrSub(first_reg_index, reg_index.value()),
-                                 IntPtrConstant(2)),
-        &do_flat_string);
-
-    // Otherwise the whole concatenation should be cons strings.
-    result.Bind(LoadRegister(first_reg_index));
-    total_length.Bind(LoadStringLength(result.value()));
-    reg_index.Bind(NextRegister(first_reg_index));
-    Goto(&do_cons_string);
-  }
-
-  BIND(&do_flat_string);
-  {
-    Comment("Flat string concatenation");
-    Label two_byte(this);
-    GotoIf(Word32Equal(string_encoding, Int32Constant(kTwoByteStringTag)),
-           &two_byte);
-
-    {
-      Comment("One-byte sequential string case");
-      result.Bind(AllocateSeqOneByteString(context, total_length.value(),
-                                           SMI_PARAMETERS));
-      CopySequentialStrings(result.value(), first_reg_index, reg_index.value(),
-                            total_length.value(), String::ONE_BYTE_ENCODING);
-      // If there is still more registers to concatenate, jump to the cons
-      // string case, otherwise we are done.
-      Branch(IntPtrLessThan(reg_index.value(), last_reg_index), &done_native,
-             &do_cons_string);
-    }
-
-    BIND(&two_byte);
-    {
-      Comment("Two-byte sequential string case");
-      result.Bind(AllocateSeqTwoByteString(context, total_length.value(),
-                                           SMI_PARAMETERS));
-      CopySequentialStrings(result.value(), first_reg_index, reg_index.value(),
-                            total_length.value(), String::TWO_BYTE_ENCODING);
-      // If there is still more registers to concatenate, jump to the cons
-      // string case, otherwise we are done.
-      Branch(IntPtrLessThan(reg_index.value(), last_reg_index), &done_native,
-             &do_cons_string);
-    }
-  }
-
-  BIND(&do_cons_string);
-  {
-    Comment("Create cons string");
-    Label loop(this, {&reg_index, &total_length, &result}), done_loop(this),
-        done_cons(this);
-
-    Goto(&loop);
-    BIND(&loop);
-    {
-      Node* next_string = LoadRegister(reg_index.value());
-      Node* next_length = LoadStringLength(next_string);
-
-      // Skip concatenating empty string.
-      GotoIf(SmiEqual(next_length, SmiConstant(Smi::kZero)), &done_cons);
-
-      total_length.Bind(SmiAdd(total_length.value(), next_length));
-
-      // If new length is greater than String::kMaxLength, goto runtime to
-      // throw. Note: we also need to invalidate the string length protector, so
-      // can't just throw here directly.
-      GotoIf(SmiAboveOrEqual(total_length.value(),
-                             SmiConstant(String::kMaxLength)),
-             &call_runtime);
-
-      result.Bind(NewConsString(context, total_length.value(), result.value(),
-                                next_string, CodeStubAssembler::kNone));
-      Goto(&done_cons);
-
-      BIND(&done_cons);
-      reg_index.Bind(NextRegister(reg_index.value()));
-      GotoIfNot(IntPtrLessThan(reg_index.value(), last_reg_index), &loop);
-      Goto(&done_loop);
-    }
-
-    BIND(&done_loop);
-    Goto(&done_native);
-  }
+  StringBuiltinsAssembler string_assembler(state());
+  result.Bind(string_assembler.ConcatenateStrings(context, first_reg_ptr,
+                                                  reg_count, &call_runtime));
+  Goto(&done);
 
   BIND(&call_runtime);
   {
     Comment("Call runtime.");
-    Node* runtime_id = Int32Constant(Runtime::kInterpreterStringConcat);
-    Node* first_reg_loc = RegisterLocation(first_reg_index);
-    result.Bind(CallRuntimeN(runtime_id, context, first_reg_loc, reg_count));
-    Goto(&done);
-  }
-
-  BIND(&done_native);
-  {
-    IncrementCounter(isolate()->counters()->string_add_native(), 1);
+    Node* runtime_id = Int32Constant(Runtime::kStringConcat);
+    result.Bind(CallRuntimeN(runtime_id, context, first_reg_ptr, reg_count));
     Goto(&done);
   }
 
@@ -1770,10 +1520,6 @@ IGNITION_HANDLER(StringConcat, InterpreterStringConcatAssembler) {
 //
 // Increments value in the accumulator by one.
 IGNITION_HANDLER(Inc, InterpreterAssembler) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-
   Node* value = GetAccumulator();
   Node* context = GetContext();
   Node* slot_index = BytecodeOperandIdx(0);
@@ -1897,10 +1643,6 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
 //
 // Decrements value in the accumulator by one.
 IGNITION_HANDLER(Dec, InterpreterAssembler) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-
   Node* value = GetAccumulator();
   Node* context = GetContext();
   Node* slot_index = BytecodeOperandIdx(0);

@@ -79,6 +79,7 @@ REPLACE_STUB_CALL(ToNumber)
 REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)
 REPLACE_STUB_CALL(ToString)
+REPLACE_STUB_CALL(ToPrimitiveToString)
 #undef REPLACE_STUB_CALL
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
@@ -153,6 +154,19 @@ void JSGenericLowering::LowerJSTypeOf(Node* node) {
                       Operator::kEliminatable);
 }
 
+void JSGenericLowering::LowerJSStringConcat(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  int operand_count = StringConcatParameterOf(node->op()).operand_count();
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kStringConcat);
+  const CallInterfaceDescriptor& descriptor = callable.descriptor();
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, operand_count, flags,
+      node->op()->properties());
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(operand_count));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+}
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -170,7 +184,6 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
     ReplaceWithStubCall(node, callable, flags);
   }
 }
-
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

@@ -543,6 +543,16 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is 32 bit integral.
       CheckTypeIs(node, Type::Integral32());
       break;
+
+    case IrOpcode::kJSStringConcat:
+      // Type is string and all inputs are strings.
+      CheckTypeIs(node, Type::String());
+      for (int i = 0; i < StringConcatParameterOf(node->op()).operand_count();
+           i++) {
+        CheckValueInputIs(node, i, Type::String());
+      }
+      break;
+
     case IrOpcode::kJSAdd:
       // Type is Number or String.
       CheckTypeIs(node, Type::NumberOrString());
@@ -575,6 +585,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kJSToString:
+    case IrOpcode::kJSToPrimitiveToString:
       // Type is String.
       CheckTypeIs(node, Type::String());
       break;

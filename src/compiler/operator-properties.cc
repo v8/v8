@@ -94,6 +94,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:
+    case IrOpcode::kJSToPrimitiveToString:
 
     // Call operations
     case IrOpcode::kJSConstructForwardVarargs:

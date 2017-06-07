@@ -620,6 +620,22 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
   return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
+Node* CodeAssembler::TailCallRuntimeN(Runtime::FunctionId function,
+                                      Node* context, Node* argc) {
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, 0, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+
+  Node* nodes[] = {centry, ref, argc, context};
+
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
+}
+
 // Instantiate TailCallRuntime() for argument counts used by CSA-generated code
 #define INSTANTIATE(...)                                           \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallRuntime( \

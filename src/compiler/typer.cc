@@ -270,6 +270,7 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
+  static Type* ToPrimitiveToString(Type*, Typer*);
 #define DECLARE_METHOD(Name)                \
   static Type* Name(Type* type, Typer* t) { \
     return t->operation_typer_.Name(type);  \
@@ -498,6 +499,15 @@ Type* Typer::Visitor::ToObject(Type* type, Typer* t) {
 
 // static
 Type* Typer::Visitor::ToString(Type* type, Typer* t) {
+  // ES6 section 7.1.12 ToString ( argument )
+  type = ToPrimitive(type, t);
+  if (type->Is(Type::String())) return type;
+  return Type::String();
+}
+
+// static
+Type* Typer::Visitor::ToPrimitiveToString(Type* type, Typer* t) {
+  // ES6 section 7.1.1 ToPrimitive( argument, "default" ) followed by
   // ES6 section 7.1.12 ToString ( argument )
   type = ToPrimitive(type, t);
   if (type->Is(Type::String())) return type;
@@ -1006,6 +1016,9 @@ Type* Typer::Visitor::JSShiftRightLogicalTyper(Type* lhs, Type* rhs, Typer* t) {
   return NumberShiftRightLogical(ToNumber(lhs, t), ToNumber(rhs, t), t);
 }
 
+// JS string concatenation.
+
+Type* Typer::Visitor::TypeJSStringConcat(Node* node) { return Type::String(); }
 
 // JS arithmetic operators.
 
@@ -1080,6 +1093,10 @@ Type* Typer::Visitor::TypeJSToObject(Node* node) {
 
 Type* Typer::Visitor::TypeJSToString(Node* node) {
   return TypeUnaryOp(node, ToString);
+}
+
+Type* Typer::Visitor::TypeJSToPrimitiveToString(Node* node) {
+  return TypeUnaryOp(node, ToPrimitiveToString);
 }
 
 // JS object operators.

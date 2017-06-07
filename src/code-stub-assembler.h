@@ -1527,15 +1527,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 class CodeStubArguments {
  public:
   typedef compiler::Node Node;
+  enum ReceiverMode { kHasReceiver, kNoReceiver };
 
   // |argc| is an intptr value which specifies the number of arguments passed
-  // to the builtin excluding the receiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
+  // to the builtin excluding the receiver. The arguments will include a
+  // receiver iff |receiver_mode| is kHasReceiver.
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
       : CodeStubArguments(assembler, argc, nullptr,
-                          CodeStubAssembler::INTPTR_PARAMETERS) {}
-  // |argc| is either a smi or intptr depending on |param_mode|
+                          CodeStubAssembler::INTPTR_PARAMETERS, receiver_mode) {
+  }
+  // |argc| is either a smi or intptr depending on |param_mode|. The arguments
+  // include a receiver iff |receiver_mode| is kHasReceiver.
   CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
-                    CodeStubAssembler::ParameterMode param_mode);
+                    CodeStubAssembler::ParameterMode param_mode,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
 
   Node* GetReceiver() const;
 
@@ -1575,6 +1581,7 @@ class CodeStubArguments {
 
   CodeStubAssembler* assembler_;
   CodeStubAssembler::ParameterMode argc_mode_;
+  ReceiverMode receiver_mode_;
   Node* argc_;
   Node* arguments_;
   Node* fp_;

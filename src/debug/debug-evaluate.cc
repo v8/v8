@@ -439,6 +439,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToNumber:
     case Bytecode::kToName:
     // Misc.
+    case Bytecode::kStringConcat:
     case Bytecode::kForInPrepare:
     case Bytecode::kForInContinue:
     case Bytecode::kForInNext:

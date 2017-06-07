@@ -35,23 +35,6 @@ RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
       static_cast<PretenureFlag>(pretenured_flag));
 }
 
-RUNTIME_FUNCTION(Runtime_InterpreterStringConcat) {
-  HandleScope scope(isolate);
-  DCHECK_LE(2, args.length());
-  int const argc = args.length();
-  ScopedVector<Handle<Object>> argv(argc);
-
-  isolate->counters()->string_add_runtime()->Increment();
-  IncrementalStringBuilder builder(isolate);
-  for (int i = 0; i < argc; ++i) {
-    Handle<String> str = Handle<String>::cast(args.at(i));
-    if (str->length() != 0) {
-      builder.AppendString(str);
-    }
-  }
-  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
-}
-
 #ifdef V8_TRACE_IGNITION
 
 namespace {

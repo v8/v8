@@ -116,6 +116,29 @@ SpreadWithArityParameter const& SpreadWithArityParameterOf(Operator const* op) {
   return OpParameter<SpreadWithArityParameter>(op);
 }
 
+bool operator==(StringConcatParameter const& lhs,
+                StringConcatParameter const& rhs) {
+  return lhs.operand_count() == rhs.operand_count();
+}
+
+bool operator!=(StringConcatParameter const& lhs,
+                StringConcatParameter const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(StringConcatParameter const& p) {
+  return base::hash_combine(p.operand_count());
+}
+
+std::ostream& operator<<(std::ostream& os, StringConcatParameter const& p) {
+  return os << p.operand_count();
+}
+
+StringConcatParameter const& StringConcatParameterOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSStringConcat);
+  return OpParameter<StringConcatParameter>(op);
+}
+
 std::ostream& operator<<(std::ostream& os, CallParameters const& p) {
   os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode() << ", "
      << p.tail_call_mode();
@@ -590,6 +613,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(ToNumber, Operator::kNoProperties, 1, 1)                    \
   V(ToObject, Operator::kFoldable, 1, 1)                        \
   V(ToString, Operator::kNoProperties, 1, 1)                    \
+  V(ToPrimitiveToString, Operator::kNoProperties, 1, 1)         \
   V(Create, Operator::kNoProperties, 2, 1)                      \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1)      \
   V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)         \
@@ -739,6 +763,15 @@ BINARY_OP_LIST(BINARY_OP)
   }
 COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
+
+const Operator* JSOperatorBuilder::StringConcat(int operand_count) {
+  StringConcatParameter parameters(operand_count);
+  return new (zone()) Operator1<StringConcatParameter>(    // --
+      IrOpcode::kJSStringConcat, Operator::kNoProperties,  // opcode
+      "JSStringConcat",                                    // name
+      operand_count, 1, 1, 1, 1, 2,                        // counts
+      parameters);                                         // parameter
+}
 
 const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
     const VectorSlotPair& feedback) {
@@ -1010,7 +1043,6 @@ const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
       1, 1, 0, 1, 1, 0,                                       // counts
       type);                                                  // parameter
 }
-
 
 const Operator* JSOperatorBuilder::CreateArray(size_t arity,
                                                Handle<AllocationSite> site) {

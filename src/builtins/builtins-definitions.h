@@ -126,6 +126,7 @@ namespace internal {
   TFS(StringIndexOf, kReceiver, kSearchString, kPosition)                      \
   TFC(StringLessThan, Compare, 1)                                              \
   TFC(StringLessThanOrEqual, Compare, 1)                                       \
+  TFC(StringConcat, StringConcat, 1)                                           \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \
@@ -192,6 +193,7 @@ namespace internal {
   TFC(NonNumberToNumber, TypeConversion, 1)                                    \
   TFC(ToNumber, TypeConversion, 1)                                             \
   TFC(ToString, TypeConversion, 1)                                             \
+  TFC(ToPrimitiveToString, TypeConversion, 1)                                  \
   TFC(ToInteger, TypeConversion, 1)                                            \
   TFC(ToLength, TypeConversion, 1)                                             \
   TFC(ClassOf, Typeof, 1)                                                      \

@@ -186,6 +186,7 @@
         'builtins/builtins-constructor-gen.h',
         'builtins/builtins-constructor.h',
         'builtins/builtins-conversion-gen.cc',
+        'builtins/builtins-conversion-gen.h',
         'builtins/builtins-date-gen.cc',
         'builtins/builtins-debug-gen.cc',
         'builtins/builtins-forin-gen.cc',

@@ -1821,5 +1821,258 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   }
 }
 
+Node* StringBuiltinsAssembler::ConcatenateSequentialStrings(
+    Node* context, Node* first_arg_ptr, Node* last_arg_ptr, Node* total_length,
+    String::Encoding encoding) {
+  Node* result;
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    result = AllocateSeqOneByteString(context, total_length, SMI_PARAMETERS);
+  } else {
+    DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding);
+    result = AllocateSeqTwoByteString(context, total_length, SMI_PARAMETERS);
+  }
+
+  VARIABLE(current_arg, MachineType::PointerRepresentation(), first_arg_ptr);
+  VARIABLE(str_index, MachineRepresentation::kTaggedSigned,
+           SmiConstant(Smi::kZero));
+
+  Label loop(this, {&current_arg, &str_index}), done(this);
+
+  Goto(&loop);
+  BIND(&loop);
+  {
+    VARIABLE(current_string, MachineRepresentation::kTagged,
+             Load(MachineType::AnyTagged(), current_arg.value()));
+
+    Label deref_indirect(this, Label::kDeferred),
+        is_sequential(this, &current_string);
+
+    // Check if we need to dereference an indirect string.
+    Node* instance_type = LoadInstanceType(current_string.value());
+    Branch(IsSequentialStringInstanceType(instance_type), &is_sequential,
+           &deref_indirect);
+
+    BIND(&is_sequential);
+    {
+      Node* current_length = LoadStringLength(current_string.value());
+      CopyStringCharacters(current_string.value(), result,
+                           SmiConstant(Smi::kZero), str_index.value(),
+                           current_length, encoding, encoding, SMI_PARAMETERS);
+      str_index.Bind(SmiAdd(str_index.value(), current_length));
+      current_arg.Bind(
+          IntPtrSub(current_arg.value(), IntPtrConstant(kPointerSize)));
+      Branch(IntPtrGreaterThanOrEqual(current_arg.value(), last_arg_ptr), &loop,
+             &done);
+    }
+
+    BIND(&deref_indirect);
+    {
+      DerefIndirectString(&current_string, instance_type);
+      Goto(&is_sequential);
+    }
+  }
+  BIND(&done);
+  CSA_ASSERT(this, SmiEqual(str_index.value(), total_length));
+  return result;
+}
+
+Node* StringBuiltinsAssembler::ConcatenateStrings(Node* context,
+                                                  Node* first_arg_ptr,
+                                                  Node* arg_count,
+                                                  Label* bailout_to_runtime) {
+  Label do_flat_string(this), do_cons_string(this), done(this);
+  // There must be at least two strings being concatenated.
+  CSA_ASSERT(this, Uint32GreaterThanOrEqual(arg_count, Int32Constant(2)));
+  // Arguments grow up on the stack, so subtract arg_count - 1 from first_arg to
+  // get the last argument to be concatenated.
+  Node* last_arg_ptr = IntPtrSub(
+      first_arg_ptr, TimesPointerSize(IntPtrSub(ChangeUint32ToWord(arg_count),
+                                                IntPtrConstant(1))));
+
+  VARIABLE(current_arg, MachineType::PointerRepresentation(), first_arg_ptr);
+  VARIABLE(current_string, MachineRepresentation::kTagged,
+           Load(MachineType::AnyTagged(), current_arg.value()));
+  VARIABLE(total_length, MachineRepresentation::kTaggedSigned,
+           SmiConstant(Smi::kZero));
+  VARIABLE(result, MachineRepresentation::kTagged);
+
+  Node* string_encoding = Word32And(LoadInstanceType(current_string.value()),
+                                    Int32Constant(kStringEncodingMask));
+
+  Label flat_length_loop(this, {&current_arg, &current_string, &total_length}),
+      done_flat_length_loop(this);
+  Goto(&flat_length_loop);
+  BIND(&flat_length_loop);
+  {
+    Comment("Loop to find length and type of initial flat-string");
+    Label is_sequential_or_can_deref(this);
+
+    // Increment total_length by the current string's length.
+    Node* string_length = LoadStringLength(current_string.value());
+    CSA_ASSERT(this, TaggedIsSmi(string_length));
+    // No need to check for Smi overflow since String::kMaxLength is 2^28 - 16.
+    total_length.Bind(SmiAdd(total_length.value(), string_length));
+
+    // If we are above the min cons string length, bailout.
+    GotoIf(SmiAboveOrEqual(total_length.value(),
+                           SmiConstant(ConsString::kMinLength)),
+           &done_flat_length_loop);
+
+    // Check that all the strings have the same encoding type. If we got here
+    // we are still under ConsString::kMinLength so need to bailout to the
+    // runtime if the strings have different encodings.
+    Node* instance_type = LoadInstanceType(current_string.value());
+    GotoIf(Word32NotEqual(
+               string_encoding,
+               Word32And(instance_type, Int32Constant(kStringEncodingMask))),
+           bailout_to_runtime);
+
+    // Check if the new string is sequential or can be dereferenced as a
+    // sequential string. If it can't and we've reached here, we are still under
+    // ConsString::kMinLength so need to bailout to the runtime.
+    GotoIf(IsSequentialStringInstanceType(instance_type),
+           &is_sequential_or_can_deref);
+    BranchIfCanDerefIndirectString(current_string.value(), instance_type,
+                                   &is_sequential_or_can_deref,
+                                   bailout_to_runtime);
+    BIND(&is_sequential_or_can_deref);
+
+    current_arg.Bind(
+        IntPtrSub(current_arg.value(), IntPtrConstant(kPointerSize)));
+    GotoIf(IntPtrLessThan(current_arg.value(), last_arg_ptr),
+           &done_flat_length_loop);
+    current_string.Bind(Load(MachineType::AnyTagged(), current_arg.value()));
+    Goto(&flat_length_loop);
+  }
+  BIND(&done_flat_length_loop);
+
+  // If new length is greater than String::kMaxLength, goto runtime to throw.
+  GotoIf(SmiAboveOrEqual(total_length.value(), SmiConstant(String::kMaxLength)),
+         bailout_to_runtime);
+
+  // If new length is less than ConsString::kMinLength, concatenate all operands
+  // as a flat string.
+  GotoIf(SmiLessThan(total_length.value(), SmiConstant(ConsString::kMinLength)),
+         &do_flat_string);
+
+  // If the new length is is greater than ConsString::kMinLength, create a flat
+  // string for first_arg to current_arg if there is at least two strings
+  // between.
+  {
+    Comment("New length is greater than ConsString::kMinLength");
+
+    // Subtract length of the last string that pushed us over the edge.
+    Node* string_length = LoadStringLength(current_string.value());
+    total_length.Bind(SmiSub(total_length.value(), string_length));
+
+    // If we have 2 or more operands under ConsString::kMinLength, concatenate
+    // them as a flat string before concatenating the rest as a cons string. We
+    // concatenate the initial string as a flat string even though we will end
+    // up with a cons string since the time and memory overheads of that initial
+    // flat string will be less than they would be for concatenating the whole
+    // string as cons strings.
+    GotoIf(
+        IntPtrGreaterThanOrEqual(IntPtrSub(first_arg_ptr, current_arg.value()),
+                                 IntPtrConstant(2 * kPointerSize)),
+        &do_flat_string);
+
+    // Otherwise the whole concatenation should be cons strings.
+    result.Bind(Load(MachineType::AnyTagged(), first_arg_ptr));
+    total_length.Bind(LoadStringLength(result.value()));
+    current_arg.Bind(IntPtrSub(first_arg_ptr, IntPtrConstant(kPointerSize)));
+    Goto(&do_cons_string);
+  }
+
+  BIND(&do_flat_string);
+  {
+    Comment("Flat string concatenation");
+    Node* last_flat_arg_ptr =
+        IntPtrAdd(current_arg.value(), IntPtrConstant(kPointerSize));
+    Label two_byte(this);
+    GotoIf(Word32Equal(string_encoding, Int32Constant(kTwoByteStringTag)),
+           &two_byte);
+
+    {
+      Comment("One-byte sequential string case");
+      result.Bind(ConcatenateSequentialStrings(
+          context, first_arg_ptr, last_flat_arg_ptr, total_length.value(),
+          String::ONE_BYTE_ENCODING));
+      // If there is still more arguments to concatenate, jump to the cons
+      // string case, otherwise we are done.
+      Branch(IntPtrLessThan(current_arg.value(), last_arg_ptr), &done,
+             &do_cons_string);
+    }
+
+    BIND(&two_byte);
+    {
+      Comment("Two-byte sequential string case");
+      result.Bind(ConcatenateSequentialStrings(
+          context, first_arg_ptr, last_flat_arg_ptr, total_length.value(),
+          String::TWO_BYTE_ENCODING));
+      // If there is still more arguments to concatenate, jump to the cons
+      // string case, otherwise we are done.
+      Branch(IntPtrLessThan(current_arg.value(), last_arg_ptr), &done,
+             &do_cons_string);
+    }
+  }
+
+  BIND(&do_cons_string);
+  {
+    Comment("Create cons string");
+    Label loop(this, {&current_arg, &total_length, &result}), done_cons(this);
+
+    Goto(&loop);
+    BIND(&loop);
+    {
+      Node* current_string =
+          Load(MachineType::AnyTagged(), current_arg.value());
+      Node* string_length = LoadStringLength(current_string);
+
+      // Skip concatenating empty string.
+      GotoIf(SmiEqual(string_length, SmiConstant(Smi::kZero)), &done_cons);
+
+      total_length.Bind(SmiAdd(total_length.value(), string_length));
+
+      // If new length is greater than String::kMaxLength, goto runtime to
+      // throw. Note: we also need to invalidate the string length protector, so
+      // can't just throw here directly.
+      GotoIf(SmiAboveOrEqual(total_length.value(),
+                             SmiConstant(String::kMaxLength)),
+             bailout_to_runtime);
+
+      result.Bind(NewConsString(context, total_length.value(), result.value(),
+                                current_string, CodeStubAssembler::kNone));
+      Goto(&done_cons);
+
+      BIND(&done_cons);
+      current_arg.Bind(
+          IntPtrSub(current_arg.value(), IntPtrConstant(kPointerSize)));
+      Branch(IntPtrLessThan(current_arg.value(), last_arg_ptr), &done, &loop);
+    }
+  }
+
+  BIND(&done);
+  IncrementCounter(isolate()->counters()->string_add_native(), 1);
+  return result.value();
+}
+
+TF_BUILTIN(StringConcat, StringBuiltinsAssembler) {
+  Node* argc = Parameter(Descriptor::kArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc),
+                         CodeStubArguments::ReceiverMode::kNoReceiver);
+  Node* first_arg_ptr =
+      args.AtIndexPtr(IntPtrConstant(0), ParameterMode::INTPTR_PARAMETERS);
+
+  Label call_runtime(this, Label::kDeferred);
+  Node* result =
+      ConcatenateStrings(context, first_arg_ptr, argc, &call_runtime);
+  args.PopAndReturn(result);
+
+  BIND(&call_runtime);
+  TailCallRuntimeN(Runtime::kStringConcat, context, argc);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -619,6 +619,27 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+// Defines the number of operands passed to a JSStringConcat operator.
+class StringConcatParameter final {
+ public:
+  explicit StringConcatParameter(int operand_count)
+      : operand_count_(operand_count) {}
+
+  int operand_count() const { return operand_count_; }
+
+ private:
+  uint32_t const operand_count_;
+};
+
+bool operator==(StringConcatParameter const&, StringConcatParameter const&);
+bool operator!=(StringConcatParameter const&, StringConcatParameter const&);
+
+size_t hash_value(StringConcatParameter const&);
+
+std::ostream& operator<<(std::ostream&, StringConcatParameter const&);
+
+StringConcatParameter const& StringConcatParameterOf(Operator const*);
+
 class GeneratorStoreParameters final {
  public:
   GeneratorStoreParameters(int register_count, SuspendFlags flags)
@@ -684,6 +705,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToNumber();
   const Operator* ToObject();
   const Operator* ToString();
+  const Operator* ToPrimitiveToString();
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
@@ -765,6 +787,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* LoadMessage();
   const Operator* StoreMessage();
+
+  const Operator* StringConcat(int operand_count);
 
   // Used to implement Ignition's SuspendGenerator bytecode.
   const Operator* GeneratorStore(int register_count,

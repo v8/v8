@@ -67,6 +67,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSToNumber(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
+  Reduction ReduceJSToPrimitiveToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
   Reduction ReduceJSConvertReceiver(Node* node);
   Reduction ReduceJSConstructForwardVarargs(Node* node);

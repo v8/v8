@@ -258,6 +258,20 @@ void StringCompareDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void StringConcatDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ArgumentsCountRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void StringConcatDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kArgumentsCount
+  MachineType machine_types[] = {MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 void TypeConversionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ArgumentRegister()};

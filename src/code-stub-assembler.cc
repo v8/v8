@@ -9175,21 +9175,23 @@ Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   return IsSetWord32<JSArrayBuffer::WasNeutered>(buffer_bit_field);
 }
 
-CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
-                                     Node* fp,
-                                     CodeStubAssembler::ParameterMode mode)
+CodeStubArguments::CodeStubArguments(
+    CodeStubAssembler* assembler, Node* argc, Node* fp,
+    CodeStubAssembler::ParameterMode param_mode, ReceiverMode receiver_mode)
     : assembler_(assembler),
-      argc_mode_(mode),
+      argc_mode_(param_mode),
+      receiver_mode_(receiver_mode),
       argc_(argc),
       arguments_(nullptr),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
   Node* offset = assembler_->ElementOffsetFromIndex(
-      argc_, FAST_ELEMENTS, mode,
+      argc_, FAST_ELEMENTS, param_mode,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
   arguments_ = assembler_->IntPtrAdd(fp_, offset);
 }
 
 Node* CodeStubArguments::GetReceiver() const {
+  DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
   return assembler_->Load(MachineType::AnyTagged(), arguments_,
                           assembler_->IntPtrConstant(kPointerSize));
 }
@@ -9267,8 +9269,14 @@ void CodeStubArguments::ForEach(
 }
 
 void CodeStubArguments::PopAndReturn(Node* value) {
-  assembler_->PopAndReturn(
-      assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1)), value);
+  Node* pop_count;
+  if (receiver_mode_ == ReceiverMode::kHasReceiver) {
+    pop_count = assembler_->IntPtrOrSmiAdd(
+        argc_, assembler_->IntPtrOrSmiConstant(1, argc_mode_), argc_mode_);
+  } else {
+    pop_count = argc_;
+  }
+  assembler_->PopAndReturn(pop_count, value);
 }
 
 Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {
