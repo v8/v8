@@ -523,3 +523,48 @@ function js_div(a, b) { return (a / b) | 0; }
   // Try to grow past imported maximum
   assertThrows(() => table.grow(21));
 })();
+
+(function MultipleElementSegments() {
+  let kTableSize = 10;
+  print("MultipleElementSegments...");
+
+  let mul = (a, b) => a * b;
+  let add = (a, b) => a + b;
+  let sub = (a, b) => a - b;
+
+  // Test 1 to 3 segments in the elements section.
+  // segment 1 sets [1, 2] to mul,
+  // segment 2 sets [2, 3, 4] to add,
+  // segment 3 sets [3, 4, 5, 6] to sub.
+  for (let num_segments = 1; num_segments < 4; ++num_segments) {
+    var builder = new WasmModuleBuilder();
+
+    builder.setFunctionTableLength(kTableSize);
+    builder.addExportOfKind("table", kExternalTable, 0);
+    let f = AddFunctions(builder);
+    let indexes = [f.mul.index, f.add.index, f.sub.index];
+    for (let i = 0; i < num_segments; ++i) {
+      let offset = i + 1;
+      let len = i + 2;
+      let index = indexes[i];
+      builder.addFunctionTableInit(offset, false, new Array(len).fill(index));
+    }
+
+    let instance = builder.instantiate();
+
+    let table = instance.exports.table;
+    assertEquals(kTableSize, table.length);
+
+    for (let i = 0; i < num_segments; ++i) {
+      let exp = i < 1 || i > 2 ? null : mul;
+      if (num_segments > 1 && i >= 2 && i <= 4) exp = add;
+      if (num_segments > 2 && i >= 3 && i <= 6) exp = sub;
+      if (!exp) {
+        assertSame(null, table.get(i));
+      } else {
+        assertEquals("function", typeof table.get(i));
+    assertEquals(exp(6, 3), table.get(i)(6, 3));
+      }
+    }
+  }
+})();
