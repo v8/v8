@@ -10041,8 +10041,8 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
-  const int64_t kMemoryReducerActivationLimit = 1024 * 1024;
   typedef internal::Internals I;
+  const int64_t kMemoryReducerActivationLimit = 32 * 1024 * 1024;
   int64_t* external_memory = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
   int64_t* external_memory_limit = reinterpret_cast<int64_t*>(
