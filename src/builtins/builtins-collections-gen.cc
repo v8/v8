@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/code-stub-assembler.h"
+#include "src/objects/hash-table.h"
 
 namespace v8 {
 namespace internal {
@@ -18,11 +19,71 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
+  Node* AllocateJSMap(Node* js_map_function);
+
+  template <typename CollectionType>
+  Node* AllocateOrderedHashTable();
   Node* AllocateJSCollection(Node* js_map_function);
+
   Node* CallGetRaw(Node* const table, Node* const key);
   template <typename CollectionType, int entrysize>
   Node* CallHasRaw(Node* const table, Node* const key);
 };
+
+template <typename CollectionType>
+Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
+  static const int kCapacity = CollectionType::kMinCapacity;
+  static const int kBucketCount = kCapacity / CollectionType::kLoadFactor;
+  static const int kDataTableLength = kCapacity * CollectionType::kEntrySize;
+  static const int kFixedArrayLength =
+      CollectionType::kHashTableStartIndex + kBucketCount + kDataTableLength;
+  static const int kDataTableStartIndex =
+      CollectionType::kHashTableStartIndex + kBucketCount;
+
+  STATIC_ASSERT(base::bits::IsPowerOfTwo32(kCapacity));
+  STATIC_ASSERT(kCapacity <= CollectionType::kMaxCapacity);
+
+  // Allocate the table and add the proper map.
+  const ElementsKind elements_kind = FAST_HOLEY_ELEMENTS;
+  Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
+  Node* const table = AllocateFixedArray(elements_kind, length_intptr);
+  CSA_ASSERT(this,
+             IntPtrLessThanOrEqual(
+                 length_intptr, IntPtrConstant(FixedArray::kMaxRegularLength)));
+  Heap::RootListIndex map_index = Heap::kOrderedHashTableMapRootIndex;
+  // TODO(gsathya): Directly store correct in AllocateFixedArray,
+  // instead of overwriting here.
+  StoreMapNoWriteBarrier(table, map_index);
+
+  // Initialize the OrderedHashTable fields.
+  const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
+  StoreFixedArrayElement(table, CollectionType::kNumberOfElementsIndex,
+                         SmiConstant(0), barrier_mode);
+  StoreFixedArrayElement(table, CollectionType::kNumberOfDeletedElementsIndex,
+                         SmiConstant(0), barrier_mode);
+  StoreFixedArrayElement(table, CollectionType::kNumberOfBucketsIndex,
+                         SmiConstant(kBucketCount), barrier_mode);
+
+  // Fill the buckets with kNotFound.
+  Node* const not_found = SmiConstant(CollectionType::kNotFound);
+  STATIC_ASSERT(CollectionType::kHashTableStartIndex ==
+                CollectionType::kNumberOfBucketsIndex + 1);
+  STATIC_ASSERT((CollectionType::kHashTableStartIndex + kBucketCount) ==
+                kDataTableStartIndex);
+  for (int i = 0; i < kBucketCount; i++) {
+    StoreFixedArrayElement(table, CollectionType::kHashTableStartIndex + i,
+                           not_found, barrier_mode);
+  }
+
+  // Fill the data table with undefined.
+  STATIC_ASSERT(kDataTableStartIndex + kDataTableLength == kFixedArrayLength);
+  for (int i = 0; i < kDataTableLength; i++) {
+    StoreFixedArrayElement(table, kDataTableStartIndex + i, UndefinedConstant(),
+                           barrier_mode);
+  }
+
+  return table;
+}
 
 Node* CollectionsBuiltinsAssembler::AllocateJSCollection(
     Node* js_map_function) {
@@ -80,8 +141,8 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   }
 
   BIND(&init);
-  // TODO(gsathya): Remove runtime call once OrderedHashTable is ported.
-  CallRuntime(Runtime::kMapInitialize, context, var_result.value());
+  Node* table = AllocateOrderedHashTable<OrderedHashMap>();
+  StoreObjectField(var_result.value(), JSMap::kTableOffset, table);
 
   GotoIf(Word32Or(IsUndefined(iterable), IsNull(iterable)), &exit);
 
@@ -207,8 +268,8 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
   }
 
   BIND(&init);
-  // TODO(gsathya): Remove runtime call once OrderedHashTable is ported.
-  CallRuntime(Runtime::kSetInitialize, context, var_result.value());
+  Node* table = AllocateOrderedHashTable<OrderedHashSet>();
+  StoreObjectField(var_result.value(), JSSet::kTableOffset, table);
 
   GotoIf(Word32Or(IsUndefined(iterable), IsNull(iterable)), &exit);
 

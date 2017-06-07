@@ -495,6 +495,10 @@ class OrderedHashTable : public FixedArray {
   // optimize that case.
   static const int kClearedTableSentinel = -1;
 
+  static const int kMaxCapacity =
+      (FixedArray::kMaxLength - kHashTableStartIndex) /
+      (1 + (kEntrySize * kLoadFactor));
+
  protected:
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
 
@@ -520,10 +524,6 @@ class OrderedHashTable : public FixedArray {
   }
 
   static const int kRemovedHolesIndex = kHashTableStartIndex;
-
-  static const int kMaxCapacity =
-      (FixedArray::kMaxLength - kHashTableStartIndex) /
-      (1 + (kEntrySize * kLoadFactor));
 };
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
