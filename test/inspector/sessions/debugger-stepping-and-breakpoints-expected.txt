@@ -188,3 +188,16 @@ Resuming in 2
 Resumed in 2
 Skipping pauses in 2
 Evaluating common breakpoint in 1
+Unskipping pauses in 1
+Unskipping pauses in 2
+Deactivating breakpoints in 1
+Evaluating common breakpoint in 1
+Paused in 2:
+  reason: other
+  hit breakpoints: test.js:11:0
+  location: foo@11
+  data: null
+Resuming in 2
+Resumed in 2
+Deactivating breakpoints in 2
+Evaluating common breakpoint in 1

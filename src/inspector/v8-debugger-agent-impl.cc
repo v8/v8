@@ -211,12 +211,9 @@ void V8DebuggerAgentImpl::enableImpl() {
   for (size_t i = 0; i < compiledScripts.size(); i++)
     didParseSource(std::move(compiledScripts[i]), true);
 
-  // FIXME(WK44513): breakpoints activated flag should be synchronized between
-  // all front-ends
-  m_debugger->setBreakpointsActivated(true);
+  m_breakpointsActive = true;
+  m_debugger->setBreakpointsActive(true);
 }
-
-bool V8DebuggerAgentImpl::enabled() { return m_enabled; }
 
 Response V8DebuggerAgentImpl::enable() {
   if (enabled()) return Response::OK();
@@ -238,6 +235,10 @@ Response V8DebuggerAgentImpl::disable() {
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
   if (isPaused()) m_debugger->continueProgram(m_session->contextGroupId());
+  if (m_breakpointsActive) {
+    m_debugger->setBreakpointsActive(false);
+    m_breakpointsActive = false;
+  }
   m_debugger->disable();
   JavaScriptCallFrames emptyCallFrames;
   m_pausedCallFrames.swap(emptyCallFrames);
@@ -286,8 +287,9 @@ void V8DebuggerAgentImpl::restore() {
 
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
-  // TODO(dgozman): this state should be per-session, not global per debugger.
-  m_debugger->setBreakpointsActivated(active);
+  if (m_breakpointsActive == active) return Response::OK();
+  m_breakpointsActive = active;
+  m_debugger->setBreakpointsActive(active);
   if (!active && !m_breakReason.empty()) {
     clearBreakDetails();
     m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
@@ -528,6 +530,10 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
          std::distance(ranges.begin(), itStartRange) % 2;
 }
 
+bool V8DebuggerAgentImpl::acceptsPause(bool isOOMBreak) const {
+  return enabled() && (isOOMBreak || !m_skipAllPauses);
+}
+
 std::unique_ptr<protocol::Debugger::Location>
 V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
                                        const ScriptBreakpoint& breakpoint,
@@ -683,7 +689,7 @@ void V8DebuggerAgentImpl::clearBreakDetails() {
 void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
-  if (!enabled() || isPaused() || !m_debugger->breakpointsActivated()) return;
+  if (isPaused() || !acceptsPause(false) || !m_breakpointsActive) return;
   if (m_breakReason.empty()) {
     m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
   }
@@ -691,7 +697,7 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
 }
 
 void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
-  if (!enabled() || isPaused() || !m_debugger->breakpointsActivated()) return;
+  if (isPaused() || !acceptsPause(false) || !m_breakpointsActive) return;
   if (m_breakReason.size() == 1) {
     m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
   }
@@ -1242,7 +1248,7 @@ void V8DebuggerAgentImpl::didContinue() {
 void V8DebuggerAgentImpl::breakProgram(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
-  if (!enabled() || !m_debugger->canBreakProgram() || m_skipAllPauses) return;
+  if (!enabled() || m_skipAllPauses || !m_debugger->canBreakProgram()) return;
   std::vector<BreakReason> currentScheduledReason;
   currentScheduledReason.swap(m_breakReason);
   pushBreakDetails(breakReason, std::move(data));

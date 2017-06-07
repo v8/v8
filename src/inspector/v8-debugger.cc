@@ -161,7 +161,6 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
     : m_isolate(isolate),
       m_inspector(inspector),
       m_enableCount(0),
-      m_breakpointsActivated(true),
       m_ignoreScriptParsedEventsCounter(0),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
@@ -309,13 +308,13 @@ void V8Debugger::clearBreakpoints() {
   v8::debug::Call(debuggerContext(), clearBreakpoints).ToLocalChecked();
 }
 
-void V8Debugger::setBreakpointsActivated(bool activated) {
+void V8Debugger::setBreakpointsActive(bool active) {
   if (!enabled()) {
     UNREACHABLE();
     return;
   }
-  v8::debug::SetBreakPointsActive(m_isolate, activated);
-  m_breakpointsActivated = activated;
+  m_breakpointsActiveCount += active ? 1 : -1;
+  v8::debug::SetBreakPointsActive(m_isolate, m_breakpointsActiveCount);
 }
 
 v8::debug::ExceptionBreakState V8Debugger::getPauseOnExceptionsState() {
@@ -347,14 +346,13 @@ void V8Debugger::setPauseOnNextStatement(bool pause, int targetContextGroupId) {
 }
 
 bool V8Debugger::canBreakProgram() {
-  if (!m_breakpointsActivated) return false;
   return !v8::debug::AllFramesOnStackAreBlackboxed(m_isolate);
 }
 
 void V8Debugger::breakProgram(int targetContextGroupId) {
+  DCHECK(canBreakProgram());
   // Don't allow nested breaks.
   if (isPaused()) return;
-  if (!canBreakProgram()) return;
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::BreakRightNow(m_isolate);
@@ -616,15 +614,12 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   bool scheduledOOMBreak = m_scheduledOOMBreak;
   bool scheduledAssertBreak = m_scheduledAssertBreak;
-  auto agentCheck = [&scheduledOOMBreak](V8DebuggerAgentImpl* agent) {
-    return agent->enabled() && (scheduledOOMBreak || !agent->skipAllPauses());
-  };
-
   bool hasAgents = false;
   m_inspector->forEachSession(
       contextGroupId,
-      [&agentCheck, &hasAgents](V8InspectorSessionImpl* session) {
-        if (agentCheck(session->debuggerAgent())) hasAgents = true;
+      [&scheduledOOMBreak, &hasAgents](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak))
+          hasAgents = true;
       });
   if (!hasAgents) return;
 
@@ -652,10 +647,10 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_pausedContextGroupId = contextGroupId;
 
   m_inspector->forEachSession(
-      contextGroupId, [&agentCheck, &pausedContext, &exception, &breakpointIds,
+      contextGroupId, [&pausedContext, &exception, &breakpointIds,
                        &isPromiseRejection, &isUncaught, &scheduledOOMBreak,
                        &scheduledAssertBreak](V8InspectorSessionImpl* session) {
-        if (agentCheck(session->debuggerAgent())) {
+        if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
               breakpointIds, isPromiseRejection, isUncaught, scheduledOOMBreak,

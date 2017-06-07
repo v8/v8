@@ -44,8 +44,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   String16 setBreakpoint(const ScriptBreakpoint&, int* actualLineNumber,
                          int* actualColumnNumber);
   void removeBreakpoint(const String16& breakpointId);
-  void setBreakpointsActivated(bool);
-  bool breakpointsActivated() const { return m_breakpointsActivated; }
+  void setBreakpointsActive(bool);
 
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
@@ -183,7 +182,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
-  bool m_breakpointsActivated;
+  int m_breakpointsActiveCount = 0;
   v8::Global<v8::Object> m_debuggerScript;
   v8::Global<v8::Context> m_debuggerContext;
   v8::Local<v8::Object> m_executionState;

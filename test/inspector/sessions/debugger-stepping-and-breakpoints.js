@@ -143,6 +143,25 @@ function bar() {
   InspectorTest.log('Evaluating common breakpoint in 1');
   await session1.Protocol.Runtime.evaluate({expression: 'foo();'});
 
+  InspectorTest.log('Unskipping pauses in 1');
+  await session1.Protocol.Debugger.setSkipAllPauses({skip: false});
+  InspectorTest.log('Unskipping pauses in 2');
+  await session2.Protocol.Debugger.setSkipAllPauses({skip: false});
+
+  InspectorTest.log('Deactivating breakpoints in 1');
+  await session1.Protocol.Debugger.setBreakpointsActive({active: false});
+  InspectorTest.log('Evaluating common breakpoint in 1');
+  session1.Protocol.Runtime.evaluate({expression: 'foo();'});
+  await waitForPaused(session2, 2);
+  InspectorTest.log('Resuming in 2');
+  session2.Protocol.Debugger.resume();
+  await waitForResumed(session2, 2);
+
+  InspectorTest.log('Deactivating breakpoints in 2');
+  await session2.Protocol.Debugger.setBreakpointsActive({active: false});
+  InspectorTest.log('Evaluating common breakpoint in 1');
+  await session1.Protocol.Runtime.evaluate({expression: 'foo();'});
+
   InspectorTest.completeTest();
 
   function waitForBothPaused() {
