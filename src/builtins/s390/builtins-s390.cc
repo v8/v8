@@ -1077,20 +1077,16 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
   __ LoadP(r2, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  Label array_done;
-  Register debug_info = r4;
-  DCHECK(!debug_info.is(r2));
-  __ LoadP(debug_info,
-           FieldMemOperand(r2, SharedFunctionInfo::kDebugInfoOffset));
   // Load original bytecode array or the debug copy.
   __ LoadP(kInterpreterBytecodeArrayRegister,
            FieldMemOperand(r2, SharedFunctionInfo::kFunctionDataOffset));
-  __ TestIfSmi(debug_info);
-  __ beq(&array_done);
-  __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayOffset));
-  __ bind(&array_done);
+  __ LoadP(r4, FieldMemOperand(r2, SharedFunctionInfo::kDebugInfoOffset));
+
+  __ TestIfSmi(r4);
+  __ bne(&maybe_load_debug_bytecode_array);
+  __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
   // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
@@ -1182,6 +1178,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in r2.
   LeaveInterpreterFrame(masm, r4);
   __ Ret();
+
+  // Load debug copy of the bytecode array if it exists.
+  // kInterpreterBytecodeArrayRegister is already loaded with
+  // SharedFunctionInfo::kFunctionDataOffset.
+  Label done;
+  __ bind(&maybe_load_debug_bytecode_array);
+  __ LoadP(ip, FieldMemOperand(r4, DebugInfo::kFlagsOffset));
+  __ SmiUntag(ip);
+  __ tmll(ip, Operand(DebugInfo::kHasBreakInfo));
+  __ beq(&done);
+  __ LoadP(kInterpreterBytecodeArrayRegister,
+           FieldMemOperand(r4, DebugInfo::kDebugBytecodeArrayOffset));
+  __ bind(&done);
+  __ b(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying
   // function has been switched to a different kind of code and we heal the

@@ -1085,20 +1085,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
   __ LoadP(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-  Label array_done;
-  Register debug_info = r5;
-  DCHECK(!debug_info.is(r3));
-  __ LoadP(debug_info,
-           FieldMemOperand(r3, SharedFunctionInfo::kDebugInfoOffset));
   // Load original bytecode array or the debug copy.
   __ LoadP(kInterpreterBytecodeArrayRegister,
            FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
-  __ TestIfSmi(debug_info, r0);
-  __ beq(&array_done, cr0);
-  __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayOffset));
-  __ bind(&array_done);
+  __ LoadP(r5, FieldMemOperand(r3, SharedFunctionInfo::kDebugInfoOffset));
+  __ TestIfSmi(r5, r0);
+  __ bne(&maybe_load_debug_bytecode_array, cr0);
+  __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
   // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
@@ -1191,6 +1186,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in r3.
   LeaveInterpreterFrame(masm, r5);
   __ blr();
+
+  // Load debug copy of the bytecode array if it exists.
+  // kInterpreterBytecodeArrayRegister is already loaded with
+  // SharedFunctionInfo::kFunctionDataOffset.
+  Label done;
+  __ bind(&maybe_load_debug_bytecode_array);
+  __ LoadP(ip, FieldMemOperand(r5, DebugInfo::kFlagsOffset));
+  __ SmiUntag(ip);
+  __ andi(r0, ip, Operand(DebugInfo::kHasBreakInfo));
+  __ beq(&done, cr0);
+  __ LoadP(kInterpreterBytecodeArrayRegister,
+           FieldMemOperand(r5, DebugInfo::kDebugBytecodeArrayOffset));
+  __ bind(&done);
+  __ b(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying
   // function has been switched to a different kind of code and we heal the
