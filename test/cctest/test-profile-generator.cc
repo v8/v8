@@ -731,7 +731,7 @@ TEST(BailoutReason) {
   // The tree should look like this:
   //  (root)
   //   ""
-  //     kFunctionBeingDebugged
+  //     kDeoptimizedTooManyTimes
   current = PickChild(current, "");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
 
