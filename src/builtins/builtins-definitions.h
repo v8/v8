@@ -899,11 +899,12 @@ namespace internal {
   /* ES6 #sec-string.prototype.slice */                                        \
   TFJ(StringPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
   /* ES6 #sec-string.prototype.split */                                        \
-  TFJ(StringPrototypeSplit, 2, kSeparator, kLimit)                             \
+  TFJ(StringPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
   /* ES6 #sec-string.prototype.substr */                                       \
-  TFJ(StringPrototypeSubstr, 2, kStart, kLength)                               \
+  TFJ(StringPrototypeSubstr, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   /* ES6 #sec-string.prototype.substring */                                    \
-  TFJ(StringPrototypeSubstring, 2, kStart, kEnd)                               \
+  TFJ(StringPrototypeSubstring,                                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.startswith */                                   \
   CPP(StringPrototypeStartsWith)                                               \
   /* ES6 #sec-string.prototype.tostring */                                     \

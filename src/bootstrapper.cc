@@ -1812,11 +1812,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "slice", Builtins::kStringPrototypeSlice,
                           2, false);
     SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
-                          2, true);
+                          2, false);
     SimpleInstallFunction(prototype, "substr", Builtins::kStringPrototypeSubstr,
-                          2, true);
+                          2, false);
     SimpleInstallFunction(prototype, "substring",
-                          Builtins::kStringPrototypeSubstring, 2, true);
+                          Builtins::kStringPrototypeSubstring, 2, false);
     SimpleInstallFunction(prototype, "startsWith",
                           Builtins::kStringPrototypeStartsWith, 1, false);
     SimpleInstallFunction(prototype, "toString",

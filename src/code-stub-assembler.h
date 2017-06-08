@@ -1551,6 +1551,9 @@ class CodeStubArguments {
 
   Node* AtIndex(int index) const;
 
+  Node* GetOptionalArgumentValue(int index) {
+    return GetOptionalArgumentValue(index, assembler_->UndefinedConstant());
+  }
   Node* GetOptionalArgumentValue(int index, Node* default_value);
 
   Node* GetLength() const { return argc_; }

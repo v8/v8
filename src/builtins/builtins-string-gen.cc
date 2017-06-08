@@ -1006,7 +1006,8 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Handle<Symbol> symbol,
-    const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
+    const NodeFunction0& regexp_call, const NodeFunction1& generic_call,
+    CodeStubArguments* args) {
   Label out(this);
 
   // Smis definitely don't have an attached symbol.
@@ -1044,7 +1045,12 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
                                   &slow_lookup);
 
     BIND(&stub_call);
-    Return(regexp_call());
+    Node* const result = regexp_call();
+    if (args == nullptr) {
+      Return(result);
+    } else {
+      args->PopAndReturn(result);
+    }
 
     BIND(&slow_lookup);
   }
@@ -1065,7 +1071,11 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
 
   // Attempt to call the function.
   Node* const result = generic_call(maybe_func);
-  Return(result);
+  if (args == nullptr) {
+    Return(result);
+  } else {
+    args->PopAndReturn(result);
+  }
 
   BIND(&out);
 }
@@ -1367,12 +1377,17 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
 
 // ES6 section 21.1.3.19 String.prototype.split ( separator, limit )
 TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
-  Label out(this);
+  const int kSeparatorArg = 0;
+  const int kLimitArg = 1;
 
-  Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const separator = Parameter(Descriptor::kSeparator);
-  Node* const limit = Parameter(Descriptor::kLimit);
-  Node* const context = Parameter(Descriptor::kContext);
+  Node* const argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const receiver = args.GetReceiver();
+  Node* const separator = args.GetOptionalArgumentValue(kSeparatorArg);
+  Node* const limit = args.GetOptionalArgumentValue(kLimitArg);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   Node* const smi_zero = SmiConstant(0);
 
@@ -1391,7 +1406,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
         return CallJS(call_callable, context, fn, separator, receiver, limit);
-      });
+      },
+      &args);
 
   // String and integer conversions.
 
@@ -1415,7 +1431,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     Node* const capacity = IntPtrConstant(0);
     Node* const result = AllocateJSArray(kind, array_map, capacity, length);
 
-    Return(result);
+    args.PopAndReturn(result);
 
     BIND(&next);
   }
@@ -1437,7 +1453,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     Node* const fixed_array = LoadElements(result);
     StoreFixedArrayElement(fixed_array, 0, subject_string);
 
-    Return(result);
+    args.PopAndReturn(result);
 
     BIND(&next);
   }
@@ -1449,7 +1465,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     Node* const result = CallRuntime(Runtime::kStringToArray, context,
                                      subject_string, limit_number);
-    Return(result);
+    args.PopAndReturn(result);
 
     BIND(&next);
   }
@@ -1457,20 +1473,27 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   Node* const result =
       CallRuntime(Runtime::kStringSplit, context, subject_string,
                   separator_string, limit_number);
-  Return(result);
+  args.PopAndReturn(result);
 }
 
 // ES6 #sec-string.prototype.substr
 TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
+  const int kStartArg = 0;
+  const int kLengthArg = 1;
+
+  Node* const argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const receiver = args.GetReceiver();
+  Node* const start = args.GetOptionalArgumentValue(kStartArg);
+  Node* const length = args.GetOptionalArgumentValue(kLengthArg);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+
   Label out(this);
 
   VARIABLE(var_start, MachineRepresentation::kTagged);
   VARIABLE(var_length, MachineRepresentation::kTagged);
-
-  Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const start = Parameter(Descriptor::kStart);
-  Node* const length = Parameter(Descriptor::kLength);
-  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const zero = SmiConstant(Smi::kZero);
 
@@ -1512,7 +1535,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
     var_length.Bind(SmiMin(positive_length, minimal_length));
 
     GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
-    Return(EmptyStringConstant());
+    args.PopAndReturn(EmptyStringConstant());
   }
 
   BIND(&if_isheapnumber);
@@ -1530,13 +1553,13 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
            &if_ispositive);
 
     BIND(&if_isnegative);
-    Return(EmptyStringConstant());
+    args.PopAndReturn(EmptyStringConstant());
 
     BIND(&if_ispositive);
     {
       var_length.Bind(SmiSub(string_length, var_start.value()));
       GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
-      Return(EmptyStringConstant());
+      args.PopAndReturn(EmptyStringConstant());
     }
   }
 
@@ -1544,7 +1567,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   {
     Node* const end = SmiAdd(var_start.value(), var_length.value());
     Node* const result = SubString(context, string, var_start.value(), end);
-    Return(result);
+    args.PopAndReturn(result);
   }
 }
 
@@ -1599,15 +1622,22 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
 
 // ES6 #sec-string.prototype.substring
 TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
+  const int kStartArg = 0;
+  const int kEndArg = 1;
+
+  Node* const argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const receiver = args.GetReceiver();
+  Node* const start = args.GetOptionalArgumentValue(kStartArg);
+  Node* const end = args.GetOptionalArgumentValue(kEndArg);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+
   Label out(this);
 
   VARIABLE(var_start, MachineRepresentation::kTagged);
   VARIABLE(var_end, MachineRepresentation::kTagged);
-
-  Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const start = Parameter(Descriptor::kStart);
-  Node* const end = Parameter(Descriptor::kEnd);
-  Node* const context = Parameter(Descriptor::kContext);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   Node* const string =
@@ -1642,7 +1672,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   {
     Node* result =
         SubString(context, string, var_start.value(), var_end.value());
-    Return(result);
+    args.PopAndReturn(result);
   }
 }
 

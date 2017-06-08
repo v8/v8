@@ -94,7 +94,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
-                                 const NodeFunction1& generic_call);
+                                 const NodeFunction1& generic_call,
+                                 CodeStubArguments* args = nullptr);
 };
 
 }  // namespace internal
