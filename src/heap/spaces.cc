@@ -416,7 +416,7 @@ bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
   // because the memory chunk can be in the queue of a sweeper task.
   // Chunks in old generation are unmapped if they are empty.
   DCHECK(chunk->InNewSpace() || chunk->SweepingDone());
-  return !chunk->InNewSpace() || mc == nullptr || !FLAG_concurrent_sweeping ||
+  return !chunk->InNewSpace() || mc == nullptr ||
          !mc->sweeper().sweeping_in_progress();
 }
 
