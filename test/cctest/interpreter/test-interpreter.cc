@@ -4937,6 +4937,9 @@ TEST(InterpreterToPrimitiveToString) {
   } test_cases[] = {
       {factory->NewStringFromAsciiChecked("Foo"),
        factory->NewStringFromAsciiChecked("Foo"),
+       BinaryOperationFeedback::kNonEmptyString},
+      {factory->NewStringFromAsciiChecked(""),
+       factory->NewStringFromAsciiChecked(""),
        BinaryOperationFeedback::kString},
       {handle(Smi::FromInt(123), isolate),
        factory->NewStringFromAsciiChecked("123"),

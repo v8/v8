@@ -416,6 +416,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckSmi();
   const Operator* CheckString();
   const Operator* CheckSeqString();
+  const Operator* CheckNonEmptyString();
   const Operator* CheckSymbol();
   const Operator* CheckReceiver();
 

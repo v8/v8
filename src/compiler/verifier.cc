@@ -1199,6 +1199,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SeqString());
       break;
+    case IrOpcode::kCheckNonEmptyString:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::NonEmptyString());
+      break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());

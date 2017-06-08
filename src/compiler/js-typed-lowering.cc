@@ -515,11 +515,9 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      empty_string_type_(
-          Type::HeapConstant(factory()->empty_string(), graph()->zone())),
       pointer_comparable_type_(
           Type::Union(Type::Oddball(),
-                      Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
+                      Type::Union(Type::SymbolOrReceiver(), Type::EmptyString(),
                                   graph()->zone()),
                       graph()->zone())),
       type_cache_(TypeCache::Get()) {
@@ -568,12 +566,12 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
-      if (r.LeftInputIs(empty_string_type_)) {
+      if (r.LeftInputIs(Type::EmptyString())) {
         Node* value = effect = graph()->NewNode(simplified()->CheckString(),
                                                 r.right(), effect, control);
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
-      } else if (r.RightInputIs(empty_string_type_)) {
+      } else if (r.RightInputIs(Type::EmptyString())) {
         Node* value = effect = graph()->NewNode(simplified()->CheckString(),
                                                 r.left(), effect, control);
         ReplaceWithValue(node, value, effect, control);

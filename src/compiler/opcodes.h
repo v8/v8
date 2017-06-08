@@ -325,6 +325,7 @@
   V(CheckReceiver)                  \
   V(CheckString)                    \
   V(CheckSeqString)                 \
+  V(CheckNonEmptyString)            \
   V(CheckSymbol)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \

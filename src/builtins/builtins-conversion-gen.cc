@@ -155,7 +155,10 @@ compiler::Node* ConversionBuiltinsAssembler::ToPrimitiveToString(
   BIND(&is_string);
   {
     if (feedback) {
-      feedback->Bind(SmiConstant(BinaryOperationFeedback::kString));
+      feedback->Bind(
+          SelectSmiConstant(WordEqual(input, EmptyStringConstant()),
+                            BinaryOperationFeedback::kString,
+                            BinaryOperationFeedback::kNonEmptyString));
     }
     Goto(&done);
   }

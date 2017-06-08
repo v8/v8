@@ -33,6 +33,7 @@ bool BinaryOperationHintToNumberOperationHint(
       return true;
     case BinaryOperationHint::kAny:
     case BinaryOperationHint::kNone:
+    case BinaryOperationHint::kNonEmptyString:
     case BinaryOperationHint::kString:
       break;
   }
@@ -261,7 +262,11 @@ Reduction JSTypeHintLowering::ReduceToPrimitiveToStringOperation(
   DCHECK(!slot.IsInvalid());
   BinaryOpICNexus nexus(feedback_vector(), slot);
   BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
-  if (hint == BinaryOperationHint::kString) {
+  if (hint == BinaryOperationHint::kNonEmptyString) {
+    Node* node = jsgraph()->graph()->NewNode(
+        jsgraph()->simplified()->CheckNonEmptyString(), input, effect, control);
+    return Reduction(node);
+  } else if (hint == BinaryOperationHint::kString) {
     Node* node = jsgraph()->graph()->NewNode(
         jsgraph()->simplified()->CheckString(), input, effect, control);
     return Reduction(node);

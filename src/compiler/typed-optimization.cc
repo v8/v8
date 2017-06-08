@@ -86,6 +86,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckString(node);
     case IrOpcode::kCheckSeqString:
       return ReduceCheckSeqString(node);
+    case IrOpcode::kCheckNonEmptyString:
+      return ReduceCheckNonEmptyString(node);
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kNumberCeil:
@@ -192,6 +194,16 @@ Reduction TypedOptimization::ReduceCheckSeqString(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::SeqString())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckNonEmptyString(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::NonEmptyString())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }

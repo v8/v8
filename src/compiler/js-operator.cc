@@ -670,6 +670,8 @@ struct JSOperatorGlobalCache final {
   Name##Operator<BinaryOperationHint::kNumber> k##Name##NumberOperator;       \
   Name##Operator<BinaryOperationHint::kNumberOrOddball>                       \
       k##Name##NumberOrOddballOperator;                                       \
+  Name##Operator<BinaryOperationHint::kNonEmptyString>                        \
+      k##Name##NonEmptyStringOperator;                                        \
   Name##Operator<BinaryOperationHint::kString> k##Name##StringOperator;       \
   Name##Operator<BinaryOperationHint::kAny> k##Name##AnyOperator;
   BINARY_OP_LIST(BINARY_OP)
@@ -725,6 +727,8 @@ CACHED_OP_LIST(CACHED_OP)
         return &cache_.k##Name##NumberOperator;                       \
       case BinaryOperationHint::kNumberOrOddball:                     \
         return &cache_.k##Name##NumberOrOddballOperator;              \
+      case BinaryOperationHint::kNonEmptyString:                      \
+        return &cache_.k##Name##NonEmptyStringOperator;               \
       case BinaryOperationHint::kString:                              \
         return &cache_.k##Name##StringOperator;                       \
       case BinaryOperationHint::kAny:                                 \

@@ -2009,7 +2009,8 @@ Node* GetStringWitness(Node* node) {
   for (Node* dominator = effect;;) {
     if ((dominator->opcode() == IrOpcode::kCheckString ||
          dominator->opcode() == IrOpcode::kCheckInternalizedString ||
-         dominator->opcode() == IrOpcode::kCheckSeqString) &&
+         dominator->opcode() == IrOpcode::kCheckSeqString ||
+         dominator->opcode() == IrOpcode::kCheckNonEmptyString) &&
         NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
