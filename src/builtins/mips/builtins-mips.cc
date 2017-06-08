@@ -1042,14 +1042,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
   __ lw(a0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  Label load_debug_bytecode_array, bytecode_array_loaded;
-  Register debug_info = kInterpreterBytecodeArrayRegister;
-  DCHECK(!debug_info.is(a0));
-  __ lw(debug_info, FieldMemOperand(a0, SharedFunctionInfo::kDebugInfoOffset));
-  __ JumpIfNotSmi(debug_info, &load_debug_bytecode_array);
   __ lw(kInterpreterBytecodeArrayRegister,
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
+  __ lw(t0, FieldMemOperand(a0, SharedFunctionInfo::kDebugInfoOffset));
+  __ JumpIfNotSmi(t0, &maybe_load_debug_bytecode_array);
   __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
@@ -1141,10 +1139,16 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   LeaveInterpreterFrame(masm, t0);
   __ Jump(ra);
 
-  // Load debug copy of the bytecode array.
-  __ bind(&load_debug_bytecode_array);
+  // Load debug copy of the bytecode array if it exists.
+  // kInterpreterBytecodeArrayRegister is already loaded with
+  // SharedFunctionInfo::kFunctionDataOffset.
+  __ bind(&maybe_load_debug_bytecode_array);
+  __ lw(t1, FieldMemOperand(t0, DebugInfo::kFlagsOffset));
+  __ SmiUntag(t1);
+  __ And(t1, t1, Operand(DebugInfo::kHasBreakInfo));
+  __ Branch(&bytecode_array_loaded, eq, t1, Operand(zero_reg));
   __ lw(kInterpreterBytecodeArrayRegister,
-        FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayOffset));
+        FieldMemOperand(t0, DebugInfo::kDebugBytecodeArrayOffset));
   __ Branch(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying
