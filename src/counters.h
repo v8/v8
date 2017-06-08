@@ -29,19 +29,18 @@ class Counters;
 
 class StatsTable {
  public:
-  // Register an application-defined function where
-  // counters can be looked up. Note: Must be called on main thread,
-  // so that threaded stats counters can be created now.
+  // Register an application-defined function for recording
+  // subsequent counter statistics.
   void SetCounterFunction(CounterLookupCallback f);
 
-  // Register an application-defined function to create
-  // a histogram for passing to the AddHistogramSample function
+  // Register an application-defined function to create histograms for
+  // recording subsequent histogram samples.
   void SetCreateHistogramFunction(CreateHistogramCallback f) {
     create_histogram_function_ = f;
   }
 
   // Register an application-defined function to add a sample
-  // to a histogram created with CreateHistogram function
+  // to a histogram created with CreateHistogram function.
   void SetAddHistogramSampleFunction(AddHistogramSampleCallback f) {
     add_histogram_sample_function_ = f;
   }
@@ -82,14 +81,13 @@ class StatsTable {
   }
 
  private:
+  friend class Counters;
+
   explicit StatsTable(Counters* counters);
 
-  Counters* counters_;
   CounterLookupCallback lookup_function_;
   CreateHistogramCallback create_histogram_function_;
   AddHistogramSampleCallback add_histogram_sample_function_;
-
-  friend class Counters;
 
   DISALLOW_COPY_AND_ASSIGN(StatsTable);
 };
@@ -121,13 +119,10 @@ class StatsCounterBase {
 // Internally, a counter represents a value in a row of a StatsTable.
 // The row has a 32bit value for each process/thread in the table and also
 // a name (stored in the table metadata).  Since the storage location can be
-// thread-specific, this class cannot be shared across threads.
+// thread-specific, this class cannot be shared across threads. Note: This
+// class is not thread safe.
 class StatsCounter : public StatsCounterBase {
  public:
-  StatsCounter() { }
-  StatsCounter(Counters* counters, const char* name)
-      : StatsCounterBase(counters, name), lookup_done_(false) {}
-
   // Sets the counter to a specific value.
   void Set(int value) {
     if (int* loc = GetPtr()) SetLoc(loc, value);
@@ -166,10 +161,16 @@ class StatsCounter : public StatsCounterBase {
     return loc;
   }
 
+ private:
+  friend class Counters;
+
+  StatsCounter() {}
+  StatsCounter(Counters* counters, const char* name)
+      : StatsCounterBase(counters, name), lookup_done_(false) {}
+
   // Reset the cached internal pointer.
   void Reset() { lookup_done_ = false; }
 
- private:
   // Returns the cached address of this counter location.
   int* GetPtr() {
     if (lookup_done_) return ptr_;
@@ -181,14 +182,9 @@ class StatsCounter : public StatsCounterBase {
   bool lookup_done_;
 };
 
-// Thread safe version of StatsCounter. WARNING: Unlike StatsCounter,
-// StatsCounterThreadSafe's constructor and method Reset() actually do
-// the table lookup, and should be called from the main thread
-// (i.e. not workers).
+// Thread safe version of StatsCounter.
 class StatsCounterThreadSafe : public StatsCounterBase {
  public:
-  StatsCounterThreadSafe(Counters* counters, const char* name);
-
   void Set(int Value);
   void Increment();
   void Increment(int value);
@@ -199,60 +195,49 @@ class StatsCounterThreadSafe : public StatsCounterBase {
     DCHECK(ptr_ != NULL);
     return ptr_;
   }
-  void Reset() { GetPtr(); }
 
  private:
-  int* GetPtr();
+  friend class Counters;
+
+  StatsCounterThreadSafe(Counters* counters, const char* name);
+  void Reset() { ptr_ = FindLocationInStatsTable(); }
 
   base::Mutex mutex_;
 
- private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StatsCounterThreadSafe);
 };
 
-// A Histogram represents a dynamically created histogram in the StatsTable.
-// It will be registered with the histogram system on first use.
+// A Histogram represents a dynamically created histogram in the
+// StatsTable.  Note: This class is thread safe.
 class Histogram {
  public:
-  Histogram() { }
+  // Add a single sample to this histogram.
+  void AddSample(int sample);
+
+  // Returns true if this histogram is enabled.
+  bool Enabled() { return histogram_ != nullptr; }
+
+  const char* name() { return name_; }
+
+ protected:
+  Histogram() {}
   Histogram(const char* name, int min, int max, int num_buckets,
             Counters* counters)
       : name_(name),
         min_(min),
         max_(max),
         num_buckets_(num_buckets),
-        histogram_(NULL),
-        lookup_done_(false),
+        histogram_(nullptr),
         counters_(counters) {}
-
-  // Add a single sample to this histogram.
-  void AddSample(int sample);
-
-  // Returns true if this histogram is enabled.
-  bool Enabled() {
-    return GetHistogram() != NULL;
-  }
-
-  // Reset the cached internal pointer.
-  void Reset() {
-    lookup_done_ = false;
-  }
-
-  const char* name() { return name_; }
-
- protected:
-  // Returns the handle to the histogram.
-  void* GetHistogram() {
-    if (!lookup_done_) {
-      lookup_done_ = true;
-      histogram_ = CreateHistogram();
-    }
-    return histogram_;
-  }
 
   Counters* counters() const { return counters_; }
 
+  // Reset the cached internal pointer.
+  void Reset() { histogram_ = CreateHistogram(); }
+
  private:
+  friend class Counters;
+
   void* CreateHistogram() const;
 
   const char* name_;
@@ -260,7 +245,6 @@ class Histogram {
   int max_;
   int num_buckets_;
   void* histogram_;
-  bool lookup_done_;
   Counters* counters_;
 };
 
@@ -272,7 +256,7 @@ class HistogramTimer : public Histogram {
     MICROSECOND
   };
 
-  HistogramTimer() {}
+  // Note: public for testing purposes only.
   HistogramTimer(const char* name, int min, int max, Resolution resolution,
                  int num_buckets, Counters* counters)
       : Histogram(name, min, max, num_buckets, counters),
@@ -295,8 +279,12 @@ class HistogramTimer : public Histogram {
 #endif
 
  private:
+  friend class Counters;
+
   base::ElapsedTimer timer_;
   Resolution resolution_;
+
+  HistogramTimer() {}
 };
 
 // Helper class for scoping a HistogramTimer.
@@ -355,11 +343,6 @@ class HistogramTimerScope BASE_EMBEDDED {
 //     events to be timed.
 class AggregatableHistogramTimer : public Histogram {
  public:
-  AggregatableHistogramTimer() {}
-  AggregatableHistogramTimer(const char* name, int min, int max,
-                             int num_buckets, Counters* counters)
-      : Histogram(name, min, max, num_buckets, counters) {}
-
   // Start/stop the "outer" scope.
   void Start() { time_ = base::TimeDelta(); }
   void Stop() { AddSample(static_cast<int>(time_.InMicroseconds())); }
@@ -368,6 +351,13 @@ class AggregatableHistogramTimer : public Histogram {
   void Add(base::TimeDelta other) { time_ += other; }
 
  private:
+  friend class Counters;
+
+  AggregatableHistogramTimer() {}
+  AggregatableHistogramTimer(const char* name, int min, int max,
+                             int num_buckets, Counters* counters)
+      : Histogram(name, min, max, num_buckets, counters) {}
+
   base::TimeDelta time_;
 };
 
@@ -414,14 +404,7 @@ class AggregatedHistogramTimerScope {
 template <typename Histogram>
 class AggregatedMemoryHistogram {
  public:
-  AggregatedMemoryHistogram()
-      : is_initialized_(false),
-        start_ms_(0.0),
-        last_ms_(0.0),
-        aggregate_value_(0.0),
-        last_value_(0.0),
-        backing_histogram_(NULL) {}
-
+  // Note: public for testing purposes only.
   explicit AggregatedMemoryHistogram(Histogram* backing_histogram)
       : AggregatedMemoryHistogram() {
     backing_histogram_ = backing_histogram;
@@ -439,7 +422,17 @@ class AggregatedMemoryHistogram {
   void AddSample(double current_ms, double current_value);
 
  private:
+  friend class Counters;
+
+  AggregatedMemoryHistogram()
+      : is_initialized_(false),
+        start_ms_(0.0),
+        last_ms_(0.0),
+        aggregate_value_(0.0),
+        last_value_(0.0),
+        backing_histogram_(NULL) {}
   double Aggregate(double current_ms, double current_value);
+
   bool is_initialized_;
   double start_ms_;
   double last_ms_;
@@ -536,14 +529,14 @@ class RuntimeCallCounter final {
   void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
 
  private:
+  friend class RuntimeCallStats;
+
   RuntimeCallCounter() {}
 
   const char* name_;
   int64_t count_;
   // Stored as int64_t so that its initialization can be deferred.
   int64_t time_;
-
-  friend class RuntimeCallStats;
 };
 
 // RuntimeCallTimer is used to keep track of the stack of currently active
@@ -1217,6 +1210,23 @@ class Counters : public std::enable_shared_from_this<Counters> {
  public:
   explicit Counters(Isolate* isolate);
 
+  // Register an application-defined function for recording
+  // subsequent counter statistics. Note: Must be called on the main
+  // thread.
+  void ResetCounterFunction(CounterLookupCallback f);
+
+  // Register an application-defined function to create histograms for
+  // recording subsequent histogram samples. Note: Must be called on
+  // the main thread.
+  void ResetCreateHistogramFunction(CreateHistogramCallback f);
+
+  // Register an application-defined function to add a sample
+  // to a histogram. Will be used in all subsequent sample additions.
+  // Note: Must be called on the main thread.
+  void SetAddHistogramSampleFunction(AddHistogramSampleCallback f) {
+    stats_table_.SetAddHistogramSampleFunction(f);
+  }
+
 #define HR(name, caption, min, max, num_buckets) \
   Histogram* name() { return &name##_; }
   HISTOGRAM_RANGE_LIST(HR)
@@ -1330,19 +1340,30 @@ class Counters : public std::enable_shared_from_this<Counters> {
   };
   // clang-format on
 
-  void ResetCounters();
-  void ResetHistograms();
-  void InitializeHistograms();
-
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
-  StatsTable* stats_table() { return &stats_table_; }
-
-  Isolate* isolate() { return isolate_; }
-
  private:
+  friend class StatsTable;
+  friend class StatsCounterBase;
+  friend class Histogram;
+  friend class HistogramTimer;
+
   Isolate* isolate_;
   StatsTable stats_table_;
+
+  int* FindLocation(const char* name) {
+    return stats_table_.FindLocation(name);
+  }
+
+  void* CreateHistogram(const char* name, int min, int max, size_t buckets) {
+    return stats_table_.CreateHistogram(name, min, max, buckets);
+  }
+
+  void AddHistogramSample(void* histogram, int sample) {
+    stats_table_.AddHistogramSample(histogram, sample);
+  }
+
+  Isolate* isolate() { return isolate_; }
 
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
   HISTOGRAM_RANGE_LIST(HR)

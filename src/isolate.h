@@ -883,7 +883,6 @@ class Isolate {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
-  StatsTable* stats_table();
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
   CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
@@ -1436,7 +1435,6 @@ class Isolate {
   base::RecursiveMutex break_access_;
   Logger* logger_;
   StackGuard stack_guard_;
-  StatsTable* stats_table_;
   StubCache* load_stub_cache_;
   StubCache* store_stub_cache_;
   CodeAgingHelper* code_aging_helper_;

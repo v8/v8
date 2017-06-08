@@ -2290,7 +2290,6 @@ Isolate::Isolate(bool enable_serializer)
       runtime_profiler_(NULL),
       compilation_cache_(NULL),
       logger_(NULL),
-      stats_table_(NULL),
       load_stub_cache_(NULL),
       store_stub_cache_(NULL),
       code_aging_helper_(NULL),
@@ -2544,7 +2543,6 @@ Isolate::~Isolate() {
   store_stub_cache_ = NULL;
   delete code_aging_helper_;
   code_aging_helper_ = NULL;
-  stats_table_ = NULL;
 
   delete materialized_object_store_;
   materialized_object_store_ = NULL;
@@ -2849,16 +2847,6 @@ bool Isolate::Init(Deserializer* des) {
   if (!FLAG_inline_new) heap_.DisableInlineAllocation();
 
   return true;
-}
-
-
-// Initialized lazily to allow early
-// v8::V8::SetAddHistogramSampleFunction calls.
-StatsTable* Isolate::stats_table() {
-  if (stats_table_ != nullptr) return stats_table_;
-  InitializeCounters();
-  stats_table_ = counters_shared_->stats_table();
-  return stats_table_;
 }
 
 

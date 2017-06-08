@@ -16,25 +16,21 @@ namespace v8 {
 namespace internal {
 
 StatsTable::StatsTable(Counters* counters)
-    : counters_(counters),
-      lookup_function_(NULL),
+    : lookup_function_(NULL),
       create_histogram_function_(NULL),
       add_histogram_sample_function_(NULL) {}
 
 void StatsTable::SetCounterFunction(CounterLookupCallback f) {
   lookup_function_ = f;
-  counters_->ResetCounters();
 }
 
 int* StatsCounterBase::FindLocationInStatsTable() const {
-  return counters_->stats_table()->FindLocation(name_);
+  return counters_->FindLocation(name_);
 }
 
 StatsCounterThreadSafe::StatsCounterThreadSafe(Counters* counters,
                                                const char* name)
-    : StatsCounterBase(counters, name) {
-  GetPtr();
-}
+    : StatsCounterBase(counters, name) {}
 
 void StatsCounterThreadSafe::Set(int Value) {
   if (ptr_) {
@@ -71,21 +67,14 @@ void StatsCounterThreadSafe::Decrement(int value) {
   }
 }
 
-int* StatsCounterThreadSafe::GetPtr() {
-  base::LockGuard<base::Mutex> Guard(&mutex_);
-  ptr_ = FindLocationInStatsTable();
-  return ptr_;
-}
-
 void Histogram::AddSample(int sample) {
   if (Enabled()) {
-    counters_->stats_table()->AddHistogramSample(histogram_, sample);
+    counters_->AddHistogramSample(histogram_, sample);
   }
 }
 
 void* Histogram::CreateHistogram() const {
-  return counters_->stats_table()->CreateHistogram(name_, min_, max_,
-                                                   num_buckets_);
+  return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
 
@@ -257,7 +246,9 @@ Counters::Counters(Isolate* isolate)
   }
 }
 
-void Counters::ResetCounters() {
+void Counters::ResetCounterFunction(CounterLookupCallback f) {
+  stats_table_.SetCounterFunction(f);
+
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
@@ -292,8 +283,9 @@ void Counters::ResetCounters() {
 #undef SC
 }
 
+void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
+  stats_table_.SetCreateHistogramFunction(f);
 
-void Counters::ResetHistograms() {
 #define HR(name, caption, min, max, num_buckets) name##_.Reset();
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
@@ -313,29 +305,6 @@ void Counters::ResetHistograms() {
 #define HM(name, caption) name##_.Reset();
     HISTOGRAM_LEGACY_MEMORY_LIST(HM)
     HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
-}
-
-void Counters::InitializeHistograms() {
-#define HR(name, caption, min, max, num_buckets) name##_.Enabled();
-  HISTOGRAM_RANGE_LIST(HR)
-#undef HR
-
-#define HT(name, caption, max, res) name##_.Enabled();
-  HISTOGRAM_TIMER_LIST(HT)
-#undef HT
-
-#define AHT(name, caption) name##_.Enabled();
-  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
-#undef AHT
-
-#define HP(name, caption) name##_.Enabled();
-  HISTOGRAM_PERCENTAGE_LIST(HP)
-#undef HP
-
-#define HM(name, caption) name##_.Enabled();
-  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
-  HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 }
 

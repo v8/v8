@@ -8730,23 +8730,20 @@ void Isolate::SetUseCounterCallback(UseCounterCallback callback) {
 
 void Isolate::SetCounterFunction(CounterLookupCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->stats_table()->SetCounterFunction(callback);
+  isolate->counters()->ResetCounterFunction(callback);
 }
 
 
 void Isolate::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->stats_table()->SetCreateHistogramFunction(callback);
-  isolate->InitializeLoggingAndCounters();
-  isolate->counters()->ResetHistograms();
-  isolate->counters()->InitializeHistograms();
+  isolate->counters()->ResetCreateHistogramFunction(callback);
 }
 
 
 void Isolate::SetAddHistogramSampleFunction(
     AddHistogramSampleCallback callback) {
   reinterpret_cast<i::Isolate*>(this)
-      ->stats_table()
+      ->counters()
       ->SetAddHistogramSampleFunction(callback);
 }
 
