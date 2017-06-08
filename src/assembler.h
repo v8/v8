@@ -348,7 +348,9 @@ class RelocInfo {
     CODE_TARGET,
     CODE_TARGET_WITH_ID,
     EMBEDDED_OBJECT,
-    // To relocate pointers into the wasm memory embedded in wasm code
+    // Wasm entries are to relocate pointers into the wasm memory embedded in
+    // wasm code. Everything after WASM_MEMORY_REFERENCE (inclusive) is not
+    // GC'ed.
     WASM_MEMORY_REFERENCE,
     WASM_GLOBAL_REFERENCE,
     WASM_MEMORY_SIZE_REFERENCE,
@@ -356,7 +358,6 @@ class RelocInfo {
     WASM_PROTECTED_INSTRUCTION_LANDING,
     CELL,
 
-    // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
     COMMENT,
 
@@ -396,7 +397,7 @@ class RelocInfo {
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     LAST_CODE_ENUM = CODE_TARGET_WITH_ID,
-    LAST_GCED_ENUM = WASM_FUNCTION_TABLE_SIZE_REFERENCE,
+    LAST_GCED_ENUM = EMBEDDED_OBJECT,
     FIRST_SHAREABLE_RELOC_MODE = CELL,
   };
 
