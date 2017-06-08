@@ -7784,6 +7784,11 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
   Contents contents;
+  contents.allocation_base_ = self->allocation_base();
+  contents.allocation_length_ = self->allocation_length();
+  contents.allocation_mode_ = self->has_guard_region()
+                                  ? Allocator::AllocationMode::kReservation
+                                  : Allocator::AllocationMode::kNormal;
   contents.data_ = self->backing_store();
   contents.byte_length_ = byte_length;
   return contents;
@@ -7992,6 +7997,12 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
   Contents contents;
   contents.data_ = self->backing_store();
   contents.byte_length_ = byte_length;
+  // SharedArrayBuffers never have guard regions, so their allocation and data
+  // are equivalent.
+  contents.allocation_base_ = self->backing_store();
+  contents.allocation_length_ = byte_length;
+  contents.allocation_mode_ =
+      ArrayBufferAllocator::Allocator::AllocationMode::kNormal;
   return contents;
 }
 
