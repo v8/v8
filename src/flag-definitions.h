@@ -270,7 +270,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 DEFINE_IMPLICATION(future, turbo)
 
 DEFINE_IMPLICATION(turbo, ignition)
-DEFINE_IMPLICATION(turbo, thin_strings)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -940,7 +939,7 @@ DEFINE_BOOL(native_code_counters, false,
             "generate extra code for manipulating stats counters")
 
 // objects.cc
-DEFINE_BOOL(thin_strings, false, "Enable ThinString support")
+DEFINE_BOOL(thin_strings, true, "Enable ThinString support")
 DEFINE_BOOL(trace_weak_arrays, false, "Trace WeakFixedArray usage")
 DEFINE_BOOL(trace_prototype_users, false,
             "Trace updates to prototype user tracking")
