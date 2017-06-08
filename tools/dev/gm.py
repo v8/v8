@@ -109,7 +109,7 @@ v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", GOMADIR)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
 
 DEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -121,7 +121,7 @@ goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", GOMADIR)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
 
 OPTDEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -133,7 +133,7 @@ goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", GOMADIR)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
