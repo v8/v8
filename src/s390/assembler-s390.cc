@@ -348,7 +348,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   relocations_.reserve(128);
 }
 
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isloate, CodeDesc* desc) {
   EmitRelocations();
 
   // Set up code descriptor.

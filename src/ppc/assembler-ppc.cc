@@ -250,8 +250,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   relocations_.reserve(128);
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
   int constant_pool_offset = EmitConstantPool();
 

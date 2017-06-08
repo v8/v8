@@ -405,7 +405,7 @@ class Assembler : public AssemblerBase {
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -492,6 +492,10 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_target_internal_reference_at(
       Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  static void set_heap_number(Handle<HeapObject> number, Address pc) {
+    UNIMPLEMENTED();
+  }
 
   // Size of an instruction.
   static constexpr int kInstrSize = sizeof(Instr);
