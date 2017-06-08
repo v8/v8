@@ -8703,6 +8703,7 @@ TEST(FunctionDeclarationError) {
     "label: function f() { }",
     "label: if (true) function f() { }",
     "label: if (true) {} else function f() { }",
+    "label: label2: function f() { }",
     NULL
   };
   // clang-format on

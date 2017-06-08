@@ -5148,7 +5148,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
         allow_function == kAllowLabelledFunctionStatement) {
       return ParseFunctionDeclaration(ok);
     }
-    return ParseStatement(labels, ok);
+    return ParseStatement(labels, allow_function, ok);
   }
 
   // If we have an extension, we allow a native function declaration.
