@@ -1823,14 +1823,14 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // -----------------------------------
 
   Register argc = a0;
-  Register arg_array = a0;
+  Register arg_array = a2;
   Register receiver = a1;
-  Register this_arg = a2;
+  Register this_arg = a5;
   Register undefined_value = a3;
   Register scratch = a4;
 
   __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
-  // 1. Load receiver into a1, argArray into a0 (if present), remove all
+  // 1. Load receiver into a1, argArray into a2 (if present), remove all
   // arguments from the stack (including the receiver), and push thisArg (if
   // present) instead.
   {
@@ -1850,7 +1850,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   }
 
   // ----------- S t a t e -------------
-  //  -- a0    : argArray
+  //  -- a2    : argArray
   //  -- a1    : receiver
   //  -- a3    : undefined root value
   //  -- sp[0] : thisArg
@@ -1869,10 +1869,9 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   __ JumpIfRoot(arg_array, Heap::kNullValueRootIndex, &no_arguments);
   __ Branch(&no_arguments, eq, arg_array, Operand(undefined_value));
 
-  // 4a. Apply the receiver to the given argArray (passing undefined for
-  // new.target).
-  DCHECK(undefined_value.is(a3));
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  // 4a. Apply the receiver to the given argArray.
+  __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 4b. The argArray is either null or undefined, so we tail call without any
   // arguments to the receiver.
@@ -1943,14 +1942,14 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // -----------------------------------
 
   Register argc = a0;
-  Register arguments_list = a0;
+  Register arguments_list = a2;
   Register target = a1;
-  Register this_argument = a2;
+  Register this_argument = a5;
   Register undefined_value = a3;
   Register scratch = a4;
 
   __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
-  // 1. Load target into a1 (if present), argumentsList into a0 (if present),
+  // 1. Load target into a1 (if present), argumentsList into a2 (if present),
   // remove all arguments from the stack (including the receiver), and push
   // thisArgument (if present) instead.
   {
@@ -1974,7 +1973,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   }
 
   // ----------- S t a t e -------------
-  //  -- a0    : argumentsList
+  //  -- a2    : argumentsList
   //  -- a1    : target
   //  -- a3    : undefined root value
   //  -- sp[0] : thisArgument
@@ -1988,10 +1987,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   __ And(a4, a4, Operand(1 << Map::kIsCallable));
   __ Branch(&target_not_callable, eq, a4, Operand(zero_reg));
 
-  // 3a. Apply the target to the given argumentsList (passing undefined for
-  // new.target).
-  DCHECK(undefined_value.is(a3));
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  // 3a. Apply the target to the given argumentsList.
+  __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 3b. The target is not callable, throw an appropriate TypeError.
   __ bind(&target_not_callable);
@@ -2010,13 +2008,13 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- sp[12] : receiver
   // -----------------------------------
   Register argc = a0;
-  Register arguments_list = a0;
+  Register arguments_list = a2;
   Register target = a1;
   Register new_target = a3;
   Register undefined_value = a4;
   Register scratch = a5;
 
-  // 1. Load target into a1 (if present), argumentsList into a0 (if present),
+  // 1. Load target into a1 (if present), argumentsList into a2 (if present),
   // new.target into a3 (if present, otherwise use target), remove all
   // arguments from the stack (including the receiver), and push thisArgument
   // (if present) instead.
@@ -2041,7 +2039,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   }
 
   // ----------- S t a t e -------------
-  //  -- a0    : argumentsList
+  //  -- a2    : argumentsList
   //  -- a1    : target
   //  -- a3    : new.target
   //  -- sp[0] : receiver (undefined)
@@ -2064,7 +2062,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ Branch(&new_target_not_constructor, eq, a4, Operand(zero_reg));
 
   // 4a. Construct the target with the given new.target and argumentsList.
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->ConstructWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 4b. The target is not a constructor, throw an appropriate TypeError.
   __ bind(&target_not_constructor);
@@ -2107,135 +2106,45 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_Apply(MacroAssembler* masm) {
+void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
+                                               Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- a0    : argumentsList
-  //  -- a1    : target
-  //  -- a3    : new.target (checked to be constructor or undefined)
-  //  -- sp[0] : thisArgument
+  //  -- a1 : target
+  //  -- a0 : number of parameters on the stack (not including the receiver)
+  //  -- a2 : arguments list (a FixedArray)
+  //  -- a4 : len (number of elements to push from args)
+  //  -- a3 : new.target (for [[Construct]])
   // -----------------------------------
+  __ AssertFixedArray(a2);
 
-  Register arguments_list = a0;
-  Register target = a1;
-  Register new_target = a3;
-
-  Register args = a0;
-  Register len = a2;
-
-  // Create the list of arguments from the array-like argumentsList.
-  {
-    Label create_arguments, create_array, create_holey_array, create_runtime,
-        done_create;
-    __ JumpIfSmi(arguments_list, &create_runtime);
-
-    // Load the map of argumentsList into a2.
-    Register arguments_list_map = a2;
-    __ Ld(arguments_list_map,
-          FieldMemOperand(arguments_list, HeapObject::kMapOffset));
-
-    // Load native context into a4.
-    Register native_context = a4;
-    __ Ld(native_context, NativeContextMemOperand());
-
-    // Check if argumentsList is an (unmodified) arguments object.
-    __ Ld(at, ContextMemOperand(native_context,
-                                Context::SLOPPY_ARGUMENTS_MAP_INDEX));
-    __ Branch(&create_arguments, eq, arguments_list_map, Operand(at));
-    __ Ld(at, ContextMemOperand(native_context,
-                                Context::STRICT_ARGUMENTS_MAP_INDEX));
-    __ Branch(&create_arguments, eq, arguments_list_map, Operand(at));
-
-    // Check if argumentsList is a fast JSArray.
-    __ Lbu(v0, FieldMemOperand(a2, Map::kInstanceTypeOffset));
-    __ Branch(&create_array, eq, v0, Operand(JS_ARRAY_TYPE));
-
-    // Ask the runtime to create the list (actually a FixedArray).
-    __ bind(&create_runtime);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(target, new_target, arguments_list);
-      __ CallRuntime(Runtime::kCreateListFromArrayLike);
-      __ mov(arguments_list, v0);
-      __ Pop(target, new_target);
-      __ Lw(len, UntagSmiFieldMemOperand(v0, FixedArray::kLengthOffset));
-    }
-    __ Branch(&done_create);
-
-    // Try to create the list from an arguments object.
-    __ bind(&create_arguments);
-    __ Lw(len, UntagSmiFieldMemOperand(arguments_list,
-                                       JSArgumentsObject::kLengthOffset));
-    __ Ld(a4, FieldMemOperand(arguments_list, JSObject::kElementsOffset));
-    __ Lw(at, UntagSmiFieldMemOperand(a4, FixedArray::kLengthOffset));
-    __ Branch(&create_runtime, ne, len, Operand(at));
-    __ mov(args, a4);
-
-    __ Branch(&done_create);
-
-    // For holey JSArrays we need to check that the array prototype chain
-    // protector is intact and our prototype is the Array.prototype actually.
-    __ bind(&create_holey_array);
-    __ Ld(a2, FieldMemOperand(a2, Map::kPrototypeOffset));
-    __ Ld(at, ContextMemOperand(native_context,
-                                Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
-    __ Branch(&create_runtime, ne, a2, Operand(at));
-    __ LoadRoot(at, Heap::kArrayProtectorRootIndex);
-    __ Lw(a2, FieldMemOperand(at, PropertyCell::kValueOffset));
-    __ Branch(&create_runtime, ne, a2,
-              Operand(Smi::FromInt(Isolate::kProtectorValid)));
-    __ Lw(a2, UntagSmiFieldMemOperand(a0, JSArray::kLengthOffset));
-    __ Ld(a0, FieldMemOperand(a0, JSArray::kElementsOffset));
-    __ Branch(&done_create);
-
-    // Try to create the list from a JSArray object.
-    __ bind(&create_array);
-    __ Lbu(t1, FieldMemOperand(a2, Map::kBitField2Offset));
-    __ DecodeField<Map::ElementsKindBits>(t1);
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(FAST_ELEMENTS == 2);
-    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    __ Branch(&create_holey_array, eq, t1, Operand(FAST_HOLEY_SMI_ELEMENTS));
-    __ Branch(&create_holey_array, eq, t1, Operand(FAST_HOLEY_ELEMENTS));
-    __ Branch(&create_runtime, hi, t1, Operand(FAST_ELEMENTS));
-    __ Lw(a2, UntagSmiFieldMemOperand(arguments_list, JSArray::kLengthOffset));
-    __ Ld(a0, FieldMemOperand(arguments_list, JSArray::kElementsOffset));
-
-    __ bind(&done_create);
-  }
+  Register args = a2;
+  Register len = a4;
 
   // Check for stack overflow.
   {
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     Label done;
-    __ LoadRoot(a4, Heap::kRealStackLimitRootIndex);
+    __ LoadRoot(a5, Heap::kRealStackLimitRootIndex);
     // Make ip the space we have left. The stack might already be overflowed
     // here which will cause ip to become negative.
-    __ Dsubu(a4, sp, a4);
+    __ Dsubu(a5, sp, a5);
     // Check if the arguments will overflow the stack.
     __ dsll(at, len, kPointerSizeLog2);
-    __ Branch(&done, gt, a4, Operand(at));  // Signed comparison.
+    __ Branch(&done, gt, a5, Operand(at));  // Signed comparison.
     __ TailCallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&done);
   }
 
-  // ----------- S t a t e -------------
-  //  -- a1    : target
-  //  -- a0    : args (a FixedArray built from argumentsList)
-  //  -- a2    : len (number of elements to push from args)
-  //  -- a3    : new.target (checked to be constructor or undefined)
-  //  -- sp[0] : thisArgument
-  // -----------------------------------
-
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
     Label done, push, loop;
-    Register src = a4;
+    Register src = a6;
     Register scratch = len;
 
     __ daddiu(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
     __ Branch(&done, eq, len, Operand(zero_reg), i::USE_DELAY_SLOT);
-    __ mov(a0, len);  // The 'len' argument for Call() or Construct().
+    __ Daddu(a0, a0, len);  // The 'len' argument for Call() or Construct().
     __ dsll(scratch, len, kPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
     __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
@@ -2250,31 +2159,13 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // ----------- S t a t e -------------
-  //  -- a0             : argument count (len)
-  //  -- a1             : target
-  //  -- a3             : new.target (checked to be constructor or undefinded)
-  //  -- sp[0]          : args[len-1]
-  //  -- sp[8]          : args[len-2]
-  //     ...            : ...
-  //  -- sp[8*(len-2)]  : args[1]
-  //  -- sp[8*(len-1)]  : args[0]
-  //  ----------------------------------
-
-  // Dispatch to Call or Construct depending on whether new.target is undefined.
-  {
-    Label construct;
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    __ Branch(&construct, ne, a3, Operand(at));
-    __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-    __ bind(&construct);
-    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-  }
+  // Tail-call to the actual Call or Construct builtin.
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 // static
-void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
-                                       Handle<Code> code) {
+void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                      Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a3 : the new.target (for [[Construct]] calls)

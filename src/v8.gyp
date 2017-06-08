@@ -180,6 +180,7 @@
         'builtins/builtins-async-iterator-gen.cc',
         'builtins/builtins-boolean-gen.cc',
         'builtins/builtins-call-gen.cc',
+        'builtins/builtins-call-gen.h',
         'builtins/builtins-collections-gen.cc',
         'builtins/builtins-console-gen.cc',
         'builtins/builtins-constructor-gen.cc',

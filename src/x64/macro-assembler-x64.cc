@@ -3686,6 +3686,16 @@ void MacroAssembler::AssertSmi(const Operand& object) {
   }
 }
 
+void MacroAssembler::AssertFixedArray(Register object) {
+  if (emit_debug_code()) {
+    testb(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsASmiAndNotAFixedArray);
+    Push(object);
+    CmpObjectType(object, FIXED_ARRAY_TYPE, object);
+    Pop(object);
+    Check(equal, kOperandIsNotAFixedArray);
+  }
+}
 
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {

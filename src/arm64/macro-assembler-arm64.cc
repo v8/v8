@@ -1781,6 +1781,17 @@ void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
   }
 }
 
+void MacroAssembler::AssertFixedArray(Register object) {
+  if (emit_debug_code()) {
+    AssertNotSmi(object, kOperandIsASmiAndNotAFixedArray);
+
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+
+    CompareObjectType(object, temp, temp, FIXED_ARRAY_TYPE);
+    Check(eq, kOperandIsNotAFixedArray);
+  }
+}
 
 void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {

@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-constructor-gen.h"
 
 #include "src/ast/ast.h"
+#include "src/builtins/builtins-call-gen.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -17,13 +18,28 @@
 namespace v8 {
 namespace internal {
 
+void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
+  Generate_CallOrConstructVarargs(masm,
+                                  masm->isolate()->builtins()->Construct());
+}
+
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
-  Generate_ForwardVarargs(masm, masm->isolate()->builtins()->Construct());
+  Generate_CallOrConstructForwardVarargs(
+      masm, masm->isolate()->builtins()->Construct());
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
-  Generate_ForwardVarargs(masm,
-                          masm->isolate()->builtins()->ConstructFunction());
+  Generate_CallOrConstructForwardVarargs(
+      masm, masm->isolate()->builtins()->ConstructFunction());
+}
+
+TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
+  Node* target = Parameter(ConstructWithArrayLikeDescriptor::kTarget);
+  Node* new_target = Parameter(ConstructWithArrayLikeDescriptor::kNewTarget);
+  Node* arguments_list =
+      Parameter(ConstructWithArrayLikeDescriptor::kArgumentsList);
+  Node* context = Parameter(ConstructWithArrayLikeDescriptor::kContext);
+  CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 typedef compiler::Node Node;

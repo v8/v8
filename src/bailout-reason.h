@@ -142,6 +142,7 @@ namespace internal {
   V(kOffsetOutOfRange, "Offset out of range")                                  \
   V(kOperandIsASmiAndNotABoundFunction,                                        \
     "Operand is a smi and not a bound function")                               \
+  V(kOperandIsASmiAndNotAFixedArray, "Operand is a smi and not a fixed array") \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAGeneratorObject,                                      \
     "Operand is a smi and not a generator object")                             \
@@ -150,6 +151,7 @@ namespace internal {
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
+  V(kOperandIsNotAFixedArray, "Operand is not a fixed array")                  \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
   V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \
   V(kOperandIsNotAReceiver, "Operand is not a receiver")                       \

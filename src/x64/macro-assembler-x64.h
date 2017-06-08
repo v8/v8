@@ -1145,6 +1145,9 @@ class MacroAssembler: public Assembler {
   void AssertSmi(Register object);
   void AssertSmi(const Operand& object);
 
+  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
+  void AssertFixedArray(Register object);
+
   // Abort execution if a 64 bit register containing a 32 bit payload does not
   // have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register reg);

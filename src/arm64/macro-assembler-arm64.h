@@ -1565,6 +1565,9 @@ class MacroAssembler : public Assembler {
   inline void ObjectTag(Register tagged_obj, Register obj);
   inline void ObjectUntag(Register untagged_obj, Register obj);
 
+  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
+  void AssertFixedArray(Register object);
+
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 

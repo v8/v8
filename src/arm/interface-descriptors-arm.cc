@@ -157,12 +157,41 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r0 : number of arguments (on the stack, not including receiver)
+  // r1 : the target to call
+  // r2 : arguments list (FixedArray)
+  // r4 : arguments list length (untagged)
+  Register registers[] = {r1, r0, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CallForwardVarargsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r0 : number of arguments
   // r2 : start index (to support rest parameters)
   // r1 : the target to call
   Register registers[] = {r1, r0, r2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void CallWithArrayLikeDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r1 : the target to call
+  // r2 : the arguments list
+  Register registers[] = {r1, r2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r0 : number of arguments (on the stack, not including receiver)
+  // r1 : the target to call
+  // r3 : the new target
+  // r2 : arguments list (FixedArray)
+  // r4 : arguments list length (untagged)
+  Register registers[] = {r1, r3, r0, r2, r4};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -173,6 +202,15 @@ void ConstructForwardVarargsDescriptor::InitializePlatformSpecific(
   // r2 : start index (to support rest parameters)
   // r1 : the target to call
   Register registers[] = {r1, r3, r0, r2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructWithArrayLikeDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r1 : the target to call
+  // r3 : the new target
+  // r2 : the arguments list
+  Register registers[] = {r1, r3, r2};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

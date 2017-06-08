@@ -75,7 +75,9 @@ namespace internal {
   ASM(TailCall_ReceiverIsNullOrUndefined)                                      \
   ASM(TailCall_ReceiverIsNotNullOrUndefined)                                   \
   ASM(TailCall_ReceiverIsAny)                                                  \
+  ASM(CallVarargs)                                                             \
   ASM(CallWithSpread)                                                          \
+  TFC(CallWithArrayLike, CallWithArrayLike, 1)                                 \
   ASM(CallForwardVarargs)                                                      \
   ASM(CallFunctionForwardVarargs)                                              \
                                                                                \
@@ -89,7 +91,9 @@ namespace internal {
   ASM(ConstructProxy)                                                          \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
   ASM(Construct)                                                               \
+  ASM(ConstructVarargs)                                                        \
   ASM(ConstructWithSpread)                                                     \
+  TFC(ConstructWithArrayLike, ConstructWithArrayLike, 1)                       \
   ASM(ConstructForwardVarargs)                                                 \
   ASM(ConstructFunctionForwardVarargs)                                         \
   ASM(JSConstructStubApi)                                                      \
@@ -108,7 +112,6 @@ namespace internal {
   TFC(FastCloneShallowObject, FastCloneShallowObject, 1)                       \
                                                                                \
   /* Apply and entries */                                                      \
-  ASM(Apply)                                                                   \
   ASM(JSEntryTrampoline)                                                       \
   ASM(JSConstructEntryTrampoline)                                              \
   ASM(ResumeGeneratorTrampoline)                                               \

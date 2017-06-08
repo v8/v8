@@ -146,11 +146,13 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  static Callable CallVarargs(Isolate* isolate);
   static Callable CallForwardVarargs(Isolate* isolate);
   static Callable CallFunctionForwardVarargs(Isolate* isolate);
   static Callable Construct(Isolate* isolate);
   static Callable ConstructWithSpread(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
+  static Callable ConstructVarargs(Isolate* isolate);
   static Callable ConstructForwardVarargs(Isolate* isolate);
   static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
   static Callable CreateIterResultObject(Isolate* isolate);

@@ -1553,7 +1553,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   //  -- rsp[24] : receiver
   // -----------------------------------
 
-  // 1. Load receiver into rdi, argArray into rax (if present), remove all
+  // 1. Load receiver into rdi, argArray into rbx (if present), remove all
   // arguments from the stack (including the receiver), and push thisArg (if
   // present) instead.
   {
@@ -1576,11 +1576,10 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
     __ Push(rdx);
     __ PushReturnAddressFrom(rcx);
-    __ movp(rax, rbx);
   }
 
   // ----------- S t a t e -------------
-  //  -- rax     : argArray
+  //  -- rbx     : argArray
   //  -- rdi     : receiver
   //  -- rsp[0]  : return address
   //  -- rsp[8]  : thisArg
@@ -1596,14 +1595,13 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ JumpIfRoot(rax, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
-  __ JumpIfRoot(rax, Heap::kUndefinedValueRootIndex, &no_arguments,
+  __ JumpIfRoot(rbx, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
+  __ JumpIfRoot(rbx, Heap::kUndefinedValueRootIndex, &no_arguments,
                 Label::kNear);
 
-  // 4a. Apply the receiver to the given argArray (passing undefined for
-  // new.target).
-  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  // 4a. Apply the receiver to the given argArray.
+  __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 4b. The argArray is either null or undefined, so we tail call without any
   // arguments to the receiver. Since we did not create a frame for
@@ -1685,7 +1683,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   //  -- rsp[32] : receiver
   // -----------------------------------
 
-  // 1. Load target into rdi (if present), argumentsList into rax (if present),
+  // 1. Load target into rdi (if present), argumentsList into rbx (if present),
   // remove all arguments from the stack (including the receiver), and push
   // thisArgument (if present) instead.
   {
@@ -1707,11 +1705,10 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
     __ Push(rdx);
     __ PushReturnAddressFrom(rcx);
-    __ movp(rax, rbx);
   }
 
   // ----------- S t a t e -------------
-  //  -- rax     : argumentsList
+  //  -- rbx     : argumentsList
   //  -- rdi     : target
   //  -- rsp[0]  : return address
   //  -- rsp[8]  : thisArgument
@@ -1725,10 +1722,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
            Immediate(1 << Map::kIsCallable));
   __ j(zero, &target_not_callable, Label::kNear);
 
-  // 3a. Apply the target to the given argumentsList (passing undefined for
-  // new.target).
-  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  // 3a. Apply the target to the given argumentsList.
+  __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 3b. The target is not callable, throw an appropriate TypeError.
   __ bind(&target_not_callable);
@@ -1749,7 +1745,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- rsp[32] : receiver
   // -----------------------------------
 
-  // 1. Load target into rdi (if present), argumentsList into rax (if present),
+  // 1. Load target into rdi (if present), argumentsList into rbx (if present),
   // new.target into rdx (if present, otherwise use target), remove all
   // arguments from the stack (including the receiver), and push thisArgument
   // (if present) instead.
@@ -1773,11 +1769,10 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
     __ PushRoot(Heap::kUndefinedValueRootIndex);
     __ PushReturnAddressFrom(rcx);
-    __ movp(rax, rbx);
   }
 
   // ----------- S t a t e -------------
-  //  -- rax     : argumentsList
+  //  -- rbx     : argumentsList
   //  -- rdx     : new.target
   //  -- rdi     : target
   //  -- rsp[0]  : return address
@@ -1801,7 +1796,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ j(zero, &new_target_not_constructor, Label::kNear);
 
   // 4a. Construct the target with the given new.target and argumentsList.
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->ConstructWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 4b. The target is not a constructor, throw an appropriate TypeError.
   __ bind(&target_not_constructor);
@@ -2339,94 +2335,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_Apply(MacroAssembler* masm) {
+void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
+                                               Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- rax    : argumentsList
   //  -- rdi    : target
-  //  -- rdx    : new.target (checked to be constructor or undefined)
-  //  -- rsp[0] : return address.
-  //  -- rsp[8] : thisArgument
+  //  -- rax    : number of parameters on the stack (not including the receiver)
+  //  -- rbx    : arguments list (a FixedArray)
+  //  -- rcx    : len (number of elements to push from args)
+  //  -- rdx    : new.target (for [[Construct]])
+  //  -- rsp[0] : return address
   // -----------------------------------
-
-  // Create the list of arguments from the array-like argumentsList.
-  {
-    Label create_arguments, create_array, create_holey_array, create_runtime,
-        done_create;
-    __ JumpIfSmi(rax, &create_runtime);
-
-    // Load the map of argumentsList into rcx.
-    __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
-
-    // Load native context into rbx.
-    __ movp(rbx, NativeContextOperand());
-
-    // Check if argumentsList is an (unmodified) arguments object.
-    __ cmpp(rcx, ContextOperand(rbx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
-    __ j(equal, &create_arguments);
-    __ cmpp(rcx, ContextOperand(rbx, Context::STRICT_ARGUMENTS_MAP_INDEX));
-    __ j(equal, &create_arguments);
-
-    // Check if argumentsList is a fast JSArray.
-    __ CmpInstanceType(rcx, JS_ARRAY_TYPE);
-    __ j(equal, &create_array);
-
-    // Ask the runtime to create the list (actually a FixedArray).
-    __ bind(&create_runtime);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(rdi);
-      __ Push(rdx);
-      __ Push(rax);
-      __ CallRuntime(Runtime::kCreateListFromArrayLike);
-      __ Pop(rdx);
-      __ Pop(rdi);
-      __ SmiToInteger32(rbx, FieldOperand(rax, FixedArray::kLengthOffset));
-    }
-    __ jmp(&done_create);
-
-    // Try to create the list from an arguments object.
-    __ bind(&create_arguments);
-    __ movp(rbx, FieldOperand(rax, JSArgumentsObject::kLengthOffset));
-    __ movp(rcx, FieldOperand(rax, JSObject::kElementsOffset));
-    __ cmpp(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
-    __ j(not_equal, &create_runtime);
-    __ SmiToInteger32(rbx, rbx);
-    __ movp(rax, rcx);
-    __ jmp(&done_create);
-
-    __ bind(&create_holey_array);
-    // For holey JSArrays we need to check that the array prototype chain
-    // protector is intact and our prototype is the Array.prototype actually.
-    __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ movp(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
-    __ cmpp(rcx, ContextOperand(rbx, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
-    __ j(not_equal, &create_runtime);
-    __ LoadRoot(rcx, Heap::kArrayProtectorRootIndex);
-    __ Cmp(FieldOperand(rcx, PropertyCell::kValueOffset),
-           Smi::FromInt(Isolate::kProtectorValid));
-    __ j(not_equal, &create_runtime);
-    __ SmiToInteger32(rbx, FieldOperand(rax, JSArray::kLengthOffset));
-    __ movp(rax, FieldOperand(rax, JSArray::kElementsOffset));
-    __ jmp(&done_create);
-
-    // Try to create the list from a JSArray object.
-    __ bind(&create_array);
-    __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
-    __ DecodeField<Map::ElementsKindBits>(rcx);
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(FAST_ELEMENTS == 2);
-    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    __ cmpl(rcx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
-    __ j(equal, &create_holey_array);
-    __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
-    __ j(equal, &create_holey_array);
-    __ j(above, &create_runtime);
-    __ SmiToInteger32(rbx, FieldOperand(rax, JSArray::kLengthOffset));
-    __ movp(rax, FieldOperand(rax, JSArray::kElementsOffset));
-
-    __ bind(&done_create);
-  }
+  __ AssertFixedArray(rbx);
 
   // Check for stack overflow.
   {
@@ -2434,61 +2353,48 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     Label done;
     __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-    __ movp(rcx, rsp);
-    // Make rcx the space we have left. The stack might already be overflowed
-    // here which will cause rcx to become negative.
-    __ subp(rcx, kScratchRegister);
-    __ sarp(rcx, Immediate(kPointerSizeLog2));
+    __ movp(r8, rsp);
+    // Make r8 the space we have left. The stack might already be overflowed
+    // here which will cause r8 to become negative.
+    __ subp(r8, kScratchRegister);
+    __ sarp(r8, Immediate(kPointerSizeLog2));
     // Check if the arguments will overflow the stack.
-    __ cmpp(rcx, rbx);
+    __ cmpp(r8, rcx);
     __ j(greater, &done, Label::kNear);  // Signed comparison.
     __ TailCallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&done);
   }
 
-  // ----------- S t a t e -------------
-  //  -- rdi    : target
-  //  -- rax    : args (a FixedArray built from argumentsList)
-  //  -- rbx    : len (number of elements to push from args)
-  //  -- rdx    : new.target (checked to be constructor or undefined)
-  //  -- rsp[0] : return address.
-  //  -- rsp[8] : thisArgument
-  // -----------------------------------
-
-  // Push arguments onto the stack (thisArgument is already on the stack).
+  // Push additional arguments onto the stack.
   {
     __ PopReturnAddressTo(r8);
-    __ Set(rcx, 0);
+    __ Set(r9, 0);
     Label done, push, loop;
     __ bind(&loop);
-    __ cmpl(rcx, rbx);
+    __ cmpl(r9, rcx);
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
-    __ movp(r9, FieldOperand(rax, rcx, times_pointer_size,
-                             FixedArray::kHeaderSize));
-    __ CompareRoot(r9, Heap::kTheHoleValueRootIndex);
+    __ movp(r11,
+            FieldOperand(rbx, r9, times_pointer_size, FixedArray::kHeaderSize));
+    __ CompareRoot(r11, Heap::kTheHoleValueRootIndex);
     __ j(not_equal, &push, Label::kNear);
-    __ LoadRoot(r9, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(r11, Heap::kUndefinedValueRootIndex);
     __ bind(&push);
-    __ Push(r9);
-    __ incl(rcx);
+    __ Push(r11);
+    __ incl(r9);
     __ jmp(&loop);
     __ bind(&done);
     __ PushReturnAddressFrom(r8);
-    __ Move(rax, rcx);
+    __ addq(rax, r9);
   }
 
-  // Dispatch to Call or Construct depending on whether new.target is undefined.
-  {
-    __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
-    __ j(equal, masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-  }
+  // Tail-call to the actual Call or Construct builtin.
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 // static
-void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
-                                       Handle<Code> code) {
+void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                      Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rdx : the new target (for [[Construct]] calls)

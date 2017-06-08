@@ -1588,7 +1588,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   //  -- esp[12] : receiver
   // -----------------------------------
 
-  // 1. Load receiver into edi, argArray into eax (if present), remove all
+  // 1. Load receiver into edi, argArray into ebx (if present), remove all
   // arguments from the stack (including the receiver), and push thisArg (if
   // present) instead.
   {
@@ -1610,11 +1610,10 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
     __ Push(edx);
     __ PushReturnAddressFrom(ecx);
-    __ Move(eax, ebx);
   }
 
   // ----------- S t a t e -------------
-  //  -- eax    : argArray
+  //  -- ebx    : argArray
   //  -- edi    : receiver
   //  -- esp[0] : return address
   //  -- esp[4] : thisArg
@@ -1630,14 +1629,13 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ JumpIfRoot(eax, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
-  __ JumpIfRoot(eax, Heap::kUndefinedValueRootIndex, &no_arguments,
+  __ JumpIfRoot(ebx, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
+  __ JumpIfRoot(ebx, Heap::kUndefinedValueRootIndex, &no_arguments,
                 Label::kNear);
 
-  // 4a. Apply the receiver to the given argArray (passing undefined for
-  // new.target).
-  __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  // 4a. Apply the receiver to the given argArray.
+  __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 4b. The argArray is either null or undefined, so we tail call without any
   // arguments to the receiver.
@@ -1711,7 +1709,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   //  -- esp[16] : receiver
   // -----------------------------------
 
-  // 1. Load target into edi (if present), argumentsList into eax (if present),
+  // 1. Load target into edi (if present), argumentsList into ebx (if present),
   // remove all arguments from the stack (including the receiver), and push
   // thisArgument (if present) instead.
   {
@@ -1732,11 +1730,10 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
     __ Push(edx);
     __ PushReturnAddressFrom(ecx);
-    __ Move(eax, ebx);
   }
 
   // ----------- S t a t e -------------
-  //  -- eax    : argumentsList
+  //  -- ebx    : argumentsList
   //  -- edi    : target
   //  -- esp[0] : return address
   //  -- esp[4] : thisArgument
@@ -1750,10 +1747,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
             Immediate(1 << Map::kIsCallable));
   __ j(zero, &target_not_callable, Label::kNear);
 
-  // 3a. Apply the target to the given argumentsList (passing undefined for
-  // new.target).
-  __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  // 3a. Apply the target to the given argumentsList.
+  __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 3b. The target is not callable, throw an appropriate TypeError.
   __ bind(&target_not_callable);
@@ -1773,7 +1769,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- esp[16] : receiver
   // -----------------------------------
 
-  // 1. Load target into edi (if present), argumentsList into eax (if present),
+  // 1. Load target into edi (if present), argumentsList into ebx (if present),
   // new.target into edx (if present, otherwise use target), remove all
   // arguments from the stack (including the receiver), and push thisArgument
   // (if present) instead.
@@ -1796,11 +1792,10 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
     __ PushRoot(Heap::kUndefinedValueRootIndex);
     __ PushReturnAddressFrom(ecx);
-    __ Move(eax, ebx);
   }
 
   // ----------- S t a t e -------------
-  //  -- eax    : argumentsList
+  //  -- ebx    : argumentsList
   //  -- edx    : new.target
   //  -- edi    : target
   //  -- esp[0] : return address
@@ -1824,7 +1819,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ j(zero, &new_target_not_constructor, Label::kNear);
 
   // 4a. Construct the target with the given new.target and argumentsList.
-  __ Jump(masm->isolate()->builtins()->Apply(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->ConstructWithArrayLike(),
+          RelocInfo::CODE_TARGET);
 
   // 4b. The target is not a constructor, throw an appropriate TypeError.
   __ bind(&target_not_constructor);
@@ -2223,97 +2219,22 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_Apply(MacroAssembler* masm) {
+void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
+                                               Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- eax    : argumentsList
   //  -- edi    : target
+  //  -- eax    : number of parameters on the stack (not including the receiver)
+  //  -- ebx    : arguments list (a FixedArray)
+  //  -- ecx    : len (number of elements to from args)
   //  -- edx    : new.target (checked to be constructor or undefined)
   //  -- esp[0] : return address.
-  //  -- esp[4] : thisArgument
   // -----------------------------------
+  __ AssertFixedArray(ebx);
 
-  // Create the list of arguments from the array-like argumentsList.
-  {
-    Label create_arguments, create_array, create_holey_array, create_runtime,
-        done_create;
-    __ JumpIfSmi(eax, &create_runtime);
-
-    // Load the map of argumentsList into ecx.
-    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-
-    // Load native context into ebx.
-    __ mov(ebx, NativeContextOperand());
-
-    // Check if argumentsList is an (unmodified) arguments object.
-    __ cmp(ecx, ContextOperand(ebx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
-    __ j(equal, &create_arguments);
-    __ cmp(ecx, ContextOperand(ebx, Context::STRICT_ARGUMENTS_MAP_INDEX));
-    __ j(equal, &create_arguments);
-
-    // Check if argumentsList is a fast JSArray.
-    __ CmpInstanceType(ecx, JS_ARRAY_TYPE);
-    __ j(equal, &create_array);
-
-    // Ask the runtime to create the list (actually a FixedArray).
-    __ bind(&create_runtime);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(edi);
-      __ Push(edx);
-      __ Push(eax);
-      __ CallRuntime(Runtime::kCreateListFromArrayLike);
-      __ Pop(edx);
-      __ Pop(edi);
-      __ mov(ebx, FieldOperand(eax, FixedArray::kLengthOffset));
-      __ SmiUntag(ebx);
-    }
-    __ jmp(&done_create);
-
-    // Try to create the list from an arguments object.
-    __ bind(&create_arguments);
-    __ mov(ebx, FieldOperand(eax, JSArgumentsObject::kLengthOffset));
-    __ mov(ecx, FieldOperand(eax, JSObject::kElementsOffset));
-    __ cmp(ebx, FieldOperand(ecx, FixedArray::kLengthOffset));
-    __ j(not_equal, &create_runtime);
-    __ SmiUntag(ebx);
-    __ mov(eax, ecx);
-    __ jmp(&done_create);
-
-    // For holey JSArrays we need to check that the array prototype chain
-    // protector is intact and our prototype is the Array.prototype actually.
-    __ bind(&create_holey_array);
-    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ mov(ecx, FieldOperand(ecx, Map::kPrototypeOffset));
-    __ cmp(ecx, ContextOperand(ebx, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
-    __ j(not_equal, &create_runtime);
-    __ LoadRoot(ecx, Heap::kArrayProtectorRootIndex);
-    __ cmp(FieldOperand(ecx, PropertyCell::kValueOffset),
-           Immediate(Smi::FromInt(Isolate::kProtectorValid)));
-    __ j(not_equal, &create_runtime);
-    __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
-    __ SmiUntag(ebx);
-    __ mov(eax, FieldOperand(eax, JSArray::kElementsOffset));
-    __ jmp(&done_create);
-
-    // Try to create the list from a JSArray object.
-    __ bind(&create_array);
-    __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
-    __ DecodeField<Map::ElementsKindBits>(ecx);
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(FAST_ELEMENTS == 2);
-    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    __ cmp(ecx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
-    __ j(equal, &create_holey_array, Label::kNear);
-    __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
-    __ j(equal, &create_holey_array, Label::kNear);
-    __ j(above, &create_runtime);
-    __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
-    __ SmiUntag(ebx);
-    __ mov(eax, FieldOperand(eax, JSArray::kElementsOffset));
-
-    __ bind(&done_create);
-  }
+  // We need to preserve eax, edi and ebx.
+  __ movd(xmm0, edx);
+  __ movd(xmm1, edi);
+  __ movd(xmm2, eax);
 
   // Check for stack overflow.
   {
@@ -2322,66 +2243,56 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     Label done;
     ExternalReference real_stack_limit =
         ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ mov(ecx, Operand::StaticVariable(real_stack_limit));
-    // Make ecx the space we have left. The stack might already be overflowed
-    // here which will cause ecx to become negative.
-    __ neg(ecx);
-    __ add(ecx, esp);
-    __ sar(ecx, kPointerSizeLog2);
+    __ mov(edx, Operand::StaticVariable(real_stack_limit));
+    // Make edx the space we have left. The stack might already be overflowed
+    // here which will cause edx to become negative.
+    __ neg(edx);
+    __ add(edx, esp);
+    __ sar(edx, kPointerSizeLog2);
     // Check if the arguments will overflow the stack.
-    __ cmp(ecx, ebx);
+    __ cmp(edx, ecx);
     __ j(greater, &done, Label::kNear);  // Signed comparison.
     __ TailCallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&done);
   }
 
-  // ----------- S t a t e -------------
-  //  -- edi    : target
-  //  -- eax    : args (a FixedArray built from argumentsList)
-  //  -- ebx    : len (number of elements to push from args)
-  //  -- edx    : new.target (checked to be constructor or undefined)
-  //  -- esp[0] : return address.
-  //  -- esp[4] : thisArgument
-  // -----------------------------------
-
-  // Push arguments onto the stack (thisArgument is already on the stack).
+  // Push additional arguments onto the stack.
   {
-    __ movd(xmm0, edx);
-    __ movd(xmm1, edi);
     __ PopReturnAddressTo(edx);
-    __ Move(ecx, Immediate(0));
+    __ Move(eax, Immediate(0));
     Label done, push, loop;
     __ bind(&loop);
-    __ cmp(ecx, ebx);
+    __ cmp(eax, ecx);
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
     __ mov(edi,
-           FieldOperand(eax, ecx, times_pointer_size, FixedArray::kHeaderSize));
+           FieldOperand(ebx, eax, times_pointer_size, FixedArray::kHeaderSize));
     __ CompareRoot(edi, Heap::kTheHoleValueRootIndex);
     __ j(not_equal, &push, Label::kNear);
     __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
     __ bind(&push);
     __ Push(edi);
-    __ inc(ecx);
+    __ inc(eax);
     __ jmp(&loop);
     __ bind(&done);
     __ PushReturnAddressFrom(edx);
-    __ movd(edi, xmm1);
-    __ movd(edx, xmm0);
-    __ Move(eax, ebx);
   }
 
-  // Dispatch to Call or Construct depending on whether new.target is undefined.
-  {
-    __ CompareRoot(edx, Heap::kUndefinedValueRootIndex);
-    __ j(equal, masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-  }
+  // Restore eax, edi and edx.
+  __ movd(eax, xmm2);
+  __ movd(edi, xmm1);
+  __ movd(edx, xmm0);
+
+  // Compute the actual parameter count.
+  __ add(eax, ecx);
+
+  // Tail-call to the actual Call or Construct builtin.
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 // static
-void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
-                                       Handle<Code> code) {
+void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                      Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the target to call (can be any Object)
