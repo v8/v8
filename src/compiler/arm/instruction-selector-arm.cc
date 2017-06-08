@@ -112,15 +112,6 @@ void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
-void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
-  ArmOperandGenerator g(selector);
-  // Use DefineSameAsFirst for ternary ops that clobber their first input,
-  // e.g. the NEON vbsl instruction.
-  selector->Emit(
-      opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
-}
-
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
   int32_t imm = OpParameter<int32_t>(node);
@@ -459,9 +450,6 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArmVld1S128;
       break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -549,9 +537,6 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArmVst1S128;
         break;
       case MachineRepresentation::kWord64:   // Fall through.
-      case MachineRepresentation::kSimd1x4:  // Fall through.
-      case MachineRepresentation::kSimd1x8:  // Fall through.
-      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -758,9 +743,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -805,9 +787,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -2390,15 +2369,9 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16)
 
 #define SIMD_FORMAT_LIST(V) \
-  V(32x4)                   \
-  V(16x8)                   \
-  V(8x16)
-
-#define SIMD_ZERO_OP_LIST(V) \
-  V(S128Zero)                \
-  V(S1x4Zero)                \
-  V(S1x8Zero)                \
-  V(S1x16Zero)
+  V(32x4, 4)                \
+  V(16x8, 8)                \
+  V(8x16, 16)
 
 #define SIMD_UNOP_LIST(V)                               \
   V(F32x4SConvertI32x4, kArmF32x4SConvertI32x4)         \
@@ -2421,13 +2394,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8UConvertI8x16High, kArmI16x8UConvertI8x16High) \
   V(I8x16Neg, kArmI8x16Neg)                             \
   V(S128Not, kArmS128Not)                               \
-  V(S1x4Not, kArmS128Not)                               \
   V(S1x4AnyTrue, kArmS1x4AnyTrue)                       \
   V(S1x4AllTrue, kArmS1x4AllTrue)                       \
-  V(S1x8Not, kArmS128Not)                               \
   V(S1x8AnyTrue, kArmS1x8AnyTrue)                       \
   V(S1x8AllTrue, kArmS1x8AllTrue)                       \
-  V(S1x16Not, kArmS128Not)                              \
   V(S1x16AnyTrue, kArmS1x16AnyTrue)                     \
   V(S1x16AllTrue, kArmS1x16AllTrue)
 
@@ -2508,16 +2478,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16GeU, kArmI8x16GeU)                     \
   V(S128And, kArmS128And)                       \
   V(S128Or, kArmS128Or)                         \
-  V(S128Xor, kArmS128Xor)                       \
-  V(S1x4And, kArmS128And)                       \
-  V(S1x4Or, kArmS128Or)                         \
-  V(S1x4Xor, kArmS128Xor)                       \
-  V(S1x8And, kArmS128And)                       \
-  V(S1x8Or, kArmS128Or)                         \
-  V(S1x8Xor, kArmS128Xor)                       \
-  V(S1x16And, kArmS128And)                      \
-  V(S1x16Or, kArmS128Or)                        \
-  V(S1x16Xor, kArmS128Xor)
+  V(S128Xor, kArmS128Xor)
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmS128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+}
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2540,14 +2506,6 @@ SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_ZERO_OP(Name)                                            \
-  void InstructionSelector::Visit##Name(Node* node) {                       \
-    ArmOperandGenerator g(this);                                            \
-    Emit(kArmS128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
-  }
-SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
-#undef SIMD_VISIT_ZERO_OP
-
 #define SIMD_VISIT_UNOP(Name, instruction)            \
   void InstructionSelector::Visit##Name(Node* node) { \
     VisitRR(this, instruction, node);                 \
@@ -2569,12 +2527,12 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 
-#define SIMD_VISIT_SELECT_OP(format)                             \
-  void InstructionSelector::VisitS##format##Select(Node* node) { \
-    VisitRRRR(this, kArmS128Select, node);                       \
-  }
-SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
-#undef SIMD_VISIT_SELECT_OP
+void InstructionSelector::VisitS128Select(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmS128Select, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
 
 namespace {
 template <int LANES>

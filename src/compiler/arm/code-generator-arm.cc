@@ -2148,10 +2148,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmS128Select: {
-      // vbsl clobbers the mask input so make sure it was DefineSameAsFirst.
-      DCHECK(i.OutputSimd128Register().is(i.InputSimd128Register(0)));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      __ vbsl(dst, i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
     case kArmS32x4ZipLeft: {

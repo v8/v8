@@ -188,7 +188,6 @@ namespace compiler {
   V(Mips64I32x4ShrU)                \
   V(Mips64I32x4MaxU)                \
   V(Mips64I32x4MinU)                \
-  V(Mips64S32x4Select)              \
   V(Mips64F32x4Abs)                 \
   V(Mips64F32x4Neg)                 \
   V(Mips64F32x4RecipApprox)         \
@@ -239,8 +238,6 @@ namespace compiler {
   V(Mips64I8x16Neg)                 \
   V(Mips64I8x16Shl)                 \
   V(Mips64I8x16ShrS)                \
-  V(Mips64S16x8Select)              \
-  V(Mips64S8x16Select)              \
   V(Mips64I8x16Add)                 \
   V(Mips64I8x16AddSaturateS)        \
   V(Mips64I8x16Sub)                 \
@@ -263,6 +260,7 @@ namespace compiler {
   V(Mips64S128Or)                   \
   V(Mips64S128Xor)                  \
   V(Mips64S128Not)                  \
+  V(Mips64S128Select)               \
   V(Mips64S1x4AnyTrue)              \
   V(Mips64S1x4AllTrue)              \
   V(Mips64S1x8AnyTrue)              \

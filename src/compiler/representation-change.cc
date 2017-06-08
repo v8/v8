@@ -194,9 +194,6 @@ Node* RepresentationChanger::GetRepresentationFor(
       DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetWord64RepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kSimd128:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kNone:
       return node;
   }

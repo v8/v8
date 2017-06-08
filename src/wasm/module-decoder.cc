@@ -1168,12 +1168,6 @@ class ModuleDecoder : public Decoder {
           switch (t) {
             case kLocalS128:
               return kWasmS128;
-            case kLocalS1x4:
-              return kWasmS1x4;
-            case kLocalS1x8:
-              return kWasmS1x8;
-            case kLocalS1x16:
-              return kWasmS1x16;
             default:
               break;
           }

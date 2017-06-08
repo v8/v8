@@ -479,9 +479,6 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
-      case MachineRepresentation::kSimd1x4:
-      case MachineRepresentation::kSimd1x8:
-      case MachineRepresentation::kSimd1x16:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
@@ -590,9 +587,8 @@ bool InstructionOperand::IsDoubleRegister() const {
 }
 
 bool InstructionOperand::IsSimd128Register() const {
-  return IsAnyRegister() &&
-         LocationOperand::cast(this)->representation() ==
-             MachineRepresentation::kSimd128;
+  return IsAnyRegister() && LocationOperand::cast(this)->representation() ==
+                                MachineRepresentation::kSimd128;
 }
 
 bool InstructionOperand::IsAnyStackSlot() const {

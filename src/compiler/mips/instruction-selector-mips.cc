@@ -298,9 +298,6 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kMipsMsaLd;
       break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -388,9 +385,6 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kMipsMsaSt;
         break;
       case MachineRepresentation::kWord64:   // Fall through.
-      case MachineRepresentation::kSimd1x4:  // Fall through.
-      case MachineRepresentation::kSimd1x8:  // Fall through.
-      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -1242,9 +1236,6 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       opcode = kMipsMsaLd;
       break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1297,9 +1288,6 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
       opcode = kMipsMsaSt;
       break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1348,9 +1336,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1960,12 +1945,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(16x8)                   \
   V(8x16)
 
-#define SIMD_ZERO_OP_LIST(V) \
-  V(S128Zero)                \
-  V(S1x4Zero)                \
-  V(S1x8Zero)                \
-  V(S1x16Zero)
-
 #define SIMD_UNOP_LIST(V)                            \
   V(F32x4SConvertI32x4, kMipsF32x4SConvertI32x4)     \
   V(F32x4UConvertI32x4, kMipsF32x4UConvertI32x4)     \
@@ -1979,13 +1958,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8Neg, kMipsI16x8Neg)                         \
   V(I8x16Neg, kMipsI8x16Neg)                         \
   V(S128Not, kMipsS128Not)                           \
-  V(S1x4Not, kMipsS128Not)                           \
   V(S1x4AnyTrue, kMipsS1x4AnyTrue)                   \
   V(S1x4AllTrue, kMipsS1x4AllTrue)                   \
-  V(S1x8Not, kMipsS128Not)                           \
   V(S1x8AnyTrue, kMipsS1x8AnyTrue)                   \
   V(S1x8AllTrue, kMipsS1x8AllTrue)                   \
-  V(S1x16Not, kMipsS128Not)                          \
   V(S1x16AnyTrue, kMipsS1x16AnyTrue)                 \
   V(S1x16AllTrue, kMipsS1x16AllTrue)
 
@@ -2059,24 +2035,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16GeU, kMipsI8x16GeU)                   \
   V(S128And, kMipsS128And)                     \
   V(S128Or, kMipsS128Or)                       \
-  V(S128Xor, kMipsS128Xor)                     \
-  V(S1x4And, kMipsS128And)                     \
-  V(S1x4Or, kMipsS128Or)                       \
-  V(S1x4Xor, kMipsS128Xor)                     \
-  V(S1x8And, kMipsS128And)                     \
-  V(S1x8Or, kMipsS128Or)                       \
-  V(S1x8Xor, kMipsS128Xor)                     \
-  V(S1x16And, kMipsS128And)                    \
-  V(S1x16Or, kMipsS128Or)                      \
-  V(S1x16Xor, kMipsS128Xor)
+  V(S128Xor, kMipsS128Xor)
 
-#define SIMD_VISIT_ZERO_OP(Name)                      \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    MipsOperandGenerator g(this);                     \
-    Emit(kMipsS128Zero, g.DefineSameAsFirst(node));   \
-  }
-SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
-#undef SIMD_VISIT_ZERO_OP
+void InstructionSelector::VisitS128Zero(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsS128Zero, g.DefineSameAsFirst(node));
+}
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2120,12 +2084,9 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 
-#define SIMD_VISIT_SELECT_OP(format)                             \
-  void InstructionSelector::VisitS##format##Select(Node* node) { \
-    VisitRRRR(this, kMipsS##format##Select, node);               \
-  }
-SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
-#undef SIMD_VISIT_SELECT_OP
+void InstructionSelector::VisitS128Select(Node* node) {
+  VisitRRRR(this, kMipsS128Select, node);
+}
 
 // static
 MachineOperatorBuilder::Flags

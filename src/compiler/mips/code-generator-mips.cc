@@ -1780,9 +1780,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
-    case kMipsS32x4Select:
-    case kMipsS16x8Select:
-    case kMipsS8x16Select: {
+    case kMipsS128Select: {
       CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
       DCHECK(i.OutputSimd128Register().is(i.InputSimd128Register(0)));
       __ bsel_v(i.OutputSimd128Register(), i.InputSimd128Register(2),

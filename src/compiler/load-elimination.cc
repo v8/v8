@@ -819,9 +819,6 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   ElementAccess const& access = ElementAccessOf(node->op());
   switch (access.machine_type.representation()) {
     case MachineRepresentation::kNone:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kBit:
       UNREACHABLE();
       break;
@@ -879,9 +876,6 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
   // Only record the new value if the store doesn't have an implicit truncation.
   switch (access.machine_type.representation()) {
     case MachineRepresentation::kNone:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kBit:
       UNREACHABLE();
       break;
@@ -1092,9 +1086,6 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
     case MachineRepresentation::kSimd128:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord32:

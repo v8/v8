@@ -21,10 +21,7 @@ enum ValueTypeCode {
   kLocalI64 = 0x7e,
   kLocalF32 = 0x7d,
   kLocalF64 = 0x7c,
-  kLocalS128 = 0x7b,
-  kLocalS1x4 = 0x7a,
-  kLocalS1x8 = 0x79,
-  kLocalS1x16 = 0x78
+  kLocalS128 = 0x7b
 };
 
 // Type code for multi-value block types.
@@ -39,9 +36,6 @@ constexpr ValueType kWasmI64 = MachineRepresentation::kWord64;
 constexpr ValueType kWasmF32 = MachineRepresentation::kFloat32;
 constexpr ValueType kWasmF64 = MachineRepresentation::kFloat64;
 constexpr ValueType kWasmS128 = MachineRepresentation::kSimd128;
-constexpr ValueType kWasmS1x4 = MachineRepresentation::kSimd1x4;
-constexpr ValueType kWasmS1x8 = MachineRepresentation::kSimd1x8;
-constexpr ValueType kWasmS1x16 = MachineRepresentation::kSimd1x16;
 constexpr ValueType kWasmVar = MachineRepresentation::kTagged;
 
 using FunctionSig = Signature<ValueType>;
@@ -294,12 +288,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(F32x4Mul, 0xe50a, s_ss)              \
   V(F32x4Min, 0xe50c, s_ss)              \
   V(F32x4Max, 0xe50d, s_ss)              \
-  V(F32x4Eq, 0xe510, s1x4_ss)            \
-  V(F32x4Ne, 0xe511, s1x4_ss)            \
-  V(F32x4Lt, 0xe512, s1x4_ss)            \
-  V(F32x4Le, 0xe513, s1x4_ss)            \
-  V(F32x4Gt, 0xe514, s1x4_ss)            \
-  V(F32x4Ge, 0xe515, s1x4_ss)            \
+  V(F32x4Eq, 0xe510, s_ss)               \
+  V(F32x4Ne, 0xe511, s_ss)               \
+  V(F32x4Lt, 0xe512, s_ss)               \
+  V(F32x4Le, 0xe513, s_ss)               \
+  V(F32x4Gt, 0xe514, s_ss)               \
+  V(F32x4Ge, 0xe515, s_ss)               \
   V(F32x4SConvertI32x4, 0xe519, s_s)     \
   V(F32x4UConvertI32x4, 0xe51a, s_s)     \
   V(I32x4Splat, 0xe51b, s_i)             \
@@ -310,12 +304,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32x4Mul, 0xe521, s_ss)              \
   V(I32x4MinS, 0xe522, s_ss)             \
   V(I32x4MaxS, 0xe523, s_ss)             \
-  V(I32x4Eq, 0xe526, s1x4_ss)            \
-  V(I32x4Ne, 0xe527, s1x4_ss)            \
-  V(I32x4LtS, 0xe528, s1x4_ss)           \
-  V(I32x4LeS, 0xe529, s1x4_ss)           \
-  V(I32x4GtS, 0xe52a, s1x4_ss)           \
-  V(I32x4GeS, 0xe52b, s1x4_ss)           \
+  V(I32x4Eq, 0xe526, s_ss)               \
+  V(I32x4Ne, 0xe527, s_ss)               \
+  V(I32x4LtS, 0xe528, s_ss)              \
+  V(I32x4LeS, 0xe529, s_ss)              \
+  V(I32x4GtS, 0xe52a, s_ss)              \
+  V(I32x4GeS, 0xe52b, s_ss)              \
   V(I32x4SConvertF32x4, 0xe52f, s_s)     \
   V(I32x4UConvertF32x4, 0xe537, s_s)     \
   V(I32x4SConvertI16x8Low, 0xe594, s_s)  \
@@ -324,10 +318,10 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32x4UConvertI16x8High, 0xe597, s_s) \
   V(I32x4MinU, 0xe530, s_ss)             \
   V(I32x4MaxU, 0xe531, s_ss)             \
-  V(I32x4LtU, 0xe533, s1x4_ss)           \
-  V(I32x4LeU, 0xe534, s1x4_ss)           \
-  V(I32x4GtU, 0xe535, s1x4_ss)           \
-  V(I32x4GeU, 0xe536, s1x4_ss)           \
+  V(I32x4LtU, 0xe533, s_ss)              \
+  V(I32x4LeU, 0xe534, s_ss)              \
+  V(I32x4GtU, 0xe535, s_ss)              \
+  V(I32x4GeU, 0xe536, s_ss)              \
   V(I16x8Splat, 0xe538, s_i)             \
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
@@ -338,20 +332,20 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I16x8Mul, 0xe540, s_ss)              \
   V(I16x8MinS, 0xe541, s_ss)             \
   V(I16x8MaxS, 0xe542, s_ss)             \
-  V(I16x8Eq, 0xe545, s1x8_ss)            \
-  V(I16x8Ne, 0xe546, s1x8_ss)            \
-  V(I16x8LtS, 0xe547, s1x8_ss)           \
-  V(I16x8LeS, 0xe548, s1x8_ss)           \
-  V(I16x8GtS, 0xe549, s1x8_ss)           \
-  V(I16x8GeS, 0xe54a, s1x8_ss)           \
+  V(I16x8Eq, 0xe545, s_ss)               \
+  V(I16x8Ne, 0xe546, s_ss)               \
+  V(I16x8LtS, 0xe547, s_ss)              \
+  V(I16x8LeS, 0xe548, s_ss)              \
+  V(I16x8GtS, 0xe549, s_ss)              \
+  V(I16x8GeS, 0xe54a, s_ss)              \
   V(I16x8AddSaturateU, 0xe54e, s_ss)     \
   V(I16x8SubSaturateU, 0xe54f, s_ss)     \
   V(I16x8MinU, 0xe550, s_ss)             \
   V(I16x8MaxU, 0xe551, s_ss)             \
-  V(I16x8LtU, 0xe553, s1x8_ss)           \
-  V(I16x8LeU, 0xe554, s1x8_ss)           \
-  V(I16x8GtU, 0xe555, s1x8_ss)           \
-  V(I16x8GeU, 0xe556, s1x8_ss)           \
+  V(I16x8LtU, 0xe553, s_ss)              \
+  V(I16x8LeU, 0xe554, s_ss)              \
+  V(I16x8GtU, 0xe555, s_ss)              \
+  V(I16x8GeU, 0xe556, s_ss)              \
   V(I16x8SConvertI32x4, 0xe598, s_ss)    \
   V(I16x8UConvertI32x4, 0xe599, s_ss)    \
   V(I16x8SConvertI8x16Low, 0xe59a, s_s)  \
@@ -367,47 +361,33 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I8x16Mul, 0xe55f, s_ss)              \
   V(I8x16MinS, 0xe560, s_ss)             \
   V(I8x16MaxS, 0xe561, s_ss)             \
-  V(I8x16Eq, 0xe564, s1x16_ss)           \
-  V(I8x16Ne, 0xe565, s1x16_ss)           \
-  V(I8x16LtS, 0xe566, s1x16_ss)          \
-  V(I8x16LeS, 0xe567, s1x16_ss)          \
-  V(I8x16GtS, 0xe568, s1x16_ss)          \
-  V(I8x16GeS, 0xe569, s1x16_ss)          \
+  V(I8x16Eq, 0xe564, s_ss)               \
+  V(I8x16Ne, 0xe565, s_ss)               \
+  V(I8x16LtS, 0xe566, s_ss)              \
+  V(I8x16LeS, 0xe567, s_ss)              \
+  V(I8x16GtS, 0xe568, s_ss)              \
+  V(I8x16GeS, 0xe569, s_ss)              \
   V(I8x16AddSaturateU, 0xe56d, s_ss)     \
   V(I8x16SubSaturateU, 0xe56e, s_ss)     \
   V(I8x16MinU, 0xe56f, s_ss)             \
   V(I8x16MaxU, 0xe570, s_ss)             \
-  V(I8x16LtU, 0xe572, s1x16_ss)          \
-  V(I8x16LeU, 0xe573, s1x16_ss)          \
-  V(I8x16GtU, 0xe574, s1x16_ss)          \
-  V(I8x16GeU, 0xe575, s1x16_ss)          \
+  V(I8x16LtU, 0xe572, s_ss)              \
+  V(I8x16LeU, 0xe573, s_ss)              \
+  V(I8x16GtU, 0xe574, s_ss)              \
+  V(I8x16GeU, 0xe575, s_ss)              \
   V(I8x16SConvertI16x8, 0xe59e, s_ss)    \
   V(I8x16UConvertI16x8, 0xe59f, s_ss)    \
   V(S128And, 0xe576, s_ss)               \
   V(S128Or, 0xe577, s_ss)                \
   V(S128Xor, 0xe578, s_ss)               \
   V(S128Not, 0xe579, s_s)                \
-  V(S32x4Select, 0xe52c, s_s1x4ss)       \
-  V(S16x8Select, 0xe54b, s_s1x8ss)       \
-  V(S8x16Select, 0xe56a, s_s1x16ss)      \
-  V(S1x4And, 0xe580, s1x4_s1x4s1x4)      \
-  V(S1x4Or, 0xe581, s1x4_s1x4s1x4)       \
-  V(S1x4Xor, 0xe582, s1x4_s1x4s1x4)      \
-  V(S1x4Not, 0xe583, s1x4_s1x4)          \
-  V(S1x4AnyTrue, 0xe584, i_s1x4)         \
-  V(S1x4AllTrue, 0xe585, i_s1x4)         \
-  V(S1x8And, 0xe586, s1x8_s1x8s1x8)      \
-  V(S1x8Or, 0xe587, s1x8_s1x8s1x8)       \
-  V(S1x8Xor, 0xe588, s1x8_s1x8s1x8)      \
-  V(S1x8Not, 0xe589, s1x8_s1x8)          \
-  V(S1x8AnyTrue, 0xe58a, i_s1x8)         \
-  V(S1x8AllTrue, 0xe58b, i_s1x8)         \
-  V(S1x16And, 0xe58c, s1x16_s1x16s1x16)  \
-  V(S1x16Or, 0xe58d, s1x16_s1x16s1x16)   \
-  V(S1x16Xor, 0xe58e, s1x16_s1x16s1x16)  \
-  V(S1x16Not, 0xe58f, s1x16_s1x16)       \
-  V(S1x16AnyTrue, 0xe590, i_s1x16)       \
-  V(S1x16AllTrue, 0xe591, i_s1x16)
+  V(S128Select, 0xe52c, s_sss)           \
+  V(S1x4AnyTrue, 0xe584, i_s)            \
+  V(S1x4AllTrue, 0xe585, i_s)            \
+  V(S1x8AnyTrue, 0xe58a, i_s)            \
+  V(S1x8AllTrue, 0xe58b, i_s)            \
+  V(S1x16AnyTrue, 0xe590, i_s)           \
+  V(S1x16AllTrue, 0xe591, i_s)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
   V(F32x4ExtractLane, 0xe501, _)         \
@@ -515,28 +495,14 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(f_if, kWasmF32, kWasmI32, kWasmF32) \
   V(l_il, kWasmI64, kWasmI32, kWasmI64)
 
-#define FOREACH_SIMD_SIGNATURE(V)                           \
-  V(s_s, kWasmS128, kWasmS128)                              \
-  V(s_f, kWasmS128, kWasmF32)                               \
-  V(s_ss, kWasmS128, kWasmS128, kWasmS128)                  \
-  V(s1x4_ss, kWasmS1x4, kWasmS128, kWasmS128)               \
-  V(s1x8_ss, kWasmS1x8, kWasmS128, kWasmS128)               \
-  V(s1x16_ss, kWasmS1x16, kWasmS128, kWasmS128)             \
-  V(s_i, kWasmS128, kWasmI32)                               \
-  V(s_si, kWasmS128, kWasmS128, kWasmI32)                   \
-  V(i_s, kWasmI32, kWasmS128)                               \
-  V(i_s1x4, kWasmI32, kWasmS1x4)                            \
-  V(i_s1x8, kWasmI32, kWasmS1x8)                            \
-  V(i_s1x16, kWasmI32, kWasmS1x16)                          \
-  V(s_s1x4ss, kWasmS128, kWasmS1x4, kWasmS128, kWasmS128)   \
-  V(s_s1x8ss, kWasmS128, kWasmS1x8, kWasmS128, kWasmS128)   \
-  V(s_s1x16ss, kWasmS128, kWasmS1x16, kWasmS128, kWasmS128) \
-  V(s1x4_s1x4, kWasmS1x4, kWasmS1x4)                        \
-  V(s1x4_s1x4s1x4, kWasmS1x4, kWasmS1x4, kWasmS1x4)         \
-  V(s1x8_s1x8, kWasmS1x8, kWasmS1x8)                        \
-  V(s1x8_s1x8s1x8, kWasmS1x8, kWasmS1x8, kWasmS1x8)         \
-  V(s1x16_s1x16, kWasmS1x16, kWasmS1x16)                    \
-  V(s1x16_s1x16s1x16, kWasmS1x16, kWasmS1x16, kWasmS1x16)
+#define FOREACH_SIMD_SIGNATURE(V)          \
+  V(s_s, kWasmS128, kWasmS128)             \
+  V(s_f, kWasmS128, kWasmF32)              \
+  V(s_ss, kWasmS128, kWasmS128, kWasmS128) \
+  V(s_i, kWasmS128, kWasmI32)              \
+  V(s_si, kWasmS128, kWasmS128, kWasmI32)  \
+  V(i_s, kWasmI32, kWasmS128)              \
+  V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
   V(Simd, 0xe5)           \
@@ -604,12 +570,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return kLocalF64;
       case kWasmS128:
         return kLocalS128;
-      case kWasmS1x4:
-        return kLocalS1x4;
-      case kWasmS1x8:
-        return kLocalS1x8;
-      case kWasmS1x16:
-        return kLocalS1x16;
       case kWasmStmt:
         return kLocalVoid;
       default:
@@ -629,12 +589,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return MachineType::Float64();
       case kWasmS128:
         return MachineType::Simd128();
-      case kWasmS1x4:
-        return MachineType::Simd1x4();
-      case kWasmS1x8:
-        return MachineType::Simd1x8();
-      case kWasmS1x16:
-        return MachineType::Simd1x16();
       case kWasmStmt:
         return MachineType::None();
       default:
@@ -656,12 +610,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return kWasmF64;
       case MachineRepresentation::kSimd128:
         return kWasmS128;
-      case MachineRepresentation::kSimd1x4:
-        return kWasmS1x4;
-      case MachineRepresentation::kSimd1x8:
-        return kWasmS1x8;
-      case MachineRepresentation::kSimd1x16:
-        return kWasmS1x16;
       default:
         UNREACHABLE();
     }
@@ -678,9 +626,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
       case kWasmF64:
         return 'd';
       case kWasmS128:
-      case kWasmS1x4:
-      case kWasmS1x8:
-      case kWasmS1x16:
         return 's';
       case kWasmStmt:
         return 'v';
@@ -703,12 +648,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return "f64";
       case kWasmS128:
         return "s128";
-      case kWasmS1x4:
-        return "s1x4";
-      case kWasmS1x8:
-        return "s1x8";
-      case kWasmS1x16:
-        return "s1x16";
       case kWasmStmt:
         return "<stmt>";
       case kWasmVar:

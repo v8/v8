@@ -575,35 +575,16 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128Or();
   const Operator* S128Xor();
   const Operator* S128Not();
+  const Operator* S128Select();
 
   const Operator* S32x4Shuffle(uint8_t shuffle[16]);
-  const Operator* S32x4Select();
   const Operator* S16x8Shuffle(uint8_t shuffle[16]);
-  const Operator* S16x8Select();
   const Operator* S8x16Shuffle(uint8_t shuffle[16]);
-  const Operator* S8x16Select();
 
-  const Operator* S1x4Zero();
-  const Operator* S1x4And();
-  const Operator* S1x4Or();
-  const Operator* S1x4Xor();
-  const Operator* S1x4Not();
   const Operator* S1x4AnyTrue();
   const Operator* S1x4AllTrue();
-
-  const Operator* S1x8Zero();
-  const Operator* S1x8And();
-  const Operator* S1x8Or();
-  const Operator* S1x8Xor();
-  const Operator* S1x8Not();
   const Operator* S1x8AnyTrue();
   const Operator* S1x8AllTrue();
-
-  const Operator* S1x16Zero();
-  const Operator* S1x16And();
-  const Operator* S1x16Or();
-  const Operator* S1x16Xor();
-  const Operator* S1x16Not();
   const Operator* S1x16AnyTrue();
   const Operator* S1x16AllTrue();
 

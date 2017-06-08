@@ -333,28 +333,11 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
   V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(S128Not, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S32x4Select, Operator::kNoProperties, 3, 0, 1)                        \
-  V(S16x8Select, Operator::kNoProperties, 3, 0, 1)                        \
-  V(S8x16Select, Operator::kNoProperties, 3, 0, 1)                        \
-  V(S1x4Zero, Operator::kNoProperties, 0, 0, 1)                           \
-  V(S1x4And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S1x4Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(S1x4Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S1x4Not, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S128Select, Operator::kNoProperties, 3, 0, 1)                         \
   V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x8Zero, Operator::kNoProperties, 0, 0, 1)                           \
-  V(S1x8And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S1x8Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(S1x8Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S1x8Not, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x16Zero, Operator::kNoProperties, 0, 0, 1)                          \
-  V(S1x16And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
-  V(S1x16Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S1x16Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
-  V(S1x16Not, Operator::kNoProperties, 1, 0, 1)                           \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                       \
   V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)
 
@@ -721,9 +704,6 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kNone:
       break;
   }
@@ -806,9 +786,6 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kNone:
       break;
   }
@@ -825,9 +802,6 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kNone:
       break;
   }
@@ -871,9 +845,6 @@ const Operator* MachineOperatorBuilder::CheckedStore(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
-    case MachineRepresentation::kSimd1x4:
-    case MachineRepresentation::kSimd1x8:
-    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kNone:
       break;
   }

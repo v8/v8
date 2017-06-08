@@ -216,7 +216,7 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
       }
       FOREACH_FLOAT32X4_TO_SIMD1X4OPCODE(CASE_STMT)
       FOREACH_INT32X4_TO_SIMD1X4OPCODE(CASE_STMT) {
-        replacements_[node->id()].type = SimdType::kSimd1x4;
+        replacements_[node->id()].type = SimdType::kInt32x4;
         break;
       }
       FOREACH_INT16X8_OPCODE(CASE_STMT) {
@@ -224,7 +224,7 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
         break;
       }
       FOREACH_INT16X8_TO_SIMD1X8OPCODE(CASE_STMT) {
-        replacements_[node->id()].type = SimdType::kSimd1x8;
+        replacements_[node->id()].type = SimdType::kInt16x8;
         break;
       }
       FOREACH_INT8X16_OPCODE(CASE_STMT) {
@@ -232,7 +232,7 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
         break;
       }
       FOREACH_INT8X16_TO_SIMD1X16OPCODE(CASE_STMT) {
-        replacements_[node->id()].type = SimdType::kSimd1x16;
+        replacements_[node->id()].type = SimdType::kInt8x16;
         break;
       }
     default: {
@@ -249,8 +249,8 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
           replacements_[node->id()].type = SimdType::kFloat32x4;
           break;
         }
-        case IrOpcode::kS32x4Select: {
-          replacements_[node->id()].type = SimdType::kSimd1x4;
+        case IrOpcode::kS128Select: {
+          replacements_[node->id()].type = SimdType::kInt32x4;
           break;
         }
           FOREACH_INT16X8_TO_SIMD1X8OPCODE(CASE_STMT) {
@@ -261,10 +261,6 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
             replacements_[node->id()].type = SimdType::kInt8x16;
             break;
           }
-        case IrOpcode::kS16x8Select: {
-          replacements_[node->id()].type = SimdType::kSimd1x8;
-          break;
-        }
         default: {
           replacements_[node->id()].type = replacements_[output->id()].type;
         }
@@ -310,12 +306,11 @@ static int GetReturnCountAfterLowering(
 
 int SimdScalarLowering::NumLanes(SimdType type) {
   int num_lanes = 0;
-  if (type == SimdType::kFloat32x4 || type == SimdType::kInt32x4 ||
-      type == SimdType::kSimd1x4) {
+  if (type == SimdType::kFloat32x4 || type == SimdType::kInt32x4) {
     num_lanes = kNumLanes32;
-  } else if (type == SimdType::kInt16x8 || type == SimdType::kSimd1x8) {
+  } else if (type == SimdType::kInt16x8) {
     num_lanes = kNumLanes16;
-  } else if (type == SimdType::kInt8x16 || type == SimdType::kSimd1x16) {
+  } else if (type == SimdType::kInt8x16) {
     num_lanes = kNumLanes8;
   } else {
     UNREACHABLE();
@@ -1104,13 +1099,11 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerNotEqual(node, SimdType::kInt8x16, machine()->Word32Equal());
       break;
     }
-    case IrOpcode::kS32x4Select:
-    case IrOpcode::kS16x8Select:
-    case IrOpcode::kS8x16Select: {
+    case IrOpcode::kS128Select: {
       DCHECK(node->InputCount() == 3);
-      DCHECK(ReplacementType(node->InputAt(0)) == SimdType::kSimd1x4 ||
-             ReplacementType(node->InputAt(0)) == SimdType::kSimd1x8 ||
-             ReplacementType(node->InputAt(0)) == SimdType::kSimd1x16);
+      DCHECK(ReplacementType(node->InputAt(0)) == SimdType::kInt32x4 ||
+             ReplacementType(node->InputAt(0)) == SimdType::kInt16x8 ||
+             ReplacementType(node->InputAt(0)) == SimdType::kInt8x16);
       Node** boolean_input = GetReplacements(node->InputAt(0));
       Node** rep_left = GetReplacementsWithType(node->InputAt(1), rep_type);
       Node** rep_right = GetReplacementsWithType(node->InputAt(2), rep_type);
