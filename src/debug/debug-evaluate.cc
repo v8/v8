@@ -535,6 +535,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     // Map builtins.
     case Builtins::kMapConstructor:
     case Builtins::kMapGet:
+    case Builtins::kMapGetSize:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -586,6 +587,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kNumberPrototypeValueOf:
     // Set builtins.
     case Builtins::kSetConstructor:
+    case Builtins::kSetGetSize:
     // String builtins. Strings are immutable.
     case Builtins::kStringFromCharCode:
     case Builtins::kStringFromCodePoint:

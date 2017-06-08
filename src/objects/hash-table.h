@@ -885,11 +885,11 @@ class JSMapIterator
   // populate the array differently.
   inline void PopulateValueArray(FixedArray* array);
 
- private:
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.
   inline Object* CurrentValue();
 
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMapIterator);
 };
 

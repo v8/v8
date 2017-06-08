@@ -633,6 +633,7 @@
         'builtins/builtins-boolean.cc',
         'builtins/builtins-call.cc',
         'builtins/builtins-callsite.cc',
+        'builtins/builtins-collections.cc',
         'builtins/builtins-console.cc',
         'builtins/builtins-constructor.h',
         'builtins/builtins-dataview.cc',

@@ -75,7 +75,7 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   return isolate->heap()->undefined_value();
 }
 
-
+// TODO(gsathya): Remove this when we delete crankshaft.
 RUNTIME_FUNCTION(Runtime_SetClear) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -159,7 +159,7 @@ RUNTIME_FUNCTION(Runtime_MapShrink) {
   return isolate->heap()->undefined_value();
 }
 
-
+// TODO(gsathya): Remove this when we delete crankshaft.
 RUNTIME_FUNCTION(Runtime_MapClear) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

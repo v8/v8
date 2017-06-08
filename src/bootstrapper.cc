@@ -2957,6 +2957,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, map_has,
                                      Context::MAP_HAS_METHOD_INDEX);
 
+    SimpleInstallFunction(prototype, "clear", Builtins::kMapClear, 0, true);
+    SimpleInstallFunction(prototype, "forEach", Builtins::kMapForEach, 1,
+                          false);
+    SimpleInstallGetter(prototype, factory->InternalizeUtf8String("size"),
+                        Builtins::kMapGetSize, false);
     InstallSpeciesGetter(js_map_fun);
   }
 
@@ -2988,6 +2993,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallFunction(prototype, "has", Builtins::kSetHas, 1, true);
     InstallWithIntrinsicDefaultProto(isolate, set_has,
                                      Context::SET_HAS_METHOD_INDEX);
+    SimpleInstallFunction(prototype, "clear", Builtins::kSetClear, 0, true);
+    SimpleInstallFunction(prototype, "forEach", Builtins::kSetForEach, 1,
+                          false);
+    SimpleInstallGetter(prototype, factory->InternalizeUtf8String("size"),
+                        Builtins::kSetGetSize, false);
     InstallSpeciesGetter(js_set_fun);
   }
 

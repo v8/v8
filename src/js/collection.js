@@ -181,54 +181,10 @@ function SetDelete(key) {
   return true;
 }
 
-
-function SetGetSize() {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set.prototype.size', this);
-  }
-  var table = %_JSCollectionGetTable(this);
-  return ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
-}
-
-
-function SetClearJS() {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set.prototype.clear', this);
-  }
-  %_SetClear(this);
-}
-
-
-function SetForEach(f, receiver) {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set.prototype.forEach', this);
-  }
-
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
-  var key;
-  var value_array = [UNDEFINED];
-  while (%SetIteratorNext(iterator, value_array)) {
-    key = value_array[0];
-    %_Call(f, receiver, key, key, this);
-  }
-}
-
-// -------------------------------------------------------------------
-
-%FunctionSetLength(SetForEach, 1);
-
 // Set up the non-enumerable functions on the Set prototype object.
-utils.InstallGetter(GlobalSet.prototype, "size", SetGetSize);
 utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
   "add", SetAdd,
   "delete", SetDelete,
-  "clear", SetClearJS,
-  "forEach", SetForEach
 ]);
 
 
@@ -306,52 +262,10 @@ function MapDelete(key) {
   return true;
 }
 
-
-function MapGetSize() {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.size', this);
-  }
-  var table = %_JSCollectionGetTable(this);
-  return ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
-}
-
-
-function MapClearJS() {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.clear', this);
-  }
-  %_MapClear(this);
-}
-
-
-function MapForEach(f, receiver) {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.forEach', this);
-  }
-
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
-  var value_array = [UNDEFINED, UNDEFINED];
-  while (%MapIteratorNext(iterator, value_array)) {
-    %_Call(f, receiver, value_array[1], value_array[0], this);
-  }
-}
-
-// -------------------------------------------------------------------
-
-%FunctionSetLength(MapForEach, 1);
-
 // Set up the non-enumerable functions on the Map prototype object.
-utils.InstallGetter(GlobalMap.prototype, "size", MapGetSize);
 utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   "set", MapSet,
   "delete", MapDelete,
-  "clear", MapClearJS,
-  "forEach", MapForEach
 ]);
 
 // -----------------------------------------------------------------------

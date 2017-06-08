@@ -1173,6 +1173,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-boolean.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
+    "src/builtins/builtins-collections.cc",
     "src/builtins/builtins-console.cc",
     "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-dataview.cc",
