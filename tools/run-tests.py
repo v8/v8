@@ -109,7 +109,7 @@ TEST_MAP = {
 TIMEOUT_DEFAULT = 60
 
 # Variants ordered by expected runtime (slowest first).
-VARIANTS = ["default", "noturbofan"]
+VARIANTS = ["default"]
 
 MORE_VARIANTS = [
   "stress",

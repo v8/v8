@@ -627,13 +627,6 @@
 }],  # variant == nooptimization
 
 ##############################################################################
-['variant == noturbofan and no_snap', {
-  # Too slow for old pipeline and nosnap.
-  'regress/regress-2249': [SKIP],
-  'harmony/futex': [SKIP],
-}],  # variant == noturbofan and no_snap
-
-##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
