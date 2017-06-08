@@ -54,11 +54,13 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
 
-  Label call_runtime(this), return_true(this), return_false(this);
+  Label call_runtime(this), return_true(this), return_false(this),
+      to_primitive(this);
 
-  // Smi receivers do not have own properties.
+  // Smi receivers do not have own properties, just perform ToPrimitive on the
+  // key.
   Label if_objectisnotsmi(this);
-  Branch(TaggedIsSmi(object), &return_false, &if_objectisnotsmi);
+  Branch(TaggedIsSmi(object), &to_primitive, &if_objectisnotsmi);
   BIND(&if_objectisnotsmi);
 
   Node* map = LoadMap(object);
@@ -94,6 +96,10 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
                            &var_unique, &return_false, &call_runtime);
     }
   }
+  BIND(&to_primitive);
+  GotoIf(IsNumber(key), &return_false);
+  Branch(IsName(key), &return_false, &call_runtime);
+
   BIND(&return_true);
   Return(BooleanConstant(true));
 
