@@ -953,14 +953,12 @@ void Heap::ReportExternalMemoryPressure() {
   } else {
     // Incremental marking is turned on an has already been started.
     const double pressure =
-        static_cast<double>(external_memory_ -
-                            external_memory_at_last_mark_compact_ -
-                            kExternalAllocationSoftLimit) /
-        external_memory_hard_limit();
-    DCHECK_GE(1, pressure);
-    const double kMaxStepSizeOnExternalLimit = 25;
+        static_cast<double>(external_memory_) / external_memory_limit_;
+    DCHECK_LE(1.0, pressure);
+    const double kMinStepSize = 5;
+    const double kMaxStepSize = 10;
     const double deadline = MonotonicallyIncreasingTimeInMs() +
-                            pressure * kMaxStepSizeOnExternalLimit;
+                            Min(pressure * kMinStepSize, kMaxStepSize);
     incremental_marking()->AdvanceIncrementalMarking(
         deadline, IncrementalMarking::GC_VIA_STACK_GUARD,
         IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
