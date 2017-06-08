@@ -96,9 +96,13 @@ class SourceRangeScope final {
                    PositionKind post_kind = POSITION)
       : scanner_(scanner), range_(range), post_kind_(post_kind) {
     range_->start = GetPosition(pre_kind);
+    DCHECK_NE(range_->start, kNoSourcePosition);
   }
 
-  ~SourceRangeScope() { range_->end = GetPosition(post_kind_); }
+  ~SourceRangeScope() {
+    range_->end = GetPosition(post_kind_);
+    DCHECK_NE(range_->end, kNoSourcePosition);
+  }
 
  private:
   int32_t GetPosition(PositionKind kind) {
@@ -5357,8 +5361,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   auto loop = factory()->NewDoWhileStatement(labels, peek_position());
   typename Types::Target target(this, loop);
 
+  SourceRange body_range;
+  StatementT body = impl()->NullStatement();
+
   Expect(Token::DO, CHECK_OK);
-  StatementT body = ParseStatement(nullptr, CHECK_OK);
+  {
+    SourceRangeScope range_scope(scanner(), &body_range);
+    body = ParseStatement(nullptr, CHECK_OK);
+  }
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
@@ -5371,7 +5381,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   // ExpectSemicolon() functionality here.
   Check(Token::SEMICOLON);
 
-  loop->Initialize(cond, body);
+  loop->Initialize(cond, body, body_range);
   return loop;
 }
 
@@ -5384,13 +5394,19 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
   auto loop = factory()->NewWhileStatement(labels, peek_position());
   typename Types::Target target(this, loop);
 
+  SourceRange body_range;
+  StatementT body = impl()->NullStatement();
+
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  StatementT body = ParseStatement(nullptr, CHECK_OK);
+  {
+    SourceRangeScope range_scope(scanner(), &body_range);
+    body = ParseStatement(nullptr, CHECK_OK);
+  }
 
-  loop->Initialize(cond, body);
+  loop->Initialize(cond, body, body_range);
   return loop;
 }
 
@@ -5774,6 +5790,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
   StatementT next = impl()->NullStatement();
   StatementT body = impl()->NullStatement();
 
+  SourceRange body_range;
+
   // If there are let bindings, then condition and the next statement of the
   // for loop must be parsed in a new scope.
   Scope* inner_scope = scope();
@@ -5795,6 +5813,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     }
     Expect(Token::RPAREN, CHECK_OK);
 
+    SourceRangeScope range_scope(scanner(), &body_range);
     body = ParseStatement(nullptr, CHECK_OK);
   }
 
@@ -5804,7 +5823,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
       (is_resumable() || function_state_->contains_function_or_eval())) {
     scope()->set_is_hidden();
     return impl()->DesugarLexicalBindingsInForStatement(
-        loop, init, cond, next, body, inner_scope, *for_info, CHECK_OK);
+        loop, init, cond, next, body, body_range, inner_scope, *for_info,
+        CHECK_OK);
   }
 
   Scope* for_scope = scope()->FinalizeBlockScope();
@@ -5834,11 +5854,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     }
     block->statements()->Add(loop, zone());
     block->set_scope(for_scope);
-    loop->Initialize(init, cond, next, body);
+    loop->Initialize(init, cond, next, body, body_range);
     return block;
   }
 
-  loop->Initialize(init, cond, next, body);
+  loop->Initialize(init, cond, next, body, body_range);
   return loop;
 }
 

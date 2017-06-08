@@ -1368,15 +1368,20 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  int body_slot = AllocateBlockCoverageSlotIfEnabled(stmt->body_range());
+
   LoopBuilder loop_builder(builder());
   if (stmt->cond()->ToBooleanIsFalse()) {
+    BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
     VisitIterationBody(stmt, &loop_builder);
   } else if (stmt->cond()->ToBooleanIsTrue()) {
     VisitIterationHeader(stmt, &loop_builder);
+    BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
     VisitIterationBody(stmt, &loop_builder);
     loop_builder.JumpToHeader(loop_depth_);
   } else {
     VisitIterationHeader(stmt, &loop_builder);
+    BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_backbranch(zone());
@@ -1388,6 +1393,8 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
+  int body_slot = AllocateBlockCoverageSlotIfEnabled(stmt->body_range());
+
   if (stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is false there is no need to generate the loop.
     return;
@@ -1402,11 +1409,14 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
                  TestFallthrough::kThen);
     loop_body.Bind(builder());
   }
+  BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.JumpToHeader(loop_depth_);
 }
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
+  int body_slot = AllocateBlockCoverageSlotIfEnabled(stmt->body_range());
+
   if (stmt->init() != nullptr) {
     Visit(stmt->init());
   }
@@ -1425,6 +1435,7 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
                  TestFallthrough::kThen);
     loop_body.Bind(builder());
   }
+  BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     builder()->SetStatementPosition(stmt->next());

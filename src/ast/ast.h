@@ -546,6 +546,8 @@ class IterationStatement : public BreakableStatement {
   Statement* body() const { return body_; }
   void set_body(Statement* s) { body_ = s; }
 
+  SourceRange body_range() const { return body_range_; }
+
   int suspend_count() const { return suspend_count_; }
   int first_suspend_id() const { return first_suspend_id_; }
   void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
@@ -567,7 +569,10 @@ class IterationStatement : public BreakableStatement {
         suspend_count_(0),
         first_suspend_id_(0) {}
   static int parent_num_ids() { return BreakableStatement::num_ids(); }
-  void Initialize(Statement* body) { body_ = body; }
+  void Initialize(Statement* body, const SourceRange& body_range = {}) {
+    body_ = body;
+    body_range_ = body_range;
+  }
 
   static const uint8_t kNextBitFieldIndex =
       BreakableStatement::kNextBitFieldIndex;
@@ -576,6 +581,7 @@ class IterationStatement : public BreakableStatement {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Statement* body_;
+  SourceRange body_range_;
   Label continue_target_;
   int suspend_count_;
   int first_suspend_id_;
@@ -584,8 +590,9 @@ class IterationStatement : public BreakableStatement {
 
 class DoWhileStatement final : public IterationStatement {
  public:
-  void Initialize(Expression* cond, Statement* body) {
-    IterationStatement::Initialize(body);
+  void Initialize(Expression* cond, Statement* body,
+                  const SourceRange& body_range = {}) {
+    IterationStatement::Initialize(body, body_range);
     cond_ = cond;
   }
 
@@ -611,8 +618,9 @@ class DoWhileStatement final : public IterationStatement {
 
 class WhileStatement final : public IterationStatement {
  public:
-  void Initialize(Expression* cond, Statement* body) {
-    IterationStatement::Initialize(body);
+  void Initialize(Expression* cond, Statement* body,
+                  const SourceRange& body_range = {}) {
+    IterationStatement::Initialize(body, body_range);
     cond_ = cond;
   }
 
@@ -638,11 +646,9 @@ class WhileStatement final : public IterationStatement {
 
 class ForStatement final : public IterationStatement {
  public:
-  void Initialize(Statement* init,
-                  Expression* cond,
-                  Statement* next,
-                  Statement* body) {
-    IterationStatement::Initialize(body);
+  void Initialize(Statement* init, Expression* cond, Statement* next,
+                  Statement* body, const SourceRange& body_range = {}) {
+    IterationStatement::Initialize(body, body_range);
     init_ = init;
     cond_ = cond;
     next_ = next;
