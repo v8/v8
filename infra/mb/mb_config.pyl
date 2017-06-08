@@ -524,7 +524,8 @@
     },
 
     'cfi': {
-      'gn_args': 'is_cfi=true use_cfi_diag=true',
+      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
+                  'use_cfi_recover=false'),
       'gyp_defines': 'cfi_vptr=1 cfi_diag=1',
     },
 
