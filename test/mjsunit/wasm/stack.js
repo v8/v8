@@ -60,7 +60,7 @@ var mem_oob_func = builder.addFunction(undefined, kSig_i_v)
   .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0])
   .exportAs("mem_out_of_bounds");
 
-// Call the mem_out_of_bounds function, in order to have two WASM stack frames.
+// Call the mem_out_of_bounds function, in order to have two wasm stack frames.
 builder.addFunction("call_mem_out_of_bounds", kSig_i_v)
   .addBody([kExprCallFunction, mem_oob_func.index])
   .exportAs("call_mem_out_of_bounds");

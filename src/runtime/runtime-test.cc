@@ -439,9 +439,9 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   // It takes two parameters, the first one is the JSFunction,
   // The second one is the type
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  // If type is 0, it means that it is supposed to be a direct call into a WASM
-  // function
-  // If type is 1, it means that it is supposed to have wrappers
+  // If type is 0, it means that it is supposed to be a direct call into a wasm
+  // function.
+  // If type is 1, it means that it is supposed to have wrappers.
   CONVERT_ARG_HANDLE_CHECKED(Smi, type, 1);
   Handle<Code> export_code = handle(function->code());
   CHECK(export_code->kind() == Code::JS_TO_WASM_FUNCTION);
@@ -472,8 +472,8 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
     }
   }
   CHECK(count == 1);
-  // check the type of the imported exported function, it should be also a WASM
-  // function in our case
+  // Check the type of the imported exported function, it should be also a wasm
+  // function in our case.
   Handle<Code> imported_fct;
   CHECK(type->value() == 0 || type->value() == 1);
 

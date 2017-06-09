@@ -531,11 +531,11 @@ DEFINE_NEG_IMPLICATION(minimal, opt)
 DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
-DEFINE_BOOL(expose_wasm, true, "expose WASM interface to JavaScript")
+DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
 DEFINE_BOOL(assume_asmjs_origin, false,
             "force wasm decoder to assume input is internal asm-wasm format")
 DEFINE_BOOL(wasm_disable_structured_cloning, false,
-            "disable WASM structured cloning")
+            "disable wasm structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
 DEFINE_BOOL(wasm_async_compilation, false,
@@ -551,8 +551,8 @@ DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
 DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_BOOL(trace_wasm_interpreter, false, "trace interpretation of wasm code")
 DEFINE_INT(trace_wasm_ast_start, 0,
-           "start function for WASM AST trace (inclusive)")
-DEFINE_INT(trace_wasm_ast_end, 0, "end function for WASM AST trace (exclusive)")
+           "start function for wasm AST trace (inclusive)")
+DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
 DEFINE_UINT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
@@ -566,7 +566,7 @@ DEFINE_BOOL(trace_asm_scanner, false,
 DEFINE_BOOL(trace_asm_parser, false, "verbose logging of asm.js parse failures")
 DEFINE_BOOL(stress_validate_asm, false, "try to validate everything as asm.js")
 
-DEFINE_BOOL(dump_wasm_module, false, "dump WASM module bytes")
+DEFINE_BOOL(dump_wasm_module, false, "dump wasm module bytes")
 DEFINE_STRING(dump_wasm_module_path, NULL, "directory to dump wasm modules to")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,

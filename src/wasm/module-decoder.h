@@ -59,7 +59,7 @@ struct AsmJsOffsetEntry {
 typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
-// Decodes the bytes of a WASM module between {module_start} and {module_end}.
+// Decodes the bytes of a wasm module between {module_start} and {module_end}.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     Isolate* isolate, const byte* module_start, const byte* module_end,
     bool verify_functions, ModuleOrigin origin, bool is_sync = true);
@@ -70,7 +70,7 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
                                                              const byte* start,
                                                              const byte* end);
 
-// Decodes the bytes of a WASM function between
+// Decodes the bytes of a wasm function between
 // {function_start} and {function_end}.
 V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(
     Isolate* isolate, Zone* zone, ModuleBytesEnv* env,

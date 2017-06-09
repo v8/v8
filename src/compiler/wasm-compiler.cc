@@ -2115,8 +2115,6 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 
   Node* call = BuildCCall(sig_builder.Build(), args);
 
-  // TODO(wasm): This can get simpler if we have a specialized runtime call to
-  // throw WASM exceptions by trap code instead of by string.
   ZeroCheck32(static_cast<wasm::TrapReason>(trap_zero), call, position);
   TrapIfEq32(wasm::kTrapDivUnrepresentable, call, -1, position);
   const Operator* load_op = jsgraph()->machine()->Load(result_type);
@@ -2634,7 +2632,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   int pos = 0;
   args[pos++] = HeapConstant(wasm_code);
 
-  // Convert JS parameters to WASM numbers.
+  // Convert JS parameters to wasm numbers.
   for (int i = 0; i < wasm_count; ++i) {
     Node* param = Param(i + 1);
     Node* wasm_param = FromJS(param, context, sig->GetParam(i));
@@ -2644,7 +2642,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   args[pos++] = *effect_;
   args[pos++] = *control_;
 
-  // Call the WASM code.
+  // Call the wasm code.
   CallDescriptor* desc =
       wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
 
@@ -2662,7 +2660,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
 
 int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
                                         wasm::FunctionSig* sig) {
-  // Convert WASM numbers to JS values.
+  // Convert wasm numbers to JS values.
   int param_index = 0;
   for (int i = 0; i < param_count; ++i) {
     Node* param = Param(param_index++);
@@ -2721,7 +2719,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
       desc = Linkage::GetJSCallDescriptor(
           graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
 
-      // Convert WASM numbers to JS values.
+      // Convert wasm numbers to JS values.
       pos = AddParameterNodes(args, pos, wasm_count, sig);
 
       args[pos++] = jsgraph()->UndefinedConstant();        // new target
@@ -2748,7 +2746,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
                                           callable.descriptor(), wasm_count + 1,
                                           CallDescriptor::kNoFlags);
 
-    // Convert WASM numbers to JS values.
+    // Convert wasm numbers to JS values.
     pos = AddParameterNodes(args, pos, wasm_count, sig);
 
     // The native_context is sufficient here, because all kind of callables
@@ -3036,7 +3034,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 wasm::WasmCodePosition position) {
   Node* load;
 
-  // WASM semantics throw on OOB. Introduce explicit bounds check.
+  // Wasm semantics throw on OOB. Introduce explicit bounds check.
   if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
     BoundsCheckMem(memtype, index, offset, position);
   }
@@ -3088,7 +3086,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
                                  wasm::WasmCodePosition position) {
   Node* store;
 
-  // WASM semantics throw on OOB. Introduce explicit bounds check.
+  // Wasm semantics throw on OOB. Introduce explicit bounds check.
   if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
     BoundsCheckMem(memtype, index, offset, position);
   }
@@ -3605,7 +3603,7 @@ static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   Handle<String> name_str =
       isolate->factory()->NewStringFromAsciiChecked(buffer.start());
   Handle<String> script_str =
-      isolate->factory()->NewStringFromAsciiChecked("(WASM)");
+      isolate->factory()->NewStringFromAsciiChecked("(wasm)");
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name_str, code, false);
   PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
@@ -3972,10 +3970,10 @@ void WasmCompilationUnit::ExecuteCompilation() {
 void WasmCompilationUnit::ExecuteCompilationInternal() {
   if (FLAG_trace_wasm_compiler) {
     if (func_name_.start() != nullptr) {
-      PrintF("Compiling WASM function %d:'%.*s'\n\n", func_index(),
+      PrintF("Compiling wasm function %d:'%.*s'\n\n", func_index(),
              func_name_.length(), func_name_.start());
     } else {
-      PrintF("Compiling WASM function %d:<unnamed>\n\n", func_index());
+      PrintF("Compiling wasm function %d:<unnamed>\n\n", func_index());
     }
   }
 
@@ -4032,10 +4030,10 @@ Handle<Code> WasmCompilationUnit::FinishCompilation(
       ScopedVector<char> buffer(128);
       if (func_name_.start() == nullptr) {
         SNPrintF(buffer,
-                 "Compiling WASM function #%d:%.*s failed:", func_index_,
+                 "Compiling wasm function #%d:%.*s failed:", func_index_,
                  func_name_.length(), func_name_.start());
       } else {
-        SNPrintF(buffer, "Compiling WASM function #%d failed:", func_index_);
+        SNPrintF(buffer, "Compiling wasm function #%d failed:", func_index_);
       }
       thrower->CompileFailed(buffer.start(), graph_construction_result_);
     }

@@ -107,7 +107,7 @@ uint32_t consume_string(Decoder& decoder, uint32_t* length, bool validate_utf8,
   return offset;
 }
 
-// An iterator over the sections in a WASM binary module.
+// An iterator over the sections in a wasm binary module.
 // Automatically skips all unknown sections.
 class WasmSectionIterator {
  public:
@@ -950,7 +950,7 @@ class ModuleDecoder : public Decoder {
                                menv->wire_bytes.GetNameOrNull(function));
     if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
       OFStream os(stdout);
-      os << "Verifying WASM function " << func_name << std::endl;
+      os << "Verifying wasm function " << func_name << std::endl;
     }
     FunctionBody body = {
         function->sig, start_,

@@ -601,7 +601,7 @@ class WasmDecoder : public Decoder {
 
 static const int32_t kNullCatch = -1;
 
-// The full WASM decoder for bytecode. Verifies bytecode and, optionally,
+// The full wasm decoder for bytecode. Verifies bytecode and, optionally,
 // generates a TurboFan IR graph.
 class WasmFullDecoder : public WasmDecoder {
  public:

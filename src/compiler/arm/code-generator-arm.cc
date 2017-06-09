@@ -690,7 +690,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
   switch (arch_opcode) {
     case kArchCallCodeObject: {
-      // We must not share code targets for calls to builtins for WASM code, as
+      // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       internal::Assembler::BlockCodeTargetSharingScope scope;
       if (info()->IsWasm()) scope.Open(masm());
@@ -711,7 +711,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
-      // We must not share code targets for calls to builtins for WASM code, as
+      // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       internal::Assembler::BlockCodeTargetSharingScope scope;
       if (info()->IsWasm()) scope.Open(masm());

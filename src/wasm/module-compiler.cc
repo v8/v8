@@ -501,8 +501,8 @@ Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
   WasmFunction* other_func = GetWasmFunctionForImportWrapper(isolate, target);
   if (other_func) {
     if (!sig->Equals(other_func->sig)) return Handle<Code>::null();
-    // Signature matched. Unwrap the JS->WASM wrapper and return the raw
-    // WASM function code.
+    // Signature matched. Unwrap the import wrapper and return the raw wasm
+    // function code.
     return UnwrapImportWrapper(target);
   }
   // No wasm function or being debugged. Compile a new wrapper for the new
@@ -657,7 +657,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     isolate_->debug()->OnAfterCompile(script);
   }
 
-  // Compile JS->WASM wrappers for exported functions.
+  // Compile JS->wasm wrappers for exported functions.
   JSToWasmWrapperCache js_to_wasm_cache;
   int func_index = 0;
   for (auto exp : module->export_table) {
@@ -782,7 +782,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       // Avoid creating too many handles in the outer scope.
       HandleScope scope(isolate_);
 
-      // Clone the code for WASM functions and exports.
+      // Clone the code for wasm functions and exports.
       for (int i = 0; i < code_table->length(); ++i) {
         Handle<Code> orig_code(Code::cast(code_table->get(i)), isolate_);
         switch (orig_code->kind()) {
@@ -1352,7 +1352,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           WasmFunction* function =
               GetWasmFunctionForImportWrapper(isolate_, val);
           if (function == nullptr) {
-            thrower_->LinkError("table import %d[%d] is not a WASM function",
+            thrower_->LinkError("table import %d[%d] is not a wasm function",
                                 index, i);
             return -1;
           }
@@ -1793,7 +1793,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
         if (!all_dispatch_tables.is_null()) {
           if (js_wrappers_[func_index].is_null()) {
             // No JSFunction entry yet exists for this function. Create one.
-            // TODO(titzer): We compile JS->WASM wrappers for functions are
+            // TODO(titzer): We compile JS->wasm wrappers for functions are
             // not exported but are in an exported table. This should be done
             // at module compile time and cached instead.
 
@@ -2257,7 +2257,7 @@ class AsyncCompileJob::FinishCompile : public SyncCompileTask {
         job_->isolate_, shared, job_->code_table_, job_->function_tables_,
         job_->signature_tables_);
 
-    // Finish the WASM script now and make it public to the debugger.
+    // Finish the wasm script now and make it public to the debugger.
     script->set_wasm_compiled_module(*job_->compiled_module_);
     job_->isolate_->debug()->OnAfterCompile(script);
 
@@ -2270,12 +2270,12 @@ class AsyncCompileJob::FinishCompile : public SyncCompileTask {
 };
 
 //==========================================================================
-// Step 6 (sync): Compile JS->WASM wrappers.
+// Step 6 (sync): Compile JS->wasm wrappers.
 //==========================================================================
 class AsyncCompileJob::CompileWrappers : public SyncCompileTask {
   void RunImpl() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
-    // Compile JS->WASM wrappers for exported functions.
+    // Compile JS->wasm wrappers for exported functions.
     HandleScope scope(job_->isolate_);
     JSToWasmWrapperCache js_to_wasm_cache;
     int func_index = 0;

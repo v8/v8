@@ -338,7 +338,7 @@ function checkStack(stack, expected_lines) {
     this.i = i;
   }
 
-  // We call WASM -> func 1 -> WASM -> func2.
+  // We call wasm -> func 1 -> wasm -> func2.
   // func2 throws, func 1 catches.
   function func1() {
     try {
@@ -369,7 +369,7 @@ function checkStack(stack, expected_lines) {
 (function testInterpreterGC() {
   function run(f) {
     // wrap the creation in a closure so that the only thing returned is
-    // the module (i.e. the underlying array buffer of WASM wire bytes dies).
+    // the module (i.e. the underlying array buffer of wasm wire bytes dies).
     var module = (() => {
       var builder = new WasmModuleBuilder();
       var imp = builder.addImport('mod', 'the_name_of_my_import', kSig_i_i);

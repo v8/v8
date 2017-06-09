@@ -423,7 +423,7 @@ bool SkipFPValue(float x) {
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
 
-// Skip tests where the expected value is a NaN, since our WASM test code
+// Skip tests where the expected value is a NaN, since our wasm test code
 // doesn't handle NaNs. Also skip extreme values.
 bool SkipFPExpectedValue(float x) { return std::isnan(x) || SkipFPValue(x); }
 

@@ -137,7 +137,7 @@ class InterpretedFrame {
   DISALLOW_COPY_AND_ASSIGN(InterpretedFrame);
 };
 
-// An interpreter capable of executing WASM.
+// An interpreter capable of executing WebAssembly.
 class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
   // State machine for a Thread:

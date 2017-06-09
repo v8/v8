@@ -31,7 +31,7 @@ class SourcePositionTable;
 }  // namespace compiler
 
 namespace wasm {
-// Forward declarations for some WASM data structures.
+// Forward declarations for some wasm data structures.
 struct ModuleBytesEnv;
 struct ModuleEnv;
 struct WasmFunction;
@@ -94,7 +94,7 @@ class WasmCompilationUnit final {
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
 
-// Wraps a JS function, producing a code object that can be called from WASM.
+// Wraps a JS function, producing a code object that can be called from wasm.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> module_name,
@@ -112,8 +112,8 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                                          wasm::FunctionSig* sig,
                                          Handle<WasmInstanceObject> instance);
 
-// Abstracts details of building TurboFan graph nodes for WASM to separate
-// the WASM decoder from the internal details of TurboFan.
+// Abstracts details of building TurboFan graph nodes for wasm to separate
+// the wasm decoder from the internal details of TurboFan.
 class WasmTrapHelper;
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {

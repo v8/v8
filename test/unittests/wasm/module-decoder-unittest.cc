@@ -133,7 +133,7 @@ struct ValueTypePair {
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
  public:
   ModuleResult DecodeModule(const byte* module_start, const byte* module_end) {
-    // Add the WASM magic and version number automatically.
+    // Add the wasm magic and version number automatically.
     size_t size = static_cast<size_t>(module_end - module_start);
     byte header[] = {WASM_MODULE_HEADER};
     size_t total = sizeof(header) + size;

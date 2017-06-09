@@ -24,7 +24,7 @@ mkdir -p test/fuzzer/wasm_asmjs_corpus
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
   --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_asmjs_corpus/" mjsunit/asm/*
-# WASM
+# wasm
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
   --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" unittests

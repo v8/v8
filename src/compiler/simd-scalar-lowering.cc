@@ -811,7 +811,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kCall: {
-      // TODO(turbofan): Make WASM code const-correct wrt. CallDescriptor.
+      // TODO(turbofan): Make wasm code const-correct wrt. CallDescriptor.
       CallDescriptor* descriptor =
           const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
       if (DefaultLowering(node) ||

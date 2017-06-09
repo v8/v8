@@ -1588,7 +1588,8 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
 };
 
 // NOTE: The stack trace frame iterator is an iterator that only traverse proper
-// JavaScript frames that have proper JavaScript functions and WASM frames.
+// JavaScript frames that have proper JavaScript functions and WebAssembly
+// frames.
 class StackTraceFrameIterator BASE_EMBEDDED {
  public:
   explicit StackTraceFrameIterator(Isolate* isolate);

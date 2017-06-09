@@ -35,7 +35,7 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
 
   if (decoding_result.failed()) {
     // Module verification failed. throw.
-    thrower->CompileError("WASM.compileRun() failed: %s",
+    thrower->CompileError("DecodeWasmModule failed: %s",
                           decoding_result.error_msg().c_str());
   }
 
@@ -187,7 +187,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 
   // The result should be a number.
   if (retval.is_null()) {
-    thrower->RuntimeError("WASM.compileRun() failed: Invocation was null");
+    thrower->RuntimeError("Calling exported wasm function failed.");
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
@@ -198,7 +198,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
     return static_cast<int32_t>(HeapNumber::cast(*result)->value());
   }
   thrower->RuntimeError(
-      "WASM.compileRun() failed: Return value should be number");
+      "Calling exported wasm function failed: Return value should be number");
   return -1;
 }
 

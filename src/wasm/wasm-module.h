@@ -70,7 +70,7 @@ struct WasmInitExpr {
   }
 };
 
-// Static representation of a WASM function.
+// Static representation of a wasm function.
 struct WasmFunction {
   FunctionSig* sig;      // signature of the function.
   uint32_t func_index;   // index into the function table.
@@ -119,7 +119,7 @@ struct WasmTableInit {
   std::vector<uint32_t> entries;
 };
 
-// Static representation of a WASM import.
+// Static representation of a wasm import.
 struct WasmImport {
   uint32_t module_name_length;  // length in bytes of the module name.
   uint32_t module_name_offset;  // offset in module bytes of the module name.
@@ -129,7 +129,7 @@ struct WasmImport {
   uint32_t index;               // index into the respective space.
 };
 
-// Static representation of a WASM export.
+// Static representation of a wasm export.
 struct WasmExport {
   uint32_t name_length;   // length in bytes of the exported name.
   uint32_t name_offset;   // offset in module bytes of the name to export.
@@ -200,7 +200,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
 typedef Managed<WasmModule> WasmModuleWrapper;
 
-// An instantiated WASM module, including memory, function table, etc.
+// An instantiated wasm module, including memory, function table, etc.
 struct WasmInstance {
   const WasmModule* module;  // static representation of the module.
   // -- Heap allocated --------------------------------------------------------

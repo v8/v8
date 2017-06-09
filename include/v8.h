@@ -6237,7 +6237,7 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
  */
 typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
 
-// --- WASM compilation callbacks ---
+// --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
 
 // --- Callback for APIs defined on v8-supported objects, but implemented

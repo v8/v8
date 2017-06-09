@@ -112,7 +112,7 @@ class PipelineData {
     is_asm_ = info->shared_info()->asm_function();
   }
 
-  // For WASM compile entry point.
+  // For WebAssembly compile entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, JSGraph* jsgraph,
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
@@ -706,7 +706,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   pipeline_.RunPrintAndVerify("Machine", true);
   if (FLAG_wasm_opt) {
     PipelineData* data = &data_;
-    PipelineRunScope scope(data, "WASM optimization");
+    PipelineRunScope scope(data, "Wasm optimization");
     JSGraphReducer graph_reducer(data->jsgraph(), scope.zone());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());

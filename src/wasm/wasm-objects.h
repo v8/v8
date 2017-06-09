@@ -162,7 +162,7 @@ class WasmInstanceObject : public JSObject {
   uint32_t GetMaxMemoryPages();
 };
 
-// Representation of an exported WASM function.
+// Representation of an exported wasm function.
 class WasmExportedFunction : public JSFunction {
  public:
   // The 0-th field is used by the Blink Wrapper Tracer.

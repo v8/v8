@@ -882,7 +882,7 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
   Handle<FixedArray> exp_deopt_data;
   int func_index = -1;
   if (lazy_compile_code->deoptimization_data()->length() > 0) {
-    // Then it's an indirect call or via JS->WASM wrapper.
+    // Then it's an indirect call or via JS->wasm wrapper.
     DCHECK_LE(2, lazy_compile_code->deoptimization_data()->length());
     exp_deopt_data = handle(lazy_compile_code->deoptimization_data(), isolate);
     auto* weak_cell = WeakCell::cast(exp_deopt_data->get(0));

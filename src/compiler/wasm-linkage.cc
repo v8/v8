@@ -16,7 +16,7 @@
 
 namespace v8 {
 namespace internal {
-// TODO(titzer): this should not be in the WASM namespace.
+// TODO(titzer): this should not be in the wasm namespace.
 namespace wasm {
 
 using compiler::LocationSignature;
@@ -301,7 +301,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
   const RegList kCalleeSaveRegisters = 0;
   const RegList kCalleeSaveFPRegisters = 0;
 
-  // The target for WASM calls is always a code object.
+  // The target for wasm calls is always a code object.
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 

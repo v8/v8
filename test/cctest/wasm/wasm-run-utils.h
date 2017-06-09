@@ -503,7 +503,7 @@ class WasmFunctionWrapper : private GraphAndBuilders {
   Signature<MachineType>* signature_;
 };
 
-// A helper for compiling WASM functions for testing.
+// A helper for compiling wasm functions for testing.
 // It contains the internal state for compilation (i.e. TurboFan graph) and
 // interpretation (by adding to the interpreter manually).
 class WasmFunctionCompiler : private GraphAndBuilders {
