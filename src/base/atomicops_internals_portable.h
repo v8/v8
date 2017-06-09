@@ -39,7 +39,7 @@ namespace base {
 // This implementation is transitional and maintains the original API for
 // atomicops.h.
 
-inline void MemoryBarrier() {
+inline void MemoryFence() {
 #if defined(__GLIBCXX__)
   // Work around libstdc++ bug 51038 where atomic_thread_fence was declared but
   // not defined, leading to the linker complaining about undefined references.

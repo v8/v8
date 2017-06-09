@@ -37,7 +37,7 @@
 #define _TRUNCATE 0
 #define STRUNCATE 80
 
-inline void MemoryBarrier() {
+inline void MemoryFence() {
   int barrier = 0;
   __asm__ __volatile__("xchgl %%eax,%0 ":"=r" (barrier));
 }

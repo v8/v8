@@ -10,15 +10,6 @@
 #include "src/base/macros.h"
 #include "src/base/win32-headers.h"
 
-#if defined(V8_HOST_ARCH_64_BIT)
-// windows.h #defines this (only on x64). This causes problems because the
-// public API also uses MemoryBarrier at the public name for this fence. So, on
-// X64, undef it, and call its documented
-// (http://msdn.microsoft.com/en-us/library/windows/desktop/ms684208.aspx)
-// implementation directly.
-#undef MemoryBarrier
-#endif
-
 namespace v8 {
 namespace base {
 
@@ -49,15 +40,7 @@ inline Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr,
   return Barrier_AtomicIncrement(ptr, increment);
 }
 
-inline void MemoryBarrier() {
-#if defined(V8_HOST_ARCH_64_BIT)
-  // See #undef and note at the top of this file.
-  __faststorefence();
-#else
-  // We use MemoryBarrier from WinNT.h
-  ::MemoryBarrier();
-#endif
-}
+inline void MemoryFence() { MemoryBarrier(); }
 
 inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value,
