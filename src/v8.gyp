@@ -2011,6 +2011,7 @@
         'base/macros.h',
         'base/once.cc',
         'base/once.h',
+        'base/optional.h',
         'base/platform/elapsed-timer.h',
         'base/platform/time.cc',
         'base/platform/time.h',

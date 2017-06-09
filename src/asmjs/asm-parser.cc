@@ -11,6 +11,7 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
+#include "src/base/optional.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker.
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -2014,8 +2015,7 @@ AsmType* AsmJsParser::ValidateCall() {
   // both cases we might be seeing the {function_name} for the first time and
   // hence allocate a {VarInfo} here, all subsequent uses of the same name then
   // need to match the information stored at this point.
-  // TODO(mstarzinger): Consider using Chromiums base::Optional instead.
-  std::unique_ptr<TemporaryVariableScope> tmp;
+  base::Optional<TemporaryVariableScope> tmp;
   if (Check('[')) {
     RECURSEn(EqualityExpression());
     EXPECT_TOKENn('&');
@@ -2050,8 +2050,8 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->EmitI32Const(function_info->index);
     current_function_builder_->Emit(kExprI32Add);
     // We have to use a temporary for the correct order of evaluation.
-    tmp.reset(new TemporaryVariableScope(this));
-    current_function_builder_->EmitSetLocal(tmp.get()->get());
+    tmp.emplace(this);
+    current_function_builder_->EmitSetLocal(tmp->get());
     // The position of function table calls is after the table lookup.
     call_pos = static_cast<int>(scanner_.Position());
   } else {
@@ -2285,7 +2285,7 @@ AsmType* AsmJsParser::ValidateCall() {
       }
     }
     if (function_info->kind == VarKind::kTable) {
-      current_function_builder_->EmitGetLocal(tmp.get()->get());
+      current_function_builder_->EmitGetLocal(tmp->get());
       current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallIndirect);
       current_function_builder_->EmitU32V(signature_index);
