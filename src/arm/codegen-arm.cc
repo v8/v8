@@ -143,7 +143,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ ldr(temp1, MemOperand(src, 4, PostIndex));
     __ str(temp1, MemOperand(dest, 4, PostIndex));
   } else {
-    Register temp2 = ip;
+    UseScratchRegisterScope temps(&masm);
+    Register temp2 = temps.Acquire();
     Label loop;
 
     __ bic(temp2, chars, Operand(0x3), SetCC);
@@ -219,8 +220,10 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     __ vst1(Neon16, NeonListOperand(d0, 2), NeonMemOperand(dest));
     __ Ret();
   } else {
+    UseScratchRegisterScope temps(&masm);
+
     Register temp1 = r3;
-    Register temp2 = ip;
+    Register temp2 = temps.Acquire();
     Register temp3 = lr;
     Register temp4 = r4;
     Label loop;
