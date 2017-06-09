@@ -2899,18 +2899,15 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Label global_object, result_in_receiver;
 
   if (!instr->hydrogen()->known_function()) {
-    // Do not transform the receiver to object for strict mode
-    // functions.
+    // Do not transform the receiver to object for strict mode functions or
+    // builtins.
     __ lw(scratch,
            FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ lw(scratch,
            FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-
-    // Do not transform the receiver to object for builtins.
-    int32_t strict_mode_function_mask = 1
-                                        << (SharedFunctionInfo::kStrictModeBit);
-    int32_t native_mask = 1 << (SharedFunctionInfo::kNativeBit);
-    __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
+    __ And(scratch, scratch,
+           Operand(SharedFunctionInfo::IsStrictBit::kMask |
+                   SharedFunctionInfo::IsNativeBit::kMask));
     __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
   }
 

@@ -3185,8 +3185,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
              FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ lwz(scratch,
            FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    __ andi(r0, scratch, Operand((1 << SharedFunctionInfo::kStrictModeBit) |
-                                 (1 << SharedFunctionInfo::kNativeBit)));
+    __ andi(r0, scratch,
+            Operand(SharedFunctionInfo::IsStrictBit::kMask |
+                    SharedFunctionInfo::IsNativeBit::kMask));
     __ bne(&result_in_receiver, cr0);
   }
 

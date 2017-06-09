@@ -2933,19 +2933,14 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
 
   if (!instr->hydrogen()->known_function()) {
-    // Do not transform the receiver to object for strict mode
-    // functions.
+    // Do not transform the receiver to object for strict mode functions or
+    // builtins.
     __ movp(kScratchRegister,
             FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    __ testb(FieldOperand(kScratchRegister,
-                          SharedFunctionInfo::kStrictModeByteOffset),
-             Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
-    __ j(not_equal, &receiver_ok, dist);
-
-    // Do not transform the receiver to object for builtins.
-    __ testb(FieldOperand(kScratchRegister,
-                          SharedFunctionInfo::kNativeByteOffset),
-             Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
+    __ testl(FieldOperand(kScratchRegister,
+                          SharedFunctionInfo::kCompilerHintsOffset),
+             Immediate(SharedFunctionInfo::IsStrictBit::kMask |
+                       SharedFunctionInfo::IsNativeBit::kMask));
     __ j(not_equal, &receiver_ok, dist);
   }
 

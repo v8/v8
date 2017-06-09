@@ -1504,9 +1504,9 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ LoadP(entry,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Is the shared function marked for tier up?
-  __ LoadlB(r7, FieldMemOperand(
-                    entry, SharedFunctionInfo::kMarkedForTierUpByteOffset));
-  __ TestBit(r7, SharedFunctionInfo::kMarkedForTierUpBitWithinByte, r0);
+  __ LoadlW(r7,
+            FieldMemOperand(entry, SharedFunctionInfo::kCompilerHintsOffset));
+  __ TestBit(r7, SharedFunctionInfo::MarkedForTierUpBit::kShift, r0);
   __ bne(&gotta_call_runtime);
 
   // If SFI points to anything other than CompileLazy, install that.
@@ -2409,8 +2409,9 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ AndP(r0, r5, Operand((1 << SharedFunctionInfo::kStrictModeBit) |
-                          (1 << SharedFunctionInfo::kNativeBit)));
+  __ AndP(r0, r5,
+          Operand(SharedFunctionInfo::IsStrictBit::kMask |
+                  SharedFunctionInfo::IsNativeBit::kMask));
   __ bne(&done_convert);
   {
     // ----------- S t a t e -------------

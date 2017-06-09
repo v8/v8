@@ -3019,17 +3019,13 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register scratch = ToRegister(instr->temp());
 
   if (!instr->hydrogen()->known_function()) {
-    // Do not transform the receiver to object for strict mode
-    // functions.
+    // Do not transform the receiver to object for strict mode functions or
+    // builtins.
     __ mov(scratch,
            FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
-              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
-    __ j(not_equal, &receiver_ok, dist);
-
-    // Do not transform the receiver to object for builtins.
-    __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
-              Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
+    __ test(FieldOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset),
+            Immediate(SharedFunctionInfo::IsStrictBit::kMask |
+                      SharedFunctionInfo::IsNativeBit::kMask));
     __ j(not_equal, &receiver_ok, dist);
   }
 

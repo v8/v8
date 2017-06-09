@@ -5482,10 +5482,10 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
            FieldMemOperand(result, SharedFunctionInfo::kCompilerHintsOffset));
 
     // Do not transform the receiver to object for strict mode functions.
-    __ Tbnz(result, SharedFunctionInfo::kStrictModeBit, &copy_receiver);
+    __ Tbnz(result, SharedFunctionInfo::IsStrictBit::kShift, &copy_receiver);
 
     // Do not transform the receiver to object for builtins.
-    __ Tbnz(result, SharedFunctionInfo::kNativeBit, &copy_receiver);
+    __ Tbnz(result, SharedFunctionInfo::IsNativeBit::kShift, &copy_receiver);
   }
 
   // Normal function. Replace undefined or null with global receiver.

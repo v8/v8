@@ -1238,8 +1238,8 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ bind(&try_shared);
   __ movp(entry, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Is the shared function marked for tier up?
-  __ testb(FieldOperand(entry, SharedFunctionInfo::kMarkedForTierUpByteOffset),
-           Immediate(1 << SharedFunctionInfo::kMarkedForTierUpBitWithinByte));
+  __ testl(FieldOperand(entry, SharedFunctionInfo::kCompilerHintsOffset),
+           Immediate(SharedFunctionInfo::MarkedForTierUpBit::kMask));
   __ j(not_zero, &gotta_call_runtime);
 
   // If SFI points to anything other than CompileLazy, install that.
@@ -2573,14 +2573,12 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  STATIC_ASSERT(SharedFunctionInfo::kNativeByteOffset ==
-                SharedFunctionInfo::kStrictModeByteOffset);
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
-           Immediate((1 << SharedFunctionInfo::kNativeBitWithinByte) |
-                     (1 << SharedFunctionInfo::kStrictModeBitWithinByte)));
+  __ testl(FieldOperand(rdx, SharedFunctionInfo::kCompilerHintsOffset),
+           Immediate(SharedFunctionInfo::IsNativeBit::kMask |
+                     SharedFunctionInfo::IsStrictBit::kMask));
   __ j(not_zero, &done_convert);
   {
     // ----------- S t a t e -------------

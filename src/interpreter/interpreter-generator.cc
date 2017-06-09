@@ -3019,13 +3019,14 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   // duplicate parameters.
   Node* shared_info =
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* compiler_hints = LoadObjectField(
-      shared_info, SharedFunctionInfo::kHasDuplicateParametersByteOffset,
-      MachineType::Uint8());
-  Node* duplicate_parameters_bit = Int32Constant(
-      1 << SharedFunctionInfo::kHasDuplicateParametersBitWithinByte);
-  Node* compare = Word32And(compiler_hints, duplicate_parameters_bit);
-  Branch(compare, &if_duplicate_parameters, &if_not_duplicate_parameters);
+  Node* compiler_hints =
+      LoadObjectField(shared_info, SharedFunctionInfo::kCompilerHintsOffset,
+                      MachineType::Uint32());
+  Node* has_duplicate_parameters =
+      IsSetWord32<SharedFunctionInfo::HasDuplicateParametersBit>(
+          compiler_hints);
+  Branch(has_duplicate_parameters, &if_duplicate_parameters,
+         &if_not_duplicate_parameters);
 
   BIND(&if_not_duplicate_parameters);
   {

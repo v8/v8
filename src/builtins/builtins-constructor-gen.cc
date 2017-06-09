@@ -93,8 +93,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   Node* compiler_hints =
       LoadObjectField(shared_info, SharedFunctionInfo::kCompilerHintsOffset,
                       MachineType::Uint32());
-  Node* is_strict = Word32And(
-      compiler_hints, Int32Constant(1 << SharedFunctionInfo::kStrictModeBit));
+  Node* is_strict =
+      IsSetWord32<SharedFunctionInfo::IsStrictBit>(compiler_hints);
 
   Label if_normal(this), if_generator(this), if_async(this),
       if_class_constructor(this), if_function_without_prototype(this),
