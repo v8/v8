@@ -14,6 +14,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 
+#include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
@@ -873,9 +874,9 @@ void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
-  auto job = new AsyncCompileJob(isolate, std::move(copy), bytes.length(),
-                                 handle(isolate->context()), promise);
-  job->Start();
+  isolate->wasm_compilation_manager()->StartAsyncCompileJob(
+      isolate, std::move(copy), bytes.length(), handle(isolate->context()),
+      promise);
 }
 
 Handle<Code> wasm::CompileLazy(Isolate* isolate) {

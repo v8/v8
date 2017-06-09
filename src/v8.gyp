@@ -1473,6 +1473,8 @@
         'visitors.h',
         'vm-state-inl.h',
         'vm-state.h',
+        'wasm/compilation-manager.cc',
+        'wasm/compilation-manager.h',
         'wasm/decoder.h',
         'wasm/function-body-decoder.cc',
         'wasm/function-body-decoder.h',

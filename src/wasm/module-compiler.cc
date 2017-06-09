@@ -8,6 +8,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/property-descriptor.h"
+#include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
@@ -1880,16 +1881,12 @@ void AsyncCompileJob::ReopenHandlesInDeferredScope() {
 
 void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
   RejectPromise(isolate_, context_, thrower, module_promise_);
-  // The AsyncCompileJob is finished, we resolved the promise, we do not need
-  // the data anymore. We can delete the AsyncCompileJob object.
-  delete this;
+  isolate_->wasm_compilation_manager()->RemoveJob(this);
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
   ResolvePromise(isolate_, context_, module_promise_, result);
-  // The AsyncCompileJob is finished, we resolved the promise, we do not need
-  // the data anymore. We can delete the AsyncCompileJob object.
-  delete this;
+  isolate_->wasm_compilation_manager()->RemoveJob(this);
 }
 
 // A closure to run a compilation step (either as foreground or background

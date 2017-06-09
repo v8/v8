@@ -107,6 +107,10 @@ namespace interpreter {
 class Interpreter;
 }
 
+namespace wasm {
+class CompilationManager;
+}
+
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate)    \
   do {                                                    \
     Isolate* __isolate__ = (isolate);                     \
@@ -1212,6 +1216,10 @@ class Isolate {
     return cancelable_task_manager_;
   }
 
+  wasm::CompilationManager* wasm_compilation_manager() {
+    return wasm_compilation_manager_.get();
+  }
+
   const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
@@ -1568,6 +1576,8 @@ class Isolate {
   FutexWaitListNode futex_wait_list_node_;
 
   CancelableTaskManager* cancelable_task_manager_;
+
+  std::unique_ptr<wasm::CompilationManager> wasm_compilation_manager_;
 
   debug::ConsoleDelegate* console_delegate_ = nullptr;
 
