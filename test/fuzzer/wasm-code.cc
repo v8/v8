@@ -36,8 +36,8 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
     interpreter_args.reset(new WasmVal[3]{WasmVal(1), WasmVal(2), WasmVal(3)});
 
     compiler_args.reset(new Handle<Object>[3]{
-        handle(Smi::FromInt(1), isolate), handle(Smi::FromInt(1), isolate),
-        handle(Smi::FromInt(1), isolate)});
+        handle(Smi::FromInt(1), isolate), handle(Smi::FromInt(2), isolate),
+        handle(Smi::FromInt(3), isolate)});
     return true;
   }
 };
