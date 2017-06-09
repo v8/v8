@@ -4684,12 +4684,6 @@ Page* MarkCompactCollector::Sweeper::GetSweepingPageSafe(
   return page;
 }
 
-void MarkCompactCollector::Sweeper::AddSweepingPageSafe(AllocationSpace space,
-                                                        Page* page) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  sweeping_list_[space].push_back(page);
-}
-
 void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   space->ClearStats();
 

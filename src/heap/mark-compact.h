@@ -414,7 +414,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
 
     Page* GetSweepingPageSafe(AllocationSpace space);
-    void AddSweepingPageSafe(AllocationSpace space, Page* page);
 
     void PrepareToBeSweptPage(AllocationSpace space, Page* page);
 
