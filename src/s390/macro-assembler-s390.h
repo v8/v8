@@ -1621,6 +1621,9 @@ class MacroAssembler : public Assembler {
 #define SmiWordOffset(offset) offset
 #endif
 
+  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
+  void AssertFixedArray(Register object);
+
   void AssertFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
