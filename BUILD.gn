@@ -1766,6 +1766,8 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
+    "src/objects/arguments-inl.h",
+    "src/objects/arguments.h",
     "src/objects/code-cache-inl.h",
     "src/objects/code-cache.h",
     "src/objects/compilation-cache-inl.h",

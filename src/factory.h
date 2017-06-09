@@ -18,6 +18,7 @@
 namespace v8 {
 namespace internal {
 
+class AliasedArgumentsEntry;
 class BreakPointInfo;
 class BoilerplateDescription;
 class ConstantElementsPair;

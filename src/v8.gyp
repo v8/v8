@@ -1224,6 +1224,8 @@
         'objects-printer.cc',
         'objects.cc',
         'objects.h',
+        'objects/arguments-inl.h',
+        'objects/arguments.h',
         'objects/code-cache.h',
         'objects/code-cache-inl.h',
         'objects/compilation-cache.h',

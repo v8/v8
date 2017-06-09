@@ -31,6 +31,7 @@
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-info.h"
@@ -79,7 +80,6 @@ TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
-TYPE_CHECKER(JSArgumentsObject, JS_ARGUMENTS_TYPE)
 TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
 TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
 TYPE_CHECKER(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)
@@ -532,7 +532,6 @@ CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(AccessCheckInfo)
 CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(AccessorPair)
-CAST_ACCESSOR(AliasedArgumentsEntry)
 CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(ArrayList)
@@ -559,7 +558,6 @@ CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(InterceptorInfo)
-CAST_ACCESSOR(JSArgumentsObject);
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
@@ -585,7 +583,6 @@ CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSSloppyArgumentsObject)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSValue)
@@ -612,7 +609,6 @@ CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
-CAST_ACCESSOR(SloppyArgumentsElements)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 CAST_ACCESSOR(StackFrameInfo)
@@ -1107,30 +1103,6 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 FixedArrayBase* JSObject::elements() const {
   Object* array = READ_FIELD(this, kElementsOffset);
   return static_cast<FixedArrayBase*>(array);
-}
-
-Context* SloppyArgumentsElements::context() {
-  return Context::cast(get(kContextIndex));
-}
-
-FixedArray* SloppyArgumentsElements::arguments() {
-  return FixedArray::cast(get(kArgumentsIndex));
-}
-
-void SloppyArgumentsElements::set_arguments(FixedArray* arguments) {
-  set(kArgumentsIndex, arguments);
-}
-
-uint32_t SloppyArgumentsElements::parameter_map_length() {
-  return length() - kParameterMapStart;
-}
-
-Object* SloppyArgumentsElements::get_mapped_entry(uint32_t entry) {
-  return get(entry + kParameterMapStart);
-}
-
-void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object* object) {
-  set(entry + kParameterMapStart, object);
 }
 
 void AllocationSite::Initialize() {
@@ -4543,9 +4515,6 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   set_constructor_or_backpointer(value, mode);
 }
 
-ACCESSORS(JSArgumentsObject, length, Object, kLengthOffset);
-ACCESSORS(JSSloppyArgumentsObject, callee, Object, kCalleeOffset);
-
 ACCESSORS(Map, code_cache, FixedArray, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
@@ -6441,10 +6410,6 @@ bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
   int mask = (1 << kTypeChangeChecksumBits) - 1;
   return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
 }
-
-
-SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
-
 
 Relocatable::Relocatable(Isolate* isolate) {
   isolate_ = isolate;
