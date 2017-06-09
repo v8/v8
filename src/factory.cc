@@ -1864,8 +1864,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   new_map->set_dictionary_map(true);
 
   // Set up the global object as a normalized object.
-  global->set_map(*new_map);
   global->set_properties(*dictionary);
+  global->synchronized_set_map(*new_map);
 
   // Make sure result is a global object with properties in dictionary.
   DCHECK(global->IsJSGlobalObject() && !global->HasFastProperties());

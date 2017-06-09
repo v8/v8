@@ -387,6 +387,7 @@ template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
  public:
   ResultType Visit(HeapObject* object);
+  ResultType Visit(Map* map, HeapObject* object);
 
  protected:
   // A guard predicate for visiting the object.

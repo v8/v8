@@ -487,7 +487,12 @@ inline static bool HasSourceCode(Heap* heap, SharedFunctionInfo* info) {
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject* object) {
-  Map* map = object->map();
+  return Visit(object->map(), object);
+}
+
+template <typename ResultType, typename ConcreteVisitor>
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
+                                                           HeapObject* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (static_cast<VisitorId>(map->visitor_id())) {
 #define CASE(type)   \

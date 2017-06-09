@@ -498,9 +498,9 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map = JSObject::GetElementsTransitionMap(
         array, fast_elements() ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
-    array->set_map(*map);
     array->set_length(*length);
     array->set_elements(*storage_fixed_array());
+    array->synchronized_set_map(*map);
     return array;
   }
 

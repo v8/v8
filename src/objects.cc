@@ -3822,7 +3822,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     CHECK(new_map->is_dictionary_map());
 
     // Slow-to-slow migration is trivial.
-    object->set_map(*new_map);
+    object->synchronized_set_map(*new_map);
   } else if (!new_map->is_dictionary_map()) {
     MigrateFastToFast(object, new_map);
     if (old_map->is_prototype_map()) {
@@ -15298,7 +15298,7 @@ void JSObject::SetImmutableProto(Handle<JSObject> object) {
   if (map->is_immutable_proto()) return;
 
   Handle<Map> new_map = Map::TransitionToImmutableProto(map);
-  object->set_map(*new_map);
+  object->synchronized_set_map(*new_map);
 }
 
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,

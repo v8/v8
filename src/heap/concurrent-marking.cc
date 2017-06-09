@@ -266,7 +266,8 @@ void ConcurrentMarking::Run() {
       if (new_space_top <= addr && addr < new_space_limit) {
         deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
       } else {
-        bytes_marked += visitor_->Visit(object);
+        Map* map = object->synchronized_map();
+        bytes_marked += visitor_->Visit(map, object);
       }
     }
   }

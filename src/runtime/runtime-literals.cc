@@ -111,7 +111,7 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
     Context* native_context = isolate->context()->native_context();
     Object* map =
         native_context->get(Context::ArrayMapIndex(constant_elements_kind));
-    object->set_map(Map::cast(map));
+    object->synchronized_set_map(Map::cast(map));
   }
 
   Handle<FixedArrayBase> copied_elements_values;
