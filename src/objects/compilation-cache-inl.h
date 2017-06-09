@@ -16,7 +16,7 @@ namespace internal {
 CAST_ACCESSOR(CompilationCacheTable)
 
 Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
-                                               HashTableKey* key) {
+                                               CompilationCacheKey* key) {
   return key->AsHandle(isolate);
 }
 

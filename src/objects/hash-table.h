@@ -260,8 +260,6 @@ class HashTableKey {
   virtual bool IsMatch(Object* other) = 0;
   // Returns the hash value for this key.
   virtual uint32_t Hash() = 0;
-  // Returns the hash value for object.
-  virtual uint32_t HashForObject(Object* key) = 0;
   // Returns the key object for storing into the hash table.
   MUST_USE_RESULT virtual Handle<Object> AsHandle(Isolate* isolate) = 0;
   // Required.

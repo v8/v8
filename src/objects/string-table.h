@@ -21,9 +21,7 @@ class StringTableShape : public BaseShape<HashTableKey*> {
 
   static inline uint32_t Hash(HashTableKey* key) { return key->Hash(); }
 
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
-    return key->HashForObject(object);
-  }
+  static inline uint32_t HashForObject(HashTableKey* key, Object* object);
 
   static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 

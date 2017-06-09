@@ -886,10 +886,6 @@ class SequentialStringKey : public HashTableKey {
     return result;
   }
 
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
-  }
-
   Vector<const Char> string_;
   uint32_t hash_field_;
   uint32_t seed_;
@@ -936,10 +932,6 @@ class SeqOneByteSubStringKey : public HashTableKey {
 #pragma warning(pop)
 #endif
 
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
-  }
-
   bool IsMatch(Object* string) override;
   Handle<Object> AsHandle(Isolate* isolate) override;
 
@@ -978,10 +970,6 @@ class Utf8StringKey : public HashTableKey {
     uint32_t result = hash_field_ >> String::kHashShift;
     DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;
-  }
-
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
   }
 
   Handle<Object> AsHandle(Isolate* isolate) override {
@@ -3004,6 +2992,10 @@ uint32_t StringSetShape::Hash(String* key) { return key->Hash(); }
 
 uint32_t StringSetShape::HashForObject(String* key, Object* object) {
   return object->IsString() ? String::cast(object)->Hash() : 0;
+}
+
+uint32_t StringTableShape::HashForObject(HashTableKey* key, Object* object) {
+  return String::cast(object)->Hash();
 }
 
 bool SeededNumberDictionary::requires_slow_elements() {

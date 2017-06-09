@@ -284,23 +284,19 @@ void Deserializer::PrintDisassembledCodeObjects() {
 class StringTableInsertionKey : public HashTableKey {
  public:
   explicit StringTableInsertionKey(String* string)
-      : string_(string), hash_(HashForObject(string)) {
+      : string_(string), hash_(string->Hash()) {
     DCHECK(string->IsInternalizedString());
   }
 
   bool IsMatch(Object* string) override {
     // We know that all entries in a hash table had their hash keys created.
     // Use that knowledge to have fast failure.
-    if (hash_ != HashForObject(string)) return false;
+    if (hash_ != String::cast(string)->Hash()) return false;
     // We want to compare the content of two internalized strings here.
     return string_->SlowEquals(String::cast(string));
   }
 
   uint32_t Hash() override { return hash_; }
-
-  uint32_t HashForObject(Object* key) override {
-    return String::cast(key)->Hash();
-  }
 
   MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
     return handle(string_, isolate);

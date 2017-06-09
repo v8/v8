@@ -69,10 +69,6 @@ class AstRawStringInternalizationKey : public HashTableKey {
 
   uint32_t Hash() override { return string_->hash() >> Name::kHashShift; }
 
-  uint32_t HashForObject(Object* key) override {
-    return String::cast(key)->Hash();
-  }
-
   Handle<Object> AsHandle(Isolate* isolate) override {
     if (string_->is_one_byte())
       return isolate->factory()->NewOneByteInternalizedString(

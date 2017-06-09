@@ -13,19 +13,26 @@
 namespace v8 {
 namespace internal {
 
-class CompilationCacheShape : public BaseShape<HashTableKey*> {
+class CompilationCacheKey : public HashTableKey {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
+  virtual uint32_t HashForObject(Object* object) = 0;
+};
+
+class CompilationCacheShape : public BaseShape<CompilationCacheKey*> {
+ public:
+  static inline bool IsMatch(CompilationCacheKey* key, Object* value) {
     return key->IsMatch(value);
   }
 
-  static inline uint32_t Hash(HashTableKey* key) { return key->Hash(); }
+  static inline uint32_t Hash(CompilationCacheKey* key) { return key->Hash(); }
 
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
+  static inline uint32_t HashForObject(CompilationCacheKey* key,
+                                       Object* object) {
     return key->HashForObject(object);
   }
 
-  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
+  static inline Handle<Object> AsHandle(Isolate* isolate,
+                                        CompilationCacheKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
