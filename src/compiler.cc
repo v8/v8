@@ -12,6 +12,7 @@
 #include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
+#include "src/base/optional.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -623,9 +624,9 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
   {
-    std::unique_ptr<CompilationHandleScope> compilation_handle_scope;
+    base::Optional<CompilationHandleScope> compilation_handle_scope;
     if (inner_function_mode == Compiler::CONCURRENT) {
-      compilation_handle_scope.reset(new CompilationHandleScope(info));
+      compilation_handle_scope.emplace(info);
     }
     if (!Compiler::Analyze(info, &inner_literals)) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();
@@ -960,9 +961,9 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to
   // the background thread when we return.
-  std::unique_ptr<CompilationHandleScope> compilation;
+  base::Optional<CompilationHandleScope> compilation;
   if (mode == Compiler::CONCURRENT) {
-    compilation.reset(new CompilationHandleScope(info));
+    compilation.emplace(info);
   }
 
   // All handles below will be canonicalized.
