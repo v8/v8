@@ -823,12 +823,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     Label loop, done_loop;
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-#if V8_TARGET_ARCH_PPC64
     __ cmpi(r3, Operand::Zero());
     __ beq(&done_loop);
-#else
-    __ beq(&done_loop, cr0);
-#endif
     __ mtctr(r3);
     __ bind(&loop);
     __ push(ip);
