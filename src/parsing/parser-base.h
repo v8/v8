@@ -3763,7 +3763,8 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
     }
   }
 
-  impl()->DeclareFormalParameters(parameters->scope, parameters->params);
+  impl()->DeclareFormalParameters(parameters->scope, parameters->params,
+                                  parameters->is_simple);
 }
 
 template <typename Impl>

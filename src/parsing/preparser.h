@@ -1619,8 +1619,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
-      const ThreadedList<PreParserFormalParameters::Parameter>& parameters) {
-    bool is_simple = classifier()->is_simple_parameter_list();
+      const ThreadedList<PreParserFormalParameters::Parameter>& parameters,
+      bool is_simple) {
     if (!is_simple) scope->SetHasNonSimpleParameters();
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);

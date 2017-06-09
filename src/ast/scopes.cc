@@ -1023,7 +1023,9 @@ Variable* DeclarationScope::DeclareParameter(
     DCHECK_EQ(mode, VAR);
     var = Declare(zone(), name, mode);
     // TODO(wingo): Avoid O(n^2) check.
-    *is_duplicate = IsDeclaredParameter(name);
+    if (is_duplicate != nullptr) {
+      *is_duplicate = *is_duplicate || IsDeclaredParameter(name);
+    }
   }
   has_rest_ = is_rest;
   var->set_initializer_position(position);

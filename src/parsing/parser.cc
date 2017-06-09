@@ -682,7 +682,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     if (parsing_module_) {
       // Declare the special module parameter.
       auto name = ast_value_factory()->empty_string();
-      bool is_duplicate;
+      bool is_duplicate = false;
       bool is_rest = false;
       bool is_optional = false;
       auto var =
@@ -901,7 +901,10 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info) {
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals, &ok);
-          if (ok) DeclareFormalParameters(formals.scope, formals.params);
+          if (ok) {
+            DeclareFormalParameters(formals.scope, formals.params,
+                                    formals.is_simple);
+          }
         }
       }
 
@@ -2506,15 +2509,11 @@ void Parser::DeclareArrowFunctionFormalParameters(
     return;
   }
 
-  ExpressionClassifier classifier(this);
-  if (!parameters->is_simple) {
-    this->classifier()->RecordNonSimpleParameter();
-  }
-  DeclareFormalParameters(parameters->scope, parameters->params);
-  if (!this->classifier()
-           ->is_valid_formal_parameter_list_without_duplicates()) {
-    *duplicate_loc =
-        this->classifier()->duplicate_formal_parameter_error().location;
+  bool has_duplicate = false;
+  DeclareFormalParameters(parameters->scope, parameters->params,
+                          parameters->is_simple, &has_duplicate);
+  if (has_duplicate) {
+    *duplicate_loc = scanner()->location();
   }
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
