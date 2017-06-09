@@ -3501,7 +3501,7 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprS1x16AllTrue:
       return graph()->NewNode(jsgraph()->machine()->S1x16AllTrue(), inputs[0]);
     default:
-      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+      return graph()->NewNode(UnsupportedOpcode(opcode));
   }
 }
 
@@ -3534,7 +3534,7 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
       return graph()->NewNode(jsgraph()->machine()->I8x16ReplaceLane(lane),
                               inputs[0], inputs[1]);
     default:
-      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+      return graph()->NewNode(UnsupportedOpcode(opcode));
   }
 }
 
@@ -3567,7 +3567,7 @@ Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
       return graph()->NewNode(jsgraph()->machine()->I8x16ShrU(shift),
                               inputs[0]);
     default:
-      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+      return graph()->NewNode(UnsupportedOpcode(opcode));
   }
 }
 
