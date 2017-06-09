@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <array>
+#include <memory>
 
 namespace v8 {
 namespace base {
@@ -41,6 +42,14 @@ constexpr auto make_array(Function f)
     -> std::array<decltype(f(std::size_t{0})), Size> {
   static_assert(Size > 0, "Can only create non-empty arrays");
   return detail::make_array_helper<Function, Size - 1>::make_array(f);
+}
+
+// base::make_unique<T>: Construct an object of type T and wrap it in a
+// std::unique_ptr.
+// Replacement for C++14's std::make_unique.
+template <typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
 }  // namespace base
