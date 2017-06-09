@@ -8209,7 +8209,7 @@ bool JSObject::HasEnumerableElements() {
     case DICTIONARY_ELEMENTS: {
       SeededNumberDictionary* elements =
           SeededNumberDictionary::cast(object->elements());
-      return elements->NumberOfElementsFilterAttributes(ONLY_ENUMERABLE) > 0;
+      return elements->NumberOfEnumerableProperties() > 0;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -8227,17 +8227,13 @@ bool JSObject::HasEnumerableElements() {
   UNREACHABLE();
 }
 
-
-int Map::NumberOfDescribedProperties(DescriptorFlag which,
-                                     PropertyFilter filter) {
+int Map::NumberOfEnumerableProperties() {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
-  int limit = which == ALL_DESCRIPTORS
-      ? descs->number_of_descriptors()
-      : NumberOfOwnDescriptors();
+  int limit = NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
-    if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-        !descs->GetKey(i)->FilterKey(filter)) {
+    if ((descs->GetDetails(i).attributes() & ONLY_ENUMERABLE) == 0 &&
+        !descs->GetKey(i)->FilterKey(ENUMERABLE_STRINGS)) {
       result++;
     }
   }
@@ -16800,11 +16796,11 @@ Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
 template int NameDictionaryBase<NameDictionary, NameDictionaryShape>::FindEntry(
     Handle<Name>);
 
-template int Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::
-    NumberOfElementsFilterAttributes(PropertyFilter filter);
+template int Dictionary<GlobalDictionary, GlobalDictionaryShape,
+                        Handle<Name>>::NumberOfEnumerableProperties();
 
-template int Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>::
-    NumberOfElementsFilterAttributes(PropertyFilter filter);
+template int Dictionary<NameDictionary, NameDictionaryShape,
+                        Handle<Name>>::NumberOfEnumerableProperties();
 
 template void
 Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::
@@ -16850,9 +16846,8 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
                                uint32_t key, Handle<Object> value,
                                PropertyDetails details, uint32_t hash);
 
-template int
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
-           uint32_t>::NumberOfElementsFilterAttributes(PropertyFilter filter);
+template int Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
+                        uint32_t>::NumberOfEnumerableProperties();
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
     Handle<JSObject> object, uint32_t limit) {
@@ -18327,20 +18322,18 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
   return dictionary;
 }
 
-
 template <typename Derived, typename Shape, typename Key>
-int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
-    PropertyFilter filter) {
+int Dictionary<Derived, Shape, Key>::NumberOfEnumerableProperties() {
   Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(isolate, k) && !k->FilterKey(filter)) {
+    if (this->IsKey(isolate, k) && !k->FilterKey(ENUMERABLE_STRINGS)) {
       if (this->IsDeleted(i)) continue;
       PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();
-      if ((attr & filter) == 0) result++;
+      if ((attr & ONLY_ENUMERABLE) == 0) result++;
     }
   }
   return result;

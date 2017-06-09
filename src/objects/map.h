@@ -494,10 +494,8 @@ class Map : public HeapObject {
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();
 
-  // Returns the number of properties described in instance_descriptors
-  // filtering out properties with the specified attributes.
-  int NumberOfDescribedProperties(DescriptorFlag which = OWN_DESCRIPTORS,
-                                  PropertyFilter filter = ALL_PROPERTIES);
+  // Returns the number of enumerable properties.
+  int NumberOfEnumerableProperties();
 
   DECLARE_CAST(Map)
 

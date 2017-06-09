@@ -60,14 +60,7 @@ class Dictionary : public HashTable<Derived, Shape, Key> {
     return DerivedHashTable::Shrink(dictionary, key);
   }
 
-  // Returns the number of elements in the dictionary filtering out properties
-  // with the specified attributes.
-  int NumberOfElementsFilterAttributes(PropertyFilter filter);
-
-  // Returns the number of enumerable elements in the dictionary.
-  int NumberOfEnumElements() {
-    return NumberOfElementsFilterAttributes(ENUMERABLE_STRINGS);
-  }
+  int NumberOfEnumerableProperties();
 
   enum SortMode { UNSORTED, SORTED };
 
