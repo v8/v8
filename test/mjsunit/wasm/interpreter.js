@@ -39,7 +39,7 @@ function checkStack(stack, expected_lines) {
     checkStack(stripPath(stack), [
       'Error: test imported stack',                           // -
       /^    at func \(interpreter.js:\d+:28\)$/,              // -
-      '    at main (<WASM>[1]+1)',                            // -
+      '    at main (wasm-function[1]:1)',                     // -
       /^    at testCallImported \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -101,8 +101,8 @@ function checkStack(stack, expected_lines) {
     assertEquals(interpreted_before + 2, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
       'RuntimeError: unreachable',                    // -
-      '    at foo (<WASM>[0]+3)',                     // -
-      '    at main (<WASM>[1]+2)',                    // -
+      '    at foo (wasm-function[0]:3)',              // -
+      '    at main (wasm-function[1]:2)',             // -
       /^    at testTrap \(interpreter.js:\d+:24\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -133,7 +133,7 @@ function checkStack(stack, expected_lines) {
     checkStack(stripPath(stack), [
       'Error: thrown from imported function',                    // -
       /^    at func \(interpreter.js:\d+:11\)$/,                 // -
-      '    at main (<WASM>[1]+1)',                               // -
+      '    at main (wasm-function[1]:1)',                        // -
       /^    at testThrowFromImport \(interpreter.js:\d+:24\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -213,10 +213,10 @@ function checkStack(stack, expected_lines) {
     for (var e = 0; e < stacks.length; ++e) {
       expected = ['Error: reentrant interpreter test #' + e];
       expected.push(/^    at func \(interpreter.js:\d+:17\)$/);
-      expected.push('    at main (<WASM>[1]+3)');
+      expected.push('    at main (wasm-function[1]:3)');
       for (var k = e; k > 0; --k) {
         expected.push(/^    at func \(interpreter.js:\d+:33\)$/);
-        expected.push('    at main (<WASM>[1]+3)');
+        expected.push('    at main (wasm-function[1]:3)');
       }
       expected.push(
           /^    at testReentrantInterpreter \(interpreter.js:\d+:22\)$/);
@@ -289,8 +289,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
       'TypeError: invalid type',                                // -
-      '    at direct (<WASM>[1]+1)',                            // -
-      '    at main (<WASM>[3]+3)',                              // -
+      '    at direct (wasm-function[1]:1)',                     // -
+      '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -302,8 +302,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
       'TypeError: invalid type',                                // -
-      '    at indirect (<WASM>[2]+1)',                          // -
-      '    at main (<WASM>[3]+3)',                              // -
+      '    at indirect (wasm-function[2]:1)',                   // -
+      '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -325,8 +325,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof RangeError)) throw e;
     checkStack(stripPath(e.stack), [
       'RangeError: Maximum call stack size exceeded',
-      '    at main (<WASM>[0]+0)'
-    ].concat(Array(9).fill('    at main (<WASM>[0]+2)')));
+      '    at main (wasm-function[0]:0)'
+    ].concat(Array(9).fill('    at main (wasm-function[0]:2)')));
   }
 })();
 
