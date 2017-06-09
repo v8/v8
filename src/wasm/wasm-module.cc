@@ -802,6 +802,21 @@ MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
   return builder.Build();
 }
 
+MaybeHandle<WasmInstanceObject> wasm::SyncCompileAndInstantiate(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+    MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory) {
+  MaybeHandle<WasmModuleObject> module =
+      wasm::SyncCompile(isolate, thrower, bytes);
+  DCHECK_EQ(thrower->error(), module.is_null());
+  if (module.is_null()) return {};
+
+  MaybeHandle<WasmInstanceObject> instance = wasm::SyncInstantiate(
+      isolate, thrower, module.ToHandleChecked(), Handle<JSReceiver>::null(),
+      Handle<JSArrayBuffer>::null());
+  DCHECK_EQ(thrower->error(), instance.is_null());
+  return instance;
+}
+
 namespace {
 
 void RejectPromise(Isolate* isolate, Handle<Context> context,

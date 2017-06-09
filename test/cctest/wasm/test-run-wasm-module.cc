@@ -43,8 +43,8 @@ void TestModule(Zone* zone, WasmModuleBuilder* builder,
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   testing::SetupIsolateForWasmModule(isolate);
-  int32_t result = testing::CompileAndRunWasmModule(
-      isolate, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
+  int32_t result =
+      testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
   CHECK_EQ(expected_result, result);
 }
 
@@ -56,8 +56,7 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
   HandleScope scope(isolate);
   testing::SetupIsolateForWasmModule(isolate);
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end(),
-                                   ModuleOrigin::kWasmOrigin);
+  testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
   CHECK(try_catch.HasCaught());
   isolate->clear_pending_exception();
 }
@@ -697,10 +696,10 @@ TEST(TestInterruptLoop) {
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const Handle<WasmInstanceObject> instance =
-        testing::CompileInstantiateWasmModuleForTesting(
-            isolate, &thrower, buffer.begin(), buffer.end(),
-            ModuleOrigin::kWasmOrigin);
-    CHECK(!instance.is_null());
+        SyncCompileAndInstantiate(isolate, &thrower,
+                                  ModuleWireBytes(buffer.begin(), buffer.end()),
+                                  {}, {})
+            .ToHandleChecked();
 
     Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
@@ -779,10 +778,11 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
-    Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
-        isolate, &thrower, buffer.begin(), buffer.end(),
-        ModuleOrigin::kWasmOrigin);
-    CHECK(!instance.is_null());
+    Handle<WasmInstanceObject> instance =
+        SyncCompileAndInstantiate(isolate, &thrower,
+                                  ModuleWireBytes(buffer.begin(), buffer.end()),
+                                  {}, {})
+            .ToHandleChecked();
 
     // Initial memory size is 16 pages, should trap till index > MemSize on
     // consecutive GrowMem calls
@@ -827,11 +827,11 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
-    Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
-        isolate, &thrower, buffer.begin(), buffer.end(),
-        ModuleOrigin::kWasmOrigin);
-
-    CHECK(!instance.is_null());
+    Handle<WasmInstanceObject> instance =
+        SyncCompileAndInstantiate(isolate, &thrower,
+                                  ModuleWireBytes(buffer.begin(), buffer.end()),
+                                  {}, {})
+            .ToHandleChecked();
 
     // Initial memory size is 16 pages, should trap till index > MemSize on
     // consecutive GrowMem calls
@@ -959,9 +959,9 @@ TEST(InitDataAtTheUpperLimit) {
         'c'         // data bytes
     };
 
-    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
-                                                    data + arraysize(data),
-                                                    ModuleOrigin::kWasmOrigin);
+    SyncCompileAndInstantiate(isolate, &thrower,
+                              ModuleWireBytes(data, data + arraysize(data)), {},
+                              {});
     if (thrower.error()) {
       thrower.Reify()->Print();
       CHECK(false);
@@ -996,9 +996,9 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
         'c'         // data bytes
     };
 
-    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
-                                                    data + arraysize(data),
-                                                    ModuleOrigin::kWasmOrigin);
+    SyncCompileAndInstantiate(isolate, &thrower,
+                              ModuleWireBytes(data, data + arraysize(data)), {},
+                              {});
     // It should not be possible to instantiate this module.
     CHECK(thrower.error());
   }
@@ -1030,9 +1030,9 @@ TEST(EmptyMemoryEmptyDataSegment) {
         U32V_1(0),  // source size
     };
 
-    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
-                                                    data + arraysize(data),
-                                                    ModuleOrigin::kWasmOrigin);
+    SyncCompileAndInstantiate(isolate, &thrower,
+                              ModuleWireBytes(data, data + arraysize(data)), {},
+                              {});
     // It should be possible to instantiate this module.
     CHECK(!thrower.error());
   }
@@ -1064,9 +1064,9 @@ TEST(MemoryWithOOBEmptyDataSegment) {
         U32V_1(0),  // source size
     };
 
-    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
-                                                    data + arraysize(data),
-                                                    ModuleOrigin::kWasmOrigin);
+    SyncCompileAndInstantiate(isolate, &thrower,
+                              ModuleWireBytes(data, data + arraysize(data)), {},
+                              {});
     // It should not be possible to instantiate this module.
     CHECK(thrower.error());
   }
@@ -1095,10 +1095,10 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const Handle<WasmInstanceObject> instance =
-        testing::CompileInstantiateWasmModuleForTesting(
-            isolate, &thrower, buffer.begin(), buffer.end(),
-            ModuleOrigin::kWasmOrigin);
-    CHECK(!instance.is_null());
+        SyncCompileAndInstantiate(isolate, &thrower,
+                                  ModuleWireBytes(buffer.begin(), buffer.end()),
+                                  {}, {})
+            .ToHandleChecked();
     Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
 
     // Fake the Embedder flow by creating a memory object, externalize and grow.

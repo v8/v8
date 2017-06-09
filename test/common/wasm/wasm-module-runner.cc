@@ -71,20 +71,6 @@ const Handle<WasmInstanceObject> InstantiateModuleForTesting(
   return instance;
 }
 
-const Handle<WasmInstanceObject> CompileInstantiateWasmModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
-    const byte* module_end, ModuleOrigin origin) {
-  std::unique_ptr<WasmModule> module = DecodeWasmModuleForTesting(
-      isolate, thrower, module_start, module_end, origin);
-
-  if (module == nullptr) {
-    thrower->CompileError("Wasm module decoding failed");
-    return Handle<WasmInstanceObject>::null();
-  }
-  return InstantiateModuleForTesting(isolate, thrower, module.get(),
-                                     ModuleWireBytes(module_start, module_end));
-}
-
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
                                 int argc, Handle<Object> argv[],
                                 ModuleOrigin origin) {
@@ -95,15 +81,36 @@ int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
 }
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, ModuleOrigin origin) {
+                                const byte* module_end) {
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-  Handle<JSObject> instance = CompileInstantiateWasmModuleForTesting(
-      isolate, &thrower, module_start, module_end, origin);
+  MaybeHandle<WasmInstanceObject> instance = SyncCompileAndInstantiate(
+      isolate, &thrower, ModuleWireBytes(module_start, module_end), {}, {});
   if (instance.is_null()) {
     return -1;
   }
-  return RunWasmModuleForTesting(isolate, instance, 0, nullptr, origin);
+  return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
+                                 nullptr, kWasmOrigin);
+}
+
+int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
+                                   const byte* module_end) {
+  HandleScope scope(isolate);
+  ErrorThrower thrower(isolate, "CompileAndRunAsmWasmModule");
+  MaybeHandle<WasmModuleObject> module = wasm::SyncCompileTranslatedAsmJs(
+      isolate, &thrower, ModuleWireBytes(module_start, module_end),
+      Handle<Script>::null(), Vector<const byte>());
+  DCHECK_EQ(thrower.error(), module.is_null());
+  if (module.is_null()) return -1;
+
+  MaybeHandle<WasmInstanceObject> instance = wasm::SyncInstantiate(
+      isolate, &thrower, module.ToHandleChecked(), Handle<JSReceiver>::null(),
+      Handle<JSArrayBuffer>::null());
+  DCHECK_EQ(thrower.error(), instance.is_null());
+  if (instance.is_null()) return -1;
+
+  return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
+                                 nullptr, kAsmJsOrigin);
 }
 int32_t InterpretWasmModule(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,

@@ -36,8 +36,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
   v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
-  v8::internal::wasm::testing::CompileAndRunWasmModule(
-      i_isolate, data, data + size, v8::internal::wasm::kWasmOrigin);
+  v8::internal::wasm::testing::CompileAndRunWasmModule(i_isolate, data,
+                                                       data + size);
   v8::internal::FLAG_wasm_max_mem_pages = max_mem_flag_value;
   v8::internal::FLAG_wasm_max_table_size = max_table_flag_value;
   return 0;
