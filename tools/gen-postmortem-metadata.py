@@ -192,9 +192,9 @@ consts_misc = [
         'value': 'ScopeInfo::kVariablePartIndex' },
 
     { 'name': 'sharedfunctioninfo_start_position_mask',
-        'value': 'SharedFunctionInfo::kStartPositionMask' },
+        'value': 'SharedFunctionInfo::StartPositionBits::kMask' },
     { 'name': 'sharedfunctioninfo_start_position_shift',
-        'value': 'SharedFunctionInfo::kStartPositionShift' },
+        'value': 'SharedFunctionInfo::StartPositionBits::kShift' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
         'value': 'JSArrayBuffer::WasNeutered::kMask' },

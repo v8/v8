@@ -102,6 +102,14 @@
     set_##field(BooleanBit::set(field(), offset, value));                \
   }
 
+#define BIT_FIELD_ACCESSORS(holder, field, name, BitField)      \
+  typename BitField::FieldType holder::name() const {           \
+    return BitField::decode(field());                           \
+  }                                                             \
+  void holder::set_##name(typename BitField::FieldType value) { \
+    set_##field(BitField::update(field(), value));              \
+  }
+
 #define TYPE_CHECKER(type, instancetype)           \
   bool HeapObject::Is##type() const {              \
     return map()->instance_type() == instancetype; \

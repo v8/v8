@@ -274,6 +274,8 @@ inline int32_t WhichPowerOf2Abs(int32_t x) {
 template<class T, int shift, int size, class U>
 class BitFieldBase {
  public:
+  typedef T FieldType;
+
   // A type U mask of bit field.  To use all bits of a type U of x bits
   // in a bitfield without compiler warnings we have to compute 2^x
   // without using a shift count of x in the computation.

@@ -270,7 +270,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
-  inline int ic_age();
+  inline int ic_age() const;
   inline void set_ic_age(int age);
 
   // Indicates if this function can be lazy compiled.
@@ -331,7 +331,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
-  inline bool has_deoptimization_support();
+  inline bool has_deoptimization_support() const;
 
   // Enable deoptimization support through recompiled code.
   void EnableDeoptimizationSupport(Code* recompiled);
@@ -339,8 +339,6 @@ class SharedFunctionInfo : public HeapObject {
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
   void DisableOptimization(BailoutReason reason);
-
-  inline BailoutReason disable_optimization_reason();
 
   // Lookup the bailout ID and DCHECK that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
@@ -353,18 +351,18 @@ class SharedFunctionInfo : public HeapObject {
   Handle<Object> GetSourceCodeHarmony();
 
   // Number of times the function was optimized.
-  inline int opt_count();
+  inline int opt_count() const;
   inline void set_opt_count(int opt_count);
 
   // Number of times the function was deoptimized.
   inline void set_deopt_count(int value);
-  inline int deopt_count();
+  inline int deopt_count() const;
   inline void increment_deopt_count();
 
   // Number of time we tried to re-enable optimization after it
   // was disabled due to high number of deoptimizations.
   inline void set_opt_reenable_tries(int value);
-  inline int opt_reenable_tries();
+  inline int opt_reenable_tries() const;
 
   inline void TryReenableOptimization();
 
@@ -376,6 +374,7 @@ class SharedFunctionInfo : public HeapObject {
   inline void set_opt_count_and_bailout_reason(int value);
   inline int opt_count_and_bailout_reason() const;
 
+  inline BailoutReason disable_optimization_reason() const;
   inline void set_disable_optimization_reason(BailoutReason reason);
 
   // Tells whether this function should be subject to debugging.
@@ -501,13 +500,10 @@ class SharedFunctionInfo : public HeapObject {
                               kLastPointerFieldOffset + kPointerSize, kSize>
       BodyDescriptorWeakCode;
 
-  // Bit positions in start_position_and_type.
-  // The source code start position is in the 30 most significant bits of
-  // the start_position_and_type field.
-  static const int kIsNamedExpressionBit = 0;
-  static const int kIsTopLevelBit = 1;
-  static const int kStartPositionShift = 2;
-  static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
+  // Bit fields in |start_position_and_type|.
+  typedef BitField<bool, 0, 1> IsNamedExpressionBits;
+  typedef BitField<bool, IsNamedExpressionBits::kNext, 1> IsTopLevelBits;
+  typedef BitField<int, IsTopLevelBits::kNext, 30> StartPositionBits;
 
   // TODO(ishell): turn this into a set of BitFields.
   // Bit positions in compiler_hints.
@@ -539,7 +535,7 @@ class SharedFunctionInfo : public HeapObject {
     kCompilerHintsCount = kFunctionKind + 10,  // Pseudo entry
   };
 
-  // Bit positions in debugger_hints.
+  // Bit positions in |debugger_hints|.
   enum DebuggerHints {
     kIsAnonymousExpression,
     kNameShouldPrintAsAnonymous,
@@ -556,12 +552,15 @@ class SharedFunctionInfo : public HeapObject {
 
   class FunctionKindBits : public BitField<FunctionKind, kFunctionKind, 10> {};
 
-  class DeoptCountBits : public BitField<int, 0, 4> {};
-  class OptReenableTriesBits : public BitField<int, 4, 18> {};
-  class ICAgeBits : public BitField<int, 22, 8> {};
+  // Bit fields in |counters|.
+  typedef BitField<int, 0, 4> DeoptCountBits;
+  typedef BitField<int, DeoptCountBits::kNext, 18> OptReenableTriesBits;
+  typedef BitField<int, OptReenableTriesBits::kNext, 8> ICAgeBits;
 
-  class OptCountBits : public BitField<int, 0, 22> {};
-  class DisabledOptimizationReasonBits : public BitField<int, 22, 8> {};
+  // Bit fields in |opt_count_and_bailout_reason|.
+  typedef BitField<int, 0, 22> OptCountBits;
+  typedef BitField<BailoutReason, OptCountBits::kNext, 8>
+      DisabledOptimizationReasonBits;
 
  private:
   FRIEND_TEST(PreParserTest, LazyFunctionLength);

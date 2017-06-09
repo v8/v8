@@ -34,10 +34,11 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_identifier, Object,
           kFunctionIdentifierOffset)
 
-BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_named_expression,
-               kIsNamedExpressionBit)
-BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
-               kIsTopLevelBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type,
+                    is_named_expression,
+                    SharedFunctionInfo::IsNamedExpressionBits)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
+                    SharedFunctionInfo::IsTopLevelBits)
 
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
@@ -147,15 +148,8 @@ void SharedFunctionInfo::DontAdaptArguments() {
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
-int SharedFunctionInfo::start_position() const {
-  return start_position_and_type() >> kStartPositionShift;
-}
-
-void SharedFunctionInfo::set_start_position(int start_position) {
-  set_start_position_and_type(
-      (start_position << kStartPositionShift) |
-      (start_position_and_type() & ~kStartPositionMask));
-}
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type, start_position,
+                    SharedFunctionInfo::StartPositionBits)
 
 Code* SharedFunctionInfo::code() const {
   return Code::cast(READ_FIELD(this, kCodeOffset));
@@ -318,19 +312,11 @@ void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
   set_function_identifier(inferred_name);
 }
 
-int SharedFunctionInfo::ic_age() { return ICAgeBits::decode(counters()); }
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, ic_age,
+                    SharedFunctionInfo::ICAgeBits)
 
-void SharedFunctionInfo::set_ic_age(int ic_age) {
-  set_counters(ICAgeBits::update(counters(), ic_age));
-}
-
-int SharedFunctionInfo::deopt_count() {
-  return DeoptCountBits::decode(counters());
-}
-
-void SharedFunctionInfo::set_deopt_count(int deopt_count) {
-  set_counters(DeoptCountBits::update(counters(), deopt_count));
-}
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, deopt_count,
+                    SharedFunctionInfo::DeoptCountBits)
 
 void SharedFunctionInfo::increment_deopt_count() {
   int value = counters();
@@ -341,29 +327,17 @@ void SharedFunctionInfo::increment_deopt_count() {
   }
 }
 
-int SharedFunctionInfo::opt_reenable_tries() {
-  return OptReenableTriesBits::decode(counters());
-}
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, opt_reenable_tries,
+                    SharedFunctionInfo::OptReenableTriesBits)
 
-void SharedFunctionInfo::set_opt_reenable_tries(int tries) {
-  set_counters(OptReenableTriesBits::update(counters(), tries));
-}
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason, opt_count,
+                    SharedFunctionInfo::OptCountBits)
 
-int SharedFunctionInfo::opt_count() {
-  return OptCountBits::decode(opt_count_and_bailout_reason());
-}
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
+                    disable_optimization_reason,
+                    SharedFunctionInfo::DisabledOptimizationReasonBits)
 
-void SharedFunctionInfo::set_opt_count(int opt_count) {
-  set_opt_count_and_bailout_reason(
-      OptCountBits::update(opt_count_and_bailout_reason(), opt_count));
-}
-
-BailoutReason SharedFunctionInfo::disable_optimization_reason() {
-  return static_cast<BailoutReason>(
-      DisabledOptimizationReasonBits::decode(opt_count_and_bailout_reason()));
-}
-
-bool SharedFunctionInfo::has_deoptimization_support() {
+bool SharedFunctionInfo::has_deoptimization_support() const {
   Code* code = this->code();
   return code->kind() == Code::FUNCTION && code->has_deoptimization_support();
 }
@@ -377,11 +351,6 @@ void SharedFunctionInfo::TryReenableOptimization() {
     set_optimization_disabled(false);
     set_deopt_count(0);
   }
-}
-
-void SharedFunctionInfo::set_disable_optimization_reason(BailoutReason reason) {
-  set_opt_count_and_bailout_reason(DisabledOptimizationReasonBits::update(
-      opt_count_and_bailout_reason(), reason));
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {
