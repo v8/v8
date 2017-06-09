@@ -5122,8 +5122,10 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
       Token::Value next_next = PeekAhead();
       // "let" followed by either "[", "{" or an identifier means a lexical
       // declaration, which should not appear here.
-      if (next_next != Token::LBRACK && next_next != Token::LBRACE &&
-          next_next != Token::IDENTIFIER) {
+      // However, ASI may insert a line break before an identifier or a brace.
+      if (next_next != Token::LBRACK &&
+          ((next_next != Token::LBRACE && next_next != Token::IDENTIFIER) ||
+           scanner_->HasAnyLineTerminatorAfterNext())) {
         break;
       }
       impl()->ReportMessageAt(scanner()->peek_location(),
