@@ -115,7 +115,7 @@ bytecodes: [
   /*   53 S> */ B(LdaSmi), I8(10),
   /*   53 E> */ B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(0), R(1),
-                B(Ldar), R(0),
+                B(Ldar), R(1),
   /*   88 S> */ B(Jump), U8(2),
                 B(PopContext), R(2),
                 B(LdaUndefined),

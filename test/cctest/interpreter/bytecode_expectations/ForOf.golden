@@ -184,7 +184,7 @@ bytecodes: [
                 B(Mov), R(1), R(2),
   /*   73 S> */ B(LdaZero),
                 B(Star), R(9),
-                B(Mov), R(1), R(10),
+                B(Mov), R(6), R(10),
                 B(Jump), U8(50),
                 B(Jump), U8(36),
                 B(Star), R(13),

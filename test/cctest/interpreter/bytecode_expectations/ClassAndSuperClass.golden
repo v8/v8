@@ -110,7 +110,7 @@ bytecode array length: 45
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
-                B(Ldar), R(new_target),
+                B(Ldar), R(0),
   /*  113 E> */ B(StackCheck),
   /*  118 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(2),
@@ -155,7 +155,7 @@ bytecode array length: 41
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
-                B(Ldar), R(new_target),
+                B(Ldar), R(0),
   /*  112 E> */ B(StackCheck),
   /*  117 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(2),
