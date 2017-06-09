@@ -2418,8 +2418,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
   __ TestAndBranchIfAnySet(w3,
-                           (1 << SharedFunctionInfo::kNative) |
-                               (1 << SharedFunctionInfo::kStrictModeFunction),
+                           (1 << SharedFunctionInfo::kNativeBit) |
+                               (1 << SharedFunctionInfo::kStrictModeBit),
                            &done_convert);
   {
     // ----------- S t a t e -------------

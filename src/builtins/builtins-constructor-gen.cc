@@ -103,8 +103,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   STATIC_ASSERT(FunctionKind::kNormalFunction == 0);
   Node* is_not_normal =
-      Word32And(compiler_hints,
-                Int32Constant(SharedFunctionInfo::kAllFunctionKindBitsMask));
+      DecodeWord32<SharedFunctionInfo::FunctionKindBits>(compiler_hints);
   GotoIfNot(is_not_normal, &if_normal);
 
   Node* is_generator = Word32And(

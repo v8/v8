@@ -500,40 +500,42 @@ class SharedFunctionInfo : public HeapObject {
                               kLastPointerFieldOffset + kPointerSize, kSize>
       BodyDescriptorWeakCode;
 
-  // Bit fields in |start_position_and_type|.
-  typedef BitField<bool, 0, 1> IsNamedExpressionBits;
-  typedef BitField<bool, IsNamedExpressionBits::kNext, 1> IsTopLevelBits;
-  typedef BitField<int, IsTopLevelBits::kNext, 30> StartPositionBits;
+// Bit fields in |start_position_and_type|.
+#define START_POSITION_AND_TYPE_BIT_FIELDS(V, _) \
+  V(IsNamedExpressionBit, bool, 1, _)            \
+  V(IsTopLevelBit, bool, 1, _)                   \
+  V(StartPositionBits, int, 30, _)
 
-  // TODO(ishell): turn this into a set of BitFields.
-  // Bit positions in compiler_hints.
-  enum CompilerHints {
-    // byte 0
-    kAllowLazyCompilation,
-    kMarkedForTierUp,
-    kOptimizationDisabled,
-    kHasDuplicateParameters,
-    kNative,
-    kStrictModeFunction,
-    kUsesArguments,
-    kNeedsHomeObject,
-    // byte 1
-    kForceInline,
-    kIsAsmFunction,
-    kMustUseIgnitionTurbo,
-    kIsDeclaration,
-    kIsAsmWasmBroken,
-    kHasConcurrentOptimizationJob,
+  DEFINE_BIT_FIELDS(START_POSITION_AND_TYPE_BIT_FIELDS)
 
-    kUnused1,  // Unused fields.
-    kUnused2,
+// Bit positions in |compiler_hints|.
+#define COMPILER_HINTS_BIT_FIELDS(V, _)          \
+  /* byte 0 */                                   \
+  V(AllowLazyCompilationBit, bool, 1, _)         \
+  V(MarkedForTierUpBit, bool, 1, _)              \
+  V(OptimizationDisabledBit, bool, 1, _)         \
+  V(HasDuplicateParametersBit, bool, 1, _)       \
+  V(IsNativeBit, bool, 1, _)                     \
+  V(IsStrictBit, bool, 1, _)                     \
+  V(UsesArgumentsBit, bool, 1, _)                \
+  V(NeedsHomeObjectBit, bool, 1, _)              \
+  /* byte 1 */                                   \
+  V(ForceInlineBit, bool, 1, _)                  \
+  V(IsAsmFunctionBit, bool, 1, _)                \
+  V(MustUseIgnitionTurboBit, bool, 1, _)         \
+  V(IsDeclarationBit, bool, 1, _)                \
+  V(IsAsmWasmBrokenBit, bool, 1, _)              \
+  V(HasConcurrentOptimizationJobBit, bool, 1, _) \
+  /* Bits 14-15 are unused. */                   \
+  V(UnusedBits1, int, 2, _)                      \
+  /* byte 2 */                                   \
+  V(FunctionKindBits, FunctionKind, 10, _)       \
+  /* Bits 27-31 are unused. */
 
-    // byte 2
-    kFunctionKind,
-    // rest of byte 2 and first two bits of byte 3 are used by FunctionKind
-    // byte 3
-    kCompilerHintsCount = kFunctionKind + 10,  // Pseudo entry
-  };
+  DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
+
+  STATIC_ASSERT(ForceInlineBit::kShift == kBitsPerByte);
+  STATIC_ASSERT(FunctionKindBits::kShift == kBitsPerByte * 2);
 
   // Bit positions in |debugger_hints|.
   enum DebuggerHints {
@@ -546,11 +548,6 @@ class SharedFunctionInfo : public HeapObject {
     kComputedDebugIsBlackboxed,
     kHasReportedBinaryCoverage
   };
-
-  // kFunctionKind has to be byte-aligned
-  STATIC_ASSERT((kFunctionKind % kBitsPerByte) == 0);
-
-  class FunctionKindBits : public BitField<FunctionKind, kFunctionKind, 10> {};
 
   // Bit fields in |counters|.
   typedef BitField<int, 0, 4> DeoptCountBits;
@@ -567,22 +564,18 @@ class SharedFunctionInfo : public HeapObject {
 
   inline int length() const;
 
-  static const int kCompilerHintsSize = kIntSize;
-
-  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount <=
-                SharedFunctionInfo::kCompilerHintsSize * kBitsPerByte);
-
  public:
   // Constants for optimizing codegen for strict mode function and
   // native tests when using integer-width instructions.
-  static const int kStrictModeBit = kStrictModeFunction;
-  static const int kNativeBit = kNative;
-  static const int kHasDuplicateParametersBit = kHasDuplicateParameters;
+  // TODO(ishell): use respective bit field definition directly.
+  static const int kStrictModeBit = IsStrictBit::kShift;
+  static const int kNativeBit = IsNativeBit::kShift;
+  static const int kHasDuplicateParametersBit =
+      HasDuplicateParametersBit::kShift;
 
-  static const int kFunctionKindShift = kFunctionKind;
-  static const int kAllFunctionKindBitsMask = FunctionKindBits::kMask;
+  static const int kFunctionKindShift = FunctionKindBits::kShift;
 
-  static const int kMarkedForTierUpBit = kMarkedForTierUp;
+  static const int kMarkedForTierUpBit = MarkedForTierUpBit::kShift;
 
   // Constants for optimizing codegen for strict mode function and
   // native tests.
@@ -613,12 +606,16 @@ class SharedFunctionInfo : public HeapObject {
 #else
 #error Unknown byte ordering
 #endif
-  static const int kStrictModeByteOffset = BYTE_OFFSET(kStrictModeFunction);
-  static const int kNativeByteOffset = BYTE_OFFSET(kNative);
-  static const int kFunctionKindByteOffset = BYTE_OFFSET(kFunctionKind);
+  static const int kStrictModeByteOffset = BYTE_OFFSET(IsStrictBit::kShift);
+  static const int kNativeByteOffset = BYTE_OFFSET(IsNativeBit::kShift);
+  // FunctionKind bit field has to be byte-aligned
+  STATIC_ASSERT((FunctionKindBits::kShift % kBitsPerByte) == 0);
+  static const int kFunctionKindByteOffset =
+      BYTE_OFFSET(FunctionKindBits::kShift);
   static const int kHasDuplicateParametersByteOffset =
-      BYTE_OFFSET(kHasDuplicateParameters);
-  static const int kMarkedForTierUpByteOffset = BYTE_OFFSET(kMarkedForTierUp);
+      BYTE_OFFSET(kHasDuplicateParametersBit);
+  static const int kMarkedForTierUpByteOffset =
+      BYTE_OFFSET(MarkedForTierUpBit::kShift);
 #undef BYTE_OFFSET
 
  private:

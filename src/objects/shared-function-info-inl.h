@@ -36,9 +36,9 @@ ACCESSORS(SharedFunctionInfo, function_identifier, Object,
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type,
                     is_named_expression,
-                    SharedFunctionInfo::IsNamedExpressionBits)
+                    SharedFunctionInfo::IsNamedExpressionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
-                    SharedFunctionInfo::IsTopLevelBits)
+                    SharedFunctionInfo::IsTopLevelBit)
 
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
@@ -75,35 +75,39 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
   }
 }
 
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
-               kAllowLazyCompilation)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
-               kUsesArguments)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, has_duplicate_parameters,
-               kHasDuplicateParameters)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
-               kIsDeclaration)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
-               kMarkedForTierUp)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
-               has_concurrent_optimization_job, kHasConcurrentOptimizationJob)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
+                    SharedFunctionInfo::AllowLazyCompilationBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
+                    SharedFunctionInfo::UsesArgumentsBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
+                    has_duplicate_parameters,
+                    SharedFunctionInfo::HasDuplicateParametersBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function,
+                    SharedFunctionInfo::IsAsmFunctionBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
+                    SharedFunctionInfo::IsDeclarationBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
+                    SharedFunctionInfo::MarkedForTierUpBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
+                    has_concurrent_optimization_job,
+                    SharedFunctionInfo::HasConcurrentOptimizationJobBit)
 
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
-               kNeedsHomeObject)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
-               kMustUseIgnitionTurbo)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
-               kIsAsmWasmBroken)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, optimization_disabled,
-               kOptimizationDisabled)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
+                    SharedFunctionInfo::NeedsHomeObjectBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, native,
+                    SharedFunctionInfo::IsNativeBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline,
+                    SharedFunctionInfo::ForceInlineBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
+                    SharedFunctionInfo::MustUseIgnitionTurboBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
+                    SharedFunctionInfo::IsAsmWasmBrokenBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, optimization_disabled,
+                    SharedFunctionInfo::OptimizationDisabledBit)
 
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 2);
-  return construct_language_mode(
-      BooleanBit::get(compiler_hints(), kStrictModeFunction));
+  return construct_language_mode(IsStrictBit::decode(compiler_hints()));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
@@ -112,7 +116,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
   int hints = compiler_hints();
-  hints = BooleanBit::set(hints, kStrictModeFunction, is_strict(language_mode));
+  hints = IsStrictBit::update(hints, is_strict(language_mode));
   set_compiler_hints(hints);
 }
 

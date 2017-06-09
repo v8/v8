@@ -2660,7 +2660,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // Only sets fields in compiler_hints that are currently used.
     int compiler_hints = SharedFunctionInfo::FunctionKindBits::encode(kind);
     if (function_type == FunctionLiteral::kDeclaration) {
-      compiler_hints |= 1 << SharedFunctionInfo::kIsDeclaration;
+      compiler_hints |= SharedFunctionInfo::IsDeclarationBit::encode(true);
     }
     should_use_parse_task = compiler_dispatcher_->Enqueue(
         source_, start_pos, source_->length(), language_mode,

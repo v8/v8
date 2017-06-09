@@ -135,7 +135,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 bool ParseInfo::is_declaration() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDeclaration)) != 0;
+  return SharedFunctionInfo::IsDeclarationBit::decode(compiler_hints_);
 }
 
 FunctionKind ParseInfo::function_kind() const {
