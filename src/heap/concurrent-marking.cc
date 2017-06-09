@@ -98,7 +98,7 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) override {
-    int length = object->length();
+    int length = object->synchronized_length();
     int size = FixedArray::SizeFor(length);
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
@@ -256,9 +256,10 @@ void ConcurrentMarking::Run() {
   base::Mutex* relocation_mutex = heap_->relocation_mutex();
   {
     TimedScope scope(&time_ms);
-    HeapObject* object;
-    while ((object = deque_->Pop(MarkingThread::kConcurrent)) != nullptr) {
+    while (true) {
       base::LockGuard<base::Mutex> guard(relocation_mutex);
+      HeapObject* object = deque_->Pop(MarkingThread::kConcurrent);
+      if (object == nullptr) break;
       Address new_space_top = heap_->new_space()->original_top();
       Address new_space_limit = heap_->new_space()->original_limit();
       Address addr = object->address();

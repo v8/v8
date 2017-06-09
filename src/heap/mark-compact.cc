@@ -2038,9 +2038,8 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
-  while (!marking_deque()->IsEmpty()) {
-    HeapObject* object = marking_deque()->Pop();
-
+  HeapObject* object;
+  while ((object = marking_deque()->Pop()) != nullptr) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
@@ -2051,6 +2050,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     MarkObject(map);
     MarkCompactMarkingVisitor::IterateBody(map, object);
   }
+  DCHECK(marking_deque()->IsEmpty());
 }
 
 

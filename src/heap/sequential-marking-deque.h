@@ -72,7 +72,7 @@ class SequentialMarkingDeque {
   }
 
   INLINE(HeapObject* Pop()) {
-    DCHECK(!IsEmpty());
+    if (IsEmpty()) return nullptr;
     top_ = ((top_ - 1) & mask_);
     HeapObject* object = array_[top_];
     return object;
