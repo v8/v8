@@ -13,7 +13,7 @@
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 
-extern "C" PRINTF_FORMAT(3, 4) V8_NORETURN V8_BASE_EXPORT
+extern "C" V8_NORETURN PRINTF_FORMAT(3, 4) V8_BASE_EXPORT
     void V8_Fatal(const char* file, int line, const char* format, ...);
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
