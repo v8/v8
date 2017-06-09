@@ -564,6 +564,8 @@ class SharedFunctionInfo : public HeapObject {
 
   inline int length() const;
 
+  static const int kCompilerHintsSize = kIntSize;
+
  public:
   // Constants for optimizing codegen for strict mode function and
   // native tests when using integer-width instructions.
