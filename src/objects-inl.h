@@ -3399,10 +3399,12 @@ int HeapObject::SizeFromMap(Map* map) {
         reinterpret_cast<SeqOneByteString*>(this)->synchronized_length());
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
-    return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
+    return ByteArray::SizeFor(
+        reinterpret_cast<ByteArray*>(this)->synchronized_length());
   }
   if (instance_type == BYTECODE_ARRAY_TYPE) {
-    return reinterpret_cast<BytecodeArray*>(this)->BytecodeArraySize();
+    return BytecodeArray::SizeFor(
+        reinterpret_cast<BytecodeArray*>(this)->synchronized_length());
   }
   if (instance_type == FREE_SPACE_TYPE) {
     return reinterpret_cast<FreeSpace*>(this)->relaxed_read_size();
@@ -3416,7 +3418,7 @@ int HeapObject::SizeFromMap(Map* map) {
   }
   if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return FixedDoubleArray::SizeFor(
-        reinterpret_cast<FixedDoubleArray*>(this)->length());
+        reinterpret_cast<FixedDoubleArray*>(this)->synchronized_length());
   }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
       instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
