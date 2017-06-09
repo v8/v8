@@ -156,7 +156,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
-  __ PrepareCallCFunction(6, r5);
+  __ PrepareCallCFunction(6);
   __ mov(r0, Operand(0));
   Label context_check;
   __ ldr(r1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
@@ -237,7 +237,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Compute the output frame in the deoptimizer.
   __ push(r0);  // Preserve deoptimizer object across call.
   // r0: deoptimizer object; r1: scratch.
-  __ PrepareCallCFunction(1, r1);
+  __ PrepareCallCFunction(1);
   // Call Deoptimizer::ComputeOutputFrames().
   {
     AllowExternalCallThatCantCauseGC scope(masm());

@@ -469,7 +469,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                              \
-    __ PrepareCallCFunction(0, 2, kScratchReg);                                \
+    __ PrepareCallCFunction(0, 2);                                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
@@ -484,7 +484,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                              \
-    __ PrepareCallCFunction(0, 1, kScratchReg);                                \
+    __ PrepareCallCFunction(0, 1);                                             \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
                      0, 1);                                                    \
@@ -775,7 +775,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
-      __ PrepareCallCFunction(num_parameters, kScratchReg);
+      __ PrepareCallCFunction(num_parameters);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
       break;
@@ -1288,7 +1288,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
       FrameScope scope(masm(), StackFrame::MANUAL);
-      __ PrepareCallCFunction(0, 2, kScratchReg);
+      __ PrepareCallCFunction(0, 2);
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
       __ CallCFunction(ExternalReference::mod_two_doubles_operation(isolate()),
@@ -2637,7 +2637,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // Therefore we emit a call to C here instead of a call to the runtime.
         // We use the context register as the scratch register, because we do
         // not have a context here.
-        __ PrepareCallCFunction(0, 0, cp);
+        __ PrepareCallCFunction(0, 0);
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
             0);

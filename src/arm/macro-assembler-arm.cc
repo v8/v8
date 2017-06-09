@@ -726,7 +726,7 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   stm(db_w, sp, (kCallerSaved | lr.bit()));
 
   int argument_count = 3;
-  PrepareCallCFunction(argument_count, code_entry);
+  PrepareCallCFunction(argument_count);
 
   mov(r0, js_function);
   mov(r1, dst);
@@ -3213,14 +3213,14 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   SmiUntag(index, index);
 }
 
-
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
-                                          int num_double_arguments,
-                                          Register scratch) {
+                                          int num_double_arguments) {
   int frame_alignment = ActivationFrameAlignment();
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);
   if (frame_alignment > kPointerSize) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
     mov(scratch, sp);
@@ -3232,13 +3232,6 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
     sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 }
-
-
-void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
-                                          Register scratch) {
-  PrepareCallCFunction(num_reg_arguments, 0, scratch);
-}
-
 
 void MacroAssembler::MovToFloatParameter(DwVfpRegister src) {
   DCHECK(src.is(d0));

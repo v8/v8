@@ -649,7 +649,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   const int fp_argument_count = 0;
 
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
+  __ PrepareCallCFunction(argument_count, fp_argument_count);
   __ mov(r0, Operand(ExternalReference::isolate_address(isolate())));
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(isolate()),
@@ -688,7 +688,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ push(lr);
     {
       AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2, scratch);
+      __ PrepareCallCFunction(0, 2);
       __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(isolate()), 0, 2);
@@ -739,7 +739,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ push(lr);
   {
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch);
+    __ PrepareCallCFunction(0, 2);
     __ MovToFloatParameters(double_base, double_exponent);
     __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
                      0, 2);
@@ -931,7 +931,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                                  isolate());
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(3, 0, r0);
+    __ PrepareCallCFunction(3, 0);
     __ mov(r0, Operand(0));
     __ mov(r1, Operand(0));
     __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
@@ -2100,7 +2100,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
   int argument_count = 3;
-  __ PrepareCallCFunction(argument_count, regs_.scratch0());
+  __ PrepareCallCFunction(argument_count);
   Register address =
       r0.is(regs_.address()) ? regs_.scratch0() : regs_.address();
   DCHECK(!address.is(regs_.object()));
@@ -2620,7 +2620,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, r0);
+    __ PrepareCallCFunction(1);
     __ mov(r0, Operand(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_enter_external_function(isolate),
                      1);
@@ -2636,7 +2636,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, r0);
+    __ PrepareCallCFunction(1);
     __ mov(r0, Operand(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_leave_external_function(isolate),
                      1);
@@ -2696,7 +2696,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&delete_allocated_handles);
   __ str(r5, MemOperand(r9, kLimitOffset));
   __ mov(r4, r0);
-  __ PrepareCallCFunction(1, r5);
+  __ PrepareCallCFunction(1);
   __ mov(r0, Operand(ExternalReference::isolate_address(isolate)));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(isolate),
                    1);
