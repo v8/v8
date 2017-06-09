@@ -426,23 +426,15 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
 
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, JSFunction* host_function) {
-  Code* host = host_function->shared()->code();
-
-  if (host->kind() == Code::FUNCTION) {
-    TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
-    info->change_own_type_change_checksum();
-    host->set_profiler_ticks(0);
-  } else if (host_function->IsInterpreted()) {
-    if (FLAG_trace_opt_verbose) {
-      if (host_function->shared()->profiler_ticks() != 0) {
-        PrintF("[resetting ticks for ");
-        host_function->PrintName();
-        PrintF(" due from %d due to IC change]\n",
-               host_function->shared()->profiler_ticks());
-      }
+  if (FLAG_trace_opt_verbose) {
+    if (host_function->shared()->profiler_ticks() != 0) {
+      PrintF("[resetting ticks for ");
+      host_function->PrintName();
+      PrintF(" due from %d due to IC change]\n",
+             host_function->shared()->profiler_ticks());
     }
-    host_function->shared()->set_profiler_ticks(0);
   }
+  host_function->shared()->set_profiler_ticks(0);
   isolate->runtime_profiler()->NotifyICChanged();
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
@@ -478,10 +470,14 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
       info->change_ic_with_type_info_count(polymorphic_delta);
       info->change_ic_generic_count(generic_delta);
     }
-    TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
-    info->change_own_type_change_checksum();
   }
-  host->set_profiler_ticks(0);
+
+  // TODO(leszeks): Normally we would reset profiler ticks here -- but, we don't
+  // currently have access the the feedback vector from the IC. In practice,
+  // this is not an issue, as these ICs are only used by asm.js, which shouldn't
+  // have too many IC changes. This inconsistency should go away once these
+  // Crankshaft/hydrogen code stubs go away.
+
   isolate->runtime_profiler()->NotifyICChanged();
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its

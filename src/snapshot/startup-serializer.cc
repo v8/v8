@@ -47,7 +47,6 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Code* code = Code::cast(obj);
     if (code->kind() == Code::FUNCTION) {
       code->ClearInlineCaches();
-      code->set_profiler_ticks(0);
     }
   }
 

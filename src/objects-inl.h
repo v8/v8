@@ -4066,21 +4066,6 @@ void Code::set_allow_osr_at_loop_nesting_level(int level) {
 }
 
 
-int Code::profiler_ticks() {
-  DCHECK_EQ(FUNCTION, kind());
-  return ProfilerTicksField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_profiler_ticks(int ticks) {
-  if (kind() == FUNCTION) {
-    unsigned previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-    unsigned updated = ProfilerTicksField::update(previous, ticks);
-    WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-  }
-}
-
 int Code::builtin_index() { return READ_INT_FIELD(this, kBuiltinIndexOffset); }
 
 void Code::set_builtin_index(int index) {

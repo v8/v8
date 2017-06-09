@@ -3758,11 +3758,6 @@ class Code: public HeapObject {
   inline void set_allow_osr_at_loop_nesting_level(int level);
   inline int allow_osr_at_loop_nesting_level();
 
-  // [profiler_ticks]: For FUNCTION kind, tells for how many profiler ticks
-  // the code object was seen on the stack with no IC patching going on.
-  inline int profiler_ticks();
-  inline void set_profiler_ticks(int ticks);
-
   // [builtin_index]: For builtins, tells which builtin index the code object
   // has. Note that builtins can have a code kind other than BUILTIN. The
   // builtin index is a non-negative integer for builtins, and -1 otherwise.
@@ -4049,16 +4044,6 @@ class Code: public HeapObject {
 
   class BodyDescriptor;
 
-  // Byte offsets within kKindSpecificFlags1Offset.
-  static const int kFullCodeFlags = kKindSpecificFlags1Offset;
-  class FullCodeFlagsHasDeoptimizationSupportField:
-      public BitField<bool, 0, 1> {};  // NOLINT
-  class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
-  class FullCodeFlagsHasRelocInfoForSerialization
-      : public BitField<bool, 2, 1> {};
-  // Bit 3 in this bitfield is unused.
-  class ProfilerTicksField : public BitField<int, 4, 28> {};
-
   // Flags layout.  BitField<type, shift, size>.
   class HasUnwindingInfoField : public BitField<bool, 0, 1> {};
   class KindField : public BitField<Kind, HasUnwindingInfoField::kNext, 5> {};
@@ -4067,6 +4052,18 @@ class Code: public HeapObject {
       : public BitField<ExtraICState, KindField::kNext,
                         PlatformSmiTagging::kSmiValueSize - KindField::kNext> {
   };
+
+  // KindSpecificFlags1 layout (FUNCTION)
+  static const int kFullCodeFlags = kKindSpecificFlags1Offset;
+  static const int kFullCodeFlagsHasDeoptimizationSupportBit = 0;
+  static const int kFullCodeFlagsHasDebugBreakSlotsField = 1;
+  static const int kFullCodeFlagsHasRelocInfoForSerialization = 2;
+  class FullCodeFlagsHasDeoptimizationSupportField
+      : public BitField<bool, kFullCodeFlagsHasDeoptimizationSupportBit, 1> {};
+  class FullCodeFlagsHasDebugBreakSlotsField
+      : public BitField<bool, kFullCodeFlagsHasDebugBreakSlotsField, 1> {};
+  class FullCodeFlagsHasRelocInfoForSerialization
+      : public BitField<bool, kFullCodeFlagsHasRelocInfoForSerialization, 1> {};
 
   // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;

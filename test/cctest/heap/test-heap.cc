@@ -2218,15 +2218,6 @@ TEST(InstanceOfStubWriteBarrier) {
   CcTest::CollectGarbage(OLD_SPACE);
 }
 
-namespace {
-
-int GetProfilerTicks(SharedFunctionInfo* shared) {
-  return FLAG_ignition || FLAG_turbo ? shared->profiler_ticks()
-                                     : shared->code()->profiler_ticks();
-}
-
-}  // namespace
-
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   if (!FLAG_incremental_marking) return;
   FLAG_stress_compaction = false;
@@ -2270,7 +2261,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
-  CHECK_EQ(0, GetProfilerTicks(f->shared()));
+  CHECK_EQ(0, f->shared()->profiler_ticks());
 }
 
 
@@ -2313,7 +2304,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
-  CHECK_EQ(0, GetProfilerTicks(f->shared()));
+  CHECK_EQ(0, f->shared()->profiler_ticks());
 }
 
 

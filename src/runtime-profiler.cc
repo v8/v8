@@ -221,14 +221,11 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
               function->IsOptimized())) {
     // Attempt OSR if we are still running unoptimized code even though the
     // the function has long been marked or even already been optimized.
-    int ticks = shared_code->profiler_ticks();
+    int ticks = shared->profiler_ticks();
     int64_t allowance =
         kOSRCodeSizeAllowanceBase +
         static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTick;
-    if (shared_code->CodeSize() > allowance &&
-        ticks < Code::ProfilerTicksField::kMax) {
-      shared_code->set_profiler_ticks(ticks + 1);
-    } else {
+    if (shared_code->CodeSize() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
     return;
@@ -248,19 +245,17 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
     if (shared->deopt_count() >= FLAG_max_deopt_count) {
       // If optimization was disabled due to many deoptimizations,
       // then check if the function is hot and try to reenable optimization.
-      int ticks = shared_code->profiler_ticks();
+      int ticks = shared->profiler_ticks();
       if (ticks >= kProfilerTicksBeforeReenablingOptimization) {
-        shared_code->set_profiler_ticks(0);
+        shared->set_profiler_ticks(0);
         shared->TryReenableOptimization();
-      } else {
-        shared_code->set_profiler_ticks(ticks + 1);
       }
     }
     return;
   }
   if (frame->is_optimized()) return;
 
-  int ticks = shared_code->profiler_ticks();
+  int ticks = shared->profiler_ticks();
 
   if (ticks >= kProfilerTicksBeforeOptimization) {
     int typeinfo, generic, total, type_percentage, generic_percentage;
@@ -274,7 +269,6 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
     } else if (ticks >= kTicksWhenNotEnoughTypeInfo) {
       Optimize(function, OptimizationReason::kHotWithoutMuchTypeInfo);
     } else {
-      shared_code->set_profiler_ticks(ticks + 1);
       if (FLAG_trace_opt_verbose) {
         PrintF("[not yet optimizing ");
         function->PrintName();
@@ -292,11 +286,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
     if (type_percentage >= FLAG_type_info_threshold &&
         generic_percentage <= FLAG_generic_ic_threshold) {
       Optimize(function, OptimizationReason::kSmallFunction);
-    } else {
-      shared_code->set_profiler_ticks(ticks + 1);
     }
-  } else {
-    shared_code->set_profiler_ticks(ticks + 1);
   }
 }
 
@@ -453,17 +443,12 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
       MaybeOptimizeFullCodegen(function, frame, frame_count);
     }
 
-    // Update shared function info ticks after checking for whether functions
-    // should be optimized to keep FCG (which updates ticks on code) and
-    // Ignition (which updates ticks on shared function info) in sync.
-    List<SharedFunctionInfo*> functions(4);
-    frame->GetFunctions(&functions);
-    for (int i = functions.length(); --i >= 0;) {
-      SharedFunctionInfo* shared_function_info = functions[i];
-      int ticks = shared_function_info->profiler_ticks();
-      if (ticks < Smi::kMaxValue) {
-        shared_function_info->set_profiler_ticks(ticks + 1);
-      }
+    // TODO(leszeks): Move this increment to before the maybe optimize checks,
+    // and update the tests to assume the increment has already happened.
+    SharedFunctionInfo* shared = function->shared();
+    int ticks = shared->profiler_ticks();
+    if (ticks < Smi::kMaxValue) {
+      shared->set_profiler_ticks(ticks + 1);
     }
   }
   any_ic_changed_ = false;
