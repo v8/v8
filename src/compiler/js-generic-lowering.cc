@@ -398,9 +398,9 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Handle<SharedFunctionInfo> const shared_info = p.shared_info();
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
+  node->RemoveInput(3);  // control
 
-  // Use the FastNewClosurebuiltin only for functions allocated in new
-  // space.
+  // Use the FastNewClosure builtin only for functions allocated in new space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
     node->InsertInput(zone(), 1,
