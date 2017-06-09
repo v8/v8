@@ -36,8 +36,7 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
 };
 
 class CodeCacheHashTable
-    : public HashTable<CodeCacheHashTable, CodeCacheHashTableShape,
-                       HashTableKey*> {
+    : public HashTable<CodeCacheHashTable, CodeCacheHashTableShape> {
  public:
   static Handle<CodeCacheHashTable> Put(Handle<CodeCacheHashTable> table,
                                         Handle<Name> name, Handle<Code> code);

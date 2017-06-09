@@ -2945,21 +2945,20 @@ Map* BaseShape<Key>::GetMap(Isolate* isolate) {
   return isolate->heap()->hash_table_map();
 }
 
-template <typename Derived, typename Shape, typename Key>
-int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
+template <typename Derived, typename Shape>
+int HashTable<Derived, Shape>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
 }
 
-
-template<typename Derived, typename Shape, typename Key>
-int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key) {
+template <typename Derived, typename Shape>
+int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key) {
   return FindEntry(isolate, key, HashTable::Hash(key));
 }
 
 // Find entry for key otherwise return kNotFound.
-template <typename Derived, typename Shape, typename Key>
-int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
-                                              int32_t hash) {
+template <typename Derived, typename Shape>
+int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key,
+                                         int32_t hash) {
   uint32_t capacity = Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
@@ -2977,13 +2976,13 @@ int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
   return kNotFound;
 }
 
-template <typename Derived, typename Shape, typename Key>
-bool HashTable<Derived, Shape, Key>::Has(Key key) {
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::Has(Key key) {
   return FindEntry(key) != kNotFound;
 }
 
-template <typename Derived, typename Shape, typename Key>
-bool HashTable<Derived, Shape, Key>::Has(Isolate* isolate, Key key) {
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::Has(Isolate* isolate, Key key) {
   return FindEntry(isolate, key) != kNotFound;
 }
 
@@ -3175,17 +3174,15 @@ int HandlerTable::NumberOfRangeEntries() const {
   return length() / kRangeEntrySize;
 }
 
-template <typename Derived, typename Shape, typename Key>
-HashTable<Derived, Shape, Key>*
-HashTable<Derived, Shape, Key>::cast(Object* obj) {
+template <typename Derived, typename Shape>
+HashTable<Derived, Shape>* HashTable<Derived, Shape>::cast(Object* obj) {
   SLOW_DCHECK(obj->IsHashTable());
   return reinterpret_cast<HashTable*>(obj);
 }
 
-
-template <typename Derived, typename Shape, typename Key>
-const HashTable<Derived, Shape, Key>*
-HashTable<Derived, Shape, Key>::cast(const Object* obj) {
+template <typename Derived, typename Shape>
+const HashTable<Derived, Shape>* HashTable<Derived, Shape>::cast(
+    const Object* obj) {
   SLOW_DCHECK(obj->IsHashTable());
   return reinterpret_cast<const HashTable*>(obj);
 }
@@ -6930,20 +6927,16 @@ bool AccessorPair::IsJSAccessor(Object* obj) {
   return obj->IsCallable() || obj->IsUndefined(GetIsolate());
 }
 
-
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
-                                               Handle<Object> key,
-                                               Handle<Object> value) {
+template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::SetEntry(int entry, Handle<Object> key,
+                                          Handle<Object> value) {
   this->SetEntry(entry, key, value, PropertyDetails(Smi::kZero));
 }
 
-
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
-                                               Handle<Object> key,
-                                               Handle<Object> value,
-                                               PropertyDetails details) {
+template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::SetEntry(int entry, Handle<Object> key,
+                                          Handle<Object> value,
+                                          PropertyDetails details) {
   Shape::SetEntry(static_cast<Derived*>(this), entry, key, value, details);
 }
 

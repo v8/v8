@@ -49,9 +49,10 @@ namespace internal {
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
 
-template <typename Key>
+template <typename KeyT>
 class BaseShape {
  public:
+  typedef KeyT Key;
   static const bool UsesSeed = false;
   static uint32_t Hash(Key key) { return 0; }
   static uint32_t SeededHash(Key key, uint32_t seed) {
@@ -133,10 +134,11 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   }
 };
 
-template <typename Derived, typename Shape, typename Key>
+template <typename Derived, typename Shape>
 class HashTable : public HashTableBase {
  public:
   typedef Shape ShapeT;
+  typedef typename Shape::Key Key;
 
   // Wrapper methods
   inline uint32_t Hash(Key key) {
@@ -279,9 +281,8 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
 class ObjectHashTable
-    : public HashTable<ObjectHashTable, ObjectHashTableShape, Handle<Object>> {
-  typedef HashTable<ObjectHashTable, ObjectHashTableShape, Handle<Object>>
-      DerivedHashTable;
+    : public HashTable<ObjectHashTable, ObjectHashTableShape> {
+  typedef HashTable<ObjectHashTable, ObjectHashTableShape> DerivedHashTable;
 
  public:
   DECLARE_CAST(ObjectHashTable)
@@ -331,8 +332,7 @@ class ObjectHashSetShape : public ObjectHashTableShape {
   static const int kEntrySize = 1;
 };
 
-class ObjectHashSet
-    : public HashTable<ObjectHashSet, ObjectHashSetShape, Handle<Object>> {
+class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
  public:
   static Handle<ObjectHashSet> Add(Handle<ObjectHashSet> set,
                                    Handle<Object> key);
@@ -564,10 +564,8 @@ class WeakHashTableShape : public BaseShape<Handle<Object>> {
 // WeakHashTable maps keys that are arbitrary heap objects to heap object
 // values. The table wraps the keys in weak cells and store values directly.
 // Thus it references keys weakly and values strongly.
-class WeakHashTable
-    : public HashTable<WeakHashTable, WeakHashTableShape<2>, Handle<Object>> {
-  typedef HashTable<WeakHashTable, WeakHashTableShape<2>, Handle<Object>>
-      DerivedHashTable;
+class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape<2>> {
+  typedef HashTable<WeakHashTable, WeakHashTableShape<2>> DerivedHashTable;
 
  public:
   DECLARE_CAST(WeakHashTable)

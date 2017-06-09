@@ -37,8 +37,7 @@ class SeqOneByteString;
 //
 // No special elements in the prefix and the element size is 1
 // because only the string itself (the key) needs to be stored.
-class StringTable
-    : public HashTable<StringTable, StringTableShape, HashTableKey*> {
+class StringTable : public HashTable<StringTable, StringTableShape> {
  public:
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
@@ -81,7 +80,7 @@ class StringSetShape : public BaseShape<String*> {
   static const int kEntrySize = 1;
 };
 
-class StringSet : public HashTable<StringSet, StringSetShape, String*> {
+class StringSet : public HashTable<StringSet, StringSetShape> {
  public:
   static Handle<StringSet> New(Isolate* isolate);
   static Handle<StringSet> Add(Handle<StringSet> blacklist,

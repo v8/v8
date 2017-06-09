@@ -21,11 +21,12 @@ class Handle;
 
 class Isolate;
 
-template <typename Derived, typename Shape, typename Key>
-class Dictionary : public HashTable<Derived, Shape, Key> {
-  typedef HashTable<Derived, Shape, Key> DerivedHashTable;
+template <typename Derived, typename Shape>
+class Dictionary : public HashTable<Derived, Shape> {
+  typedef HashTable<Derived, Shape> DerivedHashTable;
 
  public:
+  typedef typename Shape::Key Key;
   // Returns the value at entry.
   Object* ValueAt(int entry) {
     return this->get(Derived::EntryToIndex(entry) + 1);
@@ -66,15 +67,15 @@ class Dictionary : public HashTable<Derived, Shape, Key> {
 
   // Return the key indices sorted by its enumeration index.
   static Handle<FixedArray> IterationIndices(
-      Handle<Dictionary<Derived, Shape, Key>> dictionary);
+      Handle<Dictionary<Derived, Shape>> dictionary);
 
   // Collect the keys into the given KeyAccumulator, in ascending chronological
   // order of property creation.
-  static void CollectKeysTo(Handle<Dictionary<Derived, Shape, Key>> dictionary,
+  static void CollectKeysTo(Handle<Dictionary<Derived, Shape>> dictionary,
                             KeyAccumulator* keys);
 
   // Copies enumerable keys to preallocated fixed array.
-  static void CopyEnumKeysTo(Handle<Dictionary<Derived, Shape, Key>> dictionary,
+  static void CopyEnumKeysTo(Handle<Dictionary<Derived, Shape>> dictionary,
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);
 
@@ -138,8 +139,8 @@ class Dictionary : public HashTable<Derived, Shape, Key> {
 };
 
 template <typename Derived, typename Shape>
-class NameDictionaryBase : public Dictionary<Derived, Shape, Handle<Name>> {
-  typedef Dictionary<Derived, Shape, Handle<Name>> DerivedDictionary;
+class NameDictionaryBase : public Dictionary<Derived, Shape> {
+  typedef Dictionary<Derived, Shape> DerivedDictionary;
 
  public:
   // Find entry for key, otherwise return kNotFound. Optimized version of
@@ -270,14 +271,13 @@ class UnseededNumberDictionaryShape : public NumberDictionaryShape {
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>;
+    HashTable<SeededNumberDictionary, SeededNumberDictionaryShape>;
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>;
+    Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>;
 
 class SeededNumberDictionary
-    : public Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
-                        uint32_t> {
+    : public Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape> {
  public:
   DECLARE_CAST(SeededNumberDictionary)
 
@@ -333,8 +333,8 @@ class SeededNumberDictionary
 };
 
 class UnseededNumberDictionary
-    : public Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape,
-                        uint32_t> {
+    : public Dictionary<UnseededNumberDictionary,
+                        UnseededNumberDictionaryShape> {
  public:
   DECLARE_CAST(UnseededNumberDictionary)
 

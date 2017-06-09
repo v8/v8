@@ -60,8 +60,7 @@ class InfoVectorPair {
 // recompilation stub, or to "old" code. This avoids memory leaks due to
 // premature caching of scripts and eval strings that are never needed later.
 class CompilationCacheTable
-    : public HashTable<CompilationCacheTable, CompilationCacheShape,
-                       HashTableKey*> {
+    : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(Handle<String> src, Handle<Context> context,
