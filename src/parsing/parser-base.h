@@ -429,14 +429,6 @@ class ParserBase {
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
-    typename Types::Variable* generator_object_variable() const {
-      return scope()->generator_object_var();
-    }
-
-    typename Types::Variable* promise_variable() const {
-      return scope()->promise_var();
-    }
-
     void RewindDestructuringAssignments(int pos) {
       destructuring_assignments_to_rewrite_.Rewind(pos);
     }

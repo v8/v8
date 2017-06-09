@@ -156,8 +156,6 @@ struct ParserTypes<Parser> {
   typedef ParserBase<Parser> Base;
   typedef Parser Impl;
 
-  typedef v8::internal::Variable Variable;
-
   // Return types for traversing functions.
   typedef const AstRawString* Identifier;
   typedef v8::internal::Expression* Expression;
