@@ -61,6 +61,7 @@
 //  V8_OS_CYGWIN        - Cygwin
 //  V8_OS_DRAGONFLYBSD  - DragonFlyBSD
 //  V8_OS_FREEBSD       - FreeBSD
+//  V8_OS_FUCHSIA       - Fuchsia
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
 //  V8_OS_NETBSD        - NetBSD
@@ -94,6 +95,9 @@
 #elif defined(__FreeBSD__)
 # define V8_OS_BSD 1
 # define V8_OS_FREEBSD 1
+# define V8_OS_POSIX 1
+#elif defined(__Fuchsia__)
+# define V8_OS_FUCHSIA 1
 # define V8_OS_POSIX 1
 #elif defined(__DragonFly__)
 # define V8_OS_BSD 1

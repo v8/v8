@@ -415,7 +415,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #if !(V8_OS_OPENBSD || (V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_S390)))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_FUCHSIA
 #if V8_HOST_ARCH_IA32
   state->pc = reinterpret_cast<void*>(mcontext.gregs[REG_EIP]);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[REG_ESP]);
