@@ -2203,6 +2203,12 @@
             'base/platform/platform-posix.cc'
           ]},
         ],
+        ['OS=="fuchsia"', {
+          'sources': [
+            'base/debug/stack_trace_fuchsia.cc',
+            'base/platform/platform-fuchsia.cc',
+          ]},
+        ],
         ['OS=="solaris"', {
             'link_settings': {
               'libraries': [
