@@ -653,16 +653,16 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   offset_ = array->Offset(frame_ix)->value();
 }
 
+Handle<Object> WasmStackFrame::GetReceiver() const { return wasm_instance_; }
+
 Handle<Object> WasmStackFrame::GetFunction() const {
-  Handle<Object> obj(Smi::FromInt(wasm_func_index_), isolate_);
-  return obj;
+  return handle(Smi::FromInt(wasm_func_index_), isolate_);
 }
 
 Handle<Object> WasmStackFrame::GetFunctionName() {
   Handle<Object> name;
-  Handle<WasmCompiledModule> compiled_module(
-      Handle<WasmInstanceObject>::cast(wasm_instance_)->compiled_module(),
-      isolate_);
+  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
+                                             isolate_);
   if (!WasmCompiledModule::GetFunctionNameOrNull(isolate_, compiled_module,
                                                  wasm_func_index_)
            .ToHandle(&name)) {

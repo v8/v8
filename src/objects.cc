@@ -10117,11 +10117,9 @@ Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
 }
 
 // static
-Handle<FrameArray> FrameArray::AppendWasmFrame(Handle<FrameArray> in,
-                                               Handle<Object> wasm_instance,
-                                               int wasm_function_index,
-                                               Handle<AbstractCode> code,
-                                               int offset, int flags) {
+Handle<FrameArray> FrameArray::AppendWasmFrame(
+    Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
+    int wasm_function_index, Handle<AbstractCode> code, int offset, int flags) {
   const int frame_count = in->FrameCount();
   const int new_length = LengthFor(frame_count + 1);
   Handle<FrameArray> array = EnsureSpace(in, new_length);

@@ -25,6 +25,7 @@ class JSMessageObject;
 class LookupIterator;
 class SharedFunctionInfo;
 class SourceInfo;
+class WasmInstanceObject;
 
 class MessageLocation {
  public:
@@ -132,7 +133,7 @@ class WasmStackFrame : public StackFrameBase {
  public:
   virtual ~WasmStackFrame() {}
 
-  Handle<Object> GetReceiver() const override { return wasm_instance_; }
+  Handle<Object> GetReceiver() const override;
   Handle<Object> GetFunction() const override;
 
   Handle<Object> GetFileName() override { return Null(); }
@@ -159,8 +160,7 @@ class WasmStackFrame : public StackFrameBase {
   bool HasScript() const override;
   Handle<Script> GetScript() const override;
 
-  // TODO(wasm): Use proper typing.
-  Handle<Object> wasm_instance_;
+  Handle<WasmInstanceObject> wasm_instance_;
   uint32_t wasm_func_index_;
   Handle<AbstractCode> code_;  // null handle for interpreted frames.
   int offset_;

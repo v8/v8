@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FRAME_ARRAY_H_
 
 #include "src/objects.h"
+#include "src/wasm/wasm-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,13 +17,13 @@ namespace internal {
 template <typename T>
 class Handle;
 
-#define FRAME_ARRAY_FIELD_LIST(V) \
-  V(WasmInstance, Object)         \
-  V(WasmFunctionIndex, Smi)       \
-  V(Receiver, Object)             \
-  V(Function, JSFunction)         \
-  V(Code, AbstractCode)           \
-  V(Offset, Smi)                  \
+#define FRAME_ARRAY_FIELD_LIST(V)     \
+  V(WasmInstance, WasmInstanceObject) \
+  V(WasmFunctionIndex, Smi)           \
+  V(Receiver, Object)                 \
+  V(Function, JSFunction)             \
+  V(Code, AbstractCode)               \
+  V(Offset, Smi)                      \
   V(Flags, Smi)
 
 // Container object for data collected during simple stack trace captures.
@@ -56,11 +57,10 @@ class FrameArray : public FixedArray {
                                           Handle<JSFunction> function,
                                           Handle<AbstractCode> code, int offset,
                                           int flags);
-  static Handle<FrameArray> AppendWasmFrame(Handle<FrameArray> in,
-                                            Handle<Object> wasm_instance,
-                                            int wasm_function_index,
-                                            Handle<AbstractCode> code,
-                                            int offset, int flags);
+  static Handle<FrameArray> AppendWasmFrame(
+      Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
+      int wasm_function_index, Handle<AbstractCode> code, int offset,
+      int flags);
 
   DECLARE_CAST(FrameArray)
 
