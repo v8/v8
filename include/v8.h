@@ -1031,9 +1031,6 @@ class ScriptOrigin {
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
-  /**
-    * Returns true for embedder's debugger scripts
-    */
   V8_INLINE Local<Integer> ScriptID() const;
   V8_INLINE Local<Value> SourceMapUrl() const;
   V8_INLINE ScriptOriginOptions Options() const { return options_; }
