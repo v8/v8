@@ -115,6 +115,9 @@
   # Function declarations are no longer allowed as the body of a with statement.
   'js1_5/Regress/regress-326453': [FAIL],
 
+  # Invalid according to ES2015 syntax. (Details: crbug.com/726625)
+  'ecma_3/extensions/regress-368516': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

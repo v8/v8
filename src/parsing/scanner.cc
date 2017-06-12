@@ -429,18 +429,6 @@ Token::Value Scanner::PeekAhead() {
 }
 
 
-// TODO(yangguo): check whether this is actually necessary.
-static inline bool IsLittleEndianByteOrderMark(uc32 c) {
-  // The Unicode value U+FFFE is guaranteed never to be assigned as a
-  // Unicode character; this implies that in a Unicode context the
-  // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
-  // character expressed in little-endian byte order (since it could
-  // not be a U+FFFE character expressed in big-endian byte
-  // order). Nevertheless, we check for it to be compatible with
-  // Spidermonkey.
-  return c == 0xFFFE;
-}
-
 Token::Value Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
@@ -453,8 +441,7 @@ Token::Value Scanner::SkipWhiteSpace() {
       // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
         has_line_terminator_before_next_ = true;
-      } else if (!unicode_cache_->IsWhiteSpace(c0_) &&
-                 !IsLittleEndianByteOrderMark(c0_)) {
+      } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
         break;
       }
       Advance();
