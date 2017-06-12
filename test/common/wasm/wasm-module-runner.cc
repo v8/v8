@@ -42,35 +42,6 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
   return std::move(decoding_result.val);
 }
 
-const Handle<WasmInstanceObject> InstantiateModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const WasmModule* module,
-    const ModuleWireBytes& wire_bytes) {
-  DCHECK_NOT_NULL(module);
-  if (module->import_table.size() > 0) {
-    thrower->CompileError("Not supported: module has imports.");
-  }
-
-  if (thrower->error()) return Handle<WasmInstanceObject>::null();
-
-  // Although we decoded the module for some pre-validation, run the bytes
-  // again through the normal pipeline.
-  // TODO(wasm): Use {module} instead of decoding the module bytes again.
-  MaybeHandle<WasmModuleObject> module_object =
-      SyncCompile(isolate, thrower, wire_bytes);
-  if (module_object.is_null()) {
-    thrower->CompileError("Module pre-validation failed.");
-    return Handle<WasmInstanceObject>::null();
-  }
-  MaybeHandle<WasmInstanceObject> maybe_instance =
-      SyncInstantiate(isolate, thrower, module_object.ToHandleChecked(),
-                      Handle<JSReceiver>::null(), MaybeHandle<JSArrayBuffer>());
-  Handle<WasmInstanceObject> instance;
-  if (!maybe_instance.ToHandle(&instance)) {
-    return Handle<WasmInstanceObject>::null();
-  }
-  return instance;
-}
-
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
                                 int argc, Handle<Object> argv[],
                                 ModuleOrigin origin) {

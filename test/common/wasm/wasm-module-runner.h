@@ -27,11 +27,6 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 
-// Instantiates a module without any imports and exports.
-const Handle<WasmInstanceObject> InstantiateModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const WasmModule* module,
-    const ModuleWireBytes& wire_bytes);
-
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[],
@@ -59,6 +54,7 @@ int32_t InterpretWasmModule(Isolate* isolate,
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
                                 int argc, Handle<Object> argv[],
                                 ModuleOrigin origin);
+
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);
 
