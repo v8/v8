@@ -21,7 +21,7 @@ class StringTableShape : public BaseShape<HashTableKey*> {
 
   static inline uint32_t Hash(HashTableKey* key) { return key->Hash(); }
 
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object);
+  static inline uint32_t HashForObject(Object* object);
 
   static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
@@ -72,7 +72,7 @@ class StringSetShape : public BaseShape<String*> {
  public:
   static inline bool IsMatch(String* key, Object* value);
   static inline uint32_t Hash(String* key);
-  static inline uint32_t HashForObject(String* key, Object* object);
+  static inline uint32_t HashForObject(Object* object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;

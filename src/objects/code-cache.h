@@ -70,8 +70,7 @@ class CodeCacheHashTableShape : public BaseShape<CodeCacheHashTableKey*> {
     return key->Hash();
   }
 
-  static inline uint32_t HashForObject(CodeCacheHashTableKey* key,
-                                       Object* object) {
+  static inline uint32_t HashForObject(Object* object) {
     FixedArray* pair = FixedArray::cast(object);
     Name* name = Name::cast(pair->get(0));
     Code* code = Code::cast(pair->get(1));

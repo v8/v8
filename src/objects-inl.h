@@ -2693,15 +2693,15 @@ bool StringSetShape::IsMatch(String* key, Object* value) {
 
 uint32_t StringSetShape::Hash(String* key) { return key->Hash(); }
 
-uint32_t StringSetShape::HashForObject(String* key, Object* object) {
-  return object->IsString() ? String::cast(object)->Hash() : 0;
+uint32_t StringSetShape::HashForObject(Object* object) {
+  return String::cast(object)->Hash();
 }
 
 Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
   return key->AsHandle(isolate);
 }
 
-uint32_t StringTableShape::HashForObject(HashTableKey* key, Object* object) {
+uint32_t StringTableShape::HashForObject(Object* object) {
   return String::cast(object)->Hash();
 }
 
@@ -6143,9 +6143,7 @@ uint32_t UnseededNumberDictionaryShape::Hash(uint32_t key) {
   return ComputeIntegerHash(key, 0);
 }
 
-
-uint32_t UnseededNumberDictionaryShape::HashForObject(uint32_t key,
-                                                      Object* other) {
+uint32_t UnseededNumberDictionaryShape::HashForObject(Object* other) {
   DCHECK(other->IsNumber());
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), 0);
 }
@@ -6158,9 +6156,7 @@ uint32_t SeededNumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {
   return ComputeIntegerHash(key, seed);
 }
 
-
-uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
-                                                          uint32_t seed,
+uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t seed,
                                                           Object* other) {
   DCHECK(other->IsNumber());
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
@@ -6183,8 +6179,7 @@ uint32_t NameDictionaryShape::Hash(Handle<Name> key) {
   return key->Hash();
 }
 
-
-uint32_t NameDictionaryShape::HashForObject(Handle<Name> key, Object* other) {
+uint32_t NameDictionaryShape::HashForObject(Object* other) {
   return Name::cast(other)->Hash();
 }
 
@@ -6234,9 +6229,7 @@ uint32_t ObjectHashTableShape::Hash(Handle<Object> key) {
   return Smi::cast(key->GetHash())->value();
 }
 
-
-uint32_t ObjectHashTableShape::HashForObject(Handle<Object> key,
-                                             Object* other) {
+uint32_t ObjectHashTableShape::HashForObject(Object* other) {
   return Smi::cast(other->GetHash())->value();
 }
 
@@ -6246,10 +6239,8 @@ Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
   return key;
 }
 
-
-Handle<ObjectHashTable> ObjectHashTable::Shrink(
-    Handle<ObjectHashTable> table, Handle<Object> key) {
-  return DerivedHashTable::Shrink(table, key);
+Handle<ObjectHashTable> ObjectHashTable::Shrink(Handle<ObjectHashTable> table) {
+  return DerivedHashTable::Shrink(table);
 }
 
 template <int entrysize>
@@ -6269,10 +6260,8 @@ uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
-
 template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::HashForObject(Handle<Object> key,
-                                                      Object* other) {
+uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* other) {
   if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
   intptr_t hash = reinterpret_cast<intptr_t>(other);
   return (uint32_t)(hash & 0xFFFFFFFF);

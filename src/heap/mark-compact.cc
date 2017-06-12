@@ -982,8 +982,7 @@ void MarkCompactCollector::Finish() {
   }
 
   // The hashing of weak_object_to_code_table is no longer valid.
-  heap()->weak_object_to_code_table()->Rehash(
-      heap()->isolate()->factory()->undefined_value());
+  heap()->weak_object_to_code_table()->Rehash();
 
   // Clear the marking state of live large objects.
   heap_->lo_space()->ClearMarkingStateOfLiveObjects();

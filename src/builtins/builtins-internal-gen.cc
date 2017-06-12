@@ -204,7 +204,7 @@ class DeletePropertyBaseAssembler : public CodeStubAssembler {
     Node* capacity = GetCapacity<NameDictionary>(properties);
     GotoIf(SmiGreaterThan(new_nof, SmiShr(capacity, 2)), &shrinking_done);
     GotoIf(SmiLessThan(new_nof, SmiConstant(16)), &shrinking_done);
-    CallRuntime(Runtime::kShrinkPropertyDictionary, context, receiver, name);
+    CallRuntime(Runtime::kShrinkPropertyDictionary, context, receiver);
     Goto(&shrinking_done);
     BIND(&shrinking_done);
 

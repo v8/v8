@@ -6043,8 +6043,7 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
     DCHECK_NE(NameDictionary::kNotFound, entry);
 
     NameDictionary::DeleteProperty(dictionary, entry);
-    Handle<NameDictionary> new_properties =
-        NameDictionary::Shrink(dictionary, name);
+    Handle<NameDictionary> new_properties = NameDictionary::Shrink(dictionary);
     object->set_properties(*new_properties);
   }
 }
@@ -9753,7 +9752,7 @@ Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
     Handle<CodeCacheHashTable> cache, Handle<Name> name, Handle<Code> code) {
   CodeCacheHashTableKey key(name, code);
 
-  Handle<CodeCacheHashTable> new_cache = EnsureCapacity(cache, 1, &key);
+  Handle<CodeCacheHashTable> new_cache = EnsureCapacity(cache, 1);
 
   int entry = new_cache->FindInsertionEntry(key.Hash());
   Handle<Object> k = key.AsHandle(cache->GetIsolate());
@@ -15892,7 +15891,7 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
 
 
 // StringSharedKeys are used as keys in the eval cache.
-class StringSharedKey : public CompilationCacheKey {
+class StringSharedKey : public HashTableKey {
  public:
   // This tuple unambiguously identifies calls to eval() or
   // CreateDynamicFunction() (such as through the Function() constructor).
@@ -15931,46 +15930,10 @@ class StringSharedKey : public CompilationCacheKey {
     return source->Equals(*source_);
   }
 
-  static uint32_t StringSharedHashHelper(String* source,
-                                         SharedFunctionInfo* shared,
-                                         LanguageMode language_mode,
-                                         int position) {
-    uint32_t hash = source->Hash();
-    if (shared->HasSourceCode()) {
-      // Instead of using the SharedFunctionInfo pointer in the hash
-      // code computation, we use a combination of the hash of the
-      // script source code and the start position of the calling scope.
-      // We do this to ensure that the cache entries can survive garbage
-      // collection.
-      Script* script(Script::cast(shared->script()));
-      hash ^= String::cast(script->source())->Hash();
-      STATIC_ASSERT(LANGUAGE_END == 2);
-      if (is_strict(language_mode)) hash ^= 0x8000;
-      hash += position;
-    }
-    return hash;
-  }
-
   uint32_t Hash() override {
-    return StringSharedHashHelper(*source_, *shared_, language_mode_,
-                                  position_);
+    return CompilationCacheShape::StringSharedHash(*source_, *shared_,
+                                                   language_mode_, position_);
   }
-
-  uint32_t HashForObject(Object* obj) override {
-    DisallowHeapAllocation no_allocation;
-    if (obj->IsNumber()) {
-      return static_cast<uint32_t>(obj->Number());
-    }
-    FixedArray* other_array = FixedArray::cast(obj);
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
-    String* source = String::cast(other_array->get(1));
-    int language_unchecked = Smi::cast(other_array->get(2))->value();
-    DCHECK(is_valid_language_mode(language_unchecked));
-    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    int position = Smi::cast(other_array->get(3))->value();
-    return StringSharedHashHelper(source, shared, language_mode, position);
-  }
-
 
   Handle<Object> AsHandle(Isolate* isolate) override {
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
@@ -15978,6 +15941,7 @@ class StringSharedKey : public CompilationCacheKey {
     array->set(1, *source_);
     array->set(2, Smi::FromInt(language_mode_));
     array->set(3, Smi::FromInt(position_));
+    array->set_map(isolate->heap()->fixed_cow_array_map());
     return array;
   }
 
@@ -16190,7 +16154,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
 
 // RegExpKey carries the source and flags of a regular expression as key.
-class RegExpKey : public CompilationCacheKey {
+class RegExpKey : public HashTableKey {
  public:
   RegExpKey(Handle<String> string, JSRegExp::Flags flags)
       : string_(string), flags_(Smi::FromInt(flags)) {}
@@ -16205,22 +16169,14 @@ class RegExpKey : public CompilationCacheKey {
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
 
-  uint32_t Hash() override { return RegExpHash(*string_, flags_); }
+  uint32_t Hash() override {
+    return CompilationCacheShape::RegExpHash(*string_, flags_);
+  }
 
   Handle<Object> AsHandle(Isolate* isolate) override {
     // Plain hash maps, which is where regexp keys are used, don't
     // use this function.
     UNREACHABLE();
-  }
-
-  uint32_t HashForObject(Object* obj) override {
-    FixedArray* val = FixedArray::cast(obj);
-    return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
-                      Smi::cast(val->get(JSRegExp::kFlagsIndex)));
-  }
-
-  static uint32_t RegExpHash(String* string, Smi* flags) {
-    return string->Hash() + flags->value();
   }
 
   Handle<String> string_;
@@ -16375,7 +16331,7 @@ int NameDictionaryBase<Derived, Shape>::FindEntry(Handle<Name> key) {
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Handle<Derived> new_table, Key key) {
+void HashTable<Derived, Shape>::Rehash(Handle<Derived> new_table) {
   DCHECK(NumberOfElements() < new_table->Capacity());
 
   DisallowHeapAllocation no_gc;
@@ -16397,7 +16353,7 @@ void HashTable<Derived, Shape>::Rehash(Handle<Derived> new_table, Key key) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = this->get(from_index);
     if (k != the_hole && k != undefined) {
-      uint32_t hash = this->HashForObject(key, k);
+      uint32_t hash = this->HashForObject(k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -16410,9 +16366,9 @@ void HashTable<Derived, Shape>::Rehash(Handle<Derived> new_table, Key key) {
 }
 
 template <typename Derived, typename Shape>
-uint32_t HashTable<Derived, Shape>::EntryForProbe(Key key, Object* k, int probe,
+uint32_t HashTable<Derived, Shape>::EntryForProbe(Object* k, int probe,
                                                   uint32_t expected) {
-  uint32_t hash = this->HashForObject(key, k);
+  uint32_t hash = this->HashForObject(k);
   uint32_t capacity = this->Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
@@ -16440,7 +16396,7 @@ void HashTable<Derived, Shape>::Swap(uint32_t entry1, uint32_t entry2,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Key key) {
+void HashTable<Derived, Shape>::Rehash() {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
   Isolate* isolate = GetIsolate();
@@ -16453,11 +16409,11 @@ void HashTable<Derived, Shape>::Rehash(Key key) {
     for (uint32_t current = 0; current < capacity; current++) {
       Object* current_key = KeyAt(current);
       if (IsKey(isolate, current_key)) {
-        uint32_t target = EntryForProbe(key, current_key, probe, current);
+        uint32_t target = EntryForProbe(current_key, probe, current);
         if (current == target) continue;
         Object* target_key = KeyAt(target);
         if (!IsKey(isolate, target_key) ||
-            EntryForProbe(key, target_key, probe, target) != target) {
+            EntryForProbe(target_key, probe, target) != target) {
           // Put the current element into the correct position.
           Swap(current, target, mode);
           // The other element will be processed on the next iteration.
@@ -16483,7 +16439,7 @@ void HashTable<Derived, Shape>::Rehash(Key key) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
-    Handle<Derived> table, int n, Key key, PretenureFlag pretenure) {
+    Handle<Derived> table, int n, PretenureFlag pretenure) {
   if (table->HasSufficientCapacityToAdd(n)) return table;
 
   Isolate* isolate = table->GetIsolate();
@@ -16498,7 +16454,7 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
       HashTable::New(isolate, new_nof, USE_DEFAULT_MINIMUM_CAPACITY,
                      should_pretenure ? TENURED : NOT_TENURED);
 
-  table->Rehash(new_table, key);
+  table->Rehash(new_table);
   return new_table;
 }
 
@@ -16519,8 +16475,7 @@ bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table,
-                                                  Key key) {
+Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table) {
   int capacity = table->Capacity();
   int nof = table->NumberOfElements();
 
@@ -16545,7 +16500,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table,
       USE_DEFAULT_MINIMUM_CAPACITY,
       pretenure ? TENURED : NOT_TENURED);
 
-  table->Rehash(new_table, key);
+  table->Rehash(new_table);
   return new_table;
 }
 
@@ -16656,13 +16611,12 @@ HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
                                                   MinimumCapacity,
                                                   PretenureFlag);
 
-template Handle<NameDictionary>
-    HashTable<NameDictionary, NameDictionaryShape>::Shrink(
-        Handle<NameDictionary>, Handle<Name>);
+template Handle<NameDictionary> HashTable<
+    NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>);
 
 template Handle<UnseededNumberDictionary>
     HashTable<UnseededNumberDictionary, UnseededNumberDictionaryShape>::Shrink(
-        Handle<UnseededNumberDictionary>, uint32_t);
+        Handle<UnseededNumberDictionary>);
 
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape>::Add(Handle<NameDictionary>,
@@ -16687,18 +16641,18 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::Add(
 
 template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::EnsureCapacity(
-    Handle<SeededNumberDictionary>, int, uint32_t);
+    Handle<SeededNumberDictionary>, int);
 
 template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::
-    EnsureCapacity(Handle<UnseededNumberDictionary>, int, uint32_t);
+    EnsureCapacity(Handle<UnseededNumberDictionary>, int);
 
 template void Dictionary<
     NameDictionary, NameDictionaryShape>::SetRequiresCopyOnCapacityChange();
 
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
-    Handle<NameDictionary>, int, Handle<Name>);
+    Handle<NameDictionary>, int);
 
 template int NameDictionaryBase<NameDictionary, NameDictionaryShape>::FindEntry(
     Handle<Name>);
@@ -17307,8 +17261,7 @@ void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
                                                    int expected) {
   Handle<StringTable> table = isolate->factory()->string_table();
   // We need a key instance for the virtual hash function.
-  InternalizedStringKey dummy_key(isolate->factory()->empty_string());
-  table = StringTable::EnsureCapacity(table, expected, &dummy_key);
+  table = StringTable::EnsureCapacity(table, expected);
   isolate->heap()->SetRootStringTable(*table);
 }
 
@@ -17418,7 +17371,7 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
   }
 
   // Adding new string. Grow table if needed.
-  table = StringTable::EnsureCapacity(table, 1, key);
+  table = StringTable::EnsureCapacity(table, 1);
 
   // Create string object.
   Handle<Object> string = key->AsHandle(isolate);
@@ -17608,7 +17561,7 @@ Handle<StringSet> StringSet::New(Isolate* isolate) {
 Handle<StringSet> StringSet::Add(Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(name)) {
-    stringset = EnsureCapacity(stringset, 1, *name);
+    stringset = EnsureCapacity(stringset, 1);
     uint32_t hash = StringSetShape::Hash(*name);
     int entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
@@ -17627,7 +17580,7 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> set,
   int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
 
   if (!set->Has(isolate, key, hash)) {
-    set = EnsureCapacity(set, 1, key);
+    set = EnsureCapacity(set, 1);
     int entry = set->FindInsertionEntry(hash);
     set->set(EntryToIndex(entry), *key);
     set->ElementAdded();
@@ -17814,7 +17767,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
-  cache = EnsureCapacity(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1);
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
@@ -17831,7 +17784,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   Handle<Context> native_context(context->native_context());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
-  cache = EnsureCapacity(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1);
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
@@ -17861,7 +17814,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     }
   }
 
-  cache = EnsureCapacity(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1);
   int entry = cache->FindInsertionEntry(key.Hash());
   Handle<Object> k =
       isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
@@ -17876,7 +17829,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value) {
   RegExpKey key(src, flags);
-  cache = EnsureCapacity(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1);
   int entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custon IsMatch function during lookups.
@@ -17972,7 +17925,7 @@ void Dictionary<Derived, Shape>::SetRequiresCopyOnCapacityChange() {
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::EnsureCapacity(
-    Handle<Derived> dictionary, int n, Key key) {
+    Handle<Derived> dictionary, int n) {
   // Check whether there are enough enumeration indices to add n elements.
   if (Shape::kIsEnumerable &&
       !PropertyDetails::IsValidIndex(dictionary->NextEnumerationIndex() + n)) {
@@ -18000,7 +17953,7 @@ Handle<Derived> Dictionary<Derived, Shape>::EnsureCapacity(
     dictionary->SetNextEnumerationIndex(PropertyDetails::kInitialIndex +
                                         length);
   }
-  return DerivedHashTable::EnsureCapacity(dictionary, n, key);
+  return DerivedHashTable::EnsureCapacity(dictionary, n);
 }
 
 template <typename Derived, typename Shape>
@@ -18029,7 +17982,7 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Handle<Derived> dictionary,
   }
 
   // Check whether the dictionary should be extended.
-  dictionary = EnsureCapacity(dictionary, 1, key);
+  dictionary = EnsureCapacity(dictionary, 1);
 #ifdef DEBUG
   USE(Shape::AsHandle(dictionary->GetIsolate(), key));
 #endif
@@ -18047,7 +18000,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   // Valdate key is absent.
   SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
-  dictionary = EnsureCapacity(dictionary, 1, key);
+  dictionary = EnsureCapacity(dictionary, 1);
 
   int entry = AddEntry(dictionary, key, value, details, dictionary->Hash(key));
   if (entry_out) *entry_out = entry;
@@ -18145,7 +18098,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::DeleteKey(
   dictionary->SetEntry(entry, factory->the_hole_value(),
                        factory->the_hole_value());
   dictionary->ElementRemoved();
-  return dictionary->Shrink(dictionary, key);
+  return dictionary->Shrink(dictionary);
 }
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
@@ -18454,7 +18407,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   // Rehash if more than 33% of the entries are deleted entries.
   // TODO(jochen): Consider to shrink the fixed array in place.
   if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
-    table->Rehash(isolate->factory()->undefined_value());
+    table->Rehash();
   }
   // If we're out of luck, we didn't get a GC recently, and so rehashing
   // isn't enough to avoid a crash.
@@ -18467,12 +18420,12 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
             Heap::kFinalizeIncrementalMarkingMask,
             GarbageCollectionReason::kFullHashtable);
       }
-      table->Rehash(isolate->factory()->undefined_value());
+      table->Rehash();
     }
   }
 
   // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1, key);
+  table = EnsureCapacity(table, 1);
   table->AddEntry(table->FindInsertionEntry(hash), *key, *value);
   return table;
 }
@@ -18508,7 +18461,7 @@ Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
 
   *was_present = true;
   table->RemoveEntry(entry);
-  return Shrink(table, key);
+  return Shrink(table);
 }
 
 
@@ -18551,7 +18504,7 @@ Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
   Handle<WeakCell> key_cell = isolate->factory()->NewWeakCell(key);
 
   // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1, key, TENURED);
+  table = EnsureCapacity(table, 1, TENURED);
 
   table->AddEntry(table->FindInsertionEntry(table->Hash(key)), key_cell, value);
   return table;

@@ -27,16 +27,16 @@ namespace internal {
 // - Elements with key == undefined have not been used yet.
 // - Elements with key == the_hole have been deleted.
 //
-// The hash table class is parameterized with a Shape and a Key.
+// The hash table class is parameterized with a Shape.
 // Shape must be a class with the following interface:
 //   class ExampleShape {
 //    public:
 //      // Tells whether key matches other.
-//     static bool IsMatch(Key key, Object* other);
+//     static bool IsMatch(Object* other);
 //     // Returns the hash value for key.
 //     static uint32_t Hash(Key key);
 //     // Returns the hash value for object.
-//     static uint32_t HashForObject(Key key, Object* object);
+//     static uint32_t HashForObject(Object* object);
 //     // Convert key to an object.
 //     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
@@ -59,10 +59,10 @@ class BaseShape {
     DCHECK(UsesSeed);
     return Hash(key);
   }
-  static uint32_t HashForObject(Key key, Object* object) { return 0; }
-  static uint32_t SeededHashForObject(Key key, uint32_t seed, Object* object) {
+  static uint32_t HashForObject(Object* object) { return 0; }
+  static uint32_t SeededHashForObject(uint32_t seed, Object* object) {
     DCHECK(UsesSeed);
-    return HashForObject(key, object);
+    return HashForObject(object);
   }
   static inline Map* GetMap(Isolate* isolate);
 };
@@ -149,11 +149,11 @@ class HashTable : public HashTableBase {
     }
   }
 
-  inline uint32_t HashForObject(Key key, Object* object) {
+  inline uint32_t HashForObject(Object* object) {
     if (Shape::UsesSeed) {
-      return Shape::SeededHashForObject(key, GetHeap()->HashSeed(), object);
+      return Shape::SeededHashForObject(GetHeap()->HashSeed(), object);
     } else {
-      return Shape::HashForObject(key, object);
+      return Shape::HashForObject(object);
     }
   }
 
@@ -177,7 +177,7 @@ class HashTable : public HashTableBase {
   inline bool Has(Key key);
 
   // Rehashes the table in-place.
-  void Rehash(Key key);
+  void Rehash();
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }
@@ -213,12 +213,11 @@ class HashTable : public HashTableBase {
   uint32_t FindInsertionEntry(uint32_t hash);
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table, Key key);
+  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
-      Handle<Derived> table, int n, Key key,
-      PretenureFlag pretenure = NOT_TENURED);
+      Handle<Derived> table, int n, PretenureFlag pretenure = NOT_TENURED);
 
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);
@@ -245,12 +244,12 @@ class HashTable : public HashTableBase {
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
-  uint32_t EntryForProbe(Key key, Object* k, int probe, uint32_t expected);
+  uint32_t EntryForProbe(Object* k, int probe, uint32_t expected);
 
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Handle<Derived> new_table, Key key);
+  void Rehash(Handle<Derived> new_table);
 };
 
 // HashTableKey is an abstract superclass for virtual key behavior.
@@ -270,7 +269,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object* other);
   static inline uint32_t Hash(Handle<Object> key);
-  static inline uint32_t HashForObject(Handle<Object> key, Object* object);
+  static inline uint32_t HashForObject(Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -287,7 +286,7 @@ class ObjectHashTable
 
   // Attempt to shrink hash table after removal of key.
   MUST_USE_RESULT static inline Handle<ObjectHashTable> Shrink(
-      Handle<ObjectHashTable> table, Handle<Object> key);
+      Handle<ObjectHashTable> table);
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
@@ -553,7 +552,7 @@ class WeakHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object* other);
   static inline uint32_t Hash(Handle<Object> key);
-  static inline uint32_t HashForObject(Handle<Object> key, Object* object);
+  static inline uint32_t HashForObject(Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;

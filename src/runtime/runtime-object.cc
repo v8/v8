@@ -546,12 +546,10 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty) {
 
 RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  Handle<NameDictionary> new_properties =
-      NameDictionary::Shrink(dictionary, key);
+  Handle<NameDictionary> new_properties = NameDictionary::Shrink(dictionary);
   receiver->set_properties(*new_properties);
   return Smi::kZero;
 }

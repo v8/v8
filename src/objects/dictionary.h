@@ -57,8 +57,8 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   // Attempt to shrink the dictionary after deletion of key.
   MUST_USE_RESULT static inline Handle<Derived> Shrink(
-      Handle<Derived> dictionary, Key key) {
-    return DerivedHashTable::Shrink(dictionary, key);
+      Handle<Derived> dictionary) {
+    return DerivedHashTable::Shrink(dictionary);
   }
 
   int NumberOfEnumerableProperties();
@@ -103,7 +103,7 @@ class Dictionary : public HashTable<Derived, Shape> {
   void SetRequiresCopyOnCapacityChange();
 
   // Ensure enough space for n additional elements.
-  static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n, Key key);
+  static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n);
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
@@ -181,7 +181,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
   static inline bool IsMatch(Handle<Name> key, Object* other);
   static inline uint32_t Hash(Handle<Name> key);
-  static inline uint32_t HashForObject(Handle<Name> key, Object* object);
+  static inline uint32_t HashForObject(Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -244,8 +244,7 @@ class SeededNumberDictionaryShape : public NumberDictionaryShape {
   static const int kEntrySize = 3;
 
   static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
-  static inline uint32_t SeededHashForObject(uint32_t key, uint32_t seed,
-                                             Object* object);
+  static inline uint32_t SeededHashForObject(uint32_t seed, Object* object);
 };
 
 class UnseededNumberDictionaryShape : public NumberDictionaryShape {
@@ -254,7 +253,7 @@ class UnseededNumberDictionaryShape : public NumberDictionaryShape {
   static const int kEntrySize = 2;
 
   static inline uint32_t Hash(uint32_t key);
-  static inline uint32_t HashForObject(uint32_t key, Object* object);
+  static inline uint32_t HashForObject(Object* object);
 
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {

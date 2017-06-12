@@ -1412,12 +1412,10 @@ class DictionaryElementsAccessor
     // TODO(verwaest): Remove reliance on index in Shrink.
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(obj->elements()));
-    uint32_t index = GetIndexForEntryImpl(*dict, entry);
     Handle<Object> result = SeededNumberDictionary::DeleteProperty(dict, entry);
     USE(result);
     DCHECK(result->IsTrue(dict->GetIsolate()));
-    Handle<FixedArray> new_elements =
-        SeededNumberDictionary::Shrink(dict, index);
+    Handle<FixedArray> new_elements = SeededNumberDictionary::Shrink(dict);
     obj->set_elements(*new_elements);
   }
 
@@ -3707,15 +3705,12 @@ class SlowSloppyArgumentsElementsAccessor
     Isolate* isolate = obj->GetIsolate();
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(elements->arguments()), isolate);
-    // TODO(verwaest): Remove reliance on index in Shrink.
-    uint32_t index = GetIndexForEntryImpl(*dict, entry);
     int length = elements->parameter_map_length();
     Handle<Object> result =
         SeededNumberDictionary::DeleteProperty(dict, entry - length);
     USE(result);
     DCHECK(result->IsTrue(isolate));
-    Handle<FixedArray> new_elements =
-        SeededNumberDictionary::Shrink(dict, index);
+    Handle<FixedArray> new_elements = SeededNumberDictionary::Shrink(dict);
     elements->set_arguments(*new_elements);
   }
 
