@@ -80,12 +80,9 @@ V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);
 
 struct CustomSectionOffset {
-  uint32_t section_start;
-  uint32_t name_offset;
-  uint32_t name_length;
-  uint32_t payload_offset;
-  uint32_t payload_length;
-  uint32_t section_length;
+  WireBytesRef section;
+  WireBytesRef name;
+  WireBytesRef payload;
 };
 
 V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(

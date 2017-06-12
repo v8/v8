@@ -9559,10 +9559,10 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   DCHECK_GT(compiled_module->module()->functions.size(), function_index);
   i::wasm::WasmFunction& func =
       compiled_module->module()->functions[function_index];
-  DCHECK_GE(i::kMaxInt, func.code_start_offset);
-  DCHECK_GE(i::kMaxInt, func.code_end_offset);
-  return std::make_pair(static_cast<int>(func.code_start_offset),
-                        static_cast<int>(func.code_end_offset));
+  DCHECK_GE(i::kMaxInt, func.code.offset());
+  DCHECK_GE(i::kMaxInt, func.code.end_offset());
+  return std::make_pair(static_cast<int>(func.code.offset()),
+                        static_cast<int>(func.code.end_offset()));
 }
 
 debug::WasmDisassembly debug::WasmScript::DisassembleFunction(

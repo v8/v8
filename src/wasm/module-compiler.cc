@@ -286,8 +286,8 @@ void ModuleCompiler::ValidateSequentially(ModuleBytesEnv* module_env,
     if (func.imported) continue;
 
     const byte* base = module_env->wire_bytes.start();
-    FunctionBody body{func.sig, base, base + func.code_start_offset,
-                      base + func.code_end_offset};
+    FunctionBody body{func.sig, base, base + func.code.offset(),
+                      base + func.code.end_offset()};
     DecodeResult result = VerifyWasmCode(isolate_->allocator(),
                                          module_env->module_env.module, body);
     if (result.failed()) {
@@ -399,7 +399,6 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   return script;
 }
 
-// Ensure that the code object in <code_table> at offset <func_index> has
 // Ensure that the code object in <code_table> at offset <func_index> has
 // deoptimization data attached. This is needed for lazy compile stubs which are
 // called from JS_TO_WASM functions or via exported function tables. The deopt
@@ -932,7 +931,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         memory_.is_null()
             ? 0
             : static_cast<uint32_t>(memory_->byte_length()->Number());
-    if (!in_bounds(base, seg.source_size, mem_size)) {
+    if (!in_bounds(base, seg.source.length(), mem_size)) {
       thrower_->LinkError("data segment is out of bounds");
       return {};
     }
@@ -1205,7 +1204,7 @@ void InstanceBuilder::LoadDataSegments(Address mem_addr, size_t mem_size) {
   Handle<SeqOneByteString> module_bytes(compiled_module_->module_bytes(),
                                         isolate_);
   for (const WasmDataSegment& segment : module_->data_segments) {
-    uint32_t source_size = segment.source_size;
+    uint32_t source_size = segment.source.length();
     // Segments of size == 0 are just nops.
     if (source_size == 0) continue;
     uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
@@ -1213,7 +1212,7 @@ void InstanceBuilder::LoadDataSegments(Address mem_addr, size_t mem_size) {
         in_bounds(dest_offset, source_size, static_cast<uint32_t>(mem_size)));
     byte* dest = mem_addr + dest_offset;
     const byte* src = reinterpret_cast<const byte*>(
-        module_bytes->GetCharsAddress() + segment.source_offset);
+        module_bytes->GetCharsAddress() + segment.source.offset());
     memcpy(dest, src, source_size);
   }
 }
@@ -1256,15 +1255,13 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
     Handle<String> module_name;
     MaybeHandle<String> maybe_module_name =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate_, compiled_module_, import.module_name_offset,
-            import.module_name_length);
+            isolate_, compiled_module_, import.module_name);
     if (!maybe_module_name.ToHandle(&module_name)) return -1;
 
     Handle<String> import_name;
     MaybeHandle<String> maybe_import_name =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate_, compiled_module_, import.field_name_offset,
-            import.field_name_length);
+            isolate_, compiled_module_, import.field_name);
     if (!maybe_import_name.ToHandle(&import_name)) return -1;
 
     MaybeHandle<Object> result =
@@ -1555,10 +1552,9 @@ void InstanceBuilder::ProcessExports(
   // Process each export in the export table.
   int export_index = 0;  // Index into {weak_exported_functions}.
   for (WasmExport& exp : module_->export_table) {
-    Handle<String> name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate_, compiled_module_, exp.name_offset, exp.name_length)
-            .ToHandleChecked();
+    Handle<String> name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+                              isolate_, compiled_module_, exp.name)
+                              .ToHandleChecked();
     Handle<JSObject> export_to;
     if (module_->is_asm_js() && exp.kind == kExternalFunction &&
         String::Equals(name, single_function_name)) {
@@ -1582,8 +1578,7 @@ void InstanceBuilder::ProcessExports(
           if (module_->is_asm_js()) {
             // For modules arising from asm.js, honor the names section.
             func_name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-                            isolate_, compiled_module_, function.name_offset,
-                            function.name_length)
+                            isolate_, compiled_module_, function.name)
                             .ToHandleChecked();
           }
           js_function = WasmExportedFunction::New(
@@ -1805,8 +1800,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
               func_name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-                              isolate_, compiled_module_, function->name_offset,
-                              function->name_length)
+                              isolate_, compiled_module_, function->name)
                               .ToHandleChecked();
             }
             Handle<WasmExportedFunction> js_function =

@@ -955,12 +955,11 @@ class CodeMap {
     interpreter_code_.reserve(module->functions.size());
     for (const WasmFunction& function : module->functions) {
       if (function.imported) {
-        DCHECK_EQ(function.code_start_offset, function.code_end_offset);
+        DCHECK(!function.code.is_set());
         AddFunction(&function, nullptr, nullptr);
       } else {
-        const byte* code_start = module_start + function.code_start_offset;
-        const byte* code_end = module_start + function.code_end_offset;
-        AddFunction(&function, code_start, code_end);
+        AddFunction(&function, module_start + function.code.offset(),
+                    module_start + function.code.end_offset());
       }
     }
   }
@@ -2560,7 +2559,7 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   // Create some dummy structures, to avoid special-casing the implementation
   // just for testing.
   FunctionSig sig(0, 0, nullptr);
-  WasmFunction function{&sig, 0, 0, 0, 0, 0, 0, false, false};
+  WasmFunction function{&sig, 0, 0, {0, 0}, {0, 0}, false, false};
   InterpreterCode code{
       &function, BodyLocalDecls(zone), start, end, nullptr, nullptr, nullptr};
 

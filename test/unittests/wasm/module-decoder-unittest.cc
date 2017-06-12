@@ -525,8 +525,8 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
 
     EXPECT_EQ(WasmInitExpr::kI32Const, segment->dest_addr.kind);
     EXPECT_EQ(0x9bbaa, segment->dest_addr.val.i32_const);
-    EXPECT_EQ(kDataSegmentSourceOffset, segment->source_offset);
-    EXPECT_EQ(3u, segment->source_size);
+    EXPECT_EQ(kDataSegmentSourceOffset, segment->source.offset());
+    EXPECT_EQ(3u, segment->source.length());
   }
 
   EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
@@ -578,13 +578,13 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
 
     EXPECT_EQ(WasmInitExpr::kI32Const, s0->dest_addr.kind);
     EXPECT_EQ(0x7ffee, s0->dest_addr.val.i32_const);
-    EXPECT_EQ(kDataSegment0SourceOffset, s0->source_offset);
-    EXPECT_EQ(4u, s0->source_size);
+    EXPECT_EQ(kDataSegment0SourceOffset, s0->source.offset());
+    EXPECT_EQ(4u, s0->source.length());
 
     EXPECT_EQ(WasmInitExpr::kI32Const, s1->dest_addr.kind);
     EXPECT_EQ(0x6ddcc, s1->dest_addr.val.i32_const);
-    EXPECT_EQ(kDataSegment1SourceOffset, s1->source_offset);
-    EXPECT_EQ(10u, s1->source_size);
+    EXPECT_EQ(kDataSegment1SourceOffset, s1->source.offset());
+    EXPECT_EQ(10u, s1->source.length());
   }
 
   EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
@@ -932,10 +932,10 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     WasmFunction* function = result.val.get();
     EXPECT_EQ(0u, function->sig->parameter_count());
     EXPECT_EQ(0u, function->sig->return_count());
-    EXPECT_EQ(0u, function->name_offset);
+    EXPECT_EQ(0u, function->name.offset());
     EXPECT_EQ(static_cast<uint32_t>(SIZEOF_SIG_ENTRY_v_v),
-              function->code_start_offset);
-    EXPECT_EQ(sizeof(data), function->code_end_offset);
+              function->code.offset());
+    EXPECT_EQ(sizeof(data), function->code.end_offset());
     // TODO(titzer): verify encoding of local declarations
   }
 }
@@ -1525,7 +1525,7 @@ TEST_F(WasmModuleVerifyTest, Section_Name_No_UTF8) {
 class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
  public:
   void CheckSections(const byte* module_start, const byte* module_end,
-                     CustomSectionOffset expected[], size_t num_expected) {
+                     const CustomSectionOffset* expected, size_t num_expected) {
     // Add the WASM magic and version number automatically.
     size_t size = static_cast<size_t>(module_end - module_start);
     byte header[] = {WASM_MODULE_HEADER};
@@ -1539,18 +1539,22 @@ class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
     CHECK_EQ(num_expected, custom_sections.size());
 
     for (size_t i = 0; i < num_expected; i++) {
-      EXPECT_EQ(expected[i].section_start, custom_sections[i].section_start);
-      EXPECT_EQ(expected[i].name_offset, custom_sections[i].name_offset);
-      EXPECT_EQ(expected[i].name_length, custom_sections[i].name_length);
-      EXPECT_EQ(expected[i].payload_offset, custom_sections[i].payload_offset);
-      EXPECT_EQ(expected[i].payload_length, custom_sections[i].payload_length);
-      EXPECT_EQ(expected[i].section_length, custom_sections[i].section_length);
+      EXPECT_EQ(expected[i].section.offset(),
+                custom_sections[i].section.offset());
+      EXPECT_EQ(expected[i].section.length(),
+                custom_sections[i].section.length());
+      EXPECT_EQ(expected[i].name.offset(), custom_sections[i].name.offset());
+      EXPECT_EQ(expected[i].name.length(), custom_sections[i].name.length());
+      EXPECT_EQ(expected[i].payload.offset(),
+                custom_sections[i].payload.offset());
+      EXPECT_EQ(expected[i].payload.length(),
+                custom_sections[i].payload.length());
     }
   }
 };
 
 TEST_F(WasmModuleCustomSectionTest, ThreeUnknownSections) {
-  static const byte data[] = {
+  static constexpr byte data[] = {
       U32_LE(kWasmMagic),                                         // --
       U32_LE(kWasmVersion),                                       // --
       SECTION(Unknown, 4),  1, 'X', 17,  18,                      // --
@@ -1558,11 +1562,11 @@ TEST_F(WasmModuleCustomSectionTest, ThreeUnknownSections) {
       SECTION(Unknown, 8),  5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
   };
 
-  static CustomSectionOffset expected[] = {
-      // sec_start, nm_offset, nm_length, py_offset, py_length, sec_length
-      {10, 11, 1, 12, 2, 4},  // --
-      {16, 17, 3, 20, 5, 9},  // --
-      {27, 28, 5, 33, 2, 8},  // --
+  static const CustomSectionOffset expected[] = {
+      // section, name, payload
+      {{10, 4}, {11, 1}, {12, 2}},  // --
+      {{16, 9}, {17, 3}, {20, 5}},  // --
+      {{27, 8}, {28, 5}, {33, 2}},  // --
   };
 
   CheckSections(data, data + sizeof(data), expected, arraysize(expected));
@@ -1590,10 +1594,10 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
       8,  // --
   };
 
-  static CustomSectionOffset expected[] = {
-      // sec_start, nm_offset, nm_length, py_offset, py_length, sec_length
-      {19, 20, 1, 21, 2, 4},  // --
-      {29, 30, 5, 35, 2, 8},  // --
+  static const CustomSectionOffset expected[] = {
+      // section, name, payload
+      {{19, 4}, {20, 1}, {21, 2}},  // --
+      {{29, 8}, {30, 5}, {35, 2}},  // --
   };
 
   CheckSections(data, data + sizeof(data), expected, arraysize(expected));

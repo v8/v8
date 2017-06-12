@@ -15,7 +15,6 @@
 #include "src/parsing/preparse-data.h"
 
 #include "src/wasm/signature-map.h"
-#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -25,6 +24,7 @@ class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmModuleObject;
 class WasmInstanceObject;
+class WasmTableObject;
 class WasmMemoryObject;
 
 namespace compiler {
@@ -70,15 +70,34 @@ struct WasmInitExpr {
   }
 };
 
+// Reference to a string in the wire bytes.
+class WireBytesRef {
+ public:
+  WireBytesRef() : WireBytesRef(0, 0) {}
+  WireBytesRef(uint32_t offset, uint32_t length)
+      : offset_(offset), length_(length) {
+    DCHECK_IMPLIES(offset_ == 0, length_ == 0);
+    DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
+  }
+
+  uint32_t offset() const { return offset_; }
+  uint32_t length() const { return length_; }
+  uint32_t end_offset() const { return offset_ + length_; }
+  bool is_empty() const { return length_ == 0; }
+  bool is_set() const { return offset_ != 0; }
+
+ private:
+  uint32_t offset_;
+  uint32_t length_;
+};
+
 // Static representation of a wasm function.
 struct WasmFunction {
   FunctionSig* sig;      // signature of the function.
   uint32_t func_index;   // index into the function table.
   uint32_t sig_index;    // index into the signature table.
-  uint32_t name_offset;  // offset in the module bytes of the name, if any.
-  uint32_t name_length;  // length in bytes of the name.
-  uint32_t code_start_offset;    // offset in the module bytes of code start.
-  uint32_t code_end_offset;      // offset in the module bytes of code end.
+  WireBytesRef name;     // function name, if any.
+  WireBytesRef code;     // code of this function.
   bool imported;
   bool exported;
 };
@@ -96,8 +115,7 @@ struct WasmGlobal {
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
   WasmInitExpr dest_addr;  // destination memory address of the data.
-  uint32_t source_offset;  // start offset in the module bytes.
-  uint32_t source_size;    // end offset in the module bytes.
+  WireBytesRef source;     // start offset in the module bytes.
 };
 
 // Static representation of a wasm indirect call table.
@@ -121,18 +139,15 @@ struct WasmTableInit {
 
 // Static representation of a wasm import.
 struct WasmImport {
-  uint32_t module_name_length;  // length in bytes of the module name.
-  uint32_t module_name_offset;  // offset in module bytes of the module name.
-  uint32_t field_name_length;   // length in bytes of the import name.
-  uint32_t field_name_offset;   // offset in module bytes of the import name.
-  WasmExternalKind kind;        // kind of the import.
-  uint32_t index;               // index into the respective space.
+  WireBytesRef module_name;  // module name.
+  WireBytesRef field_name;   // import name.
+  WasmExternalKind kind;     // kind of the import.
+  uint32_t index;            // index into the respective space.
 };
 
 // Static representation of a wasm export.
 struct WasmExport {
-  uint32_t name_length;   // length in bytes of the exported name.
-  uint32_t name_offset;   // offset in module bytes of the name to export.
+  WireBytesRef name;      // exported name.
   WasmExternalKind kind;  // kind of the export.
   uint32_t index;         // index into the respective space.
 };
@@ -169,8 +184,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_imported_functions = 0;         // number of imported functions.
   uint32_t num_declared_functions = 0;         // number of declared functions.
   uint32_t num_exported_functions = 0;         // number of exported functions.
-  uint32_t name_offset = 0;  // offset in the module bytes of the name, if any.
-  uint32_t name_length = 0;  // length in bytes of the name.
+  WireBytesRef name = {0, 0};                  // module name, if any.
   // TODO(wasm): Add url here, for spec'ed location information.
   std::vector<FunctionSig*> signatures;        // signatures in this module.
   std::vector<WasmFunction> functions;         // functions in this module.
@@ -255,31 +269,29 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   }
 
   // Get a string stored in the module bytes representing a name.
-  WasmName GetName(uint32_t offset, uint32_t length) const {
-    if (length == 0) return {"<?>", 3};  // no name.
-    CHECK(BoundsCheck(offset, length));
-    DCHECK_GE(length, 0);
+  WasmName GetName(WireBytesRef ref) const {
+    if (ref.is_empty()) return {"<?>", 3};  // no name.
+    CHECK(BoundsCheck(ref.offset(), ref.length()));
     return Vector<const char>::cast(
-        module_bytes_.SubVector(offset, offset + length));
+        module_bytes_.SubVector(ref.offset(), ref.end_offset()));
   }
 
   // Get a string stored in the module bytes representing a function name.
   WasmName GetName(const WasmFunction* function) const {
-    return GetName(function->name_offset, function->name_length);
+    return GetName(function->name);
   }
 
   // Get a string stored in the module bytes representing a name.
-  WasmName GetNameOrNull(uint32_t offset, uint32_t length) const {
-    if (offset == 0 && length == 0) return {NULL, 0};  // no name.
-    CHECK(BoundsCheck(offset, length));
-    DCHECK_GE(length, 0);
+  WasmName GetNameOrNull(WireBytesRef ref) const {
+    if (!ref.is_set()) return {NULL, 0};  // no name.
+    CHECK(BoundsCheck(ref.offset(), ref.length()));
     return Vector<const char>::cast(
-        module_bytes_.SubVector(offset, offset + length));
+        module_bytes_.SubVector(ref.offset(), ref.end_offset()));
   }
 
   // Get a string stored in the module bytes representing a function name.
   WasmName GetNameOrNull(const WasmFunction* function) const {
-    return GetNameOrNull(function->name_offset, function->name_length);
+    return GetNameOrNull(function->name);
   }
 
   // Checks the given offset range is contained within the module bytes.
@@ -289,8 +301,8 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   }
 
   Vector<const byte> GetFunctionBytes(const WasmFunction* function) const {
-    return module_bytes_.SubVector(function->code_start_offset,
-                                   function->code_end_offset);
+    return module_bytes_.SubVector(function->code.offset(),
+                                   function->code.end_offset());
   }
 
   const byte* start() const { return module_bytes_.start(); }

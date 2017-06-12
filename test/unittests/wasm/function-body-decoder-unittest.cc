@@ -210,10 +210,8 @@ class TestModuleEnv : public ModuleEnv {
     mod.functions.push_back({sig,      // sig
                              0,        // func_index
                              0,        // sig_index
-                             0,        // name_offset
-                             0,        // name_length
-                             0,        // code_start_offset
-                             0,        // code_end_offset
+                             {0, 0},   // name
+                             {0, 0},   // code
                              false,    // import
                              false});  // export
     CHECK(mod.functions.size() <= 127);

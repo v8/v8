@@ -331,7 +331,7 @@ void wasm::UnpackAndRegisterProtectedInstructions(
 
 std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
-  if (name.function_->name_offset > 0) {
+  if (name.function_->name.is_set()) {
     if (name.name_.start()) {
       os << ":";
       os.write(name.name_.start(), name.name_.length());
@@ -589,13 +589,11 @@ Handle<JSArray> wasm::GetImports(Isolate* isolate,
 
     MaybeHandle<String> import_module =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, import.module_name_offset,
-            import.module_name_length);
+            isolate, compiled_module, import.module_name);
 
     MaybeHandle<String> import_name =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, import.field_name_offset,
-            import.field_name_length);
+            isolate, compiled_module, import.field_name);
 
     JSObject::AddProperty(entry, module_string, import_module.ToHandleChecked(),
                           NONE);
@@ -660,7 +658,7 @@ Handle<JSArray> wasm::GetExports(Isolate* isolate,
 
     MaybeHandle<String> export_name =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, exp.name_offset, exp.name_length);
+            isolate, compiled_module, exp.name);
 
     JSObject::AddProperty(entry, name_string, export_name.ToHandleChecked(),
                           NONE);
@@ -694,10 +692,10 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
   std::vector<Handle<Object>> matching_sections;
 
   // Gather matching sections.
-  for (auto section : custom_sections) {
+  for (auto& section : custom_sections) {
     MaybeHandle<String> section_name =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, section.name_offset, section.name_length);
+            isolate, compiled_module, section.name);
 
     if (!name->Equals(*section_name.ToHandleChecked())) continue;
 
@@ -705,7 +703,7 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
     void* allocation_base = nullptr;  // Set by TryAllocateBackingStore
     size_t allocation_length = 0;     // Set by TryAllocateBackingStore
     const bool enable_guard_regions = false;
-    void* memory = TryAllocateBackingStore(isolate, section.payload_length,
+    void* memory = TryAllocateBackingStore(isolate, section.payload.length(),
                                            enable_guard_regions,
                                            allocation_base, allocation_length);
 
@@ -715,13 +713,14 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
       const bool is_external = false;
       JSArrayBuffer::Setup(buffer, isolate, is_external, allocation_base,
                            allocation_length, memory,
-                           static_cast<int>(section.payload_length));
+                           static_cast<int>(section.payload.length()));
       DisallowHeapAllocation no_gc;  // for raw access to string bytes.
       Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
                                             isolate);
       const byte* start =
           reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
-      memcpy(memory, start + section.payload_offset, section.payload_length);
+      memcpy(memory, start + section.payload.offset(),
+             section.payload.length());
       section_data = buffer;
     } else {
       thrower->RangeError("out of memory allocating custom section data");
@@ -982,8 +981,8 @@ void LazyCompilationOrchestrator::CompileFunction(
   uint8_t* module_start = compiled_module->module_bytes()->GetChars();
   const WasmFunction* func = &module_env.module->functions[func_index];
   wasm::FunctionBody body{func->sig, module_start,
-                          module_start + func->code_start_offset,
-                          module_start + func->code_end_offset};
+                          module_start + func->code.offset(),
+                          module_start + func->code.end_offset()};
   // TODO(wasm): Refactor this to only get the name if it is really needed for
   // tracing / debugging.
   std::string func_name;
@@ -1071,9 +1070,8 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     int caller_func_index =
         Smi::cast(caller->deoptimization_data()->get(1))->value();
     const byte* func_bytes =
-        module_bytes->GetChars() + compiled_module->module()
-                                       ->functions[caller_func_index]
-                                       .code_start_offset;
+        module_bytes->GetChars() +
+        compiled_module->module()->functions[caller_func_index].code.offset();
     for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
          it.next()) {
       Code* callee =

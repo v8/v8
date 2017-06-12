@@ -140,7 +140,7 @@ Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
 void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
                    int expected_set_byte_offset = -1) {
   int func_offset =
-      runner.module().module->functions[function_index].code_start_offset;
+      runner.module().module->functions[function_index].code.offset();
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   Handle<WasmInstanceObject> instance = runner.module().instance_object();

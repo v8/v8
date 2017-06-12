@@ -47,7 +47,7 @@ class PatchDirectCallsHelper {
     WasmCompiledModule* comp_mod = instance->compiled_module();
     int func_index = Smi::cast(deopt_data->get(1))->value();
     func_bytes = comp_mod->module_bytes()->GetChars() +
-                 comp_mod->module()->functions[func_index].code_start_offset;
+                 comp_mod->module()->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;

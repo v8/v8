@@ -194,11 +194,11 @@ class TestingModule : public ModuleEnv {
       module_.functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false, false});
+    module_.functions.push_back({sig, index, 0, {0, 0}, {0, 0}, false, false});
     if (name) {
       Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
-      module_.functions.back().name_offset = AddBytes(name_vec);
-      module_.functions.back().name_length = name_vec.length();
+      module_.functions.back().name = {
+          AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())};
     }
     instance->function_code.push_back(code);
     if (interpreter_) {
@@ -537,9 +537,9 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
     CHECK_GE(kMaxInt, end - start);
     int len = static_cast<int>(end - start);
-    function_->code_start_offset =
-        testing_module_->AddBytes(Vector<const byte>(start, len));
-    function_->code_end_offset = function_->code_start_offset + len;
+    function_->code = {
+        testing_module_->AddBytes(Vector<const byte>(start, len)),
+        static_cast<uint32_t>(len)};
 
     if (interpreter_) {
       // Add the code to the interpreter.

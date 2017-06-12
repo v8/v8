@@ -11,13 +11,12 @@
 #include "src/objects/script.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 class InterpretedFrame;
-struct WasmModule;
-struct WasmInstance;
 class WasmInterpreter;
 }
 
@@ -499,7 +498,7 @@ class WasmCompiledModule : public FixedArray {
   // string.
   static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-      uint32_t offset, uint32_t size);
+      wasm::WireBytesRef ref);
 
   // Get a list of all possible breakpoints within a given range of this module.
   bool GetPossibleBreakpoints(const debug::Location& start,

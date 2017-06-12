@@ -3914,8 +3914,8 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
           isolate, &module_env->module_env,
           wasm::FunctionBody{
               function->sig, module_env->wire_bytes.start(),
-              module_env->wire_bytes.start() + function->code_start_offset,
-              module_env->wire_bytes.start() + function->code_end_offset},
+              module_env->wire_bytes.start() + function->code.offset(),
+              module_env->wire_bytes.start() + function->code.end_offset()},
           module_env->wire_bytes.GetNameOrNull(function), function->func_index,
           is_sync) {}
 

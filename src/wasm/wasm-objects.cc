@@ -183,8 +183,8 @@ bool IsBreakablePosition(Handle<WasmCompiledModule> compiled_module,
   BodyLocalDecls locals(&tmp);
   const byte* module_start = compiled_module->module_bytes()->GetChars();
   WasmFunction& func = compiled_module->module()->functions[func_index];
-  BytecodeIterator iterator(module_start + func.code_start_offset,
-                            module_start + func.code_end_offset, &locals);
+  BytecodeIterator iterator(module_start + func.code.offset(),
+                            module_start + func.code.end_offset(), &locals);
   DCHECK_LT(0, locals.encoded_size);
   for (uint32_t offset : iterator.offsets()) {
     if (offset > static_cast<uint32_t>(offset_in_func)) break;
@@ -932,7 +932,7 @@ void WasmSharedModuleData::SetBreakpointsOnNewInstance(
     int func_index = compiled_module->GetContainingFunction(position);
     DCHECK_LE(0, func_index);
     WasmFunction& func = compiled_module->module()->functions[func_index];
-    int offset_in_func = position - func.code_start_offset;
+    int offset_in_func = position - func.code.offset();
     WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
   }
 }
@@ -1129,20 +1129,21 @@ void WasmCompiledModule::SetGlobalsStartAddressFrom(
 
 MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    uint32_t offset, uint32_t size) {
+    WireBytesRef ref) {
   // TODO(wasm): cache strings from modules if it's a performance win.
   Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
                                         isolate);
-  DCHECK_GE(module_bytes->length(), offset);
-  DCHECK_GE(module_bytes->length() - offset, size);
+  DCHECK_GE(module_bytes->length(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(
-      reinterpret_cast<const byte*>(module_bytes->GetCharsAddress() + offset),
-      size));
-  DCHECK_GE(kMaxInt, offset);
-  DCHECK_GE(kMaxInt, size);
+      reinterpret_cast<const byte*>(module_bytes->GetCharsAddress() +
+                                    ref.offset()),
+      ref.length()));
+  DCHECK_GE(kMaxInt, ref.offset());
+  DCHECK_GE(kMaxInt, ref.length());
   return isolate->factory()->NewStringFromUtf8SubString(
-      module_bytes, static_cast<int>(offset), static_cast<int>(size));
+      module_bytes, static_cast<int>(ref.offset()),
+      static_cast<int>(ref.length()));
 }
 
 bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
@@ -1221,10 +1222,9 @@ uint32_t WasmCompiledModule::default_mem_size() const {
 MaybeHandle<String> WasmCompiledModule::GetModuleNameOrNull(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   WasmModule* module = compiled_module->module();
-  DCHECK_IMPLIES(module->name_offset == 0, module->name_length == 0);
-  if (!module->name_offset) return {};
+  if (!module->name.is_set()) return {};
   return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-      isolate, compiled_module, module->name_offset, module->name_length);
+      isolate, compiled_module, module->name);
 }
 
 MaybeHandle<String> WasmCompiledModule::GetFunctionNameOrNull(
@@ -1232,10 +1232,9 @@ MaybeHandle<String> WasmCompiledModule::GetFunctionNameOrNull(
     uint32_t func_index) {
   DCHECK_LT(func_index, compiled_module->module()->functions.size());
   WasmFunction& function = compiled_module->module()->functions[func_index];
-  DCHECK_IMPLIES(function.name_offset == 0, function.name_length == 0);
-  if (!function.name_offset) return {};
+  if (!function.name.is_set()) return {};
   return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-      isolate, compiled_module, function.name_offset, function.name_length);
+      isolate, compiled_module, function.name);
 }
 
 Handle<String> WasmCompiledModule::GetFunctionName(
@@ -1252,17 +1251,17 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
   DCHECK_GT(module()->functions.size(), func_index);
   WasmFunction& function = module()->functions[func_index];
   SeqOneByteString* bytes = module_bytes();
-  DCHECK_GE(bytes->length(), function.name_offset);
-  DCHECK_GE(bytes->length() - function.name_offset, function.name_length);
-  return Vector<const uint8_t>(bytes->GetCharsAddress() + function.name_offset,
-                               function.name_length);
+  DCHECK_GE(bytes->length(), function.name.end_offset());
+  return Vector<const uint8_t>(
+      bytes->GetCharsAddress() + function.name.offset(),
+      function.name.length());
 }
 
 int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) {
   std::vector<WasmFunction>& functions = module()->functions;
   if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
-  DCHECK_GE(kMaxInt, functions[func_index].code_start_offset);
-  return static_cast<int>(functions[func_index].code_start_offset);
+  DCHECK_GE(kMaxInt, functions[func_index].code.offset());
+  return static_cast<int>(functions[func_index].code.offset());
 }
 
 int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) {
@@ -1274,7 +1273,7 @@ int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) {
   if (right == 0) return false;
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
-    if (functions[mid].code_start_offset <= byte_offset) {
+    if (functions[mid].code.offset() <= byte_offset) {
       left = mid;
     } else {
       right = mid;
@@ -1282,8 +1281,8 @@ int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) {
   }
   // If the found function does not contains the given position, return -1.
   WasmFunction& func = functions[left];
-  if (byte_offset < func.code_start_offset ||
-      byte_offset >= func.code_end_offset) {
+  if (byte_offset < func.code.offset() ||
+      byte_offset >= func.code.end_offset()) {
     return -1;
   }
 
@@ -1298,9 +1297,9 @@ bool WasmCompiledModule::GetPositionInfo(uint32_t position,
   WasmFunction& function = module()->functions[func_index];
 
   info->line = func_index;
-  info->column = position - function.code_start_offset;
-  info->line_start = function.code_start_offset;
-  info->line_end = function.code_end_offset;
+  info->column = position - function.code.offset();
+  info->line_start = function.code.offset();
+  info->line_end = function.code.end_offset();
   return true;
 }
 
@@ -1361,8 +1360,7 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
   for (int func = 0; func < num_functions; ++func) {
     std::vector<AsmJsOffsetEntry>& func_asm_offsets = asm_offsets.val[func];
     if (func_asm_offsets.empty()) continue;
-    int func_offset =
-        wasm_funs[num_imported_functions + func].code_start_offset;
+    int func_offset = wasm_funs[num_imported_functions + func].code.offset();
     for (AsmJsOffsetEntry& e : func_asm_offsets) {
       // Byte offsets must be strictly monotonously increasing:
       DCHECK_IMPLIES(idx > 0, func_offset + e.byte_offset >
@@ -1389,7 +1387,7 @@ int WasmCompiledModule::GetAsmJsSourcePosition(
 
   DCHECK_LT(func_index, compiled_module->module()->functions.size());
   uint32_t func_code_offset =
-      compiled_module->module()->functions[func_index].code_start_offset;
+      compiled_module->module()->functions[func_index].code.offset();
   uint32_t total_offset = func_code_offset + byte_offset;
 
   // Binary search for the total byte offset.
@@ -1450,17 +1448,16 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
   // start_offset and end_offset are module-relative byte offsets.
   uint32_t start_func_index = start.GetLineNumber();
   if (start_func_index >= functions.size()) return false;
-  int start_func_len = functions[start_func_index].code_end_offset -
-                       functions[start_func_index].code_start_offset;
+  int start_func_len = functions[start_func_index].code.length();
   if (start.GetColumnNumber() > start_func_len) return false;
   uint32_t start_offset =
-      functions[start_func_index].code_start_offset + start.GetColumnNumber();
+      functions[start_func_index].code.offset() + start.GetColumnNumber();
   uint32_t end_func_index;
   uint32_t end_offset;
   if (end.IsEmpty()) {
     // Default: everything till the end of the Script.
     end_func_index = static_cast<uint32_t>(functions.size() - 1);
-    end_offset = functions[end_func_index].code_end_offset;
+    end_offset = functions[end_func_index].code.end_offset();
   } else {
     // If end is specified: Use it and check for valid input.
     end_func_index = static_cast<uint32_t>(end.GetLineNumber());
@@ -1470,12 +1467,13 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
     // next function also.
     if (end.GetColumnNumber() == 0 && end_func_index > 0) {
       --end_func_index;
-      end_offset = functions[end_func_index].code_end_offset;
+      end_offset = functions[end_func_index].code.end_offset();
     } else {
       if (end_func_index >= functions.size()) return false;
       end_offset =
-          functions[end_func_index].code_start_offset + end.GetColumnNumber();
-      if (end_offset > functions[end_func_index].code_end_offset) return false;
+          functions[end_func_index].code.offset() + end.GetColumnNumber();
+      if (end_offset > functions[end_func_index].code.end_offset())
+        return false;
     }
   }
 
@@ -1486,14 +1484,14 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
   for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {
     WasmFunction& func = functions[func_idx];
-    if (func.code_start_offset == func.code_end_offset) continue;
+    if (func.code.length() == 0) continue;
 
     BodyLocalDecls locals(&tmp);
-    BytecodeIterator iterator(module_start + func.code_start_offset,
-                              module_start + func.code_end_offset, &locals);
+    BytecodeIterator iterator(module_start + func.code.offset(),
+                              module_start + func.code.end_offset(), &locals);
     DCHECK_LT(0u, locals.encoded_size);
     for (uint32_t offset : iterator.offsets()) {
-      uint32_t total_offset = func.code_start_offset + offset;
+      uint32_t total_offset = func.code.offset() + offset;
       if (total_offset >= end_offset) {
         DCHECK_EQ(end_func_index, func_idx);
         break;
@@ -1514,7 +1512,7 @@ bool WasmCompiledModule::SetBreakPoint(
   int func_index = compiled_module->GetContainingFunction(*position);
   if (func_index < 0) return false;
   WasmFunction& func = compiled_module->module()->functions[func_index];
-  int offset_in_func = *position - func.code_start_offset;
+  int offset_in_func = *position - func.code.offset();
 
   // According to the current design, we should only be called with valid
   // breakable positions.
