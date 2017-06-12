@@ -1224,9 +1224,10 @@ ModuleResult DecodeWasmModuleInternal(Isolate* isolate,
   if (is_sync) {
     // TODO(karlschimpf): Make this work when asynchronous.
     // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-    (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
-                    : isolate->counters()->wasm_asm_module_size_bytes())
-        ->AddSample(static_cast<int>(size));
+    auto counter = origin == kWasmOrigin
+                       ? isolate->counters()->wasm_wasm_module_size_bytes()
+                       : isolate->counters()->wasm_asm_module_size_bytes();
+    counter->AddSample(static_cast<int>(size));
   }
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
@@ -1239,11 +1240,12 @@ ModuleResult DecodeWasmModuleInternal(Isolate* isolate,
   if (is_sync && result.ok()) {
     // TODO(karlschimpf): Make this work when asynchronous.
     // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-    (IsWasm(origin)
-         ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
-         : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes())
-        ->AddSample(
-            static_cast<int>(result.val->signature_zone->allocation_size()));
+    auto counter =
+        origin == kWasmOrigin
+            ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
+            : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes();
+    counter->AddSample(
+        static_cast<int>(result.val->signature_zone->allocation_size()));
   }
   return result;
 }
@@ -1256,9 +1258,10 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   if (is_sync) {
     // TODO(karlschimpf): Make this work when asynchronous.
     // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-    HistogramTimerScope wasm_decode_module_time_scope(
-        IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
-                       : isolate->counters()->wasm_decode_asm_module_time());
+    auto counter = origin == kWasmOrigin
+                       ? isolate->counters()->wasm_decode_wasm_module_time()
+                       : isolate->counters()->wasm_decode_asm_module_time();
+    HistogramTimerScope wasm_decode_module_time_scope(counter);
     return DecodeWasmModuleInternal(isolate, module_start, module_end,
                                     verify_functions, origin, true);
   }
@@ -1314,12 +1317,14 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
     // https://bugs.chromium.org/p/v8/issues/detail?id=6361
     size_t size = function_end - function_start;
     bool is_wasm = module_env->module_env.is_wasm();
-    (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
-             : isolate->counters()->wasm_asm_function_size_bytes())
-        ->AddSample(static_cast<int>(size));
-    HistogramTimerScope wasm_decode_function_time_scope(
+    auto size_counter =
+        is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
+                : isolate->counters()->wasm_asm_function_size_bytes();
+    size_counter->AddSample(static_cast<int>(size));
+    auto time_counter =
         is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
-                : isolate->counters()->wasm_decode_asm_function_time());
+                : isolate->counters()->wasm_decode_asm_function_time();
+    HistogramTimerScope wasm_decode_function_time_scope(time_counter);
     return DecodeWasmFunctionInternal(isolate, zone, module_env, function_start,
                                       function_end, true);
   }
