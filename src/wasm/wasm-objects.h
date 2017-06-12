@@ -442,6 +442,10 @@ class WasmCompiledModule : public FixedArray {
   static void ReinitializeAfterDeserialization(Isolate*,
                                                Handle<WasmCompiledModule>);
 
+  // Get the module name, if set. Returns an empty handle otherwise.
+  static MaybeHandle<String> GetModuleNameOrNull(
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
   // UTF-8 string.

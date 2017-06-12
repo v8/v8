@@ -728,28 +728,45 @@ class ModuleDecoder : public Decoder {
 
       // Decode function names, ignore the rest.
       // Local names will be decoded when needed.
-      if (name_type == NameSectionType::kFunction) {
-        uint32_t functions_count = inner.consume_u32v("functions count");
-
-        for (; inner.ok() && functions_count > 0; --functions_count) {
-          uint32_t function_index = inner.consume_u32v("function index");
+      switch (name_type) {
+        case NameSectionType::kModule: {
           uint32_t name_length = 0;
           uint32_t name_offset =
-              wasm::consume_string(inner, &name_length, false, "function name");
-
-          // Be lenient with errors in the name section: Ignore illegal
-          // or out-of-order indexes and non-UTF8 names. You can even assign
-          // to the same function multiple times (last valid one wins).
-          if (inner.ok() && function_index < module_->functions.size() &&
+              wasm::consume_string(inner, &name_length, false, "module name");
+          if (inner.ok() &&
               unibrow::Utf8::ValidateEncoding(
                   inner.start() + inner.GetBufferRelativeOffset(name_offset),
                   name_length)) {
-            module_->functions[function_index].name_offset = name_offset;
-            module_->functions[function_index].name_length = name_length;
+            module_->name_length = name_length;
+            module_->name_offset = name_offset;
           }
+          break;
         }
-      } else {
-        inner.consume_bytes(name_payload_len, "name subsection payload");
+        case NameSectionType::kFunction: {
+          uint32_t functions_count = inner.consume_u32v("functions count");
+
+          for (; inner.ok() && functions_count > 0; --functions_count) {
+            uint32_t function_index = inner.consume_u32v("function index");
+            uint32_t name_length = 0;
+            uint32_t name_offset = wasm::consume_string(inner, &name_length,
+                                                        false, "function name");
+
+            // Be lenient with errors in the name section: Ignore illegal
+            // or out-of-order indexes and non-UTF8 names. You can even assign
+            // to the same function multiple times (last valid one wins).
+            if (inner.ok() && function_index < module_->functions.size() &&
+                unibrow::Utf8::ValidateEncoding(
+                    inner.start() + inner.GetBufferRelativeOffset(name_offset),
+                    name_length)) {
+              module_->functions[function_index].name_offset = name_offset;
+              module_->functions[function_index].name_length = name_length;
+            }
+          }
+          break;
+        }
+        default:
+          inner.consume_bytes(name_payload_len, "name subsection payload");
+          break;
       }
     }
     // Skip the whole names section in the outer decoder.

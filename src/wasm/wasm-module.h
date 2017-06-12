@@ -169,6 +169,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_imported_functions = 0;         // number of imported functions.
   uint32_t num_declared_functions = 0;         // number of declared functions.
   uint32_t num_exported_functions = 0;         // number of exported functions.
+  uint32_t name_offset = 0;  // offset in the module bytes of the name, if any.
+  uint32_t name_length = 0;  // length in bytes of the name.
+  // TODO(wasm): Add url here, for spec'ed location information.
   std::vector<FunctionSig*> signatures;        // signatures in this module.
   std::vector<WasmFunction> functions;         // functions in this module.
   std::vector<WasmDataSegment> data_segments;  // data segments in this module.

@@ -1218,6 +1218,15 @@ uint32_t WasmCompiledModule::default_mem_size() const {
   return min_mem_pages() * WasmModule::kPageSize;
 }
 
+MaybeHandle<String> WasmCompiledModule::GetModuleNameOrNull(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+  WasmModule* module = compiled_module->module();
+  DCHECK_IMPLIES(module->name_offset == 0, module->name_length == 0);
+  if (!module->name_offset) return {};
+  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+      isolate, compiled_module, module->name_offset, module->name_length);
+}
+
 MaybeHandle<String> WasmCompiledModule::GetFunctionNameOrNull(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
     uint32_t func_index) {

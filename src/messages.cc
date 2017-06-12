@@ -674,9 +674,23 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
 MaybeHandle<String> WasmStackFrame::ToString() {
   IncrementalStringBuilder builder(isolate_);
 
-  Handle<Object> name = GetFunctionName();
-  if (!name->IsNull(isolate_)) {
-    builder.AppendString(Handle<String>::cast(name));
+  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
+                                             isolate_);
+  MaybeHandle<String> module_name =
+      WasmCompiledModule::GetModuleNameOrNull(isolate_, compiled_module);
+  MaybeHandle<String> function_name = WasmCompiledModule::GetFunctionNameOrNull(
+      isolate_, compiled_module, wasm_func_index_);
+  bool has_name = !module_name.is_null() || !function_name.is_null();
+  if (has_name) {
+    if (module_name.is_null()) {
+      builder.AppendString(function_name.ToHandleChecked());
+    } else {
+      builder.AppendString(module_name.ToHandleChecked());
+      if (!function_name.is_null()) {
+        builder.AppendCString(".");
+        builder.AppendString(function_name.ToHandleChecked());
+      }
+    }
     builder.AppendCString(" (");
   }
 
@@ -689,7 +703,7 @@ MaybeHandle<String> WasmStackFrame::ToString() {
   SNPrintF(ArrayVector(buffer), ":%d", GetPosition());
   builder.AppendCString(buffer);
 
-  if (!name->IsNull(isolate_)) builder.AppendCString(")");
+  if (has_name) builder.AppendCString(")");
 
   return builder.Finish();
 }
