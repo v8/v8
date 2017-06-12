@@ -182,7 +182,7 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
             Condition cond = al) {
-    if (!src.is_reg() || !src.rm().is(dst) || sbit != LeaveCC) {
+    if (!src.IsRegister() || !src.rm().is(dst) || sbit != LeaveCC) {
       mov(dst, src, sbit, cond);
     }
   }

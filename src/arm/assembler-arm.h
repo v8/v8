@@ -527,11 +527,19 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedNumber(double value);  // Smi or HeapNumber
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const) {
+  bool IsRegister() const {
     return rm_.is_valid() &&
         rs_.is(no_reg) &&
         shift_op_ == LSL &&
         shift_imm_ == 0;
+  }
+  // Return true if this is a register operand shifted with an immediate.
+  bool IsImmediateShiftedRegister() const {
+    return rm_.is_valid() && !rs_.is_valid();
+  }
+  // Return true if this is a register operand shifted with a register.
+  bool IsRegisterShiftedRegister() const {
+    return rm_.is_valid() && rs_.is_valid();
   }
 
   // Return the number of actual instructions required to implement the given
@@ -545,28 +553,31 @@ class Operand BASE_EMBEDDED {
   //
   // The value returned is only valid as long as no entries are added to the
   // constant pool between this call and the actual instruction being emitted.
-  int instructions_required(const Assembler* assembler, Instr instr = 0) const;
-  bool must_output_reloc_info(const Assembler* assembler) const;
+  int InstructionsRequired(const Assembler* assembler, Instr instr = 0) const;
+  bool MustOutputRelocInfo(const Assembler* assembler) const;
 
   inline int32_t immediate() const {
-    DCHECK(!rm_.is_valid());
-    DCHECK(!is_heap_number());
+    DCHECK(IsImmediate());
+    DCHECK(!IsHeapNumber());
     return value_.immediate;
+  }
+  bool IsImmediate() const {
+    return !rm_.is_valid();
   }
 
   double heap_number() const {
-    DCHECK(is_heap_number());
+    DCHECK(IsHeapNumber());
     return value_.heap_number;
+  }
+  bool IsHeapNumber() const {
+    DCHECK_IMPLIES(is_heap_number_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_, rmode_ == RelocInfo::EMBEDDED_OBJECT);
+    return is_heap_number_;
   }
 
   Register rm() const { return rm_; }
   Register rs() const { return rs_; }
   ShiftOp shift_op() const { return shift_op_; }
-  bool is_heap_number() const {
-    DCHECK_IMPLIES(is_heap_number_, !rm_.is_valid());
-    DCHECK_IMPLIES(is_heap_number_, rmode_ == RelocInfo::EMBEDDED_OBJECT);
-    return is_heap_number_;
-  }
 
 
  private:
@@ -1844,16 +1855,21 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
 
   // 32-bit immediate values
-  void move_32_bit_immediate(Register rd,
-                             const Operand& x,
-                             Condition cond = al);
+  void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 
   // Instruction generation
-  void addrmod1(Instr instr, Register rn, Register rd, const Operand& x);
-  void addrmod2(Instr instr, Register rd, const MemOperand& x);
-  void addrmod3(Instr instr, Register rd, const MemOperand& x);
-  void addrmod4(Instr instr, Register rn, RegList rl);
-  void addrmod5(Instr instr, CRegister crd, const MemOperand& x);
+  void AddrMode1(Instr instr, Register rd, Register rn, const Operand& x);
+  // Attempt to encode operand |x| for instruction |instr| and return true on
+  // success. The result will be encoded in |instr| directly. This method may
+  // change the opcode if deemed beneficial, for instance, MOV may be turned
+  // into MVN, ADD into SUB, AND into BIC, ...etc.  The only reason this method
+  // may fail is that the operand is an immediate that cannot be encoded.
+  bool AddrMode1TryEncodeOperand(Instr* instr, const Operand& x);
+
+  void AddrMode2(Instr instr, Register rd, const MemOperand& x);
+  void AddrMode3(Instr instr, Register rd, const MemOperand& x);
+  void AddrMode4(Instr instr, Register rn, RegList rl);
+  void AddrMode5(Instr instr, CRegister crd, const MemOperand& x);
 
   // Labels
   void print(Label* L);

@@ -1045,15 +1045,14 @@ void Assembler::next(Label* L) {
   }
 }
 
+namespace {
 
 // Low-level code emission routines depending on the addressing mode.
 // If this returns true then you have to use the rotate_imm and immed_8
 // that it returns, because it may have already changed the instruction
 // to match them!
-static bool fits_shifter(uint32_t imm32,
-                         uint32_t* rotate_imm,
-                         uint32_t* immed_8,
-                         Instr* instr) {
+bool FitsShifter(uint32_t imm32, uint32_t* rotate_imm, uint32_t* immed_8,
+                 Instr* instr) {
   // imm32 must be unsigned.
   for (int rot = 0; rot < 16; rot++) {
     uint32_t imm8 = base::bits::RotateLeft32(imm32, 2 * rot);
@@ -1067,7 +1066,7 @@ static bool fits_shifter(uint32_t imm32,
   // immediate fits, change the opcode.
   if (instr != NULL) {
     if ((*instr & kMovMvnMask) == kMovMvnPattern) {
-      if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
+      if (FitsShifter(~imm32, rotate_imm, immed_8, NULL)) {
         *instr ^= kMovMvnFlip;
         return true;
       } else if ((*instr & kMovLeaveCCMask) == kMovLeaveCCPattern) {
@@ -1081,7 +1080,7 @@ static bool fits_shifter(uint32_t imm32,
         }
       }
     } else if ((*instr & kCmpCmnMask) == kCmpCmnPattern) {
-      if (fits_shifter(-static_cast<int>(imm32), rotate_imm, immed_8, NULL)) {
+      if (FitsShifter(-static_cast<int>(imm32), rotate_imm, immed_8, NULL)) {
         *instr ^= kCmpCmnFlip;
         return true;
       }
@@ -1089,13 +1088,13 @@ static bool fits_shifter(uint32_t imm32,
       Instr alu_insn = (*instr & kALUMask);
       if (alu_insn == ADD ||
           alu_insn == SUB) {
-        if (fits_shifter(-static_cast<int>(imm32), rotate_imm, immed_8, NULL)) {
+        if (FitsShifter(-static_cast<int>(imm32), rotate_imm, immed_8, NULL)) {
           *instr ^= kAddSubFlip;
           return true;
         }
       } else if (alu_insn == AND ||
                  alu_insn == BIC) {
-        if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
+        if (FitsShifter(~imm32, rotate_imm, immed_8, NULL)) {
           *instr ^= kAndBicFlip;
           return true;
         }
@@ -1105,13 +1104,11 @@ static bool fits_shifter(uint32_t imm32,
   return false;
 }
 
-namespace {
-
 // We have to use the temporary register for things that can be relocated even
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-bool must_output_reloc_info(RelocInfo::Mode rmode, const Assembler* assembler) {
+bool MustOutputRelocInfo(RelocInfo::Mode rmode, const Assembler* assembler) {
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != NULL && assembler->predictable_code_size()) return true;
     return assembler->serializer_enabled();
@@ -1121,9 +1118,9 @@ bool must_output_reloc_info(RelocInfo::Mode rmode, const Assembler* assembler) {
   return true;
 }
 
-bool use_mov_immediate_load(const Operand& x, const Assembler* assembler) {
+bool UseMovImmediateLoad(const Operand& x, const Assembler* assembler) {
   DCHECK(assembler != nullptr);
-  if (x.must_output_reloc_info(assembler)) {
+  if (x.MustOutputRelocInfo(assembler)) {
     // Prefer constant pool if data is likely to be patched.
     return false;
   } else {
@@ -1134,22 +1131,22 @@ bool use_mov_immediate_load(const Operand& x, const Assembler* assembler) {
 
 }  // namespace
 
-bool Operand::must_output_reloc_info(const Assembler* assembler) const {
-  return v8::internal::must_output_reloc_info(rmode_, assembler);
+bool Operand::MustOutputRelocInfo(const Assembler* assembler) const {
+  return v8::internal::MustOutputRelocInfo(rmode_, assembler);
 }
 
-int Operand::instructions_required(const Assembler* assembler,
-                                   Instr instr) const {
+int Operand::InstructionsRequired(const Assembler* assembler,
+                                  Instr instr) const {
   DCHECK(assembler != nullptr);
   if (rm_.is_valid()) return 1;
   uint32_t dummy1, dummy2;
-  if (must_output_reloc_info(assembler) ||
-      !fits_shifter(immediate(), &dummy1, &dummy2, &instr)) {
+  if (MustOutputRelocInfo(assembler) ||
+      !FitsShifter(immediate(), &dummy1, &dummy2, &instr)) {
     // The immediate operand cannot be encoded as a shifter operand, or use of
     // constant pool is required.  First account for the instructions required
     // for the constant pool or immediate load
     int instructions;
-    if (use_mov_immediate_load(*this, assembler)) {
+    if (UseMovImmediateLoad(*this, assembler)) {
       DCHECK(CpuFeatures::IsSupported(ARMv7));
       // A movw / movt immediate load.
       instructions = 2;
@@ -1171,15 +1168,13 @@ int Operand::instructions_required(const Assembler* assembler,
   }
 }
 
-
-void Assembler::move_32_bit_immediate(Register rd,
-                                      const Operand& x,
-                                      Condition cond) {
-  if (use_mov_immediate_load(x, this)) {
-    // use_mov_immediate_load should return false when we need to output
+void Assembler::Move32BitImmediate(Register rd, const Operand& x,
+                                   Condition cond) {
+  if (UseMovImmediateLoad(x, this)) {
+    // UseMovImmediateLoad should return false when we need to output
     // relocation info, since we prefer the constant pool for values that
     // can be patched.
-    DCHECK(!x.must_output_reloc_info(this));
+    DCHECK(!x.MustOutputRelocInfo(this));
     Register target = rd.code() == pc.code() ? ip : rd;
     if (CpuFeatures::IsSupported(ARMv7)) {
       uint32_t imm32 = static_cast<uint32_t>(x.immediate());
@@ -1192,7 +1187,7 @@ void Assembler::move_32_bit_immediate(Register rd,
     }
   } else {
     int32_t immediate;
-    if (x.is_heap_number()) {
+    if (x.IsHeapNumber()) {
       RequestHeapNumber(x.heap_number());
       immediate = 0;
     } else {
@@ -1203,51 +1198,84 @@ void Assembler::move_32_bit_immediate(Register rd,
   }
 }
 
-
-void Assembler::addrmod1(Instr instr,
-                         Register rn,
-                         Register rd,
-                         const Operand& x) {
+void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
+                          const Operand& x) {
   CheckBuffer();
+  uint32_t opcode = instr & kOpCodeMask;
+  bool set_flags = (instr & S) != 0;
+  DCHECK((opcode == ADC) || (opcode == ADD) || (opcode == AND) ||
+         (opcode == BIC) || (opcode == EOR) || (opcode == ORR) ||
+         (opcode == RSB) || (opcode == RSC) || (opcode == SBC) ||
+         (opcode == SUB) || (opcode == CMN) || (opcode == CMP) ||
+         (opcode == TEQ) || (opcode == TST) || (opcode == MOV) ||
+         (opcode == MVN));
+  // For comparison instructions, rd is not defined.
+  DCHECK(rd.is_valid() || (opcode == CMN) || (opcode == CMP) ||
+         (opcode == TEQ) || (opcode == TST));
+  // For move instructions, rn is not defined.
+  DCHECK(rn.is_valid() || (opcode == MOV) || (opcode == MVN));
+  DCHECK(rd.is_valid() || rn.is_valid());
   DCHECK((instr & ~(kCondMask | kOpCodeMask | S)) == 0);
-  if (!x.rm_.is_valid()) {
-    // Immediate.
-    uint32_t rotate_imm;
-    uint32_t immed_8;
-    if (x.must_output_reloc_info(this) ||
-        !fits_shifter(x.immediate(), &rotate_imm, &immed_8, &instr)) {
+  if (!AddrMode1TryEncodeOperand(&instr, x)) {
+    DCHECK(x.IsImmediate());
+    // Upon failure to encode, the opcode should not have changed.
+    DCHECK(opcode == (instr & kOpCodeMask));
+    Condition cond = Instruction::ConditionField(instr);
+    if ((opcode == MOV) && !set_flags) {
+      // Generate a sequence of mov instructions or a load from the constant
+      // pool only for a MOV instruction which does not set the flags.
+      DCHECK(!rn.is_valid());
+      Move32BitImmediate(rd, x, cond);
+    } else {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
-      // However, if the original instruction is a 'mov rd, x' (not setting the
-      // condition code), then replace it with a 'ldr rd, [pc]'.
-      CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
-      Condition cond = Instruction::ConditionField(instr);
-      if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
-        move_32_bit_immediate(rd, x, cond);
-      } else {
-        mov(ip, x, LeaveCC, cond);
-        addrmod1(instr, rn, rd, Operand(ip));
-      }
-      return;
+      CHECK(!rn.is(ip));  // rn should never be ip, or it will be trashed.
+      mov(ip, x, LeaveCC, cond);
+      AddrMode1(instr, rd, rn, Operand(ip));
     }
-    instr |= I | rotate_imm*B8 | immed_8;
-  } else if (!x.rs_.is_valid()) {
-    // Immediate shift.
-    instr |= x.shift_imm_*B7 | x.shift_op_ | x.rm_.code();
-  } else {
-    // Register shift.
-    DCHECK(!rn.is(pc) && !rd.is(pc) && !x.rm_.is(pc) && !x.rs_.is(pc));
-    instr |= x.rs_.code()*B8 | x.shift_op_ | B4 | x.rm_.code();
+    return;
   }
-  emit(instr | rn.code()*B16 | rd.code()*B12);
+  if (!rd.is_valid()) {
+    // Emit a comparison instruction.
+    emit(instr | rn.code() * B16);
+  } else if (!rn.is_valid()) {
+    // Emit a move instruction. If the operand is a register-shifted register,
+    // then prevent the destination from being PC as this is unpredictable.
+    DCHECK(!x.IsRegisterShiftedRegister() || !rd.is(pc));
+    emit(instr | rd.code() * B12);
+  } else {
+    emit(instr | rn.code() * B16 | rd.code() * B12);
+  }
   if (rn.is(pc) || x.rm_.is(pc)) {
     // Block constant pool emission for one instruction after reading pc.
     BlockConstPoolFor(1);
   }
 }
 
+bool Assembler::AddrMode1TryEncodeOperand(Instr* instr, const Operand& x) {
+  if (x.IsImmediate()) {
+    // Immediate.
+    uint32_t rotate_imm;
+    uint32_t immed_8;
+    if (x.MustOutputRelocInfo(this) ||
+        !FitsShifter(x.immediate(), &rotate_imm, &immed_8, instr)) {
+      // Let the caller handle generating multiple instructions.
+      return false;
+    }
+    *instr |= I | rotate_imm * B8 | immed_8;
+  } else if (x.IsImmediateShiftedRegister()) {
+    *instr |= x.shift_imm_ * B7 | x.shift_op_ | x.rm_.code();
+  } else {
+    DCHECK(x.IsRegisterShiftedRegister());
+    // It is unpredictable to use the PC in this case.
+    DCHECK(!x.rm_.is(pc) && !x.rs_.is(pc));
+    *instr |= x.rs_.code() * B8 | x.shift_op_ | B4 | x.rm_.code();
+  }
 
-void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
+  return true;
+}
+
+void Assembler::AddrMode2(Instr instr, Register rd, const MemOperand& x) {
   DCHECK((instr & ~(kCondMask | B | L)) == B26);
   int am = x.am_;
   if (!x.rm_.is_valid()) {
@@ -1262,7 +1290,7 @@ void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
       // rn (and rd in a load) should never be ip, or will be trashed.
       DCHECK(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
       mov(ip, Operand(x.offset_), LeaveCC, Instruction::ConditionField(instr));
-      addrmod2(instr, rd, MemOperand(x.rn_, ip, x.am_));
+      AddrMode2(instr, rd, MemOperand(x.rn_, ip, x.am_));
       return;
     }
     DCHECK(offset_12 >= 0);  // no masking needed
@@ -1278,8 +1306,7 @@ void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
   emit(instr | am | x.rn_.code()*B16 | rd.code()*B12);
 }
 
-
-void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
+void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
   DCHECK((instr & ~(kCondMask | L | S6 | H)) == (B4 | B7));
   DCHECK(x.rn_.is_valid());
   int am = x.am_;
@@ -1295,7 +1322,7 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
       // rn (and rd in a load) should never be ip, or will be trashed.
       DCHECK(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
       mov(ip, Operand(x.offset_), LeaveCC, Instruction::ConditionField(instr));
-      addrmod3(instr, rd, MemOperand(x.rn_, ip, x.am_));
+      AddrMode3(instr, rd, MemOperand(x.rn_, ip, x.am_));
       return;
     }
     DCHECK(offset_8 >= 0);  // no masking needed
@@ -1306,7 +1333,7 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
     DCHECK(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
     mov(ip, Operand(x.rm_, x.shift_op_, x.shift_imm_), LeaveCC,
         Instruction::ConditionField(instr));
-    addrmod3(instr, rd, MemOperand(x.rn_, ip, x.am_));
+    AddrMode3(instr, rd, MemOperand(x.rn_, ip, x.am_));
     return;
   } else {
     // Register offset.
@@ -1317,16 +1344,14 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
   emit(instr | am | x.rn_.code()*B16 | rd.code()*B12);
 }
 
-
-void Assembler::addrmod4(Instr instr, Register rn, RegList rl) {
+void Assembler::AddrMode4(Instr instr, Register rn, RegList rl) {
   DCHECK((instr & ~(kCondMask | P | U | W | L)) == B27);
   DCHECK(rl != 0);
   DCHECK(!rn.is(pc));
   emit(instr | rn.code()*B16 | rl);
 }
 
-
-void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
+void Assembler::AddrMode5(Instr instr, CRegister crd, const MemOperand& x) {
   // Unindexed addressing is not encoded by this function.
   DCHECK_EQ((B27 | B26),
             (instr & ~(kCondMask | kCoprocessorMask | P | U | N | W | L)));
@@ -1342,7 +1367,7 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
   DCHECK(is_uint8(offset_8));  // unsigned word offset must fit in a byte
   DCHECK((am & (P|W)) == P || !x.rn_.is(pc));  // no pc base with writeback
 
-  // Post-indexed addressing requires W == 1; different than in addrmod2/3.
+  // Post-indexed addressing requires W == 1; different than in AddrMode2/3.
   if ((am & P) == 0)
     am |= W;
 
@@ -1436,19 +1461,19 @@ void Assembler::blx(Label* L) {
 
 void Assembler::and_(Register dst, Register src1, const Operand& src2,
                      SBit s, Condition cond) {
-  addrmod1(cond | AND | s, src1, dst, src2);
+  AddrMode1(cond | AND | s, dst, src1, src2);
 }
 
 
 void Assembler::eor(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | EOR | s, src1, dst, src2);
+  AddrMode1(cond | EOR | s, dst, src1, src2);
 }
 
 
 void Assembler::sub(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | SUB | s, src1, dst, src2);
+  AddrMode1(cond | SUB | s, dst, src1, src2);
 }
 
 void Assembler::sub(Register dst, Register src1, Register src2, SBit s,
@@ -1458,13 +1483,13 @@ void Assembler::sub(Register dst, Register src1, Register src2, SBit s,
 
 void Assembler::rsb(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | RSB | s, src1, dst, src2);
+  AddrMode1(cond | RSB | s, dst, src1, src2);
 }
 
 
 void Assembler::add(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | ADD | s, src1, dst, src2);
+  AddrMode1(cond | ADD | s, dst, src1, src2);
 }
 
 void Assembler::add(Register dst, Register src1, Register src2, SBit s,
@@ -1474,24 +1499,24 @@ void Assembler::add(Register dst, Register src1, Register src2, SBit s,
 
 void Assembler::adc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | ADC | s, src1, dst, src2);
+  AddrMode1(cond | ADC | s, dst, src1, src2);
 }
 
 
 void Assembler::sbc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | SBC | s, src1, dst, src2);
+  AddrMode1(cond | SBC | s, dst, src1, src2);
 }
 
 
 void Assembler::rsc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | RSC | s, src1, dst, src2);
+  AddrMode1(cond | RSC | s, dst, src1, src2);
 }
 
 
 void Assembler::tst(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | TST | S, src1, r0, src2);
+  AddrMode1(cond | TST | S, no_reg, src1, src2);
 }
 
 void Assembler::tst(Register src1, Register src2, Condition cond) {
@@ -1499,12 +1524,12 @@ void Assembler::tst(Register src1, Register src2, Condition cond) {
 }
 
 void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | TEQ | S, src1, r0, src2);
+  AddrMode1(cond | TEQ | S, no_reg, src1, src2);
 }
 
 
 void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | CMP | S, src1, r0, src2);
+  AddrMode1(cond | CMP | S, no_reg, src1, src2);
 }
 
 void Assembler::cmp(Register src1, Register src2, Condition cond) {
@@ -1519,13 +1544,13 @@ void Assembler::cmp_raw_immediate(
 
 
 void Assembler::cmn(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | CMN | S, src1, r0, src2);
+  AddrMode1(cond | CMN | S, no_reg, src1, src2);
 }
 
 
 void Assembler::orr(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | ORR | s, src1, dst, src2);
+  AddrMode1(cond | ORR | s, dst, src1, src2);
 }
 
 void Assembler::orr(Register dst, Register src1, Register src2, SBit s,
@@ -1537,8 +1562,8 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // Don't allow nop instructions in the form mov rn, rn to be generated using
   // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
   // or MarkCode(int/NopMarkerTypes) pseudo instructions.
-  DCHECK(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
-  addrmod1(cond | MOV | s, r0, dst, src);
+  DCHECK(!(src.IsRegister() && src.rm().is(dst) && s == LeaveCC && cond == al));
+  AddrMode1(cond | MOV | s, dst, no_reg, src);
 }
 
 void Assembler::mov(Register dst, Register src, SBit s, Condition cond) {
@@ -1598,17 +1623,17 @@ void Assembler::movt(Register reg, uint32_t immediate, Condition cond) {
 
 void Assembler::bic(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | BIC | s, src1, dst, src2);
+  AddrMode1(cond | BIC | s, dst, src1, src2);
 }
 
 
 void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
-  addrmod1(cond | MVN | s, r0, dst, src);
+  AddrMode1(cond | MVN | s, dst, no_reg, src);
 }
 
 void Assembler::asr(Register dst, Register src1, const Operand& src2, SBit s,
                     Condition cond) {
-  if (src2.is_reg()) {
+  if (src2.IsRegister()) {
     mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
   } else {
     mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
@@ -1617,7 +1642,7 @@ void Assembler::asr(Register dst, Register src1, const Operand& src2, SBit s,
 
 void Assembler::lsl(Register dst, Register src1, const Operand& src2, SBit s,
                     Condition cond) {
-  if (src2.is_reg()) {
+  if (src2.IsRegister()) {
     mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
   } else {
     mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
@@ -1626,7 +1651,7 @@ void Assembler::lsl(Register dst, Register src1, const Operand& src2, SBit s,
 
 void Assembler::lsr(Register dst, Register src1, const Operand& src2, SBit s,
                     Condition cond) {
-  if (src2.is_reg()) {
+  if (src2.IsRegister()) {
     mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
   } else {
     mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
@@ -1762,8 +1787,8 @@ void Assembler::usat(Register dst,
                      Condition cond) {
   DCHECK(!dst.is(pc) && !src.rm_.is(pc));
   DCHECK((satpos >= 0) && (satpos <= 31));
+  DCHECK(src.IsImmediateShiftedRegister());
   DCHECK((src.shift_op_ == ASR) || (src.shift_op_ == LSL));
-  DCHECK(src.rs_.is(no_reg));
 
   int sh = 0;
   if (src.shift_op_ == ASR) {
@@ -1856,9 +1881,8 @@ void Assembler::pkhbt(Register dst,
   // Rd(15-12) | imm5(11-7) | 0(6) | 01(5-4) | Rm(3-0)
   DCHECK(!dst.is(pc));
   DCHECK(!src1.is(pc));
+  DCHECK(src2.IsImmediateShiftedRegister());
   DCHECK(!src2.rm().is(pc));
-  DCHECK(!src2.rm().is(no_reg));
-  DCHECK(src2.rs().is(no_reg));
   DCHECK((src2.shift_imm_ >= 0) && (src2.shift_imm_ <= 31));
   DCHECK(src2.shift_op() == LSL);
   emit(cond | 0x68*B20 | src1.code()*B16 | dst.code()*B12 |
@@ -1875,9 +1899,8 @@ void Assembler::pkhtb(Register dst,
   // Rd(15-12) | imm5(11-7) | 1(6) | 01(5-4) | Rm(3-0)
   DCHECK(!dst.is(pc));
   DCHECK(!src1.is(pc));
+  DCHECK(src2.IsImmediateShiftedRegister());
   DCHECK(!src2.rm().is(pc));
-  DCHECK(!src2.rm().is(no_reg));
-  DCHECK(src2.rs().is(no_reg));
   DCHECK((src2.shift_imm_ >= 1) && (src2.shift_imm_ <= 32));
   DCHECK(src2.shift_op() == ASR);
   int asr = (src2.shift_imm_ == 32) ? 0 : src2.shift_imm_;
@@ -2024,20 +2047,20 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
   DCHECK((fields & 0x000f0000) != 0);  // At least one field must be set.
   DCHECK(((fields & 0xfff0ffff) == CPSR) || ((fields & 0xfff0ffff) == SPSR));
   Instr instr;
-  if (!src.rm_.is_valid()) {
+  if (src.IsImmediate()) {
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (src.must_output_reloc_info(this) ||
-        !fits_shifter(src.immediate(), &rotate_imm, &immed_8, NULL)) {
+    if (src.MustOutputRelocInfo(this) ||
+        !FitsShifter(src.immediate(), &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
-      move_32_bit_immediate(ip, src);
+      Move32BitImmediate(ip, src);
       msr(fields, Operand(ip), cond);
       return;
     }
     instr = I | rotate_imm*B8 | immed_8;
   } else {
-    DCHECK(!src.rs_.is_valid() && src.shift_imm_ == 0);  // only rm allowed
+    DCHECK(src.IsRegister());  // Only rm is allowed.
     instr = src.rm_.code();
   }
   emit(cond | instr | B24 | B21 | fields | 15*B12);
@@ -2046,42 +2069,42 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 
 // Load/Store instructions.
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
-  addrmod2(cond | B26 | L, dst, src);
+  AddrMode2(cond | B26 | L, dst, src);
 }
 
 
 void Assembler::str(Register src, const MemOperand& dst, Condition cond) {
-  addrmod2(cond | B26, src, dst);
+  AddrMode2(cond | B26, src, dst);
 }
 
 
 void Assembler::ldrb(Register dst, const MemOperand& src, Condition cond) {
-  addrmod2(cond | B26 | B | L, dst, src);
+  AddrMode2(cond | B26 | B | L, dst, src);
 }
 
 
 void Assembler::strb(Register src, const MemOperand& dst, Condition cond) {
-  addrmod2(cond | B26 | B, src, dst);
+  AddrMode2(cond | B26 | B, src, dst);
 }
 
 
 void Assembler::ldrh(Register dst, const MemOperand& src, Condition cond) {
-  addrmod3(cond | L | B7 | H | B4, dst, src);
+  AddrMode3(cond | L | B7 | H | B4, dst, src);
 }
 
 
 void Assembler::strh(Register src, const MemOperand& dst, Condition cond) {
-  addrmod3(cond | B7 | H | B4, src, dst);
+  AddrMode3(cond | B7 | H | B4, src, dst);
 }
 
 
 void Assembler::ldrsb(Register dst, const MemOperand& src, Condition cond) {
-  addrmod3(cond | L | B7 | S6 | B4, dst, src);
+  AddrMode3(cond | L | B7 | S6 | B4, dst, src);
 }
 
 
 void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
-  addrmod3(cond | L | B7 | S6 | H | B4, dst, src);
+  AddrMode3(cond | L | B7 | S6 | H | B4, dst, src);
 }
 
 
@@ -2091,7 +2114,7 @@ void Assembler::ldrd(Register dst1, Register dst2,
   DCHECK(!dst1.is(lr));  // r14.
   DCHECK_EQ(0, dst1.code() % 2);
   DCHECK_EQ(dst1.code() + 1, dst2.code());
-  addrmod3(cond | B7 | B6 | B4, dst1, src);
+  AddrMode3(cond | B7 | B6 | B4, dst1, src);
 }
 
 
@@ -2101,7 +2124,7 @@ void Assembler::strd(Register src1, Register src2,
   DCHECK(!src1.is(lr));  // r14.
   DCHECK_EQ(0, src1.code() % 2);
   DCHECK_EQ(src1.code() + 1, src2.code());
-  addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
+  AddrMode3(cond | B7 | B6 | B5 | B4, src1, dst);
 }
 
 // Load/Store exclusive instructions.
@@ -2179,7 +2202,7 @@ void Assembler::ldm(BlockAddrMode am,
   // ABI stack constraint: ldmxx base, {..sp..}  base != sp  is not restartable.
   DCHECK(base.is(sp) || (dst & sp.bit()) == 0);
 
-  addrmod4(cond | B27 | am | L, base, dst);
+  AddrMode4(cond | B27 | am | L, base, dst);
 
   // Emit the constant pool after a function return implemented by ldm ..{..pc}.
   if (cond == al && (dst & pc.bit()) != 0) {
@@ -2197,7 +2220,7 @@ void Assembler::stm(BlockAddrMode am,
                     Register base,
                     RegList src,
                     Condition cond) {
-  addrmod4(cond | B27 | am, base, src);
+  AddrMode4(cond | B27 | am, base, src);
 }
 
 
@@ -2335,7 +2358,7 @@ void Assembler::ldc(Coprocessor coproc,
                     const MemOperand& src,
                     LFlag l,
                     Condition cond) {
-  addrmod5(cond | B27 | B26 | l | L | coproc*B8, crd, src);
+  AddrMode5(cond | B27 | B26 | l | L | coproc * B8, crd, src);
 }
 
 
@@ -4899,7 +4922,7 @@ int Assembler::DecodeShiftImm(Instr instr) {
 Instr Assembler::PatchShiftImm(Instr instr, int immed) {
   uint32_t rotate_imm = 0;
   uint32_t immed_8 = 0;
-  bool immed_fits = fits_shifter(immed, &rotate_imm, &immed_8, NULL);
+  bool immed_fits = FitsShifter(immed, &rotate_imm, &immed_8, NULL);
   DCHECK(immed_fits);
   USE(immed_fits);
   return (instr & ~kOff12Mask) | (rotate_imm << 8) | immed_8;
@@ -4927,7 +4950,7 @@ bool Assembler::IsOrrImmed(Instr instr) {
 bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
   uint32_t dummy1;
   uint32_t dummy2;
-  return fits_shifter(imm32, &dummy1, &dummy2, NULL);
+  return FitsShifter(imm32, &dummy1, &dummy2, NULL);
 }
 
 
@@ -5098,7 +5121,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
   BlockConstPoolFor(1);
 
   // Emit relocation info.
-  if (must_output_reloc_info(rmode, this) && !shared) {
+  if (MustOutputRelocInfo(rmode, this) && !shared) {
     RecordRelocInfo(rmode);
   }
 }
