@@ -624,8 +624,8 @@ class Heap {
 
   // The old space size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
-  static const int kMinOldSpaceSize = 128 * kPointerMultiplier;
-  static const int kMaxOldSpaceSize = 1024 * kPointerMultiplier;
+  static const int kMinOldGenerationSize = 128 * kPointerMultiplier;
+  static const int kMaxOldGenerationSize = 1024 * kPointerMultiplier;
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -716,8 +716,11 @@ class Heap {
     return "Unknown collector";
   }
 
+  V8_EXPORT_PRIVATE static double MaxHeapGrowingFactor(
+      size_t max_old_generation_size);
   V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
-                                                    double mutator_speed);
+                                                    double mutator_speed,
+                                                    double max_factor);
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
@@ -938,16 +941,6 @@ class Heap {
   void ActivateMemoryReducerIfNeeded();
 
   bool ShouldOptimizeForMemoryUsage();
-
-  bool IsLowMemoryDevice() {
-    const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kPointerMultiplier;
-    return max_old_generation_size_ <= kMaxOldSpaceSizeLowMemoryDevice;
-  }
-
-  bool IsMemoryConstrainedDevice() {
-    const int kMaxOldSpaceSizeMediumMemoryDevice = 256 * kPointerMultiplier;
-    return max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice;
-  }
 
   bool HighMemoryPressure() {
     return memory_pressure_level_.Value() != MemoryPressureLevel::kNone;
@@ -1349,7 +1342,8 @@ class Heap {
     int computed_size =
         static_cast<int>(physical_memory / i::MB /
                          old_space_physical_memory_factor * kPointerMultiplier);
-    return Max(Min(computed_size, kMaxOldSpaceSize), kMinOldSpaceSize);
+    return Max(Min(computed_size, kMaxOldGenerationSize),
+               kMinOldGenerationSize);
   }
 
   static size_t ComputeMaxSemiSpaceSize(uint64_t physical_memory) {

@@ -4182,7 +4182,7 @@ bool Heap::HasHighFragmentation(size_t used, size_t committed) {
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
   return FLAG_optimize_for_size || isolate()->IsIsolateInBackground() ||
-         HighMemoryPressure() || IsLowMemoryDevice();
+         HighMemoryPressure();
 }
 
 void Heap::ActivateMemoryReducerIfNeeded() {
@@ -5422,8 +5422,11 @@ const double Heap::kTargetMutatorUtilization = 0.97;
 //   F * (1 - MU / (R * (1 - MU))) = 1
 //   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
-double Heap::HeapGrowingFactor(double gc_speed, double mutator_speed) {
-  if (gc_speed == 0 || mutator_speed == 0) return kMaxHeapGrowingFactor;
+double Heap::HeapGrowingFactor(double gc_speed, double mutator_speed,
+                               double max_factor) {
+  DCHECK(max_factor >= kMinHeapGrowingFactor);
+  DCHECK(max_factor <= kMaxHeapGrowingFactor);
+  if (gc_speed == 0 || mutator_speed == 0) return max_factor;
 
   const double speed_ratio = gc_speed / mutator_speed;
   const double mu = kTargetMutatorUtilization;
@@ -5432,10 +5435,36 @@ double Heap::HeapGrowingFactor(double gc_speed, double mutator_speed) {
   const double b = speed_ratio * (1 - mu) - mu;
 
   // The factor is a / b, but we need to check for small b first.
-  double factor =
-      (a < b * kMaxHeapGrowingFactor) ? a / b : kMaxHeapGrowingFactor;
-  factor = Min(factor, kMaxHeapGrowingFactor);
+  double factor = (a < b * max_factor) ? a / b : max_factor;
+  factor = Min(factor, max_factor);
   factor = Max(factor, kMinHeapGrowingFactor);
+  return factor;
+}
+
+double Heap::MaxHeapGrowingFactor(size_t max_old_generation_size) {
+  const double min_small_factor = 1.3;
+  const double max_small_factor = 2.0;
+  const double high_factor = 4.0;
+
+  size_t max_old_generation_size_in_mb = max_old_generation_size / MB;
+  max_old_generation_size_in_mb =
+      Max(max_old_generation_size_in_mb,
+          static_cast<size_t>(kMinOldGenerationSize));
+
+  // If we are on a device with lots of memory, we allow a high heap
+  // growing factor.
+  if (max_old_generation_size_in_mb >= kMaxOldGenerationSize) {
+    return high_factor;
+  }
+
+  DCHECK_GE(max_old_generation_size_in_mb, kMinOldGenerationSize);
+  DCHECK_LT(max_old_generation_size_in_mb, kMaxOldGenerationSize);
+
+  // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
+  double factor = (max_old_generation_size_in_mb - kMinOldGenerationSize) *
+                      (max_small_factor - min_small_factor) /
+                      (kMaxOldGenerationSize - kMinOldGenerationSize) +
+                  min_small_factor;
   return factor;
 }
 
@@ -5463,7 +5492,8 @@ size_t Heap::MinimumAllocationLimitGrowingStep() {
 
 void Heap::SetOldGenerationAllocationLimit(size_t old_gen_size, double gc_speed,
                                            double mutator_speed) {
-  double factor = HeapGrowingFactor(gc_speed, mutator_speed);
+  double max_factor = MaxHeapGrowingFactor(max_old_generation_size_);
+  double factor = HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
 
   if (FLAG_trace_gc_verbose) {
     isolate_->PrintWithTimestamp(
@@ -5471,10 +5501,6 @@ void Heap::SetOldGenerationAllocationLimit(size_t old_gen_size, double gc_speed,
         "(gc=%.f, mutator=%.f)\n",
         factor, kTargetMutatorUtilization, gc_speed / mutator_speed, gc_speed,
         mutator_speed);
-  }
-
-  if (IsMemoryConstrainedDevice()) {
-    factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
   if (memory_reducer_->ShouldGrowHeapSlowly() ||
@@ -5503,7 +5529,8 @@ void Heap::SetOldGenerationAllocationLimit(size_t old_gen_size, double gc_speed,
 void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
                                               double gc_speed,
                                               double mutator_speed) {
-  double factor = HeapGrowingFactor(gc_speed, mutator_speed);
+  double max_factor = MaxHeapGrowingFactor(max_old_generation_size_);
+  double factor = HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
   size_t limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size);
   if (limit < old_generation_allocation_limit_) {
     if (FLAG_trace_gc_verbose) {
