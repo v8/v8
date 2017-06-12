@@ -113,9 +113,10 @@ namespace compiler {
   V(IA32StackCheck)                \
   V(IA32I32x4Splat)                \
   V(IA32I32x4ExtractLane)          \
-  V(IA32I32x4ReplaceLane)          \
+  V(SSEI32x4ReplaceLane)           \
   V(SSEI32x4Add)                   \
   V(SSEI32x4Sub)                   \
+  V(AVXI32x4ReplaceLane)           \
   V(AVXI32x4Add)                   \
   V(AVXI32x4Sub)
 

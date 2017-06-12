@@ -1127,7 +1127,11 @@ class Assembler : public AssemblerBase {
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
-  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+
+  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshufd(dst, Operand(src), shuffle);
+  }
+  void pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
   void pextrd(Register dst, XMMRegister src, int8_t offset) {
     pextrd(Operand(dst), src, offset);
   }
@@ -1384,6 +1388,21 @@ class Assembler : public AssemblerBase {
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
+  void vpshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshufd(dst, Operand(src), shuffle);
+  }
+  void vpshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void vpextrd(Register dst, XMMRegister src, int8_t offset) {
+    vpextrd(Operand(dst), src, offset);
+  }
+  void vpextrd(const Operand& dst, XMMRegister src, int8_t offset);
+  void vpinsrd(XMMRegister dst, XMMRegister src1, Register src2,
+               int8_t offset) {
+    vpinsrd(dst, src1, Operand(src2), offset);
+  }
+  void vpinsrd(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               int8_t offset);
+
   void vcvtdq2ps(XMMRegister dst, XMMRegister src) {
     vcvtdq2ps(dst, Operand(src));
   }
@@ -1395,6 +1414,15 @@ class Assembler : public AssemblerBase {
   }
   void vcvttps2dq(XMMRegister dst, const Operand& src) {
     vinstr(0x5B, dst, xmm0, src, kF3, k0F, kWIG);
+  }
+
+  void vmovd(XMMRegister dst, Register src) { vmovd(dst, Operand(src)); }
+  void vmovd(XMMRegister dst, const Operand& src) {
+    vinstr(0x6E, dst, xmm0, src, k66, k0F, kWIG);
+  }
+  void vmovd(Register dst, XMMRegister src) { movd(Operand(dst), src); }
+  void vmovd(const Operand& dst, XMMRegister src) {
+    vinstr(0x7E, src, xmm0, dst, k66, k0F, kWIG);
   }
 
   // BMI instruction

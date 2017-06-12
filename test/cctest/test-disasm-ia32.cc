@@ -462,6 +462,11 @@ TEST(DisasmIa320) {
     __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
 
+    __ movd(xmm0, edi);
+    __ movd(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movd(eax, xmm1);
+    __ movd(Operand(ebx, ecx, times_4, 10000), xmm1);
+
     __ addsd(xmm1, xmm0);
     __ addsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ mulsd(xmm1, xmm0);
@@ -490,6 +495,8 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
 
+    __ pshufd(xmm5, xmm1, 5);
+    __ pshufd(xmm5, Operand(edx, 4), 5);
     __ pinsrw(xmm5, edx, 5);
     __ pinsrw(xmm5, Operand(edx, 4), 5);
 
@@ -525,7 +532,9 @@ TEST(DisasmIa320) {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
+      __ pextrd(Operand(edx, 4), xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
+      __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
 
 #define EMIT_SSE4_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
@@ -621,11 +630,22 @@ TEST(DisasmIa320) {
       __ vpsraw(xmm0, xmm7, 21);
       __ vpsrad(xmm0, xmm7, 21);
 
+      __ vpshufd(xmm5, xmm1, 5);
+      __ vpshufd(xmm5, Operand(edx, 4), 5);
+      __ vpextrd(eax, xmm0, 1);
+      __ vpextrd(Operand(edx, 4), xmm0, 1);
+      __ vpinsrd(xmm0, xmm1, eax, 0);
+      __ vpinsrd(xmm0, xmm1, Operand(edx, 4), 0);
+
       __ vcvtdq2ps(xmm1, xmm0);
       __ vcvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vcvttps2dq(xmm1, xmm0);
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
 
+      __ vmovd(xmm0, edi);
+      __ vmovd(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovd(eax, xmm1);
+      __ vmovd(Operand(ebx, ecx, times_4, 10000), xmm1);
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));

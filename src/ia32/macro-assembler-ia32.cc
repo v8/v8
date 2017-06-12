@@ -2136,10 +2136,24 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
+void MacroAssembler::Pshufd(XMMRegister dst, const Operand& src,
+                            uint8_t shuffle) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpshufd(dst, src, shuffle);
+  } else {
+    pshufd(dst, src, shuffle);
+  }
+}
 
 void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
   if (imm8 == 0) {
-    movd(dst, src);
+    Movd(dst, src);
+    return;
+  }
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpextrd(dst, src, imm8);
     return;
   }
   if (CpuFeatures::IsSupported(SSE4_1)) {

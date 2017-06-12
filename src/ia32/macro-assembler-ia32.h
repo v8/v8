@@ -715,6 +715,29 @@ class MacroAssembler: public Assembler {
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
 
+// SSE/SSE2 instructions with AVX version.
+#define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, src_type src) {                 \
+    if (CpuFeatures::IsSupported(AVX)) {                        \
+      CpuFeatureScope scope(this, AVX);                         \
+      v##name(dst, src);                                        \
+    } else {                                                    \
+      name(dst, src);                                           \
+    }                                                           \
+  }
+
+  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Register)
+  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movd, movd, const Operand&, XMMRegister)
+
+#undef AVX_OP2_WITH_TYPE
+
+  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    Pshufd(dst, Operand(src), shuffle);
+  }
+  void Pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
