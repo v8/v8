@@ -595,7 +595,6 @@ void IncrementalMarking::StartMarking() {
   }
 #endif
 
-  heap_->CompletelyClearInstanceofCache();
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
   if (FLAG_concurrent_marking && !black_allocation_) {

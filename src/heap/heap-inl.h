@@ -753,18 +753,9 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
-void Heap::ClearInstanceofCache() { set_instanceof_cache_function(Smi::kZero); }
-
 Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
 }
-
-
-void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(Smi::kZero);
-  set_instanceof_cache_function(Smi::kZero);
-}
-
 
 uint32_t Heap::HashSeed() {
   uint32_t seed = static_cast<uint32_t>(hash_seed()->value());

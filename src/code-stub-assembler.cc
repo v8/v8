@@ -6006,23 +6006,6 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   // Load map of {object}.
   Node* object_map = LoadMap(object);
 
-  // Lookup the {callable} and {object} map in the global instanceof cache.
-  // Note: This is safe because we clear the global instanceof cache whenever
-  // we change the prototype of any object.
-  Node* instanceof_cache_function =
-      LoadRoot(Heap::kInstanceofCacheFunctionRootIndex);
-  Node* instanceof_cache_map = LoadRoot(Heap::kInstanceofCacheMapRootIndex);
-  {
-    Label instanceof_cache_miss(this);
-    GotoIfNot(WordEqual(instanceof_cache_function, callable),
-              &instanceof_cache_miss);
-    GotoIfNot(WordEqual(instanceof_cache_map, object_map),
-              &instanceof_cache_miss);
-    var_result.Bind(LoadRoot(Heap::kInstanceofCacheAnswerRootIndex));
-    Goto(&return_result);
-    BIND(&instanceof_cache_miss);
-  }
-
   // Goto runtime if {callable} is a Smi.
   GotoIf(TaggedIsSmi(callable), &return_runtime);
 
@@ -6069,11 +6052,6 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
     callable_prototype = var_callable_prototype.value();
   }
 
-  // Update the global instanceof cache with the current {object} map and
-  // {callable}.  The cached answer will be set when it is known below.
-  StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, callable);
-  StoreRoot(Heap::kInstanceofCacheMapRootIndex, object_map);
-
   // Loop through the prototype chain looking for the {callable} prototype.
   VARIABLE(var_object_map, MachineRepresentation::kTagged, object_map);
   Label loop(this, &var_object_map);
@@ -6106,19 +6084,15 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   }
 
   BIND(&return_true);
-  StoreRoot(Heap::kInstanceofCacheAnswerRootIndex, BooleanConstant(true));
   var_result.Bind(BooleanConstant(true));
   Goto(&return_result);
 
   BIND(&return_false);
-  StoreRoot(Heap::kInstanceofCacheAnswerRootIndex, BooleanConstant(false));
   var_result.Bind(BooleanConstant(false));
   Goto(&return_result);
 
   BIND(&return_runtime);
   {
-    // Invalidate the global instanceof cache.
-    StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, SmiConstant(0));
     // Fallback to the runtime implementation.
     var_result.Bind(
         CallRuntime(Runtime::kOrdinaryHasInstance, context, callable, object));
