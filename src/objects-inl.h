@@ -2669,7 +2669,8 @@ uint32_t StringSetShape::HashForObject(Object* object) {
   return String::cast(object)->Hash();
 }
 
-Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
+Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
+                                          StringTableKey* key) {
   return key->AsHandle(isolate);
 }
 

@@ -30,8 +30,6 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 
   static inline uint32_t HashForObject(Object* object);
 
-  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
-
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
 };

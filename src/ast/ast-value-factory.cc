@@ -55,7 +55,7 @@ class OneByteStringStream {
 
 }  // namespace
 
-class AstRawStringInternalizationKey : public HashTableKey {
+class AstRawStringInternalizationKey : public StringTableKey {
  public:
   explicit AstRawStringInternalizationKey(const AstRawString* string)
       : string_(string) {}

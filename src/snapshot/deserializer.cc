@@ -281,7 +281,7 @@ void Deserializer::PrintDisassembledCodeObjects() {
 }
 
 // Used to insert a deserialized internalized string into the string table.
-class StringTableInsertionKey : public HashTableKey {
+class StringTableInsertionKey : public StringTableKey {
  public:
   explicit StringTableInsertionKey(String* string)
       : string_(string), hash_(string->Hash()) {

@@ -192,7 +192,7 @@ Char FlatStringReader::Get(int index) {
 }
 
 template <typename Char>
-class SequentialStringKey : public HashTableKey {
+class SequentialStringKey : public StringTableKey {
  public:
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) {}
@@ -223,7 +223,7 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   Handle<Object> AsHandle(Isolate* isolate) override;
 };
 
-class SeqOneByteSubStringKey : public HashTableKey {
+class SeqOneByteSubStringKey : public StringTableKey {
  public:
   SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
       : string_(string), from_(from), length_(length) {
@@ -275,7 +275,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
 };
 
 // Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public HashTableKey {
+class Utf8StringKey : public StringTableKey {
  public:
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) {}

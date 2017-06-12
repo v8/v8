@@ -15935,7 +15935,7 @@ class StringSharedKey : public HashTableKey {
                                                    language_mode_, position_);
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) override {
+  Handle<Object> AsHandle(Isolate* isolate) {
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
     array->set(0, *shared_);
     array->set(1, *source_);
@@ -16173,12 +16173,6 @@ class RegExpKey : public HashTableKey {
     return CompilationCacheShape::RegExpHash(*string_, flags_);
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) override {
-    // Plain hash maps, which is where regexp keys are used, don't
-    // use this function.
-    UNREACHABLE();
-  }
-
   Handle<String> string_;
   Smi* flags_;
 };
@@ -16210,7 +16204,7 @@ bool SeqOneByteSubStringKey::IsMatch(Object* string) {
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.
-class InternalizedStringKey : public HashTableKey {
+class InternalizedStringKey : public StringTableKey {
  public:
   explicit InternalizedStringKey(Handle<String> string)
       : string_(String::Flatten(string)) {}
@@ -16245,10 +16239,6 @@ class InternalizedStringKey : public HashTableKey {
     // Otherwise allocate a new internalized string.
     return isolate->factory()->NewInternalizedStringImpl(
         string_, string_->length(), string_->hash_field());
-  }
-
-  static uint32_t StringHash(Object* obj) {
-    return String::cast(obj)->Hash();
   }
 
  private:
@@ -17157,7 +17147,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
 // string hash calculation loop here for speed.  Doesn't work if the two
 // characters form a decimal integer, since such strings have a different hash
 // algorithm.
-class TwoCharHashTableKey : public HashTableKey {
+class TwoCharHashTableKey : public StringTableKey {
  public:
   TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint32_t seed)
     : c1_(c1), c2_(c2) {
@@ -17360,8 +17350,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   return result;
 }
 
-
-Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
+Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
   int entry = table->FindEntry(key);
 
@@ -17390,7 +17379,7 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
 
 namespace {
 
-class StringTableNoAllocateKey : public HashTableKey {
+class StringTableNoAllocateKey : public StringTableKey {
  public:
   StringTableNoAllocateKey(String* string, uint32_t seed)
       : string_(string), length_(string->length()) {
@@ -17547,7 +17536,7 @@ Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
   return Smi::FromInt(ResultSentinel::kNotFound);
 }
 
-String* StringTable::LookupKeyIfExists(Isolate* isolate, HashTableKey* key) {
+String* StringTable::LookupKeyIfExists(Isolate* isolate, StringTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
   int entry = table->FindEntry(isolate, key);
   if (entry != kNotFound) return String::cast(table->KeyAt(entry));

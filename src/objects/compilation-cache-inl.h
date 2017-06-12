@@ -15,11 +15,6 @@ namespace internal {
 
 CAST_ACCESSOR(CompilationCacheTable)
 
-Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
-                                               HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
 uint32_t CompilationCacheShape::RegExpHash(String* string, Smi* flags) {
   return string->Hash() + flags->value();
 }
