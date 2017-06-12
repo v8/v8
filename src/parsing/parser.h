@@ -294,7 +294,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(tailcalls);
       SET_ALLOW(harmony_do_expressions);
       SET_ALLOW(harmony_function_sent);
-      SET_ALLOW(harmony_trailing_commas);
       SET_ALLOW(harmony_class_fields);
       SET_ALLOW(harmony_object_rest_spread);
       SET_ALLOW(harmony_dynamic_import);

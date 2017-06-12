@@ -219,8 +219,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
 #define HARMONY_SHIPPING_BASE(V)                           \
   V(harmony_restrictive_generators,                        \
     "harmony restrictions on generator declarations")      \
-  V(harmony_trailing_commas,                               \
-    "harmony trailing commas in function parameter lists") \
   V(harmony_object_rest_spread, "harmony object rest spread properties")
 
 #ifdef V8_INTL_SUPPORT

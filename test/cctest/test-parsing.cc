@@ -1269,7 +1269,6 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveGenerators,
-  kAllowHarmonyTrailingCommas,
   kAllowHarmonyClassFields,
   kAllowHarmonyObjectRestSpread,
   kAllowHarmonyDynamicImport,
@@ -1288,7 +1287,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
   i::FLAG_harmony_restrictive_generators =
       flags.Contains(kAllowHarmonyRestrictiveGenerators);
-  i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
   i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
@@ -1304,8 +1302,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_generators(
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
-  parser->set_allow_harmony_trailing_commas(
-      flags.Contains(kAllowHarmonyTrailingCommas));
   parser->set_allow_harmony_class_fields(
       flags.Contains(kAllowHarmonyClassFields));
   parser->set_allow_harmony_object_rest_spread(
@@ -9230,9 +9226,7 @@ TEST(TrailingCommasInParameters) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(TrailingCommasInParametersErrors) {
@@ -9295,9 +9289,7 @@ TEST(TrailingCommasInParametersErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError);
 }
 
 TEST(ArgumentsRedeclaration) {

@@ -265,7 +265,6 @@ class ParserBase {
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_restrictive_generators_(false),
-        allow_harmony_trailing_commas_(false),
         allow_harmony_class_fields_(false),
         allow_harmony_object_rest_spread_(false),
         allow_harmony_dynamic_import_(false),
@@ -281,7 +280,6 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
-  ALLOW_ACCESSORS(harmony_trailing_commas);
   ALLOW_ACCESSORS(harmony_class_fields);
   ALLOW_ACCESSORS(harmony_object_rest_spread);
   ALLOW_ACCESSORS(harmony_dynamic_import);
@@ -1570,7 +1568,6 @@ class ParserBase {
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_restrictive_generators_;
-  bool allow_harmony_trailing_commas_;
   bool allow_harmony_class_fields_;
   bool allow_harmony_object_rest_spread_;
   bool allow_harmony_dynamic_import_;
@@ -2028,8 +2025,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
           scanner()->location(), MessageTemplate::kParamAfterRest);
     }
 
-    if (allow_harmony_trailing_commas() && peek() == Token::RPAREN &&
-        PeekAhead() == Token::ARROW) {
+    if (peek() == Token::RPAREN && PeekAhead() == Token::ARROW) {
       // a trailing comma is allowed at the end of an arrow parameter list
       break;
     }
@@ -2768,7 +2764,7 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
         classifier()->RecordAsyncArrowFormalParametersError(
             scanner()->location(), MessageTemplate::kParamAfterRest);
       }
-      if (allow_harmony_trailing_commas() && peek() == Token::RPAREN) {
+      if (peek() == Token::RPAREN) {
         // allow trailing comma
         done = true;
       }
@@ -3748,7 +3744,7 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
         break;
       }
       if (!Check(Token::COMMA)) break;
-      if (allow_harmony_trailing_commas() && peek() == Token::RPAREN) {
+      if (peek() == Token::RPAREN) {
         // allow the trailing comma
         break;
       }
