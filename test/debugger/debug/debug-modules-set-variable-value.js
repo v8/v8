@@ -231,7 +231,6 @@ RunPauseTest(0, 5, 'p', 2012, 2012, (function Factory() {
   let exception;
   function listener(event, exec_state) {
     if (event == Debug.DebugEvent.Break) {
-      let scope_count = exec_state.frame().scopeCount();
       let module_scope = exec_state.frame().scope(1);
       assertEquals(debug.ScopeType.Module, module_scope.scopeType());
       try {
@@ -253,7 +252,6 @@ let salat = 12;
 {
   function listener(event, exec_state) {
     if (event == Debug.DebugEvent.Break) {
-      let scope_count = exec_state.frame().scopeCount();
       let module_scope = exec_state.frame().scope(1);
       assertEquals(debug.ScopeType.Module, module_scope.scopeType());
       module_scope.setVariableValue('salat', 42);
@@ -272,7 +270,6 @@ export let salami = 1;
 {
   function listener(event, exec_state) {
     if (event == Debug.DebugEvent.Break) {
-      let scope_count = exec_state.frame().scopeCount();
       let module_scope = exec_state.frame().scope(1);
       assertEquals(debug.ScopeType.Module, module_scope.scopeType());
       module_scope.setVariableValue('salami', 2);
@@ -292,7 +289,6 @@ import { salami as wurst } from "./debug-modules-set-variable-value.js";
   let exception;
   function listener(event, exec_state) {
     if (event == Debug.DebugEvent.Break) {
-      let scope_count = exec_state.frame().scopeCount();
       let module_scope = exec_state.frame().scope(1);
       assertEquals(debug.ScopeType.Module, module_scope.scopeType());
       try {
