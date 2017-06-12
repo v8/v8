@@ -4648,6 +4648,7 @@ void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
 
 TEST(MonomorphicStaysMonomorphicAfterGC) {
   if (FLAG_always_opt) return;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
@@ -4680,6 +4681,7 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
 
 TEST(PolymorphicStaysPolymorphicAfterGC) {
   if (FLAG_always_opt) return;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
@@ -4714,6 +4716,7 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
 
 
 TEST(WeakCell) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Factory* factory = isolate->factory();
@@ -4748,6 +4751,7 @@ TEST(WeakCell) {
 
 TEST(WeakCellsWithIncrementalMarking) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();

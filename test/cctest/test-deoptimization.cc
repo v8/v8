@@ -124,6 +124,7 @@ static Handle<JSFunction> GetJSFunction(v8::Local<v8::Context> context,
 
 
 TEST(DeoptimizeSimple) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -170,6 +171,7 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -217,6 +219,7 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -250,6 +253,7 @@ TEST(DeoptimizeSimpleNested) {
 
 
 TEST(DeoptimizeRecursive) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -287,6 +291,7 @@ TEST(DeoptimizeRecursive) {
 
 
 TEST(DeoptimizeMultiple) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -323,6 +328,7 @@ TEST(DeoptimizeMultiple) {
 
 
 TEST(DeoptimizeConstructor) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -376,6 +382,7 @@ TEST(DeoptimizeConstructor) {
 
 
 TEST(DeoptimizeConstructorMultiple) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -413,6 +420,7 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   AllowNativesSyntaxNoInlining options;
   v8::Isolate::CreateParams create_params;

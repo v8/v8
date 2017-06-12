@@ -18425,6 +18425,7 @@ static void CreateGarbageInOldSpace() {
 // Test that idle notification can be handled and eventually collects garbage.
 TEST(TestIdleNotification) {
   if (!i::FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   const intptr_t MB = 1024 * 1024;
   const double IdlePauseInSeconds = 1.0;
   LocalContext env;

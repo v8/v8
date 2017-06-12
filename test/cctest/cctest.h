@@ -32,6 +32,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/debug/debug-interface.h"
+#include "src/flags.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
@@ -609,6 +610,28 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 
  private:
   const char* data_;
+};
+
+class ManualGCScope {
+ public:
+  ManualGCScope()
+      : flag_concurrent_marking_(i::FLAG_concurrent_marking),
+        flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking) {
+    i::FLAG_concurrent_marking = false;
+    i::FLAG_concurrent_sweeping = false;
+    i::FLAG_stress_incremental_marking = false;
+  }
+  ~ManualGCScope() {
+    i::FLAG_concurrent_marking = flag_concurrent_marking_;
+    i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+    i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+  }
+
+ private:
+  bool flag_concurrent_marking_;
+  bool flag_concurrent_sweeping_;
+  bool flag_stress_incremental_marking_;
 };
 
 #endif  // ifndef CCTEST_H_
