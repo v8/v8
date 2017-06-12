@@ -45,11 +45,11 @@ paradigms. Similarly to how the API exposed to scripts aims to provide good
 ergonomics, we should aim to provide a reasonable developer experience for this
 API surface.
 
-ECMAScript makes heavy use of exceptions, however, V8's C++ code doesn't use C++
-exceptions. Therefore, all API methods that can throw exceptions should indicate
-so by returning a v8::Maybe<> or v8::MaybeLocal<> result, and by taking a
-v8::Local<v8::Context> parameter that indicates in which context a possible
-exception should be thrown.
+ECMAScript makes heavy use of exceptions, however, V8's C++ code doesn't use
+C++ exceptions. Therefore, all API methods that can throw exceptions should
+indicate so by returning a v8::Maybe&lt;&gt; or v8::MaybeLocal&lt;&gt; result,
+and by taking a v8::Local&lt;v8::Context&gt; parameter that indicates in which
+context a possible exception should be thrown.
 
 # API objects
 
