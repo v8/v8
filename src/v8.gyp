@@ -1091,6 +1091,7 @@
         'heap/mark-compact-inl.h',
         'heap/mark-compact.cc',
         'heap/mark-compact.h',
+        'heap/marking.cc',
         'heap/marking.h',
         'heap/object-stats.cc',
         'heap/object-stats.h',
