@@ -5,20 +5,26 @@
 #ifndef V8_TEST_COMMON_FLAG_UTILS_H
 #define V8_TEST_COMMON_FLAG_UTILS_H
 
-class EnableFlagScope {
+namespace v8 {
+namespace internal {
+
+template <typename T>
+class FlagScope {
  public:
-  EnableFlagScope(bool* flag, bool new_value = true)
-      : flag_(flag), previous_value_(flag) {
+  FlagScope(T* flag, T new_value) : flag_(flag), previous_value_(*flag) {
     *flag = new_value;
   }
-  ~EnableFlagScope() { *flag_ = previous_value_; }
+  ~FlagScope() { *flag_ = previous_value_; }
 
  private:
-  bool* flag_;
-  bool previous_value_;
+  T* flag_;
+  T previous_value_;
 };
 
 #define EXPERIMENTAL_FLAG_SCOPE(flag) \
-  EnableFlagScope __flag_scope_##__LINE__(&FLAG_experimental_wasm_##flag)
+  FlagScope<bool> __scope_##__LINE__(&FLAG_experimental_wasm_##flag, true)
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TEST_COMMON_FLAG_UTILS_H

@@ -835,7 +835,7 @@ TEST_F(WasmSignatureDecodeTest, TooManyParams) {
 
 TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
   for (int i = 0; i < 2; i++) {
-    EnableFlagScope flag_scope(&FLAG_experimental_wasm_mv, i != 0);
+    FlagScope<bool> flag_scope(&FLAG_experimental_wasm_mv, i != 0);
     const int max_return_count = static_cast<int>(
         FLAG_experimental_wasm_mv ? kV8MaxWasmFunctionMultiReturns
                                   : kV8MaxWasmFunctionReturns);
