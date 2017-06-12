@@ -2231,13 +2231,17 @@ class YoungGenerationMarkingVisitor final
     }
   }
 
+  void VisitCodeEntry(JSFunction* host, Address code_entry) final {
+    // Code is not in new space.
+  }
+
   // Special cases for young generation. Also see StaticNewSpaceVisitor.
 
   int VisitJSFunction(Map* map, JSFunction* object) final {
     if (!ShouldVisit(object)) return 0;
-    int size = JSFunction::BodyDescriptorWeakCode::SizeOf(map, object);
+    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    JSFunction::BodyDescriptorWeakCode::IterateBody(object, size, this);
+    JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
     return size;
   }
 

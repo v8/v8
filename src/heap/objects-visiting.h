@@ -174,12 +174,9 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     }
   }
 
-  // Although we are using the JSFunction body descriptor which does not
-  // visit the code entry, compiler wants it to be accessible.
-  // See JSFunction::BodyDescriptorImpl.
   inline static void VisitCodeEntry(Heap* heap, HeapObject* object,
                                     Address entry_address) {
-    UNREACHABLE();
+    // Code is not in new space.
   }
 
  private:

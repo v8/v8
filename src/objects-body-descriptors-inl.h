@@ -174,13 +174,8 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOffset, kNonWeakFieldsEndOffset, v);
-
-    if (body_visiting_policy & kVisitCodeEntry) {
-      v->VisitCodeEntry(JSFunction::cast(obj),
-                        obj->address() + kCodeEntryOffset);
-    }
-
-    if (body_visiting_policy & kVisitNextFunction) {
+    v->VisitCodeEntry(JSFunction::cast(obj), obj->address() + kCodeEntryOffset);
+    if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
     }
     IterateBodyImpl(obj, kSize, object_size, v);
@@ -192,12 +187,9 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
     IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
                                    kNonWeakFieldsEndOffset);
 
-    if (body_visiting_policy & kVisitCodeEntry) {
-      StaticVisitor::VisitCodeEntry(heap, obj,
-                                    obj->address() + kCodeEntryOffset);
-    }
+    StaticVisitor::VisitCodeEntry(heap, obj, obj->address() + kCodeEntryOffset);
 
-    if (body_visiting_policy & kVisitNextFunction) {
+    if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
     }
     IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);

@@ -5150,26 +5150,13 @@ class JSFunction: public JSObject {
                                           int requested_in_object_properties,
                                           int* instance_size,
                                           int* in_object_properties);
-  // Visiting policy flags define whether the code entry or next function
-  // should be visited or not.
-  enum BodyVisitingPolicy {
-    kVisitCodeEntry = 1 << 0,
-    kVisitNextFunction = 1 << 1,
-
-    kSkipCodeEntryAndNextFunction = 0,
-    kVisitCodeEntryAndNextFunction = kVisitCodeEntry | kVisitNextFunction
-  };
+  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
   // Iterates the function object according to the visiting policy.
   template <BodyVisitingPolicy>
   class BodyDescriptorImpl;
 
-  // Visit the whole object.
-  typedef BodyDescriptorImpl<kVisitCodeEntryAndNextFunction> BodyDescriptor;
-
-  // Don't visit next function.
-  typedef BodyDescriptorImpl<kVisitCodeEntry> BodyDescriptorStrongCode;
-  typedef BodyDescriptorImpl<kSkipCodeEntryAndNextFunction>
-      BodyDescriptorWeakCode;
+  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
+  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSFunction)

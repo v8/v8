@@ -78,7 +78,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
   // Don't visit code entry. We are using this visitor only during scavenges.
   table_.Register(
       kVisitJSFunction,
-      &FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeakCode,
+      &FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeak,
                            int>::Visit);
 
   table_.Register(
@@ -440,7 +440,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
                                                           HeapObject* object) {
-  FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorStrongCode,
+  FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeak,
                       void>::Visit(map, object);
 }
 

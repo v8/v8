@@ -5031,7 +5031,7 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
     // this links are recorded during processing of weak lists.
-    JSFunction::BodyDescriptorWeakCode::IterateBody(target, size, &visitor);
+    JSFunction::BodyDescriptorWeak::IterateBody(target, size, &visitor);
   } else {
     target->IterateBody(target->map()->instance_type(), size, &visitor);
   }
