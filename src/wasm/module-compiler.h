@@ -81,8 +81,6 @@ class ModuleCompiler {
   size_t InitializeParallelCompilation(
       const std::vector<WasmFunction>& functions, ModuleBytesEnv& module_env);
 
-  void InitializeHandles();
-
   uint32_t* StartCompilationTasks();
 
   void WaitForCompilationTasks(uint32_t* task_ids);

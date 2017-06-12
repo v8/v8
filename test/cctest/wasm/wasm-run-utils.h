@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/code-stubs.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -356,8 +357,9 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               FunctionSig* sig,
                               SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
-                                     source_position_table);
+  compiler::WasmGraphBuilder builder(
+      module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
+      source_position_table);
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {

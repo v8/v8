@@ -134,12 +134,6 @@ size_t ModuleCompiler::InitializeParallelCompilation(
   return funcs_to_compile;
 }
 
-void ModuleCompiler::InitializeHandles() {
-  for (auto& unit : compilation_units_) {
-    unit->InitializeHandles();
-  }
-}
-
 uint32_t* ModuleCompiler::StartCompilationTasks() {
   num_background_tasks_ =
       Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
@@ -224,7 +218,6 @@ void ModuleCompiler::CompileInParallel(ModuleBytesEnv* module_env,
   // 1) The main thread allocates a compilation unit for each wasm function
   //    and stores them in the vector {compilation_units}.
   InitializeParallelCompilation(module->functions, *module_env);
-  InitializeHandles();
 
   // Objects for the synchronization with the background threads.
   base::AtomicNumber<size_t> next_unit(
@@ -1869,7 +1862,6 @@ void AsyncCompileJob::ReopenHandlesInDeferredScope() {
   signature_tables_ = handle(*signature_tables_, isolate_);
   code_table_ = handle(*code_table_, isolate_);
   temp_instance_->ReopenHandles(isolate_);
-  compiler_->InitializeHandles();
   deferred_handles_.push_back(deferred.Detach());
 }
 

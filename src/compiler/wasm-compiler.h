@@ -53,7 +53,6 @@ class WasmCompilationUnit final {
                       wasm::FunctionBody body, wasm::WasmName name, int index,
                       bool is_sync = true);
 
-  Zone* graph_zone() { return graph_zone_.get(); }
   int func_index() const { return func_index_; }
 
   void InitializeHandles();
@@ -73,21 +72,19 @@ class WasmCompilationUnit final {
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   bool is_sync_;
-  // The graph zone is deallocated at the end of ExecuteCompilation.
-  std::unique_ptr<Zone> graph_zone_;
-  JSGraph* jsgraph_;
-  Zone compilation_zone_;
-  CompilationInfo info_;
+  // The graph zone is deallocated at the end of ExecuteCompilation by virtue of
+  // it being zone allocated.
+  JSGraph* jsgraph_ = nullptr;
+  // the compilation_zone_, info_, and job_ fields need to survive past
+  // ExecuteCompilation, onto FinishCompilation (which happens on the main
+  // thread).
+  std::unique_ptr<Zone> compilation_zone_;
+  std::unique_ptr<CompilationInfo> info_;
   std::unique_ptr<CompilationJob> job_;
+  Handle<Code> centry_stub_;
   int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
-#if DEBUG
-  bool handles_initialized_ = false;
-#endif  // DEBUG
-  ZoneVector<trap_handler::ProtectedInstructionData>
-      protected_instructions_;  // Instructions that are protected by the signal
-                                // handler.
 
   void ExecuteCompilationInternal();
 
@@ -119,7 +116,8 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g, wasm::FunctionSig* sig,
+      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g,
+      Handle<Code> centry_stub_, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -269,6 +267,7 @@ class WasmGraphBuilder {
 
   Zone* zone_;
   JSGraph* jsgraph_;
+  Node* centry_stub_node_;
   wasm::ModuleEnv* module_ = nullptr;
   Node* mem_buffer_ = nullptr;
   Node* mem_size_ = nullptr;
