@@ -131,21 +131,26 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   set_compiler_hints(hints);
 }
 
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints,
-               name_should_print_as_anonymous, kNameShouldPrintAsAnonymous)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
-               kIsAnonymousExpression)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized, kDeserialized)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
-               kHasNoSideEffect)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_has_no_side_effect,
-               kComputedHasNoSideEffect)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
-               kDebugIsBlackboxed)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_debug_is_blackboxed,
-               kComputedDebugIsBlackboxed)
-BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_reported_binary_coverage,
-               kHasReportedBinaryCoverage)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
+                    name_should_print_as_anonymous,
+                    SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
+                    SharedFunctionInfo::IsAnonymousExpressionBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized,
+                    SharedFunctionInfo::IsDeserializedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
+                    SharedFunctionInfo::HasNoSideEffectBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
+                    computed_has_no_side_effect,
+                    SharedFunctionInfo::ComputedHasNoSideEffectBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
+                    SharedFunctionInfo::DebugIsBlackboxedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
+                    computed_debug_is_blackboxed,
+                    SharedFunctionInfo::ComputedDebugIsBlackboxedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
+                    has_reported_binary_coverage,
+                    SharedFunctionInfo::HasReportedBinaryCoverageBit)
 
 void SharedFunctionInfo::DontAdaptArguments() {
   DCHECK(code()->kind() == Code::BUILTIN || code()->kind() == Code::STUB);

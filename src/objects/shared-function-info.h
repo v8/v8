@@ -507,6 +507,7 @@ class SharedFunctionInfo : public HeapObject {
   V(StartPositionBits, int, 30, _)
 
   DEFINE_BIT_FIELDS(START_POSITION_AND_TYPE_BIT_FIELDS)
+#undef START_POSITION_AND_TYPE_BIT_FIELDS
 
 // Bit positions in |compiler_hints|.
 #define COMPILER_HINTS_BIT_FIELDS(V, _)          \
@@ -533,6 +534,7 @@ class SharedFunctionInfo : public HeapObject {
   /* Bits 27-31 are unused. */
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
+#undef COMPILER_HINTS_BIT_FIELDS
 
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.
@@ -541,27 +543,36 @@ class SharedFunctionInfo : public HeapObject {
   static const int kDerivedConstructorMask = FunctionKind::kDerivedConstructor
                                              << FunctionKindBits::kShift;
 
-  // Bit positions in |debugger_hints|.
-  enum DebuggerHints {
-    kIsAnonymousExpression,
-    kNameShouldPrintAsAnonymous,
-    kDeserialized,
-    kHasNoSideEffect,
-    kComputedHasNoSideEffect,
-    kDebugIsBlackboxed,
-    kComputedDebugIsBlackboxed,
-    kHasReportedBinaryCoverage
-  };
+// Bit positions in |debugger_hints|.
+#define DEBUGGER_HINTS_BIT_FIELDS(V, _)        \
+  V(IsAnonymousExpressionBit, bool, 1, _)      \
+  V(NameShouldPrintAsAnonymousBit, bool, 1, _) \
+  V(IsDeserializedBit, bool, 1, _)             \
+  V(HasNoSideEffectBit, bool, 1, _)            \
+  V(ComputedHasNoSideEffectBit, bool, 1, _)    \
+  V(DebugIsBlackboxedBit, bool, 1, _)          \
+  V(ComputedDebugIsBlackboxedBit, bool, 1, _)  \
+  V(HasReportedBinaryCoverageBit, bool, 1, _)
 
-  // Bit fields in |counters|.
-  typedef BitField<int, 0, 4> DeoptCountBits;
-  typedef BitField<int, DeoptCountBits::kNext, 18> OptReenableTriesBits;
-  typedef BitField<int, OptReenableTriesBits::kNext, 8> ICAgeBits;
+  DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
+#undef DEBUGGER_HINTS_BIT_FIELDS
 
-  // Bit fields in |opt_count_and_bailout_reason|.
-  typedef BitField<int, 0, 22> OptCountBits;
-  typedef BitField<BailoutReason, OptCountBits::kNext, 8>
-      DisabledOptimizationReasonBits;
+// Bit fields in |counters|.
+#define COUNTERS_BIT_FIELDS(V, _)     \
+  V(DeoptCountBits, int, 4, _)        \
+  V(OptReenableTriesBits, int, 18, _) \
+  V(ICAgeBits, int, 8, _)
+
+  DEFINE_BIT_FIELDS(COUNTERS_BIT_FIELDS)
+#undef COUNTERS_BIT_FIELDS
+
+// Bit fields in |opt_count_and_bailout_reason|.
+#define OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS(V, _) \
+  V(OptCountBits, int, 22, _)                         \
+  V(DisabledOptimizationReasonBits, BailoutReason, 8, _)
+
+  DEFINE_BIT_FIELDS(OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS)
+#undef OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS
 
  private:
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
