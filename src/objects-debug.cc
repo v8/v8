@@ -729,6 +729,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
 
+  int expected_map_index = Context::FunctionMapIndex(language_mode(), kind());
+  CHECK_EQ(expected_map_index, function_map_index());
+
   if (scope_info()->length() > 0) {
     CHECK(kind() == scope_info()->function_kind());
     CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);

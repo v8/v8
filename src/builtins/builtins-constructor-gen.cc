@@ -87,91 +87,25 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   // Create a new closure from the given function info in new space
   Node* result = Allocate(JSFunction::kSize);
 
-  // Calculate the index of the map we should install on the function based on
-  // the FunctionKind and LanguageMode of the function.
-  // Note: Must be kept in sync with Context::FunctionMapIndex
   Node* compiler_hints =
       LoadObjectField(shared_info, SharedFunctionInfo::kCompilerHintsOffset,
                       MachineType::Uint32());
-  Node* is_strict =
-      IsSetWord32<SharedFunctionInfo::IsStrictBit>(compiler_hints);
 
-  Label if_normal(this), if_generator(this), if_async(this),
-      if_class_constructor(this), if_function_without_prototype(this),
-      load_map(this);
-  VARIABLE(map_index, MachineType::PointerRepresentation());
-
-  STATIC_ASSERT(FunctionKind::kNormalFunction == 0);
-  Node* function_kind =
-      DecodeWord32<SharedFunctionInfo::FunctionKindBits>(compiler_hints);
-  GotoIfNot(function_kind, &if_normal);
-
-  Node* is_generator =
-      Word32And(function_kind, Int32Constant(FunctionKind::kGeneratorFunction));
-  GotoIf(is_generator, &if_generator);
-
-  Node* is_async =
-      Word32And(function_kind, Int32Constant(FunctionKind::kAsyncFunction));
-  GotoIf(is_async, &if_async);
-
-  Node* is_class_constructor =
-      Word32And(function_kind, Int32Constant(FunctionKind::kClassConstructor));
-  GotoIf(is_class_constructor, &if_class_constructor);
-
-  if (FLAG_debug_code) {
-    // Function must be a function without a prototype.
-    CSA_ASSERT(this, Word32And(function_kind,
-                               Int32Constant(FunctionKind::kAccessorFunction |
-                                             FunctionKind::kArrowFunction |
-                                             FunctionKind::kConciseMethod)));
-  }
-  Goto(&if_function_without_prototype);
-
-  BIND(&if_normal);
-  {
-    map_index.Bind(SelectIntPtrConstant(is_strict,
-                                        Context::STRICT_FUNCTION_MAP_INDEX,
-                                        Context::SLOPPY_FUNCTION_MAP_INDEX));
-    Goto(&load_map);
-  }
-
-  BIND(&if_generator);
-  {
-    Node* is_async =
-        Word32And(function_kind, Int32Constant(FunctionKind::kAsyncFunction));
-    map_index.Bind(SelectIntPtrConstant(
-        is_async, Context::ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
-        Context::GENERATOR_FUNCTION_MAP_INDEX));
-    Goto(&load_map);
-  }
-
-  BIND(&if_async);
-  {
-    map_index.Bind(IntPtrConstant(Context::ASYNC_FUNCTION_MAP_INDEX));
-    Goto(&load_map);
-  }
-
-  BIND(&if_class_constructor);
-  {
-    map_index.Bind(IntPtrConstant(Context::CLASS_FUNCTION_MAP_INDEX));
-    Goto(&load_map);
-  }
-
-  BIND(&if_function_without_prototype);
-  {
-    map_index.Bind(
-        IntPtrConstant(Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-    Goto(&load_map);
-  }
-
-  BIND(&load_map);
+  // The calculation of |function_map_index| must be in sync with
+  // SharedFunctionInfo::function_map_index().
+  Node* function_map_index =
+      IntPtrAdd(DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(
+                    compiler_hints),
+                IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
+  CSA_ASSERT(this, UintPtrLessThanOrEqual(
+                       function_map_index,
+                       IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
 
   // Get the function map in the current native context and set that
   // as the map of the allocated object.
   Node* native_context = LoadNativeContext(context);
-  Node* map_slot_value =
-      LoadFixedArrayElement(native_context, map_index.value());
-  StoreMapNoWriteBarrier(result, map_slot_value);
+  Node* function_map = LoadContextElement(native_context, function_map_index);
+  StoreMapNoWriteBarrier(result, function_map);
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());

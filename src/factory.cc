@@ -1597,10 +1597,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info,
     Handle<Context> context,
     PretenureFlag pretenure) {
-  int map_index =
-      Context::FunctionMapIndex(info->language_mode(), info->kind());
-  Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
-
+  Handle<Map> initial_map(
+      Map::cast(context->native_context()->get(info->function_map_index())));
   return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
                                            pretenure);
 }
@@ -1608,10 +1606,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
     Handle<Cell> vector, PretenureFlag pretenure) {
-  int map_index =
-      Context::FunctionMapIndex(info->language_mode(), info->kind());
-  Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
-
+  Handle<Map> initial_map(
+      Map::cast(context->native_context()->get(info->function_map_index())));
   return NewFunctionFromSharedFunctionInfo(initial_map, info, context, vector,
                                            pretenure);
 }

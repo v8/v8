@@ -118,6 +118,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   int hints = compiler_hints();
   hints = IsStrictBit::update(hints, is_strict(language_mode));
   set_compiler_hints(hints);
+  UpdateFunctionMapIndex();
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
@@ -129,6 +130,28 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   int hints = compiler_hints();
   hints = FunctionKindBits::update(hints, kind);
   set_compiler_hints(hints);
+  UpdateFunctionMapIndex();
+}
+
+int SharedFunctionInfo::function_map_index() const {
+  int index = Context::FIRST_FUNCTION_MAP_INDEX +
+              FunctionMapIndexBits::decode(compiler_hints());
+  DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
+  return index;
+}
+
+void SharedFunctionInfo::set_function_map_index(int index) {
+  STATIC_ASSERT(Context::LAST_FUNCTION_MAP_INDEX <=
+                Context::FIRST_FUNCTION_MAP_INDEX + FunctionMapIndexBits::kMax);
+  DCHECK_LE(Context::FIRST_FUNCTION_MAP_INDEX, index);
+  DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
+  index -= Context::FIRST_FUNCTION_MAP_INDEX;
+  set_compiler_hints(FunctionMapIndexBits::update(compiler_hints(), index));
+}
+
+void SharedFunctionInfo::UpdateFunctionMapIndex() {
+  int map_index = Context::FunctionMapIndex(language_mode(), kind());
+  set_function_map_index(map_index);
 }
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,

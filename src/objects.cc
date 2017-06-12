@@ -9018,22 +9018,20 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   return new_map;
 }
 
-
 Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
-                                LanguageMode language_mode, FunctionKind kind) {
+                                Handle<SharedFunctionInfo> shared_info) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   // Initial map for sloppy mode function is stored in the function
   // constructor. Initial maps for strict mode are cached as special transitions
   // using |strict_function_transition_symbol| as a key.
-  if (language_mode == SLOPPY) return initial_map;
+  if (is_sloppy(shared_info->language_mode())) return initial_map;
   Isolate* isolate = initial_map->GetIsolate();
 
-  int map_index = Context::FunctionMapIndex(language_mode, kind);
-  Handle<Map> function_map(
-      Map::cast(isolate->native_context()->get(map_index)));
+  Handle<Map> function_map(Map::cast(
+      isolate->native_context()->get(shared_info->function_map_index())));
 
   STATIC_ASSERT(LANGUAGE_END == 2);
-  DCHECK_EQ(STRICT, language_mode);
+  DCHECK_EQ(STRICT, shared_info->language_mode());
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
   Map* maybe_transition =

@@ -93,8 +93,7 @@ class SharedFunctionInfo : public HeapObject {
   // [internal formal parameter count]: The declared number of parameters.
   // For subclass constructors, also includes new.target.
   // The size of function's frame is internal_formal_parameter_count + 1.
-  inline int internal_formal_parameter_count() const;
-  inline void set_internal_formal_parameter_count(int value);
+  DECL_INT_ACCESSORS(internal_formal_parameter_count)
 
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.
@@ -102,8 +101,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
-  inline int expected_nof_properties() const;
-  inline void set_expected_nof_properties(int value);
+  DECL_INT_ACCESSORS(expected_nof_properties)
 
   // [feedback_metadata] - describes ast node feedback from full-codegen and
   // (increasingly) from crankshafted code where sufficient feedback isn't
@@ -113,14 +111,12 @@ class SharedFunctionInfo : public HeapObject {
   // [function_literal_id] - uniquely identifies the FunctionLiteral this
   // SharedFunctionInfo represents within its script, or -1 if this
   // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
-  inline int function_literal_id() const;
-  inline void set_function_literal_id(int value);
+  DECL_INT_ACCESSORS(function_literal_id)
 
 #if V8_SFI_HAS_UNIQUE_ID
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
   // even if the GC moves this SharedFunctionInfo.
-  inline int unique_id() const;
-  inline void set_unique_id(int value);
+  DECL_INT_ACCESSORS(unique_id)
 #endif
 
   // [instance class name]: class name for instances.
@@ -171,8 +167,7 @@ class SharedFunctionInfo : public HeapObject {
   // and whether or not the function is a toplevel function. The two
   // least significants bit indicates whether the function is an
   // expression and the rest contains the source code position.
-  inline int start_position_and_type() const;
-  inline void set_start_position_and_type(int value);
+  DECL_INT_ACCESSORS(start_position_and_type)
 
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
@@ -237,16 +232,13 @@ class SharedFunctionInfo : public HeapObject {
   bool PassesFilter(const char* raw_filter);
 
   // Position of the 'function' token in the script source.
-  inline int function_token_position() const;
-  inline void set_function_token_position(int function_token_position);
+  DECL_INT_ACCESSORS(function_token_position)
 
   // Position of this function in the script source.
-  inline int start_position() const;
-  inline void set_start_position(int start_position);
+  DECL_INT_ACCESSORS(start_position)
 
   // End position of this function in the script source.
-  inline int end_position() const;
-  inline void set_end_position(int end_position);
+  DECL_INT_ACCESSORS(end_position)
 
   // Returns true if the function has shared name.
   inline bool has_shared_name() const;
@@ -259,19 +251,15 @@ class SharedFunctionInfo : public HeapObject {
 
   // Bit field containing various information collected by the compiler to
   // drive optimization.
-  inline int compiler_hints() const;
-  inline void set_compiler_hints(int value);
+  DECL_INT_ACCESSORS(compiler_hints)
 
-  inline int ast_node_count() const;
-  inline void set_ast_node_count(int count);
+  DECL_INT_ACCESSORS(ast_node_count)
 
-  inline int profiler_ticks() const;
-  inline void set_profiler_ticks(int ticks);
+  DECL_INT_ACCESSORS(profiler_ticks)
 
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
-  inline int ic_age() const;
-  inline void set_ic_age(int age);
+  DECL_INT_ACCESSORS(ic_age)
 
   // Indicates if this function can be lazy compiled.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
@@ -329,6 +317,13 @@ class SharedFunctionInfo : public HeapObject {
   inline FunctionKind kind() const;
   inline void set_kind(FunctionKind kind);
 
+  // Defines the index in a native context of closure's map instantiated using
+  // this shared function info.
+  DECL_INT_ACCESSORS(function_map_index)
+
+  // Recalculates the |map_index| value after modifications of this shared info.
+  inline void UpdateFunctionMapIndex();
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support() const;
@@ -351,18 +346,15 @@ class SharedFunctionInfo : public HeapObject {
   Handle<Object> GetSourceCodeHarmony();
 
   // Number of times the function was optimized.
-  inline int opt_count() const;
-  inline void set_opt_count(int opt_count);
+  DECL_INT_ACCESSORS(opt_count)
 
   // Number of times the function was deoptimized.
-  inline void set_deopt_count(int value);
-  inline int deopt_count() const;
+  DECL_INT_ACCESSORS(deopt_count)
   inline void increment_deopt_count();
 
   // Number of time we tried to re-enable optimization after it
   // was disabled due to high number of deoptimizations.
-  inline void set_opt_reenable_tries(int value);
-  inline int opt_reenable_tries() const;
+  DECL_INT_ACCESSORS(opt_reenable_tries)
 
   inline void TryReenableOptimization();
 
@@ -371,8 +363,7 @@ class SharedFunctionInfo : public HeapObject {
   inline int counters() const;
 
   // Stores opt_count and bailout_reason as bit-fields.
-  inline void set_opt_count_and_bailout_reason(int value);
-  inline int opt_count_and_bailout_reason() const;
+  DECL_INT_ACCESSORS(opt_count_and_bailout_reason)
 
   inline BailoutReason disable_optimization_reason() const;
   inline void set_disable_optimization_reason(BailoutReason reason);
@@ -526,7 +517,8 @@ class SharedFunctionInfo : public HeapObject {
   V(IsDeclarationBit, bool, 1, _)                \
   V(IsAsmWasmBrokenBit, bool, 1, _)              \
   V(HasConcurrentOptimizationJobBit, bool, 1, _) \
-  /* Bits 24-31 are unused. */
+  V(FunctionMapIndexBits, int, 4, _)             \
+  /* Bits 28-31 are unused. */
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS

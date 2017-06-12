@@ -450,8 +450,7 @@ class Map : public HeapObject {
                                         TransitionFlag flag);
 
   static Handle<Map> AsLanguageMode(Handle<Map> initial_map,
-                                    LanguageMode language_mode,
-                                    FunctionKind kind);
+                                    Handle<SharedFunctionInfo> shared_info);
 
   static Handle<Map> CopyForPreventExtensions(Handle<Map> map,
                                               PropertyAttributes attrs_to_add,
