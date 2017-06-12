@@ -72,7 +72,6 @@ v8_executable("unittests") {
     "compiler/js-typed-lowering-unittest.cc",
     "compiler/linkage-tail-call-unittest.cc",
     "compiler/live-range-builder.h",
-    "compiler/liveness-analyzer-unittest.cc",
     "compiler/load-elimination-unittest.cc",
     "compiler/loop-peeling-unittest.cc",
     "compiler/machine-operator-reducer-unittest.cc",

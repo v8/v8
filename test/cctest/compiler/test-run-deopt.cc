@@ -29,6 +29,7 @@ static void InstallIsOptimizedHelper(v8::Isolate* isolate) {
 
 
 TEST(DeoptSimple) {
+  FLAG_ignition = true;
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
@@ -46,6 +47,7 @@ TEST(DeoptSimple) {
 
 
 TEST(DeoptSimpleInExpr) {
+  FLAG_ignition = true;
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
@@ -64,6 +66,7 @@ TEST(DeoptSimpleInExpr) {
 
 
 TEST(DeoptExceptionHandlerCatch) {
+  FLAG_ignition = true;
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
@@ -83,6 +86,7 @@ TEST(DeoptExceptionHandlerCatch) {
 
 
 TEST(DeoptExceptionHandlerFinally) {
+  FLAG_ignition = true;
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
@@ -102,6 +106,7 @@ TEST(DeoptExceptionHandlerFinally) {
 
 
 TEST(DeoptTrivial) {
+  FLAG_ignition = true;
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(

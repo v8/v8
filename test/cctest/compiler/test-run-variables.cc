@@ -66,30 +66,35 @@ static void RunVariableTests(const char* source, const char* tests[]) {
 
 
 TEST(StackLoadVariables) {
+  FLAG_ignition = true;
   const char* source = "(function(a,r) { %s; return r; })";
   RunVariableTests(source, load_tests);
 }
 
 
 TEST(ContextLoadVariables) {
+  FLAG_ignition = true;
   const char* source = "(function(a,r) { %s; function f() {x} return r; })";
   RunVariableTests(source, load_tests);
 }
 
 
 TEST(StackStoreVariables) {
+  FLAG_ignition = true;
   const char* source = "(function(a,r) { %s; return r; })";
   RunVariableTests(source, store_tests);
 }
 
 
 TEST(ContextStoreVariables) {
+  FLAG_ignition = true;
   const char* source = "(function(a,r) { %s; function f() {x} return r; })";
   RunVariableTests(source, store_tests);
 }
 
 
 TEST(SelfReferenceVariable) {
+  FLAG_ignition = true;
   FunctionTester T("(function self() { return self; })");
 
   T.CheckCall(T.function);

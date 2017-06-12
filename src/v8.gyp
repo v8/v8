@@ -797,8 +797,6 @@
         'compiler/jump-threading.h',
         'compiler/linkage.cc',
         'compiler/linkage.h',
-        'compiler/liveness-analyzer.cc',
-        'compiler/liveness-analyzer.h',
         'compiler/live-range-separator.cc',
         'compiler/live-range-separator.h',
         'compiler/load-elimination.cc',

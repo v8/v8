@@ -169,13 +169,13 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
                        function);
 
   info.SetOptimizing();
-  info.MarkAsDeoptimizationEnabled();
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
 
   CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
   if (info.shared_info()->HasBytecodeArray()) {
+    info.MarkAsDeoptimizationEnabled();
     info.MarkAsOptimizeFromBytecode();
   } else {
     CHECK(Compiler::ParseAndAnalyze(&info));

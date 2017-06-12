@@ -8,7 +8,6 @@
 #include "src/ast/ast.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"
 
 namespace v8 {
@@ -114,9 +113,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
 
-  // Analyzer of local variable liveness.
-  LivenessAnalyzer liveness_analyzer_;
-
   // Function info for frame state construction.
   const FrameStateFunctionInfo* const frame_state_function_info_;
 
@@ -140,7 +136,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   Scope* current_scope() const;
   Node* current_context() const;
-  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
   const FrameStateFunctionInfo* frame_state_function_info() const {
     return frame_state_function_info_;
   }
@@ -238,10 +233,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Check if the given statement is an OSR entry.
   // If so, record the stack height into the compilation and return {true}.
   bool CheckOsrEntry(IterationStatement* stmt);
-
-  // Computes local variable liveness and replaces dead variables in
-  // frame states with the undefined values.
-  void ClearNonLiveSlotsInFrameStates();
 
   Node** EnsureInputBufferSize(int size);
 
@@ -426,7 +417,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Operations on parameter or local variables.
   void Bind(Variable* variable, Node* node);
   Node* Lookup(Variable* variable);
-  void MarkAllLocalsLive();
 
   // Raw operations on parameter variables.
   void RawParameterBind(int index, Node* node);
@@ -501,7 +491,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Mark this environment as being unreachable.
   void MarkAsUnreachable() {
     UpdateControlDependency(builder()->jsgraph()->Dead());
-    liveness_block_ = nullptr;
   }
   bool IsMarkedAsUnreachable() {
     return GetControlDependency()->opcode() == IrOpcode::kDead;
@@ -528,7 +517,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
   AstGraphBuilder* builder_;
   int parameters_count_;
   int locals_count_;
-  LivenessAnalyzerBlock* liveness_block_;
   NodeVector values_;
   NodeVector contexts_;
   Node* control_dependency_;
@@ -537,19 +525,14 @@ class AstGraphBuilder::Environment : public ZoneObject {
   Node* locals_node_;
   Node* stack_node_;
 
-  explicit Environment(Environment* copy,
-                       LivenessAnalyzerBlock* liveness_block);
+  explicit Environment(Environment* copy);
   Environment* CopyAndShareLiveness();
-  void UpdateStateValues(Node** state_values, int offset, int count);
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   AstGraphBuilder* builder() const { return builder_; }
   CommonOperatorBuilder* common() { return builder_->common(); }
   NodeVector* values() { return &values_; }
   NodeVector* contexts() { return &contexts_; }
-  LivenessAnalyzerBlock* liveness_block() { return liveness_block_; }
-  bool IsLivenessAnalysisEnabled();
-  bool IsLivenessBlockConsistent();
 
   // Prepare environment to be used as loop header.
   void PrepareForLoop(BitVector* assigned);

@@ -11,7 +11,6 @@
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -287,8 +286,6 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       exit_controls_(local_zone),
       loop_assignment_analysis_(loop),
       state_values_cache_(jsgraph),
-      liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
-                         false, local_zone),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kJavaScriptFunction, info->num_parameters() + 1,
           info->scope()->num_stack_slots(), info->shared_info())) {
@@ -401,10 +398,6 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   Node* end = graph()->NewNode(common()->End(input_count), input_count, inputs);
   graph()->SetEnd(end);
 
-  // Compute local variable liveness information and use it to relax
-  // frame states.
-  ClearNonLiveSlotsInFrameStates();
-
   // Failures indicated by stack overflow.
   return !HasStackOverflow();
 }
@@ -443,27 +436,6 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
 }
 
 
-void AstGraphBuilder::ClearNonLiveSlotsInFrameStates() {
-  if (!FLAG_analyze_environment_liveness ||
-      !info()->is_deoptimization_enabled()) {
-    return;
-  }
-
-  NonLiveFrameStateSlotReplacer replacer(
-      &state_values_cache_, jsgraph()->OptimizedOutConstant(),
-      liveness_analyzer()->local_count(), false, local_zone());
-  Variable* arguments = info()->scope()->arguments();
-  if (arguments != nullptr && arguments->IsStackAllocated()) {
-    replacer.MarkPermanentlyLive(arguments->index());
-  }
-  liveness_analyzer()->Run(&replacer);
-  if (FLAG_trace_environment_liveness) {
-    OFStream os(stdout);
-    liveness_analyzer()->Print(os);
-  }
-}
-
-
 // Gets the bailout id just before reading a variable proxy, but only for
 // unallocated variables.
 static BailoutId BeforeId(VariableProxy* proxy) {
@@ -490,9 +462,6 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
     : builder_(builder),
       parameters_count_(scope->num_parameters() + 1),
       locals_count_(scope->num_stack_slots()),
-      liveness_block_(IsLivenessAnalysisEnabled()
-                          ? builder_->liveness_analyzer()->NewBlock()
-                          : nullptr),
       values_(builder_->local_zone()),
       contexts_(builder_->local_zone()),
       control_dependency_(control_dependency),
@@ -527,13 +496,10 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   values()->insert(values()->end(), locals_count(), undefined_constant);
 }
 
-
-AstGraphBuilder::Environment::Environment(AstGraphBuilder::Environment* copy,
-                                          LivenessAnalyzerBlock* liveness_block)
+AstGraphBuilder::Environment::Environment(AstGraphBuilder::Environment* copy)
     : builder_(copy->builder_),
       parameters_count_(copy->parameters_count_),
       locals_count_(copy->locals_count_),
-      liveness_block_(liveness_block),
       values_(copy->zone()),
       contexts_(copy->zone()),
       control_dependency_(copy->control_dependency_),
@@ -559,10 +525,6 @@ void AstGraphBuilder::Environment::Bind(Variable* variable, Node* node) {
   } else {
     DCHECK(variable->IsStackLocal());
     values()->at(variable->index() + parameters_count_) = node;
-    DCHECK(IsLivenessBlockConsistent());
-    if (liveness_block() != nullptr) {
-      liveness_block()->Bind(variable->index());
-    }
   }
 }
 
@@ -575,21 +537,7 @@ Node* AstGraphBuilder::Environment::Lookup(Variable* variable) {
     return values()->at(variable->index() + 1);
   } else {
     DCHECK(variable->IsStackLocal());
-    DCHECK(IsLivenessBlockConsistent());
-    if (liveness_block() != nullptr) {
-      liveness_block()->Lookup(variable->index());
-    }
     return values()->at(variable->index() + parameters_count_);
-  }
-}
-
-
-void AstGraphBuilder::Environment::MarkAllLocalsLive() {
-  DCHECK(IsLivenessBlockConsistent());
-  if (liveness_block() != nullptr) {
-    for (int i = 0; i < locals_count_; i++) {
-      liveness_block()->Lookup(i);
-    }
   }
 }
 
@@ -608,37 +556,24 @@ Node* AstGraphBuilder::Environment::RawParameterLookup(int index) {
 
 AstGraphBuilder::Environment*
 AstGraphBuilder::Environment::CopyForConditional() {
-  LivenessAnalyzerBlock* copy_liveness_block = nullptr;
-  if (liveness_block() != nullptr) {
-    copy_liveness_block =
-        builder_->liveness_analyzer()->NewBlock(liveness_block());
-    liveness_block_ = builder_->liveness_analyzer()->NewBlock(liveness_block());
-  }
-  return new (zone()) Environment(this, copy_liveness_block);
+  return new (zone()) Environment(this);
 }
 
 
 AstGraphBuilder::Environment*
 AstGraphBuilder::Environment::CopyAsUnreachable() {
-  Environment* env = new (zone()) Environment(this, nullptr);
+  Environment* env = new (zone()) Environment(this);
   env->MarkAsUnreachable();
   return env;
 }
 
 AstGraphBuilder::Environment* AstGraphBuilder::Environment::CopyForOsrEntry() {
-  LivenessAnalyzerBlock* copy_block =
-      liveness_block() == nullptr ? nullptr
-                                  : builder_->liveness_analyzer()->NewBlock();
-  return new (zone()) Environment(this, copy_block);
+  return new (zone()) Environment(this);
 }
 
 AstGraphBuilder::Environment*
 AstGraphBuilder::Environment::CopyAndShareLiveness() {
-  if (liveness_block() != nullptr) {
-    // Finish the current liveness block before copying.
-    liveness_block_ = builder_->liveness_analyzer()->NewBlock(liveness_block());
-  }
-  Environment* env = new (zone()) Environment(this, liveness_block());
+  Environment* env = new (zone()) Environment(this);
   return env;
 }
 
@@ -657,61 +592,11 @@ AstGraphBuilder::Environment* AstGraphBuilder::Environment::CopyForLoop(
 }
 
 
-void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
-                                                     int offset, int count) {
-  bool should_update = false;
-  Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
-  if (*state_values == nullptr || (*state_values)->InputCount() != count) {
-    should_update = true;
-  } else {
-    DCHECK(static_cast<size_t>(offset + count) <= values()->size());
-    for (int i = 0; i < count; i++) {
-      if ((*state_values)->InputAt(i) != env_values[i]) {
-        should_update = true;
-        break;
-      }
-    }
-  }
-  if (should_update) {
-    const Operator* op = common()->StateValues(count, SparseInputMask::Dense());
-    (*state_values) = graph()->NewNode(op, count, env_values);
-  }
-}
-
-
 Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id,
                                                OutputFrameStateCombine combine,
                                                bool owner_has_exception) {
-  if (!builder()->info()->is_deoptimization_enabled()) {
-    return builder()->GetEmptyFrameState();
-  }
-
-  UpdateStateValues(&parameters_node_, 0, parameters_count());
-  UpdateStateValues(&locals_node_, parameters_count(), locals_count());
-  UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
-                    stack_height());
-
-  const Operator* op = common()->FrameState(
-      ast_id, combine, builder()->frame_state_function_info());
-
-  Node* result = graph()->NewNode(op, parameters_node_, locals_node_,
-                                  stack_node_, builder()->current_context(),
-                                  builder()->GetFunctionClosure(),
-                                  builder()->graph()->start());
-
-  DCHECK(IsLivenessBlockConsistent());
-  if (liveness_block() != nullptr) {
-    // If the owning node has an exception, register the checkpoint to the
-    // predecessor so that the checkpoint is used for both the normal and the
-    // exceptional paths. Yes, this is a terrible hack and we might want
-    // to use an explicit frame state for the exceptional path.
-    if (owner_has_exception) {
-      liveness_block()->GetPredecessor()->Checkpoint(result);
-    } else {
-      liveness_block()->Checkpoint(result);
-    }
-  }
-  return result;
+  DCHECK(!builder()->info()->is_deoptimization_enabled());
+  return builder()->GetEmptyFrameState();
 }
 
 void AstGraphBuilder::Environment::PrepareForLoopExit(
@@ -741,17 +626,6 @@ void AstGraphBuilder::Environment::PrepareForLoopExit(
   Node* effect_rename = graph()->NewNode(common()->LoopExitEffect(),
                                          GetEffectDependency(), loop_exit);
   UpdateEffectDependency(effect_rename);
-}
-
-bool AstGraphBuilder::Environment::IsLivenessAnalysisEnabled() {
-  return FLAG_analyze_environment_liveness &&
-         builder()->info()->is_deoptimization_enabled();
-}
-
-
-bool AstGraphBuilder::Environment::IsLivenessBlockConsistent() {
-  return (!IsLivenessAnalysisEnabled() || IsMarkedAsUnreachable()) ==
-         (liveness_block() == nullptr);
 }
 
 
@@ -2968,22 +2842,7 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
     effect_dependency_ = other->effect_dependency_;
     values_ = other->values_;
     contexts_ = other->contexts_;
-    if (IsLivenessAnalysisEnabled()) {
-      liveness_block_ =
-          builder_->liveness_analyzer()->NewBlock(other->liveness_block());
-    }
     return;
-  }
-
-  // Record the merge for the local variable liveness calculation.
-  // For loops, we are connecting a back edge into the existing block;
-  // for merges, we create a new merged block.
-  if (IsLivenessAnalysisEnabled()) {
-    if (GetControlDependency()->opcode() != IrOpcode::kLoop) {
-      liveness_block_ =
-          builder_->liveness_analyzer()->NewBlock(liveness_block());
-    }
-    liveness_block()->AddPredecessor(other->liveness_block());
   }
 
   // Create a merge of the control dependencies of both environments and update

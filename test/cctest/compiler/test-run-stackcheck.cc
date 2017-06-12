@@ -10,6 +10,7 @@ namespace internal {
 namespace compiler {
 
 TEST(TerminateAtMethodEntry) {
+  FLAG_ignition = true;
   FunctionTester T("(function(a,b) { return 23; })");
 
   T.CheckCall(T.Val(23));

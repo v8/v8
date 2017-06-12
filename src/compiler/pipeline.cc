@@ -602,8 +602,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
       info()->MarkAsLoopPeelingEnabled();
     }
   }
-  if (info()->is_optimizing_from_bytecode() ||
-      !info()->shared_info()->asm_function()) {
+  if (info()->is_optimizing_from_bytecode()) {
     info()->MarkAsDeoptimizationEnabled();
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
@@ -773,7 +772,7 @@ struct GraphBuilderPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     if (data->info()->is_optimizing_from_bytecode()) {
-      // Bytecode graph builder assumes deoptimziation is enabled.
+      // Bytecode graph builder assumes deoptimization is enabled.
       DCHECK(data->info()->is_deoptimization_enabled());
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
       if (data->info()->is_bailout_on_uninitialized()) {
@@ -786,6 +785,8 @@ struct GraphBuilderPhase {
           data->source_positions(), SourcePosition::kNotInlined, flags);
       graph_builder.CreateGraph();
     } else {
+      // AST-based graph builder assumes deoptimization is disabled.
+      DCHECK(!data->info()->is_deoptimization_enabled());
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
           data->loop_assignment(), data->source_positions());
