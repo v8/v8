@@ -4464,6 +4464,12 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_resume_mode(Smi::cast(*resume_mode)->value());
       object->set_continuation(Smi::cast(*continuation_offset)->value());
       object->set_register_file(FixedArray::cast(*register_file));
+      int in_object_properties = map->GetInObjectProperties();
+      for (int i = 0; i < in_object_properties; ++i) {
+        Handle<Object> value = materializer.FieldAt(value_index);
+        FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
+        object->FastPropertyAtPut(index, *value);
+      }
       return object;
     }
     case CONS_STRING_TYPE: {
