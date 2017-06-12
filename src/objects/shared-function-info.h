@@ -511,27 +511,22 @@ class SharedFunctionInfo : public HeapObject {
 
 // Bit positions in |compiler_hints|.
 #define COMPILER_HINTS_BIT_FIELDS(V, _)          \
-  /* byte 0 */                                   \
-  V(AllowLazyCompilationBit, bool, 1, _)         \
-  V(MarkedForTierUpBit, bool, 1, _)              \
-  V(OptimizationDisabledBit, bool, 1, _)         \
-  V(HasDuplicateParametersBit, bool, 1, _)       \
   V(IsNativeBit, bool, 1, _)                     \
   V(IsStrictBit, bool, 1, _)                     \
+  V(FunctionKindBits, FunctionKind, 10, _)       \
+  V(MarkedForTierUpBit, bool, 1, _)              \
+  V(HasDuplicateParametersBit, bool, 1, _)       \
+  V(AllowLazyCompilationBit, bool, 1, _)         \
+  V(OptimizationDisabledBit, bool, 1, _)         \
   V(UsesArgumentsBit, bool, 1, _)                \
   V(NeedsHomeObjectBit, bool, 1, _)              \
-  /* byte 1 */                                   \
   V(ForceInlineBit, bool, 1, _)                  \
   V(IsAsmFunctionBit, bool, 1, _)                \
   V(MustUseIgnitionTurboBit, bool, 1, _)         \
   V(IsDeclarationBit, bool, 1, _)                \
   V(IsAsmWasmBrokenBit, bool, 1, _)              \
   V(HasConcurrentOptimizationJobBit, bool, 1, _) \
-  /* Bits 14-15 are unused. */                   \
-  V(UnusedBits1, int, 2, _)                      \
-  /* byte 2 */                                   \
-  V(FunctionKindBits, FunctionKind, 10, _)       \
-  /* Bits 27-31 are unused. */
+  /* Bits 24-31 are unused. */
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
