@@ -12,12 +12,26 @@
 
   #TODO(ahaas): Add additional stack checks on mips.
   # Issue 6318: Stack checks for functions with huge stack frames fail on x64 and ia32
-  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or arch == x64 or arch == ia32', SKIP]],
+  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or arch == x64 or arch == ia32 or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
   # Too slow on chromebooks.
   'tests/br_table': [SKIP],
 }],  # 'arch == arm and not simulator_run'
+
+['arch == ppc or arch == ppc64', {
+  # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+  # This test fails because ppc float to double doesn't convert sNaN to qNaN.
+  'tests/conversions': [SKIP],
+}],  # 'arch == ppc or arch == ppc64'
+
+['arch == s390 or arch == s390x', {
+  # These tests fail because s390 float min and max doesn't convert sNaN to qNaN.
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 
 ]
