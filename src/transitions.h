@@ -11,6 +11,7 @@
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/map.h"
+#include "src/objects/name.h"
 
 namespace v8 {
 namespace internal {

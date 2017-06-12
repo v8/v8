@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/elements-kind.h"
 #include "src/objects/map.h"
+#include "src/objects/name.h"
 #include "src/type-hints.h"
 #include "src/zone/zone-containers.h"
 

@@ -11,6 +11,7 @@
 #include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
+#include "src/objects/string.h"
 
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.

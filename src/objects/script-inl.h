@@ -5,7 +5,9 @@
 #ifndef V8_OBJECTS_SCRIPT_INL_H_
 #define V8_OBJECTS_SCRIPT_INL_H_
 
-#include "src/objects/code-cache.h"
+#include "src/objects/script.h"
+
+#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -719,6 +719,8 @@ action("postmortem-metadata") {
     "src/objects/script-inl.h",
     "src/objects/shared-function-info.h",
     "src/objects/shared-function-info-inl.h",
+    "src/objects/string.h",
+    "src/objects/string-inl.h",
   ]
 
   outputs = [
@@ -1784,6 +1786,8 @@ v8_source_set("v8_base") {
     "src/objects/map-inl.h",
     "src/objects/map.h",
     "src/objects/module-info.h",
+    "src/objects/name-inl.h",
+    "src/objects/name.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
     "src/objects/regexp-match-info.h",
@@ -1793,7 +1797,9 @@ v8_source_set("v8_base") {
     "src/objects/script.h",
     "src/objects/shared-function-info-inl.h",
     "src/objects/shared-function-info.h",
+    "src/objects/string-inl.h",
     "src/objects/string-table.h",
+    "src/objects/string.h",
     "src/ostreams.cc",
     "src/ostreams.h",
     "src/parsing/duplicate-finder.h",

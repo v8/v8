@@ -12,6 +12,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/string.h"
 #include "src/string-hasher.h"
 
 namespace v8 {
@@ -134,10 +135,7 @@ class V8_EXPORT_PRIVATE Factory final {
     return StringTable::LookupString(isolate(), string);
   }
 
-  Handle<Name> InternalizeName(Handle<Name> name) {
-    if (name->IsUniqueName()) return name;
-    return StringTable::LookupString(isolate(), Handle<String>::cast(name));
-  }
+  Handle<Name> InternalizeName(Handle<Name> name);
 
   // String creation functions.  Most of the string creation functions take
   // a Heap::PretenureFlag argument to optionally request that they be
@@ -254,10 +252,7 @@ class V8_EXPORT_PRIVATE Factory final {
                                     int end);
 
   // Create a new string object which holds a substring of a string.
-  Handle<String> NewSubString(Handle<String> str, int begin, int end) {
-    if (begin == 0 && end == str->length()) return str;
-    return NewProperSubString(str, begin, end);
-  }
+  Handle<String> NewSubString(Handle<String> str, int begin, int end);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: one-byte and two-byte.  Unlike other String types, it does
@@ -693,16 +688,7 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
 
-  Handle<String> Uint32ToString(uint32_t value) {
-    Handle<String> result = NumberToString(NewNumberFromUint(value));
-
-    if (result->length() <= String::kMaxArrayIndexSize) {
-      uint32_t field =
-          StringHasher::MakeArrayIndexHash(value, result->length());
-      result->set_hash_field(field);
-    }
-    return result;
-  }
+  Handle<String> Uint32ToString(uint32_t value);
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
 

@@ -6340,8 +6340,8 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool extensible = JSObject::IsExtensible(object);
 
-  return ValidateAndApplyPropertyDescriptor(isolate, it, extensible, desc,
-                                            &current, should_throw);
+  return ValidateAndApplyPropertyDescriptor(
+      isolate, it, extensible, desc, &current, should_throw, Handle<Name>());
 }
 
 
