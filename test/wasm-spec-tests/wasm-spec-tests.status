@@ -6,7 +6,7 @@
 [ALWAYS, {
   #TODO(ahaas): Add additional stack checks on mips.
   # Issue 6318: Stack checks for functions with huge stack frames fail on x64 and ia32
-  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or arch == x64 or arch == ia32', SKIP]],
+  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or arch == x64 or arch == ia32 or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
