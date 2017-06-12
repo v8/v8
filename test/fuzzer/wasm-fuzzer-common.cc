@@ -121,13 +121,13 @@ int WasmExecutionFuzzer::FuzzWasmModule(
   v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
 
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
-  std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
-      i_isolate, &interpreter_thrower, buffer.begin(), buffer.end(),
-      ModuleOrigin::kWasmOrigin, true));
+  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
+  MaybeHandle<WasmModuleObject> compiled_module =
+      SyncCompile(i_isolate, &interpreter_thrower, wire_bytes);
   // Clear the flag so that the WebAssembly code is not printed twice.
   FLAG_wasm_code_fuzzer_gen_test = false;
-  if (module == nullptr) {
+  if (compiled_module.is_null()) {
     if (generate_test) {
       OFStream os(stdout);
       os << "            ])" << std::endl;
@@ -147,30 +147,32 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     os << "})();" << std::endl;
   }
 
-  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
   int32_t result_interpreted;
   bool possible_nondeterminism = false;
   {
+    MaybeHandle<WasmInstanceObject> interpreter_instance = SyncInstantiate(
+        i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
+        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+
+    if (interpreter_thrower.error()) {
+      return 0;
+    }
     result_interpreted = testing::InterpretWasmModule(
-        i_isolate, &interpreter_thrower, module.get(), wire_bytes, 0,
-        interpreter_args.get(), &possible_nondeterminism);
+        i_isolate, interpreter_instance.ToHandleChecked(), &interpreter_thrower,
+        0, interpreter_args.get(), &possible_nondeterminism);
   }
 
-  ErrorThrower compiler_thrower(i_isolate, "Compiler");
-  Handle<JSObject> instance = testing::InstantiateModuleForTesting(
-      i_isolate, &compiler_thrower, module.get(), wire_bytes);
-  // Restore the flag.
-  FLAG_wasm_code_fuzzer_gen_test = generate_test;
-  if (!interpreter_thrower.error()) {
-    CHECK(!instance.is_null());
-  } else {
-    return 0;
-  }
   int32_t result_compiled;
   {
+    ErrorThrower compiler_thrower(i_isolate, "Compiler");
+    MaybeHandle<WasmInstanceObject> compiled_instance = SyncInstantiate(
+        i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
+        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+
+    DCHECK(!compiler_thrower.error());
     result_compiled = testing::CallWasmFunctionForTesting(
-        i_isolate, instance, &compiler_thrower, "main", num_args,
-        compiler_args.get(), ModuleOrigin::kWasmOrigin);
+        i_isolate, compiled_instance.ToHandleChecked(), &compiler_thrower,
+        "main", num_args, compiler_args.get(), ModuleOrigin::kWasmOrigin);
   }
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.

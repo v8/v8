@@ -105,48 +105,23 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   }
   return RunWasmModuleForTesting(isolate, instance, 0, nullptr, origin);
 }
-
-int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
-                            const WasmModule* module,
-                            const ModuleWireBytes& wire_bytes,
-                            int function_index, WasmVal* args,
-                            bool* possible_nondeterminism) {
+int32_t InterpretWasmModule(Isolate* isolate,
+                            Handle<WasmInstanceObject> instance,
+                            ErrorThrower* thrower, int32_t function_index,
+                            WasmVal* args, bool* possible_nondeterminism) {
   // Don't execute more than 16k steps.
   constexpr int kMaxNumSteps = 16 * 1024;
 
-  DCHECK_NOT_NULL(module);
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
 
-  if (module->import_table.size() > 0) {
-    thrower->CompileError("Not supported: module has imports.");
-  }
-  if (module->export_table.size() == 0) {
-    thrower->CompileError("Not supported: module has no exports.");
-  }
-
-  if (thrower->error()) return -1;
-
-  // The code verifies, we create an instance to run it in the interpreter.
-  WasmInstance instance(module);
-  instance.context = isolate->native_context();
-  instance.mem_size = GetMinModuleMemSize(module);
-  // TODO(ahaas): Move memory allocation to wasm-module.cc for better
-  // encapsulation.
-  instance.mem_start =
-      static_cast<byte*>(calloc(GetMinModuleMemSize(module), 1));
-  instance.globals_start = nullptr;
-
-  ModuleBytesEnv env(module, &instance, wire_bytes);
-  WasmInterpreter interpreter(isolate, env);
-
-  WasmInterpreter::Thread* thread = interpreter.GetThread(0);
+  WasmInterpreter* interpreter =
+      WasmDebugInfo::SetupForTesting(instance, nullptr);
+  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
-  thread->InitFrame(&(module->functions[function_index]), args);
+  thread->InitFrame(&(instance->module()->functions[function_index]), args);
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
-  if (instance.mem_start) {
-    free(instance.mem_start);
-  }
+
   *possible_nondeterminism = thread->PossibleNondeterminism();
   if (interpreter_result == WasmInterpreter::FINISHED) {
     WasmVal val = thread->GetReturnValue();
@@ -205,6 +180,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 void SetupIsolateForWasmModule(Isolate* isolate) {
   WasmJs::Install(isolate);
 }
+
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal

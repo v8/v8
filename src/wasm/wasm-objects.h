@@ -146,7 +146,7 @@ class WasmInstanceObject : public JSObject {
   DECLARE_OPTIONAL_ACCESSORS(instance_wrapper, WasmInstanceWrapper);
 
   WasmModuleObject* module_object();
-  wasm::WasmModule* module();
+  V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
@@ -557,8 +557,8 @@ class WasmDebugInfo : public FixedArray {
   // Returns a pointer to the interpreter instantiated inside this
   // WasmDebugInfo.
   // Use for testing only.
-  static wasm::WasmInterpreter* SetupForTesting(Handle<WasmInstanceObject>,
-                                                wasm::WasmInstance*);
+  V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
+      Handle<WasmInstanceObject>, wasm::WasmInstance*);
 
   static bool IsDebugInfo(Object*);
   static WasmDebugInfo* cast(Object*);

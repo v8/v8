@@ -45,11 +45,10 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // Interprets the given module, starting at the function specified by
 // {function_index}. The return type of the function has to be int32. The module
 // should not have any imports or exports
-int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
-                            const WasmModule* module,
-                            const ModuleWireBytes& wire_bytes,
-                            int function_index, WasmVal* args,
-                            bool* may_produced_nan);
+int32_t InterpretWasmModule(Isolate* isolate,
+                            Handle<WasmInstanceObject> instance,
+                            ErrorThrower* thrower, int32_t function_index,
+                            WasmVal* args, bool* possible_nondeterminism);
 
 // Compiles WasmModule bytes and return an instance of the compiled module.
 const Handle<WasmInstanceObject> CompileInstantiateWasmModuleForTesting(
@@ -62,6 +61,7 @@ int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
                                 ModuleOrigin origin);
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);
+
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal
