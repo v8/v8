@@ -479,14 +479,14 @@ void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
   if (!is_external) {
     buffer->set_is_external(true);
     isolate->heap()->UnregisterArrayBuffer(*buffer);
-  }
-  if (free_memory) {
-    // We need to free the memory before neutering the buffer because
-    // FreeBackingStore reads buffer->allocation_base(), which is nulled out by
-    // Neuter. This means there is a dangling pointer until we neuter the
-    // buffer. Since there is no way for the user to directly call
-    // FreeBackingStore, we can ensure this is safe.
-    buffer->FreeBackingStore();
+    if (free_memory) {
+      // We need to free the memory before neutering the buffer because
+      // FreeBackingStore reads buffer->allocation_base(), which is nulled out
+      // by Neuter. This means there is a dangling pointer until we neuter the
+      // buffer. Since there is no way for the user to directly call
+      // FreeBackingStore, we can ensure this is safe.
+      buffer->FreeBackingStore();
+    }
   }
   buffer->set_is_neuterable(true);
   buffer->Neuter();

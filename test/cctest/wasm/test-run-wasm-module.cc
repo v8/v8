@@ -1100,6 +1100,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
                                   {}, {})
             .ToHandleChecked();
     Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+    void* const old_allocation_base = memory->allocation_base();
+    size_t const old_allocation_length = memory->allocation_length();
 
     // Fake the Embedder flow by creating a memory object, externalize and grow.
     Handle<WasmMemoryObject> mem_obj =
@@ -1122,9 +1124,12 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     // Free the buffer as the tracker does not know about it.
     const v8::ArrayBuffer::Allocator::AllocationMode allocation_mode =
         memory->allocation_mode();
+    CHECK_NOT_NULL(memory->allocation_base());
     isolate->array_buffer_allocator()->Free(memory->allocation_base(),
                                             memory->allocation_length(),
                                             allocation_mode);
+    isolate->array_buffer_allocator()->Free(
+        old_allocation_base, old_allocation_length, allocation_mode);
     memory->set_allocation_base(nullptr);
     memory->set_allocation_length(0);
   }
@@ -1147,6 +1152,25 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
     wasm::DetachWebAssemblyMemoryBuffer(isolate, buffer, false);
     CHECK_EQ(16, result);
 
+    isolate->array_buffer_allocator()->Free(backing_store,
+                                            16 * WasmModule::kPageSize);
+  }
+  Cleanup();
+}
+
+TEST(Run_WasmModule_Buffer_Externalized_Detach) {
+  {
+    // Regression test for
+    // https://bugs.chromium.org/p/chromium/issues/detail?id=731046
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    void* backing_store =
+        isolate->array_buffer_allocator()->Allocate(16 * WasmModule::kPageSize);
+    Handle<JSArrayBuffer> buffer = wasm::SetupArrayBuffer(
+        isolate, backing_store, 16 * WasmModule::kPageSize, backing_store,
+        16 * WasmModule::kPageSize, false, false);
+    v8::Utils::ToLocal(buffer)->Externalize();
+    wasm::DetachWebAssemblyMemoryBuffer(isolate, buffer, true);
     isolate->array_buffer_allocator()->Free(backing_store,
                                             16 * WasmModule::kPageSize);
   }
