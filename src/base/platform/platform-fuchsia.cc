@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sys/mman.h>
+
 #include "src/base/macros.h"
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
@@ -10,6 +12,17 @@ namespace v8 {
 namespace base {
 
 TimezoneCache* OS::CreateTimezoneCache() { return new PosixTimezoneCache(); }
+
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access) {
+  const size_t msize = RoundUp(requested, AllocateAlignment());
+  int prot = GetProtectionFromMemoryPermission(access);
+  void* addr = OS::GetRandomMmapAddr();
+  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (mbase == MAP_FAILED) return NULL;
+  *allocated = msize;
+  return mbase;
+}
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   CHECK(false);  // TODO(fuchsia): Port, https://crbug.com/731217.
