@@ -539,10 +539,8 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // -----------------------------------
 
     __ lw(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ lbu(t2,
-           FieldMemOperand(t2, SharedFunctionInfo::kFunctionKindByteOffset));
-    __ And(t2, t2,
-           Operand(SharedFunctionInfo::kDerivedConstructorBitsWithinByte));
+    __ lw(t2, FieldMemOperand(t2, SharedFunctionInfo::kCompilerHintsOffset));
+    __ And(t2, t2, Operand(SharedFunctionInfo::kDerivedConstructorMask));
     __ Branch(&not_create_implicit_receiver, ne, t2, Operand(zero_reg));
 
     // If not derived class constructor: Allocate the new receiver object.
@@ -662,10 +660,8 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
       // Throw if constructor function is a class constructor
       __ lw(a1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
       __ lw(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-      __ lbu(t2,
-             FieldMemOperand(t2, SharedFunctionInfo::kFunctionKindByteOffset));
-      __ And(t2, t2,
-             Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+      __ lw(t2, FieldMemOperand(t2, SharedFunctionInfo::kCompilerHintsOffset));
+      __ And(t2, t2, Operand(SharedFunctionInfo::kClassConstructorMask));
       __ Branch(&use_receiver, eq, t2, Operand(zero_reg));
     } else {
       __ Branch(&use_receiver);
@@ -2309,8 +2305,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // Check that the function is not a "classConstructor".
   Label class_constructor;
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lbu(a3, FieldMemOperand(a2, SharedFunctionInfo::kFunctionKindByteOffset));
-  __ And(at, a3, Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+  __ lw(a3, FieldMemOperand(a2, SharedFunctionInfo::kCompilerHintsOffset));
+  __ And(at, a3, Operand(SharedFunctionInfo::kClassConstructorMask));
   __ Branch(&class_constructor, ne, at, Operand(zero_reg));
 
   // Enter the context of the function; ToObject has to run in the function

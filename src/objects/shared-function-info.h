@@ -534,8 +534,12 @@ class SharedFunctionInfo : public HeapObject {
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 
-  STATIC_ASSERT(ForceInlineBit::kShift == kBitsPerByte);
-  STATIC_ASSERT(FunctionKindBits::kShift == kBitsPerByte * 2);
+  // Masks for checking if certain FunctionKind bits are set without fully
+  // decoding of the FunctionKind bit field.
+  static const int kClassConstructorMask = FunctionKind::kClassConstructor
+                                           << FunctionKindBits::kShift;
+  static const int kDerivedConstructorMask = FunctionKind::kDerivedConstructor
+                                             << FunctionKindBits::kShift;
 
   // Bit positions in |debugger_hints|.
   enum DebuggerHints {
@@ -564,42 +568,6 @@ class SharedFunctionInfo : public HeapObject {
 
   inline int length() const;
 
-  static const int kCompilerHintsSize = kIntSize;
-
- public:
-  // Constants for optimizing codegen for strict mode function and
-  // native tests when using integer-width instructions.
-  // TODO(ishell): use respective bit field definition directly.
-  static const int kFunctionKindShift = FunctionKindBits::kShift;
-
-  // Constants for optimizing codegen for strict mode function and
-  // native tests.
-  // Allows to use byte-width instructions.
-  static const int kClassConstructorBitsWithinByte =
-      FunctionKind::kClassConstructor;
-  STATIC_ASSERT(kClassConstructorBitsWithinByte < (1 << kBitsPerByte));
-
-  static const int kDerivedConstructorBitsWithinByte =
-      FunctionKind::kDerivedConstructor;
-  STATIC_ASSERT(kDerivedConstructorBitsWithinByte < (1 << kBitsPerByte));
-
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-#define BYTE_OFFSET(compiler_hint) \
-  kCompilerHintsOffset + (compiler_hint) / kBitsPerByte
-#elif defined(V8_TARGET_BIG_ENDIAN)
-#define BYTE_OFFSET(compiler_hint)                  \
-  kCompilerHintsOffset + (kCompilerHintsSize - 1) - \
-      ((compiler_hint) / kBitsPerByte)
-#else
-#error Unknown byte ordering
-#endif
-  // FunctionKind bit field has to be byte-aligned
-  STATIC_ASSERT((FunctionKindBits::kShift % kBitsPerByte) == 0);
-  static const int kFunctionKindByteOffset =
-      BYTE_OFFSET(FunctionKindBits::kShift);
-#undef BYTE_OFFSET
-
- private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 

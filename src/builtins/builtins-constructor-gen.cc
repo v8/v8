@@ -102,34 +102,28 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   VARIABLE(map_index, MachineType::PointerRepresentation());
 
   STATIC_ASSERT(FunctionKind::kNormalFunction == 0);
-  Node* is_not_normal =
+  Node* function_kind =
       DecodeWord32<SharedFunctionInfo::FunctionKindBits>(compiler_hints);
-  GotoIfNot(is_not_normal, &if_normal);
+  GotoIfNot(function_kind, &if_normal);
 
-  Node* is_generator = Word32And(
-      compiler_hints, Int32Constant(FunctionKind::kGeneratorFunction
-                                    << SharedFunctionInfo::kFunctionKindShift));
+  Node* is_generator =
+      Word32And(function_kind, Int32Constant(FunctionKind::kGeneratorFunction));
   GotoIf(is_generator, &if_generator);
 
-  Node* is_async = Word32And(
-      compiler_hints, Int32Constant(FunctionKind::kAsyncFunction
-                                    << SharedFunctionInfo::kFunctionKindShift));
+  Node* is_async =
+      Word32And(function_kind, Int32Constant(FunctionKind::kAsyncFunction));
   GotoIf(is_async, &if_async);
 
-  Node* is_class_constructor = Word32And(
-      compiler_hints, Int32Constant(FunctionKind::kClassConstructor
-                                    << SharedFunctionInfo::kFunctionKindShift));
+  Node* is_class_constructor =
+      Word32And(function_kind, Int32Constant(FunctionKind::kClassConstructor));
   GotoIf(is_class_constructor, &if_class_constructor);
 
   if (FLAG_debug_code) {
     // Function must be a function without a prototype.
-    CSA_ASSERT(
-        this,
-        Word32And(compiler_hints,
-                  Int32Constant((FunctionKind::kAccessorFunction |
-                                 FunctionKind::kArrowFunction |
-                                 FunctionKind::kConciseMethod)
-                                << SharedFunctionInfo::kFunctionKindShift)));
+    CSA_ASSERT(this, Word32And(function_kind,
+                               Int32Constant(FunctionKind::kAccessorFunction |
+                                             FunctionKind::kArrowFunction |
+                                             FunctionKind::kConciseMethod)));
   }
   Goto(&if_function_without_prototype);
 
@@ -144,9 +138,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   BIND(&if_generator);
   {
     Node* is_async =
-        Word32And(compiler_hints,
-                  Int32Constant(FunctionKind::kAsyncFunction
-                                << SharedFunctionInfo::kFunctionKindShift));
+        Word32And(function_kind, Int32Constant(FunctionKind::kAsyncFunction));
     map_index.Bind(SelectIntPtrConstant(
         is_async, Context::ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
         Context::GENERATOR_FUNCTION_MAP_INDEX));
