@@ -211,7 +211,8 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
 
-  Handle<Code> code = CodeFactory::LoadIC(isolate()).code();
+  Handle<Code> code =
+      Builtins::CallableFor(isolate(), Builtins::kLoadICTrampoline).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
@@ -620,15 +621,18 @@ void FullCodeGenerator::EmitToString(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToLength));
 }
 
 void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToInteger(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToInteger));
 }
 
 void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToNumber(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
 
@@ -639,7 +643,7 @@ void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitHasProperty() {
-  Callable callable = CodeFactory::HasProperty(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kHasProperty);
   PopOperand(callable.descriptor().GetRegisterParameter(1));
   PopOperand(callable.descriptor().GetRegisterParameter(0));
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
@@ -1037,7 +1041,8 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
   // doesn't just get a copy of the existing unoptimized code.
   if (!FLAG_always_opt && !FLAG_prepare_always_opt && !pretenure &&
       scope()->is_function_scope()) {
-    Callable callable = CodeFactory::FastNewClosure(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kFastNewClosure);
     __ Move(callable.descriptor().GetRegisterParameter(0), info);
     __ EmitLoadFeedbackVector(callable.descriptor().GetRegisterParameter(1));
     __ Move(callable.descriptor().GetRegisterParameter(2), SmiFromSlot(slot));
@@ -1067,7 +1072,8 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
 
-  Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
+  Handle<Code> code =
+      Builtins::CallableFor(isolate(), Builtins::kKeyedLoadICTrampoline).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
@@ -1305,7 +1311,8 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Callable callable = CodeFactory::FastCloneRegExp(isolate());
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kFastCloneRegExp);
   CallInterfaceDescriptor descriptor = callable.descriptor();
   LoadFromFrameField(JavaScriptFrameConstants::kFunctionOffset,
                      descriptor.GetRegisterParameter(0));

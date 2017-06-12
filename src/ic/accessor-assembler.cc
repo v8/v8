@@ -1776,7 +1776,8 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
     Comment("LoadIC_BytecodeHandler_noninlined");
 
     // Call into the stub that implements the non-inlined parts of LoadIC.
-    Callable ic = CodeFactory::LoadICInOptimizedCode_Noninlined(isolate());
+    Callable ic =
+        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Noninlined);
     Node* code_target = HeapConstant(ic.code());
     exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context,
                                p->receiver, p->name, p->slot, p->vector);
@@ -1859,9 +1860,9 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
     GotoIfNot(
         WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
         miss);
-    exit_point->ReturnCallStub(CodeFactory::LoadIC_Uninitialized(isolate()),
-                               p->context, p->receiver, p->name, p->slot,
-                               p->vector);
+    exit_point->ReturnCallStub(
+        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Uninitialized),
+        p->context, p->receiver, p->name, p->slot, p->vector);
   }
 }
 
@@ -2061,8 +2062,9 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
     GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
               &try_polymorphic_name);
     // TODO(jkummerow): Inline this? Or some of it?
-    TailCallStub(CodeFactory::KeyedLoadIC_Megamorphic(isolate()), p->context,
-                 p->receiver, p->name, p->slot, p->vector);
+    TailCallStub(
+        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC_Megamorphic),
+        p->context, p->receiver, p->name, p->slot, p->vector);
   }
   BIND(&try_polymorphic_name);
   {
@@ -2326,7 +2328,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kLoadIC);
   TailCallStub(callable, context, receiver, name, slot, vector);
 }
 
@@ -2416,7 +2418,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
   TailCallStub(callable, context, receiver, name, slot, vector);
 }
 

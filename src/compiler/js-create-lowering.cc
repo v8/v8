@@ -337,7 +337,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             RelaxControls(node);
             a.FinishAndChange(node);
           } else {
-            Callable callable = CodeFactory::FastNewSloppyArguments(isolate());
+            Callable callable = Builtins::CallableFor(
+                isolate(), Builtins::kFastNewSloppyArguments);
             Operator::Properties properties = node->op()->properties();
             CallDescriptor* desc = Linkage::GetStubCallDescriptor(
                 isolate(), graph()->zone(), callable.descriptor(), 0,
@@ -381,7 +382,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {
-          Callable callable = CodeFactory::FastNewStrictArguments(isolate());
+          Callable callable = Builtins::CallableFor(
+              isolate(), Builtins::kFastNewStrictArguments);
           Operator::Properties properties = node->op()->properties();
           CallDescriptor* desc = Linkage::GetStubCallDescriptor(
               isolate(), graph()->zone(), callable.descriptor(), 0,
@@ -425,7 +427,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {
-          Callable callable = CodeFactory::FastNewRestParameter(isolate());
+          Callable callable =
+              Builtins::CallableFor(isolate(), Builtins::kFastNewRestParameter);
           Operator::Properties properties = node->op()->properties();
           CallDescriptor* desc = Linkage::GetStubCallDescriptor(
               isolate(), graph()->zone(), callable.descriptor(), 0,

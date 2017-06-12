@@ -397,13 +397,14 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
       check_length(this), call_init(this), invalid_length(this),
       length_undefined(this), length_defined(this);
 
-  Callable add = CodeFactory::Add(isolate());
-  Callable div = CodeFactory::Divide(isolate());
-  Callable equal = CodeFactory::Equal(isolate());
-  Callable greater_than = CodeFactory::GreaterThan(isolate());
-  Callable less_than = CodeFactory::LessThan(isolate());
-  Callable mod = CodeFactory::Modulus(isolate());
-  Callable sub = CodeFactory::Subtract(isolate());
+  Callable add = Builtins::CallableFor(isolate(), Builtins::kAdd);
+  Callable div = Builtins::CallableFor(isolate(), Builtins::kDivide);
+  Callable equal = Builtins::CallableFor(isolate(), Builtins::kEqual);
+  Callable greater_than =
+      Builtins::CallableFor(isolate(), Builtins::kGreaterThan);
+  Callable less_than = Builtins::CallableFor(isolate(), Builtins::kLessThan);
+  Callable mod = Builtins::CallableFor(isolate(), Builtins::kModulus);
+  Callable sub = Builtins::CallableFor(isolate(), Builtins::kSubtract);
 
   GotoIf(IsUndefined(byte_offset), &check_length);
 

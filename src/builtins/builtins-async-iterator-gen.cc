@@ -237,9 +237,9 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
                                  Node* const promise, Label* if_exception) {
     // If return is undefined, then
     // Let iterResult be ! CreateIterResultObject(value, true)
-    Node* const iter_result =
-        CallStub(CodeFactory::CreateIterResultObject(isolate()), context, value,
-                 TrueConstant());
+    Node* const iter_result = CallStub(
+        Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject),
+        context, value, TrueConstant());
 
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
     // IfAbruptRejectPromise(nextDone, promiseCapability).

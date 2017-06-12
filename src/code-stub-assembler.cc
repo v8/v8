@@ -2747,7 +2747,8 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
     BIND(&if_valueisnotnumber);
     {
       // Convert the {value} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
       var_value.Bind(CallStub(callable, context, value));
       Goto(&loop);
     }
@@ -2796,7 +2797,8 @@ Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
       BIND(&if_valueisnotheapnumber);
       {
         // Convert the {value} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
         var_value.Bind(CallStub(callable, context, value));
         Goto(&loop);
       }
@@ -4762,7 +4764,8 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     BIND(&if_argisnotheapnumber);
     {
       // Need to convert {arg} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
       var_arg.Bind(CallStub(callable, context, arg));
       Goto(&loop);
     }
@@ -7194,7 +7197,8 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
           // dedicated ToPrimitive(rhs, hint Number) operation, as the
           // ToNumber(rhs) will by itself already invoke ToPrimitive with
           // a Number hint.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
           var_rhs.Bind(CallStub(callable, context, rhs));
           Goto(&loop);
         }
@@ -7240,7 +7244,8 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
           // dedicated ToPrimitive(lhs, hint Number) operation, as the
           // ToNumber(lhs) will by itself already invoke ToPrimitive with
           // a Number hint.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
           var_lhs.Bind(CallStub(callable, context, lhs));
           Goto(&loop);
         }
@@ -7286,7 +7291,8 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
             // dedicated ToPrimitive(rhs, hint Number) operation, as the
             // ToNumber(rhs) will by itself already invoke ToPrimitive with
             // a Number hint.
-            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            Callable callable =
+                Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
             var_rhs.Bind(CallStub(callable, context, rhs));
             Goto(&loop);
           }
@@ -7373,7 +7379,8 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
               BIND(&if_rhsisnotreceiver);
               {
                 // Convert both {lhs} and {rhs} to Number.
-                Callable callable = CodeFactory::ToNumber(isolate());
+                Callable callable =
+                    Builtins::CallableFor(isolate(), Builtins::kToNumber);
                 var_lhs.Bind(CallStub(callable, context, lhs));
                 var_rhs.Bind(CallStub(callable, context, rhs));
                 Goto(&loop);
@@ -7439,7 +7446,8 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
             BIND(&if_lhsisnotreceiver);
             {
               // Convert both {lhs} and {rhs} to Number.
-              Callable callable = CodeFactory::ToNumber(isolate());
+              Callable callable =
+                  Builtins::CallableFor(isolate(), Builtins::kToNumber);
               var_lhs.Bind(CallStub(callable, context, lhs));
               var_rhs.Bind(CallStub(callable, context, rhs));
               Goto(&loop);
@@ -8087,7 +8095,8 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
 
     BIND(&do_rhsstringtonumber);
     {
-      Callable callable = CodeFactory::StringToNumber(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kStringToNumber);
       var_rhs.Bind(CallStub(callable, context, rhs));
       Goto(&loop);
     }
@@ -8758,8 +8767,9 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
     GotoIfNot(IsCallable(callable), &if_notcallable);
 
     // Use the OrdinaryHasInstance algorithm.
-    Node* result = CallStub(CodeFactory::OrdinaryHasInstance(isolate()),
-                            context, callable, object);
+    Node* result = CallStub(
+        Builtins::CallableFor(isolate(), Builtins::kOrdinaryHasInstance),
+        context, callable, object);
     var_result.Bind(result);
     Goto(&return_result);
   }

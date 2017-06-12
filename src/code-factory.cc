@@ -30,12 +30,6 @@ Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
 }
 
 // static
-Callable CodeFactory::LoadIC(Isolate* isolate) {
-  return Callable(isolate->builtins()->LoadICTrampoline(),
-                  LoadDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::LoadICProtoArray(Isolate* isolate,
                                        bool throw_if_nonexistent) {
   return Callable(
@@ -49,18 +43,6 @@ Callable CodeFactory::LoadICProtoArray(Isolate* isolate,
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
   CallApiGetterStub stub(isolate);
   return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
-  return Callable(isolate->builtins()->LoadIC(),
-                  LoadWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::LoadICInOptimizedCode_Noninlined(Isolate* isolate) {
-  return Callable(isolate->builtins()->LoadIC_Noninlined(),
-                  LoadWithVectorDescriptor(isolate));
 }
 
 // static
@@ -79,18 +61,6 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                       ? isolate->builtins()->LoadGlobalIC()
                       : isolate->builtins()->LoadGlobalICInsideTypeof(),
                   LoadGlobalWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  return Callable(isolate->builtins()->KeyedLoadICTrampoline(),
-                  LoadDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
-  return Callable(isolate->builtins()->KeyedLoadIC(),
-                  LoadWithVectorDescriptor(isolate));
 }
 
 // static
@@ -237,56 +207,6 @@ Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
   return Callable(code, BuiltinDescriptor(isolate));
 }
 
-#define TFS_BUILTIN(Name)                                                 \
-  Callable CodeFactory::Name(Isolate* isolate) {                          \
-    Handle<Code> code(isolate->builtins()->Name());                       \
-    return Callable(code, Builtin_##Name##_InterfaceDescriptor(isolate)); \
-  }
-
-TFS_BUILTIN(Add)
-TFS_BUILTIN(BitwiseAnd)
-TFS_BUILTIN(BitwiseOr)
-TFS_BUILTIN(BitwiseXor)
-TFS_BUILTIN(ClassOf)
-TFS_BUILTIN(CopyFastSmiOrObjectElements)
-TFS_BUILTIN(CreateIterResultObject)
-TFS_BUILTIN(Divide)
-TFS_BUILTIN(Equal)
-TFS_BUILTIN(FastCloneRegExp)
-TFS_BUILTIN(FastNewClosure)
-TFS_BUILTIN(FastNewObject)
-TFS_BUILTIN(FastNewRestParameter)
-TFS_BUILTIN(FastNewSloppyArguments)
-TFS_BUILTIN(FastNewStrictArguments)
-TFS_BUILTIN(ForInFilter)
-TFS_BUILTIN(GetSuperConstructor)
-TFS_BUILTIN(GreaterThan)
-TFS_BUILTIN(GreaterThanOrEqual)
-TFS_BUILTIN(GrowFastDoubleElements)
-TFS_BUILTIN(GrowFastSmiOrObjectElements)
-TFS_BUILTIN(HasProperty)
-TFS_BUILTIN(InstanceOf)
-TFS_BUILTIN(KeyedLoadIC_Megamorphic)
-TFS_BUILTIN(LessThan)
-TFS_BUILTIN(LessThanOrEqual)
-TFS_BUILTIN(LoadIC_Uninitialized)
-TFS_BUILTIN(Modulus)
-TFS_BUILTIN(Multiply)
-TFS_BUILTIN(NewUnmappedArgumentsElements)
-TFS_BUILTIN(NonNumberToNumber)
-TFS_BUILTIN(OrdinaryHasInstance)
-TFS_BUILTIN(ShiftLeft)
-TFS_BUILTIN(ShiftRight)
-TFS_BUILTIN(ShiftRightLogical)
-TFS_BUILTIN(StrictEqual)
-TFS_BUILTIN(StringToNumber)
-TFS_BUILTIN(Subtract)
-TFS_BUILTIN(ToInteger)
-TFS_BUILTIN(ToLength)
-TFS_BUILTIN(ToNumber)
-
-#undef TFS_BUILTIN
-
 // static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
@@ -313,12 +233,6 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
       break;
   }
   UNREACHABLE();
-}
-
-// static
-Callable CodeFactory::StringIndexOf(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringIndexOf(),
-                  StringIndexOfDescriptor(isolate));
 }
 
 // static
@@ -353,28 +267,10 @@ Callable CodeFactory::FastCloneShallowArray(
 }
 
 // static
-Callable CodeFactory::FastCloneShallowObject(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastCloneShallowObject(),
-                  FastCloneShallowObjectDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
                                              ScopeType scope_type) {
   return Callable(isolate->builtins()->NewFunctionContext(scope_type),
                   FastNewFunctionContextDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ForInPrepare(Isolate* isolate) {
-  return Callable(isolate->builtins()->ForInPrepare(),
-                  ForInPrepareDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ForInNext(Isolate* isolate) {
-  return Callable(isolate->builtins()->ForInNext(),
-                  ForInNextDescriptor(isolate));
 }
 
 // static

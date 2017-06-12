@@ -135,7 +135,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       // Allocate the new receiver object.
       __ Push(edi);
       __ Push(edx);
-      __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
+      __ Call(Builtins::CallableFor(masm->isolate(), Builtins::kFastNewObject)
+                  .code(),
               RelocInfo::CODE_TARGET);
       __ mov(ebx, eax);
       __ Pop(edx);
@@ -1795,8 +1796,9 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ EnterBuiltinFrame(esi, edi, ecx);
     __ Push(ebx);  // the first argument
-    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
-            RelocInfo::CODE_TARGET);
+    __ Call(
+        Builtins::CallableFor(masm->isolate(), Builtins::kFastNewObject).code(),
+        RelocInfo::CODE_TARGET);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
     __ LeaveBuiltinFrame(esi, edi, ecx);
   }
@@ -1958,8 +1960,9 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ SmiTag(ebx);
     __ EnterBuiltinFrame(esi, edi, ebx);
     __ Push(eax);  // the first argument
-    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
-            RelocInfo::CODE_TARGET);
+    __ Call(
+        Builtins::CallableFor(masm->isolate(), Builtins::kFastNewObject).code(),
+        RelocInfo::CODE_TARGET);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
     __ LeaveBuiltinFrame(esi, edi, ebx);
     __ SmiUntag(ebx);

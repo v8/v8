@@ -2128,7 +2128,7 @@ Node* EffectControlLinearizer::LowerNewUnmappedArgumentsElements(Node* node) {
   Node* length = NodeProperties::GetValueInput(node, 1);
 
   Callable const callable =
-      CodeFactory::NewUnmappedArgumentsElements(isolate());
+      Builtins::CallableFor(isolate(), Builtins::kNewUnmappedArgumentsElements);
   Operator::Properties const properties = node->op()->properties();
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -2385,7 +2385,8 @@ Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
   Node* search_string = node->InputAt(1);
   Node* position = node->InputAt(2);
 
-  Callable callable = CodeFactory::StringIndexOf(isolate());
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringIndexOf);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -2581,7 +2582,8 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
   __ Bind(&if_not_fixed_array);
   // We need to take a copy of the {elements} and set them up for {object}.
   Operator::Properties properties = Operator::kEliminatable;
-  Callable callable = CodeFactory::CopyFastSmiOrObjectElements(isolate());
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCopyFastSmiOrObjectElements);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
@@ -2626,8 +2628,10 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
     Operator::Properties properties = Operator::kEliminatable;
     Callable callable =
         (flags & GrowFastElementsFlag::kDoubleElements)
-            ? CodeFactory::GrowFastDoubleElements(isolate())
-            : CodeFactory::GrowFastSmiOrObjectElements(isolate());
+            ? Builtins::CallableFor(isolate(),
+                                    Builtins::kGrowFastDoubleElements)
+            : Builtins::CallableFor(isolate(),
+                                    Builtins::kGrowFastSmiOrObjectElements);
     CallDescriptor::Flags call_flags = CallDescriptor::kNoFlags;
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, call_flags,

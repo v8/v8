@@ -128,7 +128,8 @@ TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
   CSA_ASSERT(this, IsBoolean(done));
 
   Node* const unwrapped_value = CallStub(
-      CodeFactory::CreateIterResultObject(isolate()), context, value, done);
+      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject),
+      context, value, done);
 
   Return(unwrapped_value);
 }

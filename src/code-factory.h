@@ -24,17 +24,10 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
 
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate);
-  static Callable LoadIC_Uninitialized(Isolate* isolate);
-  static Callable LoadICInOptimizedCode(Isolate* isolate);
-  static Callable LoadICInOptimizedCode_Noninlined(Isolate* isolate);
   static Callable LoadICProtoArray(Isolate* isolate, bool throw_if_nonexistent);
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
-  static Callable KeyedLoadIC(Isolate* isolate);
-  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
-  static Callable KeyedLoadIC_Megamorphic(Isolate* isolate);
   static Callable CallIC(Isolate* isolate,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);
@@ -68,73 +61,27 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
-  static Callable InstanceOf(Isolate* isolate);
-  static Callable OrdinaryHasInstance(Isolate* isolate);
-
   static Callable StringFromCharCode(Isolate* isolate);
 
   static Callable GetProperty(Isolate* isolate);
 
-  static Callable ToNumber(Isolate* isolate);
-  static Callable NonNumberToNumber(Isolate* isolate);
-  static Callable StringToNumber(Isolate* isolate);
-  static Callable ToInteger(Isolate* isolate);
-  static Callable ToLength(Isolate* isolate);
   static Callable NonPrimitiveToPrimitive(
       Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   static Callable OrdinaryToPrimitive(Isolate* isolate,
                                       OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
-  static Callable Add(Isolate* isolate);
-  static Callable Subtract(Isolate* isolate);
-  static Callable Multiply(Isolate* isolate);
-  static Callable Divide(Isolate* isolate);
-  static Callable Modulus(Isolate* isolate);
-  static Callable ShiftRight(Isolate* isolate);
-  static Callable ShiftRightLogical(Isolate* isolate);
-  static Callable ShiftLeft(Isolate* isolate);
-  static Callable BitwiseAnd(Isolate* isolate);
-  static Callable BitwiseOr(Isolate* isolate);
-  static Callable BitwiseXor(Isolate* isolate);
-  static Callable LessThan(Isolate* isolate);
-  static Callable LessThanOrEqual(Isolate* isolate);
-  static Callable GreaterThan(Isolate* isolate);
-  static Callable GreaterThanOrEqual(Isolate* isolate);
-  static Callable Equal(Isolate* isolate);
-  static Callable StrictEqual(Isolate* isolate);
-
   static Callable StringAdd(Isolate* isolate,
                             StringAddFlags flags = STRING_ADD_CHECK_NONE,
                             PretenureFlag pretenure_flag = NOT_TENURED);
   static Callable StringCompare(Isolate* isolate, Token::Value token);
   static Callable SubString(Isolate* isolate);
-  static Callable StringIndexOf(Isolate* isolate);
 
-  static Callable ClassOf(Isolate* isolate);
-  static Callable GetSuperConstructor(Isolate* isolate);
-
-  static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate,
                                         AllocationSiteMode allocation_mode);
-  static Callable FastCloneShallowObject(Isolate* isolate);
 
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);
-  static Callable FastNewClosure(Isolate* isolate);
-  static Callable FastNewObject(Isolate* isolate);
-  static Callable FastNewRestParameter(Isolate* isolate);
-  static Callable FastNewSloppyArguments(Isolate* isolate);
-  static Callable FastNewStrictArguments(Isolate* isolate);
-
-  static Callable ForInPrepare(Isolate* isolate);
-  static Callable ForInNext(Isolate* isolate);
-
-  static Callable CopyFastSmiOrObjectElements(Isolate* isolate);
-  static Callable GrowFastDoubleElements(Isolate* isolate);
-  static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
-
-  static Callable NewUnmappedArgumentsElements(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
 
@@ -155,9 +102,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ConstructVarargs(Isolate* isolate);
   static Callable ConstructForwardVarargs(Isolate* isolate);
   static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
-  static Callable CreateIterResultObject(Isolate* isolate);
-  static Callable HasProperty(Isolate* isolate);
-  static Callable ForInFilter(Isolate* isolate);
 
   static Callable InterpreterPushArgsThenCall(Isolate* isolate,
                                               ConvertReceiverMode receiver_mode,

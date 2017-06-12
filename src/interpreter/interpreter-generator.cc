@@ -571,7 +571,7 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
 IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
-  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+  Callable ic = Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
   Node* code_target = HeapConstant(ic.code());
   Node* reg_index = BytecodeOperandReg(0);
   Node* object = LoadRegister(reg_index);
@@ -1441,7 +1441,8 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
   BIND(&if_objectisother);
   {
     // Convert the {object} to a Number.
-    Callable callable = CodeFactory::NonNumberToNumber(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
     var_result.Bind(CallStub(callable, context, object));
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&if_done);
@@ -1611,7 +1612,8 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
         BIND(&if_valuenotoddball);
         {
           // Convert to a Number first and try again.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
           var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
           value_var.Bind(CallStub(callable, context, value));
           Goto(&start);
@@ -1734,7 +1736,8 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
         BIND(&if_valuenotoddball);
         {
           // Convert to a Number first and try again.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
           var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
           value_var.Bind(CallStub(callable, context, value));
           Goto(&start);
@@ -3334,7 +3337,8 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
 
     // Need to filter the {key} for the {receiver}.
     Node* context = GetContext();
-    Callable callable = CodeFactory::ForInFilter(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kForInFilter);
     Node* result = CallStub(callable, context, key, receiver);
     SetAccumulator(result);
     Dispatch();

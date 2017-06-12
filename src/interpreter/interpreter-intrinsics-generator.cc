@@ -276,14 +276,15 @@ Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(Node* input, Node* context,
 
 Node* IntrinsicsGenerator::CreateIterResultObject(Node* input, Node* arg_count,
                                                   Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::CreateIterResultObject(isolate()));
+  return IntrinsicAsStubCall(
+      input, context,
+      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject));
 }
 
 Node* IntrinsicsGenerator::HasProperty(Node* input, Node* arg_count,
                                        Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::HasProperty(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
 Node* IntrinsicsGenerator::SubString(Node* input, Node* arg_count,
@@ -299,17 +300,20 @@ Node* IntrinsicsGenerator::ToString(Node* input, Node* arg_count,
 
 Node* IntrinsicsGenerator::ToLength(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToLength(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
 }
 
 Node* IntrinsicsGenerator::ToInteger(Node* input, Node* arg_count,
                                      Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToInteger(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToInteger));
 }
 
 Node* IntrinsicsGenerator::ToNumber(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToNumber(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
 Node* IntrinsicsGenerator::ToObject(Node* input, Node* arg_count,

@@ -3621,7 +3621,8 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
 
 void SimplifiedLowering::DoStringToNumber(Node* node) {
   Operator::Properties properties = Operator::kEliminatable;
-  Callable callable = CodeFactory::StringToNumber(isolate());
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringToNumber);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
@@ -3727,7 +3728,7 @@ void SimplifiedLowering::DoUnsigned32ToUint8Clamped(Node* node) {
 
 Node* SimplifiedLowering::ToNumberCode() {
   if (!to_number_code_.is_set()) {
-    Callable callable = CodeFactory::ToNumber(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
     to_number_code_.set(jsgraph()->HeapConstant(callable.code()));
   }
   return to_number_code_.get();
@@ -3735,7 +3736,7 @@ Node* SimplifiedLowering::ToNumberCode() {
 
 Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = CodeFactory::ToNumber(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,

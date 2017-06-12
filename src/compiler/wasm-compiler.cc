@@ -2404,7 +2404,8 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::ValueType type) {
 }
 
 Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context) {
-  Callable callable = CodeFactory::ToNumber(jsgraph()->isolate());
+  Callable callable =
+      Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
       CallDescriptor::kNoFlags, Operator::kNoProperties);

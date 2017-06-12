@@ -107,7 +107,8 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
         var_x.Bind(CallStub(callable, context, x));
         Goto(&loop);
       }
@@ -154,7 +155,8 @@ void MathBuiltinsAssembler::MathRoundingOperation(
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
         var_x.Bind(CallStub(callable, context, x));
         Goto(&loop);
       }
@@ -301,7 +303,8 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
         var_x.Bind(CallStub(callable, context, x));
         Goto(&loop);
       }

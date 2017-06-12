@@ -2083,7 +2083,8 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   {
     // Filter the {key} to check if it's still a valid property of the
     // {receiver} (does the ToName conversion implicitly).
-    Callable const callable = CodeFactory::ForInFilter(isolate());
+    Callable const callable =
+        Builtins::CallableFor(isolate(), Builtins::kForInFilter);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState);

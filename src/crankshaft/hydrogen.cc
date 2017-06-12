@@ -1772,7 +1772,7 @@ HValue* HGraphBuilder::BuildToNumber(HValue* input) {
       input->representation().IsSpecialization()) {
     return input;
   }
-  Callable callable = CodeFactory::ToNumber(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
   HValue* stub = Add<HConstant>(callable.code());
   HValue* values[] = {input};
   HCallWithDescriptor* instr = Add<HCallWithDescriptor>(
@@ -4710,7 +4710,8 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     }
     set_current_block(if_slow);
     {
-      Callable callable = CodeFactory::ForInFilter(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kForInFilter);
       HValue* values[] = {key, enumerable};
       HConstant* stub_value = Add<HConstant>(callable.code());
       Push(Add<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
@@ -4821,7 +4822,8 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   int index = FeedbackVector::GetIndex(expr->LiteralFeedbackSlot());
   HValue* index_value = Add<HConstant>(index);
   if (!expr->pretenure()) {
-    Callable callable = CodeFactory::FastNewClosure(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kFastNewClosure);
     HValue* values[] = {shared_info_value, vector_value, index_value};
     HConstant* stub_value = Add<HConstant>(callable.code());
     instr = New<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
@@ -5115,7 +5117,8 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
-  Callable callable = CodeFactory::FastCloneRegExp(isolate());
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kFastCloneRegExp);
   int index = FeedbackVector::GetIndex(expr->literal_slot());
   HValue* values[] = {AddThisFunction(), Add<HConstant>(index),
                       Add<HConstant>(expr->pattern()),
@@ -6653,7 +6656,8 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // to a named load. Here, at the last minute, we need to make sure to
       // use a generic Keyed Load if we are using the type vector, because
       // it has to share information with full code.
-      Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
       HValue* stub = Add<HConstant>(callable.code());
       HCallWithDescriptor* result =
           New<HCallWithDescriptor>(Code::KEYED_LOAD_IC, stub, 0,
@@ -6661,7 +6665,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       return result;
     }
     DCHECK(vector->IsLoadIC(slot));
-    Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kLoadIC);
     HValue* stub = Add<HConstant>(callable.code());
     HCallWithDescriptor* result = New<HCallWithDescriptor>(
         Code::LOAD_IC, stub, 0, callable.descriptor(), ArrayVector(values));
@@ -6712,7 +6716,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
   if (access_type == LOAD) {
     HValue* values[] = {object, key, slot_value, vector_value};
 
-    Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
     HValue* stub = Add<HConstant>(callable.code());
     HCallWithDescriptor* result =
         New<HCallWithDescriptor>(Code::KEYED_LOAD_IC, stub, 0,
@@ -10362,7 +10367,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     HValue* values[] = {left, right};
 #define GET_STUB(Name)                                                       \
   do {                                                                       \
-    Callable callable = CodeFactory::Name(isolate());                        \
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::k##Name); \
     HValue* stub = Add<HConstant>(callable.code());                          \
     instr = AddUncasted<HCallWithDescriptor>(stub, 0, callable.descriptor(), \
                                              ArrayVector(values));           \
@@ -10760,7 +10765,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       }
     }
 
-    Callable callable = CodeFactory::InstanceOf(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kInstanceOf);
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {left, right};
     HCallWithDescriptor* result = New<HCallWithDescriptor>(
@@ -10769,7 +10774,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
 
   } else if (op == Token::IN) {
-    Callable callable = CodeFactory::HasProperty(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kHasProperty);
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {left, right};
     HInstruction* result =
@@ -11516,7 +11522,7 @@ void HOptimizedGraphBuilder::GenerateToInteger(CallRuntime* call) {
   if (input->type().IsSmi()) {
     return ast_context()->ReturnValue(input);
   } else {
-    Callable callable = CodeFactory::ToInteger(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToInteger);
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {input};
     HInstruction* result = New<HCallWithDescriptor>(
@@ -11555,7 +11561,7 @@ void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateToLength(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  Callable callable = CodeFactory::ToLength(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToLength);
   HValue* input = Pop();
   HValue* stub = Add<HConstant>(callable.code());
   HValue* values[] = {input};
@@ -11568,7 +11574,7 @@ void HOptimizedGraphBuilder::GenerateToLength(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateToNumber(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  Callable callable = CodeFactory::ToNumber(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
   HValue* input = Pop();
   HValue* result = BuildToNumber(input);
   if (result->HasObservableSideEffects()) {

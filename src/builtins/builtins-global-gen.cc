@@ -44,7 +44,8 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     BIND(&if_numisnotheapnumber);
     {
       // Need to convert {num} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
       var_num.Bind(CallStub(callable, context, num));
       Goto(&loop);
     }
@@ -91,7 +92,8 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     BIND(&if_numisnotheapnumber);
     {
       // Need to convert {num} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
       var_num.Bind(CallStub(callable, context, num));
       Goto(&loop);
     }

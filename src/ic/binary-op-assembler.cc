@@ -189,7 +189,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
   BIND(&call_add_stub);
   {
-    Callable callable = CodeFactory::Add(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kAdd);
     var_result.Bind(CallStub(callable, context, lhs, rhs));
     Goto(&end);
   }
@@ -364,7 +364,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
 
   BIND(&call_subtract_stub);
   {
-    Callable callable = CodeFactory::Subtract(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kSubtract);
     var_result.Bind(CallStub(callable, context, lhs, rhs));
     Goto(&end);
   }
@@ -509,7 +509,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
 
   BIND(&call_multiply_stub);
   {
-    Callable callable = CodeFactory::Multiply(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kMultiply);
     var_result.Bind(CallStub(callable, context, lhs, rhs));
     Goto(&end);
   }
@@ -666,7 +666,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
 
   BIND(&call_divide_stub);
   {
-    Callable callable = CodeFactory::Divide(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kDivide);
     var_result.Bind(CallStub(callable, context, dividend, divisor));
     Goto(&end);
   }
@@ -813,7 +813,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
 
   BIND(&call_modulus_stub);
   {
-    Callable callable = CodeFactory::Modulus(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kModulus);
     var_result.Bind(CallStub(callable, context, dividend, divisor));
     Goto(&end);
   }

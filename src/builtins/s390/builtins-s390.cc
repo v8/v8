@@ -226,8 +226,9 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ SmiTag(r8);
     __ EnterBuiltinFrame(cp, r3, r8);
     __ Push(r4);  // first argument
-    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
-            RelocInfo::CODE_TARGET);
+    __ Call(
+        Builtins::CallableFor(masm->isolate(), Builtins::kFastNewObject).code(),
+        RelocInfo::CODE_TARGET);
     __ Pop(r4);
     __ LeaveBuiltinFrame(cp, r3, r8);
     __ SmiUntag(r8);
@@ -376,8 +377,9 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ SmiTag(r8);
     __ EnterBuiltinFrame(cp, r3, r8);
     __ Push(r4);  // first argument
-    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
-            RelocInfo::CODE_TARGET);
+    __ Call(
+        Builtins::CallableFor(masm->isolate(), Builtins::kFastNewObject).code(),
+        RelocInfo::CODE_TARGET);
     __ Pop(r4);
     __ LeaveBuiltinFrame(cp, r3, r8);
     __ SmiUntag(r8);
@@ -552,8 +554,9 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
                         r6, r7);
-    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
-            RelocInfo::CODE_TARGET);
+    __ Call(
+        Builtins::CallableFor(masm->isolate(), Builtins::kFastNewObject).code(),
+        RelocInfo::CODE_TARGET);
     __ b(&post_instantiation_deopt_entry);
 
     // Else: use TheHoleValue as receiver for constructor call

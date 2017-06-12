@@ -64,7 +64,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Return(result);
 
   Callable create_iter_result_object =
-      CodeFactory::CreateIterResultObject(isolate());
+      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject);
 
   BIND(&if_final_return);
   {

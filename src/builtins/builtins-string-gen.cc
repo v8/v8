@@ -1154,7 +1154,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   // Convert {receiver} and {search} to strings.
 
-  Callable indexof_callable = CodeFactory::StringIndexOf(isolate());
+  Callable indexof_callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringIndexOf);
 
   Node* const subject_string = ToString_Inline(context, receiver);
   Node* const search_string = ToString_Inline(context, search);

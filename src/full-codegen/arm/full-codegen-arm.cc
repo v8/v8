@@ -277,14 +277,16 @@ void FullCodeGenerator::Generate() {
       __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     }
     if (is_strict(language_mode()) || !has_simple_parameters()) {
-      Callable callable = CodeFactory::FastNewStrictArguments(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kFastNewStrictArguments);
       __ Call(callable.code(), RelocInfo::CODE_TARGET);
       RestoreContext();
     } else if (literal()->has_duplicate_parameters()) {
       __ Push(r1);
       __ CallRuntime(Runtime::kNewSloppyArguments_Generic);
     } else {
-      Callable callable = CodeFactory::FastNewSloppyArguments(isolate());
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtins::kFastNewSloppyArguments);
       __ Call(callable.code(), RelocInfo::CODE_TARGET);
       RestoreContext();
     }
@@ -1232,7 +1234,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ Push(r3, r2, r1, r0);
     __ CallRuntime(Runtime::kCreateObjectLiteral);
   } else {
-    Callable callable = CodeFactory::FastCloneShallowObject(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kFastCloneShallowObject);
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
