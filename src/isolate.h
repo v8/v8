@@ -439,6 +439,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   /* Current code coverage mode */                                            \
   V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
   V(int, last_stack_frame_info_id, 0)                                         \
+  V(int, last_console_context_id, 0)                                          \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \

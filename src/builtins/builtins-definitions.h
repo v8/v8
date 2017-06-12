@@ -405,6 +405,7 @@ namespace internal {
   CPP(ConsoleTime)                                                             \
   CPP(ConsoleTimeEnd)                                                          \
   CPP(ConsoleTimeStamp)                                                        \
+  CPP(ConsoleContext)                                                          \
                                                                                \
   /* DataView */                                                               \
   CPP(DataViewConstructor)                                                     \

@@ -321,10 +321,13 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
         arguments->addItem(std::move(messageArg));
       }
     }
+    Maybe<String16> consoleContext;
+    if (!m_consoleContext.isEmpty()) consoleContext = m_consoleContext;
     frontend->consoleAPICalled(
         consoleAPITypeValue(m_type), std::move(arguments), m_contextId,
         m_timestamp,
-        m_stackTrace ? m_stackTrace->buildInspectorObjectImpl() : nullptr);
+        m_stackTrace ? m_stackTrace->buildInspectorObjectImpl() : nullptr,
+        std::move(consoleContext));
     return;
   }
   UNREACHABLE();
@@ -356,6 +359,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     v8::Local<v8::Context> v8Context, int contextId, int groupId,
     V8InspectorImpl* inspector, double timestamp, ConsoleAPIType type,
     const std::vector<v8::Local<v8::Value>>& arguments,
+    const String16& consoleContext,
     std::unique_ptr<V8StackTraceImpl> stackTrace) {
   v8::Isolate* isolate = v8Context->GetIsolate();
 
@@ -367,6 +371,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     message->m_columnNumber = stackTrace->topColumnNumber();
   }
   message->m_stackTrace = std::move(stackTrace);
+  message->m_consoleContext = consoleContext;
   message->m_type = type;
   message->m_contextId = contextId;
   for (size_t i = 0; i < arguments.size(); ++i) {

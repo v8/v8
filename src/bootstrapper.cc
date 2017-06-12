@@ -2627,6 +2627,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false, NONE);
     SimpleInstallFunction(console, "timeStamp", Builtins::kConsoleTimeStamp, 1,
                           false, NONE);
+    SimpleInstallFunction(console, "context", Builtins::kConsoleContext, 1,
+                          true, NONE);
     JSObject::AddProperty(
         console, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("Object"),
