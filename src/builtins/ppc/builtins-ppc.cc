@@ -2400,8 +2400,9 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ andi(r0, r6, Operand(SharedFunctionInfo::IsStrictBit::kMask |
-                          SharedFunctionInfo::IsNativeBit::kMask);
+  __ andi(r0, r6,
+          Operand(SharedFunctionInfo::IsStrictBit::kMask |
+                  SharedFunctionInfo::IsNativeBit::kMask));
   __ bne(&done_convert, cr0);
   {
     // ----------- S t a t e -------------
