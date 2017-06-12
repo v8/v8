@@ -4442,6 +4442,30 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_bound_arguments(FixedArray::cast(*bound_arguments));
       return object;
     }
+    case JS_GENERATOR_OBJECT_TYPE: {
+      Handle<JSGeneratorObject> object = Handle<JSGeneratorObject>::cast(
+          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+      slot->value_ = object;
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> function = materializer.FieldAt(value_index);
+      Handle<Object> context = materializer.FieldAt(value_index);
+      Handle<Object> receiver = materializer.FieldAt(value_index);
+      Handle<Object> input_or_debug_pos = materializer.FieldAt(value_index);
+      Handle<Object> resume_mode = materializer.FieldAt(value_index);
+      Handle<Object> continuation_offset = materializer.FieldAt(value_index);
+      Handle<Object> register_file = materializer.FieldAt(value_index);
+      object->set_properties(FixedArray::cast(*properties));
+      object->set_elements(FixedArrayBase::cast(*elements));
+      object->set_function(JSFunction::cast(*function));
+      object->set_context(Context::cast(*context));
+      object->set_receiver(*receiver);
+      object->set_input_or_debug_pos(*input_or_debug_pos);
+      object->set_resume_mode(Smi::cast(*resume_mode)->value());
+      object->set_continuation(Smi::cast(*continuation_offset)->value());
+      object->set_register_file(FixedArray::cast(*register_file));
+      return object;
+    }
     case CONS_STRING_TYPE: {
       Handle<ConsString> object = Handle<ConsString>::cast(
           isolate_->factory()
@@ -4544,7 +4568,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_GENERATOR_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
