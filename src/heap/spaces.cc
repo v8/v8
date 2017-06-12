@@ -2718,7 +2718,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
   owner_->EmptyAllocationInfo();
 
   owner_->heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-      Heap::kNoGCFlags, kNoGCCallbackFlags);
+      Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
 
   size_t new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
@@ -3156,8 +3156,8 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     reinterpret_cast<Object**>(object->address())[1] = Smi::kZero;
   }
 
-  heap()->StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
-                                                            kNoGCCallbackFlags);
+  heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+      Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
   AllocationStep(object->address(), object_size);
 
   heap()->CreateFillerObjectAt(object->address(), object_size,

@@ -1068,8 +1068,8 @@ bool Heap::CollectGarbage(GarbageCollector collector,
   // causes another mark-compact.
   if (IsYoungGenerationCollector(collector) &&
       !ShouldAbortIncrementalMarking()) {
-    StartIncrementalMarkingIfAllocationLimitIsReached(kNoGCFlags,
-                                                      kNoGCCallbackFlags);
+    StartIncrementalMarkingIfAllocationLimitIsReached(
+        kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
   }
 
   return next_gc_likely_to_collect_more;
