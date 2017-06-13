@@ -105,8 +105,7 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* const iterable =
-      args.GetOptionalArgumentValue(kIterableArg, UndefinedConstant());
+  Node* const iterable = args.GetOptionalArgumentValue(kIterableArg);
   Node* const new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* const context = Parameter(BuiltinDescriptor::kContext);
 
@@ -232,8 +231,7 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* const iterable =
-      args.GetOptionalArgumentValue(kIterableArg, UndefinedConstant());
+  Node* const iterable = args.GetOptionalArgumentValue(kIterableArg);
   Node* const new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* const context = Parameter(BuiltinDescriptor::kContext);
 

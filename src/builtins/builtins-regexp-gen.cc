@@ -2444,10 +2444,8 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   CodeStubArguments args(this, argc);
 
   Node* const maybe_receiver = args.GetReceiver();
-  Node* const maybe_string =
-      args.GetOptionalArgumentValue(kStringArg, UndefinedConstant());
-  Node* const maybe_limit =
-      args.GetOptionalArgumentValue(kLimitArg, UndefinedConstant());
+  Node* const maybe_string = args.GetOptionalArgumentValue(kStringArg);
+  Node* const maybe_limit = args.GetOptionalArgumentValue(kLimitArg);
   Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
@@ -2865,10 +2863,8 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   CodeStubArguments args(this, argc);
 
   Node* const maybe_receiver = args.GetReceiver();
-  Node* const maybe_string =
-      args.GetOptionalArgumentValue(kStringArg, UndefinedConstant());
-  Node* const replace_value =
-      args.GetOptionalArgumentValue(kReplaceValueArg, UndefinedConstant());
+  Node* const maybe_string = args.GetOptionalArgumentValue(kStringArg);
+  Node* const replace_value = args.GetOptionalArgumentValue(kReplaceValueArg);
   Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:

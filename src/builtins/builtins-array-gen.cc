@@ -1239,8 +1239,8 @@ TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1261,8 +1261,8 @@ TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1301,8 +1301,8 @@ TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1322,8 +1322,8 @@ TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1362,8 +1362,8 @@ TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1383,8 +1383,8 @@ TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1423,7 +1423,7 @@ TF_BUILTIN(ArrayReduce, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
@@ -1444,7 +1444,7 @@ TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
@@ -1485,7 +1485,7 @@ TF_BUILTIN(ArrayReduceRight, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
@@ -1508,7 +1508,7 @@ TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
@@ -1549,8 +1549,8 @@ TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1590,8 +1590,8 @@ TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1610,8 +1610,8 @@ TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
                                 new_target, argc);
@@ -1668,8 +1668,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
   CodeStubArguments args(this, argc);
 
   Node* array = args.GetReceiver();
-  Node* search_element =
-      args.GetOptionalArgumentValue(kSearchElementArg, UndefinedConstant());
+  Node* search_element = args.GetOptionalArgumentValue(kSearchElementArg);
   Node* context = Parameter(BuiltinDescriptor::kContext);
 
   Node* intptr_zero = IntPtrConstant(0);
@@ -2004,8 +2003,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   BIND(&call_runtime);
   {
-    Node* start_from =
-        args.GetOptionalArgumentValue(kFromIndexArg, UndefinedConstant());
+    Node* start_from = args.GetOptionalArgumentValue(kFromIndexArg);
     Runtime::FunctionId function = variant == kIncludes
                                        ? Runtime::kArrayIncludes_Slow
                                        : Runtime::kArrayIndexOf;

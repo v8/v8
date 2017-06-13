@@ -1304,9 +1304,8 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   Node* const receiver = args.GetReceiver();
-  Node* const start =
-      args.GetOptionalArgumentValue(kStart, UndefinedConstant());
-  Node* const end = args.GetOptionalArgumentValue(kEnd, UndefinedConstant());
+  Node* const start = args.GetOptionalArgumentValue(kStart);
+  Node* const end = args.GetOptionalArgumentValue(kEnd);
   Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   Node* const smi_zero = SmiConstant(0);
