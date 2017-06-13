@@ -2781,6 +2781,7 @@ group("v8_fuzzers") {
     ":v8_simple_parser_fuzzer",
     ":v8_simple_regexp_fuzzer",
     ":v8_simple_wasm_asmjs_fuzzer",
+    ":v8_simple_wasm_async_fuzzer",
     ":v8_simple_wasm_call_fuzzer",
     ":v8_simple_wasm_code_fuzzer",
     ":v8_simple_wasm_compile_fuzzer",
@@ -3130,6 +3131,26 @@ v8_source_set("wasm_asmjs_fuzzer") {
 }
 
 v8_fuzzer("wasm_asmjs_fuzzer") {
+}
+
+v8_source_set("wasm_async_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-async.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_fuzzer_common",
+    ":wasm_module_runner",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("wasm_async_fuzzer") {
 }
 
 v8_source_set("wasm_code_fuzzer") {
