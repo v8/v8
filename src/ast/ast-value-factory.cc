@@ -32,7 +32,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/string-hasher.h"
-#include "src/utils.h"
+#include "src/utils-inl.h"
 
 namespace v8 {
 namespace internal {
