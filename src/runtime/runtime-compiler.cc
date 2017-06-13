@@ -406,23 +406,6 @@ RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
                                    : function->shared()->code();
 }
 
-
-bool CodeGenerationFromStringsAllowed(Isolate* isolate,
-                                      Handle<Context> context) {
-  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
-  // Check with callback if set.
-  AllowCodeGenerationFromStringsCallback callback =
-      isolate->allow_code_gen_callback();
-  if (callback == NULL) {
-    // No callback set and code generation disallowed.
-    return false;
-  } else {
-    // Callback set. Let it decide if code generation is allowed.
-    VMState<EXTERNAL> state(isolate);
-    return callback(v8::Utils::ToLocal(context));
-  }
-}
-
 static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                  Handle<SharedFunctionInfo> outer_info,
                                  LanguageMode language_mode,
@@ -433,7 +416,8 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
   if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
-      !CodeGenerationFromStringsAllowed(isolate, native_context)) {
+      !Compiler::CodeGenerationFromStringsAllowed(isolate, native_context,
+                                                  source)) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
     Handle<Object> error;

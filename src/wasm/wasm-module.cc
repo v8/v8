@@ -462,8 +462,14 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
 }
 
 bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
+  // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
+  // separate callback that includes information about the module about to be
+  // compiled. For the time being, pass an empty string as placeholder for the
+  // sources.
   return isolate->allow_code_gen_callback() == nullptr ||
-         isolate->allow_code_gen_callback()(v8::Utils::ToLocal(context));
+         isolate->allow_code_gen_callback()(
+             v8::Utils::ToLocal(context),
+             v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }
 
 void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,

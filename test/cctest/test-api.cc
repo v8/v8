@@ -21086,14 +21086,19 @@ void CheckCodeGenerationDisallowed() {
   CHECK(try_catch.HasCaught());
 }
 
+char first_fourty_bytes[41];
 
-bool CodeGenerationAllowed(Local<Context> context) {
+bool CodeGenerationAllowed(Local<Context> context, Local<String> source) {
+  String::Utf8Value str(source);
+  size_t len = std::min(sizeof(first_fourty_bytes) - 1,
+                        static_cast<size_t>(str.length()));
+  strncpy(first_fourty_bytes, *str, len);
+  first_fourty_bytes[len] = 0;
   ApiTestFuzzer::Fuzz();
   return true;
 }
 
-
-bool CodeGenerationDisallowed(Local<Context> context) {
+bool CodeGenerationDisallowed(Local<Context> context, Local<String> source) {
   ApiTestFuzzer::Fuzz();
   return false;
 }
@@ -21149,6 +21154,17 @@ TEST(SetErrorMessageForCodeGenFromStrings) {
   CHECK(expected_message->Equals(context.local(), actual_message).FromJust());
 }
 
+TEST(CaptureSourceForCodeGenFromStrings) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  TryCatch try_catch(context->GetIsolate());
+
+  context->GetIsolate()->SetAllowCodeGenerationFromStringsCallback(
+      &CodeGenerationAllowed);
+  context->AllowCodeGenerationFromStrings(false);
+  CompileRun("eval('42')");
+  CHECK(!strcmp(first_fourty_bytes, "42"));
+}
 
 static void NonObjectThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }

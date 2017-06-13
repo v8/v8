@@ -102,6 +102,12 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       int column_offset = 0, Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
+  // Returns true if the embedder permits compiling the given source string in
+  // the given context.
+  static bool CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                               Handle<Context> context,
+                                               Handle<String> source);
+
   // Create a (bound) function for a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
       Handle<Context> context, Handle<String> source,

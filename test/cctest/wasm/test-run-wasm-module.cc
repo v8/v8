@@ -499,7 +499,9 @@ TEST(FailingModuleBuilder) {
   }
 }
 
-bool False(v8::Local<v8::Context> context) { return false; }
+bool False(v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+  return false;
+}
 
 TEST(BlockWasmCodeGen) {
   v8::internal::AccountingAllocator allocator;
@@ -514,7 +516,6 @@ TEST(BlockWasmCodeGen) {
   ErrorThrower thrower(isolate, "block codegen");
   MaybeHandle<WasmModuleObject> ret = wasm::SyncCompile(
       isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
-  CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(nullptr);
   CHECK(ret.is_null());
   CHECK(thrower.error());
 }

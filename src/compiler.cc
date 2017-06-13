@@ -1552,22 +1552,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
 namespace {
 
-bool CodeGenerationFromStringsAllowed(Isolate* isolate,
-                                      Handle<Context> context) {
-  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
-  // Check with callback if set.
-  AllowCodeGenerationFromStringsCallback callback =
-      isolate->allow_code_gen_callback();
-  if (callback == NULL) {
-    // No callback set and code generation disallowed.
-    return false;
-  } else {
-    // Callback set. Let it decide if code generation is allowed.
-    VMState<EXTERNAL> state(isolate);
-    return callback(v8::Utils::ToLocal(context));
-  }
-}
-
 bool ContainsAsmModule(Handle<Script> script) {
   DisallowHeapAllocation no_gc;
   SharedFunctionInfo::ScriptIterator iter(script);
@@ -1579,6 +1563,23 @@ bool ContainsAsmModule(Handle<Script> script) {
 
 }  // namespace
 
+bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                                Handle<Context> context,
+                                                Handle<String> source) {
+  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
+  // Check with callback if set.
+  AllowCodeGenerationFromStringsCallback callback =
+      isolate->allow_code_gen_callback();
+  if (callback == NULL) {
+    // No callback set and code generation disallowed.
+    return false;
+  } else {
+    // Callback set. Let it decide if code generation is allowed.
+    VMState<EXTERNAL> state(isolate);
+    return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
+  }
+}
+
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
     Handle<Context> context, Handle<String> source,
     ParseRestriction restriction, int parameters_end_pos) {
@@ -1588,7 +1589,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
   if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
-      !CodeGenerationFromStringsAllowed(isolate, native_context)) {
+      !CodeGenerationFromStringsAllowed(isolate, native_context, source)) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
     THROW_NEW_ERROR(isolate, NewEvalError(MessageTemplate::kCodeGenFromStrings,

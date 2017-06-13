@@ -775,7 +775,8 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
 }
 
 namespace {
-bool DisallowCodegenFromStringsCallback(v8::Local<v8::Context> context) {
+bool DisallowCodegenFromStringsCallback(v8::Local<v8::Context> context,
+                                        v8::Local<v8::String> source) {
   return false;
 }
 }

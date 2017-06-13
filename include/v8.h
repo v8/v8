@@ -6232,7 +6232,10 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
  * Callback to check if code generation from strings is allowed. See
  * Context::AllowCodeGenerationFromStrings.
  */
-typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
+typedef bool (*DeprecatedAllowCodeGenerationFromStringsCallback)(
+    Local<Context> context);
+typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context,
+                                                       Local<String> source);
 
 // --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
@@ -7502,6 +7505,10 @@ class V8_EXPORT Isolate {
    */
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
+  V8_DEPRECATE_SOON(
+      "Use callback with source parameter.",
+      void SetAllowCodeGenerationFromStringsCallback(
+          DeprecatedAllowCodeGenerationFromStringsCallback callback));
 
   /**
    * Embedder over{ride|load} injection points for wasm APIs. The expectation
@@ -7667,8 +7674,9 @@ class V8_EXPORT V8 {
    * strings should be allowed.
    */
   V8_INLINE static V8_DEPRECATED(
-      "Use isolate version", void SetAllowCodeGenerationFromStringsCallback(
-                                 AllowCodeGenerationFromStringsCallback that));
+      "Use isolate version",
+      void SetAllowCodeGenerationFromStringsCallback(
+          DeprecatedAllowCodeGenerationFromStringsCallback that));
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after
@@ -10122,11 +10130,11 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #endif
 }
 
-
 void V8::SetAllowCodeGenerationFromStringsCallback(
-    AllowCodeGenerationFromStringsCallback callback) {
+    DeprecatedAllowCodeGenerationFromStringsCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
-  isolate->SetAllowCodeGenerationFromStringsCallback(callback);
+  isolate->SetAllowCodeGenerationFromStringsCallback(
+      reinterpret_cast<AllowCodeGenerationFromStringsCallback>(callback));
 }
 
 
