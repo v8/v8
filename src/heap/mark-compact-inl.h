@@ -50,9 +50,6 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
 
 template <LiveObjectIterationMode T>
 HeapObject* LiveObjectIterator<T>::Next() {
-  Map* one_word_filler = heap()->one_pointer_filler_map();
-  Map* two_word_filler = heap()->two_pointer_filler_map();
-  Map* free_space_map = heap()->free_space_map();
   while (!it_.Done()) {
     HeapObject* object = nullptr;
     while (current_cell_ != 0) {
@@ -73,10 +70,7 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // last word is a one word filler, we are not allowed to advance. In
         // that case we can return immediately.
         if (!it_.Advance()) {
-          DCHECK(HeapObject::FromAddress(addr)->map() ==
-                 HeapObject::FromAddress(addr)
-                     ->GetHeap()
-                     ->one_pointer_filler_map());
+          DCHECK(HeapObject::FromAddress(addr)->map() == one_word_filler_map_);
           return nullptr;
         }
         cell_base_ = it_.CurrentCellBase();
@@ -124,8 +118,8 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // Do not use IsFiller() here. This may cause a data race for reading
         // out the instance type when a new map concurrently is written into
         // this object while iterating over the object.
-        if (map == one_word_filler || map == two_word_filler ||
-            map == free_space_map) {
+        if (map == one_word_filler_map_ || map == two_word_filler_map_ ||
+            map == free_space_map_) {
           // There are two reasons why we can get black or grey fillers:
           // 1) Black areas together with slack tracking may result in black one
           // word filler objects.

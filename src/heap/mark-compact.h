@@ -192,17 +192,21 @@ class LiveObjectIterator BASE_EMBEDDED {
       : chunk_(chunk),
         it_(chunk_, state),
         cell_base_(it_.CurrentCellBase()),
-        current_cell_(*it_.CurrentCell()) {}
+        current_cell_(*it_.CurrentCell()),
+        one_word_filler_map_(chunk->heap()->one_pointer_filler_map()),
+        two_word_filler_map_(chunk->heap()->two_pointer_filler_map()),
+        free_space_map_(chunk->heap()->free_space_map()) {}
 
-  HeapObject* Next();
+  V8_INLINE HeapObject* Next();
 
  private:
-  inline Heap* heap() { return chunk_->heap(); }
-
-  MemoryChunk* chunk_;
+  MemoryChunk* const chunk_;
   MarkBitCellIterator it_;
   Address cell_base_;
   MarkBit::CellType current_cell_;
+  Map* const one_word_filler_map_;
+  Map* const two_word_filler_map_;
+  Map* const free_space_map_;
 };
 
 class LiveObjectVisitor BASE_EMBEDDED {
