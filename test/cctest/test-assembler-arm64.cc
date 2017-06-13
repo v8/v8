@@ -846,11 +846,13 @@ TEST(bic) {
   // field.
   // Use x20 to preserve csp. We check for the result via x21 because the
   // test infrastructure requires that csp be restored to its original value.
+  __ SetStackPointer(jssp);  // Change stack pointer to avoid consistency check.
   __ Mov(x20, csp);
   __ Mov(x0, 0xffffff);
   __ Bic(csp, x0, Operand(0xabcdef));
   __ Mov(x21, csp);
   __ Mov(csp, x20);
+  __ SetStackPointer(csp);  // Restore stack pointer.
   END();
 
   RUN();
@@ -7153,6 +7155,77 @@ TEST(add_sub_zero) {
   TEARDOWN();
 }
 
+TEST(preshift_immediates) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  // Test operations involving immediates that could be generated using a
+  // pre-shifted encodable immediate followed by a post-shift applied to
+  // the arithmetic or logical operation.
+
+  // Save csp and change stack pointer to avoid consistency check.
+  __ SetStackPointer(jssp);
+  __ Mov(x29, csp);
+
+  // Set the registers to known values.
+  __ Mov(x0, 0x1000);
+  __ Mov(csp, 0x1000);
+
+  // Arithmetic ops.
+  __ Add(x1, x0, 0x1f7de);
+  __ Add(w2, w0, 0xffffff1);
+  __ Adds(x3, x0, 0x18001);
+  __ Adds(w4, w0, 0xffffff1);
+  __ Add(x5, x0, 0x10100);
+  __ Sub(w6, w0, 0xffffff1);
+  __ Subs(x7, x0, 0x18001);
+  __ Subs(w8, w0, 0xffffff1);
+
+  // Logical ops.
+  __ And(x9, x0, 0x1f7de);
+  __ Orr(w10, w0, 0xffffff1);
+  __ Eor(x11, x0, 0x18001);
+
+  // Ops using the stack pointer.
+  __ Add(csp, csp, 0x1f7f0);
+  __ Mov(x12, csp);
+  __ Mov(csp, 0x1000);
+
+  __ Adds(x13, csp, 0x1f7f0);
+
+  __ Orr(csp, x0, 0x1f7f0);
+  __ Mov(x14, csp);
+  __ Mov(csp, 0x1000);
+
+  __ Add(csp, csp, 0x10100);
+  __ Mov(x15, csp);
+
+  //  Restore csp.
+  __ Mov(csp, x29);
+  __ SetStackPointer(csp);
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x1000, x0);
+  CHECK_EQUAL_64(0x207de, x1);
+  CHECK_EQUAL_64(0x10000ff1, x2);
+  CHECK_EQUAL_64(0x19001, x3);
+  CHECK_EQUAL_64(0x10000ff1, x4);
+  CHECK_EQUAL_64(0x11100, x5);
+  CHECK_EQUAL_64(0xf000100f, x6);
+  CHECK_EQUAL_64(0xfffffffffffe8fff, x7);
+  CHECK_EQUAL_64(0xf000100f, x8);
+  CHECK_EQUAL_64(0x1000, x9);
+  CHECK_EQUAL_64(0xffffff1, x10);
+  CHECK_EQUAL_64(0x207f0, x12);
+  CHECK_EQUAL_64(0x207f0, x13);
+  CHECK_EQUAL_64(0x1f7f0, x14);
+  CHECK_EQUAL_64(0x11100, x15);
+
+  TEARDOWN();
+}
 
 TEST(claim_drop_zero) {
   INIT_V8();
