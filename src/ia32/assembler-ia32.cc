@@ -122,6 +122,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cross_compile) return;
 
   if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
+  if (cpu.has_ssse3() && FLAG_enable_ssse3) supported_ |= 1u << SSSE3;
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
   if (cpu.has_avx() && FLAG_enable_avx && cpu.has_osxsave() &&
       OSHasAVXSupport()) {
@@ -146,13 +147,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() { }
 void CpuFeatures::PrintFeatures() {
   printf(
-      "SSE3=%d SSE4_1=%d AVX=%d FMA3=%d BMI1=%d BMI2=%d LZCNT=%d POPCNT=%d "
-      "ATOM=%d\n",
-      CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSE4_1),
-      CpuFeatures::IsSupported(AVX), CpuFeatures::IsSupported(FMA3),
-      CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
-      CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
-      CpuFeatures::IsSupported(ATOM));
+      "SSE3=%d SSSE3=%d SSE4_1=%d AVX=%d FMA3=%d BMI1=%d BMI2=%d LZCNT=%d "
+      "POPCNT=%d ATOM=%d\n",
+      CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
+      CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(AVX),
+      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(BMI1),
+      CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
+      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(ATOM));
 }
 
 
@@ -2683,6 +2684,25 @@ void Assembler::psrlq(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::pshufb(XMMRegister dst, const Operand& src) {
+  DCHECK(IsEnabled(SSSE3));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x38);
+  EMIT(0x00);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x70);
+  emit_sse_operand(dst, src);
+  EMIT(shuffle);
+}
+
 void Assembler::pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2692,6 +2712,27 @@ void Assembler::pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle) {
   EMIT(shuffle);
 }
 
+void Assembler::pextrb(const Operand& dst, XMMRegister src, int8_t offset) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x14);
+  emit_sse_operand(src, dst);
+  EMIT(offset);
+}
+
+void Assembler::pextrw(const Operand& dst, XMMRegister src, int8_t offset) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x15);
+  emit_sse_operand(src, dst);
+  EMIT(offset);
+}
 
 void Assembler::pextrd(const Operand& dst, XMMRegister src, int8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
@@ -2701,6 +2742,17 @@ void Assembler::pextrd(const Operand& dst, XMMRegister src, int8_t offset) {
   EMIT(0x3A);
   EMIT(0x16);
   emit_sse_operand(src, dst);
+  EMIT(offset);
+}
+
+void Assembler::pinsrb(XMMRegister dst, const Operand& src, int8_t offset) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x20);
+  emit_sse_operand(dst, src);
   EMIT(offset);
 }
 
@@ -2883,13 +2935,40 @@ void Assembler::vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8) {
   EMIT(imm8);
 }
 
+void Assembler::vpshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle) {
+  vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
+  EMIT(shuffle);
+}
+
 void Assembler::vpshufd(XMMRegister dst, const Operand& src, uint8_t shuffle) {
   vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
   EMIT(shuffle);
 }
 
+void Assembler::vpextrb(const Operand& dst, XMMRegister src, int8_t offset) {
+  vinstr(0x14, src, xmm0, dst, k66, k0F3A, kWIG);
+  EMIT(offset);
+}
+
+void Assembler::vpextrw(const Operand& dst, XMMRegister src, int8_t offset) {
+  vinstr(0x15, src, xmm0, dst, k66, k0F3A, kWIG);
+  EMIT(offset);
+}
+
 void Assembler::vpextrd(const Operand& dst, XMMRegister src, int8_t offset) {
   vinstr(0x16, src, xmm0, dst, k66, k0F3A, kWIG);
+  EMIT(offset);
+}
+
+void Assembler::vpinsrb(XMMRegister dst, XMMRegister src1, const Operand& src2,
+                        int8_t offset) {
+  vinstr(0x20, dst, src1, src2, k66, k0F3A, kWIG);
+  EMIT(offset);
+}
+
+void Assembler::vpinsrw(XMMRegister dst, XMMRegister src1, const Operand& src2,
+                        int8_t offset) {
+  vinstr(0xC4, dst, src1, src2, k66, k0F, kWIG);
   EMIT(offset);
 }
 

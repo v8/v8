@@ -1128,14 +1128,36 @@ class Assembler : public AssemblerBase {
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
 
+  // pshufb is SSSE3 instruction
+  void pshufb(XMMRegister dst, XMMRegister src) { pshufb(dst, Operand(src)); }
+  void pshufb(XMMRegister dst, const Operand& src);
+  void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshuflw(dst, Operand(src), shuffle);
+  }
+  void pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
   void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     pshufd(dst, Operand(src), shuffle);
   }
   void pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
+  void pextrb(Register dst, XMMRegister src, int8_t offset) {
+    pextrb(Operand(dst), src, offset);
+  }
+  void pextrb(const Operand& dst, XMMRegister src, int8_t offset);
+  // Use SSE4_1 encoding for pextrw reg, xmm, imm8 for consistency
+  void pextrw(Register dst, XMMRegister src, int8_t offset) {
+    pextrw(Operand(dst), src, offset);
+  }
+  void pextrw(const Operand& dst, XMMRegister src, int8_t offset);
   void pextrd(Register dst, XMMRegister src, int8_t offset) {
     pextrd(Operand(dst), src, offset);
   }
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
+
+  void pinsrb(XMMRegister dst, Register src, int8_t offset) {
+    pinsrb(dst, Operand(src), offset);
+  }
+  void pinsrb(XMMRegister dst, const Operand& src, int8_t offset);
   void pinsrw(XMMRegister dst, Register src, int8_t offset) {
     pinsrw(dst, Operand(src), offset);
   }
@@ -1388,14 +1410,46 @@ class Assembler : public AssemblerBase {
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
+  void vpshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vpshufb(dst, src1, Operand(src2));
+  }
+  void vpshufb(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vinstr(0x00, dst, src1, src2, k66, k0F38, kW0);
+  }
+  void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshuflw(dst, Operand(src), shuffle);
+  }
+  void vpshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
   void vpshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     vpshufd(dst, Operand(src), shuffle);
   }
   void vpshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
+  void vpextrb(Register dst, XMMRegister src, int8_t offset) {
+    vpextrb(Operand(dst), src, offset);
+  }
+  void vpextrb(const Operand& dst, XMMRegister src, int8_t offset);
+  void vpextrw(Register dst, XMMRegister src, int8_t offset) {
+    vpextrw(Operand(dst), src, offset);
+  }
+  void vpextrw(const Operand& dst, XMMRegister src, int8_t offset);
   void vpextrd(Register dst, XMMRegister src, int8_t offset) {
     vpextrd(Operand(dst), src, offset);
   }
   void vpextrd(const Operand& dst, XMMRegister src, int8_t offset);
+
+  void vpinsrb(XMMRegister dst, XMMRegister src1, Register src2,
+               int8_t offset) {
+    vpinsrb(dst, src1, Operand(src2), offset);
+  }
+  void vpinsrb(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               int8_t offset);
+  void vpinsrw(XMMRegister dst, XMMRegister src1, Register src2,
+               int8_t offset) {
+    vpinsrw(dst, src1, Operand(src2), offset);
+  }
+  void vpinsrw(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               int8_t offset);
   void vpinsrd(XMMRegister dst, XMMRegister src1, Register src2,
                int8_t offset) {
     vpinsrd(dst, src1, Operand(src2), offset);

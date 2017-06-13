@@ -51,7 +51,7 @@ TEST(DisasmIa320) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  v8::internal::byte buffer[4096];
+  v8::internal::byte buffer[8192];
   Assembler assm(isolate, buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
   // Short immediate instructions
@@ -495,6 +495,8 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
 
+    __ pshuflw(xmm5, xmm1, 5);
+    __ pshuflw(xmm5, Operand(edx, 4), 5);
     __ pshufd(xmm5, xmm1, 5);
     __ pshufd(xmm5, Operand(edx, 4), 5);
     __ pinsrw(xmm5, edx, 5);
@@ -529,10 +531,24 @@ TEST(DisasmIa320) {
   }
 
   {
+    if (CpuFeatures::IsSupported(SSSE3)) {
+      CpuFeatureScope scope(&assm, SSSE3);
+      __ pshufb(xmm5, xmm1);
+      __ pshufb(xmm5, Operand(edx, 4));
+    }
+  }
+
+  {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
+      __ pextrb(eax, xmm0, 1);
+      __ pextrb(Operand(edx, 4), xmm0, 1);
+      __ pextrw(eax, xmm0, 1);
+      __ pextrw(Operand(edx, 4), xmm0, 1);
       __ pextrd(eax, xmm0, 1);
       __ pextrd(Operand(edx, 4), xmm0, 1);
+      __ pinsrb(xmm1, eax, 0);
+      __ pinsrb(xmm1, Operand(edx, 4), 0);
       __ pinsrd(xmm1, eax, 0);
       __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
@@ -630,10 +646,22 @@ TEST(DisasmIa320) {
       __ vpsraw(xmm0, xmm7, 21);
       __ vpsrad(xmm0, xmm7, 21);
 
+      __ vpshufb(xmm5, xmm0, xmm1);
+      __ vpshufb(xmm5, xmm0, Operand(edx, 4));
+      __ vpshuflw(xmm5, xmm1, 5);
+      __ vpshuflw(xmm5, Operand(edx, 4), 5);
       __ vpshufd(xmm5, xmm1, 5);
       __ vpshufd(xmm5, Operand(edx, 4), 5);
+      __ vpextrb(eax, xmm0, 1);
+      __ vpextrb(Operand(edx, 4), xmm0, 1);
+      __ vpextrw(eax, xmm0, 1);
+      __ vpextrw(Operand(edx, 4), xmm0, 1);
       __ vpextrd(eax, xmm0, 1);
       __ vpextrd(Operand(edx, 4), xmm0, 1);
+      __ vpinsrb(xmm0, xmm1, eax, 0);
+      __ vpinsrb(xmm0, xmm1, Operand(edx, 4), 0);
+      __ vpinsrw(xmm0, xmm1, eax, 0);
+      __ vpinsrw(xmm0, xmm1, Operand(edx, 4), 0);
       __ vpinsrd(xmm0, xmm1, eax, 0);
       __ vpinsrd(xmm0, xmm1, Operand(edx, 4), 0);
 
