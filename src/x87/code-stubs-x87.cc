@@ -2134,8 +2134,10 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,
     OnNoNeedToInformIncrementalMarker on_no_need,
     Mode mode) {
-  Label object_is_black, need_incremental, need_incremental_pop_object;
+  Label need_incremental, need_incremental_pop_object;
 
+#ifndef V8_CONCURRENT_MARKING
+  Label object_is_black;
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
   __ JumpIfBlack(regs_.object(),
@@ -2153,6 +2155,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   }
 
   __ bind(&object_is_black);
+#endif
 
   // Get the value from the slot.
   __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
