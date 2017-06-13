@@ -1626,8 +1626,8 @@ NOTREECHECKS=true
       Cmd("git log -1 --format=%s ab56789", "Revert \"Something\""),
       Cmd("git log -1 ab12345", "Title4\nBUG=123\nBUG=234"),
       Cmd("git log -1 ab23456", "Title2\n BUG = v8:123,345"),
-      Cmd("git log -1 ab34567", "Title3\nLOG=n\nBUG=567, 456"),
-      Cmd("git log -1 ab45678", "Title1\nBUG="),
+      Cmd("git log -1 ab34567", "Title3\nLOG=n\nBug: 567, 456,345"),
+      Cmd("git log -1 ab45678", "Title1\nBug:"),
       Cmd("git log -1 ab56789", "Revert \"Something\"\nBUG=none"),
       Cmd("git log -1 -p ab12345", "patch4"),
       Cmd(("git apply --index --reject \"%s\"" %
