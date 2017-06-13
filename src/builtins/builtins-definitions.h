@@ -583,6 +583,17 @@ namespace internal {
   CPP(MapClear)                                                                \
   CPP(MapForEach)                                                              \
                                                                                \
+  /* WeakMap */                                                                \
+  CPP(WeakMapGet)                                                              \
+  CPP(WeakMapSet)                                                              \
+  CPP(WeakMapDelete)                                                           \
+  CPP(WeakMapHas)                                                              \
+                                                                               \
+  /* WeakSet */                                                                \
+  CPP(WeakSetAdd)                                                              \
+  CPP(WeakSetDelete)                                                           \
+  CPP(WeakSetHas)                                                              \
+                                                                               \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
   TFJ(MathAbs, 1, kX)                                                          \

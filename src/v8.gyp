@@ -658,6 +658,7 @@
         'builtins/builtins-symbol.cc',
         'builtins/builtins-typedarray.cc',
         'builtins/builtins-utils.h',
+        'builtins/builtins-weak-collection.cc',
         'builtins/builtins.cc',
         'builtins/builtins.h',
         'cached-powers.cc',

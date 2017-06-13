@@ -114,10 +114,6 @@ namespace internal {
   F(GetWeakMapEntries, 2, 1)              \
   F(MapIteratorNext, 2, 1)                \
   F(WeakCollectionInitialize, 1, 1)       \
-  F(WeakCollectionGet, 3, 1)              \
-  F(WeakCollectionHas, 3, 1)              \
-  F(WeakCollectionDelete, 3, 1)           \
-  F(WeakCollectionSet, 4, 1)              \
   F(GetWeakSetValues, 2, 1)               \
   F(IsJSMap, 1, 1)                        \
   F(IsJSSet, 1, 1)                        \

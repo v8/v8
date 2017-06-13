@@ -255,68 +255,6 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionInitialize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_WeakCollectionGet) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_SMI_ARG_CHECKED(hash, 2)
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
-  Handle<Object> lookup(table->Lookup(key, hash), isolate);
-  return lookup->IsTheHole(isolate) ? isolate->heap()->undefined_value()
-                                    : *lookup;
-}
-
-
-RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_SMI_ARG_CHECKED(hash, 2)
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
-  Handle<Object> lookup(table->Lookup(key, hash), isolate);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole(isolate));
-}
-
-
-RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_SMI_ARG_CHECKED(hash, 2)
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
-  bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
-  return isolate->heap()->ToBoolean(was_present);
-}
-
-
-RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_SMI_ARG_CHECKED(hash, 3)
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
-  JSWeakCollection::Set(weak_collection, key, value, hash);
-  return *weak_collection;
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
