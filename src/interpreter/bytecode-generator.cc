@@ -2249,8 +2249,13 @@ void BytecodeGenerator::BuildReturn() {
   if (info()->literal()->feedback_vector_spec()->HasTypeProfileSlot()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
-  if (IsGeneratorFunction(info()->literal()->kind())) {
-    // Mark the generator as closed if returning from a generator function.
+  if (IsAsyncGeneratorFunction(info()->literal()->kind())) {
+    // Mark the generator as closed if returning from an async generator
+    // function. Note that non-async generators are closed by the
+    // generator-resume builtin.
+
+    // TODO(jarin,caitp) Move the async generator closing to the resume
+    // builtin.
     RegisterAllocationScope register_scope(this);
     Register result = register_allocator()->NewRegister();
     builder()

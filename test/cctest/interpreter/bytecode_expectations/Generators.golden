@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 104
+bytecode array length: 92
 bytecodes: [
                 B(Mov), R(new_target), R(1),
                 B(Ldar), R(new_target),
@@ -48,18 +48,14 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(1), U8(2), I8(0),
                 B(Ldar), R(3),
   /*   11 E> */ B(Throw),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(1), U8(1),
                 B(Ldar), R(3),
   /*   16 S> */ B(Return),
                 B(LdaUndefined),
-                B(Star), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(1), U8(1),
-                B(Ldar), R(3),
   /*   16 S> */ B(Return),
 ]
 constant pool: [
   Smi [45],
-  Smi [14],
+  Smi [10],
   Smi [7],
 ]
 handlers: [
@@ -72,7 +68,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 158
+bytecode array length: 142
 bytecodes: [
                 B(Mov), R(new_target), R(1),
                 B(Ldar), R(new_target),
@@ -107,7 +103,6 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(3),
   /*   11 E> */ B(Throw),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(1), U8(1),
                 B(Ldar), R(3),
   /*   25 S> */ B(Return),
   /*   16 S> */ B(LdaSmi), I8(42),
@@ -128,21 +123,17 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(4), U8(2), I8(0),
                 B(Ldar), R(3),
   /*   16 E> */ B(Throw),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(1), U8(1),
                 B(Ldar), R(3),
   /*   25 S> */ B(Return),
                 B(LdaUndefined),
-                B(Star), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(1), U8(1),
-                B(Ldar), R(3),
   /*   25 S> */ B(Return),
 ]
 constant pool: [
   Smi [45],
-  Smi [99],
-  Smi [14],
+  Smi [95],
+  Smi [10],
   Smi [7],
-  Smi [14],
+  Smi [10],
   Smi [7],
 ]
 handlers: [
@@ -155,7 +146,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 447
+bytecode array length: 431
 bytecodes: [
                 B(Mov), R(new_target), R(10),
                 B(Ldar), R(new_target),
@@ -190,7 +181,6 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(12),
   /*   11 E> */ B(Throw),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(10), U8(1),
                 B(Ldar), R(12),
   /*   44 S> */ B(Return),
                 B(LdaZero),
@@ -326,22 +316,18 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(12),
                 B(SwitchOnSmiNoFeedback), U8(17), U8(2), I8(0),
-                B(Jump), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(10), U8(1),
+                B(Jump), U8(8),
                 B(Ldar), R(13),
   /*   44 S> */ B(Return),
                 B(Ldar), R(13),
                 B(ReThrow),
                 B(LdaUndefined),
-                B(Star), R(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(10), U8(1),
-                B(Ldar), R(12),
   /*   44 S> */ B(Return),
 ]
 constant pool: [
   Smi [45],
-  Smi [111],
-  Smi [14],
+  Smi [107],
+  Smi [10],
   Smi [7],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
@@ -357,12 +343,12 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
   FIXED_ARRAY_TYPE,
   Smi [6],
-  Smi [13],
+  Smi [9],
 ]
 handlers: [
-  [100, 292, 298],
-  [103, 256, 258],
-  [359, 369, 371],
+  [96, 288, 294],
+  [99, 252, 254],
+  [355, 365, 367],
 ]
 
 ---
@@ -373,7 +359,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 500
+bytecode array length: 476
 bytecodes: [
                 B(Mov), R(new_target), R(9),
                 B(Ldar), R(new_target),
@@ -408,7 +394,6 @@ bytecodes: [
                 B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(11),
   /*   38 E> */ B(Throw),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(9), U8(1),
                 B(Ldar), R(11),
   /*   54 S> */ B(Return),
   /*   43 S> */ B(LdaUndefined),
@@ -445,8 +430,8 @@ bytecodes: [
                 B(JumpIfTrue), U8(39),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(11), U8(28),
-                B(JumpIfTrue), U8(78),
-                B(Jump), U8(236),
+                B(JumpIfTrue), U8(74),
+                B(Jump), U8(232),
                 B(LdaNamedProperty), R(4), U8(7), U8(13),
                 B(Star), R(12),
                 B(CallProperty1), R(12), R(4), R(1), U8(11),
@@ -455,12 +440,11 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(3), U8(1),
-                B(Jump), U8(208),
+                B(Jump), U8(204),
                 B(LdaNamedProperty), R(4), U8(8), U8(16),
                 B(Star), R(3),
                 B(TestUndetectable),
-                B(JumpIfFalse), U8(9),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(9), U8(1),
+                B(JumpIfFalse), U8(5),
                 B(Ldar), R(1),
   /*   54 S> */ B(Return),
                 B(Mov), R(3), R(12),
@@ -552,31 +536,25 @@ bytecodes: [
                 B(Star), R(1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), U8(1),
                 B(Star), R(2),
-                B(Wide), B(JumpLoop), U16(327), I16(0),
+                B(Wide), B(JumpLoop), U16(323), I16(0),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(2), U8(31),
-                B(JumpIfFalse), U8(15),
+                B(JumpIfFalse), U8(7),
                 B(LdaNamedProperty), R(3), U8(14), U8(32),
-                B(Star), R(11),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(9), U8(1),
-                B(Ldar), R(11),
   /*   54 S> */ B(Return),
                 B(LdaNamedProperty), R(3), U8(14), U8(34),
                 B(Star), R(8),
                 B(LdaUndefined),
-                B(Star), R(11),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(9), U8(1),
-                B(Ldar), R(11),
   /*   54 S> */ B(Return),
 ]
 constant pool: [
   Smi [45],
-  Smi [115],
-  Smi [14],
+  Smi [111],
+  Smi [10],
   Smi [7],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["g"],
   SYMBOL_TYPE,
-  Smi [300],
+  Smi [296],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["throw"],
@@ -587,6 +565,6 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
 ]
 handlers: [
-  [310, 320, 322],
+  [302, 312, 314],
 ]
 

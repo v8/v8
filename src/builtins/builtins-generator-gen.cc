@@ -26,8 +26,6 @@ class GeneratorBuiltinsAssembler : public CodeStubAssembler {
 void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     Node* receiver, Node* value, Node* context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
-  Node* closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
-
   // Check if the {receiver} is actually a JSGeneratorObject.
   Label if_receiverisincompatible(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);
@@ -41,6 +39,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
       LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset);
   Label if_receiverisclosed(this, Label::kDeferred),
       if_receiverisrunning(this, Label::kDeferred);
+  Node* closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
   GotoIf(SmiEqual(receiver_continuation, closed), &if_receiverisclosed);
   DCHECK_LT(JSGeneratorObject::kGeneratorExecuting,
             JSGeneratorObject::kGeneratorClosed);
@@ -56,18 +55,27 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   // Make sure we close the generator if there was an exception.
   GotoIfException(result, &if_exception, &var_exception);
 
-  // If the generator is not suspended (i.e., it's state is 'closed'),
-  // wrap the return value in IteratorResult.
+  // If the generator is not suspended (i.e., its state is 'executing'),
+  // close it and wrap the return value in IteratorResult.
   Node* result_continuation =
       LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset);
-  GotoIf(SmiEqual(result_continuation, closed), &if_final_return);
+
+  // The generator function should not close the generator by itself, let's
+  // check it is indeed not closed yet.
+  CSA_ASSERT(this, SmiNotEqual(result_continuation, closed));
+
+  Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  GotoIf(SmiEqual(result_continuation, executing), &if_final_return);
+
   Return(result);
 
   Callable create_iter_result_object =
       Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject);
-
   BIND(&if_final_return);
   {
+    // Close the generator.
+    StoreObjectFieldNoWriteBarrier(
+        receiver, JSGeneratorObject::kContinuationOffset, closed);
     // Return the wrapped result.
     Return(
         CallStub(create_iter_result_object, context, result, TrueConstant()));
