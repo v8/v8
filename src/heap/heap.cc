@@ -169,13 +169,6 @@ Heap::Heap()
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false),
       pending_layout_change_object_(nullptr) {
-// Allow build-time customization of the max semispace size. Building
-// V8 with snapshots and a non-default max semispace size is much
-// easier if you can define it as part of the build environment.
-#if defined(V8_MAX_SEMISPACE_SIZE)
-  max_semi_space_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
-#endif
-
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK((max_old_generation_size_ & (Page::kPageSize - 1)) == 0);
 
