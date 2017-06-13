@@ -1016,6 +1016,9 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   Object* fct_obj = compiled_module->ptr_to_code_table();
   if (fct_obj != nullptr && fct_obj != undefined) {
     uint32_t old_mem_size = compiled_module->mem_size();
+    // We use default_mem_size throughout, as the mem size of an uninstantiated
+    // module, because if we can statically prove a memory access is over
+    // bounds, we'll codegen a trap. See {WasmGraphBuilder::BoundsCheckMem}
     uint32_t default_mem_size = compiled_module->default_mem_size();
     Address old_mem_start = compiled_module->GetEmbeddedMemStartOrNull();
 
@@ -1091,7 +1094,7 @@ void WasmCompiledModule::InitId() {
 void WasmCompiledModule::ResetSpecializationMemInfoIfNeeded() {
   DisallowHeapAllocation no_gc;
   if (has_embedded_mem_start()) {
-    set_embedded_mem_size(0);
+    set_embedded_mem_size(default_mem_size());
     set_embedded_mem_start(0);
   }
 }
