@@ -373,7 +373,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
 
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
-  return NULL;
 }
 
 

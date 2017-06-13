@@ -62,27 +62,15 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-
-  return generator->context();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-
-  return generator->input_or_debug_pos();
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInputOrDebugPos) {
@@ -93,33 +81,21 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInputOrDebugPos) {
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-
-  return Smi::FromInt(generator->resume_mode());
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
