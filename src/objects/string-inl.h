@@ -195,19 +195,14 @@ template <typename Char>
 class SequentialStringKey : public StringTableKey {
  public:
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) {}
+      : string_(string), seed_(seed) {}
 
-  uint32_t Hash() override {
-    hash_field_ = StringHasher::HashSequentialString<Char>(
-        string_.start(), string_.length(), seed_);
-
-    uint32_t result = hash_field_ >> String::kHashShift;
-    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
+  uint32_t ComputeHashField() override {
+    return StringHasher::HashSequentialString<Char>(string_.start(),
+                                                    string_.length(), seed_);
   }
 
   Vector<const Char> string_;
-  uint32_t hash_field_;
   uint32_t seed_;
 };
 
@@ -238,15 +233,12 @@ class SeqOneByteSubStringKey : public StringTableKey {
 #pragma warning(push)
 #pragma warning(disable : 4789)
 #endif
-  uint32_t Hash() override {
+  uint32_t ComputeHashField() override {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
     const uint8_t* chars = string_->GetChars() + from_;
-    hash_field_ = StringHasher::HashSequentialString(
-        chars, length_, string_->GetHeap()->HashSeed());
-    uint32_t result = hash_field_ >> String::kHashShift;
-    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
+    return StringHasher::HashSequentialString(chars, length_,
+                                              string_->GetHeap()->HashSeed());
   }
 #if defined(V8_CC_MSVC)
 #pragma warning(pop)
@@ -259,7 +251,6 @@ class SeqOneByteSubStringKey : public StringTableKey {
   Handle<SeqOneByteString> string_;
   int from_;
   int length_;
-  uint32_t hash_field_;
 };
 
 class TwoByteStringKey : public SequentialStringKey<uc16> {
@@ -278,28 +269,22 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
 class Utf8StringKey : public StringTableKey {
  public:
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) {}
+      : string_(string), seed_(seed) {}
 
   bool IsMatch(Object* string) override {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
-  uint32_t Hash() override {
-    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
-    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
-    uint32_t result = hash_field_ >> String::kHashShift;
-    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
+  uint32_t ComputeHashField() override {
+    return StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
   }
 
   Handle<Object> AsHandle(Isolate* isolate) override {
-    if (hash_field_ == 0) Hash();
     return isolate->factory()->NewInternalizedStringFromUtf8(string_, chars_,
-                                                             hash_field_);
+                                                             HashField());
   }
 
   Vector<const char> string_;
-  uint32_t hash_field_;
   int chars_;  // Caches the number of characters when computing the hash code.
   uint32_t seed_;
 };

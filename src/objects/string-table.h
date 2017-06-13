@@ -16,6 +16,15 @@ namespace internal {
 class StringTableKey : public HashTableKey {
  public:
   virtual Handle<Object> AsHandle(Isolate* isolate) = 0;
+  inline uint32_t ComputeHash() final;
+  uint32_t HashField() {
+    if (hash_field_ == 0) hash_field_ = ComputeHashField();
+    return hash_field_;
+  }
+  virtual uint32_t ComputeHashField() = 0;
+
+ private:
+  uint32_t hash_field_ = 0;
 };
 
 class StringTableShape : public BaseShape<StringTableKey*> {
@@ -49,15 +58,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
   static String* LookupKeyIfExists(Isolate* isolate, StringTableKey* key);
 
-  // Tries to internalize given string and returns string handle on success
-  // or an empty handle otherwise.
-  MUST_USE_RESULT static MaybeHandle<String> InternalizeStringIfExists(
-      Isolate* isolate, Handle<String> string);
-
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.
-  MUST_USE_RESULT static MaybeHandle<String> LookupStringIfExists(
-      Isolate* isolate, Handle<String> str);
   MUST_USE_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
       Isolate* isolate, uint16_t c1, uint16_t c2);
   static Object* LookupStringIfExists_NoAllocate(String* string);

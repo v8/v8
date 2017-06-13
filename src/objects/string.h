@@ -435,6 +435,7 @@ class String : public Name {
  private:
   friend class Name;
   friend class StringTableInsertionKey;
+  friend class InternalizedStringKey;
 
   static Handle<String> SlowFlatten(Handle<ConsString> cons,
                                     PretenureFlag tenure);

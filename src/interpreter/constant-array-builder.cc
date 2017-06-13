@@ -184,7 +184,7 @@ size_t ConstantArrayBuilder::Insert(Smi* smi) {
 size_t ConstantArrayBuilder::Insert(const AstRawString* raw_string) {
   return constants_map_
       .LookupOrInsert(reinterpret_cast<intptr_t>(raw_string),
-                      raw_string->hash(),
+                      raw_string->Hash(),
                       [&]() { return AllocateIndex(Entry(raw_string)); },
                       ZoneAllocationPolicy(zone_))
       ->value;

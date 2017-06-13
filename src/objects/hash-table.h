@@ -258,9 +258,22 @@ class HashTableKey {
   // Returns whether the other object matches this key.
   virtual bool IsMatch(Object* other) = 0;
   // Returns the hash value for this key.
-  virtual uint32_t Hash() = 0;
   // Required.
   virtual ~HashTableKey() {}
+
+  uint32_t Hash() {
+    if (hash_ == 0) {
+      hash_ = ComputeHash();
+      DCHECK_NE(0, hash_);
+    }
+    return hash_;
+  }
+
+ protected:
+  virtual uint32_t ComputeHash() = 0;
+
+ private:
+  uint32_t hash_ = 0;
 };
 
 class ObjectHashTableShape : public BaseShape<Handle<Object>> {

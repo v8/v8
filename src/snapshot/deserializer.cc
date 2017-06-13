@@ -283,20 +283,23 @@ void Deserializer::PrintDisassembledCodeObjects() {
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(String* string)
-      : string_(string), hash_(string->Hash()) {
+  explicit StringTableInsertionKey(String* string) : string_(string) {
     DCHECK(string->IsInternalizedString());
   }
 
   bool IsMatch(Object* string) override {
     // We know that all entries in a hash table had their hash keys created.
     // Use that knowledge to have fast failure.
-    if (hash_ != String::cast(string)->Hash()) return false;
+    if (Hash() != String::cast(string)->Hash()) return false;
     // We want to compare the content of two internalized strings here.
     return string_->SlowEquals(String::cast(string));
   }
 
-  uint32_t Hash() override { return hash_; }
+  uint32_t ComputeHashField() override {
+    // Make sure hash_field() is computed.
+    string_->Hash();
+    return string_->hash_field();
+  }
 
   MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
     return handle(string_, isolate);
@@ -304,7 +307,6 @@ class StringTableInsertionKey : public StringTableKey {
 
  private:
   String* string_;
-  uint32_t hash_;
   DisallowHeapAllocation no_gc;
 };
 

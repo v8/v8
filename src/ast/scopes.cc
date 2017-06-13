@@ -54,7 +54,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   if (added) *added = p->value == nullptr;
   if (p->value == nullptr) {
@@ -69,7 +69,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
 Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
                                    VariableMode mode) {
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   if (p->value == nullptr) {
     // The variable has not been declared yet -> insert it.
@@ -82,13 +82,13 @@ Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
 
 void VariableMap::Remove(Variable* var) {
   const AstRawString* name = var->raw_name();
-  ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->hash());
+  ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->Hash());
 }
 
 void VariableMap::Add(Zone* zone, Variable* var) {
   const AstRawString* name = var->raw_name();
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
@@ -96,7 +96,7 @@ void VariableMap::Add(Zone* zone, Variable* var) {
 }
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
-  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->hash());
+  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
   if (p != NULL) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
     DCHECK(p->value != NULL);
@@ -121,7 +121,7 @@ void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   delegate->set_next(static_cast<SloppyBlockFunctionMap::Delegate*>(p->value));
   p->value = delegate;
@@ -1149,7 +1149,7 @@ Variable* Scope::DeclareVariable(
             GetDeclarationScope()->sloppy_block_function_map();
         duplicate_allowed = map != nullptr &&
                             map->Lookup(const_cast<AstRawString*>(name),
-                                        name->hash()) != nullptr &&
+                                        name->Hash()) != nullptr &&
                             !IsAsyncFunction(function_kind) &&
                             !(allow_harmony_restrictive_generators &&
                               IsGeneratorFunction(function_kind));

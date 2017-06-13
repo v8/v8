@@ -1140,7 +1140,7 @@ void CaseClause::AssignFeedbackSlots(FeedbackVectorSpec* spec,
 
 uint32_t Literal::Hash() {
   return raw_value()->IsString()
-             ? raw_value()->AsString()->hash()
+             ? raw_value()->AsString()->Hash()
              : ComputeLongHash(double_to_uint64(raw_value()->AsNumber()));
 }
 
