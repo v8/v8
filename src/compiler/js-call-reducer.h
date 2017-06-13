@@ -57,6 +57,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
+  Reduction ReduceReturnReceiver(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

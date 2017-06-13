@@ -779,6 +779,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceReflectGetPrototypeOf(node);
         case Builtins::kArrayForEach:
           return ReduceArrayForEach(function, node);
+        case Builtins::kReturnReceiver:
+          return ReduceReturnReceiver(node);
         default:
           break;
       }
@@ -1034,6 +1036,13 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   int arity = static_cast<int>(p.arity() - 2);
 
   return ReduceSpreadCall(node, arity);
+}
+
+Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  ReplaceWithValue(node, receiver);
+  return Replace(receiver);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
