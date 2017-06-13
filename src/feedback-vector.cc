@@ -202,7 +202,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set_map_no_write_barrier(isolate->heap()->feedback_vector_map());
   array->set(kSharedFunctionInfoIndex, *shared);
-  array->set(kOptimizedCodeIndex, *factory->empty_weak_cell());
+  array->set(kOptimizedCodeIndex, Smi::FromEnum(OptimizationMarker::kNone));
   array->set(kInvocationCountIndex, Smi::kZero);
 
   // Ensure we can skip the write barrier
@@ -305,28 +305,38 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   vector->set(kOptimizedCodeIndex, *cell);
 }
 
+void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
+  set(kOptimizedCodeIndex, Smi::FromEnum(marker));
+}
+
 void FeedbackVector::ClearOptimizedCode() {
-  set(kOptimizedCodeIndex, GetIsolate()->heap()->empty_weak_cell());
+  set(kOptimizedCodeIndex, Smi::FromEnum(OptimizationMarker::kNone));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo* shared, const char* reason) {
-  WeakCell* cell = WeakCell::cast(get(kOptimizedCodeIndex));
-  if (!cell->cleared()) {
-    Code* code = Code::cast(cell->value());
-    if (code->marked_for_deoptimization()) {
-      if (FLAG_trace_deopt) {
-        PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
-               reason);
-        shared->ShortPrint();
-        PrintF("]\n");
-      }
-      if (!code->deopt_already_counted()) {
-        shared->increment_deopt_count();
-        code->set_deopt_already_counted(true);
-      }
-      ClearOptimizedCode();
+  Object* slot = get(kOptimizedCodeIndex);
+  if (slot->IsSmi()) return;
+
+  WeakCell* cell = WeakCell::cast(slot);
+  if (cell->cleared()) {
+    ClearOptimizedCode();
+    return;
+  }
+
+  Code* code = Code::cast(cell->value());
+  if (code->marked_for_deoptimization()) {
+    if (FLAG_trace_deopt) {
+      PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
+             reason);
+      shared->ShortPrint();
+      PrintF("]\n");
     }
+    if (!code->deopt_already_counted()) {
+      shared->increment_deopt_count();
+      code->set_deopt_already_counted(true);
+    }
+    ClearOptimizedCode();
   }
 }
 

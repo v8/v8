@@ -51,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::CompileOptimized(function, Compiler::CONCURRENT)) {
+  if (!Compiler::CompileOptimized(function, ConcurrencyMode::kConcurrent)) {
     return isolate->heap()->exception();
   }
   DCHECK(function->is_compiled());
@@ -67,7 +67,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::CompileOptimized(function, Compiler::NOT_CONCURRENT)) {
+  if (!Compiler::CompileOptimized(function, ConcurrencyMode::kNotConcurrent)) {
     return isolate->heap()->exception();
   }
   DCHECK(function->is_compiled());
@@ -79,7 +79,8 @@ RUNTIME_FUNCTION(Runtime_EvictOptimizedCodeSlot) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  DCHECK(function->is_compiled());
+  DCHECK(function->shared()->is_compiled());
+
   function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
       function->shared(), "Runtime_EvictOptimizedCodeSlot");
   return function->code();
@@ -364,8 +365,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
             function->PrintName();
             PrintF(" for non-concurrent optimization]\n");
           }
-          function->ReplaceCode(
-              isolate->builtins()->builtin(Builtins::kCompileOptimized));
+          function->SetOptimizationMarker(
+              OptimizationMarker::kCompileOptimized);
         }
       } else {
         // Crankshafted OSR code can be installed into the function.
@@ -401,7 +402,11 @@ RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
     return isolate->StackOverflow();
   }
 
-  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  // Only try to install optimized functions if the interrupt was InstallCode.
+  if (isolate->stack_guard()->CheckAndClearInstallCode()) {
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  }
+
   return (function->IsOptimized()) ? function->code()
                                    : function->shared()->code();
 }

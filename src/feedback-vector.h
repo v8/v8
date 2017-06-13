@@ -325,13 +325,17 @@ class FeedbackVector : public FixedArray {
   inline int invocation_count() const;
   inline void clear_invocation_count();
 
+  inline Object* optimized_code_cell() const;
   inline Code* optimized_code() const;
+  inline OptimizationMarker optimization_marker() const;
   inline bool has_optimized_code() const;
+  inline bool has_optimization_marker() const;
   void ClearOptimizedCode();
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo* shared,
                                                  const char* reason);
   static void SetOptimizedCode(Handle<FeedbackVector> vector,
                                Handle<Code> code);
+  void SetOptimizationMarker(OptimizationMarker marker);
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) {

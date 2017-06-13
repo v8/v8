@@ -40,7 +40,6 @@ class ThreadedListZoneEntry;
 class V8_EXPORT_PRIVATE Compiler : public AllStatic {
  public:
   enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
-  enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
   // ===========================================================================
   // The following family of methods ensures a given function is compiled. The
