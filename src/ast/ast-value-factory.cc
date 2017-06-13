@@ -58,7 +58,7 @@ class OneByteStringStream {
 class AstRawStringInternalizationKey : public StringTableKey {
  public:
   explicit AstRawStringInternalizationKey(const AstRawString* string)
-      : string_(string) {}
+      : StringTableKey(string->hash_field()), string_(string) {}
 
   bool IsMatch(Object* other) override {
     if (string_->is_one_byte())
@@ -67,9 +67,7 @@ class AstRawStringInternalizationKey : public StringTableKey {
         Vector<const uint16_t>::cast(string_->literal_bytes_));
   }
 
-  uint32_t ComputeHashField() override { return string_->hash_field(); }
-
-  Handle<Object> AsHandle(Isolate* isolate) override {
+  Handle<String> AsHandle(Isolate* isolate) override {
     if (string_->is_one_byte())
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash_field());

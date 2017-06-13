@@ -15895,7 +15895,9 @@ class StringSharedKey : public HashTableKey {
   //   dynamic function's effective source where the ')' ends the parameters.
   StringSharedKey(Handle<String> source, Handle<SharedFunctionInfo> shared,
                   LanguageMode language_mode, int position)
-      : source_(source),
+      : HashTableKey(CompilationCacheShape::StringSharedHash(
+            *source, *shared, language_mode, position)),
+        source_(source),
         shared_(shared),
         language_mode_(language_mode),
         position_(position) {}
@@ -15918,11 +15920,6 @@ class StringSharedKey : public HashTableKey {
     if (position != position_) return false;
     String* source = String::cast(other_array->get(1));
     return source->Equals(*source_);
-  }
-
-  uint32_t ComputeHash() override {
-    return CompilationCacheShape::StringSharedHash(*source_, *shared_,
-                                                   language_mode_, position_);
   }
 
   Handle<Object> AsHandle(Isolate* isolate) {
@@ -16147,7 +16144,10 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 class RegExpKey : public HashTableKey {
  public:
   RegExpKey(Handle<String> string, JSRegExp::Flags flags)
-      : string_(string), flags_(Smi::FromInt(flags)) {}
+      : HashTableKey(
+            CompilationCacheShape::RegExpHash(*string, Smi::FromInt(flags))),
+        string_(string),
+        flags_(Smi::FromInt(flags)) {}
 
   // Rather than storing the key in the hash table, a pointer to the
   // stored value is stored where the key should be.  IsMatch then
@@ -16159,26 +16159,19 @@ class RegExpKey : public HashTableKey {
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
 
-  uint32_t ComputeHash() override {
-    return CompilationCacheShape::RegExpHash(*string_, flags_);
-  }
-
   Handle<String> string_;
   Smi* flags_;
 };
 
-
-Handle<Object> OneByteStringKey::AsHandle(Isolate* isolate) {
+Handle<String> OneByteStringKey::AsHandle(Isolate* isolate) {
   return isolate->factory()->NewOneByteInternalizedString(string_, HashField());
 }
 
-
-Handle<Object> TwoByteStringKey::AsHandle(Isolate* isolate) {
+Handle<String> TwoByteStringKey::AsHandle(Isolate* isolate) {
   return isolate->factory()->NewTwoByteInternalizedString(string_, HashField());
 }
 
-
-Handle<Object> SeqOneByteSubStringKey::AsHandle(Isolate* isolate) {
+Handle<String> SeqOneByteSubStringKey::AsHandle(Isolate* isolate) {
   return isolate->factory()->NewOneByteInternalizedSubString(
       string_, from_, length_, HashField());
 }
@@ -16194,21 +16187,19 @@ bool SeqOneByteSubStringKey::IsMatch(Object* string) {
 class InternalizedStringKey : public StringTableKey {
  public:
   explicit InternalizedStringKey(Handle<String> string)
-      : string_(String::Flatten(string)) {
+      : StringTableKey(0), string_(string) {
     DCHECK(!string->IsInternalizedString());
+    DCHECK(string->IsFlat());
+    // Make sure hash_field is computed.
+    string->Hash();
+    set_hash_field(string->hash_field());
   }
 
   bool IsMatch(Object* string) override {
     return string_->SlowEquals(String::cast(string));
   }
 
-  uint32_t ComputeHashField() override {
-    // Make sure hash_field() is computed.
-    string_->Hash();
-    return string_->hash_field();
-  }
-
-  Handle<Object> AsHandle(Isolate* isolate) override {
+  Handle<String> AsHandle(Isolate* isolate) override {
     // Internalize the string if possible.
     MaybeHandle<Map> maybe_map =
         isolate->factory()->InternalizedStringMapForString(string_);
@@ -17143,7 +17134,23 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
 class TwoCharHashTableKey : public StringTableKey {
  public:
   TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint32_t seed)
-    : c1_(c1), c2_(c2) {
+      : StringTableKey(ComputeHashField(c1, c2, seed)), c1_(c1), c2_(c2) {}
+
+  bool IsMatch(Object* o) override {
+    String* other = String::cast(o);
+    if (other->length() != 2) return false;
+    if (other->Get(0) != c1_) return false;
+    return other->Get(1) == c2_;
+  }
+
+  Handle<String> AsHandle(Isolate* isolate) override {
+    // The TwoCharHashTableKey is only used for looking in the string
+    // table, not for adding to it.
+    UNREACHABLE();
+  }
+
+ private:
+  uint32_t ComputeHashField(uint16_t c1, uint16_t c2, uint32_t seed) {
     // Char 1.
     uint32_t hash = seed;
     hash += c1;
@@ -17159,7 +17166,6 @@ class TwoCharHashTableKey : public StringTableKey {
     hash += hash << 15;
     if ((hash & String::kHashBitMask) == 0) hash = StringHasher::kZeroHash;
     hash = (hash << String::kHashShift) | String::kIsNotArrayIndexMask;
-    hash_ = hash;
 #ifdef DEBUG
     // If this assert fails then we failed to reproduce the two-character
     // version of the string hashing algorithm above.  One reason could be
@@ -17167,30 +17173,13 @@ class TwoCharHashTableKey : public StringTableKey {
     // algorithm is different in that case.
     uint16_t chars[2] = {c1, c2};
     uint32_t check_hash = StringHasher::HashSequentialString(chars, 2, seed);
-    DCHECK_EQ(static_cast<int32_t>(hash), static_cast<int32_t>(check_hash));
+    DCHECK_EQ(hash, check_hash);
 #endif
+    return hash;
   }
 
-  bool IsMatch(Object* o) override {
-    String* other = String::cast(o);
-    if (other->length() != 2) return false;
-    if (other->Get(0) != c1_) return false;
-    return other->Get(1) == c2_;
-  }
-
-  // TODO(verwaest): Store in hash_field_ of superclass.
-  uint32_t ComputeHashField() override { return hash_; }
-
-  Handle<Object> AsHandle(Isolate* isolate) override {
-    // The TwoCharHashTableKey is only used for looking in the string
-    // table, not for adding to it.
-    UNREACHABLE();
-  }
-
- private:
   uint16_t c1_;
   uint16_t c2_;
-  uint32_t hash_;
 };
 
 MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
@@ -17276,14 +17265,8 @@ void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
 
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
-  if (string->IsThinString()) {
-    DCHECK(Handle<ThinString>::cast(string)->actual()->IsInternalizedString());
-    return handle(Handle<ThinString>::cast(string)->actual(), isolate);
-  }
-  if (string->IsConsString() && string->IsFlat()) {
-    string = handle(Handle<ConsString>::cast(string)->first(), isolate);
-    if (string->IsInternalizedString()) return string;
-  }
+  string = String::Flatten(string);
+  if (string->IsInternalizedString()) return string;
 
   InternalizedStringKey key(string);
   Handle<String> result = LookupKey(isolate, &key);
@@ -17324,10 +17307,11 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   table = StringTable::EnsureCapacity(table, 1);
 
   // Create string object.
-  Handle<Object> string = key->AsHandle(isolate);
+  Handle<String> string = key->AsHandle(isolate);
   // There must be no attempts to internalize strings that could throw
   // InvalidStringLength error.
   CHECK(!string.is_null());
+  DCHECK(string->HasHashCode());
 
   // Add the new string and return it along with the string table.
   entry = table->FindInsertionEntry(key->Hash());
@@ -17343,24 +17327,25 @@ namespace {
 class StringTableNoAllocateKey : public StringTableKey {
  public:
   StringTableNoAllocateKey(String* string, uint32_t seed)
-      : string_(string), length_(string->length()) {
+      : StringTableKey(0), string_(string) {
     StringShape shape(string);
     one_byte_ = shape.HasOnlyOneByteChars();
     DCHECK(!shape.IsInternalized());
     DCHECK(!shape.IsThin());
-    if (shape.IsCons() && length_ <= String::kMaxHashCalcLength) {
+    int length = string->length();
+    if (shape.IsCons() && length <= String::kMaxHashCalcLength) {
       special_flattening_ = true;
       uint32_t hash_field = 0;
       if (one_byte_) {
-        one_byte_content_ = new uint8_t[length_];
-        String::WriteToFlat(string, one_byte_content_, 0, length_);
-        hash_field = StringHasher::HashSequentialString(one_byte_content_,
-                                                        length_, seed);
+        one_byte_content_ = new uint8_t[length];
+        String::WriteToFlat(string, one_byte_content_, 0, length);
+        hash_field =
+            StringHasher::HashSequentialString(one_byte_content_, length, seed);
       } else {
-        two_byte_content_ = new uint16_t[length_];
-        String::WriteToFlat(string, two_byte_content_, 0, length_);
-        hash_field = StringHasher::HashSequentialString(two_byte_content_,
-                                                        length_, seed);
+        two_byte_content_ = new uint16_t[length];
+        String::WriteToFlat(string, two_byte_content_, 0, length);
+        hash_field =
+            StringHasher::HashSequentialString(two_byte_content_, length, seed);
       }
       string->set_hash_field(hash_field);
     } else {
@@ -17368,6 +17353,9 @@ class StringTableNoAllocateKey : public StringTableKey {
       one_byte_content_ = nullptr;
       string->Hash();
     }
+
+    DCHECK(string->HasHashCode());
+    set_hash_field(string->hash_field());
   }
 
   ~StringTableNoAllocateKey() {
@@ -17383,7 +17371,7 @@ class StringTableNoAllocateKey : public StringTableKey {
     DCHECK(other->IsInternalizedString());
     DCHECK(other->IsFlat());
     if (Hash() != other->Hash()) return false;
-    int len = length_;
+    int len = string_->length();
     if (len != other->length()) return false;
 
     if (!special_flattening_) {
@@ -17436,15 +17424,12 @@ class StringTableNoAllocateKey : public StringTableKey {
     }
   }
 
-  uint32_t ComputeHashField() override { return string_->hash_field(); }
-
-  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
+  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override {
     UNREACHABLE();
   }
 
  private:
   String* string_;
-  int length_;
   bool one_byte_;
   bool special_flattening_;
   union {

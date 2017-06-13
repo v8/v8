@@ -255,22 +255,24 @@ class HashTable : public HashTableBase {
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {
  public:
+  explicit HashTableKey(uint32_t hash) : hash_(hash) {}
+
   // Returns whether the other object matches this key.
   virtual bool IsMatch(Object* other) = 0;
   // Returns the hash value for this key.
   // Required.
   virtual ~HashTableKey() {}
 
-  uint32_t Hash() {
-    if (hash_ == 0) {
-      hash_ = ComputeHash();
-      DCHECK_NE(0, hash_);
-    }
+  uint32_t Hash() const {
+    DCHECK_NE(0, hash_);
     return hash_;
   }
 
  protected:
-  virtual uint32_t ComputeHash() = 0;
+  void set_hash(uint32_t hash) {
+    DCHECK_EQ(0, hash_);
+    hash_ = hash;
+  }
 
  private:
   uint32_t hash_ = 0;

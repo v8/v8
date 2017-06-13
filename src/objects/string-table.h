@@ -15,13 +15,16 @@ namespace internal {
 
 class StringTableKey : public HashTableKey {
  public:
-  virtual Handle<Object> AsHandle(Isolate* isolate) = 0;
-  inline uint32_t ComputeHash() final;
-  uint32_t HashField() {
-    if (hash_field_ == 0) hash_field_ = ComputeHashField();
+  explicit inline StringTableKey(uint32_t hash_field);
+
+  virtual Handle<String> AsHandle(Isolate* isolate) = 0;
+  uint32_t HashField() const {
+    DCHECK_NE(0, hash_field_);
     return hash_field_;
   }
-  virtual uint32_t ComputeHashField() = 0;
+
+ protected:
+  inline void set_hash_field(uint32_t hash_field);
 
  private:
   uint32_t hash_field_ = 0;

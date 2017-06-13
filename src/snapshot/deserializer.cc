@@ -283,7 +283,8 @@ void Deserializer::PrintDisassembledCodeObjects() {
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(String* string) : string_(string) {
+  explicit StringTableInsertionKey(String* string)
+      : StringTableKey(ComputeHashField(string)), string_(string) {
     DCHECK(string->IsInternalizedString());
   }
 
@@ -295,17 +296,17 @@ class StringTableInsertionKey : public StringTableKey {
     return string_->SlowEquals(String::cast(string));
   }
 
-  uint32_t ComputeHashField() override {
-    // Make sure hash_field() is computed.
-    string_->Hash();
-    return string_->hash_field();
-  }
-
-  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
+  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override {
     return handle(string_, isolate);
   }
 
  private:
+  uint32_t ComputeHashField(String* string) {
+    // Make sure hash_field() is computed.
+    string->Hash();
+    return string->hash_field();
+  }
+
   String* string_;
   DisallowHeapAllocation no_gc;
 };
