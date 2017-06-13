@@ -152,7 +152,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootName, name) Node* Is##name(Node* value);
+#define HEAP_CONSTANT_TEST(rootName, name) \
+  Node* Is##name(Node* value);             \
+  Node* IsNot##name(Node* value);
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
@@ -546,6 +548,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void StoreFieldsNoWriteBarrier(Node* start_address, Node* end_address,
                                  Node* value);
+
+  Node* AllocateCellWithValue(Node* value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  Node* AllocateSmiCell(int value = 0) {
+    return AllocateCellWithValue(SmiConstant(value), SKIP_WRITE_BARRIER);
+  }
+
+  Node* LoadCellValue(Node* cell);
+
+  Node* StoreCellValue(Node* cell, Node* value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Allocate a HeapNumber without initializing its value.
   Node* AllocateHeapNumber(MutableMode mode = IMMUTABLE);
@@ -1450,6 +1463,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
     return CallJS(CodeFactory::Call(isolate()), context, make_type_error,
                   UndefinedConstant(), SmiConstant(message), args...);
+  }
+
+  void Abort(BailoutReason reason) {
+    CallRuntime(Runtime::kAbort, NoContextConstant(), SmiConstant(reason));
+    Unreachable();
   }
 
  protected:

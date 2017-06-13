@@ -9,11 +9,15 @@ namespace internal {
 
 using compiler::Node;
 
-Node* IteratorBuiltinsAssembler::GetIterator(Node* context, Node* object) {
+Node* IteratorBuiltinsAssembler::GetIterator(Node* context, Node* object,
+                                             Label* if_exception,
+                                             Variable* exception) {
   Node* method = GetProperty(context, object, factory()->iterator_symbol());
+  GotoIfException(method, if_exception, exception);
 
   Callable callable = CodeFactory::Call(isolate());
   Node* iterator = CallJS(callable, context, method, object);
+  GotoIfException(iterator, if_exception, exception);
 
   Label done(this), if_notobject(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(iterator), &if_notobject);
@@ -21,8 +25,10 @@ Node* IteratorBuiltinsAssembler::GetIterator(Node* context, Node* object) {
 
   BIND(&if_notobject);
   {
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kNotAnIterator), iterator);
+    Node* ret =
+        CallRuntime(Runtime::kThrowTypeError, context,
+                    SmiConstant(MessageTemplate::kNotAnIterator), iterator);
+    GotoIfException(ret, if_exception, exception);
     Unreachable();
   }
 
@@ -32,25 +38,31 @@ Node* IteratorBuiltinsAssembler::GetIterator(Node* context, Node* object) {
 
 Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
                                               Label* if_done,
-                                              Node* fast_iterator_result_map) {
+                                              Node* fast_iterator_result_map,
+                                              Label* if_exception,
+                                              Variable* exception) {
   DCHECK_NOT_NULL(if_done);
 
   // IteratorNext
   Node* next_method = GetProperty(context, iterator, factory()->next_string());
+  GotoIfException(next_method, if_exception, exception);
 
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   Callable callable = CodeFactory::Call(isolate());
   Node* result = CallJS(callable, context, next_method, iterator);
+  GotoIfException(result, if_exception, exception);
 
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
   GotoIf(TaggedIsSmi(result), &if_notobject);
   GotoIfNot(IsJSReceiver(result), &if_notobject);
 
-  Label if_generic(this);
   VARIABLE(var_done, MachineRepresentation::kTagged);
 
   if (fast_iterator_result_map != nullptr) {
+    // Fast iterator result case:
+    Label if_generic(this);
+
     // 4. Return result.
     Node* map = LoadMap(result);
     GotoIfNot(WordEqual(map, fast_iterator_result_map), &if_generic);
@@ -61,15 +73,16 @@ Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
     CSA_ASSERT(this, IsBoolean(done));
     var_done.Bind(done);
     Goto(&return_result);
-  } else {
-    Goto(&if_generic);
+
+    BIND(&if_generic);
   }
 
-  BIND(&if_generic);
+  // Generic iterator result case:
   {
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
     Node* done = GetProperty(context, result, factory()->done_string());
+    GotoIfException(done, if_exception, exception);
     var_done.Bind(done);
 
     Label to_boolean(this, Label::kDeferred);
@@ -83,8 +96,10 @@ Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
 
   BIND(&if_notobject);
   {
-    CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
-    Goto(if_done);
+    Node* ret =
+        CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
+    GotoIfException(ret, if_exception, exception);
+    Unreachable();
   }
 
   BIND(&return_result);
@@ -93,23 +108,28 @@ Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
 }
 
 Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
-                                               Node* fast_iterator_result_map) {
+                                               Node* fast_iterator_result_map,
+                                               Label* if_exception,
+                                               Variable* exception) {
   CSA_ASSERT(this, IsJSReceiver(result));
 
-  Label exit(this), if_generic(this);
+  Label exit(this);
   VARIABLE(var_value, MachineRepresentation::kTagged);
   if (fast_iterator_result_map != nullptr) {
+    // Fast iterator result case:
+    Label if_generic(this);
     Node* map = LoadMap(result);
     GotoIfNot(WordEqual(map, fast_iterator_result_map), &if_generic);
     var_value.Bind(LoadObjectField(result, JSIteratorResult::kValueOffset));
     Goto(&exit);
-  } else {
-    Goto(&if_generic);
+
+    BIND(&if_generic);
   }
 
-  BIND(&if_generic);
+  // Generic iterator result case:
   {
     Node* value = GetProperty(context, result, factory()->value_string());
+    GotoIfException(value, if_exception, exception);
     var_value.Bind(value);
     Goto(&exit);
   }
@@ -118,46 +138,46 @@ Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
   return var_value.value();
 }
 
-void IteratorBuiltinsAssembler::IteratorClose(Node* context, Node* iterator,
-                                              Node* exception) {
+void IteratorBuiltinsAssembler::IteratorCloseOnException(Node* context,
+                                                         Node* iterator,
+                                                         Label* if_exception,
+                                                         Variable* exception) {
+  // Perform ES #sec-iteratorclose when an exception occurs. This simpler
+  // algorithm does not include redundant steps which are never reachable from
+  // the spec IteratorClose algorithm.
+  DCHECK_NOT_NULL(if_exception);
+  DCHECK_NOT_NULL(exception);
+  CSA_ASSERT(this, IsNotTheHole(exception->value()));
   CSA_ASSERT(this, IsJSReceiver(iterator));
-  VARIABLE(var_iter_exception, MachineRepresentation::kTagged,
-           UndefinedConstant());
 
-  Label rethrow_exception(this);
+  // Let return be ? GetMethod(iterator, "return").
   Node* method = GetProperty(context, iterator, factory()->return_string());
-  GotoIf(Word32Or(IsUndefined(method), IsNull(method)), &rethrow_exception);
+  GotoIfException(method, if_exception, exception);
 
-  Label if_iter_exception(this), if_notobject(this);
+  // If return is undefined, return Completion(completion).
+  GotoIf(Word32Or(IsUndefined(method), IsNull(method)), if_exception);
 
-  Node* inner_result =
-      CallJS(CodeFactory::Call(isolate()), context, method, iterator);
-
-  GotoIfException(inner_result, &if_iter_exception, &var_iter_exception);
-  GotoIfNot(IsUndefined(exception), &rethrow_exception);
-
-  GotoIf(TaggedIsSmi(inner_result), &if_notobject);
-  Branch(IsJSReceiver(inner_result), &rethrow_exception, &if_notobject);
-
-  BIND(&if_notobject);
   {
-    CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context,
-                inner_result);
-    Unreachable();
-  }
+    // Let innerResult be Call(return, iterator, « »).
+    // If an exception occurs, the original exception remains bound
+    Node* inner_result =
+        CallJS(CodeFactory::Call(isolate()), context, method, iterator);
+    GotoIfException(inner_result, if_exception, nullptr);
 
-  BIND(&if_iter_exception);
-  {
-    GotoIfNot(IsUndefined(exception), &rethrow_exception);
-    CallRuntime(Runtime::kReThrow, context, var_iter_exception.value());
-    Unreachable();
+    // (If completion.[[Type]] is throw) return Completion(completion).
+    Goto(if_exception);
   }
+}
 
-  BIND(&rethrow_exception);
-  {
-    CallRuntime(Runtime::kReThrow, context, exception);
-    Unreachable();
-  }
+void IteratorBuiltinsAssembler::IteratorCloseOnException(Node* context,
+                                                         Node* iterator,
+                                                         Variable* exception) {
+  Label rethrow(this, Label::kDeferred);
+  IteratorCloseOnException(context, iterator, &rethrow, exception);
+
+  BIND(&rethrow);
+  CallRuntime(Runtime::kReThrow, context, exception->value());
+  Unreachable();
 }
 
 }  // namespace internal

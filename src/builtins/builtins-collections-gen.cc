@@ -159,7 +159,7 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   Node* const fast_iterator_result_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
-  VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
+  VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
 
   Label loop(this), if_notobject(this), if_exception(this);
   Goto(&loop);
@@ -199,7 +199,8 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
 
   BIND(&if_exception);
   {
-    iterator_assembler.IteratorClose(context, iterator, var_exception.value());
+    iterator_assembler.IteratorCloseOnException(context, iterator,
+                                                &var_exception);
   }
 
   BIND(&if_notcallable);
@@ -285,7 +286,7 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
   Node* const fast_iterator_result_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
-  VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
+  VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
 
   Label loop(this), if_notobject(this), if_exception(this);
   Goto(&loop);
@@ -307,7 +308,8 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
 
   BIND(&if_exception);
   {
-    iterator_assembler.IteratorClose(context, iterator, var_exception.value());
+    iterator_assembler.IteratorCloseOnException(context, iterator,
+                                                &var_exception);
   }
 
   BIND(&if_notcallable);

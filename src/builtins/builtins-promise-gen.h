@@ -28,6 +28,27 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseContextLength,
   };
 
+ protected:
+  enum PromiseAllResolveElementContextSlots {
+    // Whether the resolve callback was already called.
+    kPromiseAllResolveElementAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // Index into the values array
+    kPromiseAllResolveElementIndexSlot,
+
+    // Remaining elements count (mutable HeapNumber)
+    kPromiseAllResolveElementRemainingElementsSlot,
+
+    // Promise capability from Promise.all
+    kPromiseAllResolveElementCapabilitySlot,
+
+    // Values array from Promise.all
+    kPromiseAllResolveElementValuesArraySlot,
+
+    kPromiseAllResolveElementLength
+  };
+
+ public:
   enum FunctionContextSlot {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 
@@ -134,6 +155,13 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
+
+  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
+                          Node* iterator, Label* if_exception,
+                          Variable* var_exception);
+
+  Node* IncrementSmiCell(Node* cell, Label* if_overflow = nullptr);
+  Node* DecrementSmiCell(Node* cell);
 
  private:
   Node* AllocateJSPromise(Node* context);

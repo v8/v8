@@ -153,9 +153,12 @@ Node* CodeStubAssembler::NoContextConstant() { return NumberConstant(0); }
 HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR);
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootName, name)         \
-  Node* CodeStubAssembler::Is##name(Node* value) { \
-    return WordEqual(value, name##Constant());     \
+#define HEAP_CONSTANT_TEST(rootName, name)            \
+  Node* CodeStubAssembler::Is##name(Node* value) {    \
+    return WordEqual(value, name##Constant());        \
+  }                                                   \
+  Node* CodeStubAssembler::IsNot##name(Node* value) { \
+    return WordNotEqual(value, name##Constant());     \
   }
 HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST);
 #undef HEAP_CONSTANT_TEST
@@ -1702,6 +1705,31 @@ void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
 
   Node* length = ParameterToTagged(var_length.value(), mode);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+}
+
+Node* CodeStubAssembler::AllocateCellWithValue(Node* value,
+                                               WriteBarrierMode mode) {
+  Node* result = Allocate(Cell::kSize, kNone);
+  StoreMapNoWriteBarrier(result, Heap::kCellMapRootIndex);
+  StoreCellValue(result, value, mode);
+  return result;
+}
+
+Node* CodeStubAssembler::LoadCellValue(Node* cell) {
+  CSA_SLOW_ASSERT(this, HasInstanceType(cell, CELL_TYPE));
+  return LoadObjectField(cell, Cell::kValueOffset);
+}
+
+Node* CodeStubAssembler::StoreCellValue(Node* cell, Node* value,
+                                        WriteBarrierMode mode) {
+  CSA_SLOW_ASSERT(this, HasInstanceType(cell, CELL_TYPE));
+  DCHECK(mode == SKIP_WRITE_BARRIER || mode == UPDATE_WRITE_BARRIER);
+
+  if (mode == UPDATE_WRITE_BARRIER) {
+    return StoreObjectField(cell, Cell::kValueOffset, value);
+  } else {
+    return StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset, value);
+  }
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {

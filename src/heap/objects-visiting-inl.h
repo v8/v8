@@ -41,6 +41,10 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                                     int>::Visit);
 
   table_.Register(
+      kVisitCell,
+      &FixedBodyVisitor<StaticVisitor, Cell::BodyDescriptor, int>::Visit);
+
+  table_.Register(
       kVisitSymbol,
       &FixedBodyVisitor<StaticVisitor, Symbol::BodyDescriptor, int>::Visit);
 

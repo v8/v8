@@ -32,6 +32,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitSeqOneByteString, &EvacuateSeqOneByteString);
     table_.Register(kVisitSeqTwoByteString, &EvacuateSeqTwoByteString);
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
+    table_.Register(
+        kVisitCell,
+        &ObjectEvacuationStrategy<POINTER_OBJECT>::template VisitSpecialized<
+            Cell::kSize>);
     table_.Register(kVisitThinString, &EvacuateThinString);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
