@@ -9614,7 +9614,7 @@ void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   // TODO(kozyatinskiy): remove this GC once tests are dealt with.
-  isolate->heap()->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+  isolate->heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask,
                                      i::GarbageCollectionReason::kDebugger);
   {
     i::DisallowHeapAllocation no_gc;
