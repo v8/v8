@@ -75,7 +75,7 @@ CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
 namespace {
 void InstallContextFunction(Handle<JSObject> target, const char* name,
                             Builtins::Name call, int context_id,
-                            Object* context_name) {
+                            Handle<Object> context_name) {
   Factory* const factory = target->GetIsolate()->factory();
 
   Handle<Code> call_code(target->GetIsolate()->builtins()->builtin(call));
@@ -94,7 +94,7 @@ void InstallContextFunction(Handle<JSObject> target, const char* name,
                         NONE);
   if (context_name->IsString()) {
     JSObject::AddProperty(fun, factory->console_context_name_symbol(),
-                          handle(context_name, target->GetIsolate()), NONE);
+                          context_name, NONE);
   }
   JSObject::AddProperty(target, name_string, fun, NONE);
 }
@@ -113,8 +113,9 @@ BUILTIN(ConsoleContext) {
   int id = isolate->last_console_context_id() + 1;
   isolate->set_last_console_context_id(id);
 
-#define CONSOLE_BUILTIN_SETUP(call, name) \
-  InstallContextFunction(context, #name, Builtins::kConsole##call, id, args[1]);
+#define CONSOLE_BUILTIN_SETUP(call, name)                              \
+  InstallContextFunction(context, #name, Builtins::kConsole##call, id, \
+                         args.at(1));
   CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_SETUP)
 #undef CONSOLE_BUILTIN_SETUP
 
