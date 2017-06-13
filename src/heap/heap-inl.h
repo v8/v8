@@ -672,15 +672,6 @@ void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
       site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
 }
 
-bool Heap::CollectGarbage(AllocationSpace space,
-                          GarbageCollectionReason gc_reason,
-                          const v8::GCCallbackFlags callbackFlags) {
-  const char* collector_reason = NULL;
-  GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
-  return CollectGarbage(collector, gc_reason, collector_reason, callbackFlags);
-}
-
-
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(
       reinterpret_cast<intptr_t>(this) -

@@ -1140,7 +1140,7 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  inline bool CollectGarbage(
+  bool CollectGarbage(
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
@@ -1699,14 +1699,6 @@ class Heap {
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.  May cause a GC.
   void MakeHeapIterable();
-
-  // Performs garbage collection operation.
-  // Returns whether there is a chance that another major GC could
-  // collect more garbage.
-  bool CollectGarbage(
-      GarbageCollector collector, GarbageCollectionReason gc_reason,
-      const char* collector_reason,
-      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs garbage collection
   // Returns whether there is a chance another major GC could

@@ -917,7 +917,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL,
+    if (!CollectGarbage(OLD_SPACE, gc_reason,
                         v8::kGCCallbackFlagCollectAllAvailableGarbage) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
@@ -978,13 +978,15 @@ void Heap::EnsureFillerObjectAtTop() {
   }
 }
 
-bool Heap::CollectGarbage(GarbageCollector collector,
+bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
-                          const char* collector_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate());
   RuntimeCallTimerScope runtime_timer(isolate(), &RuntimeCallStats::GC);
+
+  const char* collector_reason = NULL;
+  GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
 
 #ifdef DEBUG
   // Reset the allocation timeout to the GC interval, but make sure to
