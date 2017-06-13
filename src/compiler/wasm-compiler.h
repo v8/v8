@@ -164,6 +164,8 @@ class WasmGraphBuilder {
   void StackCheck(wasm::WasmCodePosition position, Node** effect = nullptr,
                   Node** control = nullptr);
 
+  void PatchInStackCheckIfNeeded();
+
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
@@ -279,6 +281,7 @@ class WasmGraphBuilder {
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
+  bool needs_stack_check_ = false;
 
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
@@ -404,7 +407,10 @@ class WasmGraphBuilder {
 
   int AddParameterNodes(Node** args, int pos, int param_count,
                         wasm::FunctionSig* sig);
+
+  void SetNeedsStackCheck() { needs_stack_check_ = true; }
 };
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

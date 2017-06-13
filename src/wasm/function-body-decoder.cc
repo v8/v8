@@ -617,6 +617,7 @@ class WasmFullDecoder : public WasmDecoder {
     WasmDecoder::DecodeLocals(this, sig_, local_types_);
     InitSsaEnv();
     DecodeFunctionBody();
+    FinishFunction();
 
     if (failed()) return TraceFailed();
 
@@ -715,11 +716,6 @@ class WasmFullDecoder : public WasmDecoder {
     ssa_env->control = start;
     ssa_env->effect = start;
     SetEnv("initial", ssa_env);
-    if (builder_) {
-      // The function-prologue stack check is associated with position 0, which
-      // is never a position of any instruction in the function.
-      builder_->StackCheck(0);
-    }
   }
 
   TFNode* DefaultValue(ValueType type) {
@@ -1416,6 +1412,10 @@ class WasmFullDecoder : public WasmDecoder {
       pc_ += len;
     }  // end decode loop
     if (pc_ > end_ && ok()) error("Beyond end of code");
+  }
+
+  void FinishFunction() {
+    if (builder_) builder_->PatchInStackCheckIfNeeded();
   }
 
   void EndControl() {
