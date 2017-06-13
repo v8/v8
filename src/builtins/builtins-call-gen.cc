@@ -103,7 +103,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Node* target, Node* new_target, Node* arguments_list, Node* context) {
   Variable var_elements(this, MachineRepresentation::kTagged);
   Variable var_length(this, MachineRepresentation::kWord32);
-  Label if_done(this), if_arguments(this), if_array(this),
+  Label if_done(this), if_arguments(this), if_array(this), if_double(this),
       if_holey_array(this, Label::kDeferred),
       if_runtime(this, Label::kDeferred);
 
@@ -119,6 +119,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
   GotoIf(WordEqual(arguments_list_map, strict_arguments_map), &if_arguments);
 
+  Node* kind = LoadMapElementsKind(arguments_list_map);
   // Check if {arguments_list} is a fast JSArray.
   Branch(IsJSArrayMap(arguments_list_map), &if_array, &if_runtime);
 
@@ -131,17 +132,22 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
                                                     JSArray::kLengthOffset));
 
     // Holey arrays and double backing stores need special treatment.
-    Node* kind = LoadMapElementsKind(arguments_list_map);
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
     STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    GotoIf(Word32Equal(kind, Int32Constant(FAST_HOLEY_SMI_ELEMENTS)),
-           &if_holey_array);
-    GotoIf(Word32Equal(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
-           &if_holey_array);
-    Branch(Uint32LessThanOrEqual(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
-           &if_done, &if_runtime);
+    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+    STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+    STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == FAST_HOLEY_DOUBLE_ELEMENTS);
+
+    GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+           &if_runtime);
+    GotoIf(Word32And(kind, Int32Constant(1)), &if_holey_array);
+    GotoIf(Word32Equal(kind, Int32Constant(FAST_DOUBLE_ELEMENTS)), &if_double);
+    CSA_ASSERT(this,
+               Word32Or(Word32Equal(kind, Int32Constant(FAST_ELEMENTS)),
+                        Word32Equal(kind, Int32Constant(FAST_SMI_ELEMENTS))));
+    Goto(&if_done);
   }
 
   BIND(&if_holey_array);
@@ -155,10 +161,46 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
               &if_runtime);
     Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
     DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-    Branch(
+    GotoIfNot(
         WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                   SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
-        &if_done, &if_runtime);
+        &if_runtime);
+
+    Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+           &if_double, &if_done);
+  }
+
+  BIND(&if_double);
+  {
+    // For JSArrays of doubles, we need to box the elements as they will be
+    // pushed onto the stack.
+    Label if_holey_double(this), if_packed_double(this);
+
+    Node* elements = var_elements.value();
+    Node* length = ChangeInt32ToIntPtr(var_length.value());
+    const ElementsKind new_kind = FAST_ELEMENTS;
+
+    // Allocate a new FixedArray of Objects.
+    Node* new_elements = AllocateFixedArray(FAST_ELEMENTS, length);
+    Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+           &if_holey_double, &if_packed_double);
+
+    BIND(&if_holey_double);
+    {
+      // Fill the FixedArray with pointers to HeapObjects.
+      CopyFixedArrayElements(FAST_HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
+                             new_elements, length, length);
+      var_elements.Bind(new_elements);
+      Goto(&if_done);
+    }
+
+    BIND(&if_packed_double);
+    {
+      CopyFixedArrayElements(FAST_DOUBLE_ELEMENTS, elements, new_kind,
+                             new_elements, length, length);
+      var_elements.Bind(new_elements);
+      Goto(&if_done);
+    }
   }
 
   BIND(&if_arguments);
