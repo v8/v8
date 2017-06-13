@@ -4,9 +4,11 @@
 
 #include <src/wasm/module-compiler.h>
 
-#include <src/counters.h>
+#include <atomic>
+
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
+#include "src/counters.h"
 #include "src/property-descriptor.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
@@ -1853,6 +1855,7 @@ void AsyncCompileJob::Start() {
 }
 
 AsyncCompileJob::~AsyncCompileJob() {
+  background_task_manager_.CancelAndWait();
   for (auto d : deferred_handles_) delete d;
 }
 
@@ -1877,52 +1880,80 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
 
 // A closure to run a compilation step (either as foreground or background
 // task) and schedule the next step(s), if any.
-class AsyncCompileJob::CompileTask : NON_EXPORTED_BASE(public v8::Task) {
+class AsyncCompileJob::CompileState {
  public:
-  AsyncCompileJob* job_ = nullptr;
-  CompileTask() {}
-  void Run() override = 0;  // Force sub-classes to override Run().
-};
+  virtual ~CompileState() {}
 
-class AsyncCompileJob::AsyncCompileTask : public AsyncCompileJob::CompileTask {
-};
-
-class AsyncCompileJob::SyncCompileTask : public AsyncCompileJob::CompileTask {
- public:
-  void Run() final {
-    SaveContext saved_context(job_->isolate_);
-    job_->isolate_->set_context(*job_->context_);
-    RunImpl();
+  void Run(bool on_foreground) {
+    if (on_foreground) {
+      DCHECK_EQ(1, job_->num_pending_foreground_tasks_--);
+      SaveContext saved_context(job_->isolate_);
+      job_->isolate_->set_context(*job_->context_);
+      RunInForeground();
+    } else {
+      RunInBackground();
+    }
   }
 
- protected:
-  virtual void RunImpl() = 0;
+  virtual void RunInForeground() { UNREACHABLE(); }
+  virtual void RunInBackground() { UNREACHABLE(); }
+
+  virtual size_t NumberOfBackgroundTasks() { return 0; }
+
+  AsyncCompileJob* job_ = nullptr;
 };
 
-template <typename Task, typename... Args>
-void AsyncCompileJob::DoSync(Args&&... args) {
-  static_assert(std::is_base_of<SyncCompileTask, Task>::value,
-                "Scheduled type must be sync");
-  Task* task = new Task(std::forward<Args>(args)...);
-  task->job_ = this;
+class AsyncCompileJob::CompileTask : public CancelableTask {
+ public:
+  CompileTask(AsyncCompileJob* job, bool on_foreground)
+      // We only manage the background tasks with the {CancelableTaskManager} of
+      // the {AsyncCompileJob}. Foreground tasks are managed by the system's
+      // {CancelableTaskManager}. Background tasks cannot spawn tasks managed by
+      // their own task manager.
+      : CancelableTask(on_foreground ? job->isolate_->cancelable_task_manager()
+                                     : &job->background_task_manager_),
+        job_(job),
+        on_foreground_(on_foreground) {}
+
+  void RunInternal() override { job_->state_->Run(on_foreground_); }
+
+ private:
+  AsyncCompileJob* job_;
+  bool on_foreground_;
+};
+
+void AsyncCompileJob::StartForegroundTask() {
+  DCHECK_EQ(0, num_pending_foreground_tasks_++);
+
   V8::GetCurrentPlatform()->CallOnForegroundThread(
-      reinterpret_cast<v8::Isolate*>(isolate_), task);
+      reinterpret_cast<v8::Isolate*>(isolate_), new CompileTask(this, true));
 }
 
-template <typename Task, typename... Args>
-void AsyncCompileJob::DoAsync(Args&&... args) {
-  static_assert(std::is_base_of<AsyncCompileTask, Task>::value,
-                "Scheduled type must be async");
-  Task* task = new Task(std::forward<Args>(args)...);
-  task->job_ = this;
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      task, v8::Platform::kShortRunningTask);
+template <typename State, typename... Args>
+void AsyncCompileJob::DoSync(Args&&... args) {
+  state_.reset(new State(std::forward<Args>(args)...));
+  state_->job_ = this;
+  StartForegroundTask();
 }
+
+template <typename State, typename... Args>
+void AsyncCompileJob::DoAsync(Args&&... args) {
+  state_.reset(new State(std::forward<Args>(args)...));
+  state_->job_ = this;
+  size_t end = state_->NumberOfBackgroundTasks();
+  for (size_t i = 0; i < end; ++i) {
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        new CompileTask(this, false), v8::Platform::kShortRunningTask);
+  }
+}
+
 //==========================================================================
 // Step 1: (async) Decode the module.
 //==========================================================================
-class AsyncCompileJob::DecodeModule : public AsyncCompileJob::AsyncCompileTask {
-  void Run() override {
+class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileState {
+  size_t NumberOfBackgroundTasks() override { return 1; }
+
+  void RunInBackground() override {
     ModuleResult result;
     {
       DisallowHandleAllocation no_handle;
@@ -1947,13 +1978,13 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::AsyncCompileTask {
 //==========================================================================
 // Step 1b: (sync) Fail decoding the module.
 //==========================================================================
-class AsyncCompileJob::DecodeFail : public SyncCompileTask {
+class AsyncCompileJob::DecodeFail : public CompileState {
  public:
   explicit DecodeFail(ModuleResult result) : result_(std::move(result)) {}
 
  private:
   ModuleResult result_;
-  void RunImpl() override {
+  void RunInForeground() override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
     HandleScope scope(job_->isolate_);
     ErrorThrower thrower(job_->isolate_, "AsyncCompile");
@@ -1966,14 +1997,14 @@ class AsyncCompileJob::DecodeFail : public SyncCompileTask {
 //==========================================================================
 // Step 2 (sync): Create heap-allocated data and start compile.
 //==========================================================================
-class AsyncCompileJob::PrepareAndStartCompile : public SyncCompileTask {
+class AsyncCompileJob::PrepareAndStartCompile : public CompileState {
  public:
   explicit PrepareAndStartCompile(std::unique_ptr<WasmModule> module)
       : module_(std::move(module)) {}
 
  private:
   std::unique_ptr<WasmModule> module_;
-  void RunImpl() override {
+  void RunInForeground() override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
     HandleScope scope(job_->isolate_);
 
@@ -2039,7 +2070,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public SyncCompileTask {
     }
 
     // Start asynchronous compilation tasks.
-    job_->num_background_tasks_ =
+    size_t num_background_tasks =
         Max(static_cast<size_t>(1),
             Min(num_functions,
                 Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
@@ -2052,23 +2083,28 @@ class AsyncCompileJob::PrepareAndStartCompile : public SyncCompileTask {
 
     // Reopen all handles which should survive in the DeferredHandleScope.
     job_->ReopenHandlesInDeferredScope();
-    for (size_t i = 0; i < job_->num_background_tasks_; ++i) {
-      job_->DoAsync<ExecuteCompilationUnits>();
-    }
+    job_->DoAsync<ExecuteAndFinishCompilationUnits>(num_background_tasks);
   }
 };
 
 //==========================================================================
 // Step 3 (async x K tasks): Execute compilation units.
 //==========================================================================
-class AsyncCompileJob::ExecuteCompilationUnits : public AsyncCompileTask {
-  void Run() override {
+class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileState {
+ public:
+  explicit ExecuteAndFinishCompilationUnits(size_t num_compile_tasks)
+      : num_compile_tasks_(num_compile_tasks) {}
+
+  size_t NumberOfBackgroundTasks() override { return num_compile_tasks_; }
+
+  void RunInBackground() override {
     std::function<void()> StartFinishCompilationUnit = [this]() {
-      job_->DoSync<FinishCompilationUnits>();
+      if (!failed_) job_->StartForegroundTask();
     };
 
     TRACE_COMPILE("(3) Compiling...\n");
     for (;;) {
+      if (failed_) break;
       DisallowHandleAllocation no_handle;
       DisallowHeapAllocation no_allocation;
       if (!job_->compiler_->FetchAndExecuteCompilationUnit(
@@ -2076,17 +2112,11 @@ class AsyncCompileJob::ExecuteCompilationUnits : public AsyncCompileTask {
         break;
       }
     }
-    job_->compiler_->module_->pending_tasks.get()->Signal();
   }
-};
 
-//==========================================================================
-// Step 4 (sync): Finish compilation units.
-//==========================================================================
-class AsyncCompileJob::FinishCompilationUnits : public SyncCompileTask {
-  void RunImpl() override {
+  void RunInForeground() override {
     TRACE_COMPILE("(4a) Finishing compilation units...\n");
-    if (job_->failed_) {
+    if (failed_) {
       // The job failed already, no need to do more work.
       job_->compiler_->SetFinisherIsRunning(false);
       return;
@@ -2106,7 +2136,7 @@ class AsyncCompileJob::FinishCompilationUnits : public SyncCompileTask {
       if (thrower.error()) {
         // An error was detected, we stop compiling and wait for the
         // background tasks to finish.
-        job_->failed_ = true;
+        failed_ = true;
         break;
       } else if (result.is_null()) {
         // The working queue was empty, we break the loop. If new work units
@@ -2123,74 +2153,35 @@ class AsyncCompileJob::FinishCompilationUnits : public SyncCompileTask {
         // We reached the deadline. We reschedule this task and return
         // immediately. Since we rescheduled this task already, we do not set
         // the FinisherIsRunning flat to false.
-        job_->DoSync<FinishCompilationUnits>();
+        job_->StartForegroundTask();
         return;
       }
     }
     // This task finishes without being rescheduled. Therefore we set the
     // FinisherIsRunning flag to false.
     job_->compiler_->SetFinisherIsRunning(false);
-    if (thrower.error() || job_->outstanding_units_ == 0) {
-      // All compilation units are done. We still need to wait for the
-      // background tasks to shut down and only then is it safe to finish the
-      // compile and delete this job. We can wait for that to happen also
-      // in a background task.
-      job_->DoAsync<WaitForBackgroundTasks>(std::move(thrower));
+    if (thrower.error()) {
+      // Make sure all compilation tasks stopped running.
+      job_->background_task_manager_.CancelAndWait();
+      return job_->AsyncCompileFailed(thrower);
     }
-  }
-};
-
-//==========================================================================
-// Step 4b (async): Wait for all background tasks to finish.
-//==========================================================================
-class AsyncCompileJob::WaitForBackgroundTasks
-    : public AsyncCompileJob::AsyncCompileTask {
- public:
-  explicit WaitForBackgroundTasks(ErrorThrower thrower)
-      : thrower_(std::move(thrower)) {}
-
- private:
-  ErrorThrower thrower_;
-
-  void Run() override {
-    TRACE_COMPILE("(4b) Waiting for background tasks...\n");
-    // Bump next_unit_, such that background tasks stop processing the queue.
-    job_->compiler_->next_unit_.SetValue(
-        job_->compiler_->compilation_units_.size());
-    for (size_t i = 0; i < job_->num_background_tasks_; ++i) {
-      // We wait for it to finish.
-      job_->compiler_->module_->pending_tasks.get()->Wait();
-    }
-    if (thrower_.error()) {
-      job_->DoSync<FailCompile>(std::move(thrower_));
-    } else {
+    if (job_->outstanding_units_ == 0) {
+      // Make sure all compilation tasks stopped running.
+      job_->background_task_manager_.CancelAndWait();
       job_->DoSync<FinishCompile>();
     }
   }
-};
-
-//==========================================================================
-// Step 5a (sync): Fail compilation (reject promise).
-//==========================================================================
-class AsyncCompileJob::FailCompile : public SyncCompileTask {
- public:
-  explicit FailCompile(ErrorThrower thrower) : thrower_(std::move(thrower)) {}
 
  private:
-  ErrorThrower thrower_;
-
-  void RunImpl() override {
-    TRACE_COMPILE("(5a) Fail compilation...\n");
-    HandleScope scope(job_->isolate_);
-    return job_->AsyncCompileFailed(thrower_);
-  }
+  size_t num_compile_tasks_;
+  std::atomic<bool> failed_{false};
 };
 
 //==========================================================================
-// Step 5b (sync): Finish heap-allocated data structures.
+// Step 5 (sync): Finish heap-allocated data structures.
 //==========================================================================
-class AsyncCompileJob::FinishCompile : public SyncCompileTask {
-  void RunImpl() override {
+class AsyncCompileJob::FinishCompile : public CompileState {
+  void RunInForeground() override {
     TRACE_COMPILE("(5b) Finish compile...\n");
     HandleScope scope(job_->isolate_);
     // At this point, compilation has completed. Update the code table.
@@ -2255,8 +2246,8 @@ class AsyncCompileJob::FinishCompile : public SyncCompileTask {
 //==========================================================================
 // Step 6 (sync): Compile JS->wasm wrappers.
 //==========================================================================
-class AsyncCompileJob::CompileWrappers : public SyncCompileTask {
-  void RunImpl() override {
+class AsyncCompileJob::CompileWrappers : public CompileState {
+  void RunInForeground() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
     HandleScope scope(job_->isolate_);
@@ -2284,8 +2275,8 @@ class AsyncCompileJob::CompileWrappers : public SyncCompileTask {
 //==========================================================================
 // Step 7 (sync): Finish the module and resolve the promise.
 //==========================================================================
-class AsyncCompileJob::FinishModule : public SyncCompileTask {
-  void RunImpl() override {
+class AsyncCompileJob::FinishModule : public CompileState {
+  void RunInForeground() override {
     TRACE_COMPILE("(7) Finish module...\n");
     HandleScope scope(job_->isolate_);
     Handle<WasmModuleObject> result =

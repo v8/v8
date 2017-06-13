@@ -257,6 +257,20 @@ class AsyncCompileJob {
   ~AsyncCompileJob();
 
  private:
+  class CompileTask;
+  class CompileState;
+
+  // States of the AsyncCompileJob.
+  class DecodeModule;
+  class DecodeFail;
+  class PrepareAndStartCompile;
+  class ExecuteAndFinishCompilationUnits;
+  class WaitForBackgroundTasks;
+  class FinishCompilationUnits;
+  class FinishCompile;
+  class CompileWrappers;
+  class FinishModule;
+
   Isolate* isolate_;
   std::shared_ptr<Counters> counters_shared_;
   Counters* counters_;
@@ -267,7 +281,6 @@ class AsyncCompileJob {
   std::unique_ptr<ModuleCompiler> compiler_;
   std::unique_ptr<ModuleBytesEnv> module_bytes_env_;
 
-  bool failed_ = false;
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
   Handle<FixedArray> function_tables_;
@@ -276,7 +289,12 @@ class AsyncCompileJob {
   Handle<FixedArray> code_table_;
   std::unique_ptr<WasmInstance> temp_instance_ = nullptr;
   size_t outstanding_units_ = 0;
-  size_t num_background_tasks_ = 0;
+  std::unique_ptr<CompileState> state_;
+  CancelableTaskManager background_task_manager_;
+#if DEBUG
+  // Counts the number of pending foreground tasks.
+  int32_t num_pending_foreground_tasks_ = 0;
+#endif
 
   void ReopenHandlesInDeferredScope();
 
@@ -287,22 +305,10 @@ class AsyncCompileJob {
   template <typename Task, typename... Args>
   void DoSync(Args&&... args);
 
+  void StartForegroundTask();
+
   template <typename Task, typename... Args>
   void DoAsync(Args&&... args);
-
-  class CompileTask;
-  class AsyncCompileTask;
-  class SyncCompileTask;
-  class DecodeModule;
-  class DecodeFail;
-  class PrepareAndStartCompile;
-  class ExecuteCompilationUnits;
-  class WaitForBackgroundTasks;
-  class FinishCompilationUnits;
-  class FailCompile;
-  class FinishCompile;
-  class CompileWrappers;
-  class FinishModule;
 };
 
 }  // namespace wasm
