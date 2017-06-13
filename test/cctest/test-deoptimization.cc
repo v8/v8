@@ -530,6 +530,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -560,6 +561,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -590,6 +592,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -620,6 +623,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -650,6 +654,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -680,6 +685,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeCompare) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -744,6 +750,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -844,6 +851,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

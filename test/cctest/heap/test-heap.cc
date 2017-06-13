@@ -737,6 +737,7 @@ TEST(DeleteWeakGlobalHandle) {
 }
 
 TEST(BytecodeArray) {
+  if (FLAG_never_compact) return;
   static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int kFrameSize = 32;
@@ -3860,9 +3861,9 @@ TEST(Regress513496) {
 
 TEST(LargeObjectSlotRecording) {
   if (!FLAG_incremental_marking) return;
-  FLAG_concurrent_marking = false;
+  if (FLAG_never_compact) return;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
-  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();

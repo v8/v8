@@ -159,6 +159,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 
 
 HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
+  if (!FLAG_never_compact) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together. This test makes sure that intra-aborted page pointers
@@ -245,6 +246,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
+  if (FLAG_never_compact) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together and the very first object on the aborted page points

@@ -114,7 +114,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_Compaction) {
-  if (!FLAG_never_compact) return;
+  if (FLAG_never_compact) return;
   FLAG_concurrent_marking = false;
   FLAG_stress_incremental_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
@@ -194,6 +194,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 
 TEST(ArrayBuffer_NonLivePromotion) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -230,6 +231,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 
 TEST(ArrayBuffer_LivePromotion) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
