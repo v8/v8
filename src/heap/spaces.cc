@@ -874,10 +874,6 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
                                         size_t bytes_to_free) {
   base::VirtualMemory* reservation = chunk->reserved_memory();
   DCHECK(reservation->IsReserved());
-  DCHECK_GE(size_.Value(), bytes_to_free);
-  size_.Decrement(bytes_to_free);
-  isolate_->counters()->memory_allocated()->Decrement(
-      static_cast<int>(bytes_to_free));
   chunk->size_ -= bytes_to_free;
   chunk->area_end_ -= bytes_to_free;
   if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
@@ -885,9 +881,16 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
                      static_cast<uintptr_t>(GetCommitPageSize()));
     DCHECK_EQ(chunk->address() + chunk->size(),
               chunk->area_end() + CodePageGuardSize());
-    chunk->reservation_.Guard(chunk->area_end_);
+    reservation->Guard(chunk->area_end_);
   }
-  reservation->ReleasePartial(start_free);
+  // On e.g. Windows, a reservation may be larger than a page and releasing
+  // partially starting at |start_free| will also release the potentially
+  // unused part behind the current page.
+  const size_t released_bytes = reservation->ReleasePartial(start_free);
+  DCHECK_GE(size_.Value(), released_bytes);
+  size_.Decrement(released_bytes);
+  isolate_->counters()->memory_allocated()->Decrement(
+      static_cast<int>(released_bytes));
 }
 
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {

@@ -342,21 +342,22 @@ class V8_BASE_EXPORT VirtualMemory {
   // Creates a single guard page at the given address.
   bool Guard(void* address);
 
-  // Releases the memory after |free_start|.
-  void ReleasePartial(void* free_start) {
+  // Releases the memory after |free_start|. Returns the bytes released.
+  size_t ReleasePartial(void* free_start) {
     DCHECK(IsReserved());
     // Notice: Order is important here. The VirtualMemory object might live
     // inside the allocated region.
-    size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
-                           reinterpret_cast<size_t>(address_));
+    const size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
+                                 reinterpret_cast<size_t>(address_));
     CHECK(InVM(free_start, size));
     DCHECK_LT(address_, free_start);
     DCHECK_LT(free_start, reinterpret_cast<void*>(
                               reinterpret_cast<size_t>(address_) + size_));
-    bool result = ReleasePartialRegion(address_, size_, free_start, size);
+    const bool result = ReleasePartialRegion(address_, size_, free_start, size);
     USE(result);
     DCHECK(result);
     size_ -= size;
+    return size;
   }
 
   void Release() {
