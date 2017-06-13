@@ -1245,7 +1245,7 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
 
     HeapObject* object = HeapObject::cast(*p);
 
-    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+    if (ObjectMarking::WhiteToBlack<AccessMode::NON_ATOMIC>(
             object, MarkingState::Internal(object))) {
       Map* map = object->map();
       // Mark the map pointer and body, and push them on the marking stack.
@@ -1585,7 +1585,7 @@ class YoungGenerationMigrationObserver final : public MigrationObserver {
     if (heap_->incremental_marking()->IsMarking()) {
       DCHECK(ObjectMarking::IsWhite(
           dst, mark_compact_collector_->marking_state(dst)));
-      heap_->incremental_marking()->TransferColor<MarkBit::ATOMIC>(src, dst);
+      heap_->incremental_marking()->TransferColor<AccessMode::ATOMIC>(src, dst);
     }
   }
 
@@ -2042,7 +2042,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+    DCHECK(!(ObjectMarking::IsWhite<AccessMode::NON_ATOMIC>(
         object, MarkingState::Internal(object))));
 
     Map* map = object->map();
@@ -2276,8 +2276,8 @@ class YoungGenerationMarkingVisitor final
   }
 
   inline void MarkObjectViaMarkingDeque(HeapObject* object) {
-    if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(object,
-                                                    marking_state(object))) {
+    if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
+                                                       marking_state(object))) {
       // Marking deque overflow is unsupported for the young generation.
       CHECK(marking_deque_.Push(object));
     }
@@ -2290,11 +2290,11 @@ class YoungGenerationMarkingVisitor final
       Object* target = *p;
       if (heap_->InNewSpace(target)) {
         HeapObject* target_object = HeapObject::cast(target);
-        if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(
+        if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(
                 target_object, marking_state(target_object))) {
           const int size = Visit(target_object);
           marking_state(target_object)
-              .IncrementLiveBytes<MarkBit::ATOMIC>(size);
+              .IncrementLiveBytes<AccessMode::ATOMIC>(size);
         }
       }
     }
@@ -2332,7 +2332,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 
     if (!collector_->heap()->InNewSpace(object)) return;
 
-    if (ObjectMarking::WhiteToGrey<MarkBit::NON_ATOMIC>(
+    if (ObjectMarking::WhiteToGrey<AccessMode::NON_ATOMIC>(
             object, marking_state(object))) {
       collector_->main_marking_visitor()->Visit(object);
       collector_->EmptyMarkingDeque();
@@ -2391,7 +2391,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   void MarkObject(Object* object) {
     if (!collector_->heap()->InNewSpace(object)) return;
     HeapObject* heap_object = HeapObject::cast(object);
-    if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(
+    if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(
             heap_object, collector_->marking_state(heap_object))) {
       const int size = visitor_.Visit(heap_object);
       IncrementLiveBytes(heap_object, size);
@@ -2429,7 +2429,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   void FlushLiveBytes() {
     for (auto pair : local_live_bytes_) {
       collector_->marking_state(pair.first)
-          .IncrementLiveBytes<MarkBit::ATOMIC>(pair.second);
+          .IncrementLiveBytes<AccessMode::ATOMIC>(pair.second);
     }
   }
 
@@ -2710,10 +2710,10 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+    DCHECK(!(ObjectMarking::IsWhite<AccessMode::NON_ATOMIC>(
         object, marking_state(object))));
-    DCHECK((ObjectMarking::IsGrey<MarkBit::NON_ATOMIC>(object,
-                                                       marking_state(object))));
+    DCHECK((ObjectMarking::IsGrey<AccessMode::NON_ATOMIC>(
+        object, marking_state(object))));
     main_marking_visitor()->Visit(object);
   }
   DCHECK(local_marking_deque.IsEmpty());

@@ -1591,7 +1591,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       end_of_previous_object = object->address() + size;
     }
     CHECK_LE(black_size,
-             MarkingState::Internal(page).live_bytes<MarkBit::ATOMIC>());
+             MarkingState::Internal(page).live_bytes<AccessMode::ATOMIC>());
   }
   CHECK(allocation_pointer_found_in_space);
 }

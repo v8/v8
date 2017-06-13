@@ -520,6 +520,8 @@ const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
+enum class AccessMode { ATOMIC, NON_ATOMIC };
+
 // Possible outcomes for decisions.
 enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
 

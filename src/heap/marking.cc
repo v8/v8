@@ -25,17 +25,18 @@ void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
   if (start_cell_index != end_cell_index) {
     // Firstly, fill all bits from the start address to the end of the first
     // cell with 1s.
-    SetBitsInCell<MarkBit::ATOMIC>(start_cell_index, ~(start_index_mask - 1));
+    SetBitsInCell<AccessMode::ATOMIC>(start_cell_index,
+                                      ~(start_index_mask - 1));
     // Then fill all in between cells with 1s.
     base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
     for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
       base::Relaxed_Store(cell_base + i, ~0u);
     }
     // Finally, fill all bits until the end address in the last cell with 1s.
-    SetBitsInCell<MarkBit::ATOMIC>(end_cell_index, (end_index_mask - 1));
+    SetBitsInCell<AccessMode::ATOMIC>(end_cell_index, (end_index_mask - 1));
   } else {
-    SetBitsInCell<MarkBit::ATOMIC>(start_cell_index,
-                                   end_index_mask - start_index_mask);
+    SetBitsInCell<AccessMode::ATOMIC>(start_cell_index,
+                                      end_index_mask - start_index_mask);
   }
   // This fence prevents re-ordering of publishing stores with the mark-
   // bit setting stores.
@@ -52,17 +53,18 @@ void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
   if (start_cell_index != end_cell_index) {
     // Firstly, fill all bits from the start address to the end of the first
     // cell with 0s.
-    ClearBitsInCell<MarkBit::ATOMIC>(start_cell_index, ~(start_index_mask - 1));
+    ClearBitsInCell<AccessMode::ATOMIC>(start_cell_index,
+                                        ~(start_index_mask - 1));
     // Then fill all in between cells with 0s.
     base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
     for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
       base::Relaxed_Store(cell_base + i, 0);
     }
     // Finally, set all bits until the end address in the last cell with 0s.
-    ClearBitsInCell<MarkBit::ATOMIC>(end_cell_index, (end_index_mask - 1));
+    ClearBitsInCell<AccessMode::ATOMIC>(end_cell_index, (end_index_mask - 1));
   } else {
-    ClearBitsInCell<MarkBit::ATOMIC>(start_cell_index,
-                                     (end_index_mask - start_index_mask));
+    ClearBitsInCell<AccessMode::ATOMIC>(start_cell_index,
+                                        (end_index_mask - start_index_mask));
   }
   // This fence prevents re-ordering of publishing stores with the mark-
   // bit clearing stores.

@@ -69,7 +69,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   // Transfers color including live byte count, requiring properly set up
   // objects.
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE void TransferColor(HeapObject* from, HeapObject* to) {
     if (ObjectMarking::IsBlack<access_mode>(to, marking_state(to))) {
       DCHECK(black_allocation());
@@ -182,9 +182,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 #endif
 
 #ifdef V8_CONCURRENT_MARKING
-  static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::ATOMIC;
+  static const AccessMode kAtomicity = AccessMode::ATOMIC;
 #else
-  static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::NON_ATOMIC;
+  static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
 #endif
 
   void FinalizeSweeping();

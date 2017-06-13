@@ -55,34 +55,34 @@ class ObjectMarking : public AllStatic {
     return Marking::Color(ObjectMarking::MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsImpossible(HeapObject* obj,
                                      const MarkingState& state) {
     return Marking::IsImpossible<access_mode>(MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsBlack(HeapObject* obj, const MarkingState& state) {
     return Marking::IsBlack<access_mode>(MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsWhite(HeapObject* obj, const MarkingState& state) {
     return Marking::IsWhite<access_mode>(MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsGrey(HeapObject* obj, const MarkingState& state) {
     return Marking::IsGrey<access_mode>(MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool IsBlackOrGrey(HeapObject* obj,
                                       const MarkingState& state) {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool BlackToGrey(HeapObject* obj,
                                     const MarkingState& state) {
     MarkBit markbit = MarkBitFrom(obj, state);
@@ -91,20 +91,20 @@ class ObjectMarking : public AllStatic {
     return true;
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool WhiteToGrey(HeapObject* obj,
                                     const MarkingState& state) {
     return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj, state));
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool WhiteToBlack(HeapObject* obj,
                                      const MarkingState& state) {
     return ObjectMarking::WhiteToGrey<access_mode>(obj, state) &&
            ObjectMarking::GreyToBlack<access_mode>(obj, state);
   }
 
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE static bool GreyToBlack(HeapObject* obj,
                                     const MarkingState& state) {
     MarkBit markbit = MarkBitFrom(obj, state);
