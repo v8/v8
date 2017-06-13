@@ -484,7 +484,6 @@ void JSArgumentsObject::JSArgumentsObjectVerify() {
 
 void JSSloppyArgumentsObject::JSSloppyArgumentsObjectVerify() {
   Isolate* isolate = GetIsolate();
-  if (!map()->is_dictionary_map()) VerifyObjectField(kCalleeOffset);
   if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
                               Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
