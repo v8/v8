@@ -1926,11 +1926,6 @@ class Call final : public Expression {
   // Helpers to determine how to handle the call.
   CallType GetCallType() const;
 
-#ifdef DEBUG
-  // Used to assert that the FullCodeGenerator records the return site.
-  bool return_is_recorded_;
-#endif
-
  private:
   friend class AstNodeFactory;
 

@@ -369,11 +369,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
                     disable_optimization_reason,
                     SharedFunctionInfo::DisabledOptimizationReasonBits)
 
-bool SharedFunctionInfo::has_deoptimization_support() const {
-  Code* code = this->code();
-  return code->kind() == Code::FUNCTION && code->has_deoptimization_support();
-}
-
 void SharedFunctionInfo::TryReenableOptimization() {
   int tries = opt_reenable_tries();
   set_opt_reenable_tries((tries + 1) & OptReenableTriesBits::kMax);

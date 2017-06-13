@@ -179,7 +179,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
     info.MarkAsOptimizeFromBytecode();
   } else {
     CHECK(Compiler::ParseAndAnalyze(&info));
-    CHECK(Compiler::EnsureDeoptimizationSupport(&info));
+    CHECK(Compiler::EnsureBaselineCode(&info));
   }
   JSFunction::EnsureLiterals(function);
 

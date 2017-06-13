@@ -79,8 +79,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Convenience function
   static bool Analyze(CompilationInfo* info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
-  // Adds deoptimization support, requires ParseAndAnalyze.
-  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
+  // Ensure that baseline code is generated, requires ParseAndAnalyze.
+  static bool EnsureBaselineCode(CompilationInfo* info);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
   static bool EnsureBytecode(CompilationInfo* info);
 

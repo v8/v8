@@ -39,20 +39,19 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kNonDeferredCalling = 1 << 1,
     kSavesCallerDoubles = 1 << 2,
     kRequiresFrame = 1 << 3,
-    kDeoptimizationSupport = 1 << 4,
-    kAccessorInliningEnabled = 1 << 5,
-    kSerializing = 1 << 6,
-    kFunctionContextSpecializing = 1 << 7,
-    kFrameSpecializing = 1 << 8,
-    kInliningEnabled = 1 << 9,
-    kDisableFutureOptimization = 1 << 10,
-    kSplittingEnabled = 1 << 11,
-    kDeoptimizationEnabled = 1 << 12,
-    kSourcePositionsEnabled = 1 << 13,
-    kBailoutOnUninitialized = 1 << 14,
-    kOptimizeFromBytecode = 1 << 15,
-    kLoopPeelingEnabled = 1 << 16,
-    kBlockCoverageEnabled = 1 << 17,
+    kAccessorInliningEnabled = 1 << 4,
+    kSerializing = 1 << 5,
+    kFunctionContextSpecializing = 1 << 6,
+    kFrameSpecializing = 1 << 7,
+    kInliningEnabled = 1 << 8,
+    kDisableFutureOptimization = 1 << 9,
+    kSplittingEnabled = 1 << 10,
+    kDeoptimizationEnabled = 1 << 11,
+    kSourcePositionsEnabled = 1 << 12,
+    kBailoutOnUninitialized = 1 << 13,
+    kOptimizeFromBytecode = 1 << 14,
+    kLoopPeelingEnabled = 1 << 15,
+    kBlockCoverageEnabled = 1 << 16,
   };
 
   CompilationInfo(Zone* zone, ParseInfo* parse_info, Isolate* isolate,
@@ -115,10 +114,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // Compiles marked as debug produce unoptimized code with debug break slots.
   // Inner functions that cannot be compiled w/o context are compiled eagerly.
-  // Always include deoptimization support to avoid having to recompile again.
   void MarkAsDebug() {
     set_is_debug();
-    SetFlag(kDeoptimizationSupport);
   }
 
   bool is_debug() const;
@@ -227,13 +224,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   }
 
   // Deoptimization support.
-  bool HasDeoptimizationSupport() const {
-    return GetFlag(kDeoptimizationSupport);
-  }
-  void EnableDeoptimizationSupport() {
-    DCHECK_EQ(BASE, mode_);
-    SetFlag(kDeoptimizationSupport);
-  }
   bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
 
   bool ExpectsJSReceiverAsReceiver();

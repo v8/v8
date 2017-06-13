@@ -613,7 +613,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     }
   }
   if (!info()->is_optimizing_from_bytecode()) {
-    if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
+    if (!Compiler::EnsureBaselineCode(info())) return FAILED;
   } else if (FLAG_turbo_inlining) {
     info()->MarkAsInliningEnabled();
   }

@@ -59,14 +59,6 @@ CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
                       isolate, zone) {
   closure_ = closure;
 
-  // Compiling for the snapshot typically results in different code than
-  // compiling later on. This means that code recompiled with deoptimization
-  // support won't be "equivalent" (as defined by SharedFunctionInfo::
-  // EnableDeoptimizationSupport), so it will replace the old code and all
-  // its type feedback. To avoid this, always compile functions in the snapshot
-  // with deoptimization support.
-  if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
-
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
 

@@ -3735,11 +3735,6 @@ class Code: public HeapObject {
   inline bool is_construct_stub();
   inline void set_is_construct_stub(bool value);
 
-  // [has_deoptimization_support]: For FUNCTION kind, tells if it has
-  // deoptimization support.
-  inline bool has_deoptimization_support();
-  inline void set_has_deoptimization_support(bool value);
-
   // [has_debug_break_slots]: For FUNCTION kind, tells if it has
   // been compiled with debug break slots.
   inline bool has_debug_break_slots();
@@ -4055,11 +4050,8 @@ class Code: public HeapObject {
 
   // KindSpecificFlags1 layout (FUNCTION)
   static const int kFullCodeFlags = kKindSpecificFlags1Offset;
-  static const int kFullCodeFlagsHasDeoptimizationSupportBit = 0;
-  static const int kFullCodeFlagsHasDebugBreakSlotsField = 1;
-  static const int kFullCodeFlagsHasRelocInfoForSerialization = 2;
-  class FullCodeFlagsHasDeoptimizationSupportField
-      : public BitField<bool, kFullCodeFlagsHasDeoptimizationSupportBit, 1> {};
+  static const int kFullCodeFlagsHasDebugBreakSlotsField = 0;
+  static const int kFullCodeFlagsHasRelocInfoForSerialization = 1;
   class FullCodeFlagsHasDebugBreakSlotsField
       : public BitField<bool, kFullCodeFlagsHasDebugBreakSlotsField, 1> {};
   class FullCodeFlagsHasRelocInfoForSerialization

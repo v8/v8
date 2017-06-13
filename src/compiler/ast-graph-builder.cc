@@ -2719,7 +2719,6 @@ bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
 void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
                                         OutputFrameStateCombine combine) {
   if (OperatorProperties::HasFrameStateInput(node->op())) {
-    DCHECK(ast_id.IsNone() || info()->shared_info()->VerifyBailoutId(ast_id));
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node)->opcode());
@@ -2736,7 +2735,6 @@ void AstGraphBuilder::PrepareEagerCheckpoint(BailoutId ast_id) {
     return;
   }
   if (ast_id != BailoutId::None()) {
-    DCHECK(info()->shared_info()->VerifyBailoutId(ast_id));
     Node* node = NewNode(common()->Checkpoint());
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node)->opcode());

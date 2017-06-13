@@ -13521,38 +13521,6 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
 }
 
 
-static bool IsCodeEquivalent(Code* code, Code* recompiled) {
-  if (code->instruction_size() != recompiled->instruction_size()) return false;
-  ByteArray* code_relocation = code->relocation_info();
-  ByteArray* recompiled_relocation = recompiled->relocation_info();
-  int length = code_relocation->length();
-  if (length != recompiled_relocation->length()) return false;
-  int compare = memcmp(code_relocation->GetDataStartAddress(),
-                       recompiled_relocation->GetDataStartAddress(),
-                       length);
-  return compare == 0;
-}
-
-
-void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
-  DCHECK(!has_deoptimization_support());
-  DisallowHeapAllocation no_allocation;
-  Code* code = this->code();
-  if (IsCodeEquivalent(code, recompiled)) {
-    // Copy the deoptimization data from the recompiled code.
-    code->set_deoptimization_data(recompiled->deoptimization_data());
-    code->set_has_deoptimization_support(true);
-  } else {
-    // TODO(3025757): In case the recompiled isn't equivalent to the
-    // old code, we have to replace it. We should try to avoid this
-    // altogether because it flushes valuable type feedback by
-    // effectively resetting all IC state.
-    ReplaceCode(recompiled);
-  }
-  DCHECK(has_deoptimization_support());
-}
-
-
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info

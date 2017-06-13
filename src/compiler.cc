@@ -1385,7 +1385,7 @@ bool Compiler::EnsureBytecode(CompilationInfo* info) {
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could
 // be generated lazily once deopt is triggered.
-bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
+bool Compiler::EnsureBaselineCode(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
@@ -1395,7 +1395,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     if (!dispatcher->FinishNow(shared)) return false;
   }
 
-  if (!shared->has_deoptimization_support()) {
+  if (!shared->HasBaselineCode()) {
     // Don't generate full-codegen code for functions which should use Ignition.
     if (ShouldUseIgnition(info)) return false;
 
@@ -1405,7 +1405,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
     CompilationInfo unoptimized(&compile_zone, info->parse_info(),
                                 info->isolate(), info->closure());
-    unoptimized.EnableDeoptimizationSupport();
 
     // When we call PrepareForSerializing below, we will change the shared
     // ParseInfo. Make sure to reset it.
@@ -1431,7 +1430,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     }
 
     // Install compilation result on the shared function info
-    shared->EnableDeoptimizationSupport(*unoptimized.code());
+    shared->ReplaceCode(*unoptimized.code());
 
     // The existing unoptimized code was replaced with the new one.
     RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,

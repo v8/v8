@@ -254,21 +254,18 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     EffectContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     AccumulatorValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, BailoutState::TOS_REGISTER);
   }
 
   void VisitForStackValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     StackValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
@@ -338,10 +335,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
                              Expression* sub_expr,
                              NilValue nil);
 
-  // Bailout support.
-  void PrepareForBailout(Expression* node, Deoptimizer::BailoutState state);
-  void PrepareForBailoutForId(BailoutId id, Deoptimizer::BailoutState state);
-
   // Returns an int32 for the index into the FixedArray that backs the feedback
   // vector
   int32_t IntFromSlot(FeedbackSlot slot) const {
@@ -353,20 +346,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   Smi* SmiFromSlot(FeedbackSlot slot) const {
     return Smi::FromInt(IntFromSlot(slot));
   }
-
-  // Record a call's return site offset, used to rebuild the frame if the
-  // called function was inlined at the site.
-  void RecordJSReturnSite(Call* call);
-
-  // Prepare for bailout before a test (or compare) and branch.  If
-  // should_normalize, then the following comparison will not handle the
-  // canonical JS true value so we will insert a (dead) test against true at
-  // the actual bailout target from the optimized code. If not
-  // should_normalize, the true and false labels are ignored.
-  void PrepareForBailoutBeforeSplit(Expression* expr,
-                                    bool should_normalize,
-                                    Label* if_true,
-                                    Label* if_false);
 
   // If enabled, emit debug code for checking that the current context is
   // neither a with nor a catch context.
@@ -602,16 +581,10 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void VisitForTypeofValue(Expression* expr);
 
   void Generate();
-  void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
 
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
-
-  struct BailoutEntry {
-    BailoutId id;
-    unsigned pc_and_state;
-  };
 
   struct BackEdgeEntry {
     BailoutId id;
@@ -814,7 +787,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   int operand_stack_depth_;
   ZoneList<Handle<Object> >* globals_;
   const ExpressionContext* context_;
-  ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BackEdgeEntry> back_edges_;
   SourcePositionTableBuilder source_position_table_builder_;
   int ic_total_count_;

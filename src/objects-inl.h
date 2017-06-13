@@ -4013,20 +4013,6 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   UNREACHABLE();
 }
 
-bool Code::has_deoptimization_support() {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
-}
-
-
-void Code::set_has_deoptimization_support(bool value) {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
-  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
-}
-
 
 bool Code::has_debug_break_slots() {
   DCHECK_EQ(FUNCTION, kind());

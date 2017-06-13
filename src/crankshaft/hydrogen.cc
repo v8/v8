@@ -124,25 +124,24 @@ HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
     return FAILED;
   }
 
-  // Optimization requires a version of fullcode with deoptimization support.
-  // Recompile the unoptimized version of the code if the current version
-  // doesn't have deoptimization support already.
+  // Optimization requires a version of unoptimized code of the given function
+  // which was generate by fullcode, ensure such baseline code exists now.
   // Otherwise, if we are gathering compilation time and space statistics
   // for hydrogen, gather baseline statistics for a fullcode compilation.
-  bool should_recompile = !info()->shared_info()->has_deoptimization_support();
+  bool should_recompile = !info()->shared_info()->HasBaselineCode();
   if (should_recompile || FLAG_hydrogen_stats) {
     base::ElapsedTimer timer;
     if (FLAG_hydrogen_stats) {
       timer.Start();
     }
-    if (!Compiler::EnsureDeoptimizationSupport(info())) {
+    if (!Compiler::EnsureBaselineCode(info())) {
       return FAILED;
     }
     if (FLAG_hydrogen_stats) {
       isolate()->GetHStatistics()->IncrementFullCodeGen(timer.Elapsed());
     }
   }
-  DCHECK(info()->shared_info()->has_deoptimization_support());
+  DCHECK(info()->shared_info()->HasBaselineCode());
 
   // Check the whitelist for Crankshaft.
   if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {
@@ -7950,9 +7949,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     }
   }
 
-  // Generate the deoptimization data for the unoptimized version of
-  // the target function if we don't already have it.
-  if (!Compiler::EnsureDeoptimizationSupport(&target_info)) {
+  // Generate the the unoptimized version of the target function if we don't
+  // already have it.
+  if (!Compiler::EnsureBaselineCode(&target_info)) {
     TraceInline(target, caller, "could not generate deoptimization info");
     return false;
   }
@@ -7965,7 +7964,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   JSFunction::EnsureLiterals(target);
 
   // Type-check the inlined function.
-  DCHECK(target_shared->has_deoptimization_support());
+  DCHECK(target_shared->HasBaselineCode());
   AstTyper ast_typer(target_info.isolate(), target_info.zone(),
                      target_info.closure(), target_info.scope(),
                      target_info.osr_ast_id(), target_info.literal(), &bounds_);

@@ -324,13 +324,6 @@ class SharedFunctionInfo : public HeapObject {
   // Recalculates the |map_index| value after modifications of this shared info.
   inline void UpdateFunctionMapIndex();
 
-  // Indicates whether or not the code in the shared function support
-  // deoptimization.
-  inline bool has_deoptimization_support() const;
-
-  // Enable deoptimization support through recompiled code.
-  void EnableDeoptimizationSupport(Code* recompiled);
-
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
   void DisableOptimization(BailoutReason reason);
