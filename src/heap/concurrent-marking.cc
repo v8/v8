@@ -168,6 +168,13 @@ class ConcurrentMarkingVisitor final
   }
 
   void MarkObject(HeapObject* object) {
+#ifdef THREAD_SANITIZER
+    // Perform a dummy acquire load to tell TSAN that there is no data race
+    // in mark-bit inititialization. See MemoryChunk::Initialize for the
+    // corresponding release store.
+    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    CHECK_NE(chunk->synchronized_heap(), nullptr);
+#endif
     if (ObjectMarking::WhiteToGrey<MarkBit::AccessMode::ATOMIC>(
             object, marking_state(object))) {
       deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kShared);

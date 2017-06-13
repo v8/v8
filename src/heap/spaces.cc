@@ -512,6 +512,11 @@ void Page::InitializeAsAnchor(Space* space) {
   SetFlag(ANCHOR);
 }
 
+Heap* MemoryChunk::synchronized_heap() {
+  return reinterpret_cast<Heap*>(
+      base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&heap_)));
+}
+
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
@@ -554,6 +559,14 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   if (reservation != nullptr) {
     chunk->reservation_.TakeControl(reservation);
   }
+
+#ifdef THREAD_SANITIZER
+  // The mark-bit clearing function above emits a memory fence. Since TSAN
+  // does not process memory fences, we use the following annotation to tell
+  // TSAN that there is no data race in mark-bit clearing.
+  base::Release_Store(reinterpret_cast<base::AtomicWord*>(&chunk->heap_),
+                      reinterpret_cast<base::AtomicWord>(heap));
+#endif
   return chunk;
 }
 

@@ -5773,6 +5773,7 @@ HEAP_TEST(Regress589413) {
 
 TEST(Regress598319) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // This test ensures that no white objects can cross the progress bar of large
   // objects during incremental marking. It checks this by using Shift() during
   // incremental marking.

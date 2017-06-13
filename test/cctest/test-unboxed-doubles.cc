@@ -911,6 +911,7 @@ TEST(LayoutDescriptorAppendIfFastOrUseFullAllDoubles) {
 
 
 TEST(Regress436816) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -960,6 +961,7 @@ TEST(Regress436816) {
 
 
 TEST(DescriptorArrayTrimming) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();

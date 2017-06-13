@@ -1127,6 +1127,7 @@ TEST(CodeSerializerLargeCodeObject) {
 }
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
+  if (FLAG_never_compact) return;
   FLAG_stress_incremental_marking = false;
   FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
