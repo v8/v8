@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/assembler.h"
+#include "src/base/atomicops.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -109,13 +110,16 @@ void V8::ShutdownPlatform() {
 
 
 v8::Platform* V8::GetCurrentPlatform() {
-  DCHECK(platform_);
-  return platform_;
+  v8::Platform* platform = reinterpret_cast<v8::Platform*>(
+      base::Relaxed_Load(reinterpret_cast<base::AtomicWord*>(&platform_)));
+  DCHECK(platform);
+  return platform;
 }
 
-
-void V8::SetPlatformForTesting(v8::Platform* platform) { platform_ = platform; }
-
+void V8::SetPlatformForTesting(v8::Platform* platform) {
+  base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(&platform_),
+                      reinterpret_cast<base::AtomicWord>(platform));
+}
 
 void V8::SetNativesBlob(StartupData* natives_blob) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
