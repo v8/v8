@@ -4,6 +4,7 @@
 
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
+import("//build/split_static_library.gni")
 
 declare_args() {
   # Includes files needed for correctness fuzzing.
@@ -91,20 +92,19 @@ if (is_posix && v8_enable_backtrace) {
 
 # All templates should be kept in sync.
 template("v8_source_set") {
-  if (defined(v8_static_library) && v8_static_library) {
-    static_library(target_name) {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      configs += invoker.configs
-      configs -= v8_remove_configs
-      configs += v8_add_configs
-    }
+  if (defined(invoker.split_count) && invoker.split_count > 1 &&
+      defined(v8_static_library) && v8_static_library && is_win) {
+    link_target_type = "split_static_library"
+  } else if (defined(v8_static_library) && v8_static_library) {
+    link_target_type = "static_library"
   } else {
-    source_set(target_name) {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      configs += invoker.configs
-      configs -= v8_remove_configs
-      configs += v8_add_configs
-    }
+    link_target_type = "source_set"
+  }
+  target(link_target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
   }
 }
 

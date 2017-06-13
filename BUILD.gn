@@ -1081,6 +1081,9 @@ v8_header_set("v8_headers") {
 v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
+  # Split static libraries on windows into two.
+  split_count = 2
+
   sources = [
     "//base/trace_event/common/trace_event_common.h",
 
