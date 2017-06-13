@@ -434,61 +434,53 @@ class SharedFunctionInfo : public HeapObject {
   // Constants.
   static const int kDontAdaptArgumentsSentinel = -1;
 
-  // Layout description.
-  // Pointer fields.
-  static const int kCodeOffset = HeapObject::kHeaderSize;
-  static const int kNameOffset = kCodeOffset + kPointerSize;
-  static const int kScopeInfoOffset = kNameOffset + kPointerSize;
-  static const int kOuterScopeInfoOffset = kScopeInfoOffset + kPointerSize;
-  static const int kConstructStubOffset = kOuterScopeInfoOffset + kPointerSize;
-  static const int kInstanceClassNameOffset =
-      kConstructStubOffset + kPointerSize;
-  static const int kFunctionDataOffset =
-      kInstanceClassNameOffset + kPointerSize;
-  static const int kScriptOffset = kFunctionDataOffset + kPointerSize;
-  static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
-  static const int kFunctionIdentifierOffset = kDebugInfoOffset + kPointerSize;
-  static const int kFeedbackMetadataOffset =
-      kFunctionIdentifierOffset + kPointerSize;
-  static const int kFunctionLiteralIdOffset =
-      kFeedbackMetadataOffset + kPointerSize;
 #if V8_SFI_HAS_UNIQUE_ID
-  static const int kUniqueIdOffset = kFunctionLiteralIdOffset + kPointerSize;
-  static const int kLastPointerFieldOffset = kUniqueIdOffset;
+  static const int kUniqueIdFieldSize = kInt32Size;
 #else
   // Just to not break the postmortrem support with conditional offsets
-  static const int kUniqueIdOffset = kFunctionLiteralIdOffset;
-  static const int kLastPointerFieldOffset = kFunctionLiteralIdOffset;
+  static const int kUniqueIdFieldSize = 0;
 #endif
 
-  // Raw data fields.
-  static const int kLengthOffset = kLastPointerFieldOffset + kPointerSize;
-  static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
-  static const int kExpectedNofPropertiesOffset =
-      kFormalParameterCountOffset + kIntSize;
-  // TODO(ishell): Drop this unused field.
-  static const int kNumLiteralsOffset = kExpectedNofPropertiesOffset + kIntSize;
-  static const int kStartPositionAndTypeOffset = kNumLiteralsOffset + kIntSize;
-  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
-  static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
-  static const int kCompilerHintsOffset =
-      kFunctionTokenPositionOffset + kIntSize;
-  static const int kOptCountAndBailoutReasonOffset =
-      kCompilerHintsOffset + kIntSize;
-  static const int kCountersOffset = kOptCountAndBailoutReasonOffset + kIntSize;
-  static const int kAstNodeCountOffset = kCountersOffset + kIntSize;
-  static const int kProfilerTicksOffset = kAstNodeCountOffset + kIntSize;
+// Layout description.
+#define SHARED_FUNCTION_INFO_FIELDS(V)           \
+  /* Pointer fields. */                          \
+  V(kCodeOffset, kPointerSize)                   \
+  V(kNameOffset, kPointerSize)                   \
+  V(kScopeInfoOffset, kPointerSize)              \
+  V(kOuterScopeInfoOffset, kPointerSize)         \
+  V(kConstructStubOffset, kPointerSize)          \
+  V(kInstanceClassNameOffset, kPointerSize)      \
+  V(kFunctionDataOffset, kPointerSize)           \
+  V(kScriptOffset, kPointerSize)                 \
+  V(kDebugInfoOffset, kPointerSize)              \
+  V(kFunctionIdentifierOffset, kPointerSize)     \
+  V(kFeedbackMetadataOffset, kPointerSize)       \
+  V(kEndOfPointerFieldsOffset, 0)                \
+  /* Raw data fields. */                         \
+  V(kFunctionLiteralIdOffset, kInt32Size)        \
+  V(kUniqueIdOffset, kUniqueIdFieldSize)         \
+  V(kLengthOffset, kInt32Size)                   \
+  V(kFormalParameterCountOffset, kInt32Size)     \
+  V(kExpectedNofPropertiesOffset, kInt32Size)    \
+  V(kStartPositionAndTypeOffset, kInt32Size)     \
+  V(kEndPositionOffset, kInt32Size)              \
+  V(kFunctionTokenPositionOffset, kInt32Size)    \
+  V(kCompilerHintsOffset, kInt32Size)            \
+  V(kOptCountAndBailoutReasonOffset, kInt32Size) \
+  V(kCountersOffset, kInt32Size)                 \
+  V(kAstNodeCountOffset, kInt32Size)             \
+  V(kProfilerTicksOffset, kInt32Size)            \
+  /* Total size. */                              \
+  V(kSize, 0)
 
-  // Total size.
-  static const int kSize = kProfilerTicksOffset + kIntSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                SHARED_FUNCTION_INFO_FIELDS)
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  typedef FixedBodyDescriptor<kCodeOffset,
-                              kLastPointerFieldOffset + kPointerSize, kSize>
+  typedef FixedBodyDescriptor<kCodeOffset, kEndOfPointerFieldsOffset, kSize>
       BodyDescriptor;
-  typedef FixedBodyDescriptor<kNameOffset,
-                              kLastPointerFieldOffset + kPointerSize, kSize>
+  typedef FixedBodyDescriptor<kNameOffset, kEndOfPointerFieldsOffset, kSize>
       BodyDescriptorWeakCode;
 
 // Bit fields in |start_position_and_type|.
