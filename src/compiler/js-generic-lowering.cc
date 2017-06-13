@@ -338,6 +338,10 @@ void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
   ReplaceWithStubCall(node, callable, flags);
 }
 
+void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kHasInPrototypeChain);
+}
+
 void JSGenericLowering::LowerJSInstanceOf(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kInstanceOf);

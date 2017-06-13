@@ -1233,6 +1233,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                Label* if_end, Label* if_bailout);
 
   // Instanceof helpers.
+  // Returns true if {object} has {prototype} somewhere in it's prototype
+  // chain, otherwise false is returned. Might cause arbitrary side effects
+  // due to [[GetPrototypeOf]] invocations.
+  Node* HasInPrototypeChain(Node* context, Node* object, Node* prototype);
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
   Node* OrdinaryHasInstance(Node* context, Node* callable, Node* object);
 

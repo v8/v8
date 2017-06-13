@@ -21,15 +21,6 @@ function ObjectToLocaleString() {
   return this.toString();
 }
 
-
-// ES6 19.1.3.3 Object.prototype.isPrototypeOf(V)
-function ObjectIsPrototypeOf(V) {
-  if (!IS_RECEIVER(V)) return false;
-  var O = TO_OBJECT(this);
-  return %HasInPrototypeChain(V, O);
-}
-
-
 // ES6 7.3.9
 function GetMethod(obj, p) {
   var func = obj[p];
@@ -62,7 +53,7 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   // toString is added in bootstrapper.cc
   "toLocaleString", ObjectToLocaleString,
   // valueOf is added in bootstrapper.cc.
-  "isPrototypeOf", ObjectIsPrototypeOf,
+  // isPrototypeOf is added in bootstrapper.cc.
   // propertyIsEnumerable is added in bootstrapper.cc.
   // __defineGetter__ is added in bootstrapper.cc.
   // __lookupGetter__ is added in bootstrapper.cc.

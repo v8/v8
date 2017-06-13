@@ -4580,6 +4580,7 @@ class ContextExtension : public Struct {
   V(Object, assign, ObjectAssign)                           \
   V(Object, create, ObjectCreate)                           \
   V(Object.prototype, hasOwnProperty, ObjectHasOwnProperty) \
+  V(Object.prototype, isPrototypeOf, ObjectIsPrototypeOf)   \
   V(Object.prototype, toString, ObjectToString)             \
   V(RegExp.prototype, compile, RegExpCompile)               \
   V(RegExp.prototype, exec, RegExpExec)                     \

@@ -1274,6 +1274,11 @@ Type* Typer::Visitor::TypeJSHasProperty(Node* node) { return Type::Boolean(); }
 
 // JS instanceof operator.
 
+Type* Typer::Visitor::JSHasInPrototypeChainTyper(Type* lhs, Type* rhs,
+                                                 Typer* t) {
+  return Type::Boolean();
+}
+
 Type* Typer::Visitor::JSInstanceOfTyper(Type* lhs, Type* rhs, Typer* t) {
   return Type::Boolean();
 }
@@ -1515,6 +1520,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kObjectCreate:
           return Type::OtherObject();
         case kObjectHasOwnProperty:
+        case kObjectIsPrototypeOf:
           return Type::Boolean();
         case kObjectToString:
           return Type::String();

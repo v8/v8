@@ -62,6 +62,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSHasInPrototypeChain:
     case IrOpcode::kJSInstanceOf:
     case IrOpcode::kJSOrdinaryHasInstance:
 

@@ -779,6 +779,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* ClassOf();
   const Operator* TypeOf();
+  const Operator* HasInPrototypeChain();
   const Operator* InstanceOf();
   const Operator* OrdinaryHasInstance();
 

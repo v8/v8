@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
+  Reduction ReduceJSHasInPrototypeChain(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
@@ -92,6 +93,17 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
 
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
+
+  // Checks if we know at compile time that the {receiver} either definitely
+  // has the {prototype} in it's prototype chain, or the {receiver} definitely
+  // doesn't have the {prototype} in it's prototype chain.
+  enum InferHasInPrototypeChainResult {
+    kIsInPrototypeChain,
+    kIsNotInPrototypeChain,
+    kMayBeInPrototypeChain
+  };
+  InferHasInPrototypeChainResult InferHasInPrototypeChain(
+      Node* receiver, Node* effect, Handle<HeapObject> prototype);
 
   Factory* factory() const;
   Graph* graph() const;

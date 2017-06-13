@@ -5997,17 +5997,77 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
 }
 
-Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
-                                             Node* object) {
+Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
+                                             Node* prototype) {
+  CSA_ASSERT(this, TaggedIsNotSmi(object));
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_false(this), return_true(this),
       return_runtime(this, Label::kDeferred), return_result(this);
 
+  // Loop through the prototype chain looking for the {prototype}.
+  VARIABLE(var_object_map, MachineRepresentation::kTagged, LoadMap(object));
+  Label loop(this, &var_object_map);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // Check if we can determine the prototype directly from the {object_map}.
+    Label if_objectisdirect(this), if_objectisspecial(this, Label::kDeferred);
+    Node* object_map = var_object_map.value();
+    Node* object_instance_type = LoadMapInstanceType(object_map);
+    Branch(IsSpecialReceiverInstanceType(object_instance_type),
+           &if_objectisspecial, &if_objectisdirect);
+    BIND(&if_objectisspecial);
+    {
+      // The {object_map} is a special receiver map or a primitive map, check
+      // if we need to use the if_objectisspecial path in the runtime.
+      GotoIf(InstanceTypeEqual(object_instance_type, JS_PROXY_TYPE),
+             &return_runtime);
+      Node* object_bitfield = LoadMapBitField(object_map);
+      Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
+                                 1 << Map::kIsAccessCheckNeeded);
+      Branch(Word32NotEqual(Word32And(object_bitfield, mask), Int32Constant(0)),
+             &return_runtime, &if_objectisdirect);
+    }
+    BIND(&if_objectisdirect);
+
+    // Check the current {object} prototype.
+    Node* object_prototype = LoadMapPrototype(object_map);
+    GotoIf(IsNull(object_prototype), &return_false);
+    GotoIf(WordEqual(object_prototype, prototype), &return_true);
+
+    // Continue with the prototype.
+    CSA_ASSERT(this, TaggedIsNotSmi(object_prototype));
+    var_object_map.Bind(LoadMap(object_prototype));
+    Goto(&loop);
+  }
+
+  BIND(&return_true);
+  var_result.Bind(TrueConstant());
+  Goto(&return_result);
+
+  BIND(&return_false);
+  var_result.Bind(FalseConstant());
+  Goto(&return_result);
+
+  BIND(&return_runtime);
+  {
+    // Fallback to the runtime implementation.
+    var_result.Bind(
+        CallRuntime(Runtime::kHasInPrototypeChain, context, object, prototype));
+  }
+  Goto(&return_result);
+
+  BIND(&return_result);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
+                                             Node* object) {
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  Label return_runtime(this, Label::kDeferred), return_result(this);
+
   // Goto runtime if {object} is a Smi.
   GotoIf(TaggedIsSmi(object), &return_runtime);
-
-  // Load map of {object}.
-  Node* object_map = LoadMap(object);
 
   // Goto runtime if {callable} is a Smi.
   GotoIf(TaggedIsSmi(callable), &return_runtime);
@@ -6056,42 +6116,7 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   }
 
   // Loop through the prototype chain looking for the {callable} prototype.
-  VARIABLE(var_object_map, MachineRepresentation::kTagged, object_map);
-  Label loop(this, &var_object_map);
-  Goto(&loop);
-  BIND(&loop);
-  {
-    Node* object_map = var_object_map.value();
-
-    // Check if the current {object} needs to be access checked.
-    Node* object_bitfield = LoadMapBitField(object_map);
-    GotoIfNot(
-        Word32Equal(Word32And(object_bitfield,
-                              Int32Constant(1 << Map::kIsAccessCheckNeeded)),
-                    Int32Constant(0)),
-        &return_runtime);
-
-    // Check if the current {object} is a proxy.
-    Node* object_instance_type = LoadMapInstanceType(object_map);
-    GotoIf(Word32Equal(object_instance_type, Int32Constant(JS_PROXY_TYPE)),
-           &return_runtime);
-
-    // Check the current {object} prototype.
-    Node* object_prototype = LoadMapPrototype(object_map);
-    GotoIf(WordEqual(object_prototype, NullConstant()), &return_false);
-    GotoIf(WordEqual(object_prototype, callable_prototype), &return_true);
-
-    // Continue with the prototype.
-    var_object_map.Bind(LoadMap(object_prototype));
-    Goto(&loop);
-  }
-
-  BIND(&return_true);
-  var_result.Bind(BooleanConstant(true));
-  Goto(&return_result);
-
-  BIND(&return_false);
-  var_result.Bind(BooleanConstant(false));
+  var_result.Bind(HasInPrototypeChain(context, object, callable_prototype));
   Goto(&return_result);
 
   BIND(&return_runtime);

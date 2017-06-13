@@ -483,6 +483,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kObjectPrototypeValueOf:
     case Builtins::kObjectValues:
     case Builtins::kObjectHasOwnProperty:
+    case Builtins::kObjectPrototypeIsPrototypeOf:
     case Builtins::kObjectPrototypePropertyIsEnumerable:
     case Builtins::kObjectProtoToString:
     // Array builtins.

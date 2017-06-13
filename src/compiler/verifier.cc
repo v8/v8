@@ -668,6 +668,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSHasInPrototypeChain:
     case IrOpcode::kJSInstanceOf:
     case IrOpcode::kJSOrdinaryHasInstance:
       // Type is Boolean.

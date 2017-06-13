@@ -743,6 +743,7 @@ namespace internal {
   TFJ(ObjectProtoToString, 0)                                                  \
   /* ES6 #sec-object.prototype.valueof */                                      \
   TFJ(ObjectPrototypeValueOf, 0)                                               \
+  TFJ(ObjectPrototypeIsPrototypeOf, 1, kValue)                                 \
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \

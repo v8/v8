@@ -1050,10 +1050,11 @@ RUNTIME_FUNCTION(Runtime_Compare) {
 RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  Maybe<bool> result =
-      JSReceiver::HasInPrototypeChain(isolate, object, prototype);
+  if (!object->IsJSReceiver()) return isolate->heap()->false_value();
+  Maybe<bool> result = JSReceiver::HasInPrototypeChain(
+      isolate, Handle<JSReceiver>::cast(object), prototype);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }

@@ -342,6 +342,38 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   return ReduceObjectGetPrototype(node, receiver);
 }
 
+// ES #sec-object.prototype.isprototypeof
+Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* value = node->op()->ValueInputCount() > 2
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->UndefinedConstant();
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  // Ensure that the {receiver} is known to be a JSReceiver (so that
+  // the ToObject step of Object.prototype.isPrototypeOf is a no-op).
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  for (size_t i = 0; i < receiver_maps.size(); ++i) {
+    if (!receiver_maps[i]->IsJSReceiverMap()) return NoChange();
+  }
+
+  // We don't check whether {value} is a proper JSReceiver here explicitly,
+  // and don't explicitly rule out Primitive {value}s, since all of them
+  // have null as their prototype, so the prototype chain walk inside the
+  // JSHasInPrototypeChain operator immediately aborts and yields false.
+  NodeProperties::ReplaceValueInput(node, value, 0);
+  NodeProperties::ReplaceValueInput(node, receiver, 1);
+  for (int i = node->op()->ValueInputCount(); i-- > 2;) {
+    node->RemoveInput(i);
+  }
+  NodeProperties::ChangeOp(node, javascript()->HasInPrototypeChain());
+  return Changed(node);
+}
+
 // ES6 section 26.1.7 Reflect.getPrototypeOf ( target )
 Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -741,6 +773,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceObjectGetPrototypeOf(node);
         case Builtins::kObjectPrototypeGetProto:
           return ReduceObjectPrototypeGetProto(node);
+        case Builtins::kObjectPrototypeIsPrototypeOf:
+          return ReduceObjectPrototypeIsPrototypeOf(node);
         case Builtins::kReflectGetPrototypeOf:
           return ReduceReflectGetPrototypeOf(node);
         case Builtins::kArrayForEach:

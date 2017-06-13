@@ -1390,6 +1390,210 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   return NoChange();
 }
 
+JSTypedLowering::InferHasInPrototypeChainResult
+JSTypedLowering::InferHasInPrototypeChain(Node* receiver, Node* effect,
+                                          Handle<HeapObject> prototype) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
+
+  // Check if either all or none of the {receiver_maps} have the given
+  // {prototype} in their prototype chain.
+  bool all = true;
+  bool none = true;
+  for (size_t i = 0; i < receiver_maps.size(); ++i) {
+    Handle<Map> receiver_map = receiver_maps[i];
+    if (receiver_map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+      return kMayBeInPrototypeChain;
+    }
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      // In case of an unreliable {result} we need to ensure that all
+      // {receiver_maps} are stable, because otherwise we cannot trust
+      // the {receiver_maps} information, since arbitrary side-effects
+      // may have happened.
+      if (!receiver_map->is_stable()) {
+        return kMayBeInPrototypeChain;
+      }
+    }
+    for (PrototypeIterator j(receiver_map);; j.Advance()) {
+      if (j.IsAtEnd()) {
+        all = false;
+        break;
+      }
+      Handle<HeapObject> const current =
+          PrototypeIterator::GetCurrent<HeapObject>(j);
+      if (current.is_identical_to(prototype)) {
+        none = false;
+        break;
+      }
+      if (!current->map()->is_stable() ||
+          current->map()->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+        return kMayBeInPrototypeChain;
+      }
+    }
+  }
+  DCHECK_IMPLIES(all, !none);
+  DCHECK_IMPLIES(none, !all);
+
+  if (all) return kIsInPrototypeChain;
+  if (none) return kIsNotInPrototypeChain;
+  return kMayBeInPrototypeChain;
+}
+
+Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSHasInPrototypeChain, node->opcode());
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Type* value_type = NodeProperties::GetType(value);
+  Node* prototype = NodeProperties::GetValueInput(node, 1);
+  Type* prototype_type = NodeProperties::GetType(prototype);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // If {value} cannot be a receiver, then it cannot have {prototype} in
+  // it's prototype chain (all Primitive values have a null prototype).
+  if (value_type->Is(Type::Primitive())) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+
+  // Check if we can constant-fold the prototype chain walk
+  // for the given {value} and the {prototype}.
+  if (prototype_type->IsHeapConstant()) {
+    InferHasInPrototypeChainResult result = InferHasInPrototypeChain(
+        value, effect, prototype_type->AsHeapConstant()->Value());
+    if (result != kMayBeInPrototypeChain) {
+      Node* value = jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
+    }
+  }
+
+  Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0 = jsgraph()->FalseConstant();
+
+  control = graph()->NewNode(common()->IfFalse(), branch0);
+
+  // Loop through the {value}s prototype chain looking for the {prototype}.
+  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
+  Node* eloop = effect =
+      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
+  Node* vloop = value = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), value, value, loop);
+  NodeProperties::SetType(vloop, Type::NonInternal());
+
+  // Load the {value} map and instance type.
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* value_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+      effect, control);
+
+  // Check if the {value} is a special receiver, because for special
+  // receivers, i.e. proxies or API values that need access checks,
+  // we have to use the %HasInPrototypeChain runtime function instead.
+  Node* check1 = graph()->NewNode(
+      simplified()->NumberLessThanOrEqual(), value_instance_type,
+      jsgraph()->Constant(LAST_SPECIAL_RECEIVER_TYPE));
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
+
+  control = graph()->NewNode(common()->IfFalse(), branch1);
+
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* etrue1 = effect;
+  Node* vtrue1;
+
+  // Check if the {value} is not a receiver at all.
+  Node* check10 =
+      graph()->NewNode(simplified()->NumberLessThan(), value_instance_type,
+                       jsgraph()->Constant(FIRST_JS_RECEIVER_TYPE));
+  Node* branch10 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check10, if_true1);
+
+  // A primitive value cannot match the {prototype} we're looking for.
+  if_true1 = graph()->NewNode(common()->IfTrue(), branch10);
+  vtrue1 = jsgraph()->FalseConstant();
+
+  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch10);
+  Node* efalse1 = etrue1;
+  Node* vfalse1;
+  {
+    // Slow path, need to call the %HasInPrototypeChain runtime function.
+    vfalse1 = efalse1 = if_false1 = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kHasInPrototypeChain), value,
+        prototype, context, frame_state, efalse1, if_false1);
+
+    // Replace any potential {IfException} uses of {node} to catch
+    // exceptions from this %HasInPrototypeChain runtime call instead.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse1);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse1);
+      if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+      Revisit(on_exception);
+    }
+  }
+
+  // Load the {value} prototype.
+  Node* value_prototype = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapPrototype()), value_map,
+      effect, control);
+
+  // Check if we reached the end of {value}s prototype chain.
+  Node* check2 = graph()->NewNode(simplified()->ReferenceEqual(),
+                                  value_prototype, jsgraph()->NullConstant());
+  Node* branch2 = graph()->NewNode(common()->Branch(), check2, control);
+
+  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+  Node* etrue2 = effect;
+  Node* vtrue2 = jsgraph()->FalseConstant();
+
+  control = graph()->NewNode(common()->IfFalse(), branch2);
+
+  // Check if we reached the {prototype}.
+  Node* check3 = graph()->NewNode(simplified()->ReferenceEqual(),
+                                  value_prototype, prototype);
+  Node* branch3 = graph()->NewNode(common()->Branch(), check3, control);
+
+  Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+  Node* etrue3 = effect;
+  Node* vtrue3 = jsgraph()->TrueConstant();
+
+  control = graph()->NewNode(common()->IfFalse(), branch3);
+
+  // Close the loop.
+  vloop->ReplaceInput(1, value_prototype);
+  eloop->ReplaceInput(1, effect);
+  loop->ReplaceInput(1, control);
+
+  control = graph()->NewNode(common()->Merge(5), if_true0, if_true1, if_true2,
+                             if_true3, if_false1);
+  effect = graph()->NewNode(common()->EffectPhi(5), etrue0, etrue1, etrue2,
+                            etrue3, efalse1, control);
+
+  // Morph the {node} into an appropriate Phi.
+  ReplaceWithValue(node, node, effect, control);
+  node->ReplaceInput(0, vtrue0);
+  node->ReplaceInput(1, vtrue1);
+  node->ReplaceInput(2, vtrue2);
+  node->ReplaceInput(3, vtrue3);
+  node->ReplaceInput(4, vfalse1);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node,
+                           common()->Phi(MachineRepresentation::kTagged, 5));
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   DCHECK_EQ(IrOpcode::kJSOrdinaryHasInstance, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
@@ -2247,6 +2451,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
       return ReduceNumberBinop(node);
+    case IrOpcode::kJSHasInPrototypeChain:
+      return ReduceJSHasInPrototypeChain(node);
     case IrOpcode::kJSOrdinaryHasInstance:
       return ReduceJSOrdinaryHasInstance(node);
     case IrOpcode::kJSToBoolean:

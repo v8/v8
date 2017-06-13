@@ -1331,6 +1331,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate->initial_object_prototype(),
                           "__lookupSetter__", Builtins::kObjectLookupSetter, 1,
                           true);
+    SimpleInstallFunction(isolate->initial_object_prototype(), "isPrototypeOf",
+                          Builtins::kObjectPrototypeIsPrototypeOf, 1, true);
     SimpleInstallFunction(
         isolate->initial_object_prototype(), "propertyIsEnumerable",
         Builtins::kObjectPrototypePropertyIsEnumerable, 1, false);

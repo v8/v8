@@ -106,6 +106,7 @@
   JS_COMPARE_BINOP_LIST(V)      \
   JS_BITWISE_BINOP_LIST(V)      \
   JS_ARITH_BINOP_LIST(V)        \
+  V(JSHasInPrototypeChain)      \
   V(JSInstanceOf)               \
   V(JSOrdinaryHasInstance)
 
