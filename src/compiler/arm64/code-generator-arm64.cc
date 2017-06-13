@@ -2229,18 +2229,34 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Fmov(dst, src);
     } else {
       DCHECK(destination->IsFPStackSlot());
-      __ Str(src, g.ToMemOperand(destination, masm()));
+      MemOperand dst = g.ToMemOperand(destination, masm());
+      if (destination->IsSimd128StackSlot()) {
+        __ Str(src.Q(), dst);
+      } else {
+        __ Str(src, dst);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source, masm());
     if (destination->IsFPRegister()) {
-      __ Ldr(g.ToDoubleRegister(destination), src);
+      VRegister dst = g.ToDoubleRegister(destination);
+      if (destination->IsSimd128Register()) {
+        __ Ldr(dst.Q(), src);
+      } else {
+        __ Ldr(dst, src);
+      }
     } else {
       UseScratchRegisterScope scope(masm());
       VRegister temp = scope.AcquireD();
-      __ Ldr(temp, src);
-      __ Str(temp, g.ToMemOperand(destination, masm()));
+      MemOperand dst = g.ToMemOperand(destination, masm());
+      if (destination->IsSimd128StackSlot()) {
+        __ Ldr(temp.Q(), src);
+        __ Str(temp.Q(), dst);
+      } else {
+        __ Ldr(temp, src);
+        __ Str(temp, dst);
+      }
     }
   } else {
     UNREACHABLE();
@@ -2272,14 +2288,21 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
   } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
     UseScratchRegisterScope scope(masm());
-    DoubleRegister temp_0 = scope.AcquireD();
-    DoubleRegister temp_1 = scope.AcquireD();
+    VRegister temp_0 = scope.AcquireD();
+    VRegister temp_1 = scope.AcquireD();
     MemOperand src = g.ToMemOperand(source, masm());
     MemOperand dst = g.ToMemOperand(destination, masm());
-    __ Ldr(temp_0, src);
-    __ Ldr(temp_1, dst);
-    __ Str(temp_0, dst);
-    __ Str(temp_1, src);
+    if (source->IsSimd128StackSlot()) {
+      __ Ldr(temp_0.Q(), src);
+      __ Ldr(temp_1.Q(), dst);
+      __ Str(temp_0.Q(), dst);
+      __ Str(temp_1.Q(), src);
+    } else {
+      __ Ldr(temp_0, src);
+      __ Ldr(temp_1, dst);
+      __ Str(temp_0, dst);
+      __ Str(temp_1, src);
+    }
   } else if (source->IsFPRegister()) {
     UseScratchRegisterScope scope(masm());
     VRegister temp = scope.AcquireD();
@@ -2292,9 +2315,15 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, masm());
-      __ Fmov(temp, src);
-      __ Ldr(src, dst);
-      __ Str(temp, dst);
+      if (source->IsSimd128Register()) {
+        __ Fmov(temp.Q(), src.Q());
+        __ Ldr(src.Q(), dst);
+        __ Str(temp.Q(), dst);
+      } else {
+        __ Fmov(temp, src);
+        __ Ldr(src, dst);
+        __ Str(temp, dst);
+      }
     }
   } else {
     // No other combinations are possible.
