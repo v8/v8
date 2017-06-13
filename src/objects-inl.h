@@ -3896,13 +3896,6 @@ inline bool Code::is_interpreter_trampoline_builtin() {
          this == *builtins->InterpreterEnterBytecodeDispatch();
 }
 
-inline bool Code::checks_optimization_marker() {
-  Builtins* builtins = GetIsolate()->builtins();
-  return this == *builtins->CompileLazy() ||
-         this == *builtins->InterpreterEntryTrampoline() ||
-         this == *builtins->CheckOptimizationMarker();
-}
-
 inline bool Code::has_unwinding_info() const {
   return HasUnwindingInfoField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
@@ -4834,45 +4827,25 @@ bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
 }
 
-bool JSFunction::HasOptimizedCode() {
-  return IsOptimized() ||
-         (has_feedback_vector() && feedback_vector()->has_optimized_code());
-}
-
-bool JSFunction::HasOptimizationMarker() {
-  return has_feedback_vector() && feedback_vector()->has_optimization_marker();
-}
-
-void JSFunction::ClearOptimizationMarker() {
-  DCHECK(has_feedback_vector());
-  DCHECK(!feedback_vector()->has_optimized_code());
-  feedback_vector()->SetOptimizationMarker(OptimizationMarker::kNone);
-}
-
 bool JSFunction::IsInterpreted() {
   return code()->is_interpreter_trampoline_builtin();
 }
 
-bool JSFunction::ChecksOptimizationMarker() {
-  return code()->checks_optimization_marker();
-}
-
 bool JSFunction::IsMarkedForOptimization() {
-  return has_feedback_vector() && feedback_vector()->optimization_marker() ==
-                                      OptimizationMarker::kCompileOptimized;
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kCompileOptimized);
 }
 
 
 bool JSFunction::IsMarkedForConcurrentOptimization() {
-  return has_feedback_vector() &&
-         feedback_vector()->optimization_marker() ==
-             OptimizationMarker::kCompileOptimizedConcurrent;
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kCompileOptimizedConcurrent);
 }
 
 
 bool JSFunction::IsInOptimizationQueue() {
-  return has_feedback_vector() && feedback_vector()->optimization_marker() ==
-                                      OptimizationMarker::kInOptimizationQueue;
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kInOptimizationQueue);
 }
 
 
@@ -4933,24 +4906,20 @@ void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
     if (FLAG_trace_opt) {
       PrintF("[evicting entry from optimizing code feedback slot (%s) for ",
              reason);
-      ShortPrint();
+      shared()->ShortPrint();
       PrintF("]\n");
     }
     feedback_vector()->ClearOptimizedCode();
   }
 }
 
-void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
-  DCHECK(has_feedback_vector());
-  DCHECK(ChecksOptimizationMarker());
-  DCHECK(!HasOptimizedCode());
-
-  feedback_vector()->SetOptimizationMarker(marker);
-}
-
 void JSFunction::ReplaceCode(Code* code) {
-  bool was_optimized = this->code()->kind() == Code::OPTIMIZED_FUNCTION;
+  bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
+
+  if (was_optimized && is_optimized) {
+    ClearOptimizedCodeSlot("Replacing with another optimized code");
+  }
 
   set_code(code);
 
@@ -4958,7 +4927,8 @@ void JSFunction::ReplaceCode(Code* code) {
   // context based on the state change.
   if (!was_optimized && is_optimized) {
     context()->native_context()->AddOptimizedFunction(this);
-  } else if (was_optimized && !is_optimized) {
+  }
+  if (was_optimized && !is_optimized) {
     // TODO(titzer): linear in the number of optimized functions; fix!
     context()->native_context()->RemoveOptimizedFunction(this);
   }
@@ -5053,7 +5023,9 @@ Object* JSFunction::prototype() {
 
 bool JSFunction::is_compiled() {
   Builtins* builtins = GetIsolate()->builtins();
-  return code() != builtins->builtin(Builtins::kCompileLazy);
+  return code() != builtins->builtin(Builtins::kCompileLazy) &&
+         code() != builtins->builtin(Builtins::kCompileOptimized) &&
+         code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent);
 }
 
 ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)

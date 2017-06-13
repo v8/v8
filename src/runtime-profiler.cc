@@ -150,7 +150,7 @@ void RuntimeProfiler::Optimize(JSFunction* function,
                                OptimizationReason reason) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
   TraceRecompile(function, OptimizationReasonToString(reason), "optimized");
-  function->MarkForOptimization(ConcurrencyMode::kConcurrent);
+  function->AttemptConcurrentOptimization();
 }
 
 void RuntimeProfiler::AttemptOnStackReplacement(JavaScriptFrame* frame,
@@ -218,7 +218,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
   } else if (!frame->is_optimized() &&
              (function->IsMarkedForOptimization() ||
               function->IsMarkedForConcurrentOptimization() ||
-              function->HasOptimizedCode())) {
+              function->IsOptimized())) {
     // Attempt OSR if we are still running unoptimized code even though the
     // the function has long been marked or even already been optimized.
     int ticks = shared->profiler_ticks();
@@ -343,7 +343,7 @@ bool RuntimeProfiler::MaybeOSRIgnition(JSFunction* function,
   if (!frame->is_optimized() &&
       (function->IsMarkedForOptimization() ||
        function->IsMarkedForConcurrentOptimization() ||
-       function->HasOptimizedCode())) {
+       function->IsOptimized())) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
     int64_t allowance =

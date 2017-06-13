@@ -524,8 +524,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
-  if (compiled_code_->kind() != Code::OPTIMIZED_FUNCTION ||
-      !compiled_code_->deopt_already_counted()) {
+  if (function != nullptr && function->IsOptimized() &&
+      (compiled_code_->kind() != Code::OPTIMIZED_FUNCTION ||
+       !compiled_code_->deopt_already_counted())) {
     // If the function is optimized, and we haven't counted that deopt yet, then
     // increment the function's deopt count so that we can avoid optimising
     // functions that deopt too often.
@@ -534,7 +535,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       // Soft deopts shouldn't count against the overall deoptimization count
       // that can eventually lead to disabling optimization for a function.
       isolate->counters()->soft_deopts_executed()->Increment();
-    } else if (function != nullptr) {
+    } else {
       function->shared()->increment_deopt_count();
     }
   }
