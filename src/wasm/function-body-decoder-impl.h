@@ -313,15 +313,13 @@ struct SimdShiftOperand {
   }
 };
 
-// Operand for SIMD shuffle operations.
+// Operand for SIMD S8x16 shuffle operations.
 template <bool checked>
-struct SimdShuffleOperand {
-  uint8_t shuffle[16];
-  unsigned lanes;
+struct Simd8x16ShuffleOperand {
+  uint8_t shuffle[kSimd128Size];
 
-  inline SimdShuffleOperand(Decoder* decoder, const byte* pc, unsigned lanes_) {
-    lanes = lanes_;
-    for (unsigned i = 0; i < lanes; i++) {
+  inline Simd8x16ShuffleOperand(Decoder* decoder, const byte* pc) {
+    for (uint32_t i = 0; i < kSimd128Size; ++i) {
       shuffle[i] = decoder->read_u8<checked>(pc + 2 + i, "shuffle");
     }
   }

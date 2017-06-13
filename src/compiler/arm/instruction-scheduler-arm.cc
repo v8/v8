@@ -230,7 +230,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS16x8UnzipRight:
     case kArmS16x8TransposeLeft:
     case kArmS16x8TransposeRight:
-    case kArmS16x8Shuffle:
     case kArmS8x16ZipLeft:
     case kArmS8x16ZipRight:
     case kArmS8x16UnzipLeft:

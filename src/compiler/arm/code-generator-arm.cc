@@ -340,14 +340,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
-int GetVtblTableSize(const Simd128Register& src0, const Simd128Register& src1) {
-  // If unary shuffle, table is src0 (2 d-registers).
-  if (src0.is(src1)) return 2;
-  // Binary shuffle, table is src0, src1. They must be consecutive
-  DCHECK_EQ(src0.code() + 1, src1.code());
-  return 4;  // 4 d-registers.
-}
-
 }  // namespace
 
 #define ASSEMBLE_CHECKED_LOAD_FP(Type)                         \
@@ -2291,39 +2283,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vtrn(Neon16, kScratchQuadReg, dst);  // dst = [1, 9, 3, 11, ... 15]
       break;
     }
-    case kArmS16x8Shuffle: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      DwVfpRegister table_base = src0.low();
-      int table_size = GetVtblTableSize(src0, src1);
-      // Convert the shuffle lane masks to byte masks in kScratchQuadReg.
-      int scratch_s_base = kScratchQuadReg.code() * 4;
-      for (int j = 0; j < 2; j++) {
-        int32_t four_lanes = i.InputInt32(2 + j);
-        for (int k = 0; k < 2; k++) {
-          uint8_t w0 = (four_lanes & 0xF) * kShortSize;
-          four_lanes >>= 8;
-          uint8_t w1 = (four_lanes & 0xF) * kShortSize;
-          four_lanes >>= 8;
-          int32_t mask = w0 | ((w0 + 1) << 8) | (w1 << 16) | ((w1 + 1) << 24);
-          // Ensure byte indices are in [0, 31] so masks are never NaNs.
-          four_lanes &= 0x1F1F1F1F;
-          __ vmov(SwVfpRegister::from_code(scratch_s_base + 2 * j + k),
-                  bit_cast<float>(mask));
-        }
-      }
-      NeonListOperand table(table_base, table_size);
-      if (!dst.is(src0) && !dst.is(src1)) {
-        __ vtbl(dst.low(), table, kScratchQuadReg.low());
-        __ vtbl(dst.high(), table, kScratchQuadReg.high());
-      } else {
-        __ vtbl(kScratchQuadReg.low(), table, kScratchQuadReg.low());
-        __ vtbl(kScratchQuadReg.high(), table, kScratchQuadReg.high());
-        __ vmov(dst, kScratchQuadReg);
-      }
-      break;
-    }
     case kArmS8x16ZipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
@@ -2388,7 +2347,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
       DwVfpRegister table_base = src0.low();
-      int table_size = GetVtblTableSize(src0, src1);
+      // If unary shuffle, table is src0 (2 d-registers), otherwise src0 and
+      // src1. They must be consecutive.
+      int table_size = src0.is(src1) ? 2 : 4;
+      DCHECK_IMPLIES(!src0.is(src1), src0.code() + 1 == src1.code());
       // The shuffle lane mask is a byte mask, materialize in kScratchQuadReg.
       int scratch_s_base = kScratchQuadReg.code() * 4;
       for (int j = 0; j < 4; j++) {

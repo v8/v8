@@ -577,8 +577,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128Not();
   const Operator* S128Select();
 
-  const Operator* S32x4Shuffle(uint8_t shuffle[16]);
-  const Operator* S16x8Shuffle(uint8_t shuffle[16]);
   const Operator* S8x16Shuffle(uint8_t shuffle[16]);
 
   const Operator* S1x4AnyTrue();

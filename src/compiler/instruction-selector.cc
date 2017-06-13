@@ -1711,10 +1711,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitS128Not(node);
     case IrOpcode::kS128Select:
       return MarkAsSimd128(node), VisitS128Select(node);
-    case IrOpcode::kS32x4Shuffle:
-      return MarkAsSimd128(node), VisitS32x4Shuffle(node);
-    case IrOpcode::kS16x8Shuffle:
-      return MarkAsSimd128(node), VisitS16x8Shuffle(node);
     case IrOpcode::kS8x16Shuffle:
       return MarkAsSimd128(node), VisitS8x16Shuffle(node);
     case IrOpcode::kS1x4AnyTrue:
@@ -2378,21 +2374,10 @@ void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&
-        // !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitS128Select(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&
         // !V8_TARGET_ARCH_MIPS64
-
-#if !V8_TARGET_ARCH_ARM
-void InstructionSelector::VisitS32x4Shuffle(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS16x8Shuffle(Node* node) { UNIMPLEMENTED(); }
-
-#endif  // !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }

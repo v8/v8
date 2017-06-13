@@ -246,7 +246,6 @@ namespace compiler {
   V(ArmS16x8UnzipRight)            \
   V(ArmS16x8TransposeLeft)         \
   V(ArmS16x8TransposeRight)        \
-  V(ArmS16x8Shuffle)               \
   V(ArmS8x16ZipLeft)               \
   V(ArmS8x16ZipRight)              \
   V(ArmS8x16UnzipLeft)             \

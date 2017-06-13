@@ -409,8 +409,6 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I8x16ShrU, 0xe571, _)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
-  V(S32x4Shuffle, 0xe52d, s_ss)             \
-  V(S16x8Shuffle, 0xe54c, s_ss)             \
   V(S8x16Shuffle, 0xe56b, s_ss)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \

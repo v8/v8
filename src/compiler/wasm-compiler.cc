@@ -3584,22 +3584,11 @@ Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
   }
 }
 
-Node* WasmGraphBuilder::SimdShuffleOp(uint8_t shuffle[16], unsigned lanes,
-                                      const NodeVector& inputs) {
+Node* WasmGraphBuilder::Simd8x16ShuffleOp(uint8_t shuffle[16],
+                                          const NodeVector& inputs) {
   has_simd_ = true;
-  switch (lanes) {
-    case 4:
-      return graph()->NewNode(jsgraph()->machine()->S32x4Shuffle(shuffle),
-                              inputs[0], inputs[1]);
-    case 8:
-      return graph()->NewNode(jsgraph()->machine()->S16x8Shuffle(shuffle),
-                              inputs[0], inputs[1]);
-    case 16:
-      return graph()->NewNode(jsgraph()->machine()->S8x16Shuffle(shuffle),
-                              inputs[0], inputs[1]);
-    default:
-      UNREACHABLE();
-  }
+  return graph()->NewNode(jsgraph()->machine()->S8x16Shuffle(shuffle),
+                          inputs[0], inputs[1]);
 }
 
 static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,

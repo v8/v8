@@ -399,13 +399,6 @@ T RecipSqrt(T a) {
 #define WASM_SIMD_I8x16_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprI8x16ReplaceLane), TO_BYTE(lane)
 
-#define WASM_SIMD_S32x4_SHUFFLE_OP(opcode, m, x, y)                        \
-  x, y, WASM_SIMD_OP(opcode), TO_BYTE(m[0]), TO_BYTE(m[1]), TO_BYTE(m[2]), \
-      TO_BYTE(m[3])
-#define WASM_SIMD_S16x8_SHUFFLE_OP(opcode, m, x, y)                        \
-  x, y, WASM_SIMD_OP(opcode), TO_BYTE(m[0]), TO_BYTE(m[1]), TO_BYTE(m[2]), \
-      TO_BYTE(m[3]), TO_BYTE(m[4]), TO_BYTE(m[5]), TO_BYTE(m[6]),          \
-      TO_BYTE(m[7])
 #define WASM_SIMD_S8x16_SHUFFLE_OP(opcode, m, x, y)                        \
   x, y, WASM_SIMD_OP(opcode), TO_BYTE(m[0]), TO_BYTE(m[1]), TO_BYTE(m[2]), \
       TO_BYTE(m[3]), TO_BYTE(m[4]), TO_BYTE(m[5]), TO_BYTE(m[6]),          \
@@ -1588,38 +1581,17 @@ void RunBinaryLaneOpTest(
     src0[i] = i;
     src1[i] = kElems + i;
   }
-  switch (simd_op) {
-    case kExprS32x4Shuffle: {
-      BUILD(r,
-            WASM_SET_GLOBAL(0, WASM_SIMD_S32x4_SHUFFLE_OP(simd_op, expected,
-                                                          WASM_GET_GLOBAL(0),
-                                                          WASM_GET_GLOBAL(1))),
-            WASM_ONE);
-      break;
-    }
-    case kExprS16x8Shuffle: {
-      BUILD(r,
-            WASM_SET_GLOBAL(0, WASM_SIMD_S16x8_SHUFFLE_OP(simd_op, expected,
-                                                          WASM_GET_GLOBAL(0),
-                                                          WASM_GET_GLOBAL(1))),
-            WASM_ONE);
-      break;
-    }
-    case kExprS8x16Shuffle: {
-      BUILD(r,
-            WASM_SET_GLOBAL(0, WASM_SIMD_S8x16_SHUFFLE_OP(simd_op, expected,
-                                                          WASM_GET_GLOBAL(0),
-                                                          WASM_GET_GLOBAL(1))),
-            WASM_ONE);
-      break;
-    }
-    default: {
-      BUILD(r,
-            WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(simd_op, WASM_GET_GLOBAL(0),
-                                               WASM_GET_GLOBAL(1))),
-            WASM_ONE);
-      break;
-    }
+  if (simd_op == kExprS8x16Shuffle) {
+    BUILD(r,
+          WASM_SET_GLOBAL(0, WASM_SIMD_S8x16_SHUFFLE_OP(simd_op, expected,
+                                                        WASM_GET_GLOBAL(0),
+                                                        WASM_GET_GLOBAL(1))),
+          WASM_ONE);
+  } else {
+    BUILD(r,
+          WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(simd_op, WASM_GET_GLOBAL(0),
+                                             WASM_GET_GLOBAL(1))),
+          WASM_ONE);
   }
 
   CHECK_EQ(1, r.Call());
@@ -1646,92 +1618,138 @@ WASM_SIMD_TEST(F32x4AddHoriz) {
 // Test some regular shuffles that may have special handling on some targets.
 // Test a normal and unary versions (where second operand isn't used).
 WASM_SIMD_TEST(S32x4ZipLeft) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 4, 1, 5}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 0, 1, 1}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7}});
 }
 
 WASM_SIMD_TEST(S32x4ZipRight) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{2, 6, 3, 7}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{2, 2, 3, 3}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{8, 9, 10, 11, 8, 9, 10, 11, 12, 13, 14, 15, 12, 13, 14, 15}});
 }
 
 WASM_SIMD_TEST(S32x4UnzipLeft) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 2, 4, 6}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 2, 0, 2}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{0, 1, 2, 3, 8, 9, 10, 11, 0,
+                                                   1, 2, 3, 8, 9, 10, 11}});
 }
 
 WASM_SIMD_TEST(S32x4UnzipRight) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{1, 3, 5, 7}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{1, 3, 1, 3}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{4, 5, 6, 7, 12, 13, 14, 15, 4, 5, 6, 7, 12, 13, 14, 15}});
 }
 
 WASM_SIMD_TEST(S32x4TransposeLeft) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 4, 2, 6}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 0, 2, 2}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{0, 1, 2, 3, 0, 1, 2, 3, 8, 9,
+                                                   10, 11, 8, 9, 10, 11}});
 }
 
 WASM_SIMD_TEST(S32x4TransposeRight) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{1, 5, 3, 7}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{1, 1, 3, 3}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{4, 5, 6, 7, 4, 5, 6, 7, 12, 13, 14, 15, 12, 13, 14, 15}});
 }
 
 // Reverses are only unary.
 WASM_SIMD_TEST(S32x2Reverse) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{1, 0, 3, 2}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{4, 5, 6, 7, 0, 1, 2, 3, 12,
+                                                   13, 14, 15, 8, 9, 10, 11}});
 }
 
 // Test irregular shuffle.
 WASM_SIMD_TEST(S32x4Irregular) {
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 4, 4, 5}});
-  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 0, 0, 1}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7}});
 }
 
 WASM_SIMD_TEST(S16x8ZipLeft) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 8, 1, 9, 2, 10, 3, 11}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 0, 1, 1, 2, 2, 3, 3}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7}});
 }
 
 WASM_SIMD_TEST(S16x8ZipRight) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle,
-                               {{4, 12, 5, 13, 6, 14, 7, 15}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{4, 4, 5, 5, 6, 6, 7, 7}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{8, 9, 8, 9, 10, 11, 10, 11, 12, 13, 12, 13, 14, 15, 14, 15}});
 }
 
 WASM_SIMD_TEST(S16x8UnzipLeft) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle,
-                               {{0, 2, 4, 6, 8, 10, 12, 14}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 2, 4, 6, 0, 2, 4, 6}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{0, 1, 4, 5, 8, 9, 12, 13, 0,
+                                                   1, 4, 5, 8, 9, 12, 13}});
 }
 
 WASM_SIMD_TEST(S16x8UnzipRight) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle,
-                               {{1, 3, 5, 7, 9, 11, 13, 15}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{1, 3, 5, 7, 1, 3, 5, 7}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{2, 3, 6, 7, 10, 11, 14, 15, 2, 3, 6, 7, 10, 11, 14, 15}});
 }
 
 WASM_SIMD_TEST(S16x8TransposeLeft) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle,
-                               {{0, 8, 2, 10, 4, 12, 6, 14}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 0, 2, 2, 4, 4, 6, 6}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{0, 1, 0, 1, 4, 5, 4, 5, 8, 9,
+                                                   8, 9, 12, 13, 12, 13}});
 }
 
 WASM_SIMD_TEST(S16x8TransposeRight) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle,
-                               {{1, 9, 3, 11, 5, 13, 7, 15}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{1, 1, 3, 3, 5, 5, 7, 7}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{2, 3, 2, 3, 6, 7, 6, 7, 10, 11, 10, 11, 14, 15, 14, 15}});
 }
 
 WASM_SIMD_TEST(S16x4Reverse) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{3, 2, 1, 0, 7, 6, 5, 4}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{6, 7, 4, 5, 2, 3, 0, 1, 14,
+                                                   15, 12, 13, 10, 11, 8, 9}});
 }
 
 WASM_SIMD_TEST(S16x2Reverse) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{1, 0, 3, 2, 5, 4, 7, 6}});
+  RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{2, 3, 0, 1, 6, 7, 4, 5, 10,
+                                                   11, 8, 9, 14, 15, 12, 13}});
 }
 
 WASM_SIMD_TEST(S16x8Irregular) {
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 8, 8, 0, 2, 10, 3, 11}});
-  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 0, 0, 0, 2, 2, 3, 3}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 1, 16, 17, 16, 17, 0, 1, 4, 5, 20, 21, 6, 7, 22, 23}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{0, 1, 0, 1, 0, 1, 0, 1, 4, 5, 4, 5, 6, 7, 6, 7}});
 }
 
 WASM_SIMD_TEST(S8x16ZipLeft) {
@@ -1807,10 +1825,11 @@ WASM_SIMD_TEST(S8x16Irregular) {
 }
 
 // Test shuffles that concatenate the two vectors.
-template <typename T>
-void RunConcatOpTest(WasmOpcode simd_op) {
-  static const int kLanes = kSimd128Size / sizeof(T);
-  std::array<T, kLanes> expected;
+void RunConcatOpTest() {}
+
+WASM_SIMD_TEST(S8x16Concat) {
+  static const int kLanes = 16;
+  std::array<uint8_t, kLanes> expected;
   for (int bias = 1; bias < kLanes; bias++) {
     int i = 0;
     // last kLanes - bias bytes of first vector.
@@ -1821,15 +1840,9 @@ void RunConcatOpTest(WasmOpcode simd_op) {
     for (int j = 0; j < bias; j++) {
       expected[i++] = j + kLanes;
     }
-    RunBinaryLaneOpTest<T>(simd_op, expected);
+    RunBinaryLaneOpTest(kExprS8x16Shuffle, expected);
   }
 }
-
-WASM_SIMD_TEST(S32x4Concat) { RunConcatOpTest<int32_t>(kExprS32x4Shuffle); }
-
-WASM_SIMD_TEST(S16x8Concat) { RunConcatOpTest<int16_t>(kExprS16x8Shuffle); }
-
-WASM_SIMD_TEST(S8x16Concat) { RunConcatOpTest<int8_t>(kExprS8x16Shuffle); }
 #endif  // V8_TARGET_ARCH_ARM
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64

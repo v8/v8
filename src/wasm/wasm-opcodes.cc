@@ -219,8 +219,6 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Xor, "xor")
     CASE_S128_OP(Not, "not")
     CASE_S128_OP(Select, "select")
-    CASE_S32x4_OP(Shuffle, "shuffle")
-    CASE_S16x8_OP(Shuffle, "shuffle")
     CASE_S8x16_OP(Shuffle, "shuffle")
     CASE_S1x4_OP(AnyTrue, "any_true")
     CASE_S1x4_OP(AllTrue, "all_true")

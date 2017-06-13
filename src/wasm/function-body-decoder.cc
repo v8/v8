@@ -146,21 +146,6 @@ struct Control {
   }
 };
 
-namespace {
-inline unsigned GetShuffleMaskSize(WasmOpcode opcode) {
-  switch (opcode) {
-    case kExprS32x4Shuffle:
-      return 4;
-    case kExprS16x8Shuffle:
-      return 8;
-    case kExprS8x16Shuffle:
-      return 16;
-    default:
-      UNREACHABLE();
-  }
-}
-}  // namespace
-
 // Macros that build nodes only if there is a graph and the current SSA
 // environment is reachable from start. This avoids problems with malformed
 // TF graphs when decoding inputs that have unreachable code.
@@ -421,13 +406,12 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  inline bool Validate(const byte* pc, WasmOpcode opcode,
-                       SimdShuffleOperand<true>& operand) {
-    unsigned lanes = GetShuffleMaskSize(opcode);
+  inline bool Validate(const byte* pc, Simd8x16ShuffleOperand<true>& operand) {
     uint8_t max_lane = 0;
-    for (unsigned i = 0; i < lanes; i++)
+    for (uint32_t i = 0; i < kSimd128Size; ++i)
       max_lane = std::max(max_lane, operand.shuffle[i]);
-    if (operand.lanes != lanes || max_lane > 2 * lanes) {
+    // Shuffle indices must be in [0..31] for a 16 lane shuffle.
+    if (max_lane > 2 * kSimd128Size) {
       error(pc_ + 2, "invalid shuffle mask");
       return false;
     } else {
@@ -520,11 +504,9 @@ class WasmDecoder : public Decoder {
           {
             return 3;
           }
-          // Shuffles contain a byte array to determine the shuffle.
-          case kExprS32x4Shuffle:
-          case kExprS16x8Shuffle:
+          // Shuffles require a byte per lane, or 16 immediate bytes.
           case kExprS8x16Shuffle:
-            return 2 + GetShuffleMaskSize(opcode);
+            return 2 + kSimd128Size;
           default:
             decoder->error(pc, "invalid SIMD opcode");
             return 2;
@@ -1558,17 +1540,16 @@ class WasmFullDecoder : public WasmDecoder {
     return operand.length;
   }
 
-  unsigned SimdShuffleOp(WasmOpcode opcode) {
-    SimdShuffleOperand<true> operand(this, pc_, GetShuffleMaskSize(opcode));
-    if (Validate(pc_, opcode, operand)) {
+  unsigned Simd8x16ShuffleOp() {
+    Simd8x16ShuffleOperand<true> operand(this, pc_);
+    if (Validate(pc_, operand)) {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, ValueType::kSimd128).node;
       inputs[0] = Pop(0, ValueType::kSimd128).node;
-      TFNode* node =
-          BUILD(SimdShuffleOp, operand.shuffle, operand.lanes, inputs);
+      TFNode* node = BUILD(Simd8x16ShuffleOp, operand.shuffle, inputs);
       Push(ValueType::kSimd128, node);
     }
-    return operand.lanes;
+    return 16;
   }
 
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
@@ -1606,10 +1587,8 @@ class WasmFullDecoder : public WasmDecoder {
         len = SimdShiftOp(opcode);
         break;
       }
-      case kExprS32x4Shuffle:
-      case kExprS16x8Shuffle:
       case kExprS8x16Shuffle: {
-        len = SimdShuffleOp(opcode);
+        len = Simd8x16ShuffleOp();
         break;
       }
       default: {
