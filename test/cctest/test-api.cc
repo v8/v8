@@ -18921,6 +18921,7 @@ THREADED_TEST(SpaghettiStackReThrow) {
 
 
 TEST(Regress528) {
+  ManualGCScope manual_gc_scope;
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   i::FLAG_retain_maps_for_n_gc = 0;
