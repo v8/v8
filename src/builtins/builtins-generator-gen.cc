@@ -69,16 +69,14 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 
   Return(result);
 
-  Callable create_iter_result_object =
-      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject);
   BIND(&if_final_return);
   {
     // Close the generator.
     StoreObjectFieldNoWriteBarrier(
         receiver, JSGeneratorObject::kContinuationOffset, closed);
     // Return the wrapped result.
-    Return(
-        CallStub(create_iter_result_object, context, result, TrueConstant()));
+    Return(CallBuiltin(Builtins::kCreateIterResultObject, context, result,
+                       TrueConstant()));
   }
 
   BIND(&if_receiverisincompatible);
@@ -97,12 +95,12 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     Node* result = nullptr;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        result = CallStub(create_iter_result_object, context,
-                          UndefinedConstant(), TrueConstant());
+        result = CallBuiltin(Builtins::kCreateIterResultObject, context,
+                             UndefinedConstant(), TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        result =
-            CallStub(create_iter_result_object, context, value, TrueConstant());
+        result = CallBuiltin(Builtins::kCreateIterResultObject, context, value,
+                             TrueConstant());
         break;
       case JSGeneratorObject::kThrow:
         result = CallRuntime(Runtime::kThrow, context, value);

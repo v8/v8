@@ -311,9 +311,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
     BIND(&if_lenisnotheapnumber);
     {
       // Need to convert {len} to a Number first.
-      Callable callable =
-          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-      var_len.Bind(CallStub(callable, context, len));
+      var_len.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, len));
       Goto(&loop);
     }
 

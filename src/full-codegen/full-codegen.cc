@@ -210,8 +210,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
 
-  Handle<Code> code =
-      Builtins::CallableFor(isolate(), Builtins::kLoadICTrampoline).code();
+  Handle<Code> code = isolate()->builtins()->LoadICTrampoline();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
@@ -1071,8 +1070,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
 
-  Handle<Code> code =
-      Builtins::CallableFor(isolate(), Builtins::kKeyedLoadICTrampoline).code();
+  Handle<Code> code = isolate()->builtins()->KeyedLoadICTrampoline();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }

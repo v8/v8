@@ -2328,8 +2328,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kLoadIC);
-  TailCallStub(callable, context, receiver, name, slot, vector);
+  TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadICProtoArray(
@@ -2418,8 +2417,8 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
-  TailCallStub(callable, context, receiver, name, slot, vector);
+  TailCallBuiltin(Builtins::kKeyedLoadIC, context, receiver, name, slot,
+                  vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {

@@ -1164,9 +1164,6 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   // Convert {receiver} and {search} to strings.
 
-  Callable indexof_callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringIndexOf);
-
   Node* const subject_string = ToString_Inline(context, receiver);
   Node* const search_string = ToString_Inline(context, search);
 
@@ -1203,8 +1200,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   // longer substrings - we can handle up to 8 chars (one-byte) / 4 chars
   // (2-byte).
 
-  Node* const match_start_index = CallStub(
-      indexof_callable, context, subject_string, search_string, smi_zero);
+  Node* const match_start_index =
+      CallBuiltin(Builtins::kStringIndexOf, context, subject_string,
+                  search_string, smi_zero);
   CSA_ASSERT(this, TaggedIsSmi(match_start_index));
 
   // Early exit if no match found.

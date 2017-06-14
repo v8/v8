@@ -44,18 +44,16 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     BIND(&if_numisnotheapnumber);
     {
       // Need to convert {num} to a Number first.
-      Callable callable =
-          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-      var_num.Bind(CallStub(callable, context, num));
+      var_num.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, num));
       Goto(&loop);
     }
   }
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 // ES6 #sec-isnan-number
@@ -92,18 +90,16 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     BIND(&if_numisnotheapnumber);
     {
       // Need to convert {num} to a Number first.
-      Callable callable =
-          Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-      var_num.Bind(CallStub(callable, context, num));
+      var_num.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, num));
       Goto(&loop);
     }
   }
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 }  // namespace internal

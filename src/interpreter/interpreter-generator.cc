@@ -1441,9 +1441,7 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
   BIND(&if_objectisother);
   {
     // Convert the {object} to a Number.
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-    var_result.Bind(CallStub(callable, context, object));
+    var_result.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, object));
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&if_done);
   }
@@ -1612,10 +1610,9 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
         BIND(&if_valuenotoddball);
         {
           // Convert to a Number first and try again.
-          Callable callable =
-              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
           var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
-          value_var.Bind(CallStub(callable, context, value));
+          value_var.Bind(
+              CallBuiltin(Builtins::kNonNumberToNumber, context, value));
           Goto(&start);
         }
       }
@@ -1736,10 +1733,9 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
         BIND(&if_valuenotoddball);
         {
           // Convert to a Number first and try again.
-          Callable callable =
-              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
           var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
-          value_var.Bind(CallStub(callable, context, value));
+          value_var.Bind(
+              CallBuiltin(Builtins::kNonNumberToNumber, context, value));
           Goto(&start);
         }
       }
@@ -3338,9 +3334,7 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
 
     // Need to filter the {key} for the {receiver}.
     Node* context = GetContext();
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kForInFilter);
-    Node* result = CallStub(callable, context, key, receiver);
+    Node* result = CallBuiltin(Builtins::kForInFilter, context, key, receiver);
     SetAccumulator(result);
     Dispatch();
   }

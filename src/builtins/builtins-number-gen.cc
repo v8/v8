@@ -462,9 +462,8 @@ TF_BUILTIN(Add, CodeStubAssembler) {
             BIND(&if_rhsisnotreceiver);
             {
               // Convert {rhs} to a Number first.
-              Callable callable = Builtins::CallableFor(
-                  isolate(), Builtins::kNonNumberToNumber);
-              var_rhs.Bind(CallStub(callable, context, rhs));
+              var_rhs.Bind(
+                  CallBuiltin(Builtins::kNonNumberToNumber, context, rhs));
               Goto(&loop);
             }
           }
@@ -532,9 +531,8 @@ TF_BUILTIN(Add, CodeStubAssembler) {
             BIND(&if_lhsisnotreceiver);
             {
               // Convert {lhs} to a Number first.
-              Callable callable = Builtins::CallableFor(
-                  isolate(), Builtins::kNonNumberToNumber);
-              var_lhs.Bind(CallStub(callable, context, lhs));
+              var_lhs.Bind(
+                  CallBuiltin(Builtins::kNonNumberToNumber, context, lhs));
               Goto(&loop);
             }
           }
@@ -602,9 +600,8 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 BIND(&if_rhsisnotreceiver);
                 {
                   // Convert {rhs} to a Number first.
-                  Callable callable = Builtins::CallableFor(
-                      isolate(), Builtins::kNonNumberToNumber);
-                  var_rhs.Bind(CallStub(callable, context, rhs));
+                  var_rhs.Bind(
+                      CallBuiltin(Builtins::kNonNumberToNumber, context, rhs));
                   Goto(&loop);
                 }
               }
@@ -647,9 +644,8 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 BIND(&if_rhsisnotreceiver);
                 {
                   // Convert {lhs} to a Number first.
-                  Callable callable = Builtins::CallableFor(
-                      isolate(), Builtins::kNonNumberToNumber);
-                  var_lhs.Bind(CallStub(callable, context, lhs));
+                  var_lhs.Bind(
+                      CallBuiltin(Builtins::kNonNumberToNumber, context, lhs));
                   Goto(&loop);
                 }
               }
@@ -774,9 +770,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
         BIND(&if_rhsisnotnumber);
         {
           // Convert the {rhs} to a Number first.
-          Callable callable =
-              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-          var_rhs.Bind(CallStub(callable, context, rhs));
+          var_rhs.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, rhs));
           Goto(&loop);
         }
       }
@@ -825,9 +819,8 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
           BIND(&if_rhsisnotnumber);
           {
             // Convert the {rhs} to a Number first.
-            Callable callable =
-                Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-            var_rhs.Bind(CallStub(callable, context, rhs));
+            var_rhs.Bind(
+                CallBuiltin(Builtins::kNonNumberToNumber, context, rhs));
             Goto(&loop);
           }
         }
@@ -836,9 +829,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
       BIND(&if_lhsisnotnumber);
       {
         // Convert the {lhs} to a Number first.
-        Callable callable =
-            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-        var_lhs.Bind(CallStub(callable, context, lhs));
+        var_lhs.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, lhs));
         Goto(&loop);
       }
     }
@@ -974,9 +965,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
       BIND(&lhs_is_not_number);
       {
         // Convert {lhs} to a Number and loop.
-        Callable callable =
-            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-        var_lhs.Bind(CallStub(callable, context, lhs));
+        var_lhs.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, lhs));
         Goto(&loop);
       }
     }
@@ -1107,9 +1096,8 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         BIND(&divisor_is_not_number);
         {
           // Convert {divisor} to a number and loop.
-          Callable callable =
-              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-          var_divisor.Bind(CallStub(callable, context, divisor));
+          var_divisor.Bind(
+              CallBuiltin(Builtins::kNonNumberToNumber, context, divisor));
           Goto(&loop);
         }
       }
@@ -1162,9 +1150,8 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
           BIND(&divisor_is_not_number);
           {
             // Convert {divisor} to a number and loop.
-            Callable callable =
-                Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-            var_divisor.Bind(CallStub(callable, context, divisor));
+            var_divisor.Bind(
+                CallBuiltin(Builtins::kNonNumberToNumber, context, divisor));
             Goto(&loop);
           }
         }
@@ -1173,9 +1160,8 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
       BIND(&dividend_is_not_number);
       {
         // Convert {dividend} to a Number and loop.
-        Callable callable =
-            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-        var_dividend.Bind(CallStub(callable, context, dividend));
+        var_dividend.Bind(
+            CallBuiltin(Builtins::kNonNumberToNumber, context, dividend));
         Goto(&loop);
       }
     }
@@ -1256,9 +1242,8 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
         BIND(&divisor_is_not_number);
         {
           // Convert {divisor} to a number and loop.
-          Callable callable =
-              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-          var_divisor.Bind(CallStub(callable, context, divisor));
+          var_divisor.Bind(
+              CallBuiltin(Builtins::kNonNumberToNumber, context, divisor));
           Goto(&loop);
         }
       }
@@ -1311,9 +1296,8 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
           BIND(&divisor_is_not_number);
           {
             // Convert {divisor} to a number and loop.
-            Callable callable =
-                Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-            var_divisor.Bind(CallStub(callable, context, divisor));
+            var_divisor.Bind(
+                CallBuiltin(Builtins::kNonNumberToNumber, context, divisor));
             Goto(&loop);
           }
         }
@@ -1322,9 +1306,8 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
       BIND(&dividend_is_not_number);
       {
         // Convert {dividend} to a Number and loop.
-        Callable callable =
-            Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-        var_dividend.Bind(CallStub(callable, context, dividend));
+        var_dividend.Bind(
+            CallBuiltin(Builtins::kNonNumberToNumber, context, dividend));
         Goto(&loop);
       }
     }

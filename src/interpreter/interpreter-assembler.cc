@@ -1254,9 +1254,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
         BIND(&if_valueisnotoddball);
         {
           // Convert the {value} to a Number first.
-          Callable callable =
-              Builtins::CallableFor(isolate(), Builtins::kNonNumberToNumber);
-          var_value.Bind(CallStub(callable, context, value));
+          var_value.Bind(
+              CallBuiltin(Builtins::kNonNumberToNumber, context, value));
           var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kAny));
           Goto(&loop);
         }
