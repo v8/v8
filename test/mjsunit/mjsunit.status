@@ -339,6 +339,15 @@
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
+['arch == arm and simulator_run == True or arch == ppc and simulator_run == True', {
+  # Because of how allocations in the simulator work, the allocator
+  # assumes address space to be in the signed int32 range, because of
+  # this when using a large offset the computation exceeds a signed
+  # 32-bit type, the addresses wrap around and hit DCHECKS which
+  # work as expected on hardware.
+  'wasm/large-offset': [SKIP],
+}],  # 'arch == arm and simulator_run == True or arch == ppc and simulator_run == True'
+
 ##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
