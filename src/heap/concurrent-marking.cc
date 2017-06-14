@@ -170,10 +170,10 @@ class ConcurrentMarkingVisitor final
   void MarkObject(HeapObject* object) {
 #ifdef THREAD_SANITIZER
     // Perform a dummy acquire load to tell TSAN that there is no data race
-    // in mark-bit inititialization. See MemoryChunk::Initialize for the
+    // in mark-bit initialization. See MemoryChunk::Initialize for the
     // corresponding release store.
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    CHECK_NE(chunk->synchronized_heap(), nullptr);
+    CHECK_NOT_NULL(chunk->synchronized_heap());
 #endif
     if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
                                                        marking_state(object))) {
