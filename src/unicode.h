@@ -180,12 +180,10 @@ class Utf8 {
 struct Uppercase {
   static bool Is(uchar c);
 };
-struct Lowercase {
-  static bool Is(uchar c);
-};
 struct Letter {
   static bool Is(uchar c);
 };
+#ifndef V8_INTL_SUPPORT
 struct V8_EXPORT_PRIVATE ID_Start {
   static bool Is(uchar c);
 };
@@ -195,6 +193,7 @@ struct V8_EXPORT_PRIVATE ID_Continue {
 struct V8_EXPORT_PRIVATE WhiteSpace {
   static bool Is(uchar c);
 };
+#endif  // !V8_INTL_SUPPORT
 struct V8_EXPORT_PRIVATE LineTerminator {
   static bool Is(uchar c);
 };

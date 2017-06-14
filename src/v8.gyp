@@ -1960,6 +1960,7 @@
         }, {  # v8_enable_i18n_support==0
           'sources!': [
             'builtins/builtins-intl.cc',
+            'char-predicates.cc',
             'intl.cc',
             'intl.h',
             'objects/intl-objects.cc',
