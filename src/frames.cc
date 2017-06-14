@@ -230,21 +230,14 @@ SafeStackFrameIterator::SafeStackFrameIterator(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
 
     // If the top of stack is a return address to the interpreter trampoline,
-    // then we are likely in a bytecode handler with elided frame. Check if
-    // there is a bytecode array in the frame header, and if there is, case, set
-    // the PC properly and make sure we do not drop the frame.
+    // then we are likely in a bytecode handler with elided frame. In that
+    // case, set the PC properly and make sure we do not drop the frame.
     if (IsValidStackAddress(sp)) {
       MSAN_MEMORY_IS_INITIALIZED(sp, kPointerSize);
       Address tos = ReadMemoryAt(reinterpret_cast<Address>(sp));
       if (IsInterpreterFramePc(isolate, tos)) {
-        Address bytecode_array =
-            fp + InterpreterFrameConstants::kBytecodeArrayFromFp;
-        if (IsValidStackAddress(bytecode_array)) {
-          if (Memory::Object_at(bytecode_array)->IsBytecodeArray()) {
-            state.pc_address = reinterpret_cast<Address*>(sp);
-            advance_frame = false;
-          }
-        }
+        state.pc_address = reinterpret_cast<Address*>(sp);
+        advance_frame = false;
       }
     }
 
