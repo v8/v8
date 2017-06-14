@@ -3637,7 +3637,6 @@ int TranslatedState::CreateNextTranslatedValue(
       if (trace_file != nullptr) {
         PrintF(trace_file, "%" V8PRIuPTR " ; %s (uint)", value,
                converter.NameOfCPURegister(input_reg));
-        reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
           TranslatedValue::NewUInt32(this, static_cast<uint32_t>(value));
