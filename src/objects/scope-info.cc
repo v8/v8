@@ -614,7 +614,6 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
                            InitializationFlag* init_flag,
                            MaybeAssignedFlag* maybe_assigned_flag) {
   DCHECK_EQ(scope_type(), MODULE_SCOPE);
-  DCHECK(name->IsInternalizedString());
   DCHECK_NOT_NULL(mode);
   DCHECK_NOT_NULL(init_flag);
   DCHECK_NOT_NULL(maybe_assigned_flag);
@@ -622,7 +621,8 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   int module_vars_count = Smi::cast(get(ModuleVariableCountIndex()))->value();
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
-    if (*name == get(entry + kModuleVariableNameOffset)) {
+    String* var_name = String::cast(get(entry + kModuleVariableNameOffset));
+    if (name->Equals(var_name)) {
       int index;
       ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
       return index;

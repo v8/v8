@@ -773,38 +773,36 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
 bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
   DCHECK_NOT_NULL(frame_inspector_);
-  JavaScriptFrame* frame = GetFrame();
+
+  // Get module context and its scope info.
   Handle<Context> context = CurrentContext();
-  Handle<ScopeInfo> scope_info(frame->function()->shared()->scope_info());
+  while (!context->IsModuleContext()) {
+    context = handle(context->previous(), isolate_);
+  }
+  Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
+  DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
 
   if (SetContextVariableValue(scope_info, context, variable_name, new_value)) {
     return true;
   }
 
-  bool found = false;
   int cell_index;
   {
-    int module_variable_count =
-        Smi::cast(scope_info->get(scope_info->ModuleVariableCountIndex()))
-            ->value();
-    for (int i = 0; i < module_variable_count; ++i) {
-      String* name;
-      scope_info->ModuleVariable(i, &name, &cell_index);
-      if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
-              ModuleDescriptor::kExport &&
-          name->Equals(*variable_name)) {
-        found = true;
-        break;
-      }
-    }
+    VariableMode mode;
+    InitializationFlag init_flag;
+    MaybeAssignedFlag maybe_assigned_flag;
+    cell_index = scope_info->ModuleIndex(variable_name, &mode, &init_flag,
+                                         &maybe_assigned_flag);
   }
+
+  // Setting imports is currently not supported.
+  bool found = ModuleDescriptor::GetCellIndexKind(cell_index) ==
+               ModuleDescriptor::kExport;
   if (found) {
     Module::StoreVariable(handle(context->module(), isolate_), cell_index,
                           new_value);
-    return true;
   }
-
-  return false;
+  return found;
 }
 
 bool ScopeIterator::SetInnerScopeVariableValue(Handle<String> variable_name,
