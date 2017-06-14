@@ -4429,6 +4429,8 @@ bool Assembler::IsImmLLiteral(int64_t offset) {
   int inst_size = static_cast<int>(kInstructionSizeLog2);
   bool offset_is_inst_multiple =
       (((offset >> inst_size) << inst_size) == offset);
+  DCHECK_GT(offset, 0);
+  offset >>= kLoadLiteralScaleLog2;
   return offset_is_inst_multiple && is_intn(offset, ImmLLiteral_width);
 }
 

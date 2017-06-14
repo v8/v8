@@ -1483,18 +1483,20 @@ TEST_(load_store_acquire_release) {
   CLEANUP();
 }
 
-#if 0  // TODO(all): enable.
 TEST_(load_literal) {
   SET_UP_ASM();
 
-  COMPARE_PREFIX(ldr(x10, 0x1234567890abcdefUL),  "ldr x10, pc+8");
-  COMPARE_PREFIX(ldr(w20, 0xfedcba09),  "ldr w20, pc+8");
-  COMPARE_PREFIX(ldr(d11, 1.234),  "ldr d11, pc+8");
-  COMPARE_PREFIX(ldr(s22, 2.5f),  "ldr s22, pc+8");
+  COMPARE_PREFIX(ldr_pcrel(x10, 0), "ldr x10, pc+0");
+  COMPARE_PREFIX(ldr_pcrel(x10, 1), "ldr x10, pc+4");
+  COMPARE_PREFIX(ldr_pcrel(d11, 0), "ldr d11, pc+0");
+  COMPARE_PREFIX(ldr_pcrel(d11, 1), "ldr d11, pc+4");
+
+  int max_offset = (kMaxLoadLiteralRange >> kLoadLiteralScaleLog2) - 1;
+  COMPARE_PREFIX(ldr_pcrel(x0, max_offset), "ldr x0, pc+1048572");
+  COMPARE_PREFIX(ldr_pcrel(d0, max_offset), "ldr d0, pc+1048572");
 
   CLEANUP();
 }
-#endif
 
 TEST_(cond_select) {
   SET_UP_ASM();

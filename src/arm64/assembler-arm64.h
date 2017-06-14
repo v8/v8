@@ -3494,6 +3494,22 @@ class Assembler : public AssemblerBase {
   static constexpr int kGap = 128;
 
  public:
+#ifdef DEBUG
+  // Functions used for testing.
+  int GetConstantPoolEntriesSizeForTesting() const {
+    // Do not include branch over the pool.
+    return constpool_.EntryCount() * kPointerSize;
+  }
+
+  static constexpr int GetCheckConstPoolIntervalForTesting() {
+    return kCheckConstPoolInterval;
+  }
+
+  static constexpr int GetApproxMaxDistToConstPoolForTesting() {
+    return kApproxMaxDistToConstPool;
+  }
+#endif
+
   class FarBranchInfo {
    public:
     FarBranchInfo(int offset, Label* label)
