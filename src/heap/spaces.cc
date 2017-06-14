@@ -839,7 +839,7 @@ size_t Page::ShrinkToHighWaterMark() {
         static_cast<int>(area_end() - filler->address() - unused),
         ClearRecordedSlots::kNo);
     heap()->memory_allocator()->PartialFreeMemory(
-        this, address() + size() - unused, unused);
+        this, address() + size() - unused, unused, area_end() - unused);
     CHECK(filler->IsFiller());
     CHECK_EQ(filler->address() + filler->Size(), area_end());
   }
@@ -871,11 +871,12 @@ void Page::DestroyBlackArea(Address start, Address end) {
 }
 
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
-                                        size_t bytes_to_free) {
+                                        size_t bytes_to_free,
+                                        Address new_area_end) {
   base::VirtualMemory* reservation = chunk->reserved_memory();
   DCHECK(reservation->IsReserved());
   chunk->size_ -= bytes_to_free;
-  chunk->area_end_ -= bytes_to_free;
+  chunk->area_end_ = new_area_end;
   if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(chunk->area_end_) %
                      static_cast<uintptr_t>(GetCommitPageSize()));
@@ -3261,12 +3262,14 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     if (ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
       Address free_start;
       if ((free_start = current->GetAddressToShrink()) != 0) {
+        DCHECK(!current->IsFlagSet(Page::IS_EXECUTABLE));
         current->ClearOutOfLiveRangeSlots(free_start);
         RemoveChunkMapEntries(current, free_start);
         const size_t bytes_to_free =
             current->size() - (free_start - current->address());
-        heap()->memory_allocator()->PartialFreeMemory(current, free_start,
-                                                      bytes_to_free);
+        heap()->memory_allocator()->PartialFreeMemory(
+            current, free_start, bytes_to_free,
+            current->area_start() + object->Size());
         size_ -= bytes_to_free;
         AccountUncommitted(bytes_to_free);
       }

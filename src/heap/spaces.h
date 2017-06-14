@@ -1365,7 +1365,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // Additional memory beyond the page is not accounted though, so
   // |bytes_to_free| is computed by the caller.
   void PartialFreeMemory(MemoryChunk* chunk, Address start_free,
-                         size_t bytes_to_free);
+                         size_t bytes_to_free, Address new_area_end);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
   // the address is not NULL, the size is greater than zero, and that the
