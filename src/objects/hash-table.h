@@ -263,10 +263,7 @@ class HashTableKey {
   // Required.
   virtual ~HashTableKey() {}
 
-  uint32_t Hash() const {
-    DCHECK_NE(0, hash_);
-    return hash_;
-  }
+  uint32_t Hash() const { return hash_; }
 
  protected:
   void set_hash(uint32_t hash) {
