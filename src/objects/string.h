@@ -505,6 +505,8 @@ class SeqOneByteString : public SeqString {
   STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqOneByteString);
@@ -546,6 +548,8 @@ class SeqTwoByteString : public SeqString {
                 String::kMaxLength);
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqTwoByteString);
@@ -592,6 +596,8 @@ class ConsString : public String {
 
   typedef FixedBodyDescriptor<kFirstOffset, kSecondOffset + kPointerSize, kSize>
       BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   DECLARE_VERIFIER(ConsString)
 
@@ -623,6 +629,8 @@ class ThinString : public String {
   static const int kSize = kActualOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<kActualOffset, kSize, kSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ThinString);
@@ -664,6 +672,8 @@ class SlicedString : public String {
   typedef FixedBodyDescriptor<kParentOffset, kOffsetOffset + kPointerSize,
                               kSize>
       BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   DECLARE_VERIFIER(SlicedString)
 
@@ -725,6 +735,8 @@ class ExternalOneByteString : public ExternalString {
   DECLARE_CAST(ExternalOneByteString)
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalOneByteString);
@@ -759,6 +771,8 @@ class ExternalTwoByteString : public ExternalString {
   DECLARE_CAST(ExternalTwoByteString)
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalTwoByteString);

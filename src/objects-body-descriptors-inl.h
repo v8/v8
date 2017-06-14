@@ -370,7 +370,7 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    if (body_visiting_policy == kVisitStrong) {
+    if (body_visiting_policy == kIgnoreWeakness) {
       IterateBodyImpl(obj, kPropertiesOffset, object_size, v);
     } else {
       IteratePointers(obj, kPropertiesOffset, kTableOffset, v);
@@ -381,7 +381,7 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
-    if (body_visiting_policy == kVisitStrong) {
+    if (body_visiting_policy == kIgnoreWeakness) {
       IterateBodyImpl<StaticVisitor>(heap, obj, kPropertiesOffset, object_size);
     } else {
       IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,

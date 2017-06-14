@@ -161,6 +161,8 @@ class Symbol : public Name {
   static const int kPublicBit = 2;
 
   typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   void SymbolShortPrint(std::ostream& os);
 

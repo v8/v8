@@ -2587,7 +2587,12 @@ class JSObject: public JSReceiver {
       (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
   class FastBodyDescriptor;
+  // No weak fields.
+  typedef FastBodyDescriptor FastBodyDescriptorWeak;
 
   // Gets the number of currently used elements.
   int GetFastElementsUsage();
@@ -2804,6 +2809,8 @@ class FixedArray: public FixedArrayBase {
 #endif
 
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  protected:
   // Set operation on FixedArray without using write barriers. Can
@@ -2861,6 +2868,8 @@ class FixedDoubleArray: public FixedArrayBase {
   DECLARE_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
@@ -3132,6 +3141,8 @@ class ByteArray: public FixedArrayBase {
   static const int kMaxLength = kMaxSize - kHeaderSize;
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
@@ -3269,11 +3280,9 @@ class BytecodeArray : public FixedArrayBase {
   static const int kPointerFieldsBeginOffset = kConstantPoolOffset;
   static const int kPointerFieldsEndOffset = kFrameSizeOffset;
 
-  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
-                              kPointerFieldsEndOffset, kHeaderSize>
-      MarkingBodyDescriptor;
-
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArray);
@@ -3362,6 +3371,8 @@ class FixedTypedArrayBase: public FixedArrayBase {
   static const size_t kMaxLength = Smi::kMaxValue;
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   inline int size();
 
@@ -5414,6 +5425,8 @@ class JSMessageObject: public JSObject {
   typedef FixedBodyDescriptor<HeapObject::kMapOffset,
                               kStackFramesOffset + kPointerSize,
                               kSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 };
 
 class JSPromise;
@@ -5819,13 +5832,14 @@ class AllocationSite: public Struct {
   static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
   static const int kPointerFieldsEndOffset = kWeakNextOffset;
 
-  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
-                              kPointerFieldsEndOffset, kSize>
-      MarkingBodyDescriptor;
-
-  // For other visitors, use the fixed body descriptor below.
+  // Ignores weakness.
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize, kSize, kSize>
       BodyDescriptor;
+
+  // Respects weakness.
+  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
+                              kPointerFieldsEndOffset, kSize>
+      BodyDescriptorWeak;
 
  private:
   inline bool PretenuringDecisionMade();
@@ -5947,6 +5961,8 @@ class Oddball: public HeapObject {
 
   typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
                               kSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   STATIC_ASSERT(kToNumberRawOffset == HeapNumber::kValueOffset);
   STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
@@ -5985,6 +6001,8 @@ class Cell: public HeapObject {
   typedef FixedBodyDescriptor<kValueOffset,
                               kValueOffset + kPointerSize,
                               kSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
@@ -6039,6 +6057,8 @@ class PropertyCell : public HeapObject {
   typedef FixedBodyDescriptor<kValueOffset,
                               kSize,
                               kSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyCell);
@@ -6172,6 +6192,8 @@ class JSProxy: public JSReceiver {
 
   typedef FixedBodyDescriptor<JSReceiver::kPropertiesOffset, kSize, kSize>
       BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   static Object* GetIdentityHash(Handle<JSProxy> receiver);
 
@@ -6340,17 +6362,17 @@ class JSWeakCollection: public JSObject {
 
   // Visiting policy defines whether the table and next collection fields
   // should be visited or not.
-  enum BodyVisitingPolicy { kVisitStrong, kVisitWeak };
+  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
 
   // Iterates the function object according to the visiting policy.
   template <BodyVisitingPolicy>
   class BodyDescriptorImpl;
 
   // Visit the whole object.
-  typedef BodyDescriptorImpl<kVisitStrong> BodyDescriptor;
+  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
 
   // Don't visit table and next collection fields.
-  typedef BodyDescriptorImpl<kVisitWeak> BodyDescriptorWeak;
+  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);
@@ -6482,6 +6504,8 @@ class JSArrayBuffer: public JSObject {
   // Iterates all fields in the object including internal ones except
   // kBackingStoreOffset and kBitFieldSlot.
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   class IsExternal : public BitField<bool, 1, 1> {};
   class IsNeuterable : public BitField<bool, 2, 1> {};
@@ -6619,6 +6643,8 @@ class Foreign: public HeapObject {
   STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);

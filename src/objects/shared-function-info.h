@@ -468,8 +468,8 @@ class SharedFunctionInfo : public HeapObject {
 
   typedef FixedBodyDescriptor<kCodeOffset, kEndOfPointerFieldsOffset, kSize>
       BodyDescriptor;
-  typedef FixedBodyDescriptor<kNameOffset, kEndOfPointerFieldsOffset, kSize>
-      BodyDescriptorWeakCode;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
 // Bit fields in |start_position_and_type|.
 #define START_POSITION_AND_TYPE_BIT_FIELDS(V, _) \

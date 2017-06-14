@@ -653,6 +653,8 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element.
