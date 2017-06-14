@@ -179,9 +179,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Node* elements = var_elements.value();
     Node* length = ChangeInt32ToIntPtr(var_length.value());
     const ElementsKind new_kind = FAST_ELEMENTS;
+    const ParameterMode mode = INTPTR_PARAMETERS;
+    const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
 
     // Allocate a new FixedArray of Objects.
-    Node* new_elements = AllocateFixedArray(FAST_ELEMENTS, length);
+    Node* new_elements =
+        AllocateFixedArray(FAST_ELEMENTS, length, mode,
+                           CodeStubAssembler::kAllowLargeObjectAllocation);
     Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
            &if_holey_double, &if_packed_double);
 
@@ -189,7 +193,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     {
       // Fill the FixedArray with pointers to HeapObjects.
       CopyFixedArrayElements(FAST_HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
-                             new_elements, length, length);
+                             new_elements, length, length, barrier_mode);
       var_elements.Bind(new_elements);
       Goto(&if_done);
     }
@@ -197,7 +201,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     BIND(&if_packed_double);
     {
       CopyFixedArrayElements(FAST_DOUBLE_ELEMENTS, elements, new_kind,
-                             new_elements, length, length);
+                             new_elements, length, length, barrier_mode);
       var_elements.Bind(new_elements);
       Goto(&if_done);
     }
