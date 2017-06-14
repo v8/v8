@@ -244,7 +244,8 @@ class Config(object):
     return_code, output = _CallWithOutput("ninja -C %s %s %s" %
                                           (path, BUILD_OPTS, targets))
     if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
-      print("Detected mksnapshot failure, re-running in GDB...")
+      _Notify("V8 build requires your attention",
+              "Detected mksnapshot failure, re-running in GDB...")
       _Call("gdb -args %(path)s/mksnapshot "
             "--startup_src %(path)s/gen/snapshot.cc "
             "--random-seed 314159265 "
