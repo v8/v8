@@ -307,11 +307,6 @@ Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
   return StringTable::LookupKey(isolate(), key);
 }
 
-Handle<Name> Factory::InternalizeName(Handle<Name> name) {
-  if (name->IsUniqueName()) return name;
-  return StringTable::LookupString(isolate(), Handle<String>::cast(name));
-}
-
 MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
                                                   PretenureFlag pretenure) {
   int length = string.length();
@@ -830,11 +825,6 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
   slice->set_parent(*str);
   slice->set_offset(offset);
   return slice;
-}
-
-Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {
-  if (begin == 0 && end == str->length()) return str;
-  return NewProperSubString(str, begin, end);
 }
 
 MaybeHandle<String> Factory::NewExternalStringFromOneByte(
@@ -2597,16 +2587,6 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
   Handle<String> js_string = NewStringFromAsciiChecked(str, TENURED);
   SetNumberStringCache(number, js_string);
   return js_string;
-}
-
-Handle<String> Factory::Uint32ToString(uint32_t value) {
-  Handle<String> result = NumberToString(NewNumberFromUint(value));
-
-  if (result->length() <= String::kMaxArrayIndexSize) {
-    uint32_t field = StringHasher::MakeArrayIndexHash(value, result->length());
-    result->set_hash_field(field);
-  }
-  return result;
 }
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
