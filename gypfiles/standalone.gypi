@@ -1502,11 +1502,13 @@
               '-fsanitize=cfi-derived-cast',
               '-fsanitize=cfi-unrelated-cast',
               '-fsanitize-blacklist=<(cfi_blacklist)',
+              '-fwhole-program-vtables',
             ],
             'ldflags': [
               '-fsanitize=cfi-vcall',
               '-fsanitize=cfi-derived-cast',
               '-fsanitize=cfi-unrelated-cast',
+              '-fwhole-program-vtables',
             ],
           }],
         ],
