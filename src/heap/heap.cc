@@ -3159,7 +3159,7 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
              ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
 #ifdef V8_CONCURRENT_MARKING
-    MarkingState::Internal(object).IncrementLiveBytes<MarkBit::ATOMIC>(by);
+    MarkingState::Internal(object).IncrementLiveBytes<AccessMode::ATOMIC>(by);
 #else
     MarkingState::Internal(object).IncrementLiveBytes(by);
 #endif
