@@ -53,9 +53,6 @@ size_t hash_value(FrameStateInfo const& info) {
 
 std::ostream& operator<<(std::ostream& os, FrameStateType type) {
   switch (type) {
-    case FrameStateType::kJavaScriptFunction:
-      os << "JS_FRAME";
-      break;
     case FrameStateType::kInterpretedFunction:
       os << "INTERPRETED_FRAME";
       break;

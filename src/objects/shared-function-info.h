@@ -328,11 +328,6 @@ class SharedFunctionInfo : public HeapObject {
   // shared function info.
   void DisableOptimization(BailoutReason reason);
 
-  // Lookup the bailout ID and DCHECK that it exists in the non-optimized
-  // code, returns whether it asserted (i.e., always true if assertions are
-  // disabled).
-  bool VerifyBailoutId(BailoutId id);
-
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
   Handle<Object> GetSourceCode();

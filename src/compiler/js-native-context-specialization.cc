@@ -1382,7 +1382,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     switch (access_mode) {
       case AccessMode::kLoad: {
         // We need a FrameState for the getter stub to restore the correct
-        // context before returning to fullcodegen.
+        // context before returning to unoptimized code.
         FrameStateFunctionInfo const* frame_info0 =
             common()->CreateFrameStateFunctionInfo(FrameStateType::kGetterStub,
                                                    1, 0, shared_info);
@@ -1417,7 +1417,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
       }
       case AccessMode::kStore: {
         // We need a FrameState for the setter stub to restore the correct
-        // context and return the appropriate value to fullcodegen.
+        // context and return the appropriate value to unoptimized code.
         FrameStateFunctionInfo const* frame_info0 =
             common()->CreateFrameStateFunctionInfo(FrameStateType::kSetterStub,
                                                    2, 0, shared_info);

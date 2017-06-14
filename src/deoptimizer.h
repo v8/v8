@@ -151,7 +151,6 @@ class TranslatedValue {
 class TranslatedFrame {
  public:
   enum Kind {
-    kFunction,
     kInterpretedFunction,
     kGetter,
     kSetter,
@@ -219,8 +218,6 @@ class TranslatedFrame {
   friend class TranslatedState;
 
   // Constructor static methods.
-  static TranslatedFrame JSFrame(BailoutId node_id,
-                                 SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
                                           SharedFunctionInfo* shared_info,
                                           int height);
@@ -395,8 +392,6 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code* code, byte* from);
 
-  static int ComputeSourcePositionFromBaselineCode(SharedFunctionInfo* shared,
-                                                   BailoutId node_id);
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
 
@@ -498,9 +493,6 @@ class Deoptimizer : public Malloced {
   static int GetDeoptimizationId(Isolate* isolate,
                                  Address addr,
                                  BailoutType type);
-  static int GetOutputInfo(DeoptimizationOutputData* data,
-                           BailoutId node_id,
-                           SharedFunctionInfo* shared);
 
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
@@ -560,8 +552,6 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(TranslatedFrame* translated_frame, int frame_index,
-                        bool goto_catch_handler);
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
@@ -931,7 +921,6 @@ class TranslationIterator BASE_EMBEDDED {
 
 #define TRANSLATION_OPCODE_LIST(V)          \
   V(BEGIN)                                  \
-  V(JS_FRAME)                               \
   V(INTERPRETED_FRAME)                      \
   V(BUILTIN_CONTINUATION_FRAME)             \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) \
@@ -982,7 +971,6 @@ class Translation BASE_EMBEDDED {
   int index() const { return index_; }
 
   // Commands.
-  void BeginJSFrame(BailoutId node_id, int literal_id, unsigned height);
   void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
                              unsigned height);
   void BeginCompiledStubFrame(int height);

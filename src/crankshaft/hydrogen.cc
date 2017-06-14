@@ -348,9 +348,7 @@ HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
                                        RemovableSimulate removable) {
   DCHECK(HasEnvironment());
   HEnvironment* environment = last_environment();
-  DCHECK(ast_id.IsNone() ||
-         ast_id == BailoutId::StubEntry() ||
-         environment->closure()->shared()->VerifyBailoutId(ast_id));
+  DCHECK(ast_id.IsNone() || ast_id == BailoutId::StubEntry());
 
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
@@ -447,10 +445,6 @@ void HBasicBlock::SetJoinId(BailoutId ast_id) {
     HBasicBlock* predecessor = predecessors_[i];
     DCHECK(predecessor->end()->IsGoto());
     HSimulate* simulate = HSimulate::cast(predecessor->end()->previous());
-    DCHECK(i != 0 ||
-           (predecessor->last_environment()->closure().is_null() ||
-            predecessor->last_environment()->closure()->shared()
-              ->VerifyBailoutId(ast_id)));
     simulate->set_ast_id(ast_id);
     predecessor->last_environment()->set_ast_id(ast_id);
   }

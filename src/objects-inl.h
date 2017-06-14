@@ -326,15 +326,6 @@ bool HeapObject::IsDeoptimizationInputData() const {
   return length >= 0 && length % DeoptimizationInputData::kDeoptEntrySize == 0;
 }
 
-bool HeapObject::IsDeoptimizationOutputData() const {
-  if (!IsFixedArray()) return false;
-  // There's actually no way to see the difference between a fixed array and
-  // a deoptimization data array.  Since this is used for asserts we can check
-  // that the length is plausible though.
-  if (FixedArray::cast(this)->length() % 2 != 0) return false;
-  return true;
-}
-
 bool HeapObject::IsHandlerTable() const {
   if (!IsFixedArray()) return false;
   // There's actually no way to see the difference between a fixed array and
@@ -545,7 +536,6 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(ConstantElementsPair)
 CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DeoptimizationInputData)
-CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(FixedArray)
@@ -2779,28 +2769,6 @@ int DeoptimizationInputData::DeoptCount() {
   return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
 }
 
-
-int DeoptimizationOutputData::DeoptPoints() { return length() / 2; }
-
-
-BailoutId DeoptimizationOutputData::AstId(int index) {
-  return BailoutId(Smi::cast(get(index * 2))->value());
-}
-
-
-void DeoptimizationOutputData::SetAstId(int index, BailoutId id) {
-  set(index * 2, Smi::FromInt(id.ToInt()));
-}
-
-
-Smi* DeoptimizationOutputData::PcAndState(int index) {
-  return Smi::cast(get(1 + index * 2));
-}
-
-
-void DeoptimizationOutputData::SetPcAndState(int index, Smi* offset) {
-  set(1 + index * 2, offset);
-}
 
 int HandlerTable::GetRangeStart(int index) const {
   return Smi::cast(get(index * kRangeEntrySize + kRangeStartIndex))->value();

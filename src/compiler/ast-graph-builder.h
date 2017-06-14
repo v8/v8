@@ -113,9 +113,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
 
-  // Function info for frame state construction.
-  const FrameStateFunctionInfo* const frame_state_function_info_;
-
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
@@ -136,9 +133,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   Scope* current_scope() const;
   Node* current_context() const;
-  const FrameStateFunctionInfo* frame_state_function_info() const {
-    return frame_state_function_info_;
-  }
 
   void set_environment(Environment* env) { environment_ = env; }
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }

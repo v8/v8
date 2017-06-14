@@ -285,10 +285,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       input_buffer_(nullptr),
       exit_controls_(local_zone),
       loop_assignment_analysis_(loop),
-      state_values_cache_(jsgraph),
-      frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
-          FrameStateType::kJavaScriptFunction, info->num_parameters() + 1,
-          info->scope()->num_stack_slots(), info->shared_info())) {
+      state_values_cache_(jsgraph) {
   InitializeAstVisitor(info->isolate());
 }
 

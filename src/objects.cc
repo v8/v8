@@ -10224,20 +10224,6 @@ Handle<DeoptimizationInputData> DeoptimizationInputData::New(
 }
 
 
-Handle<DeoptimizationOutputData> DeoptimizationOutputData::New(
-    Isolate* isolate,
-    int number_of_deopt_points,
-    PretenureFlag pretenure) {
-  Handle<FixedArray> result;
-  if (number_of_deopt_points == 0) {
-    result = isolate->factory()->empty_fixed_array();
-  } else {
-    result = isolate->factory()->NewFixedArray(
-        LengthOfFixedArray(number_of_deopt_points), pretenure);
-  }
-  return Handle<DeoptimizationOutputData>::cast(result);
-}
-
 SharedFunctionInfo* DeoptimizationInputData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());
@@ -13599,16 +13585,6 @@ void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
   set_expected_nof_properties(estimate);
 }
 
-bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
-  DCHECK(!id.IsNone());
-  Code* unoptimized = code();
-  DeoptimizationOutputData* data =
-      DeoptimizationOutputData::cast(unoptimized->deoptimization_data());
-  unsigned ignore = Deoptimizer::GetOutputInfo(data, id, this);
-  USE(ignore);
-  return true;  // Return true if there was no DCHECK.
-}
-
 void SharedFunctionInfo::SetConstructStub(Code* code) {
   if (code->kind() == Code::BUILTIN) code->set_is_construct_stub(true);
   set_construct_stub(code);
@@ -14252,17 +14228,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           UNREACHABLE();
           break;
 
-        case Translation::JS_FRAME: {
-          int ast_id = iterator.Next();
-          int shared_info_id = iterator.Next();
-          unsigned height = iterator.Next();
-          Object* shared_info = LiteralArray()->get(shared_info_id);
-          os << "{ast_id=" << ast_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
-             << ", height=" << height << "}";
-          break;
-        }
-
         case Translation::INTERPRETED_FRAME: {
           int bytecode_offset = iterator.Next();
           int shared_info_id = iterator.Next();
@@ -14440,24 +14405,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 }
 
 
-void DeoptimizationOutputData::DeoptimizationOutputDataPrint(
-    std::ostream& os) {  // NOLINT
-  os << "Deoptimization Output Data (deopt points = " << this->DeoptPoints()
-     << ")\n";
-  if (this->DeoptPoints() == 0) return;
-
-  os << "ast id        pc  state\n";
-  for (int i = 0; i < this->DeoptPoints(); i++) {
-    int pc_and_state = this->PcAndState(i)->value();
-    os << std::setw(6) << this->AstId(i).ToInt() << "  " << std::setw(8)
-       << FullCodeGenerator::PcField::decode(pc_and_state) << "  "
-       << Deoptimizer::BailoutStateToString(
-              FullCodeGenerator::BailoutStateField::decode(pc_and_state))
-       << "\n";
-  }
-}
-
-
 void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
   os << "   from   to       hdlr\n";
   for (int i = 0; i < length(); i += kRangeEntrySize) {
@@ -14577,11 +14524,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     os << "\n";
   }
 
-  if (kind() == FUNCTION) {
-    DeoptimizationOutputData* data =
-        DeoptimizationOutputData::cast(this->deoptimization_data());
-    data->DeoptimizationOutputDataPrint(os);
-  } else if (kind() == OPTIMIZED_FUNCTION) {
+  if (kind() == OPTIMIZED_FUNCTION) {
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(this->deoptimization_data());
     data->DeoptimizationInputDataPrint(os);

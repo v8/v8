@@ -42,11 +42,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   static bool MakeCode(CompilationInfo* info, uintptr_t stack_limit);
   static bool MakeCode(CompilationInfo* info);
 
-  // Encode bailout state and pc-offset as a BitField<type, start, size>.
-  // Only use 30 bits because we encode the result as a smi.
-  class BailoutStateField : public BitField<Deoptimizer::BailoutState, 0, 1> {};
-  class PcField : public BitField<unsigned, 1, 30 - 1> {};
-
   static const int kMaxBackEdgeWeight = 127;
 
   // Platform-specific code size multiplier.

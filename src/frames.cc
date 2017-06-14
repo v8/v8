@@ -1386,8 +1386,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
   bool is_constructor = IsConstructor();
   while (jsframe_count != 0) {
     frame_opcode = static_cast<Translation::Opcode>(it.Next());
-    if (frame_opcode == Translation::JS_FRAME ||
-        frame_opcode == Translation::INTERPRETED_FRAME ||
+    if (frame_opcode == Translation::INTERPRETED_FRAME ||
         frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
       jsframe_count--;
       BailoutId const bailout_id = BailoutId(it.Next());
@@ -1432,16 +1431,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
       AbstractCode* abstract_code;
 
       unsigned code_offset;
-      if (frame_opcode == Translation::JS_FRAME) {
-        Code* code = shared_info->code();
-        DeoptimizationOutputData* const output_data =
-            DeoptimizationOutputData::cast(code->deoptimization_data());
-        unsigned const entry =
-            Deoptimizer::GetOutputInfo(output_data, bailout_id, shared_info);
-        code_offset = FullCodeGenerator::PcField::decode(entry);
-        abstract_code = AbstractCode::cast(code);
-      } else if (frame_opcode ==
-                 Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
+      if (frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
         code_offset = 0;
         abstract_code = AbstractCode::cast(isolate()->builtins()->builtin(
             Builtins::GetBuiltinFromBailoutId(bailout_id)));
@@ -1552,8 +1542,7 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::JS_FRAME ||
-        opcode == Translation::INTERPRETED_FRAME ||
+    if (opcode == Translation::INTERPRETED_FRAME ||
         opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
       it.Next();  // Skip bailout id.
       jsframe_count--;
