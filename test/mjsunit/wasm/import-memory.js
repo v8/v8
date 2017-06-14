@@ -149,7 +149,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestGrowMemoryZeroInitialMemory() {
   print("ZeroInitialMemory");
-  let kV8MaxPages = 32767;
   let memory = new WebAssembly.Memory({initial: 0});
   assertEquals(0, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
@@ -177,7 +176,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   for (offset = 5 * kPageSize; offset < 5 * kPageSize + 4; offset++) {
     assertThrows(load);
   }
-  assertThrows(() => memory.grow(kV8MaxPages - 3));
+  assertThrows(() => memory.grow(16381));
 })();
 
 (function ImportedMemoryBufferLength() {
