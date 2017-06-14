@@ -661,7 +661,11 @@ class Context: public FixedArray {
   //    of with, or as a property of the global object.  *index is -1 and
   //    *attributes is not ABSENT.
   //
-  // 3) result.is_null():
+  // 3) result->IsModule():
+  //    The binding was found in module imports or exports.
+  //     *attributes is never ABSENT. imports are READ_ONLY.
+  //
+  // 4) result.is_null():
   //    There was no binding found, *index is always -1 and *attributes is
   //    always ABSENT.
   Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,

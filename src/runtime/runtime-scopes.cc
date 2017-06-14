@@ -262,6 +262,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
                                           &attributes, &init_flag, &mode);
+  DCHECK(holder.is_null() || !holder->IsModule());
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
@@ -823,8 +824,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
     return isolate->heap()->true_value();
   }
 
-  // If the slot was found in a context, it should be DONT_DELETE.
-  if (holder->IsContext()) {
+  // If the slot was found in a context or in module imports and exports it
+  // should be DONT_DELETE.
+  if (holder->IsContext() || holder->IsModule()) {
     return isolate->heap()->false_value();
   }
 
@@ -853,6 +855,9 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
       name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
+  if (!holder.is_null() && holder->IsModule()) {
+    return Module::LoadVariable(Handle<Module>::cast(holder), index);
+  }
   if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
@@ -950,8 +955,17 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+  } else if (holder->IsModule()) {
+    if ((attributes & READ_ONLY) == 0) {
+      Module::StoreVariable(Handle<Module>::cast(holder), index, value);
+    } else if (is_strict(language_mode)) {
+      // Setting read only property in strict mode.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrictCannotAssign, name),
+                      Object);
+    }
+    return value;
   }
-
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
     if (flag == kNeedsInitialization &&

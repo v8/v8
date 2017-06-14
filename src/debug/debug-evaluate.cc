@@ -172,7 +172,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       evaluation_context_ = outer_context;
       break;
     } else if (scope_type == ScopeIterator::ScopeTypeCatch ||
-               scope_type == ScopeIterator::ScopeTypeWith) {
+               scope_type == ScopeIterator::ScopeTypeWith ||
+               scope_type == ScopeIterator::ScopeTypeModule) {
       ContextChainElement context_chain_element;
       Handle<Context> current_context = it.CurrentContext();
       if (!current_context->IsDebugEvaluateContext()) {

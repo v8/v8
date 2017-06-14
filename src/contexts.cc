@@ -4,6 +4,7 @@
 
 #include "src/contexts.h"
 
+#include "src/ast/modules.h"
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
@@ -199,7 +200,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index, PropertyAttributes* attributes,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode) {
-  DCHECK(!IsModuleContext());
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
@@ -305,7 +305,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
-        context->IsScriptContext() || context->IsEvalContext()) {
+        context->IsScriptContext() || context->IsEvalContext() ||
+        context->IsModuleContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       Handle<ScopeInfo> scope_info(context->scope_info());
@@ -346,6 +347,27 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         }
       }
 
+      // Lookup variable in module imports and exports.
+      if (context->IsModuleContext()) {
+        VariableMode mode;
+        InitializationFlag flag;
+        MaybeAssignedFlag maybe_assigned_flag;
+        int cell_index =
+            scope_info->ModuleIndex(name, &mode, &flag, &maybe_assigned_flag);
+        if (cell_index != 0) {
+          if (FLAG_trace_contexts) {
+            PrintF("=> found in module imports or exports\n");
+          }
+          *index = cell_index;
+          *variable_mode = mode;
+          *init_flag = flag;
+          *attributes = ModuleDescriptor::GetCellIndexKind(cell_index) ==
+                                ModuleDescriptor::kExport
+                            ? GetAttributesForMode(mode)
+                            : READ_ONLY;
+          return handle(context->module(), isolate);
+        }
+      }
     } else if (context->IsCatchContext()) {
       // Catch contexts have the variable name in the extension slot.
       if (String::Equals(name, handle(context->catch_name()))) {
@@ -398,9 +420,11 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       do {
         context = Handle<Context>(context->previous(), isolate);
         // If we come across a whitelist context, and the name is not
-        // whitelisted, then only consider with, script or native contexts.
+        // whitelisted, then only consider with, script, module or native
+        // contexts.
       } while (failed_whitelist && !context->IsScriptContext() &&
-               !context->IsNativeContext() && !context->IsWithContext());
+               !context->IsNativeContext() && !context->IsWithContext() &&
+               !context->IsModuleContext());
     }
   } while (follow_context_chain);
 
