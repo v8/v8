@@ -359,10 +359,10 @@ void StoreWithVectorDescriptor::InitializePlatformSpecific(
 
 void BinaryOpWithVectorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kLeft, kRight, kSlot, kVector
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::AnyTagged(), MachineType::Int32(),
-                                 MachineType::AnyTagged()};
+  // kLeft, kRight, kSlot, kVector, kFunction
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32(),
+      MachineType::AnyTagged(), MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

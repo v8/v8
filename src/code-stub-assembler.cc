@@ -6194,14 +6194,28 @@ Node* CodeStubAssembler::LoadFeedbackVectorForStub() {
 }
 
 void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
-                                       Node* slot_id) {
+                                       Node* slot_id, Node* function) {
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
   Node* previous_feedback = LoadFixedArrayElement(feedback_vector, slot_id);
   Node* combined_feedback = SmiOr(previous_feedback, feedback);
-  StoreFixedArrayElement(feedback_vector, slot_id, combined_feedback,
-                         SKIP_WRITE_BARRIER);
+  Label end(this);
+
+  GotoIf(SmiEqual(previous_feedback, combined_feedback), &end);
+  {
+    StoreFixedArrayElement(feedback_vector, slot_id, combined_feedback,
+                           SKIP_WRITE_BARRIER);
+    // Reset profiler ticks.
+    Node* shared_info =
+        LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
+    StoreObjectFieldNoWriteBarrier(
+        shared_info, SharedFunctionInfo::kProfilerTicksOffset, Int32Constant(0),
+        MachineRepresentation::kWord32);
+    Goto(&end);
+  }
+
+  BIND(&end);
 }
 
 void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,

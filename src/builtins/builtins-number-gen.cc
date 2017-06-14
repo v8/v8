@@ -846,9 +846,10 @@ TF_BUILTIN(AddWithFeedback, BinaryOpAssembler) {
   Node* right = Parameter(Descriptor::kRight);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
+  Node* function = Parameter(Descriptor::kFunction);
 
   Return(Generate_AddWithFeedback(context, left, right,
-                                  ChangeUint32ToWord(slot), vector));
+                                  ChangeUint32ToWord(slot), vector, function));
 }
 
 TF_BUILTIN(SubtractWithFeedback, BinaryOpAssembler) {
@@ -857,9 +858,10 @@ TF_BUILTIN(SubtractWithFeedback, BinaryOpAssembler) {
   Node* right = Parameter(Descriptor::kRight);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
+  Node* function = Parameter(Descriptor::kFunction);
 
-  Return(Generate_SubtractWithFeedback(context, left, right,
-                                       ChangeUint32ToWord(slot), vector));
+  Return(Generate_SubtractWithFeedback(
+      context, left, right, ChangeUint32ToWord(slot), vector, function));
 }
 
 TF_BUILTIN(MultiplyWithFeedback, BinaryOpAssembler) {
@@ -868,9 +870,10 @@ TF_BUILTIN(MultiplyWithFeedback, BinaryOpAssembler) {
   Node* right = Parameter(Descriptor::kRight);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
+  Node* function = Parameter(Descriptor::kFunction);
 
-  Return(Generate_MultiplyWithFeedback(context, left, right,
-                                       ChangeUint32ToWord(slot), vector));
+  Return(Generate_MultiplyWithFeedback(
+      context, left, right, ChangeUint32ToWord(slot), vector, function));
 }
 
 TF_BUILTIN(DivideWithFeedback, BinaryOpAssembler) {
@@ -879,9 +882,10 @@ TF_BUILTIN(DivideWithFeedback, BinaryOpAssembler) {
   Node* right = Parameter(Descriptor::kRight);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
+  Node* function = Parameter(Descriptor::kFunction);
 
-  Return(Generate_DivideWithFeedback(context, left, right,
-                                     ChangeUint32ToWord(slot), vector));
+  Return(Generate_DivideWithFeedback(
+      context, left, right, ChangeUint32ToWord(slot), vector, function));
 }
 
 TF_BUILTIN(ModulusWithFeedback, BinaryOpAssembler) {
@@ -890,9 +894,10 @@ TF_BUILTIN(ModulusWithFeedback, BinaryOpAssembler) {
   Node* right = Parameter(Descriptor::kRight);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
+  Node* function = Parameter(Descriptor::kFunction);
 
-  Return(Generate_ModulusWithFeedback(context, left, right,
-                                      ChangeUint32ToWord(slot), vector));
+  Return(Generate_ModulusWithFeedback(
+      context, left, right, ChangeUint32ToWord(slot), vector, function));
 }
 
 }  // namespace internal

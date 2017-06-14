@@ -1257,7 +1257,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFeedbackVectorForStub();
 
   // Update the type feedback vector.
-  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
+  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id,
+                      Node* function);
 
   // Combine the new feedback with the existing_feedback.
   void CombineFeedback(Variable* existing_feedback, Node* feedback);

@@ -22,21 +22,24 @@ class BinaryOpAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   Node* Generate_AddWithFeedback(Node* context, Node* lhs, Node* rhs,
-                                 Node* slot_id, Node* feedback_vector);
+                                 Node* slot_id, Node* feedback_vector,
+                                 Node* function);
 
   Node* Generate_SubtractWithFeedback(Node* context, Node* lhs, Node* rhs,
-                                      Node* slot_id, Node* feedback_vector);
+                                      Node* slot_id, Node* feedback_vector,
+                                      Node* function);
 
   Node* Generate_MultiplyWithFeedback(Node* context, Node* lhs, Node* rhs,
-                                      Node* slot_id, Node* feedback_vector);
+                                      Node* slot_id, Node* feedback_vector,
+                                      Node* function);
 
   Node* Generate_DivideWithFeedback(Node* context, Node* dividend,
                                     Node* divisor, Node* slot_id,
-                                    Node* feedback_vector);
+                                    Node* feedback_vector, Node* function);
 
   Node* Generate_ModulusWithFeedback(Node* context, Node* dividend,
                                      Node* divisor, Node* slot_id,
-                                     Node* feedback_vector);
+                                     Node* feedback_vector, Node* function);
 };
 
 }  // namespace internal

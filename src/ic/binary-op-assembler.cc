@@ -13,7 +13,8 @@ using compiler::Node;
 
 Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
                                                   Node* rhs, Node* slot_id,
-                                                  Node* feedback_vector) {
+                                                  Node* feedback_vector,
+                                                  Node* function) {
   // Shared entry for floating point addition.
   Label do_fadd(this), if_lhsisnotnumber(this, Label::kDeferred),
       check_rhsisoddball(this, Label::kDeferred),
@@ -194,13 +195,14 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
   return var_result.value();
 }
 
 Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
                                                        Node* rhs, Node* slot_id,
-                                                       Node* feedback_vector) {
+                                                       Node* feedback_vector,
+                                                       Node* function) {
   // Shared entry for floating point subtraction.
   Label do_fsub(this), end(this), call_subtract_stub(this),
       if_lhsisnotnumber(this), check_rhsisoddball(this),
@@ -368,13 +370,14 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
   return var_result.value();
 }
 
 Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
                                                        Node* rhs, Node* slot_id,
-                                                       Node* feedback_vector) {
+                                                       Node* feedback_vector,
+                                                       Node* function) {
   // Shared entry point for floating point multiplication.
   Label do_fmul(this), if_lhsisnotnumber(this, Label::kDeferred),
       check_rhsisoddball(this, Label::kDeferred),
@@ -512,15 +515,13 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
   return var_result.value();
 }
 
-Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
-                                                     Node* dividend,
-                                                     Node* divisor,
-                                                     Node* slot_id,
-                                                     Node* feedback_vector) {
+Node* BinaryOpAssembler::Generate_DivideWithFeedback(
+    Node* context, Node* dividend, Node* divisor, Node* slot_id,
+    Node* feedback_vector, Node* function) {
   // Shared entry point for floating point division.
   Label do_fdiv(this), dividend_is_not_number(this, Label::kDeferred),
       check_divisor_for_oddball(this, Label::kDeferred),
@@ -668,15 +669,13 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
   return var_result.value();
 }
 
-Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
-                                                      Node* dividend,
-                                                      Node* divisor,
-                                                      Node* slot_id,
-                                                      Node* feedback_vector) {
+Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
+    Node* context, Node* dividend, Node* divisor, Node* slot_id,
+    Node* feedback_vector, Node* function) {
   // Shared entry point for floating point division.
   Label do_fmod(this), dividend_is_not_number(this, Label::kDeferred),
       check_divisor_for_oddball(this, Label::kDeferred),
@@ -815,7 +814,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
   return var_result.value();
 }
 

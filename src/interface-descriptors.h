@@ -747,7 +747,7 @@ class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
 
 class BinaryOpWithVectorDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kVector)
+  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kVector, kFunction)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BinaryOpWithVectorDescriptor,
                                                CallInterfaceDescriptor)
 };
