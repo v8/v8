@@ -6351,8 +6351,9 @@ class JSWeakCollection: public JSObject {
 
   static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
   static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
-                  Handle<Object> value);
-  static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key);
+                  Handle<Object> value, int32_t hash);
+  static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
+                     int32_t hash);
   static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
                                     int max_entries);
 

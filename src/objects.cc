@@ -18897,13 +18897,16 @@ void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,
   weak_collection->set_table(*table);
 }
 
+
 void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
-                           Handle<Object> key, Handle<Object> value) {
+                           Handle<Object> key, Handle<Object> value,
+                           int32_t hash) {
   DCHECK(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   DCHECK(table->IsKey(table->GetIsolate(), *key));
-  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
+  Handle<ObjectHashTable> new_table =
+      ObjectHashTable::Put(table, key, value, hash);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
@@ -18911,15 +18914,16 @@ void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
   }
 }
 
+
 bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
-                              Handle<Object> key) {
+                              Handle<Object> key, int32_t hash) {
   DCHECK(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   DCHECK(table->IsKey(table->GetIsolate(), *key));
   bool was_present = false;
   Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Remove(table, key, &was_present);
+      ObjectHashTable::Remove(table, key, &was_present, hash);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.

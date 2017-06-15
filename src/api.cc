@@ -3091,7 +3091,8 @@ void NativeWeakMap::Set(Local<Value> v8_key, Local<Value> v8_value) {
     DCHECK(false);
     return;
   }
-  i::JSWeakCollection::Set(weak_collection, key, value);
+  int32_t hash = i::Object::GetOrCreateHash(isolate, key)->value();
+  i::JSWeakCollection::Set(weak_collection, key, value, hash);
 }
 
 Local<Value> NativeWeakMap::Get(Local<Value> v8_key) const {
@@ -3153,7 +3154,8 @@ bool NativeWeakMap::Delete(Local<Value> v8_key) {
     DCHECK(false);
     return false;
   }
-  return i::JSWeakCollection::Delete(weak_collection, key);
+  int32_t hash = i::Object::GetOrCreateHash(isolate, key)->value();
+  return i::JSWeakCollection::Delete(weak_collection, key, hash);
 }
 
 

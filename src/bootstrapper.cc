@@ -3098,42 +3098,19 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k M a p
-    Handle<JSObject> prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-    Handle<JSFunction> js_weak_map_fun =
-        InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                        prototype, Builtins::kIllegal);
+    Handle<JSFunction> js_weak_map_fun = InstallFunction(
+        global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_weak_map_fun,
                                      Context::JS_WEAK_MAP_FUN_INDEX);
-    JSObject::AddProperty(prototype, factory->constructor_string(),
-                          js_weak_map_fun, DONT_ENUM);
-    JSObject::AddProperty(
-        prototype, factory->to_string_tag_symbol(), factory->WeakMap_string(),
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-    SimpleInstallFunction(prototype, "get", Builtins::kWeakMapGet, 1, true);
-    SimpleInstallFunction(prototype, "has", Builtins::kWeakMapHas, 1, true);
-    SimpleInstallFunction(prototype, "delete", Builtins::kWeakMapDelete, 1,
-                          true);
-    SimpleInstallFunction(prototype, "set", Builtins::kWeakMapSet, 2, true);
   }
 
   {  // -- W e a k S e t
-    Handle<JSObject> prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-    Handle<JSFunction> js_weak_set_fun =
-        InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-                        prototype, Builtins::kIllegal);
+    Handle<JSFunction> js_weak_set_fun = InstallFunction(
+        global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_weak_set_fun,
                                      Context::JS_WEAK_SET_FUN_INDEX);
-    JSObject::AddProperty(prototype, factory->constructor_string(),
-                          js_weak_set_fun, DONT_ENUM);
-    JSObject::AddProperty(
-        prototype, factory->to_string_tag_symbol(), factory->WeakSet_string(),
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-    SimpleInstallFunction(prototype, "add", Builtins::kWeakSetAdd, 1, true);
-    SimpleInstallFunction(prototype, "delete", Builtins::kWeakSetDelete, 1,
-                          true);
-    SimpleInstallFunction(prototype, "has", Builtins::kWeakSetHas, 1, true);
   }
 
   {  // -- P r o x y
