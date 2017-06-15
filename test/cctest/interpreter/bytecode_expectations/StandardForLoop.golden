@@ -231,15 +231,15 @@ bytecodes: [
                 B(JumpIfUndefined), U8(6),
                 B(Ldar), R(3),
                 B(JumpIfNotNull), U8(16),
-                B(LdaSmi), I8(61),
+                B(LdaSmi), I8(62),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(4), U8(2),
-                B(Throw),
-  /*   37 S> */ B(LdaNamedProperty), R(3), U8(2), U8(6),
+  /*   28 E> */ B(Throw),
+  /*   37 S> */ B(LdaNamedProperty), R(3), U8(1), U8(6),
                 B(Star), R(1),
-  /*   37 S> */ B(LdaNamedProperty), R(3), U8(3), U8(8),
+  /*   37 S> */ B(LdaNamedProperty), R(3), U8(2), U8(8),
                 B(Star), R(2),
   /*   55 S> */ B(LdaZero),
   /*   55 E> */ B(TestGreaterThan), R(2), U8(10),
@@ -257,7 +257,6 @@ bytecodes: [
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
 ]

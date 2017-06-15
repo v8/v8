@@ -2908,10 +2908,22 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
   return kLazyParsingComplete;
 }
 
-
-Statement* Parser::BuildAssertIsCoercible(Variable* var) {
+Statement* Parser::BuildAssertIsCoercible(Variable* var,
+                                          ObjectLiteral* pattern) {
   // if (var === null || var === undefined)
   //     throw /* type error kNonCoercible) */;
+  auto source_position = pattern->position();
+  const AstRawString* property = ast_value_factory()->empty_string();
+  MessageTemplate::Template msg = MessageTemplate::kNonCoercible;
+  for (ObjectLiteralProperty* literal_property : *pattern->properties()) {
+    Expression* key = literal_property->key();
+    if (key->IsPropertyName()) {
+      property = key->AsLiteral()->AsRawPropertyName();
+      msg = MessageTemplate::kNonCoercibleWithProperty;
+      source_position = key->position();
+      break;
+    }
+  }
 
   Expression* condition = factory()->NewBinaryOperation(
       Token::OR,
@@ -2923,15 +2935,13 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var) {
           factory()->NewNullLiteral(kNoSourcePosition), kNoSourcePosition),
       kNoSourcePosition);
   Expression* throw_type_error =
-      NewThrowTypeError(MessageTemplate::kNonCoercible,
-                        ast_value_factory()->empty_string(), kNoSourcePosition);
+      NewThrowTypeError(msg, property, source_position);
   IfStatement* if_statement = factory()->NewIfStatement(
       condition,
       factory()->NewExpressionStatement(throw_type_error, kNoSourcePosition),
       factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
   return if_statement;
 }
-
 
 class InitializerRewriter final
     : public AstTraversalVisitor<InitializerRewriter> {

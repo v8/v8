@@ -330,7 +330,9 @@ class ErrorUtils : public AllStatic {
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
     "Right-hand side of 'instanceof' is not callable")                         \
-  T(NonCoercible, "Cannot match against 'undefined' or 'null'.")               \
+  T(NonCoercible, "Cannot destructure 'undefined' or 'null'.")                 \
+  T(NonCoercibleWithProperty,                                                  \
+    "Cannot destructure property `%` of 'undefined' or 'null'.")               \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \

@@ -368,7 +368,8 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
     rest_runtime_callargs->Add(factory()->NewVariableProxy(temp), zone());
   }
 
-  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp), zone());
+  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp, pattern),
+                            zone());
 
   for (ObjectLiteralProperty* property : *pattern->properties()) {
     PatternContext context = SetInitializerContextIfNeeded(property->value());
