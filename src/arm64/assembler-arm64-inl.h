@@ -16,7 +16,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() { return false; }
+bool CpuFeatures::SupportsWasmSimd128() { return true; }
 
 void RelocInfo::apply(intptr_t delta) {
   // On arm64 only internal references need extra work.

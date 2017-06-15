@@ -417,9 +417,13 @@ ALIAS_REGISTER(Register, wzr, w31);
 
 // Keeps the 0 double value.
 ALIAS_REGISTER(VRegister, fp_zero, d15);
+// MacroAssembler fixed V Registers.
+ALIAS_REGISTER(VRegister, fp_fixed1, d27);
+ALIAS_REGISTER(VRegister, fp_fixed2, d28);
+ALIAS_REGISTER(VRegister, fp_fixed3, d29);  // same as Crankshaft scratch.
 // Crankshaft double scratch register.
 ALIAS_REGISTER(VRegister, crankshaft_fp_scratch, d29);
-// MacroAssembler double scratch registers.
+// MacroAssembler scratch V registers.
 ALIAS_REGISTER(VRegister, fp_scratch, d30);
 ALIAS_REGISTER(VRegister, fp_scratch1, d30);
 ALIAS_REGISTER(VRegister, fp_scratch2, d31);

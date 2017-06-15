@@ -2641,6 +2641,9 @@ class UseScratchRegisterScope {
   Register AcquireX() { return AcquireNextAvailable(available_).X(); }
   VRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
   VRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
+  VRegister AcquireV(VectorFormat format) {
+    return VRegister::Create(AcquireNextAvailable(availablefp_).code(), format);
+  }
 
   Register UnsafeAcquire(const Register& reg) {
     return Register(UnsafeAcquire(available_, reg));
