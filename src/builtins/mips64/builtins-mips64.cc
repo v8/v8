@@ -426,22 +426,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   __ Jump(at);
 }
 
-void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
-  // Checking whether the queued function is ready for install is optional,
-  // since we come across interrupts and stack checks elsewhere.  However,
-  // not checking may delay installing ready functions, and always checking
-  // would be quite expensive.  A good compromise is to first check against
-  // stack limit as a cue for an interrupt signal.
-  Label ok;
-  __ LoadRoot(a4, Heap::kStackLimitRootIndex);
-  __ Branch(&ok, hs, sp, Operand(a4));
-
-  GenerateTailCallToReturnedCode(masm, Runtime::kTryInstallOptimizedCode);
-
-  __ bind(&ok);
-  GenerateTailCallToSharedCode(masm);
-}
-
 namespace {
 
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
@@ -1000,6 +984,115 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch) {
   __ Daddu(sp, sp, args_count);
 }
 
+// Tail-call |function_id| if |smi_entry| == |marker|
+static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
+                                          Register smi_entry,
+                                          OptimizationMarker marker,
+                                          Runtime::FunctionId function_id) {
+  Label no_match;
+  __ Branch(&no_match, ne, smi_entry, Operand(Smi::FromEnum(marker)));
+  GenerateTailCallToReturnedCode(masm, function_id);
+  __ bind(&no_match);
+}
+
+static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
+                                           Register feedback_vector,
+                                           Register scratch1, Register scratch2,
+                                           Register scratch3) {
+  // ----------- S t a t e -------------
+  //  -- a0 : argument count (preserved for callee if needed, and caller)
+  //  -- a3 : new target (preserved for callee if needed, and caller)
+  //  -- a1 : target function (preserved for callee if needed, and caller)
+  //  -- feedback vector (preserved for caller if needed)
+  // -----------------------------------
+  DCHECK(
+      !AreAliased(feedback_vector, a0, a1, a3, scratch1, scratch2, scratch3));
+
+  Label optimized_code_slot_is_cell, fallthrough;
+
+  Register closure = a1;
+  Register optimized_code_entry = scratch1;
+
+  const int kOptimizedCodeCellOffset =
+      FeedbackVector::kOptimizedCodeIndex * kPointerSize +
+      FeedbackVector::kHeaderSize;
+  __ Ld(optimized_code_entry,
+        FieldMemOperand(feedback_vector, kOptimizedCodeCellOffset));
+
+  // Check if the code entry is a Smi. If yes, we interpret it as an
+  // optimisation marker. Otherwise, interpret is as a weak cell to a code
+  // object.
+  __ JumpIfNotSmi(optimized_code_entry, &optimized_code_slot_is_cell);
+
+  {
+    // Optimized code slot is a Smi optimization marker.
+
+    // Fall through if no optimization trigger.
+    __ Branch(&fallthrough, eq, optimized_code_entry,
+              Operand(Smi::FromEnum(OptimizationMarker::kNone)));
+
+    TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
+                                  OptimizationMarker::kCompileOptimized,
+                                  Runtime::kCompileOptimized_NotConcurrent);
+    TailCallRuntimeIfMarkerEquals(
+        masm, optimized_code_entry,
+        OptimizationMarker::kCompileOptimizedConcurrent,
+        Runtime::kCompileOptimized_Concurrent);
+
+    {
+      // Otherwise, the marker is InOptimizationQueue.
+      if (FLAG_debug_code) {
+        __ Assert(
+            eq, kExpectedOptimizationSentinel, optimized_code_entry,
+            Operand(Smi::FromEnum(OptimizationMarker::kInOptimizationQueue)));
+      }
+
+      // Checking whether the queued function is ready for install is optional,
+      // since we come across interrupts and stack checks elsewhere. However,
+      // not checking may delay installing ready functions, and always checking
+      // would be quite expensive.  A good compromise is to first check against
+      // stack limit as a cue for an interrupt signal.
+      __ LoadRoot(t0, Heap::kStackLimitRootIndex);
+      __ Branch(&fallthrough, hs, sp, Operand(t0));
+      GenerateTailCallToReturnedCode(masm, Runtime::kTryInstallOptimizedCode);
+    }
+  }
+
+  {
+    // Optimized code slot is a WeakCell.
+    __ bind(&optimized_code_slot_is_cell);
+
+    __ Ld(optimized_code_entry,
+          FieldMemOperand(optimized_code_entry, WeakCell::kValueOffset));
+    __ JumpIfSmi(optimized_code_entry, &fallthrough);
+
+    // Check if the optimized code is marked for deopt. If it is, call the
+    // runtime to clear it.
+    Label found_deoptimized_code;
+    __ Lw(a5, FieldMemOperand(optimized_code_entry,
+                              Code::kKindSpecificFlags1Offset));
+    __ And(a5, a5, Operand(1 << Code::kMarkedForDeoptimizationBit));
+    __ Branch(&found_deoptimized_code, ne, a5, Operand(zero_reg));
+
+    // Optimized code is good, get it into the closure and link the closure into
+    // the optimized functions list, then tail call the optimized code.
+    // The feedback vector is no longer used, so re-use it as a scratch
+    // register.
+    ReplaceClosureEntryWithOptimizedCode(masm, optimized_code_entry, closure,
+                                         scratch2, scratch3, feedback_vector);
+    __ Jump(optimized_code_entry);
+
+    // Optimized code slot contains deoptimized code, evict it and re-enter the
+    // losure's code.
+    __ bind(&found_deoptimized_code);
+    GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
+  }
+
+  // Fall-through if the optimized code cell is clear and there is no
+  // optimization marker.
+  __ bind(&fallthrough);
+}
+
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
 // stack left to right.  The actual argument count matches the formal parameter
@@ -1018,29 +1111,27 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch) {
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
+  Register closure = a1;
+  Register feedback_vector = a2;
+
+  // Load the feedback vector from the closure.
+  __ Ld(feedback_vector,
+        FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  // Read off the optimized code slot in the feedback vector, and if there
+  // is optimized code or an optimization marker, call that instead.
+  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, a4, t3, a5);
+
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushStandardFrame(a1);
-
-  // First check if there is optimized code in the feedback vector which we
-  // could call instead.
-  Label switch_to_optimized_code;
-  Register optimized_code_entry = a4;
-  __ Ld(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
-  __ Ld(a0, FieldMemOperand(a0, Cell::kValueOffset));
-  __ Ld(optimized_code_entry,
-        FieldMemOperand(a0, FeedbackVector::kOptimizedCodeIndex * kPointerSize +
-                                FeedbackVector::kHeaderSize));
-  __ Ld(optimized_code_entry,
-        FieldMemOperand(optimized_code_entry, WeakCell::kValueOffset));
-  __ JumpIfNotSmi(optimized_code_entry, &switch_to_optimized_code);
+  __ PushStandardFrame(closure);
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
   Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
-  __ Ld(a0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(a0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ Ld(kInterpreterBytecodeArrayRegister,
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
   __ Ld(a4, FieldMemOperand(a0, SharedFunctionInfo::kDebugInfoOffset));
@@ -1056,15 +1147,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
             Operand(masm->CodeObject()));  // Self-reference to this code.
 
   // Increment invocation count for the function.
-  __ Ld(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
-  __ Ld(a0, FieldMemOperand(a0, Cell::kValueOffset));
-  __ Ld(a4, FieldMemOperand(
-                a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                        FeedbackVector::kHeaderSize));
+  __ Ld(a4,
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize));
   __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
-  __ Sd(a4, FieldMemOperand(
-                a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                        FeedbackVector::kHeaderSize));
+  __ Sd(a4,
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
@@ -1153,35 +1244,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // closure by switching the code entry field over to the new code as well.
   __ bind(&switch_to_different_code_kind);
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-  __ Ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(a4, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ Ld(a4, FieldMemOperand(a4, SharedFunctionInfo::kCodeOffset));
   __ Daddu(a4, a4, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Sd(a4, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  __ RecordWriteCodeEntryField(a1, a4, a5);
+  __ Sd(a4, FieldMemOperand(closure, JSFunction::kCodeEntryOffset));
+  __ RecordWriteCodeEntryField(closure, a4, a5);
   __ Jump(a4);
-
-  // If there is optimized code on the type feedback vector, check if it is good
-  // to run, and if so, self heal the closure and call the optimized code.
-  __ bind(&switch_to_optimized_code);
-  __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-  Label gotta_call_runtime;
-
-  // Check if the optimized code is marked for deopt.
-  __ Lw(a5,
-        FieldMemOperand(optimized_code_entry, Code::kKindSpecificFlags1Offset));
-  __ And(a5, a5, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ Branch(&gotta_call_runtime, ne, a5, Operand(zero_reg));
-
-  // Optimized code is good, get it into the closure and link the closure into
-  // the optimized functions list, then tail call the optimized code.
-  ReplaceClosureEntryWithOptimizedCode(masm, optimized_code_entry, a1, t3, a5,
-                                       t0);
-  __ Jump(optimized_code_entry);
-
-  // Optimized code is marked for deopt, bailout to the CompileLazy runtime
-  // function which will clear the feedback vector's optimized code slot.
-  __ bind(&gotta_call_runtime);
-  GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
 }
 
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
@@ -1416,6 +1484,34 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   Generate_InterpreterEnterBytecode(masm);
 }
 
+void Builtins::Generate_CheckOptimizationMarker(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : argument count (preserved for callee)
+  //  -- a3 : new target (preserved for callee)
+  //  -- a1 : target function (preserved for callee)
+  // -----------------------------------
+  Register closure = a1;
+
+  // Get the feedback vector.
+  Register feedback_vector = a2;
+  __ Ld(feedback_vector,
+        FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+  // The feedback vector must be defined.
+  if (FLAG_debug_code) {
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ Assert(ne, BailoutReason::kExpectedFeedbackVector, feedback_vector,
+              Operand(at));
+  }
+
+  // Is there an optimization marker or optimized code in the feedback vector?
+  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, a4, t3, a5);
+
+  // Otherwise, tail call the SFI code.
+  GenerateTailCallToSharedCode(masm);
+}
+
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : argument count (preserved for callee)
@@ -1424,41 +1520,23 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // -----------------------------------
   // First lookup code, maybe we don't need to compile!
   Label gotta_call_runtime;
-  Label try_shared;
 
   Register closure = a1;
-  Register index = a2;
+  Register feedback_vector = a2;
 
   // Do we have a valid feedback vector?
-  __ Ld(index, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
-  __ Ld(index, FieldMemOperand(index, Cell::kValueOffset));
-  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
+  __ Ld(feedback_vector,
+        FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ JumpIfRoot(feedback_vector, Heap::kUndefinedValueRootIndex,
+                &gotta_call_runtime);
 
-  // Is optimized code available in the feedback vector?
-  Register entry = a4;
-  __ Ld(entry, FieldMemOperand(
-                   index, FeedbackVector::kOptimizedCodeIndex * kPointerSize +
-                              FeedbackVector::kHeaderSize));
-  __ Ld(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
-  __ JumpIfSmi(entry, &try_shared);
-
-  // Found code, check if it is marked for deopt, if so call into runtime to
-  // clear the optimized code slot.
-  __ Lw(a5, FieldMemOperand(entry, Code::kKindSpecificFlags1Offset));
-  __ And(a5, a5, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ Branch(&gotta_call_runtime, ne, a5, Operand(zero_reg));
-
-  // Code is good, get it into the closure and tail call.
-  ReplaceClosureEntryWithOptimizedCode(masm, entry, closure, t3, a5, t0);
-  __ Jump(entry);
+  // Is there an optimization marker or optimized code in the feedback vector?
+  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, a4, t3, a5);
 
   // We found no optimized code.
-  __ bind(&try_shared);
+  Register entry = a4;
   __ Ld(entry, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  // Is the shared function marked for tier up?
-  __ Lwu(a5, FieldMemOperand(entry, SharedFunctionInfo::kCompilerHintsOffset));
-  __ And(a5, a5, Operand(SharedFunctionInfo::MarkedForTierUpBit::kMask));
-  __ Branch(&gotta_call_runtime, ne, a5, Operand(zero_reg));
 
   // If SFI points to anything other than CompileLazy, install that.
   __ Ld(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
@@ -1473,15 +1551,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
 
   __ bind(&gotta_call_runtime);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
-}
-
-void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
-  GenerateTailCallToReturnedCode(masm,
-                                 Runtime::kCompileOptimized_NotConcurrent);
-}
-
-void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
-  GenerateTailCallToReturnedCode(masm, Runtime::kCompileOptimized_Concurrent);
 }
 
 void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {

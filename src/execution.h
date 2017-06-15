@@ -96,9 +96,10 @@ class V8_EXPORT_PRIVATE StackGuard final {
   V(API_INTERRUPT, ApiInterrupt, 4)             \
   V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5)
 
-#define V(NAME, Name, id)                                          \
-  inline bool Check##Name() { return CheckInterrupt(NAME); }  \
-  inline void Request##Name() { RequestInterrupt(NAME); }     \
+#define V(NAME, Name, id)                                                    \
+  inline bool Check##Name() { return CheckInterrupt(NAME); }                 \
+  inline bool CheckAndClear##Name() { return CheckAndClearInterrupt(NAME); } \
+  inline void Request##Name() { RequestInterrupt(NAME); }                    \
   inline void Clear##Name() { ClearInterrupt(NAME); }
   INTERRUPT_LIST(V)
 #undef V

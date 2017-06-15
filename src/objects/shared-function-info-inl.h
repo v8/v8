@@ -86,11 +86,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function,
                     SharedFunctionInfo::IsAsmFunctionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                     SharedFunctionInfo::IsDeclarationBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
-                    SharedFunctionInfo::MarkedForTierUpBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
-                    has_concurrent_optimization_job,
-                    SharedFunctionInfo::HasConcurrentOptimizationJobBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
                     SharedFunctionInfo::NeedsHomeObjectBit)
@@ -229,8 +224,7 @@ ACCESSORS(SharedFunctionInfo, outer_scope_info, HeapObject,
 
 bool SharedFunctionInfo::is_compiled() const {
   Builtins* builtins = GetIsolate()->builtins();
-  DCHECK(code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent));
-  DCHECK(code() != builtins->builtin(Builtins::kCompileOptimized));
+  DCHECK(code() != builtins->builtin(Builtins::kCheckOptimizationMarker));
   return code() != builtins->builtin(Builtins::kCompileLazy);
 }
 

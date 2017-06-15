@@ -122,7 +122,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
     return isolate->heap()->undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  function->shared()->set_marked_for_tier_up(false);
 
   // If the function is not optimized, just return.
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
@@ -234,22 +233,41 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
 
   // If the function is already optimized, just return.
-  if (function->IsOptimized()) return isolate->heap()->undefined_value();
-
-  function->MarkForOptimization();
-  if (FLAG_trace_opt) {
-    PrintF("[manually marking ");
-    function->ShortPrint();
-    PrintF(" for optimization]\n");
+  if (function->IsOptimized()) {
+    return isolate->heap()->undefined_value();
   }
 
+  // If the function has optimized code, ensure that we check for it and return.
+  if (function->HasOptimizedCode()) {
+    if (!function->IsInterpreted()) {
+      // For non I+TF path, install a shim which checks the optimization marker.
+      function->ReplaceCode(
+          isolate->builtins()->builtin(Builtins::kCheckOptimizationMarker));
+    }
+    DCHECK(function->ChecksOptimizationMarker());
+    return isolate->heap()->undefined_value();
+  }
+
+  ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
   if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
     if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
-      function->AttemptConcurrentOptimization();
+      concurrency_mode = ConcurrencyMode::kConcurrent;
     }
   }
+  if (FLAG_trace_opt) {
+    PrintF("[manually marking ");
+    function->ShortPrint();
+    PrintF(" for %s optimization]\n",
+           concurrency_mode == ConcurrencyMode::kConcurrent ? "concurrent"
+                                                            : "non-concurrent");
+  }
+
+  // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
+  JSFunction::EnsureLiterals(function);
+
+  function->MarkForOptimization(concurrency_mode);
 
   return isolate->heap()->undefined_value();
 }
@@ -271,6 +289,17 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
+
+  // Ensure that the function is marked for non-concurrent optimization, so that
+  // subsequent runs don't also optimize.
+  if (!function->HasOptimizedCode()) {
+    if (FLAG_trace_osr) {
+      PrintF("[OSR - OptimizeOsr marking ");
+      function->ShortPrint();
+      PrintF(" for non-concurrent optimization]\n");
+    }
+    function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
+  }
 
   // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->type() == StackFrame::JAVA_SCRIPT ||
