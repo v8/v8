@@ -306,7 +306,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
 
 // Maximum size of a table entry generated below.
+#ifdef _MIPS_ARCH_MIPS32R6
+const int Deoptimizer::table_entry_size_ = 2 * Assembler::kInstrSize;
+#else
 const int Deoptimizer::table_entry_size_ = 3 * Assembler::kInstrSize;
+#endif
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
@@ -315,8 +319,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // Note that registers are still live when jumping to an entry.
   Label table_start, done, trampoline_jump;
   __ bind(&table_start);
+
+#ifdef _MIPS_ARCH_MIPS32R6
+  int kMaxEntriesBranchReach =
+      (1 << (kImm26Bits - 2)) / (table_entry_size_ / Assembler::kInstrSize);
+#else
   int kMaxEntriesBranchReach = (1 << (kImm16Bits - 2))/
      (table_entry_size_ /  Assembler::kInstrSize);
+#endif
 
   if (count() <= kMaxEntriesBranchReach) {
     // Common case.
@@ -324,10 +334,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
-      __ li(at, i);  // In the delay slot.
-      __ nop();
-
+      if (IsMipsArchVariant(kMips32r6)) {
+        __ li(at, i);
+        __ BranchShort(PROTECT, &done);
+      } else {
+        __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
+        __ li(at, i);                           // In the delay slot.
+        __ nop();
+      }
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
     }
 
@@ -336,6 +350,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     __ bind(&done);
     __ Push(at);
   } else {
+    DCHECK(!IsMipsArchVariant(kMips32r6));
     // Uncommon case, the branch cannot reach.
     // Create mini trampoline to reach the end of the table
     for (int i = 0, j = 0; i < count(); i++, j++) {
