@@ -230,23 +230,14 @@ SafeStackFrameIterator::SafeStackFrameIterator(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
 
     // If the top of stack is a return address to the interpreter trampoline,
-    // then we are likely in a bytecode handler with elided frame. Check if
-    // there is a bytecode array in the frame header, and if there is, case, set
-    // the PC properly and make sure we do not drop the frame.
+    // then we are likely in a bytecode handler with elided frame. In that
+    // case, set the PC properly and make sure we do not drop the frame.
     if (IsValidStackAddress(sp)) {
       MSAN_MEMORY_IS_INITIALIZED(sp, kPointerSize);
       Address tos = ReadMemoryAt(reinterpret_cast<Address>(sp));
       if (IsInterpreterFramePc(isolate, tos)) {
-        Address bytecode_array_pointer =
-            fp + InterpreterFrameConstants::kBytecodeArrayFromFp;
-        if (IsValidStackAddress(bytecode_array_pointer)) {
-          Address bytecode_array = Memory::Address_at(bytecode_array_pointer);
-          if (IsValidHeapAddress(bytecode_array, isolate) &&
-              reinterpret_cast<Object*>(bytecode_array)->IsBytecodeArray()) {
-            state.pc_address = reinterpret_cast<Address*>(sp);
-            advance_frame = false;
-          }
-        }
+        state.pc_address = reinterpret_cast<Address*>(sp);
+        advance_frame = false;
       }
     }
 
@@ -312,20 +303,11 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   }
 }
 
-bool SafeStackFrameIterator::IsValidHeapAddress(Address addr,
-                                                Isolate* isolate) const {
-  // We check HasHeapObjectTag to avoid failing DCHECKs when the input is not a
-  // tagged value (neither a valid Smi nor a valid HeapObject). We only do a
-  // range check on the address to avoid iterating through pages -- this might
-  // mean that the address is in some random or even unallocated page in the
-  // heap, but at least it won't segfault if we try to dereference it.
-  return Internals::HasHeapObjectTag(reinterpret_cast<Object*>(addr)) &&
-         !isolate->heap()->memory_allocator()->IsOutsideAllocatedSpace(addr);
-}
 
 bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
   return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp());
 }
+
 
 bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
   StackFrame::State state;
