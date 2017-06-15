@@ -14,6 +14,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/hashmap.h"
+#include "src/base/iterator.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 #include "src/globals.h"
@@ -1481,7 +1482,7 @@ class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
 
 template <class PAGE_TYPE>
 class PageIteratorImpl
-    : public std::iterator<std::forward_iterator_tag, PAGE_TYPE> {
+    : public base::iterator<std::forward_iterator_tag, PAGE_TYPE> {
  public:
   explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
   PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}

@@ -74,8 +74,8 @@ namespace {
 // An iterator that returns first the module itself, then all modules linked via
 // next, then all linked via prev.
 class CompiledModulesIterator
-    : public std::iterator<std::input_iterator_tag,
-                           Handle<WasmCompiledModule>> {
+    : public v8::base::iterator<std::input_iterator_tag,
+                                Handle<WasmCompiledModule>> {
  public:
   CompiledModulesIterator(Isolate* isolate,
                           Handle<WasmCompiledModule> start_module, bool at_end)
@@ -132,8 +132,8 @@ class CompiledModulesIterator
 // An iterator based on the CompiledModulesIterator, but it returns all live
 // instances, not the WasmCompiledModules itself.
 class CompiledModuleInstancesIterator
-    : public std::iterator<std::input_iterator_tag,
-                           Handle<WasmInstanceObject>> {
+    : public v8::base::iterator<std::input_iterator_tag,
+                                Handle<WasmInstanceObject>> {
  public:
   CompiledModuleInstancesIterator(Isolate* isolate,
                                   Handle<WasmCompiledModule> start_module,

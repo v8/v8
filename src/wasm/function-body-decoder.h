@@ -5,8 +5,6 @@
 #ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
 #define V8_WASM_FUNCTION_BODY_DECODER_H_
 
-#include <iterator>
-
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
 #include "src/globals.h"
@@ -129,7 +127,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   // If one wants to iterate over the bytecode without looking at {pc_offset()}.
   class opcode_iterator
       : public iterator_base,
-        public std::iterator<std::input_iterator_tag, WasmOpcode> {
+        public base::iterator<std::input_iterator_tag, WasmOpcode> {
    public:
     inline WasmOpcode operator*() {
       DCHECK_LT(ptr_, end_);
@@ -145,7 +143,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   // opcodes.
   class offset_iterator
       : public iterator_base,
-        public std::iterator<std::input_iterator_tag, uint32_t> {
+        public base::iterator<std::input_iterator_tag, uint32_t> {
    public:
     inline uint32_t operator*() {
       DCHECK_LT(ptr_, end_);
