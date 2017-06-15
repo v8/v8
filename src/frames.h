@@ -1632,6 +1632,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   bool IsValidStackAddress(Address addr) const {
     return low_bound_ <= addr && addr <= high_bound_;
   }
+  bool IsValidHeapAddress(Address addr, Isolate* isolate) const;
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
   bool IsValidExitFrame(Address fp) const;
