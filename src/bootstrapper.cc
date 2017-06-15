@@ -2751,11 +2751,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- A t o m i c s
-    Handle<String> name = factory->InternalizeUtf8String("Atomics");
-    Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
-    Handle<JSObject> atomics_object = factory->NewJSObject(cons, TENURED);
-    DCHECK(atomics_object->IsJSObject());
+    Handle<JSObject> atomics_object =
+        factory->NewJSObject(isolate->object_function(), TENURED);
     native_context()->set_atomics_object(*atomics_object);
 
     SimpleInstallFunction(atomics_object, "load", Builtins::kAtomicsLoad, 2,
