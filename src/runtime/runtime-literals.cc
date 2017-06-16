@@ -199,14 +199,18 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
 
-  if (!HasBoilerplate(isolate, literal_site)) {
+  if (HasBoilerplate(isolate, literal_site)) {
+    site = Handle<AllocationSite>::cast(literal_site);
+    boilerplate =
+        Handle<JSObject>(JSObject::cast(site->transition_info()), isolate);
+  } else {
     // Instantiate a JSArray or JSObject literal from the given {description}.
     boilerplate = Boilerplate::Create(isolate, vector, description, flags);
     if (IsUninitializedLiteralSite(literal_site)) {
       PreInitializeLiteralSite(vector, literals_slot);
       return boilerplate;
     }
-
+    // Install AllocationSite objects.
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();
     RETURN_ON_EXCEPTION(
@@ -214,10 +218,6 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     creation_context.ExitScope(site, boilerplate);
 
     vector->Set(literals_slot, *site);
-  } else {
-    site = Handle<AllocationSite>::cast(literal_site);
-    boilerplate =
-        Handle<JSObject>(JSObject::cast(site->transition_info()), isolate);
   }
 
   STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==

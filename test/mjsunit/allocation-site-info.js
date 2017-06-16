@@ -614,3 +614,26 @@ gc();
   var b = make();
   assertKind(elements_kind.fast_double, b);
 })();
+
+(function TestBoilerplateMapDeprecation() {
+  function literal() {
+    return { a: 1, b: 2 };
+  }
+  literal();
+  literal();
+  let instance = literal();
+  assertKind(elements_kind.fast_smi_only, [instance.a, instance.b]);
+  // Create literal instances with double insteand of smi values.
+  for (let i = 0; i < 1000; i++) {
+    instance  = literal();
+    instance.a = 1.2;
+    assertKind(elements_kind.fast_double, [instance.a, instance.b]);
+  }
+
+  // After deprecating the original boilerplate map we should get heap numbers
+  // back for the original unmodified literal as well.
+  for (let i =0; i < 100; i++) {
+    instance = literal();
+    assertKind(elements_kind.fast_double, [instance.a, instance.b]);
+  }
+})();

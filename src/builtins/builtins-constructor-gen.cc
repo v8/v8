@@ -556,9 +556,12 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
 
   VARIABLE(var_properties, MachineRepresentation::kTagged);
   {
+    Node* bit_field_3 = LoadMapBitField3(boilerplate_map);
+    GotoIf(IsSetWord32<Map::Deprecated>(bit_field_3), call_runtime);
     // Directly copy over the property store for dict-mode boilerplates.
     Label if_dictionary(this), if_fast(this), done(this);
-    Branch(IsDictionaryMap(boilerplate_map), &if_dictionary, &if_fast);
+    Branch(IsSetWord32<Map::DictionaryMap>(bit_field_3), &if_dictionary,
+           &if_fast);
     BIND(&if_dictionary);
     {
       Comment("Copy dictionary properties");
