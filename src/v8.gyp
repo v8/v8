@@ -944,8 +944,6 @@
         'crankshaft/hydrogen-load-elimination.h',
         'crankshaft/hydrogen-mark-unreachable.cc',
         'crankshaft/hydrogen-mark-unreachable.h',
-        'crankshaft/hydrogen-osr.cc',
-        'crankshaft/hydrogen-osr.h',
         'crankshaft/hydrogen-range-analysis.cc',
         'crankshaft/hydrogen-range-analysis.h',
         'crankshaft/hydrogen-redundant-phi.cc',

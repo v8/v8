@@ -193,9 +193,6 @@ void HEnvironmentLivenessAnalysisPhase::Run() {
         for (int i = 0; i < block->predecessors()->length(); ++i) {
           worklist.Add(block->predecessors()->at(i)->block_id());
         }
-        if (block->IsInlineReturnTarget()) {
-          worklist.Add(block->inlined_entry_block()->block_id());
-        }
       }
     }
     // Only collect bind/lookup instructions during the first pass.

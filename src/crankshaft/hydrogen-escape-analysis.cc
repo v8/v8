@@ -313,9 +313,6 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
 
 
 void HEscapeAnalysisPhase::Run() {
-  // TODO(mstarzinger): We disable escape analysis with OSR for now, because
-  // spill slots might be uninitialized. Needs investigation.
-  if (graph()->has_osr()) return;
   int max_fixpoint_iteration_count = FLAG_escape_analysis_iterations;
   for (int i = 0; i < max_fixpoint_iteration_count; i++) {
     CollectCapturedValues();

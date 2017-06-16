@@ -11,7 +11,6 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/crankshaft/hydrogen-osr.h"
 #include "src/deoptimizer.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/ic/ic.h"
@@ -233,21 +232,7 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue end");
 }
 
-
-void LCodeGen::GenerateOsrPrologue() {
-  // Generate the OSR entry prologue at the first unknown OSR value, or if there
-  // are none, at the OSR entrypoint instruction.
-  if (osr_pc_offset_ >= 0) return;
-
-  osr_pc_offset_ = masm()->pc_offset();
-
-  // Adjust the frame size, subsuming the unoptimized frame into the
-  // optimized frame.
-  int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
-  DCHECK(slots >= 0);
-  __ sub(esp, Immediate(slots * kPointerSize));
-}
-
+void LCodeGen::GenerateOsrPrologue() { UNREACHABLE(); }
 
 void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
   if (instr->IsCall()) {

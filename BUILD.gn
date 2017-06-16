@@ -1487,8 +1487,6 @@ v8_source_set("v8_base") {
     "src/crankshaft/hydrogen-load-elimination.h",
     "src/crankshaft/hydrogen-mark-unreachable.cc",
     "src/crankshaft/hydrogen-mark-unreachable.h",
-    "src/crankshaft/hydrogen-osr.cc",
-    "src/crankshaft/hydrogen-osr.h",
     "src/crankshaft/hydrogen-range-analysis.cc",
     "src/crankshaft/hydrogen-range-analysis.h",
     "src/crankshaft/hydrogen-redundant-phi.cc",

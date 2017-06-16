@@ -1762,7 +1762,6 @@ class HEnterInlined final : public HTemplateInstruction<0> {
                       syntactic_tail_call_mode, zone);
   }
 
-  void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
   ZoneList<HBasicBlock*>* return_targets() { return &return_targets_; }
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT

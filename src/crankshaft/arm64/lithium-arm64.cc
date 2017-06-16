@@ -8,7 +8,6 @@
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/crankshaft/arm64/lithium-codegen-arm64.h"
-#include "src/crankshaft/hydrogen-osr.h"
 #include "src/crankshaft/lithium-inl.h"
 #include "src/objects-inl.h"
 
@@ -508,16 +507,6 @@ LPlatformChunk* LChunkBuilder::Build() {
   chunk_ = new(zone()) LPlatformChunk(info_, graph_);
   LPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
-
-  // If compiling for OSR, reserve space for the unoptimized frame,
-  // which will be subsumed into this frame.
-  if (graph()->has_osr()) {
-    // TODO(all): GetNextSpillIndex just increments a field. It has no other
-    // side effects, so we should get rid of this loop.
-    for (int i = graph()->osr()->UnoptimizedFrameSlots(); i > 0; i--) {
-      chunk_->GetNextSpillIndex();
-    }
-  }
 
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int i = 0; i < blocks->length(); i++) {

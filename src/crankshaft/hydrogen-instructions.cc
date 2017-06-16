@@ -2128,13 +2128,6 @@ std::ostream& HCapturedObject::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
-                                         Zone* zone) {
-  DCHECK(return_target->IsInlineReturnTarget());
-  return_targets_.Add(return_target, zone);
-}
-
-
 std::ostream& HEnterInlined::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << function()->debug_name()->ToCString().get();
   if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
@@ -2398,10 +2391,6 @@ bool HConstant::ImmortalImmovable() const {
 
 bool HConstant::EmitAtUses() {
   DCHECK(IsLinked());
-  if (block()->graph()->has_osr() &&
-      block()->graph()->IsStandardConstant(this)) {
-    return true;
-  }
   if (HasNoUses()) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;

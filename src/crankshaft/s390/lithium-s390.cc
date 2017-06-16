@@ -6,7 +6,6 @@
 
 #include <sstream>
 
-#include "src/crankshaft/hydrogen-osr.h"
 #include "src/crankshaft/lithium-inl.h"
 #include "src/crankshaft/s390/lithium-codegen-s390.h"
 
@@ -335,14 +334,6 @@ LPlatformChunk* LChunkBuilder::Build() {
   chunk_ = new (zone()) LPlatformChunk(info(), graph());
   LPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
-
-  // If compiling for OSR, reserve space for the unoptimized frame,
-  // which will be subsumed into this frame.
-  if (graph()->has_osr()) {
-    for (int i = graph()->osr()->UnoptimizedFrameSlots(); i > 0; i--) {
-      chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
-    }
-  }
 
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); i++) {
