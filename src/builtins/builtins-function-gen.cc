@@ -78,9 +78,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Node* native_context = LoadNativeContext(context);
 
   Label map_done(this, vars);
-  Node* bit_field = LoadMapBitField(receiver_map);
-  int mask = static_cast<int>(1 << Map::kIsConstructor);
-  GotoIf(IsSetWord32(bit_field, mask), &with_constructor);
+  GotoIf(IsConstructorMap(receiver_map), &with_constructor);
 
   bound_function_map.Bind(LoadContextElement(
       native_context, Context::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX));

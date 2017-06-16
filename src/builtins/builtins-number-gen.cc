@@ -210,10 +210,9 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         // a cached array index.
         Label if_inputcached(this), if_inputnotcached(this);
         Node* input_hash = LoadNameHashField(input);
-        Node* input_bit = Word32And(
-            input_hash, Int32Constant(String::kContainsCachedArrayIndexMask));
-        Branch(Word32Equal(input_bit, Int32Constant(0)), &if_inputcached,
-               &if_inputnotcached);
+        Branch(IsClearWord32(input_hash,
+                             Name::kDoesNotContainCachedArrayIndexMask),
+               &if_inputcached, &if_inputnotcached);
 
         BIND(&if_inputcached);
         {
@@ -323,9 +322,8 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
     {
       // Check if the String {input} has a cached array index.
       Node* input_hash = LoadNameHashField(input);
-      Node* input_bit = Word32And(
-          input_hash, Int32Constant(String::kContainsCachedArrayIndexMask));
-      GotoIf(Word32NotEqual(input_bit, Int32Constant(0)), &if_generic);
+      GotoIf(IsSetWord32(input_hash, Name::kDoesNotContainCachedArrayIndexMask),
+             &if_generic);
 
       // Return the cached array index as result.
       Node* input_index =

@@ -325,11 +325,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
   // 7. If IsConstructor(S) is true, return S.
   Label throw_error(this);
   GotoIf(TaggedIsSmi(species), &throw_error);
-  Node* species_bitfield = LoadMapBitField(LoadMap(species));
-  GotoIfNot(Word32Equal(Word32And(species_bitfield,
-                                  Int32Constant((1 << Map::kIsConstructor))),
-                        Int32Constant(1 << Map::kIsConstructor)),
-            &throw_error);
+  GotoIfNot(IsConstructorMap(LoadMap(species)), &throw_error);
   var_result.Bind(species);
   Goto(&out);
 

@@ -2324,12 +2324,7 @@ IGNITION_HANDLER(TestUndetectable, InterpreterAssembler) {
   GotoIf(TaggedIsSmi(object), &end);
 
   // If it is a HeapObject, load the map and check for undetectable bit.
-  Node* map = LoadMap(object);
-  Node* map_bitfield = LoadMapBitField(map);
-  Node* map_undetectable =
-      Word32And(map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
-  Node* result =
-      SelectBooleanConstant(Word32NotEqual(map_undetectable, Int32Constant(0)));
+  Node* result = SelectBooleanConstant(IsUndetectableMap(LoadMap(object)));
   SetAccumulator(result);
   Goto(&end);
 
@@ -2419,12 +2414,8 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     Comment("IfUndefined");
     GotoIf(TaggedIsSmi(object), &if_false);
     // Check it is not null and the map has the undetectable bit set.
-    GotoIf(WordEqual(object, NullConstant()), &if_false);
-    Node* map_bitfield = LoadMapBitField(LoadMap(object));
-    Node* undetectable_bit =
-        Word32And(map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
-    Branch(Word32Equal(undetectable_bit, Int32Constant(0)), &if_false,
-           &if_true);
+    GotoIf(IsNull(object), &if_false);
+    Branch(IsUndetectableMap(LoadMap(object)), &if_true, &if_false);
   }
   BIND(&if_function);
   {

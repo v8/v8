@@ -821,6 +821,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsSymbol(Node* object);
   Node* IsUnseededNumberDictionary(Node* object);
   Node* IsWeakCell(Node* object);
+  Node* IsUndetectableMap(Node* map);
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);

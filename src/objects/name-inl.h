@@ -86,6 +86,11 @@ bool Name::AsArrayIndex(uint32_t* index) {
   return IsString() && String::cast(this)->AsArrayIndex(index);
 }
 
+// static
+bool Name::ContainsCachedArrayIndex(uint32_t hash) {
+  return (hash & Name::kDoesNotContainCachedArrayIndexMask) == 0;
+}
+
 }  // namespace internal
 }  // namespace v8
 

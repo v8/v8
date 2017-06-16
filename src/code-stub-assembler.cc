@@ -955,12 +955,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
 
     // Only null, undefined and document.all have the undetectable bit set,
     // so we can return false immediately when that bit is set.
-    Node* value_map_bitfield = LoadMapBitField(value_map);
-    Node* value_map_undetectable =
-        Word32And(value_map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
-
-    // Check if the {value} is undetectable.
-    GotoIfNot(Word32Equal(value_map_undetectable, Int32Constant(0)), if_false);
+    GotoIf(IsUndetectableMap(value_map), if_false);
 
     // We still need to handle numbers specially, but all other {value}s
     // that make it here yield true.
@@ -1225,9 +1220,7 @@ Node* CodeStubAssembler::LoadNameHashField(Node* name) {
 Node* CodeStubAssembler::LoadNameHash(Node* name, Label* if_hash_not_computed) {
   Node* hash_field = LoadNameHashField(name);
   if (if_hash_not_computed != nullptr) {
-    GotoIf(Word32Equal(
-               Word32And(hash_field, Int32Constant(Name::kHashNotComputedMask)),
-               Int32Constant(0)),
+    GotoIf(IsClearWord32(hash_field, Name::kHashNotComputedMask),
            if_hash_not_computed);
   }
   return Word32Shr(hash_field, Int32Constant(Name::kHashShift));
@@ -2005,10 +1998,8 @@ Node* CodeStubAssembler::NewConsString(Node* context, Node* length, Node* left,
   Label two_byte_map(this);
   VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this, &result);
-  GotoIf(Word32NotEqual(Word32And(anded_instance_types,
-                                  Int32Constant(kStringEncodingMask |
-                                                kOneByteDataHintTag)),
-                        Int32Constant(0)),
+  GotoIf(IsSetWord32(anded_instance_types,
+                     kStringEncodingMask | kOneByteDataHintTag),
          &one_byte_map);
   Branch(Word32NotEqual(Word32And(xored_instance_types,
                                   Int32Constant(kStringEncodingMask |
@@ -3187,20 +3178,22 @@ Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
 Node* CodeStubAssembler::IsDictionaryMap(Node* map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   Node* bit_field3 = LoadMapBitField3(map);
-  return Word32NotEqual(IsSetWord32<Map::DictionaryMap>(bit_field3),
-                        Int32Constant(0));
+  return IsSetWord32<Map::DictionaryMap>(bit_field3);
 }
 
 Node* CodeStubAssembler::IsCallableMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return Word32NotEqual(
-      Word32And(LoadMapBitField(map), Int32Constant(1 << Map::kIsCallable)),
-      Int32Constant(0));
+  return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsCallable);
 }
 
 Node* CodeStubAssembler::IsDeprecatedMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32<Map::Deprecated>(LoadMapBitField3(map));
+}
+
+Node* CodeStubAssembler::IsUndetectableMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsUndetectable);
 }
 
 Node* CodeStubAssembler::IsCallable(Node* object) {
@@ -3209,9 +3202,7 @@ Node* CodeStubAssembler::IsCallable(Node* object) {
 
 Node* CodeStubAssembler::IsConstructorMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return Word32NotEqual(
-      Word32And(LoadMapBitField(map), Int32Constant(1 << Map::kIsConstructor)),
-      Int32Constant(0));
+  return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsConstructor);
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
@@ -3264,9 +3255,7 @@ Node* CodeStubAssembler::IsShortExternalStringInstanceType(
     Node* instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  return Word32NotEqual(
-      Word32And(instance_type, Int32Constant(kShortExternalStringMask)),
-      Int32Constant(0));
+  return IsSetWord32(instance_type, kShortExternalStringMask);
 }
 
 Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
@@ -4112,14 +4101,8 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
         Word32Xor(left_instance_type, right_instance_type);
 
     // Check if both strings have the same encoding and both are sequential.
-    GotoIf(Word32NotEqual(Word32And(xored_instance_types,
-                                    Int32Constant(kStringEncodingMask)),
-                          Int32Constant(0)),
-           &runtime);
-    GotoIf(Word32NotEqual(Word32And(ored_instance_types,
-                                    Int32Constant(kStringRepresentationMask)),
-                          Int32Constant(0)),
-           &slow);
+    GotoIf(IsSetWord32(xored_instance_types, kStringEncodingMask), &runtime);
+    GotoIf(IsSetWord32(ored_instance_types, kStringRepresentationMask), &slow);
 
     Label two_byte(this);
     GotoIf(Word32Equal(Word32And(ored_instance_types,
@@ -4241,9 +4224,8 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
 
   // Check if string has a cached array index.
   Node* hash = LoadNameHashField(input);
-  Node* bit =
-      Word32And(hash, Int32Constant(String::kContainsCachedArrayIndexMask));
-  GotoIf(Word32NotEqual(bit, Int32Constant(0)), &runtime);
+  GotoIf(IsSetWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
+         &runtime);
 
   var_result.Bind(
       SmiTag(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash)));
@@ -4884,14 +4866,11 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   GotoIfNot(IsStringInstanceType(key_instance_type), if_bailout);
   // |key| is a String. Check if it has a cached array index.
   Node* hash = LoadNameHashField(key);
-  Node* contains_index =
-      Word32And(hash, Int32Constant(Name::kContainsCachedArrayIndexMask));
-  GotoIf(Word32Equal(contains_index, Int32Constant(0)), &if_hascachedindex);
+  GotoIf(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
+         &if_hascachedindex);
   // No cached array index. If the string knows that it contains an index,
   // then it must be an uncacheable index. Handle this case in the runtime.
-  Node* not_an_index =
-      Word32And(hash, Int32Constant(Name::kIsNotArrayIndexMask));
-  GotoIf(Word32Equal(not_an_index, Int32Constant(0)), if_bailout);
+  GotoIf(IsClearWord32(hash, Name::kIsNotArrayIndexMask), if_bailout);
   // Check if we have a ThinString.
   GotoIf(Word32Equal(key_instance_type, Int32Constant(THIN_STRING_TYPE)),
          &if_thinstring);
@@ -4900,9 +4879,7 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
       &if_thinstring);
   // Finally, check if |key| is internalized.
   STATIC_ASSERT(kNotInternalizedTag != 0);
-  Node* not_internalized =
-      Word32And(key_instance_type, Int32Constant(kIsNotInternalizedMask));
-  GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)),
+  GotoIf(IsSetWord32(key_instance_type, kIsNotInternalizedMask),
          if_notinternalized != nullptr ? if_notinternalized : if_bailout);
   Goto(if_keyisunique);
 
@@ -5451,10 +5428,8 @@ void CodeStubAssembler::TryLookupProperty(
 
     // Handle interceptors and access checks in runtime.
     Node* bit_field = LoadMapBitField(map);
-    Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
-                               1 << Map::kIsAccessCheckNeeded);
-    GotoIf(Word32NotEqual(Word32And(bit_field, mask), Int32Constant(0)),
-           if_bailout);
+    int mask = 1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+    GotoIf(IsSetWord32(bit_field, mask), if_bailout);
 
     Node* dictionary = LoadProperties(object);
     var_meta_storage->Bind(dictionary);
@@ -6050,10 +6025,10 @@ Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
       GotoIf(InstanceTypeEqual(object_instance_type, JS_PROXY_TYPE),
              &return_runtime);
       Node* object_bitfield = LoadMapBitField(object_map);
-      Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
-                                 1 << Map::kIsAccessCheckNeeded);
-      Branch(Word32NotEqual(Word32And(object_bitfield, mask), Int32Constant(0)),
-             &return_runtime, &if_objectisdirect);
+      int mask =
+          1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+      Branch(IsSetWord32(object_bitfield, mask), &return_runtime,
+             &if_objectisdirect);
     }
     BIND(&if_objectisdirect);
 
@@ -8024,12 +7999,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
               // The {lhs} is either Null or Undefined; check if the {rhs} is
               // undetectable (i.e. either also Null or Undefined or some
               // undetectable JSReceiver).
-              Node* rhs_bitfield = LoadMapBitField(rhs_map);
-              Branch(Word32Equal(
-                         Word32And(rhs_bitfield,
-                                   Int32Constant(1 << Map::kIsUndetectable)),
-                         Int32Constant(0)),
-                     &if_notequal, &if_equal);
+              Branch(IsUndetectableMap(rhs_map), &if_equal, &if_notequal);
             }
           }
 
@@ -8117,23 +8087,11 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
               // a JSReceiver).
               Label if_rhsisundetectable(this),
                   if_rhsisnotundetectable(this, Label::kDeferred);
-              Node* rhs_bitfield = LoadMapBitField(rhs_map);
-              Branch(Word32Equal(
-                         Word32And(rhs_bitfield,
-                                   Int32Constant(1 << Map::kIsUndetectable)),
-                         Int32Constant(0)),
-                     &if_rhsisnotundetectable, &if_rhsisundetectable);
+              Branch(IsUndetectableMap(rhs_map), &if_rhsisundetectable,
+                     &if_rhsisnotundetectable);
 
               BIND(&if_rhsisundetectable);
-              {
-                // Check if {lhs} is an undetectable JSReceiver.
-                Node* lhs_bitfield = LoadMapBitField(lhs_map);
-                Branch(Word32Equal(
-                           Word32And(lhs_bitfield,
-                                     Int32Constant(1 << Map::kIsUndetectable)),
-                           Int32Constant(0)),
-                       &if_notequal, &if_equal);
-              }
+              Branch(IsUndetectableMap(lhs_map), &if_equal, &if_notequal);
 
               BIND(&if_rhsisnotundetectable);
               {
@@ -9308,10 +9266,7 @@ Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
   STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
   STATIC_ASSERT(FAST_HOLEY_ELEMENTS == (FAST_ELEMENTS | 1));
   STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == (FAST_DOUBLE_ELEMENTS | 1));
-
-  // Check prototype chain if receiver does not have packed elements.
-  Node* holey_elements = Word32And(elements_kind, Int32Constant(1));
-  return Word32Equal(holey_elements, Int32Constant(1));
+  return IsSetWord32(elements_kind, 1);
 }
 
 Node* CodeStubAssembler::IsElementsKindGreaterThan(

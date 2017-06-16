@@ -11798,7 +11798,7 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
 
   DCHECK((value & String::kIsNotArrayIndexMask) == 0);
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
-            (value & String::kContainsCachedArrayIndexMask) == 0);
+            Name::ContainsCachedArrayIndex(value));
   return value;
 }
 
@@ -17367,7 +17367,7 @@ Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
   STATIC_ASSERT(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
-  if ((hash & Name::kContainsCachedArrayIndexMask) == 0) {
+  if (Name::ContainsCachedArrayIndex(hash)) {
     return Smi::FromInt(String::ArrayIndexValueBits::decode(hash));
   }
   if ((hash & Name::kIsNotArrayIndexMask) == 0) {

@@ -39,6 +39,8 @@ class Name : public HeapObject {
 
   inline bool IsUniqueName() const;
 
+  static inline bool ContainsCachedArrayIndex(uint32_t hash);
+
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.
   MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(Handle<Name> name);
@@ -107,7 +109,9 @@ class Name : public HeapObject {
   // kMaxCachedArrayIndexLength.
   STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
-  static const unsigned int kContainsCachedArrayIndexMask =
+  // When any of these bits is set then the hash field does not contain a cached
+  // array index.
+  static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << ArrayIndexLengthBits::kShift) |
       kIsNotArrayIndexMask;
