@@ -1,0 +1,5 @@
+*%(basename)s:5: TypeError: [Symbol.iterator] is not a function
+var [a] = 1;
+          ^
+TypeError: [Symbol.iterator] is not a function
+    at *%(basename)s:5:11

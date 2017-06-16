@@ -3420,6 +3420,7 @@ void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
 }
 
 void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
+  builder()->SetExpressionPosition(expr);
   FeedbackSlot load_slot = expr->IteratorPropertyFeedbackSlot();
   FeedbackSlot call_slot = expr->IteratorCallFeedbackSlot();
 
