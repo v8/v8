@@ -743,8 +743,6 @@ class Page : public MemoryChunk {
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
-  static inline Page* ConvertNewToOld(Page* old_page);
-
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
   // is in fact in a page.
@@ -774,6 +772,8 @@ class Page : public MemoryChunk {
     return (reinterpret_cast<intptr_t>(addr) & kPageAlignmentMask) ==
            kObjectStartOffset;
   }
+
+  static Page* ConvertNewToOld(Page* old_page);
 
   inline static Page* FromAnyPointerAddress(Heap* heap, Address addr);
 
@@ -856,10 +856,10 @@ class Page : public MemoryChunk {
   enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
 
   template <InitializationMode mode = kFreeMemory>
-  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, PagedSpace* owner);
-  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, SemiSpace* owner);
+  static Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                          Executability executable, PagedSpace* owner);
+  static Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                          Executability executable, SemiSpace* owner);
 
   inline void InitializeFreeListCategories();
 
@@ -891,8 +891,8 @@ class LargePage : public MemoryChunk {
   static const int kMaxCodePageSize = 512 * MB;
 
  private:
-  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
-                                      Executability executable, Space* owner);
+  static LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
+                               Executability executable, Space* owner);
 
   friend class MemoryAllocator;
 };

@@ -24,6 +24,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/string-hasher.h"
 
 namespace v8 {
