@@ -518,18 +518,18 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
           Handle<AbstractCode> abstract_code = summ.abstract_code();
           const int offset = frames[i].code_offset();
 
-          bool force_constructor = false;
+          bool is_constructor = frames[i].is_constructor();
           if (frame->type() == StackFrame::BUILTIN) {
             // Help CallSite::IsConstructor correctly detect hand-written
             // construct stubs.
             if (Code::cast(*abstract_code)->is_construct_stub()) {
-              force_constructor = true;
+              is_constructor = true;
             }
           }
 
           int flags = 0;
           if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
-          if (force_constructor) flags |= FrameArray::kForceConstructor;
+          if (is_constructor) flags |= FrameArray::kIsConstructor;
 
           elements = FrameArray::AppendJSFrame(
               elements, TheHoleToUndefined(this, recv), fun, abstract_code,
@@ -551,7 +551,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         int flags = 0;
         if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
-        if (exit_frame->IsConstructor()) flags |= FrameArray::kForceConstructor;
+        if (exit_frame->IsConstructor()) flags |= FrameArray::kIsConstructor;
 
         elements = FrameArray::AppendJSFrame(elements, recv, fun,
                                              Handle<AbstractCode>::cast(code),

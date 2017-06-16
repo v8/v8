@@ -302,7 +302,7 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   offset_ = array->Offset(frame_ix)->value();
 
   const int flags = array->Flags(frame_ix)->value();
-  force_constructor_ = (flags & FrameArray::kForceConstructor) != 0;
+  is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
 }
 
@@ -316,7 +316,7 @@ JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
       function_(function),
       code_(code),
       offset_(offset),
-      force_constructor_(false),
+      is_constructor_(false),
       is_strict_(false) {}
 
 Handle<Object> JSStackFrame::GetFunction() const {
@@ -456,15 +456,6 @@ bool JSStackFrame::IsNative() {
 
 bool JSStackFrame::IsToplevel() {
   return receiver_->IsJSGlobalProxy() || receiver_->IsNullOrUndefined(isolate_);
-}
-
-bool JSStackFrame::IsConstructor() {
-  if (force_constructor_) return true;
-  if (!receiver_->IsJSObject()) return false;
-  Handle<Object> constructor =
-      JSReceiver::GetDataProperty(Handle<JSObject>::cast(receiver_),
-                                  isolate_->factory()->constructor_string());
-  return constructor.is_identical_to(function_);
 }
 
 namespace {

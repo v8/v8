@@ -48,7 +48,7 @@ class FrameArray : public FixedArray {
     kIsWasmInterpretedFrame = 1 << 1,
     kIsAsmJsWasmFrame = 1 << 2,
     kIsStrict = 1 << 3,
-    kForceConstructor = 1 << 4,
+    kIsConstructor = 1 << 4,
     kAsmJsAtNumberConversion = 1 << 5
   };
 

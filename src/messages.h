@@ -106,7 +106,7 @@ class JSStackFrame : public StackFrameBase {
 
   bool IsNative() override;
   bool IsToplevel() override;
-  bool IsConstructor() override;
+  bool IsConstructor() override { return is_constructor_; }
   bool IsStrict() const override { return is_strict_; }
 
   MaybeHandle<String> ToString() override;
@@ -123,7 +123,7 @@ class JSStackFrame : public StackFrameBase {
   Handle<AbstractCode> code_;
   int offset_;
 
-  bool force_constructor_;
+  bool is_constructor_;
   bool is_strict_;
 
   friend class FrameArrayIterator;
