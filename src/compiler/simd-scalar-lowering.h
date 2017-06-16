@@ -73,8 +73,9 @@ class SimdScalarLowering {
                    const Operator* load_op, SimdType type);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
-  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
-                     bool invert_inputs = false);
+  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op);
+  void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
+                      bool invert_inputs = false);
   Node* FixUpperBits(Node* input, int32_t shift);
   void LowerBinaryOpForSmallInt(Node* node, SimdType input_rep_type,
                                 const Operator* op);
@@ -88,6 +89,7 @@ class SimdScalarLowering {
   void LowerShiftOp(Node* node, SimdType type);
   Node* BuildF64Trunc(Node* input);
   void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
+  MachineType MachineTypeFrom(SimdType simdType);
 
   JSGraph* const jsgraph_;
   NodeMarker<State> state_;
