@@ -7,13 +7,16 @@
 function foo() {
   var a = {x:1};
   var b = {x:1.5, y: 1};
-  var x;
+  var x = 0;
   for (var i = 0; i < 1; i = {}) {
     // The second iteration of this loop is dead code, leading to a
     // contradiction between dynamic and static information.
-    x = a.x + 0.5;
-    x = a.x % 0.5;
-    x = Math.abs(a.x);
+    x += a.x + 0.5;
+    x += a.x % 0.5;
+    x += Math.abs(a.x);
+    x += a.x < 6;
+    x += a.x === 7;
+    x += a.x <= 8;
     a = b;
   }
   return x;
