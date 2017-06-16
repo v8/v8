@@ -45,8 +45,6 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 
 VirtualMemory::~VirtualMemory() {}
 
-bool VirtualMemory::IsReserved() { return false; }
-
 void VirtualMemory::Reset() {}
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {

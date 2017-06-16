@@ -313,7 +313,7 @@ class V8_BASE_EXPORT VirtualMemory {
   ~VirtualMemory();
 
   // Returns whether the memory has been reserved.
-  bool IsReserved();
+  bool IsReserved() const { return address_ != nullptr; }
 
   // Initialize or resets an embedded VirtualMemory object.
   void Reset();
@@ -322,16 +322,22 @@ class V8_BASE_EXPORT VirtualMemory {
   // If the memory was reserved with an alignment, this address is not
   // necessarily aligned. The user might need to round it up to a multiple of
   // the alignment to get the start of the aligned block.
-  void* address() {
+  void* address() const {
     DCHECK(IsReserved());
     return address_;
+  }
+
+  void* end() const {
+    DCHECK(IsReserved());
+    return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address_) +
+                                   size_);
   }
 
   // Returns the size of the reserved memory. The returned value is only
   // meaningful when IsReserved() returns true.
   // If the memory was reserved with an alignment, this size may be larger
   // than the requested size.
-  size_t size() { return size_; }
+  size_t size() const { return size_; }
 
   // Commits real memory. Returns whether the operation succeeded.
   bool Commit(void* address, size_t size, bool is_executable);

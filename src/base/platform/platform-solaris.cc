@@ -139,12 +139,6 @@ VirtualMemory::~VirtualMemory() {
   }
 }
 
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
 void VirtualMemory::Reset() {
   address_ = NULL;
   size_ = 0;

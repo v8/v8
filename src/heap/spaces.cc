@@ -463,10 +463,14 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
                                               base::VirtualMemory* controller) {
   base::VirtualMemory reservation(size, alignment);
 
-  if (!reservation.IsReserved()) return NULL;
-  size_.Increment(reservation.size());
-  Address base =
+  if (!reservation.IsReserved()) return nullptr;
+  const Address base =
       RoundUp(static_cast<Address>(reservation.address()), alignment);
+  if (base + size != reservation.end()) {
+    const Address unused_start = RoundUp(base + size, GetCommitPageSize());
+    reservation.ReleasePartial(unused_start);
+  }
+  size_.Increment(reservation.size());
   controller->TakeControl(&reservation);
   return base;
 }
