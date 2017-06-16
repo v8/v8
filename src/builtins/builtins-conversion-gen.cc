@@ -285,8 +285,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
     // Check if {len} is a HeapNumber.
     Label if_lenisheapnumber(this),
         if_lenisnotheapnumber(this, Label::kDeferred);
-    Branch(IsHeapNumberMap(LoadMap(len)), &if_lenisheapnumber,
-           &if_lenisnotheapnumber);
+    Branch(IsHeapNumber(len), &if_lenisheapnumber, &if_lenisnotheapnumber);
 
     BIND(&if_lenisheapnumber);
     {

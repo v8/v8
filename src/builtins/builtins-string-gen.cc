@@ -1541,7 +1541,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
     // two cases according to the spec: if it is negative, "" is returned; if
     // it is positive, then length is set to {string_length} - {start}.
 
-    CSA_ASSERT(this, IsHeapNumberMap(LoadMap(var_length.value())));
+    CSA_ASSERT(this, IsHeapNumber(var_length.value()));
 
     Label if_isnegative(this), if_ispositive(this);
     Node* const float_zero = Float64Constant(0.);
@@ -1603,7 +1603,7 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
   BIND(&if_isnotsmi);
   {
     // {value} is a heap number - in this case, it is definitely out of bounds.
-    CSA_ASSERT(this, IsHeapNumberMap(LoadMap(value_int)));
+    CSA_ASSERT(this, IsHeapNumber(value_int));
 
     Node* const float_zero = Float64Constant(0.);
     Node* const smi_zero = SmiConstant(Smi::kZero);

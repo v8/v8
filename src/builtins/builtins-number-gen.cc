@@ -70,7 +70,7 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumber(number), &return_false);
 
   // Check if {number} contains a finite, non-NaN value.
   Node* number_value = LoadHeapNumberValue(number);
@@ -94,7 +94,7 @@ TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumber(number), &return_false);
 
   // Load the actual value of {number}.
   Node* number_value = LoadHeapNumberValue(number);
@@ -123,7 +123,7 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_false);
 
   // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumber(number), &return_false);
 
   // Check if {number} contains a NaN value.
   Node* number_value = LoadHeapNumberValue(number);
@@ -146,7 +146,7 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumber(number), &return_false);
 
   // Load the actual value of {number}.
   Node* number_value = LoadHeapNumberValue(number);

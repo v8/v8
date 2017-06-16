@@ -64,11 +64,8 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
     BIND(&if_rhsisnotsmi);
     {
-      // Load the map of {rhs}.
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if the {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       var_fadd_lhs.Bind(SmiToFloat64(lhs));
       var_fadd_rhs.Bind(LoadHeapNumberValue(rhs));
@@ -78,11 +75,8 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
   BIND(&if_lhsisnotsmi);
   {
-    // Load the map of {lhs}.
-    Node* lhs_map = LoadMap(lhs);
-
     // Check if {lhs} is a HeapNumber.
-    GotoIfNot(IsHeapNumberMap(lhs_map), &if_lhsisnotnumber);
+    GotoIfNot(IsHeapNumber(lhs), &if_lhsisnotnumber);
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
@@ -97,11 +91,8 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
     BIND(&if_rhsisnotsmi);
     {
-      // Load the map of {rhs}.
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if the {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       var_fadd_lhs.Bind(LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(LoadHeapNumberValue(rhs));
@@ -130,12 +121,8 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     BIND(&if_lhsisoddball);
     {
       GotoIf(TaggedIsSmi(rhs), &call_with_oddball_feedback);
-
-      // Load the map of the {rhs}.
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if {rhs} is a HeapNumber.
-      Branch(IsHeapNumberMap(rhs_map), &call_with_oddball_feedback,
+      Branch(IsHeapNumber(rhs), &call_with_oddball_feedback,
              &check_rhsisoddball);
     }
 
@@ -252,11 +239,8 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
 
     BIND(&if_rhsisnotsmi);
     {
-      // Load the map of the {rhs}.
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(SmiToFloat64(lhs));
@@ -267,11 +251,8 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
 
   BIND(&if_lhsisnotsmi);
   {
-    // Load the map of the {lhs}.
-    Node* lhs_map = LoadMap(lhs);
-
     // Check if the {lhs} is a HeapNumber.
-    GotoIfNot(IsHeapNumberMap(lhs_map), &if_lhsisnotnumber);
+    GotoIfNot(IsHeapNumber(lhs), &if_lhsisnotnumber);
 
     // Check if the {rhs} is a Smi.
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
@@ -287,11 +268,8 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
 
     BIND(&if_rhsisnotsmi);
     {
-      // Load the map of the {rhs}.
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if the {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(LoadHeapNumberValue(lhs));
@@ -331,11 +309,8 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
 
     BIND(&if_rhsisnotsmi);
     {
-      // Load the map of the {rhs}.
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       var_type_feedback.Bind(
           SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
@@ -410,10 +385,8 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
 
     BIND(&rhs_is_not_smi);
     {
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       // Convert {lhs} to a double and multiply it with the value of {rhs}.
       var_lhs_float64.Bind(SmiToFloat64(lhs));
@@ -424,10 +397,8 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
 
   BIND(&lhs_is_not_smi);
   {
-    Node* lhs_map = LoadMap(lhs);
-
     // Check if {lhs} is a HeapNumber.
-    GotoIfNot(IsHeapNumberMap(lhs_map), &if_lhsisnotnumber);
+    GotoIfNot(IsHeapNumber(lhs), &if_lhsisnotnumber);
 
     // Check if {rhs} is a Smi.
     Label rhs_is_smi(this), rhs_is_not_smi(this);
@@ -443,10 +414,8 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
 
     BIND(&rhs_is_not_smi);
     {
-      Node* rhs_map = LoadMap(rhs);
-
       // Check if {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(rhs_map), &check_rhsisoddball);
+      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
 
       // Both {lhs} and {rhs} are HeapNumbers. Load their values and
       // multiply them.
@@ -476,12 +445,8 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
 
     GotoIf(TaggedIsSmi(rhs), &call_with_oddball_feedback);
 
-    // Load the map of the {rhs}.
-    Node* rhs_map = LoadMap(rhs);
-
     // Check if {rhs} is a HeapNumber.
-    Branch(IsHeapNumberMap(rhs_map), &call_with_oddball_feedback,
-           &check_rhsisoddball);
+    Branch(IsHeapNumber(rhs), &call_with_oddball_feedback, &check_rhsisoddball);
   }
 
   BIND(&check_rhsisoddball);
@@ -562,10 +527,8 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
 
     BIND(&divisor_is_not_smi);
     {
-      Node* divisor_map = LoadMap(divisor);
-
       // Check if {divisor} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(divisor_map), &check_divisor_for_oddball);
+      GotoIfNot(IsHeapNumber(divisor), &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
       // {divisor}.
@@ -576,10 +539,8 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
 
     BIND(&dividend_is_not_smi);
     {
-      Node* dividend_map = LoadMap(dividend);
-
       // Check if {dividend} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(dividend_map), &dividend_is_not_number);
+      GotoIfNot(IsHeapNumber(dividend), &dividend_is_not_number);
 
       // Check if {divisor} is a Smi.
       Label divisor_is_smi(this), divisor_is_not_smi(this);
@@ -596,10 +557,8 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
 
       BIND(&divisor_is_not_smi);
       {
-        Node* divisor_map = LoadMap(divisor);
-
         // Check if {divisor} is a HeapNumber.
-        GotoIfNot(IsHeapNumberMap(divisor_map), &check_divisor_for_oddball);
+        GotoIfNot(IsHeapNumber(divisor), &check_divisor_for_oddball);
 
         // Both {dividend} and {divisor} are HeapNumbers. Load their values
         // and divide them.
@@ -629,12 +588,8 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
     GotoIfNot(dividend_is_oddball, &call_with_any_feedback);
 
     GotoIf(TaggedIsSmi(divisor), &call_with_oddball_feedback);
-
-    // Load the map of the {divisor}.
-    Node* divisor_map = LoadMap(divisor);
-
     // Check if {divisor} is a HeapNumber.
-    Branch(IsHeapNumberMap(divisor_map), &call_with_oddball_feedback,
+    Branch(IsHeapNumber(divisor), &call_with_oddball_feedback,
            &check_divisor_for_oddball);
   }
 
@@ -706,10 +661,8 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
 
     BIND(&divisor_is_not_smi);
     {
-      Node* divisor_map = LoadMap(divisor);
-
       // Check if {divisor} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(divisor_map), &check_divisor_for_oddball);
+      GotoIfNot(IsHeapNumber(divisor), &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
       // {divisor}.
@@ -721,10 +674,8 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
 
   BIND(&dividend_is_not_smi);
   {
-    Node* dividend_map = LoadMap(dividend);
-
     // Check if {dividend} is a HeapNumber.
-    GotoIfNot(IsHeapNumberMap(dividend_map), &dividend_is_not_number);
+    GotoIfNot(IsHeapNumber(dividend), &dividend_is_not_number);
 
     // Check if {divisor} is a Smi.
     Label divisor_is_smi(this), divisor_is_not_smi(this);
@@ -741,10 +692,8 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
 
     BIND(&divisor_is_not_smi);
     {
-      Node* divisor_map = LoadMap(divisor);
-
       // Check if {divisor} is a HeapNumber.
-      GotoIfNot(IsHeapNumberMap(divisor_map), &check_divisor_for_oddball);
+      GotoIfNot(IsHeapNumber(divisor), &check_divisor_for_oddball);
 
       // Both {dividend} and {divisor} are HeapNumbers. Load their values
       // and divide them.
@@ -773,12 +722,8 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
     GotoIfNot(dividend_is_oddball, &call_with_any_feedback);
 
     GotoIf(TaggedIsSmi(divisor), &call_with_oddball_feedback);
-
-    // Load the map of the {divisor}.
-    Node* divisor_map = LoadMap(divisor);
-
     // Check if {divisor} is a HeapNumber.
-    Branch(IsHeapNumberMap(divisor_map), &call_with_oddball_feedback,
+    Branch(IsHeapNumber(divisor), &call_with_oddball_feedback,
            &check_divisor_for_oddball);
   }
 

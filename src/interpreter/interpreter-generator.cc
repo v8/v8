@@ -1435,8 +1435,7 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
       if_objectisother(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(object), &if_objectissmi);
-  Node* object_map = LoadMap(object);
-  Branch(IsHeapNumberMap(object_map), &if_objectisnumber, &if_objectisother);
+  Branch(IsHeapNumber(object), &if_objectisnumber, &if_objectisother);
 
   BIND(&if_objectissmi);
   {

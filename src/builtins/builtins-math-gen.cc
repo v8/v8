@@ -93,8 +93,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
-             &if_xisnotheapnumber);
+      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
@@ -139,8 +138,7 @@ void MathBuiltinsAssembler::MathRoundingOperation(
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
-             &if_xisnotheapnumber);
+      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
@@ -287,8 +285,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
-             &if_xisnotheapnumber);
+      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {

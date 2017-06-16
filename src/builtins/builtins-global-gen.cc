@@ -30,8 +30,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     // Check if {num} is a HeapNumber.
     Label if_numisheapnumber(this),
         if_numisnotheapnumber(this, Label::kDeferred);
-    Branch(IsHeapNumberMap(LoadMap(num)), &if_numisheapnumber,
-           &if_numisnotheapnumber);
+    Branch(IsHeapNumber(num), &if_numisheapnumber, &if_numisnotheapnumber);
 
     BIND(&if_numisheapnumber);
     {
@@ -77,8 +76,7 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     // Check if {num} is a HeapNumber.
     Label if_numisheapnumber(this),
         if_numisnotheapnumber(this, Label::kDeferred);
-    Branch(IsHeapNumberMap(LoadMap(num)), &if_numisheapnumber,
-           &if_numisnotheapnumber);
+    Branch(IsHeapNumber(num), &if_numisheapnumber, &if_numisnotheapnumber);
 
     BIND(&if_numisheapnumber);
     {
