@@ -122,7 +122,6 @@ class Expression;
 class IterationStatement;
 class MaterializedLiteral;
 class Statement;
-class TypeFeedbackOracle;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
@@ -330,45 +329,15 @@ class Expression : public AstNode {
   // True iff the expression is a valid target for an assignment.
   bool IsValidReferenceExpressionOrThis() const;
 
-  // TODO(rossberg): this should move to its own AST node eventually.
-  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
-  uint16_t to_boolean_types() const {
-    return ToBooleanTypesField::decode(bit_field_);
-  }
-
   SmallMapList* GetReceiverTypes();
   KeyedAccessStoreMode GetStoreMode() const;
   IcCheckType GetKeyType() const;
   bool IsMonomorphic() const;
 
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId id() const { return BailoutId(local_id(0)); }
-  TypeFeedbackId test_id() const { return TypeFeedbackId(local_id(1)); }
-
- private:
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
-  int base_id_;
-  class ToBooleanTypesField
-      : public BitField<uint16_t, AstNode::kNextBitFieldIndex, 9> {};
-
  protected:
-  Expression(int pos, NodeType type)
-      : AstNode(pos, type), base_id_(BailoutId::None().ToInt()) {
-    bit_field_ = ToBooleanTypesField::update(bit_field_, 0);
-  }
+  Expression(int pos, NodeType type) : AstNode(pos, type) {}
 
-  static int parent_num_ids() { return 0; }
-  void set_to_boolean_types(uint16_t types) {
-    bit_field_ = ToBooleanTypesField::update(bit_field_, types);
-  }
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
-
-  static const uint8_t kNextBitFieldIndex = ToBooleanTypesField::kNext;
+  static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
 };
 
 
@@ -391,19 +360,11 @@ class BreakableStatement : public Statement {
     return BreakableTypeField::decode(bit_field_) == TARGET_FOR_ANONYMOUS;
   }
 
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId EntryId() const { return BailoutId(local_id(0)); }
-  BailoutId ExitId() const { return BailoutId(local_id(1)); }
-
  private:
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   BreakableType breakableType() const {
     return BreakableTypeField::decode(bit_field_);
   }
 
-  int base_id_;
   Label break_target_;
   ZoneList<const AstRawString*>* labels_;
 
@@ -414,17 +375,11 @@ class BreakableStatement : public Statement {
   BreakableStatement(ZoneList<const AstRawString*>* labels,
                      BreakableType breakable_type, int position, NodeType type)
       : Statement(position, type),
-        base_id_(BailoutId::None().ToInt()),
         labels_(labels) {
     DCHECK(labels == NULL || labels->length() > 0);
     bit_field_ |= BreakableTypeField::encode(breakable_type);
   }
   static int parent_num_ids() { return 0; }
-
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
 
   static const uint8_t kNextBitFieldIndex = BreakableTypeField::kNext;
 };
@@ -436,9 +391,6 @@ class Block final : public BreakableStatement {
   bool ignore_completion_value() const {
     return IgnoreCompletionField::decode(bit_field_);
   }
-
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId DeclsId() const { return BailoutId(local_id(0)); }
 
   bool IsJump() const {
     return !statements_.is_empty() && statements_.last()->IsJump()
@@ -458,8 +410,6 @@ class Block final : public BreakableStatement {
         scope_(NULL) {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value);
   }
-  static int parent_num_ids() { return BreakableStatement::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   ZoneList<Statement*> statements_;
   Scope* scope_;
@@ -484,8 +434,6 @@ class DoExpression final : public Expression {
     DCHECK_NOT_NULL(block_);
     DCHECK_NOT_NULL(result_);
   }
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Block* block_;
   VariableProxy* result_;
@@ -555,6 +503,7 @@ class IterationStatement : public BreakableStatement {
     first_suspend_id_ = first_suspend_id;
   }
 
+  void set_base_id(int id) { base_id_ = id; }
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId OsrEntryId() const { return BailoutId(local_id(0)); }
 
@@ -565,10 +514,11 @@ class IterationStatement : public BreakableStatement {
   IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
       : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, type),
+        base_id_(BailoutId::None().ToInt()),
         body_(NULL),
         suspend_count_(0),
         first_suspend_id_(0) {}
-  static int parent_num_ids() { return BreakableStatement::num_ids(); }
+  static int parent_num_ids() { return 0; }
   void Initialize(Statement* body, const SourceRange& body_range = {}) {
     body_ = body;
     body_range_ = body_range;
@@ -579,7 +529,12 @@ class IterationStatement : public BreakableStatement {
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+  int base_id() const {
+    DCHECK(!BailoutId(base_id_).IsNone());
+    return base_id_;
+  }
 
+  int base_id_;
   Statement* body_;
   SourceRange body_range_;
   Label continue_target_;
@@ -599,18 +554,11 @@ class DoWhileStatement final : public IterationStatement {
   Expression* cond() const { return cond_; }
   void set_cond(Expression* e) { cond_ = e; }
 
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId ContinueId() const { return BailoutId(local_id(0)); }
-  BailoutId StackCheckId() const { return BackEdgeId(); }
-  BailoutId BackEdgeId() const { return BailoutId(local_id(1)); }
-
  private:
   friend class AstNodeFactory;
 
   DoWhileStatement(ZoneList<const AstRawString*>* labels, int pos)
       : IterationStatement(labels, pos, kDoWhileStatement), cond_(NULL) {}
-  static int parent_num_ids() { return IterationStatement::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* cond_;
 };
@@ -627,18 +575,11 @@ class WhileStatement final : public IterationStatement {
   Expression* cond() const { return cond_; }
   void set_cond(Expression* e) { cond_ = e; }
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId ContinueId() const { return EntryId(); }
-  BailoutId StackCheckId() const { return BodyId(); }
-  BailoutId BodyId() const { return BailoutId(local_id(0)); }
-
  private:
   friend class AstNodeFactory;
 
   WhileStatement(ZoneList<const AstRawString*>* labels, int pos)
       : IterationStatement(labels, pos, kWhileStatement), cond_(NULL) {}
-  static int parent_num_ids() { return IterationStatement::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* cond_;
 };
@@ -662,11 +603,6 @@ class ForStatement final : public IterationStatement {
   void set_cond(Expression* e) { cond_ = e; }
   void set_next(Statement* s) { next_ = s; }
 
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId ContinueId() const { return BailoutId(local_id(0)); }
-  BailoutId StackCheckId() const { return BodyId(); }
-  BailoutId BodyId() const { return BailoutId(local_id(1)); }
-
  private:
   friend class AstNodeFactory;
 
@@ -675,8 +611,6 @@ class ForStatement final : public IterationStatement {
         init_(NULL),
         cond_(NULL),
         next_(NULL) {}
-  static int parent_num_ids() { return IterationStatement::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Statement* init_;
   Expression* cond_;
@@ -737,16 +671,6 @@ class ForInStatement final : public ForEachStatement {
     bit_field_ = ForInTypeField::update(bit_field_, type);
   }
 
-  static int num_ids() { return parent_num_ids() + 7; }
-  BailoutId BodyId() const { return BailoutId(local_id(0)); }
-  BailoutId EnumId() const { return BailoutId(local_id(1)); }
-  BailoutId ToObjectId() const { return BailoutId(local_id(2)); }
-  BailoutId PrepareId() const { return BailoutId(local_id(3)); }
-  BailoutId FilterId() const { return BailoutId(local_id(4)); }
-  BailoutId AssignmentId() const { return BailoutId(local_id(5)); }
-  BailoutId IncrementId() const { return BailoutId(local_id(6)); }
-  BailoutId StackCheckId() const { return BodyId(); }
-
  private:
   friend class AstNodeFactory;
 
@@ -756,9 +680,6 @@ class ForInStatement final : public ForEachStatement {
         subject_(nullptr) {
     bit_field_ = ForInTypeField::update(bit_field_, SLOW_FOR_IN);
   }
-
-  static int parent_num_ids() { return ForEachStatement::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* each_;
   Expression* subject_;
@@ -943,16 +864,6 @@ class CaseClause final : public Expression {
   Label* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const { return statements_; }
 
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId EntryId() const { return BailoutId(local_id(0)); }
-  TypeFeedbackId CompareId() { return TypeFeedbackId(local_id(1)); }
-
-  AstType* compare_type() { return compare_type_; }
-  void set_compare_type(AstType* type) { compare_type_ = type; }
-
-  // CaseClause will have both a slot in the feedback vector and the
-  // TypeFeedbackId to record the type information. TypeFeedbackId is used by
-  // full codegen and the feedback vector slot is used by interpreter.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache);
 
@@ -961,15 +872,12 @@ class CaseClause final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  static int parent_num_ids() { return Expression::num_ids(); }
   CaseClause(Expression* label, ZoneList<Statement*>* statements, int pos);
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   FeedbackSlot feedback_slot_;
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
-  AstType* compare_type_;
 };
 
 
@@ -1024,12 +932,6 @@ class IfStatement final : public Statement {
         && HasElseStatement() && else_statement()->IsJump();
   }
 
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 3; }
-  BailoutId IfId() const { return BailoutId(local_id(0)); }
-  BailoutId ThenId() const { return BailoutId(local_id(1)); }
-  BailoutId ElseId() const { return BailoutId(local_id(2)); }
-
  private:
   friend class AstNodeFactory;
 
@@ -1037,21 +939,12 @@ class IfStatement final : public Statement {
               Statement* else_statement, int pos, SourceRange then_range,
               SourceRange else_range)
       : Statement(pos, kIfStatement),
-        base_id_(BailoutId::None().ToInt()),
         condition_(condition),
         then_statement_(then_statement),
         else_statement_(else_statement),
         then_range_(then_range),
         else_range_(else_range) {}
 
-  static int parent_num_ids() { return 0; }
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
-  int base_id_;
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
@@ -1214,19 +1107,11 @@ class Literal final : public Expression {
   uint32_t Hash();
   static bool Match(void* literal1, void* literal2);
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  TypeFeedbackId LiteralFeedbackId() const {
-    return TypeFeedbackId(local_id(0));
-  }
-
  private:
   friend class AstNodeFactory;
 
   Literal(const AstValue* value, int position)
       : Expression(position, kLiteral), value_(value) {}
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   const AstValue* value_;
 };
@@ -1445,20 +1330,10 @@ class ObjectLiteral final : public MaterializedLiteral {
   };
 
   struct Accessors: public ZoneObject {
-    Accessors() : getter(NULL), setter(NULL), bailout_id(BailoutId::None()) {}
+    Accessors() : getter(NULL), setter(NULL) {}
     ObjectLiteralProperty* getter;
     ObjectLiteralProperty* setter;
-    BailoutId bailout_id;
   };
-
-  BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
-
-  // Return an AST id for a property that is used in simulate instructions.
-  BailoutId GetIdForPropertySet(int i) { return BailoutId(local_id(i + 1)); }
-
-  // Unlike other AST nodes, this number of bailout IDs allocated for an
-  // ObjectLiteral can vary, so num_ids() is not a static method.
-  int num_ids() const { return parent_num_ids() + 1 + properties()->length(); }
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
@@ -1479,9 +1354,6 @@ class ObjectLiteral final : public MaterializedLiteral {
                   HasRestPropertyField::encode(has_rest_property) |
                   HasNullPrototypeField::encode(false);
   }
-
-  static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   void InitFlagsForPendingNullPrototype(int i);
 
@@ -1565,15 +1437,6 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   ZoneList<Expression*>* values() const { return values_; }
 
-  BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
-
-  // Return an AST id for an element that is used in simulate instructions.
-  BailoutId GetIdForElement(int i) { return BailoutId(local_id(i + 1)); }
-
-  // Unlike other AST nodes, this number of bailout IDs allocated for an
-  // ArrayLiteral can vary, so num_ids() is not a static method.
-  int num_ids() const { return parent_num_ids() + 1 + values()->length(); }
-
   // Populate the depth field and flags.
   void InitDepthAndFlags();
 
@@ -1625,9 +1488,6 @@ class ArrayLiteral final : public MaterializedLiteral {
       : MaterializedLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
         values_(values) {}
-
-  static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   int first_spread_index_;
   FeedbackSlot literal_slot_;
@@ -1701,8 +1561,6 @@ class VariableProxy final : public Expression {
 
   FeedbackSlot VariableFeedbackSlot() { return variable_feedback_slot_; }
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId BeforeId() const { return BailoutId(local_id(0)); }
   void set_next_unresolved(VariableProxy* next) { next_unresolved_ = next; }
   VariableProxy* next_unresolved() { return next_unresolved_; }
 
@@ -1713,9 +1571,6 @@ class VariableProxy final : public Expression {
   VariableProxy(const AstRawString* name, VariableKind variable_kind,
                 int start_position);
   explicit VariableProxy(const VariableProxy* copy_from);
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   class IsThisField : public BitField<bool, Expression::kNextBitFieldIndex, 1> {
   };
@@ -1754,9 +1609,6 @@ class Property final : public Expression {
 
   void set_obj(Expression* e) { obj_ = e; }
   void set_key(Expression* e) { key_ = e; }
-
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId LoadId() const { return BailoutId(local_id(0)); }
 
   bool IsStringAccess() const {
     return IsStringAccessField::decode(bit_field_);
@@ -1822,9 +1674,6 @@ class Property final : public Expression {
                   InlineCacheStateField::encode(UNINITIALIZED);
   }
 
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   class IsForCallField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class IsStringAccessField : public BitField<bool, IsForCallField::kNext, 1> {
@@ -1880,10 +1729,6 @@ class Call final : public Expression {
   void set_allocation_site(Handle<AllocationSite> site) {
     allocation_site_ = site;
   }
-
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId ReturnId() const { return BailoutId(local_id(0)); }
-  BailoutId CallId() const { return BailoutId(local_id(1)); }
 
   bool is_uninitialized() const {
     return IsUninitializedField::decode(bit_field_);
@@ -1942,9 +1787,6 @@ class Call final : public Expression {
     }
   }
 
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   class IsUninitializedField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class IsTailField : public BitField<bool, IsUninitializedField::kNext, 1> {};
@@ -1984,10 +1826,6 @@ class CallNew final : public Expression {
     return allocation_site_;
   }
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  static int feedback_slots() { return 1; }
-  BailoutId ReturnId() const { return BailoutId(local_id(0)); }
-
   void set_allocation_site(Handle<AllocationSite> site) {
     allocation_site_ = site;
   }
@@ -2013,9 +1851,6 @@ class CallNew final : public Expression {
         arguments_(arguments) {
     bit_field_ |= IsMonomorphicField::encode(false);
   }
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   FeedbackSlot callnew_feedback_slot_;
   Expression* expression_;
@@ -2050,8 +1885,6 @@ class CallRuntime final : public Expression {
     return function_;
   }
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId CallId() { return BailoutId(local_id(0)); }
   const char* debug_name();
 
  private:
@@ -2068,9 +1901,6 @@ class CallRuntime final : public Expression {
         function_(NULL),
         arguments_(arguments) {}
 
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   int context_index_;
   const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
@@ -2083,14 +1913,6 @@ class UnaryOperation final : public Expression {
   Expression* expression() const { return expression_; }
   void set_expression(Expression* e) { expression_ = e; }
 
-  // For unary not (Token::NOT), the AST ids where true and false will
-  // actually be materialized, respectively.
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId MaterializeTrueId() const { return BailoutId(local_id(0)); }
-  BailoutId MaterializeFalseId() const { return BailoutId(local_id(1)); }
-
-  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
-
  private:
   friend class AstNodeFactory;
 
@@ -2099,9 +1921,6 @@ class UnaryOperation final : public Expression {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsUnaryOp(op));
   }
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* expression_;
 
@@ -2133,22 +1952,10 @@ class BinaryOperation final : public Expression {
     }
   }
 
-  // The short-circuit logical operations need an AST ID for their
-  // right-hand subexpression.
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId RightId() const { return BailoutId(local_id(0)); }
-
-  // BinaryOperation will have both a slot in the feedback vector and the
-  // TypeFeedbackId to record the type information. TypeFeedbackId is used
-  // by full codegen and the feedback vector slot is used by interpreter.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache);
 
   FeedbackSlot BinaryOperationFeedbackSlot() const { return feedback_slot_; }
-
-  TypeFeedbackId BinaryOperationFeedbackId() const {
-    return TypeFeedbackId(local_id(1));
-  }
 
   // Returns true if one side is a Smi literal, returning the other side's
   // sub-expression in |subexpr| and the literal Smi in |literal|.
@@ -2162,8 +1969,6 @@ class BinaryOperation final : public Expression {
     if (arg.IsJust()) fixed_right_arg_value_ = arg.FromJust();
   }
 
-  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
-
  private:
   friend class AstNodeFactory;
 
@@ -2176,9 +1981,6 @@ class BinaryOperation final : public Expression {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsBinaryOp(op));
   }
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   FeedbackSlot feedback_slot_;
   Expression* left_;
@@ -2213,23 +2015,11 @@ class CountOperation final : public Expression {
   KeyedAccessStoreMode GetStoreMode() const {
     return StoreModeField::decode(bit_field_);
   }
-  AstType* type() const { return type_; }
   void set_key_type(IcCheckType type) {
     bit_field_ = KeyTypeField::update(bit_field_, type);
   }
   void set_store_mode(KeyedAccessStoreMode mode) {
     bit_field_ = StoreModeField::update(bit_field_, mode);
-  }
-  void set_type(AstType* type) { type_ = type; }
-
-  static int num_ids() { return parent_num_ids() + 4; }
-  BailoutId AssignmentId() const { return BailoutId(local_id(0)); }
-  BailoutId ToNumberId() const { return BailoutId(local_id(1)); }
-  TypeFeedbackId CountBinOpFeedbackId() const {
-    return TypeFeedbackId(local_id(2));
-  }
-  TypeFeedbackId CountStoreFeedbackId() const {
-    return TypeFeedbackId(local_id(3));
   }
 
   // Feedback slot for binary operation is only used by ignition.
@@ -2245,14 +2035,11 @@ class CountOperation final : public Expression {
   friend class AstNodeFactory;
 
   CountOperation(Token::Value op, bool is_prefix, Expression* expr, int pos)
-      : Expression(pos, kCountOperation), type_(NULL), expression_(expr) {
+      : Expression(pos, kCountOperation), expression_(expr) {
     bit_field_ |=
         IsPrefixField::encode(is_prefix) | KeyTypeField::encode(ELEMENT) |
         StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op);
   }
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   class IsPrefixField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
@@ -2263,7 +2050,6 @@ class CountOperation final : public Expression {
 
   FeedbackSlot slot_;
   FeedbackSlot binary_operation_slot_;
-  AstType* type_;
   Expression* expression_;
   SmallMapList receiver_types_;
 };
@@ -2278,17 +2064,6 @@ class CompareOperation final : public Expression {
   void set_left(Expression* e) { left_ = e; }
   void set_right(Expression* e) { right_ = e; }
 
-  // Type feedback information.
-  static int num_ids() { return parent_num_ids() + 1; }
-  TypeFeedbackId CompareOperationFeedbackId() const {
-    return TypeFeedbackId(local_id(0));
-  }
-  AstType* combined_type() const { return combined_type_; }
-  void set_combined_type(AstType* type) { combined_type_ = type; }
-
-  // CompareOperation will have both a slot in the feedback vector and the
-  // TypeFeedbackId to record the type information. TypeFeedbackId is used
-  // by full codegen and the feedback vector slot is used by interpreter.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache);
 
@@ -2304,21 +2079,14 @@ class CompareOperation final : public Expression {
 
   CompareOperation(Token::Value op, Expression* left, Expression* right,
                    int pos)
-      : Expression(pos, kCompareOperation),
-        left_(left),
-        right_(right),
-        combined_type_(AstType::None()) {
+      : Expression(pos, kCompareOperation), left_(left), right_(right) {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsCompareOp(op));
   }
 
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   FeedbackSlot feedback_slot_;
   Expression* left_;
   Expression* right_;
-  AstType* combined_type_;
 
   class OperatorField
       : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
@@ -2332,8 +2100,6 @@ class Spread final : public Expression {
 
   int expression_position() const { return expr_pos_; }
 
-  static int num_ids() { return parent_num_ids(); }
-
  private:
   friend class AstNodeFactory;
 
@@ -2341,9 +2107,6 @@ class Spread final : public Expression {
       : Expression(pos, kSpread),
         expr_pos_(expr_pos),
         expression_(expression) {}
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   int expr_pos_;
   Expression* expression_;
@@ -2365,10 +2128,6 @@ class Conditional final : public Expression {
     else_expression_->MarkTail();
   }
 
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId ThenId() const { return BailoutId(local_id(0)); }
-  BailoutId ElseId() const { return BailoutId(local_id(1)); }
-
  private:
   friend class AstNodeFactory;
 
@@ -2378,9 +2137,6 @@ class Conditional final : public Expression {
         condition_(condition),
         then_expression_(then_expression),
         else_expression_(else_expression) {}
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* condition_;
   Expression* then_expression_;
@@ -2406,11 +2162,7 @@ class Assignment final : public Expression {
   // This check relies on the definition order of token in token.h.
   bool is_compound() const { return op() > Token::ASSIGN; }
 
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId AssignmentId() const { return BailoutId(local_id(0)); }
-
   // Type feedback information.
-  TypeFeedbackId AssignmentFeedbackId() { return TypeFeedbackId(local_id(1)); }
   bool IsUninitialized() const {
     return IsUninitializedField::decode(bit_field_);
   }
@@ -2441,9 +2193,6 @@ class Assignment final : public Expression {
   friend class AstNodeFactory;
 
   Assignment(Token::Value op, Expression* target, Expression* value, int pos);
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   class IsUninitializedField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
@@ -2489,8 +2238,6 @@ class RewritableExpression final : public Expression {
     bit_field_ = IsRewrittenField::update(bit_field_, true);
   }
 
-  static int num_ids() { return parent_num_ids(); }
-
  private:
   friend class AstNodeFactory;
 
@@ -2500,8 +2247,6 @@ class RewritableExpression final : public Expression {
     bit_field_ |= IsRewrittenField::encode(false);
     DCHECK(!expression->IsRewritableExpression());
   }
-
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* expr_;
 
@@ -3051,8 +2796,6 @@ class GetIterator final : public Expression {
 
   Expression* iterable() const { return iterable_; }
   void set_iterable(Expression* iterable) { iterable_ = iterable; }
-
-  static int num_ids() { return parent_num_ids(); }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache) {

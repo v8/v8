@@ -32,7 +32,6 @@
 #include "src/crankshaft/hydrogen-store-elimination.h"
 #include "src/crankshaft/hydrogen-uint32-analysis.h"
 #include "src/crankshaft/lithium-allocator.h"
-#include "src/crankshaft/typing.h"
 #include "src/field-type.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/globals.h"
@@ -267,24 +266,6 @@ int HBasicBlock::LoopNestingDepth() const {
     result++;
   }
   return result;
-}
-
-
-void HBasicBlock::PostProcessLoopHeader(IterationStatement* stmt) {
-  DCHECK(IsLoopHeader());
-
-  SetJoinId(stmt->EntryId());
-  if (predecessors()->length() == 1) {
-    // This is a degenerated loop.
-    DetachLoopInformation();
-    return;
-  }
-
-  // Only the first entry into the loop is from outside the loop. All other
-  // entries must be back edges.
-  for (int i = 1; i < predecessors()->length(); ++i) {
-    loop_information()->RegisterBackEdge(predecessors()->at(i));
-  }
 }
 
 

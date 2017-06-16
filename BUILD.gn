@@ -1513,8 +1513,6 @@ v8_source_set("v8_base") {
     "src/crankshaft/lithium-inl.h",
     "src/crankshaft/lithium.cc",
     "src/crankshaft/lithium.h",
-    "src/crankshaft/typing.cc",
-    "src/crankshaft/typing.h",
     "src/crankshaft/unique.h",
     "src/date.cc",
     "src/date.h",

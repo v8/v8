@@ -970,8 +970,6 @@
         'crankshaft/lithium.cc',
         'crankshaft/lithium.h',
         'crankshaft/lithium-inl.h',
-        'crankshaft/typing.cc',
-        'crankshaft/typing.h',
         'crankshaft/unique.h',
         'date.cc',
         'date.h',

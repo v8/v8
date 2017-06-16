@@ -210,18 +210,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Helper to indicate a node exits the function body.
   void UpdateControlDependencyToLeaveFunction(Node* exit);
 
-  // Prepare information for lazy deoptimization. This information is attached
-  // to the given node and the output value produced by the node is combined.
-  // Conceptually this frame state is "after" a given operation.
-  void PrepareFrameState(Node* node, BailoutId ast_id,
-                         OutputFrameStateCombine framestate_combine =
-                             OutputFrameStateCombine::Ignore());
-
-  // Prepare information for eager deoptimization. This information is carried
-  // by dedicated {Checkpoint} nodes that are wired into the effect chain.
-  // Conceptually this frame state is "before" a given operation.
-  void PrepareEagerCheckpoint(BailoutId ast_id);
-
   BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
   // Check if the given statement is an OSR entry.
@@ -252,15 +240,9 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,
-                                Token::Value op, const VectorSlotPair& slot,
-                                BailoutId bailout_id,
-                                OutputFrameStateCombine framestate_combine =
-                                    OutputFrameStateCombine::Ignore());
-  Node* BuildVariableDelete(Variable* variable, BailoutId bailout_id,
-                            OutputFrameStateCombine framestate_combine);
-  Node* BuildVariableLoad(Variable* variable, BailoutId bailout_id,
-                          const VectorSlotPair& feedback,
-                          OutputFrameStateCombine framestate_combine,
+                                Token::Value op, const VectorSlotPair& slot);
+  Node* BuildVariableDelete(Variable* variable);
+  Node* BuildVariableLoad(Variable* variable, const VectorSlotPair& feedback,
                           TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   // Builders for property loads and stores.
@@ -286,8 +268,8 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildLoadNativeContextField(int index);
 
   // Builders for automatic type conversion.
-  Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);
-  Node* BuildToObject(Node* input, BailoutId bailout_id);
+  Node* BuildToBoolean(Node* input);
+  Node* BuildToObject(Node* input);
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.
@@ -295,23 +277,20 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
                            LiteralProperty* property, int slot_number = 0);
 
   // Builders for error reporting at runtime.
-  Node* BuildThrowError(Node* exception, BailoutId bailout_id);
-  Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
-  Node* BuildThrowConstAssignError(BailoutId bailout_id);
+  Node* BuildThrowError(Node* exception);
+  Node* BuildThrowReferenceError(Variable* var);
+  Node* BuildThrowConstAssignError();
 
   // Builders for dynamic hole-checks at runtime.
-  Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,
-                                BailoutId bailout_id);
-  Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,
-                                BailoutId bailout_id);
+  Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole);
+  Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole);
 
   // Builders for non-local control flow.
   Node* BuildReturn(Node* return_value);
   Node* BuildThrow(Node* exception_value);
 
   // Builders for binary operations.
-  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op,
-                      TypeFeedbackId feedback_id);
+  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.
@@ -349,8 +328,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   void VisitForValues(ZoneList<Expression*>* exprs);
 
   // Common for all IterationStatement bodies.
-  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop,
-                          BailoutId stack_check_id);
+  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop);
 
   // Dispatched from VisitCall.
   void VisitCallSuper(Call* expr);
@@ -459,12 +437,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
   }
-
-  // Preserve a checkpoint of the environment for the IR graph. Any
-  // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine =
-                                         OutputFrameStateCombine::Ignore(),
-                   bool node_has_exception = false);
 
   // Inserts a loop exit control node and renames the environment.
   // This is useful for loop peeling to insert phis at loop exits.

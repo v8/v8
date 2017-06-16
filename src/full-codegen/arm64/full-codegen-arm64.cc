@@ -608,7 +608,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_false,
                                Label* fall_through) {
   Handle<Code> ic = ToBooleanICStub::GetUninitialized(isolate());
-  CallIC(ic, condition->test_id());
+  CallIC(ic);
   __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
   Split(eq, if_true, if_false, fall_through);
 }
@@ -863,7 +863,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       SetExpressionPosition(clause);
       Handle<Code> ic =
           CodeFactory::CompareIC(isolate(), Token::EQ_STRICT).code();
-      CallIC(ic, clause->CompareId());
+      CallIC(ic);
       patch_site.EmitPatchInfo();
     }
 
@@ -1225,14 +1225,12 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->getter = property;
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->setter = property;
         }
         break;
@@ -1439,7 +1437,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
     __ Bind(&stub_call);
 
     Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-    CallIC(code, expr->BinaryOperationFeedbackId());
+    CallIC(code);
     patch_site.EmitPatchInfo();
 
     __ B(&done);
@@ -1523,7 +1521,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   JumpPatchSite patch_site(masm_);    // Unbound, signals no inlined smi code.
   {
     Assembler::BlockPoolsScope scope(masm_);
-    CallIC(code, expr->BinaryOperationFeedbackId());
+    CallIC(code);
     patch_site.EmitPatchInfo();
   }
   context()->Plug(x0);
@@ -2323,7 +2321,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     SetExpressionPosition(expr);
 
     Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), Token::ADD).code();
-    CallIC(code, expr->CountBinOpFeedbackId());
+    CallIC(code);
     patch_site.EmitPatchInfo();
 
     __ Bind(&done);
@@ -2519,7 +2517,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         }
 
         Handle<Code> ic = CodeFactory::CompareIC(isolate(), op).code();
-        CallIC(ic, expr->CompareOperationFeedbackId());
+        CallIC(ic);
         patch_site.EmitPatchInfo();
         __ CompareAndSplit(x0, 0, cond, if_true, if_false, fall_through);
       }

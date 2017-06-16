@@ -85,7 +85,6 @@ class HBasicBlock final : public ZoneObject {
   void DetachLoopInformation();
   bool IsLoopHeader() const { return loop_information() != NULL; }
   bool IsStartBlock() const { return block_id() == 0; }
-  void PostProcessLoopHeader(IterationStatement* stmt);
 
   bool IsFinished() const { return end_ != NULL; }
   void AddPhi(HPhi* phi);
