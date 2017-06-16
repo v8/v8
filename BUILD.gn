@@ -1398,6 +1398,8 @@ v8_source_set("v8_base") {
     "src/compiler/pipeline-statistics.h",
     "src/compiler/pipeline.cc",
     "src/compiler/pipeline.h",
+    "src/compiler/property-access-builder.cc",
+    "src/compiler/property-access-builder.h",
     "src/compiler/raw-machine-assembler.cc",
     "src/compiler/raw-machine-assembler.h",
     "src/compiler/redundancy-elimination.cc",

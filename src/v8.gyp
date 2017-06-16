@@ -843,6 +843,8 @@
         'compiler/pipeline.h',
         'compiler/pipeline-statistics.cc',
         'compiler/pipeline-statistics.h',
+        'compiler/property-access-builder.cc',
+        'compiler/property-access-builder.h',
         'compiler/raw-machine-assembler.cc',
         'compiler/raw-machine-assembler.h',
         'compiler/redundancy-elimination.cc',
