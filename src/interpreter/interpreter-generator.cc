@@ -830,11 +830,9 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
                                OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  typedef Node* (BinaryOpAssembler::*BinaryOpGenerator)(Node* context,
-                                                        Node* left, Node* right,
-                                                        Node* slot,
-                                                        Node* vector,
-                                                        Node* function);
+  typedef Node* (BinaryOpAssembler::*BinaryOpGenerator)(
+      Node* context, Node* left, Node* right, Node* slot, Node* vector,
+      Node* function, bool lhs_is_smi);
 
   void BinaryOpWithFeedback(BinaryOpGenerator generator) {
     Node* reg_index = BytecodeOperandReg(0);
@@ -847,7 +845,22 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     Node* result = (binop_asm.*generator)(context, lhs, rhs, slot_index,
-                                          feedback_vector, function);
+                                          feedback_vector, function, false);
+    SetAccumulator(result);
+    Dispatch();
+  }
+
+  void BinaryOpSmiWithFeedback(BinaryOpGenerator generator) {
+    Node* lhs = GetAccumulator();
+    Node* rhs = BytecodeOperandImmSmi(0);
+    Node* context = GetContext();
+    Node* slot_index = BytecodeOperandIdx(1);
+    Node* feedback_vector = LoadFeedbackVector();
+    Node* function = LoadRegister(Register::function_closure());
+
+    BinaryOpAssembler binop_asm(state());
+    Node* result = (binop_asm.*generator)(context, lhs, rhs, slot_index,
+                                          feedback_vector, function, true);
     SetAccumulator(result);
     Dispatch();
   }
@@ -891,228 +904,36 @@ IGNITION_HANDLER(Mod, InterpreterBinaryOpAssembler) {
 // AddSmi <imm>
 //
 // Adds an immediate value <imm> to the value in the accumulator.
-IGNITION_HANDLER(AddSmi, InterpreterAssembler) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Label fastpath(this), slowpath(this, Label::kDeferred), end(this);
-
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* function = LoadRegister(Register::function_closure());
-
-  // {right} is known to be a Smi.
-  // Check if the {left} is a Smi take the fast path.
-  Branch(TaggedIsSmi(left), &fastpath, &slowpath);
-  BIND(&fastpath);
-  {
-    // Try fast Smi addition first.
-    Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(left),
-                                       BitcastTaggedToWord(right));
-    Node* overflow = Projection(1, pair);
-
-    // Check if the Smi additon overflowed.
-    Label if_notoverflow(this);
-    Branch(overflow, &slowpath, &if_notoverflow);
-    BIND(&if_notoverflow);
-    {
-      UpdateFeedback(SmiConstant(BinaryOperationFeedback::kSignedSmall),
-                     feedback_vector, slot_index, function);
-      var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
-      Goto(&end);
-    }
-  }
-  BIND(&slowpath);
-  {
-    Node* context = GetContext();
-    // TODO(ishell): pass slot as word-size value.
-    var_result.Bind(CallBuiltin(Builtins::kAddWithFeedback, context, left,
-                                right, TruncateWordToWord32(slot_index),
-                                feedback_vector, function));
-    Goto(&end);
-  }
-  BIND(&end);
-  {
-    SetAccumulator(var_result.value());
-    Dispatch();
-  }
+IGNITION_HANDLER(AddSmi, InterpreterBinaryOpAssembler) {
+  BinaryOpSmiWithFeedback(&BinaryOpAssembler::Generate_AddWithFeedback);
 }
 
 // SubSmi <imm>
 //
 // Subtracts an immediate value <imm> from the value in the accumulator.
-IGNITION_HANDLER(SubSmi, InterpreterAssembler) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Label fastpath(this), slowpath(this, Label::kDeferred), end(this);
-
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* function = LoadRegister(Register::function_closure());
-
-  // {right} is known to be a Smi.
-  // Check if the {left} is a Smi take the fast path.
-  Branch(TaggedIsSmi(left), &fastpath, &slowpath);
-  BIND(&fastpath);
-  {
-    // Try fast Smi subtraction first.
-    Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(left),
-                                       BitcastTaggedToWord(right));
-    Node* overflow = Projection(1, pair);
-
-    // Check if the Smi subtraction overflowed.
-    Label if_notoverflow(this);
-    Branch(overflow, &slowpath, &if_notoverflow);
-    BIND(&if_notoverflow);
-    {
-      UpdateFeedback(SmiConstant(BinaryOperationFeedback::kSignedSmall),
-                     feedback_vector, slot_index, function);
-      var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
-      Goto(&end);
-    }
-  }
-  BIND(&slowpath);
-  {
-    Node* context = GetContext();
-    // TODO(ishell): pass slot as word-size value.
-    var_result.Bind(CallBuiltin(Builtins::kSubtractWithFeedback, context, left,
-                                right, TruncateWordToWord32(slot_index),
-                                feedback_vector, function));
-    Goto(&end);
-  }
-  BIND(&end);
-  {
-    SetAccumulator(var_result.value());
-    Dispatch();
-  }
+IGNITION_HANDLER(SubSmi, InterpreterBinaryOpAssembler) {
+  BinaryOpSmiWithFeedback(&BinaryOpAssembler::Generate_SubtractWithFeedback);
 }
 
 // MulSmi <imm>
 //
 // Multiplies an immediate value <imm> to the value in the accumulator.
-IGNITION_HANDLER(MulSmi, InterpreterAssembler) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Label fastpath(this), slowpath(this, Label::kDeferred), end(this);
-
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* function = LoadRegister(Register::function_closure());
-
-  // {right} is known to be a Smi.
-  // Check if the {left} is a Smi take the fast path.
-  Branch(TaggedIsSmi(left), &fastpath, &slowpath);
-  BIND(&fastpath);
-  {
-    // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
-    // in case of overflow.
-    var_result.Bind(SmiMul(left, right));
-    Node* feedback = SelectSmiConstant(TaggedIsSmi(var_result.value()),
-                                       BinaryOperationFeedback::kSignedSmall,
-                                       BinaryOperationFeedback::kNumber);
-    UpdateFeedback(feedback, feedback_vector, slot_index, function);
-    Goto(&end);
-  }
-  BIND(&slowpath);
-  {
-    Node* context = GetContext();
-    // TODO(ishell): pass slot as word-size value.
-    var_result.Bind(CallBuiltin(Builtins::kMultiplyWithFeedback, context, left,
-                                right, TruncateWordToWord32(slot_index),
-                                feedback_vector, function));
-    Goto(&end);
-  }
-
-  BIND(&end);
-  {
-    SetAccumulator(var_result.value());
-    Dispatch();
-  }
+IGNITION_HANDLER(MulSmi, InterpreterBinaryOpAssembler) {
+  BinaryOpSmiWithFeedback(&BinaryOpAssembler::Generate_MultiplyWithFeedback);
 }
 
 // DivSmi <imm>
 //
 // Divides the value in the accumulator by immediate value <imm>.
-IGNITION_HANDLER(DivSmi, InterpreterAssembler) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Label fastpath(this), slowpath(this, Label::kDeferred), end(this);
-
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* function = LoadRegister(Register::function_closure());
-
-  // {right} is known to be a Smi.
-  // Check if the {left} is a Smi take the fast path.
-  Branch(TaggedIsSmi(left), &fastpath, &slowpath);
-  BIND(&fastpath);
-  {
-    var_result.Bind(TrySmiDiv(left, right, &slowpath));
-    UpdateFeedback(SmiConstant(BinaryOperationFeedback::kSignedSmall),
-                   feedback_vector, slot_index, function);
-    Goto(&end);
-  }
-  BIND(&slowpath);
-  {
-    Node* context = GetContext();
-    // TODO(ishell): pass slot as word-size value.
-    var_result.Bind(CallBuiltin(Builtins::kDivideWithFeedback, context, left,
-                                right, TruncateWordToWord32(slot_index),
-                                feedback_vector, function));
-    Goto(&end);
-  }
-
-  BIND(&end);
-  {
-    SetAccumulator(var_result.value());
-    Dispatch();
-  }
+IGNITION_HANDLER(DivSmi, InterpreterBinaryOpAssembler) {
+  BinaryOpSmiWithFeedback(&BinaryOpAssembler::Generate_DivideWithFeedback);
 }
 
 // ModSmi <imm>
 //
 // Modulo accumulator by immediate value <imm>.
-IGNITION_HANDLER(ModSmi, InterpreterAssembler) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Label fastpath(this), slowpath(this, Label::kDeferred), end(this);
-
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* function = LoadRegister(Register::function_closure());
-
-  // {right} is known to be a Smi.
-  // Check if the {left} is a Smi take the fast path.
-  Branch(TaggedIsSmi(left), &fastpath, &slowpath);
-  BIND(&fastpath);
-  {
-    // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi.
-    var_result.Bind(SmiMod(left, right));
-    Node* feedback = SelectSmiConstant(TaggedIsSmi(var_result.value()),
-                                       BinaryOperationFeedback::kSignedSmall,
-                                       BinaryOperationFeedback::kNumber);
-    UpdateFeedback(feedback, feedback_vector, slot_index, function);
-    Goto(&end);
-  }
-  BIND(&slowpath);
-  {
-    Node* context = GetContext();
-    // TODO(ishell): pass slot as word-size value.
-    var_result.Bind(CallBuiltin(Builtins::kModulusWithFeedback, context, left,
-                                right, TruncateWordToWord32(slot_index),
-                                feedback_vector, function));
-    Goto(&end);
-  }
-
-  BIND(&end);
-  {
-    SetAccumulator(var_result.value());
-    Dispatch();
-  }
+IGNITION_HANDLER(ModSmi, InterpreterBinaryOpAssembler) {
+  BinaryOpSmiWithFeedback(&BinaryOpAssembler::Generate_ModulusWithFeedback);
 }
 
 class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {

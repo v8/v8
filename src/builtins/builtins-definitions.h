@@ -696,11 +696,6 @@ namespace internal {
   TFC(GreaterThanOrEqual, Compare, 1)                                          \
   TFC(Equal, Compare, 1)                                                       \
   TFC(StrictEqual, Compare, 1)                                                 \
-  TFC(AddWithFeedback, BinaryOpWithVector, 1)                                  \
-  TFC(SubtractWithFeedback, BinaryOpWithVector, 1)                             \
-  TFC(MultiplyWithFeedback, BinaryOpWithVector, 1)                             \
-  TFC(DivideWithFeedback, BinaryOpWithVector, 1)                               \
-  TFC(ModulusWithFeedback, BinaryOpWithVector, 1)                              \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \
