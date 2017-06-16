@@ -330,7 +330,6 @@ void RelocInfo::update_wasm_memory_reference(
     Isolate* isolate, Address old_base, Address new_base,
     ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmMemoryReference(rmode_));
-  DCHECK_GE(wasm_memory_reference(), old_base);
   Address updated_reference = new_base + (wasm_memory_reference() - old_base);
   // The reference is not checked here but at runtime. Validity of references
   // may change over time.

@@ -2899,7 +2899,8 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
     return mem_buffer_;
   } else {
     return jsgraph()->RelocatableIntPtrConstant(
-        mem_start + offset, RelocInfo::WASM_MEMORY_REFERENCE);
+        static_cast<uintptr_t>(mem_start + offset),
+        RelocInfo::WASM_MEMORY_REFERENCE);
   }
 }
 
