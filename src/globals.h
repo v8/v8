@@ -743,7 +743,11 @@ struct AccessorDescriptor {
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag)
+  ((reinterpret_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+
+#define HAS_HEAP_OBJECT_TAG(value)                                   \
+  (((reinterpret_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+    ::i::kHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value)                             \
