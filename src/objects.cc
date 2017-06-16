@@ -7690,24 +7690,6 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
 namespace {
 
 template <typename Dictionary>
-void DictionaryDetailsAtPut(Isolate* isolate, Handle<Dictionary> dictionary,
-                            int entry, PropertyDetails details) {
-  dictionary->DetailsAtPut(entry, details);
-}
-
-template <>
-void DictionaryDetailsAtPut<GlobalDictionary>(
-    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
-    PropertyDetails details) {
-  Object* value = dictionary->ValueAt(entry);
-  DCHECK(value->IsPropertyCell());
-  value = PropertyCell::cast(value)->value();
-  if (value->IsTheHole(isolate)) return;
-  PropertyCell::PrepareForValue(dictionary, entry, handle(value, isolate),
-                                details);
-}
-
-template <typename Dictionary>
 void ApplyAttributesToDictionary(Isolate* isolate,
                                  Handle<Dictionary> dictionary,
                                  const PropertyAttributes attributes) {
@@ -7726,7 +7708,7 @@ void ApplyAttributesToDictionary(Isolate* isolate,
       }
       details = details.CopyAddAttributes(
           static_cast<PropertyAttributes>(attrs));
-      DictionaryDetailsAtPut<Dictionary>(isolate, dictionary, i, details);
+      dictionary->DetailsAtPut(i, details);
     }
   }
 }

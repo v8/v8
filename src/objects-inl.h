@@ -6130,6 +6130,10 @@ void GlobalDictionaryShape::DetailsAtPut(Dictionary* dict, int entry,
   Object* raw_value = dict->ValueAt(entry);
   DCHECK(raw_value->IsPropertyCell());
   PropertyCell* cell = PropertyCell::cast(raw_value);
+  if (cell->property_details().IsReadOnly() != value.IsReadOnly()) {
+    cell->dependent_code()->DeoptimizeDependentCodeGroup(
+        cell->GetIsolate(), DependentCode::kPropertyCellChangedGroup);
+  }
   cell->set_property_details(value);
 }
 
