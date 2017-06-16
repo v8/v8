@@ -31,8 +31,8 @@ namespace internal {
 // Shape must be a class with the following interface:
 //   class ExampleShape {
 //    public:
-//      // Tells whether key matches other.
-//     static bool IsMatch(Object* other);
+//     // Tells whether key matches other.
+//     static bool IsMatch(Key key, Object* other);
 //     // Returns the hash value for key.
 //     static uint32_t Hash(Key key);
 //     // Returns the hash value for object.
@@ -44,6 +44,9 @@ namespace internal {
 //     static const int kPrefixSize = ..;
 //     // The Element size indicates number of elements per entry.
 //     static const int kEntrySize = ..;
+//     // Indicates whether IsMatch can deal with other being the_hole (a
+//     // deleted entry).
+//     static const bool kNeedsHoleCheck = ..;
 //   };
 // The prefix size indicates an amount of memory in the
 // beginning of the backing storage that can be used for non-element
@@ -65,6 +68,7 @@ class BaseShape {
     return HashForObject(object);
   }
   static inline Map* GetMap(Isolate* isolate);
+  static const bool kNeedsHoleCheck = true;
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
@@ -249,7 +253,7 @@ class HashTable : public HashTableBase {
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Handle<Derived> new_table);
+  void Rehash(Derived* new_table);
 };
 
 // HashTableKey is an abstract superclass for virtual key behavior.
@@ -283,6 +287,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
+  static const bool kNeedsHoleCheck = false;
 };
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
@@ -566,6 +571,7 @@ class WeakHashTableShape : public BaseShape<Handle<Object>> {
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;
+  static const bool kNeedsHoleCheck = false;
 };
 
 // WeakHashTable maps keys that are arbitrary heap objects to heap object

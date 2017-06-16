@@ -29,12 +29,12 @@ class Dictionary : public HashTable<Derived, Shape> {
   typedef typename Shape::Key Key;
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return this->get(Derived::EntryToIndex(entry) + 1);
+    return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    this->set(Derived::EntryToIndex(entry) + 1, value);
+    this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
   }
 
   // Returns the property details for the property at entry.
@@ -138,16 +138,6 @@ class Dictionary : public HashTable<Derived, Shape> {
                       PropertyDetails details, uint32_t hash);
 };
 
-template <typename Derived, typename Shape>
-class NameDictionaryBase : public Dictionary<Derived, Shape> {
-  typedef Dictionary<Derived, Shape> DerivedDictionary;
-
- public:
-  // Find entry for key, otherwise return kNotFound. Optimized version of
-  // HashTable::FindEntry.
-  int FindEntry(Handle<Name> key);
-};
-
 template <typename Key>
 class BaseDictionaryShape : public BaseShape<Key> {
  public:
@@ -188,12 +178,11 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
   static const bool kIsEnumerable = true;
+  static const bool kNeedsHoleCheck = false;
 };
 
-class NameDictionary
-    : public NameDictionaryBase<NameDictionary, NameDictionaryShape> {
-  typedef NameDictionaryBase<NameDictionary, NameDictionaryShape>
-      DerivedDictionary;
+class NameDictionary : public Dictionary<NameDictionary, NameDictionaryShape> {
+  typedef Dictionary<NameDictionary, NameDictionaryShape> DerivedDictionary;
 
  public:
   DECLARE_CAST(NameDictionary)
@@ -223,7 +212,7 @@ class GlobalDictionaryShape : public NameDictionaryShape {
 };
 
 class GlobalDictionary
-    : public NameDictionaryBase<GlobalDictionary, GlobalDictionaryShape> {
+    : public Dictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
   DECLARE_CAST(GlobalDictionary)
 

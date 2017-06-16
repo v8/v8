@@ -2618,12 +2618,15 @@ int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key,
   // EnsureCapacity will guarantee the hash table is never full.
   Object* undefined = isolate->heap()->undefined_value();
   Object* the_hole = isolate->heap()->the_hole_value();
+  USE(the_hole);
   while (true) {
     Object* element = KeyAt(entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) break;
-    if (element != the_hole && Shape::IsMatch(key, element)) return entry;
+    if (!(Shape::kNeedsHoleCheck && the_hole == element)) {
+      if (Shape::IsMatch(key, element)) return entry;
+    }
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
@@ -2650,7 +2653,8 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
 }
 
 bool StringSetShape::IsMatch(String* key, Object* value) {
-  return value->IsString() && key->Equals(String::cast(value));
+  DCHECK(value->IsString());
+  return key->Equals(String::cast(value));
 }
 
 uint32_t StringSetShape::Hash(String* key) { return key->Hash(); }
@@ -6086,7 +6090,8 @@ Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
 
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
-  DCHECK(Name::cast(other)->IsUniqueName());
+  DCHECK(other->IsTheHole(key->GetIsolate()) ||
+         Name::cast(other)->IsUniqueName());
   DCHECK(key->IsUniqueName());
   return *key == other;
 }

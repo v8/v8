@@ -15813,7 +15813,7 @@ class StringSharedKey : public HashTableKey {
   bool IsMatch(Object* other) override {
     DisallowHeapAllocation no_allocation;
     if (!other->IsFixedArray()) {
-      if (!other->IsNumber()) return false;
+      DCHECK(other->IsNumber());
       uint32_t other_hash = static_cast<uint32_t>(other->Number());
       return Hash() == other_hash;
     }
@@ -16181,48 +16181,15 @@ Handle<Derived> HashTable<Derived, Shape>::New(Isolate* isolate, int capacity,
   return table;
 }
 
-// Find entry for key otherwise return kNotFound.
 template <typename Derived, typename Shape>
-int NameDictionaryBase<Derived, Shape>::FindEntry(Handle<Name> key) {
-  if (!key->IsUniqueName()) {
-    return DerivedDictionary::FindEntry(key);
-  }
-
-  // Optimized for unique names. Knowledge of the key type allows:
-  // 1. Move the check if the key is unique out of the loop.
-  // 2. Avoid comparing hash codes in unique-to-unique comparison.
-  // 3. Detect a case when a dictionary key is not unique but the key is.
-  //    In case of positive result the dictionary key may be replaced by the
-  //    internalized string with minimal performance penalty. It gives a chance
-  //    to perform further lookups in code stubs (and significant performance
-  //    boost a certain style of code).
-
-  // EnsureCapacity will guarantee the hash table is never full.
-  uint32_t capacity = this->Capacity();
-  uint32_t entry = Derived::FirstProbe(key->Hash(), capacity);
-  uint32_t count = 1;
-  Isolate* isolate = this->GetIsolate();
-  while (true) {
-    Object* element = this->KeyAt(entry);
-    if (element->IsUndefined(isolate)) break;  // Empty entry.
-    if (*key == element) return entry;
-    DCHECK(element->IsTheHole(isolate) || element->IsUniqueName());
-    entry = Derived::NextProbe(entry, count++, capacity);
-  }
-  return Derived::kNotFound;
-}
-
-template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Handle<Derived> new_table) {
-  DCHECK(NumberOfElements() < new_table->Capacity());
-
+void HashTable<Derived, Shape>::Rehash(Derived* new_table) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
 
+  DCHECK_LT(NumberOfElements(), new_table->Capacity());
+
   // Copy prefix to new array.
-  for (int i = kPrefixStartIndex;
-       i < kPrefixStartIndex + Shape::kPrefixSize;
-       i++) {
+  for (int i = kPrefixStartIndex; i < kElementsStartIndex; i++) {
     new_table->set(i, get(i), mode);
   }
 
@@ -16313,7 +16280,7 @@ void HashTable<Derived, Shape>::Rehash() {
   Object* undefined = isolate->heap()->undefined_value();
   for (uint32_t current = 0; current < capacity; current++) {
     if (KeyAt(current) == the_hole) {
-      set(EntryToIndex(current) + Derived::kEntryKeyIndex, undefined);
+      set(EntryToIndex(current) + kEntryKeyIndex, undefined);
     }
   }
   SetNumberOfDeletedElements(0);
@@ -16336,7 +16303,7 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
       HashTable::New(isolate, new_nof, USE_DEFAULT_MINIMUM_CAPACITY,
                      should_pretenure ? TENURED : NOT_TENURED);
 
-  table->Rehash(new_table);
+  table->Rehash(*new_table);
   return new_table;
 }
 
@@ -16382,7 +16349,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table) {
       USE_DEFAULT_MINIMUM_CAPACITY,
       pretenure ? TENURED : NOT_TENURED);
 
-  table->Rehash(new_table);
+  table->Rehash(*new_table);
   return new_table;
 }
 
@@ -16535,9 +16502,6 @@ template void Dictionary<
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
     Handle<NameDictionary>, int);
-
-template int NameDictionaryBase<NameDictionary, NameDictionaryShape>::FindEntry(
-    Handle<Name>);
 
 template int Dictionary<GlobalDictionary,
                         GlobalDictionaryShape>::NumberOfEnumerableProperties();
