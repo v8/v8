@@ -249,7 +249,6 @@ class CppLintProcessor(SourceFileProcessor):
       return True
 
     filters = ",".join([n for n in LINT_RULES])
-    command = [sys.executable, 'cpplint.py', '--filter', filters]
     cpplint = self.GetCpplintScript(TOOLS_PATH)
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
@@ -258,7 +257,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     command = [sys.executable, cpplint, '--filter', filters]
 
-    commands = join([command + [file] for file in files])
+    commands = [command + [file] for file in files]
     count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(count)
     try:
