@@ -36,7 +36,7 @@ class SlotSet : public Malloced {
 
   SlotSet() {
     for (int i = 0; i < kBuckets; i++) {
-      bucket[i].SetValue(nullptr);
+      StoreBucket(&buckets_[i], nullptr);
     }
   }
 
@@ -55,13 +55,14 @@ class SlotSet : public Malloced {
   void Insert(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    base::AtomicValue<uint32_t>* current_bucket = bucket[bucket_index].Value();
-    if (current_bucket == nullptr) {
-      current_bucket = AllocateBucket();
-      bucket[bucket_index].SetValue(current_bucket);
+    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    if (bucket == nullptr) {
+      bucket = AllocateBucket();
+      StoreBucket(&buckets_[bucket_index], bucket);
     }
-    if (!(current_bucket[cell_index].Value() & (1u << bit_index))) {
-      current_bucket[cell_index].SetBit(bit_index);
+    uint32_t mask = 1u << bit_index;
+    if ((LoadCell(&bucket[cell_index]) & mask) == 0) {
+      SetCellBits(&bucket[cell_index], mask);
     }
   }
 
@@ -70,25 +71,21 @@ class SlotSet : public Malloced {
   bool Contains(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    base::AtomicValue<uint32_t>* current_bucket = bucket[bucket_index].Value();
-    if (current_bucket == nullptr) {
-      return false;
-    }
-    return (current_bucket[cell_index].Value() & (1u << bit_index)) != 0;
+    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    if (bucket == nullptr) return false;
+    return (LoadCell(&bucket[cell_index]) & (1u << bit_index)) != 0;
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   void Remove(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    base::AtomicValue<uint32_t>* current_bucket = bucket[bucket_index].Value();
-    if (current_bucket != nullptr) {
-      uint32_t cell = current_bucket[cell_index].Value();
-      if (cell) {
-        uint32_t bit_mask = 1u << bit_index;
-        if (cell & bit_mask) {
-          current_bucket[cell_index].ClearBit(bit_index);
-        }
+    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    if (bucket != nullptr) {
+      uint32_t cell = LoadCell(&bucket[cell_index]);
+      uint32_t bit_mask = 1u << bit_index;
+      if (cell & bit_mask) {
+        ClearCellBits(&bucket[cell_index], bit_mask);
       }
     }
   }
@@ -104,18 +101,24 @@ class SlotSet : public Malloced {
     SlotToIndices(end_offset, &end_bucket, &end_cell, &end_bit);
     uint32_t start_mask = (1u << start_bit) - 1;
     uint32_t end_mask = ~((1u << end_bit) - 1);
+    Bucket bucket;
     if (start_bucket == end_bucket && start_cell == end_cell) {
-      ClearCell(start_bucket, start_cell, ~(start_mask | end_mask));
+      bucket = LoadBucket(&buckets_[start_bucket]);
+      if (bucket != nullptr) {
+        ClearCellBits(&bucket[start_cell], ~(start_mask | end_mask));
+      }
       return;
     }
     int current_bucket = start_bucket;
     int current_cell = start_cell;
-    ClearCell(current_bucket, current_cell, ~start_mask);
+    bucket = LoadBucket(&buckets_[current_bucket]);
+    if (bucket != nullptr) {
+      ClearCellBits(&bucket[current_cell], ~start_mask);
+    }
     current_cell++;
-    base::AtomicValue<uint32_t>* bucket_ptr = bucket[current_bucket].Value();
     if (current_bucket < end_bucket) {
-      if (bucket_ptr != nullptr) {
-        ClearBucket(bucket_ptr, current_cell, kCellsPerBucket);
+      if (bucket != nullptr) {
+        ClearBucket(bucket, current_cell, kCellsPerBucket);
       }
       // The rest of the current bucket is cleared.
       // Move on to the next bucket.
@@ -131,37 +134,35 @@ class SlotSet : public Malloced {
         ReleaseBucket(current_bucket);
       } else {
         DCHECK(mode == KEEP_EMPTY_BUCKETS);
-        bucket_ptr = bucket[current_bucket].Value();
-        if (bucket_ptr) {
-          ClearBucket(bucket_ptr, 0, kCellsPerBucket);
+        bucket = LoadBucket(&buckets_[current_bucket]);
+        if (bucket != nullptr) {
+          ClearBucket(bucket, 0, kCellsPerBucket);
         }
       }
       current_bucket++;
     }
     // All buckets between start_bucket and end_bucket are cleared.
-    bucket_ptr = bucket[current_bucket].Value();
+    bucket = LoadBucket(&buckets_[current_bucket]);
     DCHECK(current_bucket == end_bucket && current_cell <= end_cell);
-    if (current_bucket == kBuckets || bucket_ptr == nullptr) {
+    if (current_bucket == kBuckets || bucket == nullptr) {
       return;
     }
     while (current_cell < end_cell) {
-      bucket_ptr[current_cell].SetValue(0);
+      StoreCell(&bucket[current_cell], 0);
       current_cell++;
     }
     // All cells between start_cell and end_cell are cleared.
     DCHECK(current_bucket == end_bucket && current_cell == end_cell);
-    ClearCell(end_bucket, end_cell, ~end_mask);
+    ClearCellBits(&bucket[end_cell], ~end_mask);
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   bool Lookup(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    if (bucket[bucket_index].Value() != nullptr) {
-      uint32_t cell = bucket[bucket_index].Value()[cell_index].Value();
-      return (cell & (1u << bit_index)) != 0;
-    }
-    return false;
+    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    if (bucket == nullptr) return false;
+    return (LoadCell(&bucket[cell_index]) & (1u << bit_index)) != 0;
   }
 
   // Iterate over all slots in the set and for each slot invoke the callback.
@@ -178,14 +179,13 @@ class SlotSet : public Malloced {
   int Iterate(Callback callback, EmptyBucketMode mode) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
-      base::AtomicValue<uint32_t>* current_bucket =
-          bucket[bucket_index].Value();
-      if (current_bucket != nullptr) {
+      Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+      if (bucket != nullptr) {
         int in_bucket_count = 0;
         int cell_offset = bucket_index * kBitsPerBucket;
         for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
-          if (current_bucket[i].Value()) {
-            uint32_t cell = current_bucket[i].Value();
+          uint32_t cell = LoadCell(&bucket[i]);
+          if (cell) {
             uint32_t old_cell = cell;
             uint32_t mask = 0;
             while (cell) {
@@ -201,15 +201,7 @@ class SlotSet : public Malloced {
             }
             uint32_t new_cell = old_cell & ~mask;
             if (old_cell != new_cell) {
-              while (!current_bucket[i].TrySetValue(old_cell, new_cell)) {
-                // If TrySetValue fails, the cell must have changed. We just
-                // have to read the current value of the cell, & it with the
-                // computed value, and retry. We can do this, because this
-                // method will only be called on the main thread and filtering
-                // threads will only remove slots.
-                old_cell = current_bucket[i].Value();
-                new_cell = old_cell & ~mask;
-              }
+              ClearCellBits(&bucket[i], mask);
             }
           }
         }
@@ -225,13 +217,14 @@ class SlotSet : public Malloced {
   void FreeToBeFreedBuckets() {
     base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
     while (!to_be_freed_buckets_.empty()) {
-      base::AtomicValue<uint32_t>* top = to_be_freed_buckets_.top();
+      Bucket top = to_be_freed_buckets_.top();
       to_be_freed_buckets_.pop();
-      DeleteArray<base::AtomicValue<uint32_t>>(top);
+      DeleteArray<uint32_t>(top);
     }
   }
 
  private:
+  typedef uint32_t* Bucket;
   static const int kMaxSlots = (1 << kPageSizeBits) / kPointerSize;
   static const int kCellsPerBucket = 32;
   static const int kCellsPerBucketLog2 = 5;
@@ -241,52 +234,61 @@ class SlotSet : public Malloced {
   static const int kBitsPerBucketLog2 = kCellsPerBucketLog2 + kBitsPerCellLog2;
   static const int kBuckets = kMaxSlots / kCellsPerBucket / kBitsPerCell;
 
-  base::AtomicValue<uint32_t>* AllocateBucket() {
-    base::AtomicValue<uint32_t>* result =
-        NewArray<base::AtomicValue<uint32_t>>(kCellsPerBucket);
+  Bucket AllocateBucket() {
+    Bucket result = NewArray<uint32_t>(kCellsPerBucket);
     for (int i = 0; i < kCellsPerBucket; i++) {
-      result[i].SetValue(0);
+      result[i] = 0;
     }
     return result;
   }
 
-  void ClearBucket(base::AtomicValue<uint32_t>* bucket, int start_cell,
-                   int end_cell) {
+  void ClearBucket(Bucket bucket, int start_cell, int end_cell) {
     DCHECK_GE(start_cell, 0);
     DCHECK_LE(end_cell, kCellsPerBucket);
     int current_cell = start_cell;
     while (current_cell < kCellsPerBucket) {
-      bucket[current_cell].SetValue(0);
+      StoreCell(&bucket[current_cell], 0);
       current_cell++;
     }
   }
 
   void PreFreeEmptyBucket(int bucket_index) {
-    base::AtomicValue<uint32_t>* bucket_ptr = bucket[bucket_index].Value();
-    if (bucket_ptr != nullptr) {
+    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    if (bucket != nullptr) {
       base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
-      to_be_freed_buckets_.push(bucket_ptr);
-      bucket[bucket_index].SetValue(nullptr);
+      to_be_freed_buckets_.push(bucket);
+      StoreBucket(&buckets_[bucket_index], nullptr);
     }
   }
 
   void ReleaseBucket(int bucket_index) {
-    DeleteArray<base::AtomicValue<uint32_t>>(bucket[bucket_index].Value());
-    bucket[bucket_index].SetValue(nullptr);
+    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    StoreBucket(&buckets_[bucket_index], nullptr);
+    DeleteArray<uint32_t>(bucket);
   }
 
-  void ClearCell(int bucket_index, int cell_index, uint32_t mask) {
-    if (bucket_index < kBuckets) {
-      base::AtomicValue<uint32_t>* cells = bucket[bucket_index].Value();
-      if (cells != nullptr) {
-        uint32_t cell = cells[cell_index].Value();
-        if (cell) cells[cell_index].SetBits(0, mask);
-      }
-    } else {
-      // GCC bug 59124: Emits wrong warnings
-      // "array subscript is above array bounds"
-      UNREACHABLE();
-    }
+  Bucket LoadBucket(Bucket* bucket) {
+    return base::AsAtomicWord::Acquire_Load(bucket);
+  }
+
+  void StoreBucket(Bucket* bucket, uint32_t* value) {
+    base::AsAtomicWord::Release_Store(bucket, value);
+  }
+
+  uint32_t LoadCell(uint32_t* cell) {
+    return base::AsAtomic32::Acquire_Load(cell);
+  }
+
+  void StoreCell(uint32_t* cell, uint32_t value) {
+    base::AsAtomic32::Release_Store(cell, value);
+  }
+
+  void ClearCellBits(uint32_t* cell, uint32_t mask) {
+    base::AsAtomic32::SetBits(cell, 0u, mask);
+  }
+
+  void SetCellBits(uint32_t* cell, uint32_t mask) {
+    base::AsAtomic32::SetBits(cell, mask, mask);
   }
 
   // Converts the slot offset into bucket/cell/bit index.
@@ -300,10 +302,10 @@ class SlotSet : public Malloced {
     *bit_index = slot & (kBitsPerCell - 1);
   }
 
-  base::AtomicValue<base::AtomicValue<uint32_t>*> bucket[kBuckets];
+  Bucket buckets_[kBuckets];
   Address page_start_;
   base::Mutex to_be_freed_buckets_mutex_;
-  std::stack<base::AtomicValue<uint32_t>*> to_be_freed_buckets_;
+  std::stack<uint32_t*> to_be_freed_buckets_;
 };
 
 enum SlotType {
