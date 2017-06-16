@@ -846,6 +846,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kObjectIsString:
       case IrOpcode::kObjectIsSymbol:
       case IrOpcode::kObjectIsUndetectable:
+      case IrOpcode::kNumberLessThan:
+      case IrOpcode::kNumberLessThanOrEqual:
+      case IrOpcode::kNumberEqual:
 #define CASE(opcode) case IrOpcode::k##opcode:
         SIMPLIFIED_NUMBER_BINOP_LIST(CASE)
         SIMPLIFIED_NUMBER_UNOP_LIST(CASE)
