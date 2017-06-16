@@ -2873,7 +2873,7 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   {
     // If we can't do a fast clone, call into the runtime.
     Node* index = BytecodeOperandIdx(0);
-    Node* constant_elements = LoadConstantPoolEntry(index);
+    Node* boilerplate_description = LoadConstantPoolEntry(index);
     Node* context = GetContext();
 
     Node* flags_raw = DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(
@@ -2881,7 +2881,7 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
     Node* flags = SmiTag(flags_raw);
 
     Node* result = CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                               literal_index, constant_elements, flags);
+                               literal_index, boilerplate_description, flags);
     StoreRegister(result, BytecodeOperandReg(3));
     // TODO(klaasb) build a single dispatch once the call is inlined
     Dispatch();

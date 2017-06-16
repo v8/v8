@@ -1022,25 +1022,6 @@ void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "Function");
-  os << "\n - initial_map = ";
-  if (has_initial_map()) os << Brief(initial_map());
-  os << "\n - shared_info = " << Brief(shared());
-  os << "\n - name = " << Brief(shared()->name());
-  os << "\n - formal_parameter_count = "
-     << shared()->internal_formal_parameter_count();
-  if (IsGeneratorFunction(shared()->kind())) {
-    os << "\n   - generator";
-  } else if (IsAsyncFunction(shared()->kind())) {
-    os << "\n   - async";
-  }
-  os << "\n - context = " << Brief(context());
-  os << "\n - feedback vector cell = " << Brief(feedback_vector_cell());
-  os << "\n - code = " << Brief(code());
-  JSObjectPrintBody(os, this);
-}
-
 namespace {
 
 std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
@@ -1070,6 +1051,27 @@ std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
 
 }  // namespace
 
+void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "Function");
+  os << "\n - initial_map = ";
+  if (has_initial_map()) os << Brief(initial_map());
+  os << "\n - shared_info = " << Brief(shared());
+  os << "\n - name = " << Brief(shared()->name());
+  os << "\n - formal_parameter_count = "
+     << shared()->internal_formal_parameter_count();
+  os << "\n - kind = " << shared()->kind();
+  os << "\n - context = " << Brief(context());
+  os << "\n - feedback vector cell = " << Brief(feedback_vector_cell());
+  os << "\n - code = " << Brief(code());
+  if (IsInterpreted()) {
+    os << "\n - interpreted";
+    if (shared()->HasBytecodeArray()) {
+      os << "\n - bytecode = " << shared()->bytecode_array();
+    }
+  }
+  JSObjectPrintBody(os, this);
+}
+
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
   os << "\n - name = ";
@@ -1086,6 +1088,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - instance class name = ";
   instance_class_name()->Print(os);
   os << "\n - code = " << Brief(code());
+  if (HasBytecodeArray()) {
+    os << "\n - bytecode_array = " << bytecode_array();
+  }
   if (HasSourceCode()) {
     os << "\n - source code = ";
     String* source = String::cast(Script::cast(script())->source());
@@ -1116,9 +1121,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - length = " << length();
   os << "\n - feedback_metadata = ";
   feedback_metadata()->FeedbackMetadataPrint(os);
-  if (HasBytecodeArray()) {
-    os << "\n - bytecode_array = " << bytecode_array();
-  }
   os << "\n";
 }
 
