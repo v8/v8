@@ -233,7 +233,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         break;
       }
       case FeedbackSlotKind::kLiteral:
-        array->set(index, *undefined_value, SKIP_WRITE_BARRIER);
+        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
         array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
@@ -335,7 +335,6 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
 
   Object* uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
-  Oddball* undefined_value = isolate->heap()->undefined_value();
 
   bool feedback_updated = false;
   FeedbackMetadataIterator iter(metadata());
@@ -426,7 +425,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
           break;
         }
         case FeedbackSlotKind::kLiteral: {
-          Set(slot, undefined_value, SKIP_WRITE_BARRIER);
+          Set(slot, Smi::kZero, SKIP_WRITE_BARRIER);
           feedback_updated = true;
           break;
         }

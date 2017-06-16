@@ -681,8 +681,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
     GotoIf(is_megamorphic, &call);
 
     Comment("check if it is an allocation site");
-    GotoIfNot(IsAllocationSiteMap(LoadMap(feedback_element)),
-              &check_initialized);
+    GotoIfNot(IsAllocationSite(feedback_element), &check_initialized);
 
     // If it is not the Array() function, mark megamorphic.
     Node* context_slot = LoadContextElement(LoadNativeContext(context),

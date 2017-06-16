@@ -3384,6 +3384,10 @@ Node* CodeStubAssembler::IsAccessorPair(Node* object) {
   return IsAccessorPairMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsAllocationSite(Node* object) {
+  return IsAllocationSiteMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsAnyHeapNumber(Node* object) {
   return Word32Or(IsMutableHeapNumber(object), IsHeapNumber(object));
 }

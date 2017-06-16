@@ -1438,9 +1438,9 @@ class ObjectLiteral final : public MaterializedLiteral {
 
   enum Flags {
     kNoFlags = 0,
-    kFastElements = 1,
-    kShallowProperties = 1 << 1,
-    kDisableMementos = 1 << 2,
+    kShallowProperties = 1,
+    kDisableMementos = 1 << 1,
+    kFastElements = 1 << 2,
     kHasNullPrototype = 1 << 3,
   };
 
@@ -1562,7 +1562,6 @@ class ArrayLiteral final : public MaterializedLiteral {
   Handle<ConstantElementsPair> constant_elements() const {
     return constant_elements_;
   }
-  ElementsKind constant_elements_kind() const;
 
   ZoneList<Expression*>* values() const { return values_; }
 

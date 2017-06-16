@@ -180,6 +180,23 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   return result;
 }
 
+Node* ConstructorBuiltinsAssembler::LoadFeedbackVectorSlot(
+    Node* closure, Node* literal_index) {
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+  return LoadFixedArrayElement(feedback_vector, literal_index, 0,
+                               CodeStubAssembler::SMI_PARAMETERS);
+}
+
+Node* ConstructorBuiltinsAssembler::NotHasBoilerplate(Node* literal_site) {
+  return TaggedIsSmi(literal_site);
+}
+
+Node* ConstructorBuiltinsAssembler::LoadAllocationSiteBoilerplate(Node* site) {
+  CSA_ASSERT(this, IsAllocationSite(site));
+  return LoadObjectField(site, AllocationSite::kTransitionInfoOffset);
+}
+
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared = Parameter(FastNewClosureDescriptor::kSharedFunctionInfo);
   Node* context = Parameter(FastNewClosureDescriptor::kContext);
@@ -347,14 +364,11 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
   Label call_runtime(this, Label::kDeferred), end(this);
 
   VARIABLE(result, MachineRepresentation::kTagged);
-
-  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
-  Node* boilerplate = LoadFixedArrayElement(feedback_vector, literal_index, 0,
-                                            CodeStubAssembler::SMI_PARAMETERS);
-  GotoIf(IsUndefined(boilerplate), &call_runtime);
-
+  Node* literal_site = LoadFeedbackVectorSlot(closure, literal_index);
+  GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
+    Node* boilerplate = literal_site;
+    CSA_ASSERT(this, IsJSRegExp(boilerplate));
     int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
     Node* copy = Allocate(size);
     for (int offset = 0; offset < size; offset += kPointerSize) {
@@ -425,18 +439,12 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
       return_result(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
-  Node* allocation_site = LoadFixedArrayElement(
-      feedback_vector, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+  Node* allocation_site = LoadFeedbackVectorSlot(closure, literal_index);
+  GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
-  GotoIf(IsUndefined(allocation_site), call_runtime);
-  allocation_site = LoadFixedArrayElement(feedback_vector, literal_index, 0,
-                                          CodeStubAssembler::SMI_PARAMETERS);
-
-  Node* boilerplate =
-      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
   Node* boilerplate_map = LoadMap(boilerplate);
+  CSA_ASSERT(this, IsJSArrayMap(boilerplate_map));
   Node* boilerplate_elements = LoadElements(boilerplate);
   Node* capacity = LoadFixedArrayBaseLength(boilerplate_elements);
   allocation_site =
@@ -539,19 +547,12 @@ TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     Label* call_runtime, Node* closure, Node* literals_index) {
-  Node* allocation_site;
-  {
-    // Load the alloation site.
-    Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-    Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
-    allocation_site = LoadFixedArrayElement(feedback_vector, literals_index, 0,
-                                            CodeStubAssembler::SMI_PARAMETERS);
-    GotoIf(IsUndefined(allocation_site), call_runtime);
-  }
+  Node* allocation_site = LoadFeedbackVectorSlot(closure, literals_index);
+  GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
-  Node* boilerplate =
-      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
   Node* boilerplate_map = LoadMap(boilerplate);
+  CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
 
   VARIABLE(var_properties, MachineRepresentation::kTagged);
   {

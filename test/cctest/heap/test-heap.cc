@@ -58,6 +58,10 @@
 namespace v8 {
 namespace internal {
 
+// We only start allocation-site tracking with the second instantiation.
+static const int kPretenureCreationCount =
+    AllocationSite::kPretenureMinimumCreated + 1;
+
 static void CheckMap(Map* map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
 #ifdef DEBUG
@@ -2443,21 +2447,20 @@ TEST(OptimizedPretenuringAllocationFolding) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array();"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = [[{}], [1.1]];"
-      "  }"
-      "  return elements[number_elements-1]"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array();"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [[{}], [1.1]];"
+              "  }"
+              "  return elements[number_elements-1]"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2486,8 +2489,9 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
 
   // Grow new space unitl maximum capacity reached.
@@ -2496,21 +2500,20 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = [{}, {}, {}];"
-      "  }"
-      "  return elements[number_elements - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [{}, {}, {}];"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2539,21 +2542,20 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
-      "  }"
-      "  return elements[number_elements - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2598,21 +2600,20 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = {a: 1.1, b: 2.2};"
-      "  }"
-      "  return elements[i - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = {a: 1.1, b: 2.2};"
+              "  }"
+              "  return elements[i - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2640,21 +2641,20 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = [1.1, 2.2, 3.3];"
-      "  }"
-      "  return elements[number_elements - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [1.1, 2.2, 3.3];"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2682,20 +2682,20 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = 100;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
-      "  }"
-      "  return elements[number_elements - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();");
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2734,21 +2734,20 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
-      "  }"
-      "  return elements[number_elements - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
@@ -2787,21 +2786,20 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   }
 
   i::ScopedVector<char> source(1024);
-  i::SNPrintF(
-      source,
-      "var number_elements = %d;"
-      "var elements = new Array(number_elements);"
-      "function f() {"
-      "  for (var i = 0; i < number_elements; i++) {"
-      "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
-      "  }"
-      "  return elements[number_elements - 1];"
-      "};"
-      "f(); gc();"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      AllocationSite::kPretenureMinimumCreated);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();",
+              kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 

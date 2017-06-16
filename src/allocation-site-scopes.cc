@@ -42,22 +42,17 @@ Handle<AllocationSite> AllocationSiteCreationContext::EnterNewScope() {
 void AllocationSiteCreationContext::ExitScope(
     Handle<AllocationSite> scope_site,
     Handle<JSObject> object) {
-  if (!object.is_null()) {
-    bool top_level = !scope_site.is_null() &&
-        top().is_identical_to(scope_site);
-
-    scope_site->set_transition_info(*object);
-    if (FLAG_trace_creation_allocation_sites) {
-      if (top_level) {
-        PrintF("*** Setting AllocationSite %p transition_info %p\n",
-               static_cast<void*>(*scope_site),
-               static_cast<void*>(*object));
-      } else {
-        PrintF("Setting AllocationSite (%p, %p) transition_info %p\n",
-               static_cast<void*>(*top()),
-               static_cast<void*>(*scope_site),
-               static_cast<void*>(*object));
-      }
+  if (object.is_null()) return;
+  scope_site->set_transition_info(*object);
+  if (FLAG_trace_creation_allocation_sites) {
+    bool top_level = !scope_site.is_null() && top().is_identical_to(scope_site);
+    if (top_level) {
+      PrintF("*** Setting AllocationSite %p transition_info %p\n",
+             static_cast<void*>(*scope_site), static_cast<void*>(*object));
+    } else {
+      PrintF("Setting AllocationSite (%p, %p) transition_info %p\n",
+             static_cast<void*>(*top()), static_cast<void*>(*scope_site),
+             static_cast<void*>(*object));
     }
   }
 }

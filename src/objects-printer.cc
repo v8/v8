@@ -486,9 +486,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
   os << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
   os << "\n - elements = " << Brief(obj->elements()) << " ["
      << ElementsKindToString(obj->map()->elements_kind());
-  if (obj->elements()->map() == obj->GetHeap()->fixed_cow_array_map()) {
-    os << " (COW)";
-  }
+  if (obj->elements()->IsCowArray()) os << " (COW)";
   os << "]";
   if (obj->GetEmbedderFieldCount() > 0) {
     os << "\n - embedder fields: " << obj->GetEmbedderFieldCount();

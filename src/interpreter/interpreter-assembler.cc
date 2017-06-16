@@ -627,8 +627,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
     GotoIf(is_megamorphic, &call);
 
     Comment("check if it is an allocation site");
-    GotoIfNot(IsAllocationSiteMap(LoadMap(feedback_element)),
-              &check_initialized);
+    GotoIfNot(IsAllocationSite(feedback_element), &check_initialized);
 
     if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
       // For undefined receivers (mostly global calls), do an additional check

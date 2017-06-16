@@ -5217,11 +5217,11 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       closure->feedback_vector()->Get(expr->literal_slot()), isolate());
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
-  if (!literals_cell->IsUndefined(isolate())) {
+  if (literals_cell->IsAllocationSite()) {
     // Retrieve the boilerplate
     site = Handle<AllocationSite>::cast(literals_cell);
-    boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()),
-                                   isolate());
+    boilerplate =
+        Handle<JSObject>(JSObject::cast(site->transition_info()), isolate());
   }
 
   if (!boilerplate.is_null() &&
@@ -5336,13 +5336,12 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<AllocationSite> site;
   Handle<FeedbackVector> vector(environment()->closure()->feedback_vector(),
                                 isolate());
-  Handle<Object> literals_cell(vector->Get(expr->literal_slot()), isolate());
+  Handle<Object> literal_site(vector->Get(expr->literal_slot()), isolate());
   Handle<JSObject> boilerplate_object;
-  if (!literals_cell->IsUndefined(isolate())) {
-    DCHECK(literals_cell->IsAllocationSite());
-    site = Handle<AllocationSite>::cast(literals_cell);
-    boilerplate_object = Handle<JSObject>(
-        JSObject::cast(site->transition_info()), isolate());
+  if (literal_site->IsAllocationSite()) {
+    site = Handle<AllocationSite>::cast(literal_site);
+    boilerplate_object =
+        Handle<JSObject>(JSObject::cast(site->transition_info()), isolate());
   }
 
   // Check whether to use fast or slow deep-copying for boilerplate.

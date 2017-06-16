@@ -7957,13 +7957,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
   DCHECK(copying || copy.is_identical_to(object));
 
-  ElementsKind kind = copy->GetElementsKind();
-  if (copying && IsFastSmiOrObjectElementsKind(kind) &&
-      FixedArray::cast(copy->elements())->map() ==
-        isolate->heap()->fixed_cow_array_map()) {
-    isolate->counters()->cow_arrays_created_runtime()->Increment();
-  }
-
   if (shallow) return copy;
 
   HandleScope scope(isolate);
@@ -8010,7 +8003,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   }
 
   // Deep copy own elements.
-  switch (kind) {
+  switch (copy->GetElementsKind()) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
@@ -15740,6 +15733,10 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
 int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
   return ((kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
           ElementsKindToShiftSize(kind));
+}
+
+bool FixedArrayBase::IsCowArray() const {
+  return map() == GetHeap()->fixed_cow_array_map();
 }
 
 bool JSObject::WasConstructedFromApiFunction() {

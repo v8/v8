@@ -165,6 +165,12 @@ function fastliteralcase_smiholey(index, value) {
 obj = fastliteralcase_smiholey(5, 1);
 assertKind(elements_kind.fast_smi_only, obj);
 assertHoley(obj);
+
+// We only start tracking tranistion with the second instantiation.
+obj = fastliteralcase_smiholey(5, 1);
+assertKind(elements_kind.fast_smi_only, obj);
+assertHoley(obj);
+
 obj = fastliteralcase_smiholey(0, 1);
 assertKind(elements_kind.fast_smi_only, obj);
 assertHoley(obj);
@@ -262,27 +268,70 @@ assertKind(elements_kind.fast, obj);
 // Case: array constructor calls with out of date feedback.
 // The boilerplate should incorporate all feedback, but the input array
 // should be minimally transitioned based on immediate need.
-(function() {
-  function foo(i) {
-    // We have two cases, one for literals one for constructed arrays.
-    var a = (i == 0)
-      ? [1, 2, 3]
-      : new Array(1, 2, 3);
-    return a;
+(function TestLiteralTransition() {
+  function literal() {
+    return [1, 2, 3];
   }
 
-  for (i = 0; i < 2; i++) {
-    a = foo(i);
-    b = foo(i);
-    b[5] = 1;  // boilerplate goes holey
-    assertHoley(foo(i));
-    a[0] = 3.5;  // boilerplate goes holey double
-    assertKind(elements_kind.fast_double, a);
-    assertNotHoley(a);
-    c = foo(i);
-    assertKind(elements_kind.fast_double, c);
-    assertHoley(c);
+  var a = literal(); // No boilerplate created yet.
+  var b = literal(); // Created boilerplate here.
+  var c = literal(); // Created copy from boilerplate.
+  // Boilerplate goes holey smi.
+  b[5] = 1;
+  assertKind(elements_kind.fast_smi_only, a);
+  assertKind(elements_kind.fast_smi_only, b);
+  assertKind(elements_kind.fast_smi_only, c);
+  assertHoley(literal());
+
+  // {a} has been created before tracking was active and thus doesn't affect
+  // the boilerplate.
+  a[0] = 3.5;
+  assertKind(elements_kind.fast_double, a);
+  assertNotHoley(a);
+  // Check that modifying {a} didn't change the boilerplate.
+  var d = literal();
+  assertKind(elements_kind.fast_smi_only, d);
+  assertHoley(d);
+
+  // Boilerplate goes from holey smi to holey double
+  c[0] = 3.5;
+  assertKind(elements_kind.fast_double, c);
+  assertNotHoley(c);
+
+  var e = literal();
+  assertKind(elements_kind.fast_double, e);
+  assertHoley(e);
+})();
+
+(function TestConstructedArrayTransition() {
+  // Allocation site tracking is on from the first instantiation for constructor
+  // calls.
+  function array() {
+    return new Array(1, 2, 3);
   }
+  var a = array();
+  var b = array();
+  // Transition kind goes to smi holey.
+  b[5] = 1;
+  assertKind(elements_kind.fast_smi_only, a);
+  assertNotHoley(a);
+  assertHoley(b);
+  assertKind(elements_kind.fast_smi_only, b);
+  assertHoley(array());
+  // Confirm that modifying {b} did change the transition kind.
+  var d = array();
+  assertKind(elements_kind.fast_smi_only, d);
+  assertHoley(d);
+
+  // Sets the transition kind to double.
+  a[0] = 3.5;
+  assertKind(elements_kind.fast_double, a);
+  assertNotHoley(a);
+
+  // Confirm that we get the general kind holey + double.
+  var e = array();
+  assertKind(elements_kind.fast_double, e);
+  assertHoley(e);
 })();
 
 function newarraycase_onearg(len, value) {
@@ -375,14 +424,34 @@ gc();
     return literal;
   }
 
-  obj = get_nested_literal();
+  var obj = get_nested_literal();
   assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast_smi_only, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast_smi_only, obj[2]);
   obj[0][0] = 3.5;
   obj[2][0] = "hello";
+  assertKind(elements_kind.fast_double, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast, obj[2]);
+
+  // We start tracking the allocation site from the second instantiation on.
+  obj = get_nested_literal();
+  assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast_smi_only, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast_smi_only, obj[2]);
+  obj[0][0] = 3.5;
+  obj[2][0] = "hello";
+  assertKind(elements_kind.fast_double, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast, obj[2]);
+
   obj = get_nested_literal();
   assertKind(elements_kind.fast_double, obj[0]);
   assertKind(elements_kind.fast_smi_only, obj[1]);
   assertKind(elements_kind.fast, obj[2]);
+
 
   // A more complex nested literal case.
   function get_deep_nested_literal() {
@@ -391,6 +460,15 @@ gc();
   }
 
   obj = get_deep_nested_literal();
+  assertKind(elements_kind.fast_smi_only, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1][0]);
+  obj[0][0] = 3.5;
+  obj[1][0][0] = "goodbye";
+  assertKind(elements_kind.fast_double, obj[0]);
+  assertKind(elements_kind.fast, obj[1][0]);
+
+  obj = get_deep_nested_literal();
+  assertKind(elements_kind.fast_smi_only, obj[0]);
   assertKind(elements_kind.fast_smi_only, obj[1][0]);
   obj[0][0] = 3.5;
   obj[1][0][0] = "goodbye";
@@ -424,6 +502,12 @@ gc();
   assertKind(elements_kind.fast_smi_only, obj.array);
   obj.array[1] = 3.5;
   assertKind(elements_kind.fast_double, obj.array);
+
+  obj = get_object_literal();
+  assertKind(elements_kind.fast_smi_only, obj.array);
+  obj.array[1] = 3.5;
+  assertKind(elements_kind.fast_double, obj.array);
+
   obj = get_object_literal();
   assertKind(elements_kind.fast_double, obj.array);
 
@@ -440,6 +524,13 @@ gc();
   assertKind(elements_kind.fast_smi_only, obj.array[1]);
   obj.array[1][0] = 3.5;
   assertKind(elements_kind.fast_double, obj.array[1]);
+
+  obj = get_nested_object_literal();
+  assertKind(elements_kind.fast, obj.array);
+  assertKind(elements_kind.fast_smi_only, obj.array[1]);
+  obj.array[1][0] = 3.5;
+  assertKind(elements_kind.fast_double, obj.array[1]);
+
   obj = get_nested_object_literal();
   assertKind(elements_kind.fast_double, obj.array[1]);
 
@@ -456,8 +547,26 @@ gc();
 
   obj = get_nested_literal();
   assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast_smi_only, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast_smi_only, obj[2]);
   obj[0][0] = 3.5;
   obj[2][0] = "hello";
+  assertKind(elements_kind.fast_double, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast, obj[2]);
+
+  obj = get_nested_literal();
+  assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast_smi_only, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast_smi_only, obj[2]);
+  obj[0][0] = 3.5;
+  obj[2][0] = "hello";
+  assertKind(elements_kind.fast_double, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1]);
+  assertKind(elements_kind.fast, obj[2]);
+
   obj = get_nested_literal();
   assertKind(elements_kind.fast_double, obj[0]);
   assertKind(elements_kind.fast_smi_only, obj[1]);
@@ -470,6 +579,15 @@ gc();
   }
 
   obj = get_deep_nested_literal();
+  assertKind(elements_kind.fast_smi_only, obj[0]);
+  assertKind(elements_kind.fast_smi_only, obj[1][0]);
+  obj[0][0] = 3.5;
+  obj[1][0][0] = "goodbye";
+  assertKind(elements_kind.fast_double, obj[0]);
+  assertKind(elements_kind.fast, obj[1][0]);
+
+  obj = get_deep_nested_literal();
+  assertKind(elements_kind.fast_smi_only, obj[0]);
   assertKind(elements_kind.fast_smi_only, obj[1][0]);
   obj[0][0] = 3.5;
   obj[1][0][0] = "goodbye";

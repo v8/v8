@@ -694,10 +694,6 @@ bool ObjectLiteral::IsFastCloningSupported() const {
              ConstructorBuiltins::kMaximumClonedShallowObjectProperties;
 }
 
-ElementsKind ArrayLiteral::constant_elements_kind() const {
-  return static_cast<ElementsKind>(constant_elements()->elements_kind());
-}
-
 void ArrayLiteral::InitDepthAndFlags() {
   DCHECK_LT(first_spread_index_, 0);
 

@@ -2717,6 +2717,8 @@ class FixedArrayBase: public HeapObject {
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
+  bool IsCowArray() const;
+
   // Layout description.
   // Length is smi tagged when it is stored.
   static const int kLengthOffset = HeapObject::kHeaderSize;

@@ -59,6 +59,7 @@
 
 static const bool kLogThreading = false;
 
+using ::v8::Array;
 using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
@@ -22107,33 +22108,27 @@ UNINITIALIZED_TEST(SecondaryStubCache) {
 
 #endif  // ENABLE_DISASSEMBLER
 
-#ifdef DEBUG
-static int cow_arrays_created_runtime = 0;
+namespace {
 
-
-static int* LookupCounterCOWArrays(const char* name) {
-  if (strcmp(name, "c:V8.COWArraysCreatedRuntime") == 0) {
-    return &cow_arrays_created_runtime;
-  }
-  return NULL;
+void AssertCowElements(bool expected, const char* source) {
+  Local<Value> object = CompileRun(source);
+  i::Handle<i::JSObject> array =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*object.As<Object>()));
+  CHECK_EQ(expected, array->elements()->IsCowArray());
 }
-#endif
 
+}  // namespace
 
 TEST(CheckCOWArraysCreatedRuntimeCounter) {
-#ifdef DEBUG
-  i::FLAG_native_code_counters = true;
   LocalContext env;
-  env->GetIsolate()->SetCounterFunction(LookupCounterCOWArrays);
   v8::HandleScope scope(env->GetIsolate());
-  int initial_cow_arrays = cow_arrays_created_runtime;
-  CompileRun("var o = [1, 2, 3];");
-  CHECK_EQ(1, cow_arrays_created_runtime - initial_cow_arrays);
-  CompileRun("var o = {foo: [4, 5, 6], bar: [3, 0]};");
-  CHECK_EQ(3, cow_arrays_created_runtime - initial_cow_arrays);
-  CompileRun("var o = {foo: [1, 2, 3, [4, 5, 6]], bar: 'hi'};");
-  CHECK_EQ(4, cow_arrays_created_runtime - initial_cow_arrays);
-#endif
+  AssertCowElements(true, "[1, 2, 3]");
+  AssertCowElements(false, "[[1], 2, 3]");
+  AssertCowElements(true, "[[1], 2, 3][0]");
+  AssertCowElements(true, "({foo: [4, 5, 6], bar: [3, 0]}.foo)");
+  AssertCowElements(true, "({foo: [4, 5, 6], bar: [3, 0]}.bar)");
+  AssertCowElements(false, "({foo: [1, 2, 3, [4, 5, 6]], bar: 'hi'}.foo)");
+  AssertCowElements(true, "({foo: [1, 2, 3, [4, 5, 6]], bar: 'hi'}.foo[3])");
 }
 
 

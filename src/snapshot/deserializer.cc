@@ -337,7 +337,6 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     }
   }
   if (obj->IsAllocationSite()) {
-    DCHECK(obj->IsAllocationSite());
     // Allocation sites are present in the snapshot, and must be linked into
     // a list at deserialization time.
     AllocationSite* site = AllocationSite::cast(obj);
