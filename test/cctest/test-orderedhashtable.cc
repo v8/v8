@@ -19,6 +19,12 @@ void Verify(Handle<SmallOrderedHashSet> set) {
 #endif
 }
 
+void Verify(Handle<OrderedHashMap> map) {
+#if VERIFY_HEAP
+  map->ObjectVerify();
+#endif
+}
+
 TEST(Insertion) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -281,4 +287,125 @@ TEST(Grow) {
   CHECK_EQ(127, set->NumberOfBuckets());
   CHECK_EQ(0, set->NumberOfDeletedElements());
   Verify(set);
+}
+
+TEST(OrderedHashTableInsertion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<Object> true_val = factory->true_value();
+  Handle<Object> false_val = factory->false_value();
+
+  Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(0, map->NumberOfElements());
+
+  // Add a new key.
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  map = OrderedHashMap::Add(map, key1, value1);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  // Add existing key.
+  map = OrderedHashMap::Add(map, key1, value1);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  Handle<String> value = factory->NewStringFromAsciiChecked("bar");
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  map = OrderedHashMap::Add(map, key2, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(2, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+
+  map = OrderedHashMap::Add(map, key2, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(2, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+
+  Handle<Symbol> key3 = factory->NewSymbol();
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+  map = OrderedHashMap::Add(map, key3, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(3, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  map = OrderedHashMap::Add(map, key3, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(3, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  Handle<Object> key4 = factory->NewHeapNumber(42.0);
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key4));
+  map = OrderedHashMap::Add(map, key4, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(4, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key4));
+
+  map = OrderedHashMap::Add(map, key4, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(4, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key4));
+}
+
+TEST(OrderedHashMapDuplicateHashCode) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
+  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  Handle<JSObject> value = factory->NewJSObjectWithNullProto();
+  Handle<Object> true_val = factory->true_value();
+  map = OrderedHashMap::Add(map, key1, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
+  Handle<Smi> hash =
+      Handle<Smi>::cast(JSObject::GetDataProperty(key1, hash_code_symbol));
+
+  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  LookupIterator it(key2, hash_code_symbol, key2, LookupIterator::OWN);
+  CHECK(key2->AddDataProperty(
+                &it, hash, NONE, v8::internal::AccessCheckInfo::THROW_ON_ERROR,
+                v8::internal::AccessCheckInfo::CERTAINLY_NOT_STORE_FROM_KEYED)
+            .IsJust());
+
+  map = OrderedHashMap::Add(map, key2, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(2, map->NumberOfElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
 }

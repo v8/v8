@@ -18506,6 +18506,40 @@ Object* OrderedHashMap::Get(Isolate* isolate, OrderedHashMap* table,
   return isolate->heap()->undefined_value();
 }
 
+Handle<OrderedHashMap> OrderedHashMap::Add(Handle<OrderedHashMap> table,
+                                           Handle<Object> key,
+                                           Handle<Object> value) {
+  int hash = Object::GetOrCreateHash(table->GetIsolate(), key)->value();
+  int entry = table->HashToEntry(hash);
+  // Walk the chain of the bucket and try finding the key.
+  {
+    DisallowHeapAllocation no_gc;
+    Object* raw_key = *key;
+    while (entry != kNotFound) {
+      Object* candidate_key = table->KeyAt(entry);
+      // Do not add if we have the key already
+      if (candidate_key->SameValueZero(raw_key)) return table;
+      entry = table->NextChainEntry(entry);
+    }
+  }
+
+  table = OrderedHashMap::EnsureGrowable(table);
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToEntry(hash);
+  int nof = table->NumberOfElements();
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+  int new_index = table->EntryToIndex(new_entry);
+  table->set(new_index, *key);
+  table->set(new_index + kValueOffset, *value);
+  table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
+  // and point the bucket to the new entry.
+  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->SetNumberOfElements(nof + 1);
+  return table;
+}
+
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 

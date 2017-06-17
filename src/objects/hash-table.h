@@ -410,7 +410,7 @@ class OrderedHashTable : public FixedArray {
   // existing iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
-  // Returns a true if the OrderedHashTable contains the key
+  // Returns a true value if the OrderedHashTable contains the key
   static Object* HasKey(Isolate* isolate, Derived* table, Object* key);
 
   int NumberOfElements() {
@@ -557,6 +557,8 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
   static Object* Get(Isolate* isolate, OrderedHashMap* table, Object* key);
+  static Handle<OrderedHashMap> Add(Handle<OrderedHashMap> table,
+                                    Handle<Object> key, Handle<Object> value);
   Object* ValueAt(int entry);
 
   static const int kValueOffset = 1;
