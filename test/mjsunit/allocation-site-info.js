@@ -637,3 +637,48 @@ gc();
     assertKind(elements_kind.fast_double, [instance.a, instance.b]);
   }
 })();
+
+(function TestInnerBoilerplateMapDeprecation() {
+  // Create a literal where the inner literals cause a map deprecation of the
+  // previous inner literal.
+  function literal() {
+    return [
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1}
+    ];
+  };
+  let instance = literal();
+
+  // Make sure all sub-literals are migrated properly.
+  for (let i = 0; i < instance.length; i++) {
+    let sub_literal = instance[i];
+    assertKind(elements_kind.fast_double, [sub_literal.a]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.b]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.c]);
+    assertKind(elements_kind.fast_double, [sub_literal.d]);
+  }
+
+  instance = literal();
+  instance = literal();
+  instance = literal();
+  for (let i = 0; i < instance.length; i++) {
+    let sub_literal = instance[i];
+    assertKind(elements_kind.fast_double, [sub_literal.a]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.b]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.c]);
+    assertKind(elements_kind.fast_double, [sub_literal.d]);
+  }
+})();

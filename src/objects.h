@@ -930,6 +930,7 @@ class AllocationSiteCreationContext;
 class AllocationSiteUsageContext;
 class Cell;
 class ConsString;
+class DeprecationUpdateContext;
 class ElementsAccessor;
 class FindAndReplacePattern;
 class FixedArrayBase;
@@ -2502,6 +2503,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
       Handle<JSObject> object,
       AllocationSiteCreationContext* site_context);
+  MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
+      Handle<JSObject> object, DeprecationUpdateContext* site_context);
 
   DECLARE_CAST(JSObject)
 

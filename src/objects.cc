@@ -8050,6 +8050,14 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   return copy;
 }
 
+MaybeHandle<JSObject> JSObject::DeepWalk(
+    Handle<JSObject> object, DeprecationUpdateContext* site_context) {
+  JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context, kNoHints);
+  MaybeHandle<JSObject> result = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
+  return result;
+}
 
 MaybeHandle<JSObject> JSObject::DeepWalk(
     Handle<JSObject> object,

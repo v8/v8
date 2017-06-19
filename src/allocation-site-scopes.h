@@ -11,6 +11,24 @@
 namespace v8 {
 namespace internal {
 
+class DeprecationUpdateContext {
+ public:
+  explicit DeprecationUpdateContext(Isolate* isolate) { isolate_ = isolate; }
+  Isolate* isolate() { return isolate_; }
+  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
+  inline void ExitScope(Handle<AllocationSite> scope_site,
+                        Handle<JSObject> object) {}
+  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
+  Handle<AllocationSite> current() {
+    UNREACHABLE();
+    return Handle<AllocationSite>();
+  }
+
+  static const bool kCopying = false;
+
+ private:
+  Isolate* isolate_;
+};
 
 // AllocationSiteContext is the base class for walking and copying a nested
 // boilerplate with AllocationSite and AllocationMemento support.

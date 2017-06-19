@@ -208,6 +208,12 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     boilerplate = Boilerplate::Create(isolate, vector, description, flags);
     if (IsUninitializedLiteralSite(literal_site)) {
       PreInitializeLiteralSite(vector, literals_slot);
+      if (copy_hints == JSObject::kNoHints) {
+        DeprecationUpdateContext update_context(isolate);
+        RETURN_ON_EXCEPTION(isolate,
+                            JSObject::DeepWalk(boilerplate, &update_context),
+                            JSObject);
+      }
       return boilerplate;
     }
     // Install AllocationSite objects.
