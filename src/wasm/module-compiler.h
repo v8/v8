@@ -42,7 +42,8 @@ class ModuleCompiler {
   class CodeGenerationSchedule {
    public:
     explicit CodeGenerationSchedule(
-        base::RandomNumberGenerator* random_number_generator);
+        base::RandomNumberGenerator* random_number_generator,
+        size_t max_memory = 0);
 
     void Schedule(std::unique_ptr<compiler::WasmCompilationUnit>&& item);
 
@@ -50,11 +51,20 @@ class ModuleCompiler {
 
     std::unique_ptr<compiler::WasmCompilationUnit> GetNext();
 
+    void WaitUntilCanWork();
+
+    void EnableThrottling() { throttle_ = true; }
+
    private:
     size_t GetRandomIndexInSchedule();
 
     base::RandomNumberGenerator* random_number_generator_ = nullptr;
     std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
+    base::Mutex accept_work_mutex_;
+    base::ConditionVariable accept_work_;
+    const size_t max_memory_;
+    bool throttle_ = false;
+    base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
   Isolate* isolate_;
@@ -78,6 +88,8 @@ class ModuleCompiler {
   bool FetchAndExecuteCompilationUnit(
       std::function<void()> no_finisher_callback = [] {});
 
+  void CompileOnMainThread();
+
   size_t InitializeParallelCompilation(
       const std::vector<WasmFunction>& functions, ModuleBytesEnv& module_env);
 
@@ -85,8 +97,8 @@ class ModuleCompiler {
 
   void WaitForCompilationTasks(uint32_t* task_ids);
 
-  void FinishCompilationUnits(std::vector<Handle<Code>>& results,
-                              ErrorThrower* thrower);
+  size_t FinishCompilationUnits(std::vector<Handle<Code>>& results,
+                                ErrorThrower* thrower);
 
   void SetFinisherIsRunning(bool value);
 
