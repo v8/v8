@@ -16,9 +16,7 @@ class MarkBit {
   typedef uint32_t CellType;
   STATIC_ASSERT(sizeof(CellType) == sizeof(base::Atomic32));
 
-  inline MarkBit(base::Atomic32* cell, CellType mask) : cell_(cell) {
-    mask_ = static_cast<base::Atomic32>(mask);
-  }
+  inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
 
 #ifdef DEBUG
   bool operator==(const MarkBit& other) {
@@ -49,8 +47,8 @@ class MarkBit {
   template <AccessMode mode = AccessMode::NON_ATOMIC>
   inline bool Clear();
 
-  base::Atomic32* cell_;
-  base::Atomic32 mask_;
+  CellType* cell_;
+  CellType mask_;
 
   friend class IncrementalMarking;
   friend class ConcurrentMarkingMarkbits;
@@ -59,52 +57,36 @@ class MarkBit {
 
 template <>
 inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
-  base::Atomic32 old_value = *cell_;
+  CellType old_value = *cell_;
   *cell_ = old_value | mask_;
   return (old_value & mask_) == 0;
 }
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  base::Atomic32 old_value;
-  base::Atomic32 new_value;
-  do {
-    old_value = base::Relaxed_Load(cell_);
-    if (old_value & mask_) return false;
-    new_value = old_value | mask_;
-  } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
-           old_value);
-  return true;
+  return base::AsAtomic32::SetBits(cell_, mask_, mask_);
 }
 
 template <>
 inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() {
-  return (base::Relaxed_Load(cell_) & mask_) != 0;
+  return (*cell_ & mask_) != 0;
 }
 
 template <>
 inline bool MarkBit::Get<AccessMode::ATOMIC>() {
-  return (base::Acquire_Load(cell_) & mask_) != 0;
+  return (base::AsAtomic32::Acquire_Load(cell_) & mask_) != 0;
 }
 
 template <>
 inline bool MarkBit::Clear<AccessMode::NON_ATOMIC>() {
-  base::Atomic32 old_value = *cell_;
+  CellType old_value = *cell_;
   *cell_ = old_value & ~mask_;
   return (old_value & mask_) == mask_;
 }
 
 template <>
 inline bool MarkBit::Clear<AccessMode::ATOMIC>() {
-  base::Atomic32 old_value;
-  base::Atomic32 new_value;
-  do {
-    old_value = base::Relaxed_Load(cell_);
-    if (!(old_value & mask_)) return false;
-    new_value = old_value & ~mask_;
-  } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
-           old_value);
-  return true;
+  return base::AsAtomic32::SetBits(cell_, 0u, mask_);
 }
 
 // Bitmap is a sequence of cells each containing fixed number of bits.
@@ -160,7 +142,7 @@ class V8_EXPORT_PRIVATE Bitmap {
   inline MarkBit MarkBitFromIndex(uint32_t index) {
     MarkBit::CellType mask = 1u << IndexInCell(index);
     MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
-    return MarkBit(reinterpret_cast<base::Atomic32*>(cell), mask);
+    return MarkBit(cell, mask);
   }
 
   void Clear();
@@ -205,15 +187,7 @@ inline void Bitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(uint32_t cell_index,
 template <>
 inline void Bitmap::SetBitsInCell<AccessMode::ATOMIC>(uint32_t cell_index,
                                                       uint32_t mask) {
-  base::Atomic32* cell =
-      reinterpret_cast<base::Atomic32*>(cells() + cell_index);
-  base::Atomic32 old_value;
-  base::Atomic32 new_value;
-  do {
-    old_value = base::Relaxed_Load(cell);
-    new_value = old_value | mask;
-  } while (base::Release_CompareAndSwap(cell, old_value, new_value) !=
-           old_value);
+  base::AsAtomic32::SetBits(cells() + cell_index, mask, mask);
 }
 
 template <>
@@ -225,15 +199,7 @@ inline void Bitmap::ClearBitsInCell<AccessMode::NON_ATOMIC>(uint32_t cell_index,
 template <>
 inline void Bitmap::ClearBitsInCell<AccessMode::ATOMIC>(uint32_t cell_index,
                                                         uint32_t mask) {
-  base::Atomic32* cell =
-      reinterpret_cast<base::Atomic32*>(cells() + cell_index);
-  base::Atomic32 old_value;
-  base::Atomic32 new_value;
-  do {
-    old_value = base::Relaxed_Load(cell);
-    new_value = old_value & ~mask;
-  } while (base::Release_CompareAndSwap(cell, old_value, new_value) !=
-           old_value);
+  base::AsAtomic32::SetBits(cells() + cell_index, 0u, mask);
 }
 
 class Marking : public AllStatic {
