@@ -1135,6 +1135,7 @@
         'identity-map.h',
         'interface-descriptors.cc',
         'interface-descriptors.h',
+        'interpreter/block-coverage-builder.h',
         'interpreter/bytecodes.cc',
         'interpreter/bytecodes.h',
         'interpreter/bytecode-array-accessor.cc',

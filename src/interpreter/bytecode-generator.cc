@@ -737,36 +737,6 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   bool has_constant_pool_entry_;
 };
 
-// Used to generate IncBlockCounter bytecodes and the {source range, slot}
-// mapping for block coverage.
-class BytecodeGenerator::BlockCoverageBuilder final : public ZoneObject {
- public:
-  explicit BlockCoverageBuilder(Zone* zone, BytecodeArrayBuilder* builder)
-      : slots_(0, zone), builder_(builder) {}
-
-  static const int kNoCoverageArraySlot = -1;
-
-  int AllocateBlockCoverageSlot(SourceRange range) {
-    if (range.IsEmpty()) return kNoCoverageArraySlot;
-    const int slot = static_cast<int>(slots_.size());
-    slots_.emplace_back(range);
-    return slot;
-  }
-
-  void IncrementBlockCounter(int coverage_array_slot) {
-    if (coverage_array_slot == kNoCoverageArraySlot) return;
-    builder_->IncBlockCounter(coverage_array_slot);
-  }
-
-  const ZoneVector<SourceRange>& slots() const { return slots_; }
-
- private:
-  // Contains source range information for allocated block coverage counter
-  // slots. Slot i covers range slots_[i].
-  ZoneVector<SourceRange> slots_;
-  BytecodeArrayBuilder* builder_;
-};
-
 class BytecodeGenerator::CurrentScope final {
  public:
   CurrentScope(BytecodeGenerator* generator, Scope* scope)
@@ -1237,6 +1207,8 @@ void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
   int then_slot = AllocateBlockCoverageSlotIfEnabled(stmt->then_range());
   int else_slot = AllocateBlockCoverageSlotIfEnabled(stmt->else_range());
+  int continuation_slot =
+      AllocateBlockCoverageSlotIfEnabled(stmt->continuation_range());
 
   if (stmt->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
@@ -1271,6 +1243,7 @@ void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
     }
     builder()->Bind(&end_label);
   }
+  BuildIncrementBlockCoverageCounterIfEnabled(continuation_slot);
 }
 
 void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
@@ -1361,6 +1334,7 @@ void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
 
 void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
+  loop_builder->LoopBody();
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
   builder()->StackCheck(stmt->position());
   Visit(stmt->body());
@@ -1368,20 +1342,16 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  int body_slot = AllocateBlockCoverageSlotIfEnabled(stmt->body_range());
-
-  LoopBuilder loop_builder(builder());
+  LoopBuilder loop_builder(builder(), block_coverage_builder_,
+                           stmt->body_range(), stmt->continuation_range());
   if (stmt->cond()->ToBooleanIsFalse()) {
-    BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
     VisitIterationBody(stmt, &loop_builder);
   } else if (stmt->cond()->ToBooleanIsTrue()) {
     VisitIterationHeader(stmt, &loop_builder);
-    BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
     VisitIterationBody(stmt, &loop_builder);
     loop_builder.JumpToHeader(loop_depth_);
   } else {
     VisitIterationHeader(stmt, &loop_builder);
-    BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_backbranch(zone());
@@ -1393,14 +1363,14 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  int body_slot = AllocateBlockCoverageSlotIfEnabled(stmt->body_range());
+  LoopBuilder loop_builder(builder(), block_coverage_builder_,
+                           stmt->body_range(), stmt->continuation_range());
 
   if (stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is false there is no need to generate the loop.
     return;
   }
 
-  LoopBuilder loop_builder(builder());
   VisitIterationHeader(stmt, &loop_builder);
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
@@ -1409,13 +1379,13 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
                  TestFallthrough::kThen);
     loop_body.Bind(builder());
   }
-  BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.JumpToHeader(loop_depth_);
 }
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
-  int body_slot = AllocateBlockCoverageSlotIfEnabled(stmt->body_range());
+  LoopBuilder loop_builder(builder(), block_coverage_builder_,
+                           stmt->body_range(), stmt->continuation_range());
 
   if (stmt->init() != nullptr) {
     Visit(stmt->init());
@@ -1426,7 +1396,6 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     return;
   }
 
-  LoopBuilder loop_builder(builder());
   VisitIterationHeader(stmt, &loop_builder);
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
@@ -1435,7 +1404,6 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
                  TestFallthrough::kThen);
     loop_body.Bind(builder());
   }
-  BuildIncrementBlockCoverageCounterIfEnabled(body_slot);
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     builder()->SetStatementPosition(stmt->next());

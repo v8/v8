@@ -182,8 +182,13 @@ class AstProperties final BASE_EMBEDDED {
 DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 
 struct SourceRange {
-  SourceRange() : start(kNoSourcePosition), end(kNoSourcePosition) {}
+  SourceRange() : SourceRange(kNoSourcePosition, kNoSourcePosition) {}
+  SourceRange(int start, int end) : start(start), end(end) {}
   bool IsEmpty() const { return start == kNoSourcePosition; }
+  static SourceRange ContinuationOf(const SourceRange& that) {
+    return that.IsEmpty() ? SourceRange()
+                          : SourceRange(that.end + 1, kNoSourcePosition);
+  }
   int32_t start, end;
 };
 
@@ -495,6 +500,9 @@ class IterationStatement : public BreakableStatement {
   void set_body(Statement* s) { body_ = s; }
 
   SourceRange body_range() const { return body_range_; }
+  SourceRange continuation_range() const {
+    return SourceRange::ContinuationOf(body_range_);
+  }
 
   int suspend_count() const { return suspend_count_; }
   int first_suspend_id() const { return first_suspend_id_; }
@@ -922,6 +930,11 @@ class IfStatement final : public Statement {
 
   SourceRange then_range() const { return then_range_; }
   SourceRange else_range() const { return else_range_; }
+  SourceRange continuation_range() const {
+    SourceRange trailing_range =
+        HasElseStatement() ? else_range() : then_range();
+    return SourceRange::ContinuationOf(trailing_range);
+  }
 
   void set_condition(Expression* e) { condition_ = e; }
   void set_then_statement(Statement* s) { then_statement_ = s; }

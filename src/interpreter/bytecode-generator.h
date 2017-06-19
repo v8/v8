@@ -21,6 +21,7 @@ namespace interpreter {
 
 class GlobalDeclarationsBuilder;
 class LoopBuilder;
+class BlockCoverageBuilder;
 class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
@@ -51,7 +52,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ExpressionResultScope;
   class EffectResultScope;
   class GlobalDeclarationsBuilder;
-  class BlockCoverageBuilder;
   class RegisterAllocationScope;
   class TestResultScope;
   class ValueResultScope;

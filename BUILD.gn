@@ -1678,6 +1678,7 @@ v8_source_set("v8_base") {
     "src/identity-map.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
+    "src/interpreter/block-coverage-builder.h",
     "src/interpreter/bytecode-array-accessor.cc",
     "src/interpreter/bytecode-array-accessor.h",
     "src/interpreter/bytecode-array-builder.cc",

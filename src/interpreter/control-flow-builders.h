@@ -7,6 +7,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/interpreter/block-coverage-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/zone/zone-containers.h"
 
@@ -87,16 +88,29 @@ class V8_EXPORT_PRIVATE BlockBuilder final
 // their loop.
 class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
  public:
-  explicit LoopBuilder(BytecodeArrayBuilder* builder)
+  LoopBuilder(BytecodeArrayBuilder* builder,
+              BlockCoverageBuilder* block_coverage_builder = nullptr,
+              const SourceRange& body_range = {},
+              const SourceRange& continuation_range = {})
       : BreakableControlFlowBuilder(builder),
         continue_labels_(builder->zone()),
         generator_jump_table_location_(nullptr),
-        parent_generator_jump_table_(nullptr) {}
+        parent_generator_jump_table_(nullptr),
+        block_coverage_builder_(block_coverage_builder) {
+    if (block_coverage_builder_ != nullptr) {
+      block_coverage_body_slot_ =
+          block_coverage_builder_->AllocateBlockCoverageSlot(body_range);
+      block_coverage_continuation_slot_ =
+          block_coverage_builder_->AllocateBlockCoverageSlot(
+              continuation_range);
+    }
+  }
   ~LoopBuilder();
 
   void LoopHeader();
   void LoopHeaderInGenerator(BytecodeJumpTable** parent_generator_jump_table,
                              int first_resume_id, int resume_count);
+  void LoopBody();
   void JumpToHeader(int loop_depth);
   void BindContinueTarget();
 
@@ -120,6 +134,10 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   // field is ugly, figure out a better way to do this.
   BytecodeJumpTable** generator_jump_table_location_;
   BytecodeJumpTable* parent_generator_jump_table_;
+
+  int block_coverage_body_slot_;
+  int block_coverage_continuation_slot_;
+  BlockCoverageBuilder* block_coverage_builder_;
 };
 
 

@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-coverage.h"
 
+#include "src/ast/ast.h"
 #include "src/base/hashmap.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -59,8 +60,8 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
 }
 
 bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
-  DCHECK(a.start != kNoSourcePosition && a.end != kNoSourcePosition);
-  DCHECK(b.start != kNoSourcePosition && b.end != kNoSourcePosition);
+  DCHECK(a.start != kNoSourcePosition);
+  DCHECK(b.start != kNoSourcePosition);
   if (a.start == b.start) return a.end > b.end;
   return a.start < b.start;
 }
@@ -81,8 +82,6 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
     const int count = coverage_info->BlockCount(i);
 
     DCHECK(start_pos != kNoSourcePosition);
-    DCHECK(until_pos != kNoSourcePosition);
-
     result.emplace_back(start_pos, until_pos, count);
   }
 
@@ -90,6 +89,44 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
   std::sort(result.begin(), result.end(), CompareCoverageBlock);
 
   return result;
+}
+
+// Rewrite position singletons (produced by unconditional control flow
+// like return statements, and by continuation counters) into source
+// ranges that end at the next sibling range or the end of the parent
+// range, whichever comes first.
+void RewritePositionSingletonsToRanges(CoverageFunction* function) {
+  std::vector<SourceRange> nesting_stack;
+  nesting_stack.emplace_back(function->start, function->end);
+
+  const int blocks_count = static_cast<int>(function->blocks.size());
+  for (int i = 0; i < blocks_count; i++) {
+    CoverageBlock& block = function->blocks[i];
+
+    while (nesting_stack.back().end < block.start) {
+      nesting_stack.pop_back();
+    }
+
+    const SourceRange& parent_range = nesting_stack.back();
+
+    DCHECK(block.start != kNoSourcePosition);
+    if (block.end == kNoSourcePosition) {
+      // The current block ends at the next sibling block (if it exists) or the
+      // end of the parent block otherwise.
+      if (i < blocks_count - 1 &&
+          function->blocks[i + 1].start <= parent_range.end) {
+        block.end = function->blocks[i + 1].start - 1;
+      } else {
+        block.end = parent_range.end;
+      }
+    }
+
+    if (i < blocks_count - 1) {
+      nesting_stack.emplace_back(block.start, block.end);
+    }
+  }
+
+  DCHECK_EQ(1, nesting_stack.size());
 }
 }  // anonymous namespace
 
@@ -207,6 +244,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
         if (FLAG_block_coverage && info->HasCoverageInfo()) {
           CoverageFunction* function = &functions->back();
           function->blocks = GetSortedBlockData(isolate, info);
+          RewritePositionSingletonsToRanges(function);
         }
       }
     }

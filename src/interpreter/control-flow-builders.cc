@@ -52,6 +52,11 @@ LoopBuilder::~LoopBuilder() {
   if (generator_jump_table_location_ != nullptr) {
     *generator_jump_table_location_ = parent_generator_jump_table_;
   }
+  // Generate block coverage counter for the continuation.
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(
+        block_coverage_continuation_slot_);
+  }
 }
 
 void LoopBuilder::LoopHeader() {
@@ -81,6 +86,12 @@ void LoopBuilder::LoopHeaderInGenerator(
   parent_generator_jump_table_ = *generator_jump_table;
   *generator_jump_table =
       builder()->AllocateJumpTable(resume_count, first_resume_id);
+}
+
+void LoopBuilder::LoopBody() {
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(block_coverage_body_slot_);
+  }
 }
 
 void LoopBuilder::JumpToHeader(int loop_depth) {
