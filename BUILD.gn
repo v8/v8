@@ -1988,8 +1988,6 @@ v8_source_set("v8_base") {
     "src/trap-handler/trap-handler.h",
     "src/type-hints.cc",
     "src/type-hints.h",
-    "src/type-info.cc",
-    "src/type-info.h",
     "src/unicode-cache-inl.h",
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",

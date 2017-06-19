@@ -1445,8 +1445,6 @@
         'trap-handler/trap-handler-internal.h',
         'type-hints.cc',
         'type-hints.h',
-        'type-info.cc',
-        'type-info.h',
         'unicode-inl.h',
         'unicode.cc',
         'unicode.h',

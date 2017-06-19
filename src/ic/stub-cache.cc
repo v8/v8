@@ -9,7 +9,6 @@
 #include "src/counters.h"
 #include "src/heap/heap.h"
 #include "src/ic/ic-inl.h"
-#include "src/type-info.h"
 
 namespace v8 {
 namespace internal {

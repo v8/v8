@@ -74,7 +74,6 @@
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/type-info.h"
 #include "src/utils.h"
 
 namespace v8 {

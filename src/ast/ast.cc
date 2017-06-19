@@ -23,7 +23,6 @@
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
-#include "src/type-info.h"
 
 namespace v8 {
 namespace internal {
