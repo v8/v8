@@ -1414,14 +1414,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> await_caught =
         SimpleCreateFunction(isolate, factory->empty_string(),
                              Builtins::kAsyncGeneratorAwaitCaught, 2, false);
-    InstallWithIntrinsicDefaultProto(isolate, await_caught,
-                                     Context::ASYNC_GENERATOR_AWAIT_CAUGHT);
+    native_context()->set_async_generator_await_caught(*await_caught);
 
     Handle<JSFunction> await_uncaught =
         SimpleCreateFunction(isolate, factory->empty_string(),
                              Builtins::kAsyncGeneratorAwaitUncaught, 2, false);
-    InstallWithIntrinsicDefaultProto(isolate, await_uncaught,
-                                     Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT);
+    native_context()->set_async_generator_await_uncaught(*await_uncaught);
 
     Handle<Code> code =
         isolate->builtins()->AsyncGeneratorAwaitResolveClosure();
@@ -2099,8 +2097,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> new_promise_capability =
         SimpleCreateFunction(isolate, factory->empty_string(),
                              Builtins::kNewPromiseCapability, 2, false);
-    InstallWithIntrinsicDefaultProto(isolate, new_promise_capability,
-                                     Context::NEW_PROMISE_CAPABILITY_INDEX);
+    native_context()->set_new_promise_capability(*new_promise_capability);
   }
 
   {  // -- P r o m i s e
@@ -2130,13 +2127,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> promise_then =
         SimpleInstallFunction(prototype, isolate->factory()->then_string(),
                               Builtins::kPromiseThen, 2, true);
-    InstallWithIntrinsicDefaultProto(isolate, promise_then,
-                                     Context::PROMISE_THEN_INDEX);
+    native_context()->set_promise_then(*promise_then);
 
     Handle<JSFunction> promise_catch = SimpleInstallFunction(
         prototype, "catch", Builtins::kPromiseCatch, 1, true, DONT_ENUM);
-    InstallWithIntrinsicDefaultProto(isolate, promise_catch,
-                                     Context::PROMISE_CATCH_INDEX);
+    native_context()->set_promise_catch(*promise_catch);
 
     InstallSpeciesGetter(promise_fun);
 
@@ -2162,15 +2157,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kPromiseInternalConstructor, 1, true);
       function->shared()->set_native(false);
-      InstallWithIntrinsicDefaultProto(
-          isolate, function, Context::PROMISE_INTERNAL_CONSTRUCTOR_INDEX);
+      native_context()->set_promise_internal_constructor(*function);
     }
 
     {  // Internal: IsPromise
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(), Builtins::kIsPromise, 1, false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::IS_PROMISE_INDEX);
+      native_context()->set_is_promise(*function);
     }
 
     {  // Internal: ResolvePromise
@@ -2178,23 +2171,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(), Builtins::kResolvePromise, 2, true);
       function->shared()->set_native(false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PROMISE_RESOLVE_INDEX);
+      native_context()->set_promise_resolve(*function);
     }
 
     {  // Internal: PromiseHandle
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(), Builtins::kPromiseHandle, 5, false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PROMISE_HANDLE_INDEX);
+      native_context()->set_promise_handle(*function);
     }
 
     {  // Internal: PromiseHandleReject
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kPromiseHandleReject, 3, false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PROMISE_HANDLE_REJECT_INDEX);
+      native_context()->set_promise_handle_reject(*function);
     }
 
     {  // Internal: InternalPromiseReject
@@ -2202,8 +2192,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kInternalPromiseReject, 3, true);
       function->shared()->set_native(false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PROMISE_INTERNAL_REJECT_INDEX);
+      native_context()->set_promise_internal_reject(*function);
     }
 
     {
@@ -2665,9 +2654,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(date_time_format_prototype,
                           factory->constructor_string(),
                           date_time_format_constructor, DONT_ENUM);
-    InstallWithIntrinsicDefaultProto(
-        isolate, date_time_format_constructor,
-        Context::INTL_DATE_TIME_FORMAT_FUNCTION_INDEX);
+    native_context()->set_intl_date_time_format_function(
+        *date_time_format_constructor);
 
     Handle<JSObject> number_format_prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
@@ -2682,9 +2670,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(number_format_prototype,
                           factory->constructor_string(),
                           number_format_constructor, DONT_ENUM);
-    InstallWithIntrinsicDefaultProto(
-        isolate, number_format_constructor,
-        Context::INTL_NUMBER_FORMAT_FUNCTION_INDEX);
+    native_context()->set_intl_number_format_function(
+        *number_format_constructor);
 
     Handle<JSObject> collator_prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
@@ -2698,8 +2685,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         collator_prototype, Builtins::kIllegal);
     JSObject::AddProperty(collator_prototype, factory->constructor_string(),
                           collator_constructor, DONT_ENUM);
-    InstallWithIntrinsicDefaultProto(isolate, collator_constructor,
-                                     Context::INTL_COLLATOR_FUNCTION_INDEX);
+    native_context()->set_intl_collator_function(*collator_constructor);
 
     Handle<JSObject> v8_break_iterator_prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
@@ -2714,9 +2700,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(v8_break_iterator_prototype,
                           factory->constructor_string(),
                           v8_break_iterator_constructor, DONT_ENUM);
-    InstallWithIntrinsicDefaultProto(
-        isolate, v8_break_iterator_constructor,
-        Context::INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX);
+    native_context()->set_intl_v8_break_iterator_function(
+        *v8_break_iterator_constructor);
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -3000,13 +2985,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> map_get =
         SimpleInstallFunction(prototype, "get", Builtins::kMapGet, 1, true);
-    InstallWithIntrinsicDefaultProto(isolate, map_get,
-                                     Context::MAP_GET_METHOD_INDEX);
+    native_context()->set_map_get(*map_get);
 
     Handle<JSFunction> map_has =
         SimpleInstallFunction(prototype, "has", Builtins::kMapHas, 1, true);
-    InstallWithIntrinsicDefaultProto(isolate, map_has,
-                                     Context::MAP_HAS_METHOD_INDEX);
+    native_context()->set_map_has(*map_has);
 
     SimpleInstallFunction(prototype, "clear", Builtins::kMapClear, 0, true);
     SimpleInstallFunction(prototype, "forEach", Builtins::kMapForEach, 1,
@@ -3042,8 +3025,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> set_has =
         SimpleInstallFunction(prototype, "has", Builtins::kSetHas, 1, true);
-    InstallWithIntrinsicDefaultProto(isolate, set_has,
-                                     Context::SET_HAS_METHOD_INDEX);
+    native_context()->set_set_has(*set_has);
     SimpleInstallFunction(prototype, "clear", Builtins::kSetClear, 0, true);
     SimpleInstallFunction(prototype, "forEach", Builtins::kSetForEach, 1,
                           false);
@@ -3849,8 +3831,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     async_function_constructor->shared()->SetConstructStub(
         *isolate->builtins()->AsyncFunctionConstructor());
     async_function_constructor->shared()->set_length(1);
-    InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
-                                     Context::ASYNC_FUNCTION_FUNCTION_INDEX);
+    native_context->set_async_function_constructor(*async_function_constructor);
     JSObject::ForceSetPrototype(async_function_constructor,
                                 isolate->function_function());
 
@@ -3866,16 +3847,14 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionAwaitCaught, 3, false);
-      InstallWithIntrinsicDefaultProto(
-          isolate, function, Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX);
+      native_context->set_async_function_await_caught(*function);
     }
 
     {
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionAwaitUncaught, 3, false);
-      InstallWithIntrinsicDefaultProto(
-          isolate, function, Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
+      native_context->set_async_function_await_uncaught(*function);
     }
 
     {
@@ -3902,16 +3881,14 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionPromiseCreate, 0, false);
-      InstallWithIntrinsicDefaultProto(
-          isolate, function, Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX);
+      native_context->set_async_function_promise_create(*function);
     }
 
     {
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(),
           Builtins::kAsyncFunctionPromiseRelease, 1, false);
-      InstallWithIntrinsicDefaultProto(
-          isolate, function, Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX);
+      native_context->set_async_function_promise_release(*function);
     }
   }
 
