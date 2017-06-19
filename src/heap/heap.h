@@ -813,7 +813,7 @@ class Heap {
 
   // Checks whether the given object is allowed to be migrated from it's
   // current space into the given destination space. Used for debugging.
-  inline bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
+  bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
 
   void CheckHandleCount();
 
@@ -2486,21 +2486,18 @@ class AlwaysAllocateScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  inline void VisitPointers(HeapObject* host, Object** start,
-                            Object** end) override;
-  inline void VisitRootPointers(Root root, Object** start,
-                                Object** end) override;
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, Object** start, Object** end) override;
 
  private:
-  inline void VerifyPointers(Object** start, Object** end);
+  void VerifyPointers(Object** start, Object** end);
 };
 
 
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public RootVisitor {
  public:
-  inline void VisitRootPointers(Root root, Object** start,
-                                Object** end) override;
+  void VisitRootPointers(Root root, Object** start, Object** end) override;
 };
 
 

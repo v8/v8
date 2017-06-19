@@ -526,38 +526,6 @@ Address* Heap::store_buffer_top_address() {
   return store_buffer()->top_address();
 }
 
-bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
-  // Object migration is governed by the following rules:
-  //
-  // 1) Objects in new-space can be migrated to the old space
-  //    that matches their target space or they stay in new-space.
-  // 2) Objects in old-space stay in the same space when migrating.
-  // 3) Fillers (two or more words) can migrate due to left-trimming of
-  //    fixed arrays in new-space or old space.
-  // 4) Fillers (one word) can never migrate, they are skipped by
-  //    incremental marking explicitly to prevent invalid pattern.
-  //
-  // Since this function is used for debugging only, we do not place
-  // asserts here, but check everything explicitly.
-  if (obj->map() == one_pointer_filler_map()) return false;
-  InstanceType type = obj->map()->instance_type();
-  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-  AllocationSpace src = chunk->owner()->identity();
-  switch (src) {
-    case NEW_SPACE:
-      return dst == src || dst == OLD_SPACE;
-    case OLD_SPACE:
-      return dst == src &&
-             (dst == OLD_SPACE || obj->IsFiller() || obj->IsExternalString());
-    case CODE_SPACE:
-      return dst == src && type == CODE_TYPE;
-    case MAP_SPACE:
-    case LO_SPACE:
-      return false;
-  }
-  UNREACHABLE();
-}
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
             static_cast<size_t>(byte_size / kPointerSize));
@@ -840,34 +808,6 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_.Decrement(1);
 }
 
-void VerifyPointersVisitor::VisitPointers(HeapObject* host, Object** start,
-                                          Object** end) {
-  VerifyPointers(start, end);
-}
-
-void VerifyPointersVisitor::VisitRootPointers(Root root, Object** start,
-                                              Object** end) {
-  VerifyPointers(start, end);
-}
-
-void VerifyPointersVisitor::VerifyPointers(Object** start, Object** end) {
-  for (Object** current = start; current < end; current++) {
-    if ((*current)->IsHeapObject()) {
-      HeapObject* object = HeapObject::cast(*current);
-      CHECK(object->GetIsolate()->heap()->Contains(object));
-      CHECK(object->map()->IsMap());
-    } else {
-      CHECK((*current)->IsSmi());
-    }
-  }
-}
-
-void VerifySmisVisitor::VisitRootPointers(Root root, Object** start,
-                                          Object** end) {
-  for (Object** current = start; current < end; current++) {
-    CHECK((*current)->IsSmi());
-  }
-}
 }  // namespace internal
 }  // namespace v8
 
