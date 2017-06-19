@@ -351,8 +351,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \
   F(CreateObjectLiteral, 4, 1)         \
-  F(CreateArrayLiteral, 4, 1)          \
-  F(CreateArrayLiteralStubBailout, 3, 1)
+  F(CreateArrayLiteral, 4, 1)
 
 #define FOR_EACH_INTRINSIC_LIVEEDIT(F)              \
   F(LiveEditFindSharedFunctionInfosForScript, 1, 1) \

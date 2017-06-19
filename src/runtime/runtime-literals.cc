@@ -264,18 +264,6 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
                                                elements, flags));
 }
 
-RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, CreateLiteral<ArrayBoilerplate>(isolate, closure, literals_index,
-                                               elements,
-                                               ArrayLiteral::kShallowElements));
-}
-
 RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
