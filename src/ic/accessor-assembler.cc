@@ -1469,7 +1469,7 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
 }
 
 void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                                            Node* instance_type, Node* key,
+                                            Node* instance_type,
                                             const LoadICParameters* p,
                                             Label* slow,
                                             UseStubCache use_stub_cache) {
@@ -1502,7 +1502,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   VARIABLE(var_name_index, MachineType::PointerRepresentation());
   Label* notfound =
       use_stub_cache == kUseStubCache ? &stub_cache : &lookup_prototype_chain;
-  DescriptorLookup(key, descriptors, bitfield3, &if_descriptor_found,
+  DescriptorLookup(p->name, descriptors, bitfield3, &if_descriptor_found,
                    &var_name_index, notfound);
 
   BIND(&if_descriptor_found);
@@ -1518,7 +1518,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     Comment("stub cache probe for fast property load");
     VARIABLE(var_handler, MachineRepresentation::kTagged);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
-    TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
+    TryProbeStubCache(isolate()->load_stub_cache(), receiver, p->name,
                       &found_handler, &var_handler, &stub_cache_miss);
     BIND(&found_handler);
     {
@@ -1544,7 +1544,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
+    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index,
                                          &lookup_prototype_chain);
     BIND(&dictionary_found);
@@ -1574,7 +1574,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     var_holder_map.Bind(receiver_map);
     var_holder_instance_type.Bind(instance_type);
     // Private symbols must not be looked up on the prototype chain.
-    GotoIf(IsPrivateSymbol(key), &return_undefined);
+    GotoIf(IsPrivateSymbol(p->name), &return_undefined);
     Goto(&loop);
     BIND(&loop);
     {
@@ -1590,7 +1590,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
       var_holder_instance_type.Bind(proto_instance_type);
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
       TryGetOwnProperty(p->context, receiver, proto, proto_map,
-                        proto_instance_type, key, &return_value, &var_value,
+                        proto_instance_type, p->name, &return_value, &var_value,
                         &next_proto, &goto_slow);
 
       // This trampoline and the next are required to appease Turbofan's
@@ -1892,7 +1892,7 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
     BIND(&not_function_prototype);
   }
 
-  GenericPropertyLoad(receiver, receiver_map, instance_type, p->name, p, &miss,
+  GenericPropertyLoad(receiver, receiver_map, instance_type, p, &miss,
                       kDontUseStubCache);
 
   BIND(&miss);
@@ -2108,8 +2108,9 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
   BIND(&if_unique_name);
   {
-    GenericPropertyLoad(receiver, receiver_map, instance_type,
-                        var_unique.value(), p, &slow);
+    LoadICParameters pp = *p;
+    pp.name = var_unique.value();
+    GenericPropertyLoad(receiver, receiver_map, instance_type, &pp, &slow);
   }
 
   BIND(&if_notunique);
