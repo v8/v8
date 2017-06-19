@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "src/base/adapters.h"
+#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -185,6 +186,7 @@ class PipelineData {
   CompilationInfo* info() const { return info_; }
   ZoneStats* zone_stats() const { return zone_stats_; }
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
+  OsrHelper* osr_helper() { return &(*osr_helper_); }
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
 
@@ -318,9 +320,15 @@ class PipelineData {
                                sequence(), debug_name());
   }
 
+  void InitializeOsrHelper() {
+    DCHECK(!osr_helper_.has_value());
+    osr_helper_.emplace(info());
+  }
+
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-    code_generator_ = new CodeGenerator(frame(), linkage, sequence(), info());
+    code_generator_ =
+        new CodeGenerator(frame(), linkage, sequence(), info(), osr_helper_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -347,6 +355,7 @@ class PipelineData {
   bool compilation_failed_ = false;
   bool verify_graph_ = false;
   bool is_asm_ = false;
+  base::Optional<OsrHelper> osr_helper_;
   Handle<Code> code_ = Handle<Code>::null();
   CodeGenerator* code_generator_ = nullptr;
 
@@ -625,6 +634,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
     return AbortOptimization(kGraphBuildingFailed);
   }
+
+  if (info()->is_osr()) data_.InitializeOsrHelper();
 
   // Make sure that we have generated the maximal number of deopt entries.
   // This is in order to avoid triggering the generation of deopt entries later
@@ -934,6 +945,7 @@ struct OsrDeconstructionPhase {
     data->jsgraph()->GetCachedNodes(&roots);
     trimmer.TrimGraph(roots.begin(), roots.end());
 
+    // TODO(neis): Use data->osr_helper() here once AST graph builder is gone.
     OsrHelper osr_helper(data->info());
     osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
   }
@@ -2003,11 +2015,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor);
-  if (info()->is_osr()) {
-    AllowHandleDereference allow_deref;
-    OsrHelper osr_helper(info());
-    osr_helper.SetupFrame(data->frame());
-  }
+  if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
 
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();

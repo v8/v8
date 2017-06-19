@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_CODE_GENERATOR_H_
 #define V8_COMPILER_CODE_GENERATOR_H_
 
+#include "src/base/optional.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/osr.h"
 #include "src/compiler/unwinding-info-writer.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
@@ -78,7 +80,8 @@ class DeoptimizationLiteral {
 class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
-                         InstructionSequence* code, CompilationInfo* info);
+                         InstructionSequence* code, CompilationInfo* info,
+                         base::Optional<OsrHelper> osr_helper);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -108,6 +111,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   Zone* zone() const { return code()->zone(); }
   CompilationInfo* info() const { return info_; }
+  OsrHelper* osr_helper() { return &(*osr_helper_); }
 
   // Create the FrameAccessState object. The Frame is immutable from here on.
   void CreateFrameAccessState(Frame* frame);
@@ -317,6 +321,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   int last_lazy_deopt_pc_;
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
+  base::Optional<OsrHelper> osr_helper_;
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;

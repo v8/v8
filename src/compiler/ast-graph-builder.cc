@@ -2705,7 +2705,6 @@ Node* AstGraphBuilder::TryFastToBoolean(Node* input) {
 
 bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
   if (info()->osr_ast_id() == stmt->OsrEntryId()) {
-    DCHECK_EQ(-1, info()->osr_expr_stack_height());
     info()->set_osr_expr_stack_height(environment()->stack_height());
     return true;
   }

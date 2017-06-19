@@ -267,10 +267,14 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   int optimization_id() const { return optimization_id_; }
 
-  int osr_expr_stack_height() { return osr_expr_stack_height_; }
+  int osr_expr_stack_height() {
+    DCHECK_GE(osr_expr_stack_height_, 0);
+    return osr_expr_stack_height_;
+  }
   void set_osr_expr_stack_height(int height) {
-    DCHECK(height >= 0);
+    DCHECK_EQ(osr_expr_stack_height_, -1);
     osr_expr_stack_height_ = height;
+    DCHECK_GE(osr_expr_stack_height_, 0);
   }
 
   bool has_simple_parameters();
