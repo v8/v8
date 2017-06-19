@@ -104,7 +104,7 @@ WireBytesRef consume_string(Decoder& decoder, bool validate_utf8,
       decoder.errorf(string_start, "%s: no valid UTF-8 string", name);
     }
   }
-  return {offset, length};
+  return {offset, decoder.failed() ? 0 : length};
 }
 
 // An iterator over the sections in a wasm binary module.
