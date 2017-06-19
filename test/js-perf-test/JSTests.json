@@ -480,6 +480,31 @@
           ]
         }
       ]
+    },
+    {
+      "name": "ExpressionDepth",
+      "path": ["ExpressionDepth"],
+      "main": "run.js",
+      "flags": [ "--no-opt" ],
+      "results_regexp": "^%s\\-ExpressionDepth\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Or-Value"},
+        {"name": "Or-Test"},
+        {"name": "And-Value"},
+        {"name": "And-Test"},
+        {"name": "Comma-Value"},
+        {"name": "Comma-Test"},
+        {"name": "Equals-Value"},
+        {"name": "Equals-Test"},
+        {"name": "StrictEquals-Value"},
+        {"name": "StrictEquals-Test"},
+        {"name": "GreaterThan-Value"},
+        {"name": "GreaterThan-Test"},
+        {"name": "Add"},
+        {"name": "Sub"},
+        {"name": "StringConcat"},
+        {"name": "BitwiseOr"}
+      ]
     }
   ]
 }
