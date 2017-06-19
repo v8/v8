@@ -109,7 +109,7 @@ DEFINE_CHECK_OP_IMPL(GT)
 
 
 // Contains protection against recursive calls (faults while handling faults).
-extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
+void V8_Fatal(const char* file, int line, const char* format, ...) {
   fflush(stdout);
   fflush(stderr);
   v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
