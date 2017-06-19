@@ -3574,8 +3574,7 @@ class Code: public HeapObject {
   V(STORE_GLOBAL_IC)    \
   V(KEYED_STORE_IC)     \
   V(BINARY_OP_IC)       \
-  V(COMPARE_IC)         \
-  V(TO_BOOLEAN_IC)
+  V(COMPARE_IC)
 
 #define CODE_KIND_LIST(V) \
   NON_IC_KIND_LIST(V)     \
@@ -3678,7 +3677,6 @@ class Code: public HeapObject {
   inline bool is_stub();
   inline bool is_binary_op_stub();
   inline bool is_compare_ic_stub();
-  inline bool is_to_boolean_ic_stub();
   inline bool is_optimized_code();
   inline bool is_wasm_code();
 

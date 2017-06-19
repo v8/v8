@@ -37,7 +37,6 @@ enum class FeedbackSlotKind {
   kStoreKeyedStrict,
   kBinaryOp,
   kCompareOp,
-  kToBoolean,
   kStoreDataPropertyInLiteral,
   kTypeProfile,
   kCreateClosure,

@@ -606,8 +606,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_false,
                                Label* fall_through) {
   __ mov(a0, result_register());
-  Handle<Code> ic = ToBooleanICStub::GetUninitialized(isolate());
-  CallIC(ic);
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToBoolean);
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  RestoreContext();
   __ LoadRoot(at, Heap::kTrueValueRootIndex);
   Split(eq, result_register(), Operand(at), if_true, if_false, fall_through);
 }

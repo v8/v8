@@ -484,20 +484,5 @@ Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
-  ToBooleanICStub* stub = casted_stub();
-  IfBuilder if_true(this);
-  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->hints());
-  if_true.Then();
-  if_true.Return(graph()->GetConstantTrue());
-  if_true.Else();
-  if_true.End();
-  return graph()->GetConstantFalse();
-}
-
-Handle<Code> ToBooleanICStub::GenerateCode() { return DoGenerateCode(this); }
-
 }  // namespace internal
 }  // namespace v8

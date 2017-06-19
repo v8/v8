@@ -199,8 +199,6 @@ class Logger : public CodeEventListener {
   void BinaryOpIC(const Address pc, int line, int column, Code* stub,
                   const char* old_state, const char* new_state,
                   AllocationSite* allocation_site);
-  void ToBooleanIC(const Address pc, int line, int column, Code* stub,
-                   const char* old_state, const char* new_state);
   void PatchIC(const Address pc, const Address test, int delta);
 
   // ==== Events logged by --log-gc. ====

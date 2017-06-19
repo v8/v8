@@ -61,7 +61,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kGeneral:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
-    case FeedbackSlotKind::kToBoolean:
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kTypeProfile:
@@ -277,7 +276,6 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         }
         break;
       }
-      case FeedbackSlotKind::kToBoolean:
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kLiteral:

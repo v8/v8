@@ -101,12 +101,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
       }
 
-      processToBooleanICfunction(pc, line, column, stub, old_state, new_state) {
-        let fnName = this.functionName(pc);
-        this.entries.push(new Entry("ToBooleanIC", fnName, line, column, name,
-          old_state, new_state));
-      }
-
       processPatchIC(pc, test, delta) {
 
       }

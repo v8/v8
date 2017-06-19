@@ -233,8 +233,6 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
       kind_ = FeedbackSlotKind::kBinaryOp;
     } else if (kind == Code::COMPARE_IC) {
       kind_ = FeedbackSlotKind::kCompareOp;
-    } else if (kind == Code::TO_BOOLEAN_IC) {
-      kind_ = FeedbackSlotKind::kToBoolean;
     } else {
       UNREACHABLE();
       kind_ = FeedbackSlotKind::kInvalid;
@@ -267,10 +265,6 @@ InlineCacheState IC::StateFromCode(Code* code) {
     }
     case Code::COMPARE_IC: {
       CompareICStub stub(isolate, code->extra_ic_state());
-      return stub.GetICState();
-    }
-    case Code::TO_BOOLEAN_IC: {
-      ToBooleanICStub stub(isolate, code->extra_ic_state());
       return stub.GetICState();
     }
     default:
@@ -445,8 +439,7 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
   // Type vector based ICs update these statistics at a different time because
   // they don't always patch on state change.
   DCHECK(target->kind() == Code::BINARY_OP_IC ||
-         target->kind() == Code::COMPARE_IC ||
-         target->kind() == Code::TO_BOOLEAN_IC);
+         target->kind() == Code::COMPARE_IC);
 
   DCHECK(old_target->is_inline_cache_stub());
   DCHECK(target->is_inline_cache_stub());
@@ -2784,51 +2777,6 @@ RUNTIME_FUNCTION(Runtime_Unreachable) {
   UNREACHABLE();
   CHECK(false);
   return isolate->heap()->undefined_value();
-}
-
-
-Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
-  ToBooleanICStub stub(isolate(), extra_ic_state());
-  ToBooleanHints old_hints = stub.hints();
-  bool to_boolean_value = stub.UpdateStatus(object);
-  ToBooleanHints new_hints = stub.hints();
-  Handle<Code> code = stub.GetCode();
-  set_target(*code);
-
-  // Note: Although a no-op transition is semantically OK, it is hinting at a
-  // bug somewhere in our state transition machinery.
-  DCHECK_NE(old_hints, new_hints);
-  if (V8_UNLIKELY(FLAG_ic_stats)) {
-    if (FLAG_ic_stats &
-        v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
-      auto ic_stats = ICStats::instance();
-      ic_stats->Begin();
-      ICInfo& ic_info = ic_stats->Current();
-      ic_info.type = "ToBooleanIC";
-      ic_info.state = ToString(old_hints);
-      ic_info.state += "=>";
-      ic_info.state += ToString(new_hints);
-      ic_stats->End();
-    } else {
-      int line;
-      int column;
-      Address pc = GetAbstractPC(&line, &column);
-      LOG(isolate(),
-          ToBooleanIC(pc, line, column, *code, ToString(old_hints).c_str(),
-                      ToString(new_hints).c_str()));
-    }
-  }
-
-  return isolate()->factory()->ToBoolean(to_boolean_value);
-}
-
-
-RUNTIME_FUNCTION(Runtime_ToBooleanIC_Miss) {
-  DCHECK(args.length() == 1);
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at(0);
-  ToBooleanIC ic(isolate);
-  return *ic.ToBoolean(object);
 }
 
 

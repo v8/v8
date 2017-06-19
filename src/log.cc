@@ -1396,18 +1396,6 @@ void Logger::BinaryOpIC(const Address pc, int line, int column, Code* stub,
   msg.WriteToLogFile();
 }
 
-void Logger::ToBooleanIC(const Address pc, int line, int column, Code* stub,
-                         const char* old_state, const char* new_state) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("ToBooleanIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",%d,%d,", line, column);
-  msg.AppendAddress(reinterpret_cast<Address>(stub));
-  msg.Append(",%s,%s,", old_state, new_state);
-  msg.WriteToLogFile();
-}
-
 void Logger::PatchIC(const Address pc, const Address test, int delta) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
   Log::MessageBuilder msg(log_);
@@ -1528,7 +1516,6 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log it later by walking the dispatch table.
     case AbstractCode::BINARY_OP_IC:    // fall through
     case AbstractCode::COMPARE_IC:      // fall through
-    case AbstractCode::TO_BOOLEAN_IC:   // fall through
 
     case AbstractCode::STUB:
       description =

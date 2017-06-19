@@ -63,7 +63,6 @@ class Node;
   /* FCG/Crankshaft or are deprecated */      \
   V(BinaryOpIC)                               \
   V(BinaryOpWithAllocationSite)               \
-  V(ToBooleanIC)                              \
   V(TransitionElementsKind)                   \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
@@ -1527,50 +1526,6 @@ class StoreSlowElementStub : public TurboFanCodeStub {
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreSlowElement, TurboFanCodeStub);
-};
-
-class ToBooleanICStub : public HydrogenCodeStub {
- public:
-  ToBooleanICStub(Isolate* isolate, ExtraICState state)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(HintsBits::encode(static_cast<uint16_t>(state)));
-  }
-
-  bool UpdateStatus(Handle<Object> object);
-  ToBooleanHints hints() const {
-    return ToBooleanHints(HintsBits::decode(sub_minor_key()));
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::TO_BOOLEAN_IC; }
-  void PrintState(std::ostream& os) const override;  // NOLINT
-
-  bool SometimesSetsUpAFrame() override { return false; }
-
-  static Handle<Code> GetUninitialized(Isolate* isolate) {
-    return ToBooleanICStub(isolate, UNINITIALIZED).GetCode();
-  }
-
-  ExtraICState GetExtraICState() const override { return hints(); }
-
-  InlineCacheState GetICState() const {
-    if (hints() == ToBooleanHint::kNone) {
-      return ::v8::internal::UNINITIALIZED;
-    } else {
-      return MONOMORPHIC;
-    }
-  }
-
- private:
-  ToBooleanICStub(Isolate* isolate, InitializationState init_state)
-      : HydrogenCodeStub(isolate, init_state) {}
-
-  static const int kNumHints = 8;
-  STATIC_ASSERT(static_cast<int>(ToBooleanHint::kAny) ==
-                ((1 << kNumHints) - 1));
-  class HintsBits : public BitField<uint16_t, 0, kNumHints> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_HYDROGEN_CODE_STUB(ToBooleanIC, HydrogenCodeStub);
 };
 
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {

@@ -460,14 +460,6 @@ class CompareIC : public IC {
 };
 
 
-class ToBooleanIC : public IC {
- public:
-  explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
-
-  Handle<Object> ToBoolean(Handle<Object> object);
-};
-
-
 // Helper for BinaryOpIC and CompareIC.
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Isolate* isolate, Address address,

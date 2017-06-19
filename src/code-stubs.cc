@@ -804,12 +804,6 @@ void AllocateHeapNumberStub::InitializeDescriptor(
 }
 
 
-void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
-  descriptor->SetMissHandler(Runtime::kToBooleanIC_Miss);
-}
-
-
 void BinaryOpICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_BinaryOpIC_Miss));
   descriptor->SetMissHandler(Runtime::kBinaryOpIC_Miss);
@@ -941,50 +935,6 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
   }
 }
 
-bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
-  ToBooleanHints old_hints = hints();
-  ToBooleanHints new_hints = old_hints;
-  bool to_boolean_value = false;  // Dummy initialization.
-  if (object->IsUndefined(isolate())) {
-    new_hints |= ToBooleanHint::kUndefined;
-    to_boolean_value = false;
-  } else if (object->IsBoolean()) {
-    new_hints |= ToBooleanHint::kBoolean;
-    to_boolean_value = object->IsTrue(isolate());
-  } else if (object->IsNull(isolate())) {
-    new_hints |= ToBooleanHint::kNull;
-    to_boolean_value = false;
-  } else if (object->IsSmi()) {
-    new_hints |= ToBooleanHint::kSmallInteger;
-    to_boolean_value = Smi::cast(*object)->value() != 0;
-  } else if (object->IsJSReceiver()) {
-    new_hints |= ToBooleanHint::kReceiver;
-    to_boolean_value = !object->IsUndetectable();
-  } else if (object->IsString()) {
-    DCHECK(!object->IsUndetectable());
-    new_hints |= ToBooleanHint::kString;
-    to_boolean_value = String::cast(*object)->length() != 0;
-  } else if (object->IsSymbol()) {
-    new_hints |= ToBooleanHint::kSymbol;
-    to_boolean_value = true;
-  } else if (object->IsHeapNumber()) {
-    DCHECK(!object->IsUndetectable());
-    new_hints |= ToBooleanHint::kHeapNumber;
-    double value = HeapNumber::cast(*object)->value();
-    to_boolean_value = value != 0 && !std::isnan(value);
-  } else {
-    // We should never see an internal object at runtime here!
-    UNREACHABLE();
-    to_boolean_value = true;
-  }
-
-  set_sub_minor_key(HintsBits::update(sub_minor_key(), new_hints));
-  return to_boolean_value;
-}
-
-void ToBooleanICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << hints();
-}
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);

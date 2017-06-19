@@ -154,8 +154,6 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "BinaryOp";
     case FeedbackSlotKind::kCompareOp:
       return "CompareOp";
-    case FeedbackSlotKind::kToBoolean:
-      return "ToBoolean";
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       return "StoreDataPropertyInLiteral";
     case FeedbackSlotKind::kCreateClosure:
@@ -224,7 +222,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         break;
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
-      case FeedbackSlotKind::kToBoolean:
         array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCreateClosure: {
@@ -447,7 +444,6 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
           }
           break;
         }
-        case FeedbackSlotKind::kToBoolean:
         case FeedbackSlotKind::kInvalid:
         case FeedbackSlotKind::kKindsNumber:
           UNREACHABLE();

@@ -690,7 +690,6 @@ namespace internal {
   F(StoreCallbackProperty, 6, 1)             \
   F(StoreIC_Miss, 5, 1)                      \
   F(StorePropertyWithInterceptor, 5, 1)      \
-  F(ToBooleanIC_Miss, 1, 1)                  \
   F(Unreachable, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
