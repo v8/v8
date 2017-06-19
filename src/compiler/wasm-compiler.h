@@ -64,9 +64,6 @@ class WasmCompilationUnit final {
                                           wasm::ModuleBytesEnv* module_env,
                                           const wasm::WasmFunction* function);
 
-  void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
-  size_t memory_cost() const { return memory_cost_; }
-
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
 
@@ -88,7 +85,7 @@ class WasmCompilationUnit final {
   int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
-  size_t memory_cost_ = 0;
+
   void ExecuteCompilationInternal();
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);

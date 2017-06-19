@@ -39,31 +39,14 @@ namespace internal {
 namespace wasm {
 
 ModuleCompiler::CodeGenerationSchedule::CodeGenerationSchedule(
-    base::RandomNumberGenerator* random_number_generator, size_t max_memory)
-    : random_number_generator_(random_number_generator),
-      max_memory_(max_memory) {
+    base::RandomNumberGenerator* random_number_generator)
+    : random_number_generator_(random_number_generator) {
   DCHECK_NOT_NULL(random_number_generator_);
-  DCHECK_GT(max_memory_, 0);
 }
 
 void ModuleCompiler::CodeGenerationSchedule::Schedule(
     std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
-  size_t cost = item->memory_cost();
   schedule_.push_back(std::move(item));
-  allocated_memory_.Increment(cost);
-}
-
-void ModuleCompiler::CodeGenerationSchedule::WaitUntilCanWork() {
-  if (!throttle_ || allocated_memory_.Value() <= max_memory_) return;
-
-  base::LockGuard<base::Mutex> guard(&accept_work_mutex_);
-  while (throttle_ && allocated_memory_.Value() > max_memory_) {
-    accept_work_.Wait(&accept_work_mutex_);
-  }
-  // We waited for the used memory to drop, and maybe other threads were, too.
-  // Notify another one. See note about threshold being overpassed by more than
-  // one thread in {FetchAndExecuteCompilationUnit}
-  accept_work_.NotifyOne();
 }
 
 std::unique_ptr<compiler::WasmCompilationUnit>
@@ -73,12 +56,6 @@ ModuleCompiler::CodeGenerationSchedule::GetNext() {
   auto ret = std::move(schedule_[index]);
   std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
   schedule_.pop_back();
-  if (throttle_ &&
-      allocated_memory_.Decrement(ret->memory_cost()) <= max_memory_) {
-    // There may be threads waiting. Notify one. In turn, it will notify another
-    // one. This avoids all waiting the threads contending for the mutex.
-    accept_work_.NotifyOne();
-  }
   return ret;
 }
 
@@ -96,12 +73,7 @@ ModuleCompiler::ModuleCompiler(Isolate* isolate,
       module_(std::move(module)),
       counters_shared_(isolate->counters_shared()),
       is_sync_(is_sync),
-      executed_units_(
-          isolate->random_number_generator(),
-          (isolate->heap()->memory_allocator()->code_range()->valid()
-               ? isolate->heap()->memory_allocator()->code_range()->size()
-               : isolate->heap()->code_space()->Capacity()) /
-              2) {
+      executed_units_(isolate->random_number_generator()) {
   counters_ = counters_shared_.get();
 }
 
@@ -115,32 +87,10 @@ void ModuleCompiler::CompilationTask::RunInternal() {
   compiler_->module_->pending_tasks.get()->Signal();
 }
 
-void ModuleCompiler::CompileOnMainThread() {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  DisallowCodeDependencyChange no_dependency_change;
-
-  // - 1 because AtomicIncrement returns the value after the atomic increment.
-  size_t index = next_unit_.Increment(1) - 1;
-  if (index >= compilation_units_.size()) {
-    return;
-  }
-
-  std::unique_ptr<compiler::WasmCompilationUnit> unit =
-      std::move(compilation_units_.at(index));
-  unit->ExecuteCompilation();
-
-  // Schedule the result, bypassing the threshold.
-  {
-    base::LockGuard<base::Mutex> guard(&result_mutex_);
-    executed_units_.Schedule(std::move(unit));
-  }
-}
-
-// Run by each compilation task The no_finisher_callback is called
-// within the result_mutex_ lock when no finishing task is running,
-// i.e. when the finisher_is_running_ flag is not set.
+// Run by each compilation task and by the main thread. The
+// no_finisher_callback is called within the result_mutex_ lock when no
+// finishing task is running, i.e. when the finisher_is_running_ flag is not
+// set.
 bool ModuleCompiler::FetchAndExecuteCompilationUnit(
     std::function<void()> no_finisher_callback) {
   DisallowHeapAllocation no_allocation;
@@ -149,27 +99,10 @@ bool ModuleCompiler::FetchAndExecuteCompilationUnit(
   DisallowCodeDependencyChange no_dependency_change;
 
   // - 1 because AtomicIncrement returns the value after the atomic increment.
-  // Bail out fast if there's no work to do.
   size_t index = next_unit_.Increment(1) - 1;
   if (index >= compilation_units_.size()) {
     return false;
   }
-
-  // TODO(wasm): this is a no-op for async. Hopefully we can
-  // avoid it if we unify the parallel and async pipelines.
-
-  // The thread observes if the memory threshold wasn't passed.
-  // It is possible that a few threads make this observation concurrently,
-  // then only one ends up being sufficient to go over the threshold.
-  // We don't know ahead of time how much memory will be allocated at compile
-  // time, and we don't want to span a critical section until we find out -
-  // since the whole point is for compilation to happen in parallel. So, we
-  // tolerate some elasticity in the system: it's OK if the threshold is passed
-  // because a number of units are scheduled like that - the extra amount
-  // is bound by the number of threads.
-  // We can lower the threshold if the current margin heuristics proves too
-  // high.
-  executed_units_.WaitUntilCanWork();
 
   std::unique_ptr<compiler::WasmCompilationUnit> unit =
       std::move(compilation_units_.at(index));
@@ -207,8 +140,6 @@ uint32_t* ModuleCompiler::StartCompilationTasks() {
   num_background_tasks_ =
       Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
           V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
-  executed_units_.EnableThrottling();
-
   uint32_t* task_ids = new uint32_t[num_background_tasks_];
   for (size_t i = 0; i < num_background_tasks_; ++i) {
     CompilationTask* task = new CompilationTask(this);
@@ -230,19 +161,16 @@ void ModuleCompiler::WaitForCompilationTasks(uint32_t* task_ids) {
   }
 }
 
-size_t ModuleCompiler::FinishCompilationUnits(
-    std::vector<Handle<Code>>& results, ErrorThrower* thrower) {
-  size_t finished = 0;
+void ModuleCompiler::FinishCompilationUnits(std::vector<Handle<Code>>& results,
+                                            ErrorThrower* thrower) {
   SetFinisherIsRunning(true);
   while (true) {
     int func_index = -1;
     Handle<Code> result = FinishCompilationUnit(thrower, &func_index);
     if (func_index < 0) break;
     results[func_index] = result;
-    ++finished;
   }
   SetFinisherIsRunning(false);
-  return finished;
 }
 
 void ModuleCompiler::SetFinisherIsRunning(bool value) {
@@ -293,30 +221,30 @@ void ModuleCompiler::CompileInParallel(ModuleBytesEnv* module_env,
   //    and stores them in the vector {compilation_units}.
   InitializeParallelCompilation(module->functions, *module_env);
 
+  // Objects for the synchronization with the background threads.
+  base::AtomicNumber<size_t> next_unit(
+      static_cast<size_t>(FLAG_skip_compiling_wasm_funcs));
+
   // 2) The main thread spawns {CompilationTask} instances which run on
   //    the background threads.
   std::unique_ptr<uint32_t[]> task_ids(StartCompilationTasks());
 
-  size_t finished_functions = 0;
-  while (finished_functions < compilation_units_.size()) {
-    // 3.a) The background threads and the main thread pick one compilation
-    //      unit at a time and execute the parallel phase of the compilation
-    //      unit. After finishing the execution of the parallel phase, the
-    //      result is enqueued in {executed_units}.
-    //      The foreground task bypasses waiting on memory threshold, because
-    //      its results will immediately be converted to code (below).
-    CompileOnMainThread();
-
+  // 3.a) The background threads and the main thread pick one compilation
+  //      unit at a time and execute the parallel phase of the compilation
+  //      unit. After finishing the execution of the parallel phase, the
+  //      result is enqueued in {executed_units}.
+  while (FetchAndExecuteCompilationUnit()) {
     // 3.b) If {executed_units} contains a compilation unit, the main thread
     //      dequeues it and finishes the compilation unit. Compilation units
     //      are finished concurrently to the background threads to save
     //      memory.
-    finished_functions += FinishCompilationUnits(results, thrower);
+    FinishCompilationUnits(results, thrower);
   }
   // 4) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {CompilationTask} instances to finish - which
-  //    happens once they all realize there's no next work item to process.
+  //    main thread waits for all {CompilationTask} instances to finish.
   WaitForCompilationTasks(task_ids.get());
+  // Finish the compilation of the remaining compilation units.
+  FinishCompilationUnits(results, thrower);
 }
 
 void ModuleCompiler::CompileSequentially(ModuleBytesEnv* module_env,
