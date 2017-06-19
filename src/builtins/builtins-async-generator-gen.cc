@@ -113,7 +113,8 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
     return SmiNotEqual(resume_type, SmiConstant(JSGeneratorObject::kNext));
   }
 
-  void AsyncGeneratorEnqueue(Node* context, Node* generator, Node* value,
+  void AsyncGeneratorEnqueue(CodeStubArguments* args, Node* context,
+                             Node* generator, Node* value,
                              JSAsyncGeneratorObject::ResumeMode resume_mode,
                              const char* method_name);
 
@@ -138,7 +139,7 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
 // Shared implementation for the 3 Async Iterator protocol methods of Async
 // Generators.
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
-    Node* context, Node* generator, Node* value,
+    CodeStubArguments* args, Node* context, Node* generator, Node* value,
     JSAsyncGeneratorObject::ResumeMode resume_mode, const char* method_name) {
   // AsyncGeneratorEnqueue produces a new Promise, and appends it to the list
   // of async generator requests to be executed. If the generator is not
@@ -175,7 +176,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
 
     Goto(&done);
     BIND(&done);
-    Return(promise);
+    args->PopAndReturn(promise);
   }
 
   BIND(&if_receiverisincompatible);
@@ -186,7 +187,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
 
     CallBuiltin(Builtins::kRejectNativePromise, context, promise, error,
                 TrueConstant());
-    Return(promise);
+    args->PopAndReturn(promise);
   }
 }
 
@@ -329,10 +330,17 @@ Node* AsyncGeneratorBuiltinsAssembler::TakeFirstAsyncGeneratorRequestFromQueue(
 // https://tc39.github.io/proposal-async-iteration/
 // Section #sec-asyncgenerator-prototype-next
 TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
-  Node* const generator = Parameter(Descriptor::kReceiver);
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const context = Parameter(Descriptor::kContext);
-  AsyncGeneratorEnqueue(context, generator, value,
+  const int kValueArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* generator = args.GetReceiver();
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  AsyncGeneratorEnqueue(&args, context, generator, value,
                         JSAsyncGeneratorObject::kNext,
                         "[AsyncGenerator].prototype.next");
 }
@@ -340,10 +348,17 @@ TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
 // https://tc39.github.io/proposal-async-iteration/
 // Section #sec-asyncgenerator-prototype-return
 TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
-  Node* generator = Parameter(Descriptor::kReceiver);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-  AsyncGeneratorEnqueue(context, generator, value,
+  const int kValueArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* generator = args.GetReceiver();
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  AsyncGeneratorEnqueue(&args, context, generator, value,
                         JSAsyncGeneratorObject::kReturn,
                         "[AsyncGenerator].prototype.return");
 }
@@ -351,10 +366,17 @@ TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
 // https://tc39.github.io/proposal-async-iteration/
 // Section #sec-asyncgenerator-prototype-throw
 TF_BUILTIN(AsyncGeneratorPrototypeThrow, AsyncGeneratorBuiltinsAssembler) {
-  Node* generator = Parameter(Descriptor::kReceiver);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-  AsyncGeneratorEnqueue(context, generator, value,
+  const int kValueArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* generator = args.GetReceiver();
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  AsyncGeneratorEnqueue(&args, context, generator, value,
                         JSAsyncGeneratorObject::kThrow,
                         "[AsyncGenerator].prototype.throw");
 }

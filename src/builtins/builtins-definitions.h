@@ -528,11 +528,13 @@ namespace internal {
   TFS(CreateGeneratorObject, kClosure, kReceiver)                              \
   CPP(GeneratorFunctionConstructor)                                            \
   /* ES6 #sec-generator.prototype.next */                                      \
-  TFJ(GeneratorPrototypeNext, 1, kValue)                                       \
+  TFJ(GeneratorPrototypeNext, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-generator.prototype.return */                                    \
-  TFJ(GeneratorPrototypeReturn, 1, kValue)                                     \
+  TFJ(GeneratorPrototypeReturn,                                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-generator.prototype.throw */                                     \
-  TFJ(GeneratorPrototypeThrow, 1, kException)                                  \
+  TFJ(GeneratorPrototypeThrow,                                                 \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(AsyncFunctionConstructor)                                                \
                                                                                \
   /* Global object */                                                          \
@@ -1027,13 +1029,16 @@ namespace internal {
   CPP(AsyncGeneratorFunctionConstructor)                                       \
   /* AsyncGenerator.prototype.next ( value ) */                                \
   /* proposal-async-iteration/#sec-asyncgenerator-prototype-next */            \
-  TFJ(AsyncGeneratorPrototypeNext, 1, kValue)                                  \
+  TFJ(AsyncGeneratorPrototypeNext,                                             \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* AsyncGenerator.prototype.return ( value ) */                              \
   /* proposal-async-iteration/#sec-asyncgenerator-prototype-return */          \
-  TFJ(AsyncGeneratorPrototypeReturn, 1, kValue)                                \
+  TFJ(AsyncGeneratorPrototypeReturn,                                           \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* AsyncGenerator.prototype.throw ( exception ) */                           \
   /* proposal-async-iteration/#sec-asyncgenerator-prototype-throw */           \
-  TFJ(AsyncGeneratorPrototypeThrow, 1, kValue)                                 \
+  TFJ(AsyncGeneratorPrototypeThrow,                                            \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
                                                                                \
   /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \

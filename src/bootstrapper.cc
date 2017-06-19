@@ -742,17 +742,17 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
                         factory()->NewStringFromAsciiChecked("Generator"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   SimpleInstallFunction(generator_object_prototype, "next",
-                        Builtins::kGeneratorPrototypeNext, 1, true);
+                        Builtins::kGeneratorPrototypeNext, 1, false);
   SimpleInstallFunction(generator_object_prototype, "return",
-                        Builtins::kGeneratorPrototypeReturn, 1, true);
+                        Builtins::kGeneratorPrototypeReturn, 1, false);
   SimpleInstallFunction(generator_object_prototype, "throw",
-                        Builtins::kGeneratorPrototypeThrow, 1, true);
+                        Builtins::kGeneratorPrototypeThrow, 1, false);
 
   // Internal version of generator_prototype_next, flagged as non-native such
   // that it doesn't show up in Error traces.
   Handle<JSFunction> generator_next_internal =
       SimpleCreateFunction(isolate(), factory()->next_string(),
-                           Builtins::kGeneratorPrototypeNext, 1, true);
+                           Builtins::kGeneratorPrototypeNext, 1, false);
   generator_next_internal->shared()->set_native(false);
   native_context()->set_generator_next_internal(*generator_next_internal);
 
@@ -852,11 +852,11 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
                         factory()->NewStringFromAsciiChecked("AsyncGenerator"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   SimpleInstallFunction(async_generator_object_prototype, "next",
-                        Builtins::kAsyncGeneratorPrototypeNext, 1, true);
+                        Builtins::kAsyncGeneratorPrototypeNext, 1, false);
   SimpleInstallFunction(async_generator_object_prototype, "return",
-                        Builtins::kAsyncGeneratorPrototypeReturn, 1, true);
+                        Builtins::kAsyncGeneratorPrototypeReturn, 1, false);
   SimpleInstallFunction(async_generator_object_prototype, "throw",
-                        Builtins::kAsyncGeneratorPrototypeThrow, 1, true);
+                        Builtins::kAsyncGeneratorPrototypeThrow, 1, false);
 
   // Create maps for generator functions and their prototypes.  Store those
   // maps in the native context. The "prototype" property descriptor is

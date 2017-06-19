@@ -18,13 +18,14 @@ class GeneratorBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void GeneratorPrototypeResume(Node* receiver, Node* value, Node* context,
+  void GeneratorPrototypeResume(CodeStubArguments* args, Node* receiver,
+                                Node* value, Node* context,
                                 JSGeneratorObject::ResumeMode resume_mode,
                                 char const* const method_name);
 };
 
 void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
-    Node* receiver, Node* value, Node* context,
+    CodeStubArguments* args, Node* receiver, Node* value, Node* context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
   // Check if the {receiver} is actually a JSGeneratorObject.
   Label if_receiverisincompatible(this, Label::kDeferred);
@@ -67,7 +68,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   GotoIf(SmiEqual(result_continuation, executing), &if_final_return);
 
-  Return(result);
+  args->PopAndReturn(result);
 
   BIND(&if_final_return);
   {
@@ -75,8 +76,8 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     StoreObjectFieldNoWriteBarrier(
         receiver, JSGeneratorObject::kContinuationOffset, closed);
     // Return the wrapped result.
-    Return(CallBuiltin(Builtins::kCreateIterResultObject, context, result,
-                       TrueConstant()));
+    args->PopAndReturn(CallBuiltin(Builtins::kCreateIterResultObject, context,
+                                   result, TrueConstant()));
   }
 
   BIND(&if_receiverisincompatible);
@@ -106,7 +107,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
         result = CallRuntime(Runtime::kThrow, context, value);
         break;
     }
-    Return(result);
+    args->PopAndReturn(result);
   }
 
   BIND(&if_receiverisrunning);
@@ -126,28 +127,51 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 
 // ES6 #sec-generator.prototype.next
 TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-  GeneratorPrototypeResume(receiver, value, context, JSGeneratorObject::kNext,
+  const int kValueArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* receiver = args.GetReceiver();
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  GeneratorPrototypeResume(&args, receiver, value, context,
+                           JSGeneratorObject::kNext,
                            "[Generator].prototype.next");
 }
 
 // ES6 #sec-generator.prototype.return
 TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-  GeneratorPrototypeResume(receiver, value, context, JSGeneratorObject::kReturn,
+  const int kValueArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* receiver = args.GetReceiver();
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  GeneratorPrototypeResume(&args, receiver, value, context,
+                           JSGeneratorObject::kReturn,
                            "[Generator].prototype.return");
 }
 
 // ES6 #sec-generator.prototype.throw
 TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* exception = Parameter(Descriptor::kException);
-  Node* context = Parameter(Descriptor::kContext);
-  GeneratorPrototypeResume(receiver, exception, context,
+  const int kExceptionArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* receiver = args.GetReceiver();
+  Node* exception = args.GetOptionalArgumentValue(kExceptionArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  GeneratorPrototypeResume(&args, receiver, exception, context,
                            JSGeneratorObject::kThrow,
                            "[Generator].prototype.throw");
 }
