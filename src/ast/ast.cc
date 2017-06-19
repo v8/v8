@@ -151,6 +151,14 @@ bool Expression::IsAnonymousFunctionDefinition() const {
           AsClassLiteral()->IsAnonymousFunctionDefinition());
 }
 
+bool Expression::IsConciseMethodDefinition() const {
+  return IsFunctionLiteral() && IsConciseMethod(AsFunctionLiteral()->kind());
+}
+
+bool Expression::IsAccessorFunctionDefinition() const {
+  return IsFunctionLiteral() && IsAccessorFunction(AsFunctionLiteral()->kind());
+}
+
 void Expression::MarkTail() {
   if (IsConditional()) {
     AsConditional()->MarkTail();
@@ -395,10 +403,9 @@ void LiteralProperty::SetStoreDataPropertySlot(FeedbackSlot slot) {
 }
 
 bool LiteralProperty::NeedsSetFunctionName() const {
-  return is_computed_name_ &&
-         (value_->IsAnonymousFunctionDefinition() ||
-          (value_->IsFunctionLiteral() &&
-           IsConciseMethod(value_->AsFunctionLiteral()->kind())));
+  return is_computed_name_ && (value_->IsAnonymousFunctionDefinition() ||
+                               value_->IsConciseMethodDefinition() ||
+                               value_->IsAccessorFunctionDefinition());
 }
 
 ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,

@@ -315,6 +315,12 @@ class Expression : public AstNode {
   // a syntactic name.
   bool IsAnonymousFunctionDefinition() const;
 
+  // True iff the expression is a concise method definition.
+  bool IsConciseMethodDefinition() const;
+
+  // True iff the expression is an accessor function definition.
+  bool IsAccessorFunctionDefinition() const;
+
   // True iff the expression is a literal represented as a smi.
   bool IsSmiLiteral() const;
 

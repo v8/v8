@@ -1678,11 +1678,9 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default(args.variables_);
   }
 
-  V8_INLINE void AddAccessorPrefixToFunctionName(bool is_get,
-                                                 PreParserExpression function,
-                                                 PreParserIdentifier name) {}
-  V8_INLINE void SetFunctionNameFromPropertyName(PreParserExpression property,
-                                                 PreParserIdentifier name) {}
+  V8_INLINE void SetFunctionNameFromPropertyName(
+      PreParserExpression property, PreParserIdentifier name,
+      const AstRawString* prefix = nullptr) {}
   V8_INLINE void SetFunctionNameFromIdentifierRef(
       PreParserExpression value, PreParserExpression identifier) {}
 

@@ -2551,6 +2551,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // handle to decide whether to invoke function name inference.
   bool should_infer_name = function_name == NULL;
 
+  // We want a non-null handle as the function name by default. We will handle
+  // the "function does not have a shared name" case later.
+  if (should_infer_name) {
+    function_name = ast_value_factory()->empty_string();
+  }
+
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called()
           ? FunctionLiteral::kShouldEagerCompile
@@ -3195,9 +3201,9 @@ ZoneList<Statement*>* Parser::ParseFunction(
   if (expected_parameters_end_pos != kNoSourcePosition) {
     // This is the first function encountered in a CreateDynamicFunction eval.
     parameters_end_pos_ = kNoSourcePosition;
-    // The function name should have been ignored, giving us the nullptr
+    // The function name should have been ignored, giving us the empty string
     // here.
-    DCHECK_NULL(function_name);
+    DCHECK_EQ(function_name, ast_value_factory()->empty_string());
   }
 
   ParserFormalParameters formals(function_scope);
@@ -4156,32 +4162,41 @@ void Parser::QueueNonPatternForRewriting(Expression* expr, bool* ok) {
   function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
-void Parser::AddAccessorPrefixToFunctionName(bool is_get,
-                                             FunctionLiteral* function,
-                                             const AstRawString* name) {
-  DCHECK_NOT_NULL(name);
-  const AstRawString* prefix = is_get ? ast_value_factory()->get_space_string()
-                                      : ast_value_factory()->set_space_string();
-  function->set_raw_name(ast_value_factory()->NewConsString(prefix, name));
+void Parser::SetFunctionNameFromPropertyName(LiteralProperty* property,
+                                             const AstRawString* name,
+                                             const AstRawString* prefix) {
+  // Ensure that the function we are going to create has shared name iff
+  // we are not going to set it later.
+  if (property->NeedsSetFunctionName()) {
+    name = nullptr;
+    prefix = nullptr;
+  } else {
+    // If the property value is an anonymous function or an anonymous class or
+    // a concise method or an accessor function which doesn't require the name
+    // to be set then the shared name must be provided.
+    DCHECK_IMPLIES(property->value()->IsAnonymousFunctionDefinition() ||
+                       property->value()->IsConciseMethodDefinition() ||
+                       property->value()->IsAccessorFunctionDefinition(),
+                   name != nullptr);
+  }
+
+  Expression* value = property->value();
+  SetFunctionName(value, name, prefix);
 }
 
 void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
-                                             const AstRawString* name) {
-  DCHECK(property->kind() != ObjectLiteralProperty::GETTER);
-  DCHECK(property->kind() != ObjectLiteralProperty::SETTER);
-
-  // Computed name setting must happen at runtime.
-  DCHECK_IMPLIES(property->is_computed_name(), name == nullptr);
-
+                                             const AstRawString* name,
+                                             const AstRawString* prefix) {
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
+  // See ES #sec-__proto__-property-names-in-object-initializers.
   if (property->IsPrototype()) return;
 
-  Expression* value = property->value();
-
-  DCHECK(!value->IsAnonymousFunctionDefinition() ||
+  DCHECK(!property->value()->IsAnonymousFunctionDefinition() ||
          property->kind() == ObjectLiteralProperty::COMPUTED);
-  SetFunctionName(value, name);
+
+  SetFunctionNameFromPropertyName(static_cast<LiteralProperty*>(property), name,
+                                  prefix);
 }
 
 void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
@@ -4190,15 +4205,29 @@ void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
   SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
 }
 
-void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
-  if (!value->IsAnonymousFunctionDefinition()) return;
+void Parser::SetFunctionName(Expression* value, const AstRawString* name,
+                             const AstRawString* prefix) {
+  if (!value->IsAnonymousFunctionDefinition() &&
+      !value->IsConciseMethodDefinition() &&
+      !value->IsAccessorFunctionDefinition()) {
+    return;
+  }
   auto function = value->AsFunctionLiteral();
   if (value->IsClassLiteral()) {
     function = value->AsClassLiteral()->constructor();
   }
   if (function != nullptr) {
-    function->set_raw_name(
-        name != nullptr ? ast_value_factory()->NewConsString(name) : nullptr);
+    AstConsString* cons_name = nullptr;
+    if (name != nullptr) {
+      if (prefix != nullptr) {
+        cons_name = ast_value_factory()->NewConsString(prefix, name);
+      } else {
+        cons_name = ast_value_factory()->NewConsString(name);
+      }
+    } else {
+      DCHECK_NULL(prefix);
+    }
+    function->set_raw_name(cons_name);
   }
 }
 

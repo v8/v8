@@ -106,12 +106,14 @@
   var sym2 = Symbol('2');
   var sym3 = Symbol('3');
   var symNoDescription = Symbol();
+  var proto = "__proto__";
   var obj = {
     ['']: function() {},
     [a]: function() {},
     [sym1]: function() {},
     [sym2]: function withName() {},
     [symNoDescription]: function() {},
+    [proto]: function() {},
 
     get [sym3]() {},
     set [b](val) {},
@@ -122,6 +124,7 @@
   assertEquals('[1]', obj[sym1].name);
   assertEquals('withName', obj[sym2].name);
   assertEquals('', obj[symNoDescription].name);
+  assertEquals('__proto__', obj[proto].name);
 
   assertEquals('get [3]', Object.getOwnPropertyDescriptor(obj, sym3).get.name);
   assertEquals('set b', Object.getOwnPropertyDescriptor(obj, 'b').set.name);
@@ -130,13 +133,15 @@
     ['']() {},
     [a]() {},
     [sym1]() {},
-    [symNoDescription]: function() {},
+    [symNoDescription]() {},
+    [proto]() {},
   };
 
   assertEquals('', objMethods[''].name);
   assertEquals('a', objMethods[a].name);
   assertEquals('[1]', objMethods[sym1].name);
   assertEquals('', objMethods[symNoDescription].name);
+  assertEquals('__proto__', objMethods[proto].name);
 
   class C {
     ['']() { }

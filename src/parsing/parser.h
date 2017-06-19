@@ -694,7 +694,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos,
                                         bool* ok);
-  void SetFunctionName(Expression* value, const AstRawString* name);
+  void SetFunctionName(Expression* value, const AstRawString* name,
+                       const AstRawString* prefix = nullptr);
 
   // Helper functions for recursive descent.
   V8_INLINE bool IsEval(const AstRawString* identifier) const {
@@ -1111,11 +1112,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
 
-  void AddAccessorPrefixToFunctionName(bool is_get, FunctionLiteral* function,
-                                       const AstRawString* name);
-
+  void SetFunctionNameFromPropertyName(LiteralProperty* property,
+                                       const AstRawString* name,
+                                       const AstRawString* prefix = nullptr);
   void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
-                                       const AstRawString* name);
+                                       const AstRawString* name,
+                                       const AstRawString* prefix = nullptr);
 
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
