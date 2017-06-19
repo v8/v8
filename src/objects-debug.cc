@@ -250,7 +250,10 @@ void HeapObject::HeapObjectVerify() {
       JSDataView::cast(this)->JSDataViewVerify();
       break;
     case SMALL_ORDERED_HASH_SET_TYPE:
-      SmallOrderedHashSet::cast(this)->SmallOrderedHashSetVerify();
+      SmallOrderedHashSet::cast(this)->SmallOrderedHashTableVerify();
+      break;
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+      SmallOrderedHashMap::cast(this)->SmallOrderedHashTableVerify();
       break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -1030,34 +1033,50 @@ void JSPromise::JSPromiseVerify() {
         reject_reactions()->IsFixedArray());
 }
 
-void SmallOrderedHashSet::SmallOrderedHashSetVerify() {
-  CHECK(IsSmallOrderedHashSet());
+template <typename Derived>
+void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify() {
+  CHECK(IsSmallOrderedHashTable());
   Isolate* isolate = GetIsolate();
 
   for (int entry = 0; entry < NumberOfBuckets(); entry++) {
     int bucket = GetFirstEntry(entry);
     if (bucket == kNotFound) continue;
-    Object* val = GetDataEntry(bucket);
-    CHECK(!val->IsTheHole(isolate));
+
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(bucket, offset);
+      CHECK(!val->IsTheHole(isolate));
+    }
   }
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
     int chain = GetNextEntry(entry);
     if (chain == kNotFound) continue;
-    Object* val = GetDataEntry(chain);
-    CHECK(!val->IsTheHole(isolate));
+
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(chain, offset);
+      CHECK(!val->IsTheHole(isolate));
+    }
   }
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
-    Object* val = GetDataEntry(entry);
-    VerifyPointer(val);
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(entry, offset);
+      VerifyPointer(val);
+    }
   }
 
   for (int entry = NumberOfElements(); entry < Capacity(); entry++) {
-    Object* val = GetDataEntry(entry);
-    CHECK(val->IsTheHole(isolate));
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate));
+    }
   }
 }
+
+template void
+SmallOrderedHashTable<SmallOrderedHashMap>::SmallOrderedHashTableVerify();
+template void
+SmallOrderedHashTable<SmallOrderedHashSet>::SmallOrderedHashTableVerify();
 
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();

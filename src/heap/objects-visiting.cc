@@ -102,6 +102,9 @@ VisitorId StaticVisitorBase::GetVisitorId(int instance_type, int instance_size,
     case JS_ARRAY_BUFFER_TYPE:
       return kVisitJSArrayBuffer;
 
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+      return kVisitSmallOrderedHashMap;
+
     case SMALL_ORDERED_HASH_SET_TYPE:
       return kVisitSmallOrderedHashSet;
 

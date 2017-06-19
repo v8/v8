@@ -310,6 +310,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:

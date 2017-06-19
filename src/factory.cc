@@ -249,6 +249,15 @@ Handle<SmallOrderedHashSet> Factory::NewSmallOrderedHashSet(
       SmallOrderedHashSet);
 }
 
+Handle<SmallOrderedHashMap> Factory::NewSmallOrderedHashMap(
+    int size, PretenureFlag pretenure) {
+  DCHECK_LE(0, size);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateSmallOrderedHashMap(size, pretenure),
+      SmallOrderedHashMap);
+}
+
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);
 }

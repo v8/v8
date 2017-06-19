@@ -54,6 +54,7 @@ namespace internal {
   V(SharedFunctionInfo)    \
   V(ShortcutCandidate)     \
   V(SlicedString)          \
+  V(SmallOrderedHashMap)   \
   V(SmallOrderedHashSet)   \
   V(Struct)                \
   V(Symbol)                \
@@ -358,6 +359,7 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
   V(SeqTwoByteString)            \
   V(SharedFunctionInfo)          \
   V(SlicedString)                \
+  V(SmallOrderedHashMap)         \
   V(SmallOrderedHashSet)         \
   V(Symbol)                      \
   V(ThinString)                  \

@@ -2384,6 +2384,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
+    ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_MAP_TYPE, small_ordered_hash_map)
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_SET_TYPE, small_ordered_hash_set)
 
 #define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype, size) \
@@ -3040,6 +3041,26 @@ AllocationResult Heap::AllocateSmallOrderedHashSet(int capacity,
   result->set_map_after_allocation(small_ordered_hash_set_map(),
                                    SKIP_WRITE_BARRIER);
   Handle<SmallOrderedHashSet> table(SmallOrderedHashSet::cast(result));
+  table->Initialize(isolate(), capacity);
+  return result;
+}
+
+AllocationResult Heap::AllocateSmallOrderedHashMap(int capacity,
+                                                   PretenureFlag pretenure) {
+  DCHECK_EQ(0, capacity % SmallOrderedHashMap::kLoadFactor);
+  CHECK_GE(SmallOrderedHashMap::kMaxCapacity, capacity);
+
+  int size = SmallOrderedHashMap::Size(capacity);
+  AllocationSpace space = SelectSpace(pretenure);
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, space);
+    if (!allocation.To(&result)) return allocation;
+  }
+
+  result->set_map_after_allocation(small_ordered_hash_map_map(),
+                                   SKIP_WRITE_BARRIER);
+  Handle<SmallOrderedHashMap> table(SmallOrderedHashMap::cast(result));
   table->Initialize(isolate(), capacity);
   return result;
 }

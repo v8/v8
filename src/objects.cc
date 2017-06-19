@@ -18583,6 +18583,14 @@ SmallOrderedHashTable<SmallOrderedHashSet>::Allocate(Isolate* isolate,
   return isolate->factory()->NewSmallOrderedHashSet(capacity, pretenure);
 }
 
+template <>
+Handle<SmallOrderedHashMap>
+SmallOrderedHashTable<SmallOrderedHashMap>::Allocate(Isolate* isolate,
+                                                     int capacity,
+                                                     PretenureFlag pretenure) {
+  return isolate->factory()->NewSmallOrderedHashMap(capacity, pretenure);
+}
+
 template <class Derived>
 void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
                                                 int capacity) {
@@ -18599,10 +18607,13 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 
   if (isolate->heap()->InNewSpace(this)) {
     MemsetPointer(RawField(this, GetDataTableStartOffset()),
-                  isolate->heap()->the_hole_value(), capacity);
+                  isolate->heap()->the_hole_value(),
+                  capacity * Derived::kEntrySize);
   } else {
     for (int i = 0; i < capacity; i++) {
-      SetDataEntry(i, isolate->heap()->the_hole_value());
+      for (int j = 0; j < Derived::kEntrySize; i++) {
+        SetDataEntry(i, j, isolate->heap()->the_hole_value());
+      }
     }
   }
 
@@ -18617,14 +18628,13 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 #endif  // DEBUG
 }
 
-template <class Derived>
-Handle<Derived> SmallOrderedHashTable<Derived>::Add(Handle<Derived> table,
-                                                    Handle<Object> key) {
+Handle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
+    Handle<SmallOrderedHashSet> table, Handle<Object> key) {
   Isolate* isolate = table->GetIsolate();
   if (table->HasKey(isolate, key)) return table;
 
   if (table->UsedCapacity() >= table->Capacity()) {
-    table = Derived::Grow(table);
+    table = SmallOrderedHashSet::Grow(table);
   }
 
   int hash = Object::GetOrCreateHash(table->GetIsolate(), key)->value();
@@ -18637,8 +18647,38 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Add(Handle<Derived> table,
   // Insert a new entry at the end,
   int new_entry = nof + table->NumberOfDeletedElements();
 
-  // TODO(gsathya): Add support for entrysize > 1.
-  table->SetDataEntry(new_entry, *key);
+  table->SetDataEntry(new_entry, SmallOrderedHashSet::kKeyIndex, *key);
+  table->SetFirstEntry(bucket, new_entry);
+  table->SetNextEntry(new_entry, previous_entry);
+
+  // and update book keeping.
+  table->SetNumberOfElements(nof + 1);
+
+  return table;
+}
+
+Handle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
+    Handle<SmallOrderedHashMap> table, Handle<Object> key,
+    Handle<Object> value) {
+  Isolate* isolate = table->GetIsolate();
+  if (table->HasKey(isolate, key)) return table;
+
+  if (table->UsedCapacity() >= table->Capacity()) {
+    table = SmallOrderedHashMap::Grow(table);
+  }
+
+  int hash = Object::GetOrCreateHash(table->GetIsolate(), key)->value();
+  int nof = table->NumberOfElements();
+
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToFirstEntry(hash);
+
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+
+  table->SetDataEntry(new_entry, SmallOrderedHashMap::kValueIndex, *value);
+  table->SetDataEntry(new_entry, SmallOrderedHashMap::kKeyIndex, *key);
   table->SetFirstEntry(bucket, new_entry);
   table->SetNextEntry(new_entry, previous_entry);
 
@@ -18694,8 +18734,8 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Handle<Derived> table,
       new_table->SetNextEntry(new_entry, chain);
 
       for (int i = 0; i < Derived::kEntrySize; ++i) {
-        Object* value = table->GetDataEntry(old_entry + i);
-        new_table->SetDataEntry(new_entry + i, value);
+        Object* value = table->GetDataEntry(old_entry, i);
+        new_table->SetDataEntry(new_entry, i, value);
       }
 
       ++new_entry;
@@ -18732,14 +18772,21 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Grow(Handle<Derived> table) {
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
     Isolate* isolate, Handle<Object> key);
 template Handle<SmallOrderedHashSet>
-SmallOrderedHashTable<SmallOrderedHashSet>::Add(
-    Handle<SmallOrderedHashSet> table, Handle<Object> key);
-template Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(
     Handle<SmallOrderedHashSet> table, int new_capacity);
 template Handle<SmallOrderedHashSet> SmallOrderedHashTable<
     SmallOrderedHashSet>::Grow(Handle<SmallOrderedHashSet> table);
 template void SmallOrderedHashTable<SmallOrderedHashSet>::Initialize(
+    Isolate* isolate, int capacity);
+
+template bool SmallOrderedHashTable<SmallOrderedHashMap>::HasKey(
+    Isolate* isolate, Handle<Object> key);
+template Handle<SmallOrderedHashMap>
+SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(
+    Handle<SmallOrderedHashMap> table, int new_capacity);
+template Handle<SmallOrderedHashMap> SmallOrderedHashTable<
+    SmallOrderedHashMap>::Grow(Handle<SmallOrderedHashMap> table);
+template void SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(
     Isolate* isolate, int capacity);
 
 template<class Derived, class TableType>

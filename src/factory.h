@@ -89,6 +89,9 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
       int size = SmallOrderedHashSet::kMinCapacity,
       PretenureFlag pretenure = NOT_TENURED);
+  Handle<SmallOrderedHashMap> NewSmallOrderedHashMap(
+      int size = SmallOrderedHashMap::kMinCapacity,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
