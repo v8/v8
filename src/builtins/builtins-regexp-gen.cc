@@ -291,15 +291,23 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
     CSA_ASSERT(this, TaggedIsNotSmi(data));
     CSA_ASSERT(this, HasInstanceType(data, FIXED_ARRAY_TYPE));
 
-    // Dispatch on the type of the RegExp. The common case (IRREGEXP) is first.
-    // NOT_COMPILED is last as it requires a slow runtime call anyway.
+    // Dispatch on the type of the RegExp.
     {
-      Label next(this);
-      Node* const tag = LoadFixedArrayElement(data, JSRegExp::kTagIndex);
-      GotoIf(SmiEqual(tag, SmiConstant(JSRegExp::IRREGEXP)), &next);
-      GotoIf(SmiEqual(tag, SmiConstant(JSRegExp::ATOM)), &atom);
-      CSA_ASSERT(this, SmiEqual(tag, SmiConstant(JSRegExp::NOT_COMPILED)));
-      Goto(&runtime);
+      Label next(this), unreachable(this, Label::kDeferred);
+      Node* const tag = LoadAndUntagToWord32FixedArrayElement(
+          data, IntPtrConstant(JSRegExp::kTagIndex));
+
+      int32_t values[] = {
+          JSRegExp::IRREGEXP, JSRegExp::ATOM, JSRegExp::NOT_COMPILED,
+      };
+      Label* labels[] = {&next, &atom, &runtime};
+
+      STATIC_ASSERT(arraysize(values) == arraysize(labels));
+      Switch(tag, &unreachable, values, labels, arraysize(values));
+
+      BIND(&unreachable);
+      Unreachable();
+
       BIND(&next);
     }
 
@@ -543,6 +551,8 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
   BIND(&atom);
   {
+    // TODO(jgruber): A call with 4 args stresses register allocation, this
+    // should probably just be inlined.
     Node* const result = CallBuiltin(Builtins::kRegExpExecAtom, context, regexp,
                                      string, last_index, match_info);
     var_result.Bind(result);
