@@ -6,6 +6,7 @@
 #define V8_ATOMIC_UTILS_H_
 
 #include <limits.h>
+#include <type_traits>
 
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
@@ -265,19 +266,23 @@ class AsAtomic32 {
   }
 
   template <typename T>
-  static void Release_Store(T* addr, T new_value) {
+  static void Release_Store(T* addr,
+                            typename std::remove_reference<T>::type new_value) {
     STATIC_ASSERT(sizeof(T) <= sizeof(base::Atomic32));
     base::Release_Store(to_storage_addr(addr), to_storage_type(new_value));
   }
 
   template <typename T>
-  static void Relaxed_Store(T* addr, T new_value) {
+  static void Relaxed_Store(T* addr,
+                            typename std::remove_reference<T>::type new_value) {
     STATIC_ASSERT(sizeof(T) <= sizeof(base::Atomic32));
     base::Relaxed_Store(to_storage_addr(addr), to_storage_type(new_value));
   }
 
   template <typename T>
-  static T Release_CompareAndSwap(T* addr, T old_value, T new_value) {
+  static T Release_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
     STATIC_ASSERT(sizeof(T) <= sizeof(base::Atomic32));
     return to_return_type<T>(base::Release_CompareAndSwap(
         to_storage_addr(addr), to_storage_type(old_value),
@@ -330,19 +335,23 @@ class AsAtomicWord {
   }
 
   template <typename T>
-  static void Release_Store(T* addr, T new_value) {
+  static void Release_Store(T* addr,
+                            typename std::remove_reference<T>::type new_value) {
     STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
     base::Release_Store(to_storage_addr(addr), to_storage_type(new_value));
   }
 
   template <typename T>
-  static void Relaxed_Store(T* addr, T new_value) {
-    STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
+  static void Relaxed_Store(T* addr,
+                            typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(base::Atomic32));
     base::Relaxed_Store(to_storage_addr(addr), to_storage_type(new_value));
   }
 
   template <typename T>
-  static T Release_CompareAndSwap(T* addr, T old_value, T new_value) {
+  static T Release_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
     STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
     return to_return_type<T>(base::Release_CompareAndSwap(
         to_storage_addr(addr), to_storage_type(old_value),

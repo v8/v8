@@ -1535,9 +1535,11 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
                        p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-        RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
+            Page::FromAddress(slot), slot);
       } else if (p->IsEvacuationCandidate()) {
-        RememberedSet<OLD_TO_OLD>::Insert(Page::FromAddress(slot), slot);
+        RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
+            Page::FromAddress(slot), slot);
       }
     }
   }
@@ -1635,9 +1637,11 @@ class YoungGenerationRecordMigratedSlotVisitor final
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
                        p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-        RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
+            Page::FromAddress(slot), slot);
       } else if (p->IsEvacuationCandidate() && IsLive(host)) {
-        RememberedSet<OLD_TO_OLD>::Insert(Page::FromAddress(slot), slot);
+        RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
+            Page::FromAddress(slot), slot);
       }
     }
   }

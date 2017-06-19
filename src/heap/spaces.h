@@ -447,14 +447,18 @@ class MemoryChunk {
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
-  template <RememberedSetType type>
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
-    return slot_set_[type].Value();
+    if (access_mode == AccessMode::ATOMIC)
+      return base::AsAtomicWord::Acquire_Load(&slot_set_[type]);
+    return slot_set_[type];
   }
 
-  template <RememberedSetType type>
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   TypedSlotSet* typed_slot_set() {
-    return typed_slot_set_[type].Value();
+    if (access_mode == AccessMode::ATOMIC)
+      return base::AsAtomicWord::Acquire_Load(&typed_slot_set_[type]);
+    return typed_slot_set_[type];
   }
 
   inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
@@ -618,9 +622,8 @@ class MemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
-  base::AtomicValue<SlotSet*> slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
-  base::AtomicValue<TypedSlotSet*>
-      typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   SkipList* skip_list_;
 

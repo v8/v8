@@ -21,14 +21,16 @@ class RememberedSet : public AllStatic {
  public:
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
+  template <AccessMode access_mode = AccessMode::ATOMIC>
   static void Insert(MemoryChunk* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
-    SlotSet* slot_set = chunk->slot_set<type>();
+    SlotSet* slot_set = chunk->slot_set<type, access_mode>();
     if (slot_set == nullptr) {
       slot_set = chunk->AllocateSlotSet<type>();
     }
     uintptr_t offset = slot_addr - chunk->address();
-    slot_set[offset / Page::kPageSize].Insert(offset % Page::kPageSize);
+    slot_set[offset / Page::kPageSize].Insert<access_mode>(offset %
+                                                           Page::kPageSize);
   }
 
   // Given a page and a slot in that page, this function returns true if

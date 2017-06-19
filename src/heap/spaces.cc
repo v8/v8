@@ -536,10 +536,12 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->flags_ = Flags(NO_FLAGS);
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
-  chunk->slot_set_[OLD_TO_NEW].SetValue(nullptr);
-  chunk->slot_set_[OLD_TO_OLD].SetValue(nullptr);
-  chunk->typed_slot_set_[OLD_TO_NEW].SetValue(nullptr);
-  chunk->typed_slot_set_[OLD_TO_OLD].SetValue(nullptr);
+  base::AsAtomicWord::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
+  base::AsAtomicWord::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
+  base::AsAtomicWord::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
+                                    nullptr);
+  base::AsAtomicWord::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
+                                    nullptr);
   chunk->skip_list_ = nullptr;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
@@ -1232,12 +1234,13 @@ template SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
   SlotSet* slot_set = AllocateAndInitializeSlotSet(size_, address());
-  if (!slot_set_[type].TrySetValue(nullptr, slot_set)) {
+  SlotSet* old_slot_set = base::AsAtomicWord::Release_CompareAndSwap(
+      &slot_set_[type], nullptr, slot_set);
+  if (old_slot_set != nullptr) {
     delete[] slot_set;
-    slot_set = slot_set_[type].Value();
-    DCHECK(slot_set);
-    return slot_set;
+    slot_set = old_slot_set;
   }
+  DCHECK(slot_set);
   return slot_set;
 }
 
@@ -1246,10 +1249,10 @@ template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
-  SlotSet* slot_set = slot_set_[type].Value();
+  SlotSet* slot_set = base::AsAtomicWord::Acquire_Load(&slot_set_[type]);
   if (slot_set) {
     delete[] slot_set;
-    slot_set_[type].SetValue(nullptr);
+    base::AsAtomicWord::Release_Store(&slot_set_[type], nullptr);
   }
 }
 
@@ -1258,14 +1261,15 @@ template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
-  TypedSlotSet* slot_set = new TypedSlotSet(address());
-  if (!typed_slot_set_[type].TrySetValue(nullptr, slot_set)) {
-    delete slot_set;
-    slot_set = typed_slot_set_[type].Value();
-    DCHECK(slot_set);
-    return slot_set;
+  TypedSlotSet* typed_slot_set = new TypedSlotSet(address());
+  TypedSlotSet* old_value = base::AsAtomicWord::Release_CompareAndSwap(
+      &typed_slot_set_[type], nullptr, typed_slot_set);
+  if (old_value != nullptr) {
+    delete typed_slot_set;
+    typed_slot_set = old_value;
   }
-  return slot_set;
+  DCHECK(typed_slot_set);
+  return typed_slot_set;
 }
 
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW>();
@@ -1273,10 +1277,11 @@ template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseTypedSlotSet() {
-  TypedSlotSet* typed_slot_set = typed_slot_set_[type].Value();
+  TypedSlotSet* typed_slot_set =
+      base::AsAtomicWord::Acquire_Load(&typed_slot_set_[type]);
   if (typed_slot_set) {
     delete typed_slot_set;
-    typed_slot_set_[type].SetValue(nullptr);
+    base::AsAtomicWord::Release_Store(&typed_slot_set_[type], nullptr);
   }
 }
 

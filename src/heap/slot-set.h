@@ -52,17 +52,21 @@ class SlotSet : public Malloced {
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   // This method should only be called on the main thread because concurrent
   // allocation of the bucket is not thread-safe.
+  //
+  // AccessMode defines whether there can be concurrent access on the buckets
+  // or not.
+  template <AccessMode access_mode = AccessMode::ATOMIC>
   void Insert(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+    Bucket bucket = LoadBucket<access_mode>(&buckets_[bucket_index]);
     if (bucket == nullptr) {
       bucket = AllocateBucket();
-      StoreBucket(&buckets_[bucket_index], bucket);
+      StoreBucket<access_mode>(&buckets_[bucket_index], bucket);
     }
     uint32_t mask = 1u << bit_index;
-    if ((LoadCell(&bucket[cell_index]) & mask) == 0) {
-      SetCellBits(&bucket[cell_index], mask);
+    if ((LoadCell<access_mode>(&bucket[cell_index]) & mask) == 0) {
+      SetCellBits<access_mode>(&bucket[cell_index], mask);
     }
   }
 
@@ -267,16 +271,27 @@ class SlotSet : public Malloced {
     DeleteArray<uint32_t>(bucket);
   }
 
+  template <AccessMode access_mode = AccessMode::ATOMIC>
   Bucket LoadBucket(Bucket* bucket) {
-    return base::AsAtomicWord::Acquire_Load(bucket);
+    if (access_mode == AccessMode::ATOMIC)
+      return base::AsAtomicWord::Acquire_Load(bucket);
+    return *bucket;
   }
 
-  void StoreBucket(Bucket* bucket, uint32_t* value) {
-    base::AsAtomicWord::Release_Store(bucket, value);
+  template <AccessMode access_mode = AccessMode::ATOMIC>
+  void StoreBucket(Bucket* bucket, Bucket value) {
+    if (access_mode == AccessMode::ATOMIC) {
+      base::AsAtomicWord::Release_Store(bucket, value);
+    } else {
+      *bucket = value;
+    }
   }
 
+  template <AccessMode access_mode = AccessMode::ATOMIC>
   uint32_t LoadCell(uint32_t* cell) {
-    return base::AsAtomic32::Acquire_Load(cell);
+    if (access_mode == AccessMode::ATOMIC)
+      return base::AsAtomic32::Acquire_Load(cell);
+    return *cell;
   }
 
   void StoreCell(uint32_t* cell, uint32_t value) {
@@ -287,8 +302,13 @@ class SlotSet : public Malloced {
     base::AsAtomic32::SetBits(cell, 0u, mask);
   }
 
+  template <AccessMode access_mode = AccessMode::ATOMIC>
   void SetCellBits(uint32_t* cell, uint32_t mask) {
-    base::AsAtomic32::SetBits(cell, mask, mask);
+    if (access_mode == AccessMode::ATOMIC) {
+      base::AsAtomic32::SetBits(cell, mask, mask);
+    } else {
+      *cell = (*cell & ~mask) | mask;
+    }
   }
 
   // Converts the slot offset into bucket/cell/bit index.
