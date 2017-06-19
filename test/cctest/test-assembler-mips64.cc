@@ -5071,6 +5071,9 @@ uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
@@ -5123,8 +5126,10 @@ TEST(li_macro) {
       {0x00000001fffffffe, 4, 2},  // max_uint32 << 1
       // r2 - lui + ori + dsll + ori
       // r6 - daddiu + dahi
-      {0x0000fffffffffffe, 5, 2},  // max_uint48 - 1
-      // r2 - ori + dsll + ori + dsll + ori
+      {0x0000fffffffffffe, 4, 2},  // max_uint48 - 1
+      // r2 - daddiu + dsll32 + ori + dsubu
+      // Loading imm directly would require ori + dsll + ori + dsll + ori.
+      // Optimized by loading -imm and using dsubu to get imm.
       // r6 - daddiu + dati
       {0xffffffff00000000, 2, 2},  // max_uint32 << 32
       // r2 - daddiu + dsll32
@@ -5151,6 +5156,9 @@ TEST(li_macro) {
       {0xffff8000ffff0000, 3, 2},
       // r2 - lui + ori + dsll
       // r6 - lui + dahi
+      {0x0000ffffffff0000, 4, 2},
+      // r2 - ori + dsll + ori + dsll
+      // r6 - lui + dati
       {0x1234ffff80000000, 3, 2},
       // r2 - lui + ori + dsll
       // r6 - lui + dati
@@ -5160,8 +5168,10 @@ TEST(li_macro) {
       {0xffff8000ffff8000, 2, 2},
       // r2 - daddiu + dinsu
       // r6 - daddiu + dahi
-      {0xffff0000ffff8000, 5, 3},
-      // r2 - lui + dsll + ori + dsll + ori
+      {0xffff0000ffff8000, 4, 3},
+      // r2 - ori + dsll32 + ori + dsubu
+      // Loading imm directly would require lui + dsll + ori + dsll + ori.
+      // Optimized by loading -imm and using dsubu to get imm.
       // r6 - daddiu + dahi + dati
       {0x8000000080000000, 2, 2},
       // lui + dinsu
@@ -5180,11 +5190,15 @@ TEST(li_macro) {
       {0x1ffffabcd, 4, 2},
       // r2 - lui + ori + dsll + ori
       // r6 - daddiu + dahi
-      {0xffffffffabcd, 5, 2},
-      // r2 - ori + dsll + ori + dsll + ori
+      {0xffffffffabcd, 4, 2},
+      // r2 - daddiu + dsll32 + ori + dsubu
+      // Loading imm directly would require ori + dsll + ori + dsll + ori.
+      // Optimized by loading -imm and using dsubu to get imm.
       // r6 - daddiu + dati
-      {0x1ffffffffabcd, 6, 2},
-      // r2 - lui + ori + dsll + ori + dsll + ori
+      {0x1ffffffffabcd, 4, 2},
+      // r2 - daddiu + dsll32 + ori + dsubu
+      // Loading imm directly would require lui + ori + dsll + ori + dsll + ori.
+      // Optimized by loading -imm and using dsubu to get imm.
       // r6 - daddiu + dati
       {0xffff7fff80010000, 5, 2},
       // r2 - lui + ori + dsll + ori + dsll
@@ -5209,6 +5223,12 @@ TEST(li_macro) {
       // r2 - lui + ori + dsll + ori + dsll + ori instruction sequence,
       // r6 - lui + ori + dahi + dati.
       // Load using full instruction sequence.
+      {0xffff0000ffffffff, 3, 3},
+      // r2 - ori + dsll32 + nor
+      // Loading imm directly would require lui + dsll + ori + dsll + ori.
+      // Optimized by loading ~imm and using nor to get imm. Loading -imm would
+      // require one instruction more.
+      // r6 - daddiu + dahi + dati
   };
 
   size_t nr_test_cases = sizeof(tc) / sizeof(TestCase_li);
@@ -6199,6 +6219,9 @@ uint64_t run_Subu(uint64_t imm, int32_t num_instr) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
@@ -6278,6 +6301,9 @@ uint64_t run_Dsubu(uint64_t imm, int32_t num_instr) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
@@ -6341,6 +6367,12 @@ TEST(Dsubu) {
       // r6 - ori + dati + dsubu.
       // The result of 0 - min_int64 eqauls max_int64 + 1, which wraps around to
       // min_int64 again.
+      {0xffff0000ffffffff, 0x0000ffff00000001, 4},
+      // The test case above generates:
+      // r2 - ori + dsrl32 + ori + daddu instruction sequence,
+      // r6 - daddiu + dahi + dati + dsubu.
+      // For r2 loading imm would take more instructions than loading -imm so we
+      // can load -imm and add with daddu.
   };
 
   size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDsubu);

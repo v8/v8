@@ -740,6 +740,8 @@ class MacroAssembler: public Assembler {
 
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
+  void li_optimized(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
+  static int InstrCountForLi64Bit(int64_t value);
   inline void LiLower32BitHelper(Register rd, Operand j);
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);

@@ -658,16 +658,17 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
       addiu(rd, rs,
             static_cast<int32_t>(
                 -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
-    } else if (-rt.imm64_ >> 16 == 0 && !MustUseReg(rt.rmode_)) {
-      // Use load -imm and addu when loading -imm generates one instruction.
-      DCHECK(!rs.is(at));
-      li(at, -rt.imm64_);
-      addu(rd, rs, at);
     } else {
-      // li handles the relocation.
       DCHECK(!rs.is(at));
-      li(at, rt);
-      subu(rd, rs, at);
+      if (-rt.imm64_ >> 16 == 0 && !MustUseReg(rt.rmode_)) {
+        // Use load -imm and addu when loading -imm generates one instruction.
+        li(at, -rt.imm64_);
+        addu(rd, rs, at);
+      } else {
+        // li handles the relocation.
+        li(at, rt);
+        subu(rd, rs, at);
+      }
     }
   }
 }
@@ -676,19 +677,21 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
 void MacroAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     dsubu(rd, rs, rt.rm());
+  } else if (is_int16(-rt.imm64_) && !MustUseReg(rt.rmode_)) {
+    daddiu(rd, rs,
+           static_cast<int32_t>(
+               -rt.imm64_));  // No dsubiu instr, use daddiu(x, y, -imm).
   } else {
-    if (is_int16(-rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      daddiu(rd, rs,
-             static_cast<int32_t>(
-                 -rt.imm64_));  // No dsubiu instr, use daddiu(x, y, -imm).
-    } else if (-rt.imm64_ >> 16 == 0 && !MustUseReg(rt.rmode_)) {
+    DCHECK(!rs.is(at));
+    int li_count = InstrCountForLi64Bit(rt.imm64_);
+    int li_neg_count = InstrCountForLi64Bit(-rt.imm64_);
+    if (li_neg_count < li_count && !MustUseReg(rt.rmode_)) {
       // Use load -imm and daddu when loading -imm generates one instruction.
-      DCHECK(!rs.is(at));
-      li(at, -rt.imm64_);
-      daddu(rd, rs, at);
+      DCHECK(rt.imm64_ != std::numeric_limits<int32_t>::min());
+      li(at, Operand(-rt.imm64_));
+      Daddu(rd, rs, at);
     } else {
       // li handles the relocation.
-      DCHECK(!rs.is(at));
       li(at, rt);
       dsubu(rd, rs, at);
     }
@@ -1710,6 +1713,15 @@ void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
+static inline int InstrCountForLiLower32Bit(int64_t value) {
+  if (!is_int16(static_cast<int32_t>(value)) && (value & kUpper16MaskOf64) &&
+      (value & kImm16Mask)) {
+    return 2;
+  } else {
+    return 1;
+  }
+}
+
 void MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
   if (is_int16(static_cast<int32_t>(j.imm64_))) {
     daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
@@ -1734,179 +1746,292 @@ static inline int InstrCountForLoadReplicatedConst32(int64_t value) {
   return INT_MAX;
 }
 
-void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
-  DCHECK(!j.is_reg());
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
-    // Normal load of an immediate value which does not need Relocation Info.
-    if (is_int32(j.imm64_)) {
-      LiLower32BitHelper(rd, j);
+int MacroAssembler::InstrCountForLi64Bit(int64_t value) {
+  if (is_int32(value)) {
+    return InstrCountForLiLower32Bit(value);
+  } else {
+    int bit31 = value >> 31 & 0x1;
+    if ((value & kUpper16MaskOf64) == 0 && is_int16(value >> 32) &&
+        kArchVariant == kMips64r6) {
+      return 2;
+    } else if ((value & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
+               kArchVariant == kMips64r6) {
+      return 2;
+    } else if ((value & kImm16Mask) == 0 && is_int16((value >> 32) + bit31) &&
+               kArchVariant == kMips64r6) {
+      return 2;
+    } else if ((value & kImm16Mask) == 0 &&
+               ((value >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+               kArchVariant == kMips64r6) {
+      return 2;
+    } else if (is_int16(static_cast<int32_t>(value)) &&
+               is_int16((value >> 32) + bit31) && kArchVariant == kMips64r6) {
+      return 2;
+    } else if (is_int16(static_cast<int32_t>(value)) &&
+               ((value >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+               kArchVariant == kMips64r6) {
+      return 2;
+    } else if (base::bits::IsPowerOfTwo64(value + 1)) {
+      return 2;
     } else {
-      int bit31 = j.imm64_ >> 31 & 0x1;
-      int rep32_count = InstrCountForLoadReplicatedConst32(j.imm64_);
-      if ((j.imm64_ & kUpper16MaskOf64) == 0 && is_int16(j.imm64_ >> 32) &&
-          kArchVariant == kMips64r6) {
-        // 64-bit value which consists of an unsigned 16-bit value in its
-        // least significant 32-bits, and a signed 16-bit value in its
-        // most significant 32-bits.
-        ori(rd, zero_reg, j.imm64_ & kImm16Mask);
-        dahi(rd, j.imm64_ >> 32 & kImm16Mask);
-      } else if ((j.imm64_ & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
-                 kArchVariant == kMips64r6) {
-        // 64-bit value which consists of an unsigned 16-bit value in its
-        // least significant 48-bits, and a signed 16-bit value in its
-        // most significant 16-bits.
-        ori(rd, zero_reg, j.imm64_ & kImm16Mask);
-        dati(rd, j.imm64_ >> 48 & kImm16Mask);
-      } else if ((j.imm64_ & kImm16Mask) == 0 &&
-                 is_int16((j.imm64_ >> 32) + bit31) &&
-                 kArchVariant == kMips64r6) {
-        // 16 LSBs (Least Significant Bits) all set to zero.
-        // 48 MSBs (Most Significant Bits) hold a signed 32-bit value.
-        lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-        dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
-      } else if ((j.imm64_ & kImm16Mask) == 0 &&
-                 ((j.imm64_ >> 31) & 0x1ffff) ==
-                     ((0x20000 - bit31) & 0x1ffff) &&
-                 kArchVariant == kMips64r6) {
-        // 16 LSBs all set to zero.
-        // 48 MSBs hold a signed value which can't be represented by signed
-        // 32-bit number, and the middle 16 bits are all zero, or all one.
-        lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-        dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
-      } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
-                 is_int16((j.imm64_ >> 32) + bit31) &&
-                 kArchVariant == kMips64r6) {
-        // 32 LSBs contain a signed 16-bit number.
-        // 32 MSBs contain a signed 16-bit number.
-        daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
-        dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
-      } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
-                 ((j.imm64_ >> 31) & 0x1ffff) ==
-                     ((0x20000 - bit31) & 0x1ffff) &&
-                 kArchVariant == kMips64r6) {
-        // 48 LSBs contain an unsigned 16-bit number.
-        // 16 MSBs contain a signed 16-bit number.
-        daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
-        dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
-      } else if (base::bits::IsPowerOfTwo64(j.imm64_ + 1)) {
-        // 64-bit values which have their "n" MSBs set to one, and their
-        // "64-n" LSBs set to zero. "n" must meet the restrictions 0 < n < 64.
-        int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.imm64_ + 1);
-        daddiu(rd, zero_reg, -1);
-        if (shift_cnt < 32) {
-          dsrl(rd, rd, shift_cnt);
+      int shift_cnt = base::bits::CountTrailingZeros64(value);
+      int rep32_count = InstrCountForLoadReplicatedConst32(value);
+      int64_t tmp = value >> shift_cnt;
+      if (is_uint16(tmp)) {
+        return 2;
+      } else if (is_int16(tmp)) {
+        return 2;
+      } else if (rep32_count < 3) {
+        return 2;
+      } else if (is_int32(tmp)) {
+        return 3;
+      } else {
+        shift_cnt = 16 + base::bits::CountTrailingZeros64(value >> 16);
+        tmp = value >> shift_cnt;
+        if (is_uint16(tmp)) {
+          return 3;
+        } else if (is_int16(tmp)) {
+          return 3;
+        } else if (rep32_count < 4) {
+          return 3;
+        } else if (kArchVariant == kMips64r6) {
+          int64_t imm = value;
+          int count = InstrCountForLiLower32Bit(imm);
+          imm = (imm >> 32) + bit31;
+          if (imm & kImm16Mask) {
+            count++;
+          }
+          imm = (imm >> 16) + (imm >> 15 & 0x1);
+          if (imm & kImm16Mask) {
+            count++;
+          }
+          return count;
         } else {
-          dsrl32(rd, rd, shift_cnt & 31);
+          if (is_int48(value)) {
+            int64_t k = value >> 16;
+            int count = InstrCountForLiLower32Bit(k) + 1;
+            if (value & kImm16Mask) {
+              count++;
+            }
+            return count;
+          } else {
+            int64_t k = value >> 32;
+            int count = InstrCountForLiLower32Bit(k);
+            if ((value >> 16) & kImm16Mask) {
+              count += 3;
+              if (value & kImm16Mask) {
+                count++;
+              }
+            } else {
+              count++;
+              if (value & kImm16Mask) {
+                count++;
+              }
+            }
+            return count;
+          }
+        }
+      }
+    }
+  }
+  UNREACHABLE();
+  return INT_MAX;
+}
+
+void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
+  DCHECK(!j.is_reg());
+  DCHECK(!MustUseReg(j.rmode_));
+  DCHECK(mode == OPTIMIZE_SIZE);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  // Normal load of an immediate value which does not need Relocation Info.
+  if (is_int32(j.imm64_)) {
+    LiLower32BitHelper(rd, j);
+  } else {
+    int bit31 = j.imm64_ >> 31 & 0x1;
+    if ((j.imm64_ & kUpper16MaskOf64) == 0 && is_int16(j.imm64_ >> 32) &&
+        kArchVariant == kMips64r6) {
+      // 64-bit value which consists of an unsigned 16-bit value in its
+      // least significant 32-bits, and a signed 16-bit value in its
+      // most significant 32-bits.
+      ori(rd, zero_reg, j.imm64_ & kImm16Mask);
+      dahi(rd, j.imm64_ >> 32 & kImm16Mask);
+    } else if ((j.imm64_ & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
+               kArchVariant == kMips64r6) {
+      // 64-bit value which consists of an unsigned 16-bit value in its
+      // least significant 48-bits, and a signed 16-bit value in its
+      // most significant 16-bits.
+      ori(rd, zero_reg, j.imm64_ & kImm16Mask);
+      dati(rd, j.imm64_ >> 48 & kImm16Mask);
+    } else if ((j.imm64_ & kImm16Mask) == 0 &&
+               is_int16((j.imm64_ >> 32) + bit31) &&
+               kArchVariant == kMips64r6) {
+      // 16 LSBs (Least Significant Bits) all set to zero.
+      // 48 MSBs (Most Significant Bits) hold a signed 32-bit value.
+      lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
+      dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
+    } else if ((j.imm64_ & kImm16Mask) == 0 &&
+               ((j.imm64_ >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+               kArchVariant == kMips64r6) {
+      // 16 LSBs all set to zero.
+      // 48 MSBs hold a signed value which can't be represented by signed
+      // 32-bit number, and the middle 16 bits are all zero, or all one.
+      lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
+      dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
+    } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
+               is_int16((j.imm64_ >> 32) + bit31) &&
+               kArchVariant == kMips64r6) {
+      // 32 LSBs contain a signed 16-bit number.
+      // 32 MSBs contain a signed 16-bit number.
+      daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
+      dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
+    } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
+               ((j.imm64_ >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+               kArchVariant == kMips64r6) {
+      // 48 LSBs contain an unsigned 16-bit number.
+      // 16 MSBs contain a signed 16-bit number.
+      daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
+      dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
+    } else if (base::bits::IsPowerOfTwo64(j.imm64_ + 1)) {
+      // 64-bit values which have their "n" MSBs set to one, and their
+      // "64-n" LSBs set to zero. "n" must meet the restrictions 0 < n < 64.
+      int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.imm64_ + 1);
+      daddiu(rd, zero_reg, -1);
+      if (shift_cnt < 32) {
+        dsrl(rd, rd, shift_cnt);
+      } else {
+        dsrl32(rd, rd, shift_cnt & 31);
+      }
+    } else {
+      int shift_cnt = base::bits::CountTrailingZeros64(j.imm64_);
+      int rep32_count = InstrCountForLoadReplicatedConst32(j.imm64_);
+      int64_t tmp = j.imm64_ >> shift_cnt;
+      if (is_uint16(tmp)) {
+        // Value can be computed by loading a 16-bit unsigned value, and
+        // then shifting left.
+        ori(rd, zero_reg, tmp & kImm16Mask);
+        if (shift_cnt < 32) {
+          dsll(rd, rd, shift_cnt);
+        } else {
+          dsll32(rd, rd, shift_cnt & 31);
+        }
+      } else if (is_int16(tmp)) {
+        // Value can be computed by loading a 16-bit signed value, and
+        // then shifting left.
+        daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
+        if (shift_cnt < 32) {
+          dsll(rd, rd, shift_cnt);
+        } else {
+          dsll32(rd, rd, shift_cnt & 31);
+        }
+      } else if (rep32_count < 3) {
+        // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
+        // value loaded into the 32 LSBs can be loaded with a single
+        // MIPS instruction.
+        LiLower32BitHelper(rd, j);
+        Dins(rd, rd, 32, 32);
+      } else if (is_int32(tmp)) {
+        // Loads with 3 instructions.
+        // Value can be computed by loading a 32-bit signed value, and
+        // then shifting left.
+        lui(rd, tmp >> kLuiShift & kImm16Mask);
+        ori(rd, rd, tmp & kImm16Mask);
+        if (shift_cnt < 32) {
+          dsll(rd, rd, shift_cnt);
+        } else {
+          dsll32(rd, rd, shift_cnt & 31);
         }
       } else {
-        int shift_cnt = base::bits::CountTrailingZeros64(j.imm64_);
-        int64_t tmp = j.imm64_ >> shift_cnt;
+        shift_cnt = 16 + base::bits::CountTrailingZeros64(j.imm64_ >> 16);
+        tmp = j.imm64_ >> shift_cnt;
         if (is_uint16(tmp)) {
-          // Value can be computed by loading a 16-bit unsigned value, and
-          // then shifting left.
+          // Value can be computed by loading a 16-bit unsigned value,
+          // shifting left, and "or"ing in another 16-bit unsigned value.
           ori(rd, zero_reg, tmp & kImm16Mask);
           if (shift_cnt < 32) {
             dsll(rd, rd, shift_cnt);
           } else {
             dsll32(rd, rd, shift_cnt & 31);
           }
+          ori(rd, rd, j.imm64_ & kImm16Mask);
         } else if (is_int16(tmp)) {
-          // Value can be computed by loading a 16-bit signed value, and
-          // then shifting left.
+          // Value can be computed by loading a 16-bit signed value,
+          // shifting left, and "or"ing in a 16-bit unsigned value.
           daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
           if (shift_cnt < 32) {
             dsll(rd, rd, shift_cnt);
           } else {
             dsll32(rd, rd, shift_cnt & 31);
           }
-        } else if (rep32_count < 3) {
+          ori(rd, rd, j.imm64_ & kImm16Mask);
+        } else if (rep32_count < 4) {
           // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
-          // value loaded into the 32 LSBs can be loaded with a single
-          // MIPS instruction.
+          // value in the 32 LSBs requires 2 MIPS instructions to load.
           LiLower32BitHelper(rd, j);
           Dins(rd, rd, 32, 32);
-        } else if (is_int32(tmp)) {
-          // Loads with 3 instructions.
-          // Value can be computed by loading a 32-bit signed value, and
-          // then shifting left.
-          lui(rd, tmp >> kLuiShift & kImm16Mask);
-          ori(rd, rd, tmp & kImm16Mask);
-          if (shift_cnt < 32) {
-            dsll(rd, rd, shift_cnt);
-          } else {
-            dsll32(rd, rd, shift_cnt & 31);
+        } else if (kArchVariant == kMips64r6) {
+          // Loads with 3-4 instructions.
+          // Catch-all case to get any other 64-bit values which aren't
+          // handled by special cases above.
+          int64_t imm = j.imm64_;
+          LiLower32BitHelper(rd, j);
+          imm = (imm >> 32) + bit31;
+          if (imm & kImm16Mask) {
+            dahi(rd, imm & kImm16Mask);
+          }
+          imm = (imm >> 16) + (imm >> 15 & 0x1);
+          if (imm & kImm16Mask) {
+            dati(rd, imm & kImm16Mask);
           }
         } else {
-          shift_cnt = 16 + base::bits::CountTrailingZeros64(j.imm64_ >> 16);
-          tmp = j.imm64_ >> shift_cnt;
-          if (is_uint16(tmp)) {
-            // Value can be computed by loading a 16-bit unsigned value,
-            // shifting left, and "or"ing in another 16-bit unsigned value.
-            ori(rd, zero_reg, tmp & kImm16Mask);
-            if (shift_cnt < 32) {
-              dsll(rd, rd, shift_cnt);
-            } else {
-              dsll32(rd, rd, shift_cnt & 31);
-            }
-            ori(rd, rd, j.imm64_ & kImm16Mask);
-          } else if (is_int16(tmp)) {
-            // Value can be computed by loading a 16-bit signed value,
-            // shifting left, and "or"ing in a 16-bit unsigned value.
-            daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
-            if (shift_cnt < 32) {
-              dsll(rd, rd, shift_cnt);
-            } else {
-              dsll32(rd, rd, shift_cnt & 31);
-            }
-            ori(rd, rd, j.imm64_ & kImm16Mask);
-          } else if (rep32_count < 4) {
-            // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
-            // value in the 32 LSBs requires 2 MIPS instructions to load.
-            LiLower32BitHelper(rd, j);
-            Dins(rd, rd, 32, 32);
-          } else if (kArchVariant == kMips64r6) {
-            // Loads with 3-4 instructions.
-            // Catch-all case to get any other 64-bit values which aren't
-            // handled by special cases above.
-            int64_t imm = j.imm64_;
-            LiLower32BitHelper(rd, j);
-            imm = (imm >> 32) + bit31;
-            if (imm & kImm16Mask) {
-              dahi(rd, imm & kImm16Mask);
-            }
-            imm = (imm >> 16) + (imm >> 15 & 0x1);
-            if (imm & kImm16Mask) {
-              dati(rd, imm & kImm16Mask);
+          if (is_int48(j.imm64_)) {
+            Operand k = Operand(j.imm64_ >> 16);
+            LiLower32BitHelper(rd, k);
+            dsll(rd, rd, 16);
+            if (j.imm64_ & kImm16Mask) {
+              ori(rd, rd, j.imm64_ & kImm16Mask);
             }
           } else {
-            if (is_int48(j.imm64_)) {
-              Operand k = Operand(j.imm64_ >> 16);
-              LiLower32BitHelper(rd, k);
+            Operand k = Operand(j.imm64_ >> 32);
+            LiLower32BitHelper(rd, k);
+            if ((j.imm64_ >> 16) & kImm16Mask) {
+              dsll(rd, rd, 16);
+              ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
               dsll(rd, rd, 16);
               if (j.imm64_ & kImm16Mask) {
                 ori(rd, rd, j.imm64_ & kImm16Mask);
               }
             } else {
-              Operand k = Operand(j.imm64_ >> 32);
-              LiLower32BitHelper(rd, k);
-              if ((j.imm64_ >> 16) & kImm16Mask) {
-                dsll(rd, rd, 16);
-                ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-                dsll(rd, rd, 16);
-                if (j.imm64_ & kImm16Mask) {
-                  ori(rd, rd, j.imm64_ & kImm16Mask);
-                }
-              } else {
-                dsll32(rd, rd, 0);
-                if (j.imm64_ & kImm16Mask) {
-                  ori(rd, rd, j.imm64_ & kImm16Mask);
-                }
+              dsll32(rd, rd, 0);
+              if (j.imm64_ & kImm16Mask) {
+                ori(rd, rd, j.imm64_ & kImm16Mask);
               }
             }
           }
         }
       }
+    }
+  }
+}
+
+void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
+  DCHECK(!j.is_reg());
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
+    int li_count = InstrCountForLi64Bit(j.imm64_);
+    int li_neg_count = InstrCountForLi64Bit(-j.imm64_);
+    int li_not_count = InstrCountForLi64Bit(~j.imm64_);
+    // Loading -MIN_INT64 could cause problems, but loading MIN_INT64 takes only
+    // two instructions so no need to check for this.
+    if (li_neg_count <= li_not_count && li_neg_count < li_count - 1) {
+      DCHECK(j.imm64_ != std::numeric_limits<int64_t>::min());
+      li_optimized(rd, Operand(-j.imm64_), mode);
+      Dsubu(rd, zero_reg, rd);
+    } else if (li_neg_count > li_not_count && li_not_count < li_count - 1) {
+      DCHECK(j.imm64_ != std::numeric_limits<int64_t>::min());
+      li_optimized(rd, Operand(~j.imm64_), mode);
+      nor(rd, rd, rd);
+    } else {
+      li_optimized(rd, j, mode);
     }
   } else if (MustUseReg(j.rmode_)) {
     RecordRelocInfo(j.rmode_, j.imm64_);
