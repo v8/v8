@@ -94,17 +94,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
 
-  // Checks if we know at compile time that the {receiver} either definitely
-  // has the {prototype} in it's prototype chain, or the {receiver} definitely
-  // doesn't have the {prototype} in it's prototype chain.
-  enum InferHasInPrototypeChainResult {
-    kIsInPrototypeChain,
-    kIsNotInPrototypeChain,
-    kMayBeInPrototypeChain
-  };
-  InferHasInPrototypeChainResult InferHasInPrototypeChain(
-      Node* receiver, Node* effect, Handle<HeapObject> prototype);
-
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

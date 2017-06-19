@@ -1390,63 +1390,11 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   return NoChange();
 }
 
-JSTypedLowering::InferHasInPrototypeChainResult
-JSTypedLowering::InferHasInPrototypeChain(Node* receiver, Node* effect,
-                                          Handle<HeapObject> prototype) {
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
-
-  // Check if either all or none of the {receiver_maps} have the given
-  // {prototype} in their prototype chain.
-  bool all = true;
-  bool none = true;
-  for (size_t i = 0; i < receiver_maps.size(); ++i) {
-    Handle<Map> receiver_map = receiver_maps[i];
-    if (receiver_map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
-      return kMayBeInPrototypeChain;
-    }
-    if (result == NodeProperties::kUnreliableReceiverMaps) {
-      // In case of an unreliable {result} we need to ensure that all
-      // {receiver_maps} are stable, because otherwise we cannot trust
-      // the {receiver_maps} information, since arbitrary side-effects
-      // may have happened.
-      if (!receiver_map->is_stable()) {
-        return kMayBeInPrototypeChain;
-      }
-    }
-    for (PrototypeIterator j(receiver_map);; j.Advance()) {
-      if (j.IsAtEnd()) {
-        all = false;
-        break;
-      }
-      Handle<HeapObject> const current =
-          PrototypeIterator::GetCurrent<HeapObject>(j);
-      if (current.is_identical_to(prototype)) {
-        none = false;
-        break;
-      }
-      if (!current->map()->is_stable() ||
-          current->map()->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
-        return kMayBeInPrototypeChain;
-      }
-    }
-  }
-  DCHECK_IMPLIES(all, !none);
-  DCHECK_IMPLIES(none, !all);
-
-  if (all) return kIsInPrototypeChain;
-  if (none) return kIsNotInPrototypeChain;
-  return kMayBeInPrototypeChain;
-}
-
 Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   DCHECK_EQ(IrOpcode::kJSHasInPrototypeChain, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Type* value_type = NodeProperties::GetType(value);
   Node* prototype = NodeProperties::GetValueInput(node, 1);
-  Type* prototype_type = NodeProperties::GetType(prototype);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1458,18 +1406,6 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
     Node* value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
-  }
-
-  // Check if we can constant-fold the prototype chain walk
-  // for the given {value} and the {prototype}.
-  if (prototype_type->IsHeapConstant()) {
-    InferHasInPrototypeChainResult result = InferHasInPrototypeChain(
-        value, effect, prototype_type->AsHeapConstant()->Value());
-    if (result != kMayBeInPrototypeChain) {
-      Node* value = jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
-      ReplaceWithValue(node, value, effect, control);
-      return Replace(value);
-    }
   }
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
