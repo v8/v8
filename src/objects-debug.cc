@@ -687,11 +687,14 @@ void JSBoundFunction::JSBoundFunctionVerify() {
   VerifyObjectField(kBoundThisOffset);
   VerifyObjectField(kBoundTargetFunctionOffset);
   VerifyObjectField(kBoundArgumentsOffset);
-  CHECK(bound_target_function()->IsCallable());
   CHECK(IsCallable());
-  CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
-}
 
+  Isolate* const isolate = GetIsolate();
+  if (!raw_bound_target_function()->IsUndefined(isolate)) {
+    CHECK(bound_target_function()->IsCallable());
+    CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
+  }
+}
 
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());

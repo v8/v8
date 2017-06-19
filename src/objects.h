@@ -4947,6 +4947,7 @@ class Module : public Struct {
 class JSBoundFunction : public JSObject {
  public:
   // [bound_target_function]: The wrapped function object.
+  inline Object* raw_bound_target_function() const;
   DECL_ACCESSORS(bound_target_function, JSReceiver)
 
   // [bound_this]: The value that is always passed as the this value when

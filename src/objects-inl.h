@@ -4505,6 +4505,9 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
                         map->unused_property_fields());
 }
 
+Object* JSBoundFunction::raw_bound_target_function() const {
+  return READ_FIELD(this, kBoundTargetFunctionOffset);
+}
 
 ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
           kBoundTargetFunctionOffset)
