@@ -57,7 +57,6 @@
 namespace v8 {
 namespace internal {
 
-
 struct Heap::StrongRootsList {
   Object** start;
   Object** end;
@@ -86,7 +85,7 @@ Heap::Heap()
       // semispace_size_ should be a power of 2 and old_generation_size_ should
       // be a multiple of Page::kPageSize.
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
-      initial_semispace_size_(MB),
+      initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       initial_max_old_generation_size_(max_old_generation_size_),
       initial_old_generation_size_(max_old_generation_size_ /
@@ -5205,16 +5204,18 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
-                         size_t code_range_size) {
+bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
+                         size_t max_old_generation_size_in_mb,
+                         size_t code_range_size_in_mb) {
   if (HasBeenSetUp()) return false;
 
   // Overwrite default configuration.
-  if (max_semi_space_size != 0) {
-    max_semi_space_size_ = max_semi_space_size * MB;
+  if (max_semi_space_size_in_kb != 0) {
+    max_semi_space_size_ =
+        ROUND_UP(max_semi_space_size_in_kb * KB, Page::kPageSize);
   }
-  if (max_old_space_size != 0) {
-    max_old_generation_size_ = max_old_space_size * MB;
+  if (max_old_generation_size_in_mb != 0) {
+    max_old_generation_size_ = max_old_generation_size_in_mb * MB;
   }
 
   // If max space size flags are specified overwrite the configuration.
@@ -5285,7 +5286,7 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 
-  code_range_size_ = code_range_size * MB;
+  code_range_size_ = code_range_size_in_mb * MB;
 
   configured_ = true;
   return true;

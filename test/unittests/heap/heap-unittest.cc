@@ -61,12 +61,12 @@ TEST(Heap, MaxHeapGrowingFactor) {
 
 TEST(Heap, SemiSpaceSize) {
   uint64_t configurations[][2] = {
-      {0, 1 * i::Heap::kPointerMultiplier},
-      {512 * i::MB, 1 * i::Heap::kPointerMultiplier},
-      {1 * i::GB, 3 * i::Heap::kPointerMultiplier},
-      {2 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize},
-      {4 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize},
-      {8 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize}};
+      {0, i::Heap::kPointerMultiplier * (Page::kPageSize / KB)},
+      {512 * i::MB, i::Heap::kPointerMultiplier * (Page::kPageSize / KB)},
+      {1 * i::GB, i::Heap::kPointerMultiplier * (6 * Page::kPageSize / KB)},
+      {2 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSizeInKB},
+      {4 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSizeInKB},
+      {8 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSizeInKB}};
 
   for (auto configuration : configurations) {
     ASSERT_EQ(configuration[1],

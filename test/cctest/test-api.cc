@@ -20317,7 +20317,7 @@ class InitDefaultIsolateThread : public v8::base::Thread {
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     switch (testCase_) {
       case SetResourceConstraints: {
-        create_params.constraints.set_max_semi_space_size(1);
+        create_params.constraints.set_max_semi_space_size_in_kb(1024);
         create_params.constraints.set_max_old_space_size(6);
         break;
       }
