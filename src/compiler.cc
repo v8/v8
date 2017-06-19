@@ -418,18 +418,18 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   }
 }
 
-void InstallSharedScopeInfo(CompilationInfo* info,
-                            Handle<SharedFunctionInfo> shared) {
+void InstallUnoptimizedCode(CompilationInfo* info) {
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+
+  // Update the shared function info with the scope info.
   Handle<ScopeInfo> scope_info = info->scope()->scope_info();
   shared->set_scope_info(*scope_info);
   Scope* outer_scope = info->scope()->GetOuterScopeWithContext();
   if (outer_scope) {
     shared->set_outer_scope_info(*outer_scope->scope_info());
   }
-}
 
-void InstallSharedCompilationResult(CompilationInfo* info,
-                                    Handle<SharedFunctionInfo> shared) {
+  // Install compilation result on the shared function info.
   // TODO(mstarzinger): Compiling for debug code might be used to reveal inner
   // functions via {FindSharedFunctionInfoInScript}, in which case we end up
   // regenerating existing bytecode. Fix this!
@@ -442,16 +442,6 @@ void InstallSharedCompilationResult(CompilationInfo* info,
     DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
     shared->set_bytecode_array(*info->bytecode_array());
   }
-}
-
-void InstallUnoptimizedCode(CompilationInfo* info) {
-  Handle<SharedFunctionInfo> shared = info->shared_info();
-
-  // Update the shared function info with the scope info.
-  InstallSharedScopeInfo(info, shared);
-
-  // Install compilation result on the shared function info
-  InstallSharedCompilationResult(info, shared);
 
   // Install coverage info on the shared function info.
   if (info->has_coverage_info()) {
@@ -1414,36 +1404,8 @@ bool Compiler::EnsureBaselineCode(CompilationInfo* info) {
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
     CompilationInfo unoptimized(&compile_zone, info->parse_info(),
                                 info->isolate(), info->closure());
-
-    // When we call PrepareForSerializing below, we will change the shared
-    // ParseInfo. Make sure to reset it.
-    bool old_will_serialize_value = info->parse_info()->will_serialize();
-
-    // If the current code has reloc info for serialization, also include
-    // reloc info for serialization for the new code, so that deopt support
-    // can be added without losing IC state.
-    if (shared->code()->kind() == Code::FUNCTION &&
-        shared->code()->has_reloc_info_for_serialization()) {
-      unoptimized.PrepareForSerializing();
-    }
-    EnsureFeedbackMetadata(&unoptimized);
-
-    if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
-
-    info->parse_info()->set_will_serialize(old_will_serialize_value);
-
-    // The scope info might not have been set if a lazily compiled
-    // function is inlined before being called for the first time.
-    if (shared->scope_info() == ScopeInfo::Empty(info->isolate())) {
-      InstallSharedScopeInfo(info, shared);
-    }
-
-    // Install compilation result on the shared function info
-    shared->ReplaceCode(*unoptimized.code());
-
-    // The existing unoptimized code was replaced with the new one.
-    RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                              &unoptimized);
+    DCHECK(!ShouldUseIgnition(&unoptimized));
+    GenerateUnoptimizedCode(&unoptimized);
   }
   return true;
 }
