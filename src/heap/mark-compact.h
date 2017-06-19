@@ -236,6 +236,7 @@ class LiveObjectVisitor BASE_EMBEDDED {
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
 enum MarkingTreatmentMode { KEEP, CLEAR };
+enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 
 // Base class for minor and full MC collectors.
 class MarkCompactCollectorBase {
@@ -282,8 +283,8 @@ class MarkCompactCollectorBase {
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
 
   int CollectToSpaceUpdatingItems(ItemParallelJob* job);
-  template <RememberedSetType type>
-  int CollectRememberedSetUpdatingItems(ItemParallelJob* job);
+  int CollectRememberedSetUpdatingItems(ItemParallelJob* job,
+                                        RememberedSetUpdatingMode mode);
 
   int NumberOfParallelCompactionTasks(int pages);
   int NumberOfParallelPointerUpdateTasks(int pages, int slots);

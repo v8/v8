@@ -4338,13 +4338,16 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   MarkingState marking_state_;
 };
 
-template <RememberedSetType type>
 class RememberedSetUpdatingItem : public UpdatingItem {
  public:
   explicit RememberedSetUpdatingItem(Heap* heap,
                                      MarkCompactCollectorBase* collector,
-                                     MemoryChunk* chunk)
-      : heap_(heap), collector_(collector), chunk_(chunk) {}
+                                     MemoryChunk* chunk,
+                                     RememberedSetUpdatingMode updating_mode)
+      : heap_(heap),
+        collector_(collector),
+        chunk_(chunk),
+        updating_mode_(updating_mode) {}
   virtual ~RememberedSetUpdatingItem() {}
 
   void Process() override {
@@ -4404,11 +4407,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedPointers() {
-    if (type == OLD_TO_NEW) {
+    if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
       RememberedSet<OLD_TO_NEW>::Iterate(chunk_, [this](Address slot) {
         return CheckAndUpdateOldToNewSlot(slot);
       });
-    } else {
+    }
+    if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
+        (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
       RememberedSet<OLD_TO_OLD>::Iterate(chunk_, [](Address slot) {
         return UpdateSlot(reinterpret_cast<Object**>(slot));
       });
@@ -4417,7 +4422,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   void UpdateTypedPointers() {
     Isolate* isolate = heap_->isolate();
-    if (type == OLD_TO_NEW) {
+    if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
+        nullptr) {
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk_,
           [isolate, this](SlotType slot_type, Address host_addr, Address slot) {
@@ -4427,7 +4433,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                       reinterpret_cast<Address>(slot));
                 });
           });
-    } else {
+    }
+    if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
+        (chunk_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() !=
+         nullptr)) {
       RememberedSet<OLD_TO_OLD>::IterateTyped(
           chunk_,
           [isolate](SlotType slot_type, Address host_addr, Address slot) {
@@ -4440,6 +4449,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   Heap* heap_;
   MarkCompactCollectorBase* collector_;
   MemoryChunk* chunk_;
+  RememberedSetUpdatingMode updating_mode_;
 };
 
 class GlobalHandlesUpdatingItem : public UpdatingItem {
@@ -4478,18 +4488,32 @@ int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
   return NumberOfParallelToSpacePointerUpdateTasks(pages);
 }
 
-template <RememberedSetType type>
 int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
-    ItemParallelJob* job) {
+    ItemParallelJob* job, RememberedSetUpdatingMode mode) {
   int pages = 0;
-  RememberedSet<type>::IterateMemoryChunks(
-      heap(), [this, &job, &pages](MemoryChunk* chunk) {
-        job->AddItem(new RememberedSetUpdatingItem<type>(heap(), this, chunk));
-        pages++;
+  if (mode == RememberedSetUpdatingMode::ALL) {
+    RememberedSet<OLD_TO_OLD>::IterateMemoryChunks(
+        heap(), [this, &job, &pages, mode](MemoryChunk* chunk) {
+          job->AddItem(
+              new RememberedSetUpdatingItem(heap(), this, chunk, mode));
+          pages++;
+        });
+  }
+  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+      heap(), [this, &job, &pages, mode](MemoryChunk* chunk) {
+        const bool contains_old_to_old_slots =
+            chunk->slot_set<OLD_TO_OLD>() != nullptr ||
+            chunk->typed_slot_set<OLD_TO_OLD>() != nullptr;
+        if (mode == RememberedSetUpdatingMode::OLD_TO_NEW_ONLY ||
+            !contains_old_to_old_slots) {
+          job->AddItem(
+              new RememberedSetUpdatingItem(heap(), this, chunk, mode));
+          pages++;
+        }
       });
-  if (pages == 0) return 0;
-  return NumberOfParallelPointerUpdateTasks(
-      pages, type == OLD_TO_NEW ? old_to_new_slots_ : -1);
+  return (pages == 0)
+             ? 0
+             : NumberOfParallelPointerUpdateTasks(pages, old_to_new_slots_);
 }
 
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
@@ -4500,12 +4524,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                &page_parallel_job_semaphore_);
 
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
-  const int remembered_set_tasks_old_new =
-      CollectRememberedSetUpdatingItems<OLD_TO_NEW>(&updating_job);
-  const int remembered_set_tasks_old_old =
-      CollectRememberedSetUpdatingItems<OLD_TO_OLD>(&updating_job);
-  const int num_tasks = Max(to_space_tasks, Max(remembered_set_tasks_old_new,
-                                                remembered_set_tasks_old_old));
+  const int remembered_set_tasks = CollectRememberedSetUpdatingItems(
+      &updating_job, RememberedSetUpdatingMode::ALL);
+  const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
     updating_job.AddTask(new PointersUpatingTask(isolate()));
   }
@@ -4545,8 +4566,8 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
                                                &updating_job);
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
-  const int remembered_set_tasks =
-      CollectRememberedSetUpdatingItems<OLD_TO_NEW>(&updating_job);
+  const int remembered_set_tasks = CollectRememberedSetUpdatingItems(
+      &updating_job, RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
     updating_job.AddTask(new PointersUpatingTask(isolate()));
