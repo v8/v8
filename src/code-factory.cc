@@ -202,12 +202,6 @@ Callable CodeFactory::NumberToString(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
-  Handle<Code> code(isolate->builtins()->StringFromCharCode());
-  return Callable(code, BuiltinDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);

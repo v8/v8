@@ -61,8 +61,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
-  static Callable StringFromCharCode(Isolate* isolate);
-
   static Callable GetProperty(Isolate* isolate);
 
   static Callable NonPrimitiveToPrimitive(
