@@ -406,6 +406,11 @@ T RecipSqrt(T a) {
       TO_BYTE(m[11]), TO_BYTE(m[12]), TO_BYTE(m[13]), TO_BYTE(m[14]),      \
       TO_BYTE(m[15])
 
+#define WASM_SIMD_LOAD_MEM(index) \
+  index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_STORE_MEM(index, val) \
+  index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, ZERO_OFFSET
+
 // Skip FP tests involving extremely large or extremely small values, which
 // may fail due to non-IEEE-754 SIMD arithmetic on some platforms.
 bool SkipFPValue(float x) {
@@ -2191,11 +2196,8 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(kExecuteCompiled);
   int32_t* memory = r.module().AddMemoryElems<int32_t>(4);
 
-  BUILD(r,
-        WASM_STORE_MEM(MachineType::Simd128(), WASM_ZERO,
-                       WASM_LOAD_MEM(MachineType::Simd128(), WASM_ZERO)),
-        WASM_SIMD_I32x4_EXTRACT_LANE(
-            0, WASM_LOAD_MEM(MachineType::Simd128(), WASM_ZERO)));
+  BUILD(r, WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_ZERO)));
 
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i;

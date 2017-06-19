@@ -43,6 +43,7 @@ namespace wasm {
   CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str) CASE_I8x16_OP(name, str)
 #define CASE_SIGN_OP(TYPE, name, str) \
   CASE_##TYPE##_OP(name##S, str "_s") CASE_##TYPE##_OP(name##U, str "_u")
+#define CASE_UNSIGNED_OP(TYPE, name, str) CASE_##TYPE##_OP(name##U, str "_u")
 #define CASE_ALL_SIGN_OP(name, str) \
   CASE_FLOAT_OP(name, str) CASE_SIGN_OP(INT, name, str)
 #define CASE_CONVERT_OP(name, RES, SRC, src_suffix, str) \
@@ -52,6 +53,10 @@ namespace wasm {
   CASE_SIGN_OP(I32, name##8, str "8")   \
   CASE_SIGN_OP(I32, name##16, str "16") \
   CASE_I32_OP(name, str "32")
+#define CASE_U32_OP(name, str)            \
+  CASE_I32_OP(name, str "32")             \
+  CASE_UNSIGNED_OP(I32, name##8, str "8") \
+  CASE_UNSIGNED_OP(I32, name##16, str "16")
 
 const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
   switch (opcode) {
@@ -228,13 +233,13 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
-    CASE_L32_OP(AtomicAdd, "atomic_add")
-    CASE_L32_OP(AtomicAnd, "atomic_and")
-    CASE_L32_OP(AtomicCompareExchange, "atomic_cmpxchng")
-    CASE_L32_OP(AtomicExchange, "atomic_xchng")
-    CASE_L32_OP(AtomicOr, "atomic_or")
-    CASE_L32_OP(AtomicSub, "atomic_sub")
-    CASE_L32_OP(AtomicXor, "atomic_xor")
+    CASE_U32_OP(AtomicAdd, "atomic_add")
+    CASE_U32_OP(AtomicSub, "atomic_sub")
+    CASE_U32_OP(AtomicAnd, "atomic_and")
+    CASE_U32_OP(AtomicOr, "atomic_or")
+    CASE_U32_OP(AtomicXor, "atomic_xor")
+    CASE_U32_OP(AtomicExchange, "atomic_xchng")
+    CASE_U32_OP(AtomicCompareExchange, "atomic_cmpxchng")
 
     default : return "unknown";
     // clang-format on
