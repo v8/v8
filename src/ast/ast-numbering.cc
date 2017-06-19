@@ -50,9 +50,9 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitLiteralProperty(LiteralProperty* property);
 
-  int ReserveIdRange(int n) {
+  int ReserveId() {
     int tmp = next_id_;
-    next_id_ += n;
+    next_id_ += 1;
     return tmp;
   }
 
@@ -335,7 +335,7 @@ void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
 void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
-  node->set_base_id(ReserveIdRange(DoWhileStatement::num_ids()));
+  node->set_osr_id(ReserveId());
   node->set_first_suspend_id(suspend_count_);
   Visit(node->body());
   Visit(node->cond());
@@ -346,7 +346,7 @@ void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
 void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
-  node->set_base_id(ReserveIdRange(WhileStatement::num_ids()));
+  node->set_osr_id(ReserveId());
   node->set_first_suspend_id(suspend_count_);
   Visit(node->cond());
   Visit(node->body());
@@ -461,7 +461,7 @@ void AstNumberingVisitor::VisitImportCallExpression(
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
-  node->set_base_id(ReserveIdRange(ForInStatement::num_ids()));
+  node->set_osr_id(ReserveId());
   Visit(node->enumerable());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
   Visit(node->each());
@@ -474,7 +474,7 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   IncrementNodeCount();
   DisableFullCodegenAndCrankshaft(kForOfStatement);
-  node->set_base_id(ReserveIdRange(ForOfStatement::num_ids()));
+  node->set_osr_id(ReserveId());
   Visit(node->assign_iterator());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
   Visit(node->next_result());
@@ -524,7 +524,7 @@ void AstNumberingVisitor::VisitCaseClause(CaseClause* node) {
 void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
-  node->set_base_id(ReserveIdRange(ForStatement::num_ids()));
+  node->set_osr_id(ReserveId());
   if (node->init() != NULL) Visit(node->init());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
   if (node->cond() != NULL) Visit(node->cond());

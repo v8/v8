@@ -390,7 +390,6 @@ class BreakableStatement : public Statement {
     DCHECK(labels == NULL || labels->length() > 0);
     bit_field_ |= BreakableTypeField::encode(breakable_type);
   }
-  static int parent_num_ids() { return 0; }
 
   static const uint8_t kNextBitFieldIndex = BreakableTypeField::kNext;
 };
@@ -517,9 +516,11 @@ class IterationStatement : public BreakableStatement {
     first_suspend_id_ = first_suspend_id;
   }
 
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId OsrEntryId() const { return BailoutId(local_id(0)); }
+  void set_osr_id(int id) { osr_id_ = BailoutId(id); }
+  BailoutId OsrEntryId() const {
+    DCHECK(!osr_id_.IsNone());
+    return osr_id_;
+  }
 
   // Code generation
   Label* continue_target()  { return &continue_target_; }
@@ -528,11 +529,10 @@ class IterationStatement : public BreakableStatement {
   IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
       : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, type),
-        base_id_(BailoutId::None().ToInt()),
+        osr_id_(BailoutId::None()),
         body_(NULL),
         suspend_count_(0),
         first_suspend_id_(0) {}
-  static int parent_num_ids() { return 0; }
   void Initialize(Statement* body, const SourceRange& body_range = {}) {
     body_ = body;
     body_range_ = body_range;
@@ -542,13 +542,7 @@ class IterationStatement : public BreakableStatement {
       BreakableStatement::kNextBitFieldIndex;
 
  private:
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
-
-  int base_id_;
+  BailoutId osr_id_;
   Statement* body_;
   SourceRange body_range_;
   Label continue_target_;
