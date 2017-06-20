@@ -1175,15 +1175,10 @@ bool AllocationSite::ShouldTrack(ElementsKind boilerplate_elements_kind) {
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
-  if (FLAG_turbo) {
+  if (FLAG_allocation_site_pretenuring) {
     // TurboFan doesn't care at all about String pretenuring feedback,
     // so don't bother even trying to track that.
     return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
-  }
-  if (FLAG_allocation_site_pretenuring) {
-    return type == JS_ARRAY_TYPE ||
-        type == JS_OBJECT_TYPE ||
-        type < FIRST_NONSTRING_TYPE;
   }
   return type == JS_ARRAY_TYPE;
 }
