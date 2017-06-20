@@ -9,6 +9,9 @@
   # Bots are ordered by appearance on waterfall.
   'masters': {
     'developer_default': {
+      'android.arm.debug': 'default_debug_android_arm',
+      'android.arm.optdebug': 'default_optdebug_android_arm',
+      'android.arm.release': 'default_release_android_arm',
       'arm.debug': 'default_debug_arm',
       'arm.optdebug': 'default_optdebug_arm',
       'arm.release': 'default_release_arm',
@@ -233,6 +236,14 @@
       'gn', 'debug', 'simulate_arm', 'v8_enable_slow_dchecks'],
     'default_release_arm': [
       'gn', 'release', 'simulate_arm'],
+    'default_debug_android_arm': [
+      'gn', 'debug', 'arm', 'android', 'crosscompile',
+      'v8_enable_slow_dchecks', 'v8_full_debug'],
+    'default_optdebug_android_arm': [
+      'gn', 'debug', 'arm', 'android', 'crosscompile',
+      'v8_enable_slow_dchecks' ],
+    'default_release_android_arm': [
+      'gn', 'release', 'arm', 'android', 'crosscompile'],
     'default_debug_arm64': [
       'gn', 'debug', 'simulate_arm64', 'v8_enable_slow_dchecks',
       'v8_full_debug'],
