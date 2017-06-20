@@ -904,27 +904,6 @@ INT_1_TO_63_LIST(DECLARE_TRUNCATE_TO_INT_N)
 #undef DECLARE_IS_UINT_N
 #undef DECLARE_TRUNCATE_TO_INT_N
 
-class TypeFeedbackId {
- public:
-  explicit TypeFeedbackId(int id) : id_(id) { }
-  int ToInt() const { return id_; }
-
-  static TypeFeedbackId None() { return TypeFeedbackId(kNoneId); }
-  bool IsNone() const { return id_ == kNoneId; }
-
- private:
-  static const int kNoneId = -1;
-
-  int id_;
-};
-
-inline bool operator<(TypeFeedbackId lhs, TypeFeedbackId rhs) {
-  return lhs.ToInt() < rhs.ToInt();
-}
-inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
-  return lhs.ToInt() > rhs.ToInt();
-}
-
 class FeedbackSlot {
  public:
   FeedbackSlot() : id_(kInvalidSlot) {}

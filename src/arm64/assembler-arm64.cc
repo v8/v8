@@ -4786,7 +4786,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    DCHECK(rmode != RelocInfo::CODE_TARGET_WITH_ID);
     reloc_info_writer.Write(&rinfo);
   }
 }

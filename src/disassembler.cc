@@ -135,9 +135,6 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     } else {
       out->AddFormatted(" %s", Code::Kind2String(kind));
     }
-    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      out->AddFormatted(" (id = %d)", static_cast<int>(relocinfo->data()));
-    }
   } else if (RelocInfo::IsRuntimeEntry(rmode) &&
              isolate->deoptimizer_data() != nullptr) {
     // A runtime entry reloinfo might be a deoptimization bailout->
