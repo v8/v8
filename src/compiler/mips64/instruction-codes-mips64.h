@@ -267,6 +267,32 @@ namespace compiler {
   V(Mips64S1x8AllTrue)              \
   V(Mips64S1x16AnyTrue)             \
   V(Mips64S1x16AllTrue)             \
+  V(Mips64S32x4InterleaveRight)     \
+  V(Mips64S32x4InterleaveLeft)      \
+  V(Mips64S32x4PackEven)            \
+  V(Mips64S32x4PackOdd)             \
+  V(Mips64S32x4InterleaveEven)      \
+  V(Mips64S32x4InterleaveOdd)       \
+  V(Mips64S32x4Shuffle)             \
+  V(Mips64S16x8InterleaveRight)     \
+  V(Mips64S16x8InterleaveLeft)      \
+  V(Mips64S16x8PackEven)            \
+  V(Mips64S16x8PackOdd)             \
+  V(Mips64S16x8InterleaveEven)      \
+  V(Mips64S16x8InterleaveOdd)       \
+  V(Mips64S16x4Reverse)             \
+  V(Mips64S16x2Reverse)             \
+  V(Mips64S8x16InterleaveRight)     \
+  V(Mips64S8x16InterleaveLeft)      \
+  V(Mips64S8x16PackEven)            \
+  V(Mips64S8x16PackOdd)             \
+  V(Mips64S8x16InterleaveEven)      \
+  V(Mips64S8x16InterleaveOdd)       \
+  V(Mips64S8x16Shuffle)             \
+  V(Mips64S8x16Concat)              \
+  V(Mips64S8x8Reverse)              \
+  V(Mips64S8x4Reverse)              \
+  V(Mips64S8x2Reverse)              \
   V(Mips64MsaLd)                    \
   V(Mips64MsaSt)
 

@@ -233,6 +233,32 @@ namespace compiler {
   V(MipsS1x8AllTrue)               \
   V(MipsS1x16AnyTrue)              \
   V(MipsS1x16AllTrue)              \
+  V(MipsS32x4InterleaveRight)      \
+  V(MipsS32x4InterleaveLeft)       \
+  V(MipsS32x4PackEven)             \
+  V(MipsS32x4PackOdd)              \
+  V(MipsS32x4InterleaveEven)       \
+  V(MipsS32x4InterleaveOdd)        \
+  V(MipsS32x4Shuffle)              \
+  V(MipsS16x8InterleaveRight)      \
+  V(MipsS16x8InterleaveLeft)       \
+  V(MipsS16x8PackEven)             \
+  V(MipsS16x8PackOdd)              \
+  V(MipsS16x8InterleaveEven)       \
+  V(MipsS16x8InterleaveOdd)        \
+  V(MipsS16x4Reverse)              \
+  V(MipsS16x2Reverse)              \
+  V(MipsS8x16InterleaveRight)      \
+  V(MipsS8x16InterleaveLeft)       \
+  V(MipsS8x16PackEven)             \
+  V(MipsS8x16PackOdd)              \
+  V(MipsS8x16InterleaveEven)       \
+  V(MipsS8x16InterleaveOdd)        \
+  V(MipsS8x16Shuffle)              \
+  V(MipsS8x16Concat)               \
+  V(MipsS8x8Reverse)               \
+  V(MipsS8x4Reverse)               \
+  V(MipsS8x2Reverse)               \
   V(MipsMsaLd)                     \
   V(MipsMsaSt)
 
