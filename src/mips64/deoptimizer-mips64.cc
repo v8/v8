@@ -323,14 +323,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
 
 // Maximum size of a table entry generated below.
-const int Deoptimizer::table_entry_size_ = 2 * Assembler::kInstrSize;
+const int Deoptimizer::table_entry_size_ = 3 * Assembler::kInstrSize;
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
 
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label table_start, done, done_special, trampoline_jump;
+  Label table_start, done, trampoline_jump;
   __ bind(&table_start);
   int kMaxEntriesBranchReach =
       (1 << (kImm16Bits - 2)) / (table_entry_size_ / Assembler::kInstrSize);
@@ -343,6 +343,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       DCHECK(is_int16(i));
       __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
       __ li(at, i);                      // In the delay slot.
+      __ nop();
 
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
     }
@@ -353,34 +354,29 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     __ Push(at);
   } else {
     // Uncommon case, the branch cannot reach.
-    // Create mini trampoline and adjust id constants to get proper value at
-    // the end of table.
-    for (int i = kMaxEntriesBranchReach; i > 1; i--) {
+    // Create mini trampoline to reach the end of the table
+    for (int i = 0, j = 0; i < count(); i++, j++) {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
-      __ li(at, -i);                                // In the delay slot.
+      if (j >= kMaxEntriesBranchReach) {
+        j = 0;
+        __ li(at, i);
+        __ bind(&trampoline_jump);
+        trampoline_jump = Label();
+        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);
+        __ nop();
+      } else {
+        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
+        __ li(at, i);                                      // In the delay slot.
+        __ nop();
+      }
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
-    }
-    // Entry with id == kMaxEntriesBranchReach - 1.
-    __ bind(&trampoline_jump);
-    __ BranchShort(USE_DELAY_SLOT, &done_special);
-    __ li(at, -1);
-
-    for (int i = kMaxEntriesBranchReach; i < count(); i++) {
-      Label start;
-      __ bind(&start);
-      DCHECK(is_int16(i));
-      __ Branch(USE_DELAY_SLOT, &done);  // Expose delay slot.
-      __ li(at, i);                      // In the delay slot.
     }
 
     DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
               count() * table_entry_size_);
-    __ bind(&done_special);
-    __ daddiu(at, at, kMaxEntriesBranchReach);
-    __ bind(&done);
+    __ bind(&trampoline_jump);
     __ Push(at);
   }
 }
