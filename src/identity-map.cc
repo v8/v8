@@ -243,6 +243,13 @@ void IdentityMapBase::Rehash() {
   for (auto pair : reinsert) {
     int index = InsertKey(pair.first);
     DCHECK_GE(index, 0);
+    if (values_[index] != nullptr) {
+      // During GC some objects have been shortcut to point to the same
+      // underlying object - we can only chose one of the entries so keep the
+      // first one seen and reduce the size of the map appropriately
+      // (see crbug.com/704132 for details).
+      size_--;
+    }
     values_[index] = pair.second;
   }
 }
