@@ -360,14 +360,16 @@ Node* CollectionsBuiltinsAssembler::CallHasRaw(Node* const table,
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
+  MachineType type_uint8 = MachineType::Uint8();
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_tagged = MachineType::AnyTagged();
 
   Node* const result =
-      CallCFunction3(type_tagged, type_ptr, type_tagged, type_tagged,
+      CallCFunction3(type_uint8, type_ptr, type_tagged, type_tagged,
                      function_addr, isolate_ptr, table, key);
 
-  return result;
+  return SelectBooleanConstant(
+      Word32NotEqual(Word32And(result, Int32Constant(0xFF)), Int32Constant(0)));
 }
 
 TF_BUILTIN(MapGet, CollectionsBuiltinsAssembler) {

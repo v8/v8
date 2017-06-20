@@ -398,12 +398,12 @@ class OrderedHashTable : public FixedArray {
   // existing iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
+  // Returns true if the OrderedHashTable contains the key
+  static bool HasKey(Isolate* isolate, Derived* table, Object* key);
+
   // Returns a true value if the OrderedHashTable contains the key and
   // the key has been deleted. This does not shrink the table.
   static bool Delete(Isolate* isolate, Derived* table, Object* key);
-
-  // Returns a true value if the OrderedHashTable contains the key
-  static Object* HasKey(Isolate* isolate, Derived* table, Object* key);
 
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();

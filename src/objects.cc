@@ -18153,14 +18153,12 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 }
 
 template <class Derived, int entrysize>
-Object* OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
-                                                     Derived* table,
-                                                     Object* key) {
+bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
+                                                  Derived* table, Object* key) {
   DCHECK(table->IsOrderedHashTable());
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
-  return entry == kNotFound ? isolate->heap()->false_value()
-                            : isolate->heap()->true_value();
+  return entry != kNotFound;
 }
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
@@ -18339,8 +18337,9 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Shrink(
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
     Handle<OrderedHashSet> table);
 
-template Object* OrderedHashTable<OrderedHashSet, 1>::HasKey(
-    Isolate* isolate, OrderedHashSet* table, Object* key);
+template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(Isolate* isolate,
+                                                          OrderedHashSet* table,
+                                                          Object* key);
 
 template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
                                                           OrderedHashSet* table,
@@ -18358,8 +18357,9 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Shrink(
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
     Handle<OrderedHashMap> table);
 
-template Object* OrderedHashTable<OrderedHashMap, 2>::HasKey(
-    Isolate* isolate, OrderedHashMap* table, Object* key);
+template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(Isolate* isolate,
+                                                          OrderedHashMap* table,
+                                                          Object* key);
 
 template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
                                                           OrderedHashMap* table,
