@@ -309,12 +309,12 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
       WasmRuntimeCallDescriptor(jsgraph()->isolate());
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), idesc, 0,
-      CallDescriptor::kNoFlags, Operator::kNoProperties);
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), 1, Linkage::kNoContext);
   Node* stub_code = jsgraph()->HeapConstant(code);
 
-  Node* context = jsgraph()->NoContextConstant();
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
-                                context, *effect, stack_check.if_false);
+                                *effect, stack_check.if_false);
 
   SetSourcePosition(call, position);
 
