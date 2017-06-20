@@ -107,6 +107,21 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
       if_holey_array(this, Label::kDeferred),
       if_runtime(this, Label::kDeferred);
 
+  // Perform appropriate checks on {target} (and {new_target} first).
+  if (new_target == nullptr) {
+    // Check that {target} is Callable.
+    Label if_target_callable(this),
+        if_target_not_callable(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(target), &if_target_not_callable);
+    Branch(IsCallable(target), &if_target_callable, &if_target_not_callable);
+    BIND(&if_target_not_callable);
+    {
+      CallRuntime(Runtime::kThrowApplyNonFunction, context, target);
+      Unreachable();
+    }
+    BIND(&if_target_callable);
+  }
+
   GotoIf(TaggedIsSmi(arguments_list), &if_runtime);
   Node* arguments_list_map = LoadMap(arguments_list);
   Node* native_context = LoadNativeContext(context);

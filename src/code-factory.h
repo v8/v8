@@ -87,6 +87,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                        TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  static Callable CallWithArrayLike(Isolate* isolate);
   static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,

@@ -1994,13 +1994,9 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   //  -- jssp[0] : thisArg
   // -----------------------------------
 
-  // 2. Make sure the receiver is actually callable.
-  Label receiver_not_callable;
-  __ JumpIfSmi(receiver, &receiver_not_callable);
-  __ Ldr(x10, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ Ldrb(w10, FieldMemOperand(x10, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(x10, 1 << Map::kIsCallable,
-                             &receiver_not_callable);
+  // 2. We don't need to check explicitly for callable receiver here,
+  // since that's the first thing the Call/CallWithArrayLike builtins
+  // will do.
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
@@ -2019,13 +2015,6 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Mov(x0, 0);
     DCHECK(receiver.Is(x1));
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-  }
-
-  // 4c. The receiver is not callable, throw an appropriate TypeError.
-  __ Bind(&receiver_not_callable);
-  {
-    __ Poke(receiver, 0);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction);
   }
 }
 
@@ -2125,23 +2114,13 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   //  -- jssp[0] : thisArgument
   // -----------------------------------
 
-  // 2. Make sure the target is actually callable.
-  Label target_not_callable;
-  __ JumpIfSmi(target, &target_not_callable);
-  __ Ldr(x10, FieldMemOperand(target, HeapObject::kMapOffset));
-  __ Ldr(x10, FieldMemOperand(x10, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(x10, 1 << Map::kIsCallable, &target_not_callable);
+  // 2. We don't need to check explicitly for callable target here,
+  // since that's the first thing the Call/CallWithArrayLike builtins
+  // will do.
 
-  // 3a. Apply the target to the given argumentsList.
+  // 3. Apply the target to the given argumentsList.
   __ Jump(masm->isolate()->builtins()->CallWithArrayLike(),
           RelocInfo::CODE_TARGET);
-
-  // 3b. The target is not callable, throw an appropriate TypeError.
-  __ Bind(&target_not_callable);
-  {
-    __ Poke(target, 0);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction);
-  }
 }
 
 void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {

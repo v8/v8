@@ -287,6 +287,12 @@ Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode,
 }
 
 // static
+Callable CodeFactory::CallWithArrayLike(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallWithArrayLike(),
+                  CallWithArrayLikeDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::CallWithSpread(Isolate* isolate) {
   return Callable(isolate->builtins()->CallWithSpread(),
                   CallWithSpreadDescriptor(isolate));

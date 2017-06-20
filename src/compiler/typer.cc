@@ -1610,6 +1610,10 @@ Type* Typer::Visitor::TypeJSCall(Node* node) {
   return TypeUnaryOp(node, JSCallTyper);
 }
 
+Type* Typer::Visitor::TypeJSCallWithArrayLike(Node* node) {
+  return TypeUnaryOp(node, JSCallTyper);
+}
+
 Type* Typer::Visitor::TypeJSCallWithSpread(Node* node) {
   return TypeUnaryOp(node, JSCallTyper);
 }

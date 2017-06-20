@@ -57,6 +57,8 @@ class CallFrequency final {
 
 std::ostream& operator<<(std::ostream&, CallFrequency);
 
+CallFrequency CallFrequencyOf(Operator const* op) WARN_UNUSED_RESULT;
+
 // Defines a pair of {FeedbackVector} and {FeedbackSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class V8_EXPORT_PRIVATE VectorSlotPair {
@@ -731,6 +733,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  const Operator* CallWithArrayLike(CallFrequency frequency);
   const Operator* CallWithSpread(uint32_t arity);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);

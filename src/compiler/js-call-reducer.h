@@ -18,6 +18,7 @@ class Factory;
 namespace compiler {
 
 // Forward declarations.
+class CallFrequency;
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
@@ -50,12 +51,15 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectGetPrototypeOf(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceObjectPrototypeIsPrototypeOf(Node* node);
+  Reduction ReduceReflectApply(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
-  Reduction ReduceSpreadCall(Node* node, int arity);
+  Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
+      Node* node, int arity, CallFrequency const& frequency);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
+  Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
 

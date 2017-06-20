@@ -28,6 +28,8 @@ Reduction JSCallReducer::Reduce(Node* node) {
       return ReduceJSConstructWithSpread(node);
     case IrOpcode::kJSCall:
       return ReduceJSCall(node);
+    case IrOpcode::kJSCallWithArrayLike:
+      return ReduceJSCallWithArrayLike(node);
     case IrOpcode::kJSCallWithSpread:
       return ReduceJSCallWithSpread(node);
     default:
@@ -95,18 +97,52 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
+namespace {
+
+bool CanBeNullOrUndefined(Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateKeyValueArray:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSToBoolean:
+    case IrOpcode::kJSToInteger:
+    case IrOpcode::kJSToLength:
+    case IrOpcode::kJSToName:
+    case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToString:
+    case IrOpcode::kJSToPrimitiveToString:
+      return false;
+    case IrOpcode::kHeapConstant: {
+      Handle<HeapObject> value = HeapObjectMatcher(node).Value();
+      Isolate* const isolate = value->GetIsolate();
+      return value->IsNull(isolate) || value->IsUndefined(isolate);
+    }
+    default:
+      return true;
+  }
+}
+
+}  // namespace
 
 // ES6 section 19.2.3.1 Function.prototype.apply ( thisArg, argArray )
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* target = NodeProperties::GetValueInput(node, 0);
   CallParameters const& p = CallParametersOf(node->op());
   // Tail calls to Function.prototype.apply are not properly supported
   // down the pipeline, so we disable this optimization completely for
   // tail calls (for now).
   if (p.tail_call_mode() == TailCallMode::kAllow) return NoChange();
-  Handle<JSFunction> apply =
-      Handle<JSFunction>::cast(HeapObjectMatcher(target).Value());
   size_t arity = p.arity();
   DCHECK_LE(2u, arity);
   ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny;
@@ -119,97 +155,102 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     // The argArray was not provided, just remove the {target}.
     node->RemoveInput(0);
     --arity;
-  } else if (arity == 4) {
-    // Check if argArray is an arguments object, and {node} is the only value
-    // user of argArray (except for value uses in frame states).
-    Node* arg_array = NodeProperties::GetValueInput(node, 3);
-    if (arg_array->opcode() != IrOpcode::kJSCreateArguments) return NoChange();
-    for (Edge edge : arg_array->use_edges()) {
-      Node* const user = edge.from();
-      if (user == node) continue;
-      // Ignore uses as frame state's locals or parameters.
-      if (user->opcode() == IrOpcode::kStateValues) continue;
-      // Ignore uses as frame state's accumulator.
-      if (user->opcode() == IrOpcode::kFrameState &&
-          user->InputAt(2) == arg_array) {
-        continue;
-      }
-      if (!NodeProperties::IsValueEdge(edge)) continue;
-      return NoChange();
-    }
-    // Check if the arguments can be handled in the fast case (i.e. we don't
-    // have aliased sloppy arguments), and compute the {start_index} for
-    // rest parameters.
-    CreateArgumentsType const type = CreateArgumentsTypeOf(arg_array->op());
-    Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
-    FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-    int start_index = 0;
-    // Determine the formal parameter count;
-    Handle<SharedFunctionInfo> shared;
-    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-    int formal_parameter_count = shared->internal_formal_parameter_count();
-    if (type == CreateArgumentsType::kMappedArguments) {
-      // Mapped arguments (sloppy mode) that are aliased can only be handled
-      // here if there's no side-effect between the {node} and the {arg_array}.
-      // TODO(turbofan): Further relax this constraint.
-      if (formal_parameter_count != 0) {
-        Node* effect = NodeProperties::GetEffectInput(node);
-        while (effect != arg_array) {
-          if (effect->op()->EffectInputCount() != 1 ||
-              !(effect->op()->properties() & Operator::kNoWrite)) {
-            return NoChange();
-          }
-          effect = NodeProperties::GetEffectInput(effect);
-        }
-      }
-    } else if (type == CreateArgumentsType::kRestParameter) {
-      start_index = formal_parameter_count;
-    }
-    // Check if are applying to inlined arguments or to the arguments of
-    // the outermost function.
-    Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-    if (outer_state->opcode() != IrOpcode::kFrameState) {
-      // Reduce {node} to a JSCallForwardVarargs operation, which just
-      // re-pushes the incoming arguments and calls the {target}.
-      node->RemoveInput(0);  // Function.prototype.apply
-      node->RemoveInput(2);  // arguments
-      NodeProperties::ChangeOp(node, javascript()->CallForwardVarargs(
-                                         2, start_index, p.tail_call_mode()));
-      return Changed(node);
-    }
-    // Get to the actual frame state from which to extract the arguments;
-    // we can only optimize this in case the {node} was already inlined into
-    // some other function (and same for the {arg_array}).
-    FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
-    if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
-      // Need to take the parameters from the arguments adaptor.
-      frame_state = outer_state;
-    }
-    // Remove the argArray input from the {node}.
-    node->RemoveInput(static_cast<int>(--arity));
-    // Add the actual parameters to the {node}, skipping the receiver,
-    // starting from {start_index}.
-    Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-    for (int i = start_index + 1; i < parameters->InputCount(); ++i) {
-      node->InsertInput(graph()->zone(), static_cast<int>(arity),
-                        parameters->InputAt(i));
-      ++arity;
-    }
-    // Drop the {target} from the {node}.
-    node->RemoveInput(0);
-    --arity;
   } else {
-    return NoChange();
+    Node* target = NodeProperties::GetValueInput(node, 1);
+    Node* this_argument = NodeProperties::GetValueInput(node, 2);
+    Node* arguments_list = NodeProperties::GetValueInput(node, 3);
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* frame_state = NodeProperties::GetFrameStateInput(node);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    // If {arguments_list} cannot be null or undefined, we don't need
+    // to expand this {node} to control-flow.
+    if (!CanBeNullOrUndefined(arguments_list)) {
+      // Massage the value inputs appropriately.
+      node->ReplaceInput(0, target);
+      node->ReplaceInput(1, this_argument);
+      node->ReplaceInput(2, arguments_list);
+      while (arity-- > 3) node->RemoveInput(3);
+
+      // Morph the {node} to a {JSCallWithArrayLike}.
+      NodeProperties::ChangeOp(node,
+                               javascript()->CallWithArrayLike(p.frequency()));
+      Reduction const reduction = ReduceJSCallWithArrayLike(node);
+      return reduction.Changed() ? reduction : Changed(node);
+    } else {
+      // Check whether {arguments_list} is null.
+      Node* check_null =
+          graph()->NewNode(simplified()->ReferenceEqual(), arguments_list,
+                           jsgraph()->NullConstant());
+      control = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                 check_null, control);
+      Node* if_null = graph()->NewNode(common()->IfTrue(), control);
+      control = graph()->NewNode(common()->IfFalse(), control);
+
+      // Check whether {arguments_list} is undefined.
+      Node* check_undefined =
+          graph()->NewNode(simplified()->ReferenceEqual(), arguments_list,
+                           jsgraph()->UndefinedConstant());
+      control = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                 check_undefined, control);
+      Node* if_undefined = graph()->NewNode(common()->IfTrue(), control);
+      control = graph()->NewNode(common()->IfFalse(), control);
+
+      // Lower to {JSCallWithArrayLike} if {arguments_list} is neither null
+      // nor undefined.
+      Node* effect0 = effect;
+      Node* control0 = control;
+      Node* value0 = effect0 = control0 = graph()->NewNode(
+          javascript()->CallWithArrayLike(p.frequency()), target, this_argument,
+          arguments_list, context, frame_state, effect0, control0);
+
+      // Lower to {JSCall} if {arguments_list} is either null or undefined.
+      Node* effect1 = effect;
+      Node* control1 =
+          graph()->NewNode(common()->Merge(2), if_null, if_undefined);
+      Node* value1 = effect1 = control1 =
+          graph()->NewNode(javascript()->Call(2), target, this_argument,
+                           context, frame_state, effect1, control1);
+
+      // Rewire potential exception edges.
+      Node* if_exception = nullptr;
+      if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+        // Create appropriate {IfException} and {IfSuccess} nodes.
+        Node* if_exception0 =
+            graph()->NewNode(common()->IfException(), control0, effect0);
+        control0 = graph()->NewNode(common()->IfSuccess(), control0);
+        Node* if_exception1 =
+            graph()->NewNode(common()->IfException(), control1, effect1);
+        control1 = graph()->NewNode(common()->IfSuccess(), control1);
+
+        // Join the exception edges.
+        Node* merge =
+            graph()->NewNode(common()->Merge(2), if_exception0, if_exception1);
+        Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception0,
+                                      if_exception1, merge);
+        Node* phi =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             if_exception0, if_exception1, merge);
+        ReplaceWithValue(if_exception, phi, ephi, merge);
+      }
+
+      // Join control paths.
+      control = graph()->NewNode(common()->Merge(2), control0, control1);
+      effect =
+          graph()->NewNode(common()->EffectPhi(2), effect0, effect1, control);
+      Node* value =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           value0, value1, control);
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
+    }
   }
   // Change {node} to the new {JSCall} operator.
   NodeProperties::ChangeOp(
       node,
       javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode,
                          p.tail_call_mode()));
-  // Change context of {node} to the Function.prototype.apply context,
-  // to ensure any exception is thrown in the correct context.
-  NodeProperties::ReplaceContextInput(
-      node, jsgraph()->HeapConstant(handle(apply->context(), isolate())));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -372,6 +413,27 @@ Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   }
   NodeProperties::ChangeOp(node, javascript()->HasInPrototypeChain());
   return Changed(node);
+}
+
+// ES6 section 26.1.1 Reflect.apply ( target, thisArgument, argumentsList )
+Reduction JSCallReducer::ReduceReflectApply(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  int arity = static_cast<int>(p.arity() - 2);
+  DCHECK_LE(0, arity);
+  // Massage value inputs appropriately.
+  node->RemoveInput(0);
+  node->RemoveInput(0);
+  while (arity < 3) {
+    node->InsertInput(graph()->zone(), arity++, jsgraph()->UndefinedConstant());
+  }
+  while (arity-- > 3) {
+    node->RemoveInput(arity);
+  }
+  NodeProperties::ChangeOp(node,
+                           javascript()->CallWithArrayLike(p.frequency()));
+  Reduction const reduction = ReduceJSCallWithArrayLike(node);
+  return reduction.Changed() ? reduction : Changed(node);
 }
 
 // ES6 section 26.1.7 Reflect.getPrototypeOf ( target )
@@ -598,27 +660,33 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   return Changed(node);
 }
 
-Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
-  DCHECK(node->opcode() == IrOpcode::kJSCallWithSpread ||
+Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
+    Node* node, int arity, CallFrequency const& frequency) {
+  DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         node->opcode() == IrOpcode::kJSCallWithSpread ||
          node->opcode() == IrOpcode::kJSConstructWithSpread);
 
-  // Do check to make sure we can actually avoid iteration.
-  if (!isolate()->initial_array_iterator_prototype_map()->is_stable()) {
+  // In case of a call/construct with spread, we need to
+  // ensure that it's safe to avoid the actual iteration.
+  if ((node->opcode() == IrOpcode::kJSCallWithSpread ||
+       node->opcode() == IrOpcode::kJSConstructWithSpread) &&
+      !isolate()->initial_array_iterator_prototype_map()->is_stable()) {
     return NoChange();
   }
 
-  Node* spread = NodeProperties::GetValueInput(node, arity);
-
-  // Check if spread is an arguments object, and {node} is the only value user
-  // of spread (except for value uses in frame states).
-  if (spread->opcode() != IrOpcode::kJSCreateArguments) return NoChange();
-  for (Edge edge : spread->use_edges()) {
+  // Check if {arguments_list} is an arguments object, and {node} is the only
+  // value user of {arguments_list} (except for value uses in frame states).
+  Node* arguments_list = NodeProperties::GetValueInput(node, arity);
+  if (arguments_list->opcode() != IrOpcode::kJSCreateArguments)
+    return NoChange();
+  for (Edge edge : arguments_list->use_edges()) {
     Node* const user = edge.from();
     if (user == node) continue;
     // Ignore uses as frame state's locals or parameters.
     if (user->opcode() == IrOpcode::kStateValues) continue;
     // Ignore uses as frame state's accumulator.
-    if (user->opcode() == IrOpcode::kFrameState && user->InputAt(2) == spread) {
+    if (user->opcode() == IrOpcode::kFrameState &&
+        user->InputAt(2) == arguments_list) {
       continue;
     }
     if (!NodeProperties::IsValueEdge(edge)) continue;
@@ -627,9 +695,9 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
 
   // Get to the actual frame state from which to extract the arguments;
   // we can only optimize this in case the {node} was already inlined into
-  // some other function (and same for the {spread}).
-  CreateArgumentsType const type = CreateArgumentsTypeOf(spread->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(spread);
+  // some other function (and same for the {arguments_list}).
+  CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
+  Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
   FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
   int start_index = 0;
   // Determine the formal parameter count;
@@ -642,7 +710,7 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
     // TODO(turbofan): Further relax this constraint.
     if (formal_parameter_count != 0) {
       Node* effect = NodeProperties::GetEffectInput(node);
-      while (effect != spread) {
+      while (effect != arguments_list) {
         if (effect->op()->EffectInputCount() != 1 ||
             !(effect->op()->properties() & Operator::kNoWrite)) {
           return NoChange();
@@ -653,24 +721,34 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
   } else if (type == CreateArgumentsType::kRestParameter) {
     start_index = formal_parameter_count;
 
-    // Only check the array iterator protector when we have a rest object.
-    if (!isolate()->IsArrayIteratorLookupChainIntact()) return NoChange();
+    // For spread calls/constructs with rest parameters we need to ensure that
+    // the array iterator protector is intact, which guards that the rest
+    // parameter iteration is not observable.
+    if (node->opcode() == IrOpcode::kJSCallWithSpread ||
+        node->opcode() == IrOpcode::kJSConstructWithSpread) {
+      if (!isolate()->IsArrayIteratorLookupChainIntact()) return NoChange();
+      dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
+    }
   }
 
-  // Install appropriate code dependencies.
-  dependencies()->AssumeMapStable(
-      isolate()->initial_array_iterator_prototype_map());
-  if (type == CreateArgumentsType::kRestParameter) {
-    dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
+  // For call/construct with spread, we need to also install a code
+  // dependency on the initial %ArrayIteratorPrototype% map here to
+  // ensure that no one messes with the next method.
+  if (node->opcode() == IrOpcode::kJSCallWithSpread ||
+      node->opcode() == IrOpcode::kJSConstructWithSpread) {
+    dependencies()->AssumeMapStable(
+        isolate()->initial_array_iterator_prototype_map());
   }
-  // Remove the spread input from the {node}.
+
+  // Remove the {arguments_list} input from the {node}.
   node->RemoveInput(arity--);
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Operator const* op =
-        (node->opcode() == IrOpcode::kJSCallWithSpread)
+        (node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         node->opcode() == IrOpcode::kJSCallWithSpread)
             ? javascript()->CallForwardVarargs(arity + 1, start_index,
                                                TailCallMode::kDisallow)
             : javascript()->ConstructForwardVarargs(arity + 2, start_index);
@@ -692,16 +770,16 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
                       parameters->InputAt(i));
   }
 
-  // TODO(turbofan): Collect call counts on spread call/construct and thread it
-  // through here.
-  if (node->opcode() == IrOpcode::kJSCallWithSpread) {
-    NodeProperties::ChangeOp(node, javascript()->Call(arity + 1));
-    Reduction const r = ReduceJSCall(node);
-    return r.Changed() ? r : Changed(node);
+  if (node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+      node->opcode() == IrOpcode::kJSCallWithSpread) {
+    NodeProperties::ChangeOp(node, javascript()->Call(arity + 1, frequency));
+    Reduction const reduction = ReduceJSCall(node);
+    return reduction.Changed() ? reduction : Changed(node);
   } else {
-    NodeProperties::ChangeOp(node, javascript()->Construct(arity + 2));
-    Reduction const r = ReduceJSConstruct(node);
-    return r.Changed() ? r : Changed(node);
+    NodeProperties::ChangeOp(node,
+                             javascript()->Construct(arity + 2, frequency));
+    Reduction const reduction = ReduceJSConstruct(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
 }
 
@@ -775,6 +853,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceObjectPrototypeGetProto(node);
         case Builtins::kObjectPrototypeIsPrototypeOf:
           return ReduceObjectPrototypeIsPrototypeOf(node);
+        case Builtins::kReflectApply:
+          return ReduceReflectApply(node);
         case Builtins::kReflectGetPrototypeOf:
           return ReduceReflectGetPrototypeOf(node);
         case Builtins::kArrayForEach:
@@ -905,13 +985,22 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   return NoChange();
 }
 
+Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
+  CallFrequency frequency = CallFrequencyOf(node->op());
+  return ReduceCallOrConstructWithArrayLikeOrSpread(node, 2, frequency);
+}
+
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallWithSpread, node->opcode());
   SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 1);
 
-  return ReduceSpreadCall(node, arity);
+  // TODO(turbofan): Collect call counts on spread call/construct and thread it
+  // through here.
+  CallFrequency frequency;
+  return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency);
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
@@ -1035,7 +1124,10 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 2);
 
-  return ReduceSpreadCall(node, arity);
+  // TODO(turbofan): Collect call counts on spread call/construct and thread it
+  // through here.
+  CallFrequency frequency;
+  return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency);
 }
 
 Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
