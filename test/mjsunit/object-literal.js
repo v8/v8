@@ -34,6 +34,10 @@ function runTest(fn) {
   fn();
   // The third run might copy literals directly in the stub.
   fn();
+  // Several invocations more to trigger map deprecations.
+  fn();
+  fn();
+  fn();
   // Make sure literals keep on workin in optimized code.
   %OptimizeFunctionOnNextCall(fn);
   fn();
@@ -321,7 +325,6 @@ function TestLiteralElementsKind() {
   assertTrue(%HasDictionaryElements({0xFFFFFF:true}));
 }
 runTest(TestLiteralElementsKind);
-
 
 function TestNonNumberElementValues() {
   var o = {
