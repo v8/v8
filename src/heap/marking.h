@@ -237,7 +237,7 @@ class Marking : public AllStatic {
   static const char* kWhiteBitPattern;
   template <AccessMode mode = AccessMode::NON_ATOMIC>
   INLINE(static bool IsWhite(MarkBit mark_bit)) {
-    DCHECK(!IsImpossible(mark_bit));
+    DCHECK(!IsImpossible<mode>(mark_bit));
     return !mark_bit.Get<mode>();
   }
 

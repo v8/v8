@@ -1585,7 +1585,7 @@ class YoungGenerationMigrationObserver final : public MigrationObserver {
     // Migrate color to old generation marking in case the object survived young
     // generation garbage collection.
     if (heap_->incremental_marking()->IsMarking()) {
-      DCHECK(ObjectMarking::IsWhite(
+      DCHECK(ObjectMarking::IsWhite<AccessMode::ATOMIC>(
           dst, mark_compact_collector_->marking_state(dst)));
       heap_->incremental_marking()->TransferColor<AccessMode::ATOMIC>(src, dst);
     }
