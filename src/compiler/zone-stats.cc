@@ -68,11 +68,11 @@ ZoneStats::~ZoneStats() {
   DCHECK(stats_.empty());
 }
 
-size_t ZoneStats::GetMaxAllocatedBytes() const {
+size_t ZoneStats::GetMaxAllocatedBytes() {
   return std::max(max_allocated_bytes_, GetCurrentAllocatedBytes());
 }
 
-size_t ZoneStats::GetCurrentAllocatedBytes() const {
+size_t ZoneStats::GetCurrentAllocatedBytes() {
   size_t total = 0;
   for (Zone* zone : zones_) {
     total += static_cast<size_t>(zone->allocation_size());
@@ -80,7 +80,7 @@ size_t ZoneStats::GetCurrentAllocatedBytes() const {
   return total;
 }
 
-size_t ZoneStats::GetTotalAllocatedBytes() const {
+size_t ZoneStats::GetTotalAllocatedBytes() {
   return total_deleted_bytes_ + GetCurrentAllocatedBytes();
 }
 
