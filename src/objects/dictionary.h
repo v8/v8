@@ -63,8 +63,6 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   int NumberOfEnumerableProperties();
 
-  enum SortMode { UNSORTED, SORTED };
-
   // Return the key indices sorted by its enumeration index.
   static Handle<FixedArray> IterationIndices(
       Handle<Dictionary<Derived, Shape>> dictionary);

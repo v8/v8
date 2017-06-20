@@ -17773,15 +17773,7 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Handle<Derived> dictionary,
     return dictionary;
   }
 
-  // Check whether the dictionary should be extended.
-  dictionary = EnsureCapacity(dictionary, 1);
-#ifdef DEBUG
-  USE(Shape::AsHandle(dictionary->GetIsolate(), key));
-#endif
-  PropertyDetails details = PropertyDetails::Empty();
-
-  AddEntry(dictionary, key, value, details, dictionary->Hash(key));
-  return dictionary;
+  return Add(dictionary, key, value, PropertyDetails::Empty());
 }
 
 template <typename Derived, typename Shape>
@@ -17793,6 +17785,10 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
   dictionary = EnsureCapacity(dictionary, 1);
+
+#ifdef DEBUG
+  USE(Shape::AsHandle(dictionary->GetIsolate(), key));
+#endif
 
   int entry = AddEntry(dictionary, key, value, details, dictionary->Hash(key));
   if (entry_out) *entry_out = entry;
