@@ -1781,8 +1781,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   inline bool Visit(HeapObject* object) override {
-    heap_->UpdateAllocationSite<Heap::kCached>(object,
-                                               local_pretenuring_feedback_);
     int size = object->Size();
     HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address(), size) &&
@@ -1791,6 +1789,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       promoted_size_ += size;
       return true;
     }
+    heap_->UpdateAllocationSite<Heap::kCached>(object,
+                                               local_pretenuring_feedback_);
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
@@ -1935,9 +1935,10 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   }
 
   inline bool Visit(HeapObject* object) {
-    heap_->UpdateAllocationSite<Heap::kCached>(object,
-                                               local_pretenuring_feedback_);
-    if (mode == NEW_TO_OLD) {
+    if (mode == NEW_TO_NEW) {
+      heap_->UpdateAllocationSite<Heap::kCached>(object,
+                                                 local_pretenuring_feedback_);
+    } else if (mode == NEW_TO_OLD) {
       object->IterateBodyFast(record_visitor_);
     }
     return true;
