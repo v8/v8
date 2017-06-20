@@ -2221,12 +2221,13 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 }
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ SmiTag(x10, x0);
-  __ Mov(x11, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ Push(lr, fp);
-  __ Push(x11, x1, x10);
-  __ Add(fp, jssp,
-         StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+  __ Mov(x11, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Push(x11, x1);  // x1: function
+  // We do not yet push the number of arguments, to maintain a 16-byte aligned
+  // stack pointer. This is done in step (3) in
+  // Generate_ArgumentsAdaptorTrampoline.
+  __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
@@ -2239,6 +2240,11 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
                                kPointerSize)));
   __ Mov(jssp, fp);
   __ Pop(fp, lr);
+
+  // Drop actual parameters and receiver.
+  // TODO(all): This will need to be rounded up to a multiple of two when using
+  // the CSP, as we will have claimed an even number of slots in total for the
+  // parameters.
   __ DropBySMI(x10, kXRegSize);
   __ Drop(1);
 }
@@ -3061,115 +3067,152 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- x3 : new target (passed through to callee)
   // -----------------------------------
 
+  // The frame we are about to construct will look like:
+  //
+  //  slot      Adaptor frame
+  //       +-----------------+--------------------------------
+  //  -n-1 |    receiver     |                            ^
+  //       |  (parameter 0)  |                            |
+  //       |- - - - - - - - -|                            |
+  //  -n   |                 |                          Caller
+  //  ...  |       ...       |                       frame slots --> actual args
+  //  -2   |  parameter n-1  |                            |
+  //       |- - - - - - - - -|                            |
+  //  -1   |   parameter n   |                            v
+  //  -----+-----------------+--------------------------------
+  //   0   |   return addr   |                            ^
+  //       |- - - - - - - - -|                            |
+  //   1   | saved frame ptr | <-- frame ptr              |
+  //       |- - - - - - - - -|                            |
+  //   2   |Frame Type Marker|                            |
+  //       |- - - - - - - - -|                            |
+  //   3   |    function     |                          Callee
+  //       |- - - - - - - - -|                        frame slots
+  //   4   |     num of      |                            |
+  //       |   actual args   |                            |
+  //       |- - - - - - - - -|                            |
+  //  [5]  |    [padding]    |                            |
+  //       |-----------------+----                        |
+  // 5+pad |    receiver     |   ^                        |
+  //       |  (parameter 0)  |   |                        |
+  //       |- - - - - - - - -|   |                        |
+  // 6+pad |   parameter 1   |   |                        |
+  //       |- - - - - - - - -| Frame slots ----> expected args
+  // 7+pad |   parameter 2   |   |                        |
+  //       |- - - - - - - - -|   |                        |
+  //       |                 |   |                        |
+  //  ...  |       ...       |   |                        |
+  //       |   parameter m   |   |                        |
+  //       |- - - - - - - - -|   |                        |
+  //       |   [undefined]   |   |                        |
+  //       |- - - - - - - - -|   |                        |
+  //       |                 |   |                        |
+  //       |       ...       |   |                        |
+  //       |   [undefined]   |   v   <-- stack ptr        v
+  //  -----+-----------------+---------------------------------
+  //
+  // There is an optional slot of padding to ensure stack alignment.
+  // If the number of expected arguments is larger than the number of actual
+  // arguments, the remaining expected slots will be filled with undefined.
+
   Register argc_actual = x0;    // Excluding the receiver.
   Register argc_expected = x2;  // Excluding the receiver.
   Register function = x1;
   Register code_entry = x10;
 
-  Label invoke, dont_adapt_arguments, stack_overflow;
+  Label dont_adapt_arguments, stack_overflow;
 
-  Label enough, too_few;
-  __ Cmp(argc_actual, argc_expected);
-  __ B(lt, &too_few);
+  Label enough_arguments;
   __ Cmp(argc_expected, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
   __ B(eq, &dont_adapt_arguments);
 
-  {  // Enough parameters: actual >= expected
-    EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, x2, x10, &stack_overflow);
+  EnterArgumentsAdaptorFrame(masm);
 
-    Register copy_start = x10;
-    Register copy_end = x11;
-    Register copy_to = x12;
-    Register scratch1 = x13, scratch2 = x14;
+  Register copy_from = x10;
+  Register copy_end = x11;
+  Register copy_to = x12;
+  Register argc_to_copy = x13;
+  Register argc_unused_actual = x14;
+  Register scratch1 = x15, scratch2 = x16;
 
-    __ Lsl(scratch2, argc_expected, kPointerSizeLog2);
+  // We need slots for the expected arguments, with two extra slots for the
+  // number of actual arguments and the receiver.
+  __ RecordComment("-- Stack check --");
+  __ Add(scratch1, argc_expected, 2);
+  Generate_StackOverflowCheck(masm, scratch1, scratch2, &stack_overflow);
 
-    // Adjust for fp, lr, and the receiver.
-    __ Add(copy_start, fp, 3 * kPointerSize);
-    __ Add(copy_start, copy_start, Operand(argc_actual, LSL, kPointerSizeLog2));
-    __ Sub(copy_end, copy_start, scratch2);
-    __ Sub(copy_end, copy_end, kPointerSize);
-    __ Mov(copy_to, jssp);
+  // Round up number of slots to be even, to maintain stack alignment.
+  __ RecordComment("-- Allocate callee frame slots --");
+  __ Add(scratch1, scratch1, 1);
+  __ Bic(scratch1, scratch1, 1);
+  __ Claim(scratch1, kPointerSize);
 
-    // Claim space for the arguments, the receiver, and one extra slot.
-    // The extra slot ensures we do not write under jssp. It will be popped
-    // later.
-    __ Add(scratch1, scratch2, 2 * kPointerSize);
-    __ Claim(scratch1, 1);
+  __ Mov(copy_to, jssp);
 
-    // Copy the arguments (including the receiver) to the new stack frame.
-    Label copy_2_by_2;
-    __ Bind(&copy_2_by_2);
-    __ Ldp(scratch1, scratch2,
-           MemOperand(copy_start, -2 * kPointerSize, PreIndex));
-    __ Stp(scratch1, scratch2,
-           MemOperand(copy_to, -2 * kPointerSize, PreIndex));
-    __ Cmp(copy_start, copy_end);
-    __ B(hi, &copy_2_by_2);
+  // Preparing the expected arguments is done in four steps, the order of
+  // which is chosen so we can use LDP/STP and avoid conditional branches as
+  // much as possible.
 
-    // Correct the space allocated for the extra slot.
-    __ Drop(1);
+  // (1) If we don't have enough arguments, fill the remaining expected
+  // arguments with undefined, otherwise skip this step.
+  __ Subs(scratch1, argc_actual, argc_expected);
+  __ Csel(argc_unused_actual, xzr, scratch1, lt);
+  __ Csel(argc_to_copy, argc_expected, argc_actual, ge);
+  __ B(ge, &enough_arguments);
 
-    __ B(&invoke);
-  }
+  // Fill the remaining expected arguments with undefined.
+  __ RecordComment("-- Fill slots with undefined --");
+  __ Sub(copy_end, copy_to, Operand(scratch1, LSL, kPointerSizeLog2));
+  __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
 
-  {  // Too few parameters: Actual < expected
-    __ Bind(&too_few);
+  Label fill;
+  __ Bind(&fill);
+  __ Stp(scratch1, scratch1, MemOperand(copy_to, 2 * kPointerSize, PostIndex));
+  // We might write one slot extra, but that is ok because we'll overwrite it
+  // below.
+  __ Cmp(copy_end, copy_to);
+  __ B(hi, &fill);
 
-    Register copy_from = x10;
-    Register copy_end = x11;
-    Register copy_to = x12;
-    Register scratch1 = x13, scratch2 = x14;
+  // Correct copy_to, for the case where we wrote one additional slot.
+  __ Mov(copy_to, copy_end);
 
-    EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, x2, x10, &stack_overflow);
+  __ Bind(&enough_arguments);
+  // (2) Copy all of the actual arguments, or as many as we need.
+  __ RecordComment("-- Copy actual arguments --");
+  __ Add(copy_end, copy_to, Operand(argc_to_copy, LSL, kPointerSizeLog2));
+  __ Add(copy_from, fp, 2 * kPointerSize);
+  // Adjust for difference between actual and expected arguments.
+  __ Add(copy_from, copy_from,
+         Operand(argc_unused_actual, LSL, kPointerSizeLog2));
 
-    __ Lsl(scratch2, argc_expected, kPointerSizeLog2);
-    __ Lsl(argc_actual, argc_actual, kPointerSizeLog2);
+  // Copy arguments. We use load/store pair instructions, so we might overshoot
+  // by one slot, but since we copy the arguments starting from the last one, if
+  // we do overshoot, the extra slot will be overwritten later by the receiver.
+  Label copy_2_by_2;
+  __ Bind(&copy_2_by_2);
+  __ Ldp(scratch1, scratch2,
+         MemOperand(copy_from, 2 * kPointerSize, PostIndex));
+  __ Stp(scratch1, scratch2, MemOperand(copy_to, 2 * kPointerSize, PostIndex));
+  __ Cmp(copy_end, copy_to);
+  __ B(hi, &copy_2_by_2);
 
-    // Adjust for fp, lr, and the receiver.
-    __ Add(copy_from, fp, 3 * kPointerSize);
-    __ Add(copy_from, copy_from, argc_actual);
-    __ Mov(copy_to, jssp);
-    __ Sub(copy_end, copy_to, 1 * kPointerSize);  // Adjust for the receiver.
-    __ Sub(copy_end, copy_end, argc_actual);
+  // (3) Store number of actual arguments and padding. The padding might be
+  // unnecessary, in which case it will be overwritten by the receiver.
+  __ RecordComment("-- Store number of args and padding --");
+  __ SmiTag(scratch1, argc_actual);
+  __ Stp(xzr, scratch1, MemOperand(fp, -4 * kPointerSize));
 
-    // Claim space for the arguments, the receiver, and one extra slot.
-    // The extra slot ensures we do not write under jssp. It will be popped
-    // later.
-    __ Add(scratch1, scratch2, 2 * kPointerSize);
-    __ Claim(scratch1, 1);
-
-    // Copy the arguments (including the receiver) to the new stack frame.
-    Label copy_2_by_2;
-    __ Bind(&copy_2_by_2);
-    __ Ldp(scratch1, scratch2,
-           MemOperand(copy_from, -2 * kPointerSize, PreIndex));
-    __ Stp(scratch1, scratch2,
-           MemOperand(copy_to, -2 * kPointerSize, PreIndex));
-    __ Cmp(copy_to, copy_end);
-    __ B(hi, &copy_2_by_2);
-
-    __ Mov(copy_to, copy_end);
-
-    // Fill the remaining expected arguments with undefined.
-    __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
-    __ Add(copy_end, jssp, kPointerSize);
-
-    Label fill;
-    __ Bind(&fill);
-    __ Stp(scratch1, scratch1,
-           MemOperand(copy_to, -2 * kPointerSize, PreIndex));
-    __ Cmp(copy_to, copy_end);
-    __ B(hi, &fill);
-
-    // Correct the space allocated for the extra slot.
-    __ Drop(1);
-  }
+  // (4) Store receiver. Calculate target address from jssp to avoid checking
+  // for padding. Storing the receiver will overwrite either the extra slot
+  // we copied with the actual arguments, if we did copy one, or the padding we
+  // stored above.
+  __ RecordComment("-- Store receiver --");
+  __ Add(copy_from, fp, 2 * kPointerSize);
+  __ Ldr(scratch1, MemOperand(copy_from, argc_actual, LSL, kPointerSizeLog2));
+  __ Str(scratch1, MemOperand(jssp, argc_expected, LSL, kPointerSizeLog2));
 
   // Arguments have been adapted. Now call the entry point.
-  __ Bind(&invoke);
+  __ RecordComment("-- Call entry point --");
   __ Mov(argc_actual, argc_expected);
   // x0 : expected number of arguments
   // x1 : function (passed through to callee)
@@ -3185,11 +3228,13 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ Ret();
 
   // Call the entry point without adapting the arguments.
+  __ RecordComment("-- Call without adapting args --");
   __ Bind(&dont_adapt_arguments);
   __ Ldr(code_entry, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
   __ Jump(code_entry);
 
   __ Bind(&stack_overflow);
+  __ RecordComment("-- Stack overflow --");
   {
     FrameScope frame(masm, StackFrame::MANUAL);
     __ CallRuntime(Runtime::kThrowStackOverflow);
