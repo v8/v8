@@ -1315,7 +1315,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Pop(a2);                   // Pass the spread in a register
-    __ Subu(a0, a0, Operand(1));  // Subtract one for spread
+    __ Dsubu(a0, a0, Operand(1));  // Subtract one for spread
   }
 
   // Call the target.
@@ -1362,7 +1362,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Pop(a2);                   // Pass the spread in a register
-    __ Subu(a0, a0, Operand(1));  // Subtract one for spread
+    __ Dsubu(a0, a0, Operand(1));  // Subtract one for spread
   } else {
     __ AssertUndefinedOrAllocationSite(a2, t0);
   }
