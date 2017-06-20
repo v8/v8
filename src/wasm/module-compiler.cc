@@ -530,16 +530,22 @@ bool in_bounds(uint32_t offset, uint32_t size, uint32_t upper) {
   return offset + size <= upper && offset + size >= offset;
 }
 
-Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
-                                  Handle<JSReceiver> target,
-                                  Handle<String> module_name,
-                                  MaybeHandle<String> import_name,
-                                  ModuleOrigin origin) {
+using WasmInstanceMap =
+    IdentityMap<Handle<WasmInstanceObject>, FreeStoreAllocationPolicy>;
+
+Handle<Code> UnwrapOrCompileImportWrapper(
+    Isolate* isolate, int index, FunctionSig* sig, Handle<JSReceiver> target,
+    Handle<String> module_name, MaybeHandle<String> import_name,
+    ModuleOrigin origin, WasmInstanceMap* imported_instances) {
   WasmFunction* other_func = GetWasmFunctionForImportWrapper(isolate, target);
   if (other_func) {
     if (!sig->Equals(other_func->sig)) return Handle<Code>::null();
     // Signature matched. Unwrap the import wrapper and return the raw wasm
     // function code.
+    // Remember the wasm instance of the import. We have to keep it alive.
+    Handle<WasmInstanceObject> imported_instance(
+        Handle<WasmExportedFunction>::cast(target)->instance(), isolate);
+    imported_instances->Set(imported_instance, imported_instance);
     return UnwrapImportWrapper(target);
   }
   // No wasm function or being debugged. Compile a new wrapper for the new
@@ -1285,6 +1291,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
                                     Handle<WasmInstanceObject> instance) {
   int num_imported_functions = 0;
   int num_imported_tables = 0;
+  WasmInstanceMap imported_wasm_instances(isolate_->heap());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());
        ++index) {
     WasmImport& import = module_->import_table[index];
@@ -1316,10 +1323,10 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           return -1;
         }
 
-        Handle<Code> import_wrapper = CompileImportWrapper(
+        Handle<Code> import_wrapper = UnwrapOrCompileImportWrapper(
             isolate_, index, module_->functions[import.index].sig,
             Handle<JSReceiver>::cast(value), module_name, import_name,
-            module_->get_origin());
+            module_->get_origin(), &imported_wasm_instances);
         if (import_wrapper.is_null()) {
           ReportLinkError("imported function does not match the expected type",
                           index, module_name, import_name);
@@ -1474,6 +1481,19 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         break;
     }
   }
+
+  if (!imported_wasm_instances.empty()) {
+    WasmInstanceMap::IteratableScope iteratable_scope(&imported_wasm_instances);
+    Handle<FixedArray> instances_array = isolate_->factory()->NewFixedArray(
+        imported_wasm_instances.size(), TENURED);
+    instance->set_directly_called_instances(*instances_array);
+    int index = 0;
+    for (auto it = iteratable_scope.begin(), end = iteratable_scope.end();
+         it != end; ++it, ++index) {
+      instances_array->set(index, ***it);
+    }
+  }
+
   return num_imported_functions;
 }
 

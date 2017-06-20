@@ -132,6 +132,8 @@ class WasmInstanceObject : public JSObject {
     kGlobalsArrayBuffer,
     kDebugInfo,
     kWasmMemInstanceWrapper,
+    // FixedArray of wasm instances whose code we imported (to keep them alive).
+    kDirectlyCalledInstances,
     kFieldCount
   };
 
@@ -143,6 +145,7 @@ class WasmInstanceObject : public JSObject {
   DECLARE_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject);
   DECLARE_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo);
   DECLARE_OPTIONAL_ACCESSORS(instance_wrapper, WasmInstanceWrapper);
+  DECLARE_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray);
 
   WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();

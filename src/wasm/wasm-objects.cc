@@ -540,6 +540,8 @@ DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, debug_info, kDebugInfo,
                               WasmDebugInfo)
 DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, instance_wrapper,
                               kWasmMemInstanceWrapper, WasmInstanceWrapper)
+DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, directly_called_instances,
+                              kDirectlyCalledInstances, FixedArray)
 
 WasmModuleObject* WasmInstanceObject::module_object() {
   return *compiled_module()->wasm_module();
