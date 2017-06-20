@@ -131,9 +131,6 @@ class Dictionary : public HashTable<Derived, Shape> {
   // Generic at put operation.
   MUST_USE_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
                                                Key key, Handle<Object> value);
-  // Add entry to dictionary. Returns entry value.
-  static int AddEntry(Handle<Derived> dictionary, Key key, Handle<Object> value,
-                      PropertyDetails details, uint32_t hash);
 };
 
 template <typename Key>

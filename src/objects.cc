@@ -1917,17 +1917,16 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      Handle<Object> value,
                                      PropertyDetails details) {
   DCHECK(!object->HasFastProperties());
-  if (!name->IsUniqueName()) {
-    name = object->GetIsolate()->factory()->InternalizeString(
-        Handle<String>::cast(name));
-  }
+  DCHECK(name->IsUniqueName());
+  Isolate* isolate = object->GetIsolate();
+
+  uint32_t hash = name->Hash();
 
   if (object->IsJSGlobalObject()) {
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
+    int entry = dictionary->FindEntry(isolate, name, hash);
 
-    int entry = dictionary->FindEntry(name);
     if (entry == GlobalDictionary::kNotFound) {
-      Isolate* isolate = object->GetIsolate();
       auto cell = isolate->factory()->NewPropertyCell();
       cell->set_value(*value);
       auto cell_type = value->IsUndefined(isolate)
@@ -16523,11 +16522,6 @@ template void Dictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
     KeyAccumulator* keys);
 
 template int
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::AddEntry(
-    Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, PropertyDetails details, uint32_t hash);
-
-template int
 Dictionary<SeededNumberDictionary,
            SeededNumberDictionaryShape>::NumberOfEnumerableProperties();
 
@@ -17781,28 +17775,15 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
                                                 Key key, Handle<Object> value,
                                                 PropertyDetails details,
                                                 int* entry_out) {
+  Isolate* isolate = dictionary->GetIsolate();
+  uint32_t hash = dictionary->Hash(key);
   // Valdate key is absent.
   SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
   dictionary = EnsureCapacity(dictionary, 1);
 
-#ifdef DEBUG
-  USE(Shape::AsHandle(dictionary->GetIsolate(), key));
-#endif
-
-  int entry = AddEntry(dictionary, key, value, details, dictionary->Hash(key));
-  if (entry_out) *entry_out = entry;
-  return dictionary;
-}
-
-// Add a key, value pair to the dictionary. Returns entry value.
-template <typename Derived, typename Shape>
-int Dictionary<Derived, Shape>::AddEntry(Handle<Derived> dictionary, Key key,
-                                         Handle<Object> value,
-                                         PropertyDetails details,
-                                         uint32_t hash) {
   // Compute the key object.
-  Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
+  Handle<Object> k = Shape::AsHandle(isolate, key);
 
   uint32_t entry = dictionary->FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
@@ -17814,10 +17795,11 @@ int Dictionary<Derived, Shape>::AddEntry(Handle<Derived> dictionary, Key key,
     dictionary->SetNextEnumerationIndex(index + 1);
   }
   dictionary->SetEntry(entry, k, value, details);
-  DCHECK((dictionary->KeyAt(entry)->IsNumber() ||
-          dictionary->KeyAt(entry)->IsName()));
+  DCHECK(dictionary->KeyAt(entry)->IsNumber() ||
+         dictionary->KeyAt(entry)->IsUniqueName());
   dictionary->ElementAdded();
-  return entry;
+  if (entry_out) *entry_out = entry;
+  return dictionary;
 }
 
 bool SeededNumberDictionary::HasComplexElements() {
