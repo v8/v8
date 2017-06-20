@@ -91,11 +91,11 @@ class BytecodeRegisterAllocator final {
 
   // Release all registers above |register_index|.
   void ReleaseRegisters(int register_index) {
-    if (observer_) {
-      observer_->RegisterListFreeEvent(
-          RegisterList(register_index, next_register_index_ - register_index));
-    }
+    int count = next_register_index_ - register_index;
     next_register_index_ = register_index;
+    if (observer_) {
+      observer_->RegisterListFreeEvent(RegisterList(register_index, count));
+    }
   }
 
   // Returns true if the register |reg| is a live register.

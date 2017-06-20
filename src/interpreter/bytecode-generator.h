@@ -159,6 +159,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitForInAssignment(Expression* expr, FeedbackSlot slot);
   void VisitModuleNamespaceImports();
 
+  // Builds a logical OR/AND within a test context by rewiring the jumps based
+  // on the expression values.
+  void BuildLogicalTest(Token::Value token, Expression* left,
+                        Expression* right);
+
   // Builds an addition expression. If the result is a known string addition,
   // then rather than emitting the add, the operands will converted to
   // primitive, then to string and stored in registers in the
@@ -181,6 +186,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int AllocateBlockCoverageSlotIfEnabled(SourceRange range);
   void BuildIncrementBlockCoverageCounterIfEnabled(int coverage_array_slot);
 
+  void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
+                 BytecodeLabels* else_labels, TestFallthrough fallthrough);
+
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which
   // specifies the type of the result of the visited expression.
@@ -194,6 +202,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
   TypeHint VisitForAddOperand(Expression* expr, RegisterList* operand_registers,
                               Register* out_register);
+  void VisitInSameTestExecutionScope(Expression* expr);
 
   // Returns the runtime function id for a store to super for the function's
   // language mode.
