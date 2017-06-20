@@ -321,20 +321,6 @@ class IncrementalMarkingMarkingVisitor
   }
 };
 
-void IncrementalMarking::IterateBlackObject(HeapObject* object) {
-  if (IsMarking() &&
-      ObjectMarking::IsBlack<kAtomicity>(object, marking_state(object))) {
-    Page* page = Page::FromAddress(object->address());
-    if ((page->owner() != nullptr) && (page->owner()->identity() == LO_SPACE)) {
-      // IterateBlackObject requires us to visit the whole object.
-      page->ResetProgressBar();
-    }
-    Map* map = object->map();
-    WhiteToGreyAndPush(map);
-    IncrementalMarkingMarkingVisitor::IterateBody(map, object);
-  }
-}
-
 class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
  public:
   explicit IncrementalMarkingRootMarkingVisitor(
@@ -898,6 +884,26 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
            obj->IsString());
   }
   DCHECK(ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj)));
+  WhiteToGreyAndPush(map);
+  IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
+}
+
+void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject* obj) {
+  if (IsMarking() &&
+      ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj))) {
+    RevisitObject(obj);
+  }
+}
+
+void IncrementalMarking::RevisitObject(HeapObject* obj) {
+  DCHECK(IsMarking());
+  DCHECK(FLAG_concurrent_marking ||
+         ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj)));
+  Page* page = Page::FromAddress(obj->address());
+  if ((page->owner() != nullptr) && (page->owner()->identity() == LO_SPACE)) {
+    page->ResetProgressBar();
+  }
+  Map* map = obj->map();
   WhiteToGreyAndPush(map);
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 }

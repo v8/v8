@@ -3455,7 +3455,7 @@ AllocationResult Heap::CopyCode(Code* code) {
   new_code->Relocate(new_addr - old_addr);
   // We have to iterate over the object and process its pointers when black
   // allocation is on.
-  incremental_marking()->IterateBlackObject(new_code);
+  incremental_marking()->ProcessBlackAllocatedObject(new_code);
   // Record all references to embedded objects in the new code object.
   RecordWritesIntoCode(new_code);
   return new_code;
@@ -4269,7 +4269,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
         // incremental marking. E.g. see VisitNativeContextIncremental.
         DCHECK(ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)));
         if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
-          incremental_marking()->IterateBlackObject(obj);
+          incremental_marking()->ProcessBlackAllocatedObject(obj);
         }
         addr += obj->Size();
       }
@@ -4281,7 +4281,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
   // Large object space doesn't use reservations, so it needs custom handling.
   for (HeapObject* object : *large_objects) {
-    incremental_marking()->IterateBlackObject(object);
+    incremental_marking()->ProcessBlackAllocatedObject(object);
   }
 }
 

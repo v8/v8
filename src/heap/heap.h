@@ -342,7 +342,7 @@ using v8::MemoryPressureLevel;
 #define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
   do {                                                                 \
     heap->RecordFixedArrayElements(array, start, length);              \
-    heap->incremental_marking()->IterateBlackObject(array);            \
+    heap->incremental_marking()->RecordWrites(array);                  \
   } while (false)
 
 // Forward declarations.
