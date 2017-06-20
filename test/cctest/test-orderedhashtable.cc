@@ -13,6 +13,19 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
 }
 
+void CopyHashCode(Isolate* isolate, Handle<JSReceiver> from,
+                  Handle<JSReceiver> to) {
+  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
+  Handle<Smi> hash =
+      Handle<Smi>::cast(JSObject::GetDataProperty(from, hash_code_symbol));
+
+  LookupIterator it(to, hash_code_symbol, to, LookupIterator::OWN);
+  CHECK(to->AddDataProperty(
+              &it, hash, NONE, v8::internal::AccessCheckInfo::THROW_ON_ERROR,
+              v8::internal::AccessCheckInfo::CERTAINLY_NOT_STORE_FROM_KEYED)
+            .IsJust());
+}
+
 void Verify(Handle<SmallOrderedHashSet> set) {
 #if VERIFY_HEAP
   set->ObjectVerify();
@@ -28,6 +41,12 @@ void Verify(Handle<SmallOrderedHashMap> map) {
 void Verify(Handle<OrderedHashMap> map) {
 #if VERIFY_HEAP
   map->ObjectVerify();
+#endif
+}
+
+void Verify(Handle<OrderedHashSet> set) {
+#if VERIFY_HEAP
+  set->ObjectVerify();
 #endif
 }
 
@@ -211,20 +230,8 @@ TEST(SmallOrderedHashSetDuplicateHashCode) {
   CHECK_EQ(1, set->NumberOfElements());
   CHECK(set->HasKey(isolate, key1));
 
-  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
-  Handle<Smi> hash =
-      Handle<Smi>::cast(JSObject::GetDataProperty(key1, hash_code_symbol));
-
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  LookupIterator it(key2, hash_code_symbol, key2, LookupIterator::OWN);
-  CHECK(key2->AddDataProperty(
-                &it, hash, NONE, v8::internal::AccessCheckInfo::THROW_ON_ERROR,
-                v8::internal::AccessCheckInfo::CERTAINLY_NOT_STORE_FROM_KEYED)
-            .IsJust());
-  CHECK(!key1->SameValue(*key2));
-  Object* hash1 = key1->GetHash();
-  Object* hash2 = key2->GetHash();
-  CHECK_EQ(hash1, hash2);
+  CopyHashCode(isolate, key1, key2);
 
   set = SmallOrderedHashSet::Add(set, key2);
   Verify(set);
@@ -612,16 +619,8 @@ TEST(OrderedHashMapDuplicateHashCode) {
   CHECK_EQ(1, map->NumberOfElements());
   CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
 
-  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
-  Handle<Smi> hash =
-      Handle<Smi>::cast(JSObject::GetDataProperty(key1, hash_code_symbol));
-
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  LookupIterator it(key2, hash_code_symbol, key2, LookupIterator::OWN);
-  CHECK(key2->AddDataProperty(
-                &it, hash, NONE, v8::internal::AccessCheckInfo::THROW_ON_ERROR,
-                v8::internal::AccessCheckInfo::CERTAINLY_NOT_STORE_FROM_KEYED)
-            .IsJust());
+  CopyHashCode(isolate, key1, key2);
 
   map = OrderedHashMap::Add(map, key2, value);
   Verify(map);
@@ -629,4 +628,313 @@ TEST(OrderedHashMapDuplicateHashCode) {
   CHECK_EQ(2, map->NumberOfElements());
   CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
   CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+}
+
+TEST(OrderedHashMapDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<Object> true_val = factory->true_value();
+  Handle<Object> false_val = factory->false_value();
+  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  Handle<String> value = factory->NewStringFromAsciiChecked("bar");
+
+  Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(0, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+
+  // Delete from an empty hash table
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  CHECK(!OrderedHashMap::Delete(isolate, *map, *key1));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(0, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  map = OrderedHashMap::Add(map, key1, value1);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  // Delete single existing key
+  CHECK(OrderedHashMap::Delete(isolate, *map, *key1));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(0, map->NumberOfElements());
+  CHECK_EQ(1, map->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  map = OrderedHashMap::Add(map, key1, value1);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(1, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  map = OrderedHashMap::Add(map, key2, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(2, map->NumberOfElements());
+  CHECK_EQ(1, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+
+  Handle<Symbol> key3 = factory->NewSymbol();
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+  map = OrderedHashMap::Add(map, key3, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(3, map->NumberOfElements());
+  CHECK_EQ(1, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  // Delete multiple existing keys
+  CHECK(OrderedHashMap::Delete(isolate, *map, *key1));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(2, map->NumberOfElements());
+  CHECK_EQ(2, map->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  CHECK(OrderedHashMap::Delete(isolate, *map, *key2));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(3, map->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  CHECK(OrderedHashMap::Delete(isolate, *map, *key3));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(0, map->NumberOfElements());
+  CHECK_EQ(4, map->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  // Delete non existant key from non new hash table
+  CHECK(!OrderedHashMap::Delete(isolate, *map, *key3));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(0, map->NumberOfElements());
+  CHECK_EQ(4, map->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+
+  // Delete non existant key from non empty hash table
+  map = OrderedHashMap::Shrink(map);
+  map = OrderedHashMap::Add(map, key1, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+  CHECK(!OrderedHashMap::Delete(isolate, *map, *key2));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key3));
+}
+
+TEST(OrderedHashMapDuplicateHashCodeDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
+  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  Handle<JSObject> value = factory->NewJSObjectWithNullProto();
+  Handle<Object> true_val = factory->true_value();
+  Handle<Object> false_val = factory->false_value();
+  map = OrderedHashMap::Add(map, key1, value);
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+
+  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  CopyHashCode(isolate, key1, key2);
+
+  // We shouldn't be able to delete the key!
+  CHECK(!OrderedHashMap::Delete(isolate, *map, *key2));
+  Verify(map);
+  CHECK_EQ(2, map->NumberOfBuckets());
+  CHECK_EQ(1, map->NumberOfElements());
+  CHECK_EQ(0, map->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashMap::HasKey(isolate, *map, *key1));
+  CHECK_EQ(*false_val, OrderedHashMap::HasKey(isolate, *map, *key2));
+}
+
+TEST(OrderedHashSetDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<Object> true_val = factory->true_value();
+  Handle<Object> false_val = factory->false_value();
+
+  Handle<OrderedHashSet> set = factory->NewOrderedHashSet();
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(0, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+
+  // Delete from an empty hash table
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  CHECK(!OrderedHashSet::Delete(isolate, *set, *key1));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(0, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+
+  set = OrderedHashSet::Add(set, key1);
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+
+  // Delete single existing key
+  CHECK(OrderedHashSet::Delete(isolate, *set, *key1));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(0, set->NumberOfElements());
+  CHECK_EQ(1, set->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+
+  set = OrderedHashSet::Add(set, key1);
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(1, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+
+  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  set = OrderedHashSet::Add(set, key2);
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(2, set->NumberOfElements());
+  CHECK_EQ(1, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+
+  Handle<Symbol> key3 = factory->NewSymbol();
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+  set = OrderedHashSet::Add(set, key3);
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(3, set->NumberOfElements());
+  CHECK_EQ(1, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+
+  // Delete multiple existing keys
+  CHECK(OrderedHashSet::Delete(isolate, *set, *key1));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(2, set->NumberOfElements());
+  CHECK_EQ(2, set->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+
+  CHECK(OrderedHashSet::Delete(isolate, *set, *key2));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(3, set->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+
+  CHECK(OrderedHashSet::Delete(isolate, *set, *key3));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(0, set->NumberOfElements());
+  CHECK_EQ(4, set->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+
+  // Delete non existant key from non new hash table
+  CHECK(!OrderedHashSet::Delete(isolate, *set, *key3));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(0, set->NumberOfElements());
+  CHECK_EQ(4, set->NumberOfDeletedElements());
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+
+  // Delete non existant key from non empty hash table
+  set = OrderedHashSet::Shrink(set);
+  set = OrderedHashSet::Add(set, key1);
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+  CHECK(!OrderedHashSet::Delete(isolate, *set, *key2));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key3));
+}
+
+TEST(OrderedHashSetDuplicateHashCodeDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<OrderedHashSet> set = factory->NewOrderedHashSet();
+  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  Handle<Object> true_val = factory->true_value();
+  Handle<Object> false_val = factory->false_value();
+  set = OrderedHashSet::Add(set, key1);
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+
+  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  CopyHashCode(isolate, key1, key2);
+
+  // We shouldn't be able to delete the key!
+  CHECK(!OrderedHashSet::Delete(isolate, *set, *key2));
+  Verify(set);
+  CHECK_EQ(2, set->NumberOfBuckets());
+  CHECK_EQ(1, set->NumberOfElements());
+  CHECK_EQ(0, set->NumberOfDeletedElements());
+  CHECK_EQ(*true_val, OrderedHashSet::HasKey(isolate, *set, *key1));
+  CHECK_EQ(*false_val, OrderedHashSet::HasKey(isolate, *set, *key2));
 }

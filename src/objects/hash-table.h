@@ -410,6 +410,10 @@ class OrderedHashTable : public FixedArray {
   // existing iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
+  // Returns a true value if the OrderedHashTable contains the key and
+  // the key has been deleted. This does not shrink the table.
+  static bool Delete(Isolate* isolate, Derived* table, Object* key);
+
   // Returns a true value if the OrderedHashTable contains the key
   static Object* HasKey(Isolate* isolate, Derived* table, Object* key);
 
@@ -455,6 +459,18 @@ class OrderedHashTable : public FixedArray {
     // If the object does not have an identity hash, it was never used as a key
     if (hash->IsUndefined(isolate)) return kNotFound;
     return HashToEntry(Smi::cast(hash)->value());
+  }
+
+  int FindEntry(Isolate* isolate, Object* key) {
+    int entry = KeyToFirstEntry(isolate, key);
+    // Walk the chain in the bucket to find the key.
+    while (entry != kNotFound) {
+      Object* candidate_key = KeyAt(entry);
+      if (candidate_key->SameValueZero(key)) break;
+      entry = NextChainEntry(entry);
+    }
+
+    return entry;
   }
 
   int NextChainEntry(int entry) {

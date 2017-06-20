@@ -18158,14 +18158,9 @@ Object* OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
                                                      Object* key) {
   DCHECK(table->IsOrderedHashTable());
   DisallowHeapAllocation no_gc;
-  int entry = table->KeyToFirstEntry(isolate, key);
-  // Walk the chain in the bucket to find the key.
-  while (entry != kNotFound) {
-    Object* candidate_key = table->KeyAt(entry);
-    if (candidate_key->SameValueZero(key)) return isolate->heap()->true_value();
-    entry = table->NextChainEntry(entry);
-  }
-  return isolate->heap()->false_value();
+  int entry = table->FindEntry(isolate, key);
+  return entry == kNotFound ? isolate->heap()->false_value()
+                            : isolate->heap()->true_value();
 }
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
@@ -18267,20 +18262,35 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
   return new_table;
 }
 
+template <class Derived, int entrysize>
+bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
+                                                  Derived* table, Object* key) {
+  DisallowHeapAllocation no_gc;
+  int entry = table->FindEntry(isolate, key);
+  if (entry == kNotFound) return false;
+
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+  int index = table->EntryToIndex(entry);
+
+  Object* hole = isolate->heap()->the_hole_value();
+  for (int i = 0; i < entrysize; ++i) {
+    table->set(index + i, hole);
+  }
+
+  table->SetNumberOfElements(nof - 1);
+  table->SetNumberOfDeletedElements(nod + 1);
+
+  return true;
+}
+
 Object* OrderedHashMap::Get(Isolate* isolate, OrderedHashMap* table,
                             Object* key) {
   DCHECK(table->IsOrderedHashMap());
   DisallowHeapAllocation no_gc;
-  int entry = table->KeyToFirstEntry(isolate, key);
-  // Walk the chain in the bucket to find the key.
-  while (entry != kNotFound) {
-    Object* candidate_key = table->KeyAt(entry);
-    if (candidate_key->SameValueZero(key)) {
-      return table->ValueAt(entry);
-    }
-    entry = table->NextChainEntry(entry);
-  }
-  return isolate->heap()->undefined_value();
+  int entry = table->FindEntry(isolate, key);
+  if (entry == kNotFound) return isolate->heap()->undefined_value();
+  return table->ValueAt(entry);
 }
 
 Handle<OrderedHashMap> OrderedHashMap::Add(Handle<OrderedHashMap> table,
@@ -18332,6 +18342,10 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
 template Object* OrderedHashTable<OrderedHashSet, 1>::HasKey(
     Isolate* isolate, OrderedHashSet* table, Object* key);
 
+template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
+                                                          OrderedHashSet* table,
+                                                          Object* key);
+
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -18346,6 +18360,10 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
 
 template Object* OrderedHashTable<OrderedHashMap, 2>::HasKey(
     Isolate* isolate, OrderedHashMap* table, Object* key);
+
+template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
+                                                          OrderedHashMap* table,
+                                                          Object* key);
 
 template <>
 Handle<SmallOrderedHashSet>
