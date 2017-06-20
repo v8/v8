@@ -3996,7 +3996,7 @@ void MacroAssembler::Call(Handle<Code> code,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   AllowDeferredHandleDereference embedding_raw_address;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, rs, rt, bd);
-  DCHECK_EQ(CallSize(code, rmode, ast_id, cond, rs, rt, bd),
+  DCHECK_EQ(CallSize(code, rmode, cond, rs, rt, bd),
             SizeOfCodeGeneratedSince(&start));
 }
 
