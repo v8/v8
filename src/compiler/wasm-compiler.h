@@ -55,6 +55,7 @@ class WasmCompilationUnit final {
 
   int func_index() const { return func_index_; }
 
+  void ReopenCentryStub() { centry_stub_ = handle(*centry_stub_, isolate_); }
   void InitializeHandles();
   void ExecuteCompilation();
   Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);

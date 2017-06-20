@@ -1937,6 +1937,9 @@ void AsyncCompileJob::ReopenHandlesInDeferredScope() {
   signature_tables_ = handle(*signature_tables_, isolate_);
   code_table_ = handle(*code_table_, isolate_);
   temp_instance_->ReopenHandles(isolate_);
+  for (auto& unit : compiler_->compilation_units_) {
+    unit->ReopenCentryStub();
+  }
   deferred_handles_.push_back(deferred.Detach());
 }
 
