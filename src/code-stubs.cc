@@ -1020,7 +1020,7 @@ TF_STUB(ArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Node* native_context = LoadObjectField(Parameter(Descriptor::kFunction),
                                          JSFunction::kContextOffset);
   bool track_allocation_site =
-      AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE &&
+      AllocationSite::ShouldTrack(elements_kind) &&
       stub->override_mode() != DISABLE_ALLOCATION_SITES;
   Node* allocation_site =
       track_allocation_site ? Parameter(Descriptor::kAllocationSite) : nullptr;
@@ -1109,9 +1109,13 @@ TF_STUB(ArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
   Node* function = Parameter(Descriptor::kFunction);
   Node* native_context = LoadObjectField(function, JSFunction::kContextOffset);
   Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
-  AllocationSiteMode mode = stub->override_mode() == DISABLE_ALLOCATION_SITES
-                                ? DONT_TRACK_ALLOCATION_SITE
-                                : AllocationSite::GetMode(elements_kind);
+  AllocationSiteMode mode = DONT_TRACK_ALLOCATION_SITE;
+  if (stub->override_mode() == DONT_OVERRIDE) {
+    mode = AllocationSite::ShouldTrack(elements_kind)
+               ? TRACK_ALLOCATION_SITE
+               : DONT_TRACK_ALLOCATION_SITE;
+  }
+
   Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
   Node* allocation_site = Parameter(Descriptor::kAllocationSite);
 

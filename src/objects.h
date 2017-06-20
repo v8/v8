@@ -5855,9 +5855,8 @@ class AllocationSite: public Struct {
   DECLARE_VERIFIER(AllocationSite)
 
   DECLARE_CAST(AllocationSite)
-  static inline AllocationSiteMode GetMode(
-      ElementsKind boilerplate_elements_kind);
-  static AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
+  static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;

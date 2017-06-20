@@ -336,7 +336,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   DCHECK_IMPLIES(IsFastHoleyElementsKind(from_kind),
                  IsFastHoleyElementsKind(to_kind));
 
-  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+  if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
     Add<HTrapAllocationMemento>(object);
   }
 

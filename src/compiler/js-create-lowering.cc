@@ -733,9 +733,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
   ElementsKind elements_kind = site->GetElementsKind();
   AllocationSiteOverrideMode override_mode =
-      (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
-          ? DISABLE_ALLOCATION_SITES
-          : DONT_OVERRIDE;
+      AllocationSite::ShouldTrack(elements_kind) ? DISABLE_ALLOCATION_SITES
+                                                 : DONT_OVERRIDE;
 
   // The Array constructor can only trigger an observable side-effect
   // if the new.target may be a proxy.
@@ -758,9 +757,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     return Changed(node);
   } else if (arity == 1) {
     AllocationSiteOverrideMode override_mode =
-        (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
-            ? DISABLE_ALLOCATION_SITES
-            : DONT_OVERRIDE;
+        AllocationSite::ShouldTrack(elements_kind) ? DISABLE_ALLOCATION_SITES
+                                                   : DONT_OVERRIDE;
 
     if (IsHoleyElementsKind(elements_kind)) {
       ArraySingleArgumentConstructorStub stub(isolate(), elements_kind,

@@ -299,7 +299,7 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
   // If we don't care to track arrays of to_kind ElementsKind, then
   // don't emit a memento for them.
   Handle<AllocationSite> allocation_site;
-  if (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE) {
+  if (AllocationSite::ShouldTrack(to_kind)) {
     allocation_site = site;
   }
 

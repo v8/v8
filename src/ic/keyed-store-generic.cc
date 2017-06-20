@@ -132,7 +132,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   DCHECK(IsFastPackedElementsKind(from_kind));
   ElementsKind holey_from_kind = GetHoleyElementsKind(from_kind);
   ElementsKind holey_to_kind = GetHoleyElementsKind(to_kind);
-  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+  if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
     TrapAllocationMemento(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
@@ -178,8 +178,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   Node* packed_map =
       LoadContextElement(native_context, Context::ArrayMapIndex(packed_kind));
   GotoIf(WordNotEqual(receiver_map, packed_map), map_mismatch);
-  if (AllocationSite::GetMode(packed_kind, holey_kind) ==
-      TRACK_ALLOCATION_SITE) {
+  if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
     TrapAllocationMemento(receiver, bailout);
   }
   Node* holey_map =

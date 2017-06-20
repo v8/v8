@@ -3591,10 +3591,9 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   __ Move(r2, instr->hydrogen()->site());
 
   ElementsKind kind = instr->hydrogen()->elements_kind();
-  AllocationSiteOverrideMode override_mode =
-      (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
-          ? DISABLE_ALLOCATION_SITES
-          : DONT_OVERRIDE;
+  AllocationSiteOverrideMode override_mode = AllocationSite::ShouldTrack(kind)
+                                                 ? DISABLE_ALLOCATION_SITES
+                                                 : DONT_OVERRIDE;
 
   if (instr->arity() == 0) {
     ArrayNoArgumentConstructorStub stub(isolate(), kind, override_mode);

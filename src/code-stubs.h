@@ -1402,7 +1402,7 @@ class CommonArrayConstructorStub : public TurboFanCodeStub {
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
     DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
-           AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
+           AllocationSite::ShouldTrack(kind));
     set_sub_minor_key(ElementsKindBits::encode(kind) |
                       AllocationSiteOverrideModeBits::encode(override_mode));
   }

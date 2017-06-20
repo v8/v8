@@ -61,8 +61,7 @@ void AllocationSiteCreationContext::ExitScope(
 bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
   if (activated_ && AllocationSite::CanTrack(object->map()->instance_type())) {
     if (FLAG_allocation_site_pretenuring ||
-        AllocationSite::GetMode(object->GetElementsKind()) ==
-        TRACK_ALLOCATION_SITE) {
+        AllocationSite::ShouldTrack(object->GetElementsKind())) {
       if (FLAG_trace_creation_allocation_sites) {
         PrintF("*** Creating Memento for %s %p\n",
                object->IsJSArray() ? "JSArray" : "JSObject",

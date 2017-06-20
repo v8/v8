@@ -1170,13 +1170,8 @@ bool AllocationSite::SitePointsToLiteral() {
 
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
-AllocationSiteMode AllocationSite::GetMode(
-    ElementsKind boilerplate_elements_kind) {
-  if (IsFastSmiElementsKind(boilerplate_elements_kind)) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
+bool AllocationSite::ShouldTrack(ElementsKind boilerplate_elements_kind) {
+  return IsFastSmiElementsKind(boilerplate_elements_kind);
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {

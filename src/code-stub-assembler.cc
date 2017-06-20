@@ -6671,7 +6671,7 @@ void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
                                                Label* bailout) {
   DCHECK(!IsFastHoleyElementsKind(from_kind) ||
          IsFastHoleyElementsKind(to_kind));
-  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+  if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
     TrapAllocationMemento(object, bailout);
   }
 
