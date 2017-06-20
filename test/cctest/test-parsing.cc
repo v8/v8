@@ -5901,33 +5901,6 @@ TEST(UnicodeEscapes) {
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
-TEST(OctalEscapes) {
-  const char* sloppy_context_data[][2] = {{"", ""},    // as a directive
-                                          {"0;", ""},  // as a string literal
-                                          {NULL, NULL}};
-
-  const char* strict_context_data[][2] = {
-      {"'use strict';", ""},     // as a directive before 'use strict'
-      {"", ";'use strict';"},    // as a directive after 'use strict'
-      {"'use strict'; 0;", ""},  // as a string literal
-      {NULL, NULL}};
-
-  // clang-format off
-  const char* data[] = {
-    "'\\1'",
-    "'\\01'",
-    "'\\001'",
-    "'\\08'",
-    "'\\09'",
-    NULL};
-  // clang-format on
-
-  // Permitted in sloppy mode
-  RunParserSyncTest(sloppy_context_data, data, kSuccess);
-
-  // Error in strict mode
-  RunParserSyncTest(strict_context_data, data, kError);
-}
 
 TEST(ScanTemplateLiterals) {
   const char* context_data[][2] = {{"'use strict';", ""},
@@ -7139,7 +7112,6 @@ TEST(TemplateEscapesPositiveTests) {
 
   // clang-format off
   const char* data[] = {
-    "tag`\\08`",
     "tag`\\01`",
     "tag`\\01${0}right`",
     "tag`left${0}\\01`",
@@ -7223,7 +7195,6 @@ TEST(TemplateEscapesNegativeTests) {
 
   // clang-format off
   const char* data[] = {
-    "`\\08`",
     "`\\01`",
     "`\\01${0}right`",
     "`left${0}\\01`",
