@@ -101,9 +101,9 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Node* target, Node* new_target, Node* arguments_list, Node* context) {
-  Variable var_elements(this, MachineRepresentation::kTagged);
-  Variable var_length(this, MachineRepresentation::kWord32);
-  Label if_done(this), if_arguments(this), if_array(this), if_double(this),
+  VARIABLE(var_elements, MachineRepresentation::kTagged);
+  VARIABLE(var_length, MachineRepresentation::kWord32);
+  Label if_done(this), if_arguments(this), if_array(this),
       if_holey_array(this, Label::kDeferred),
       if_runtime(this, Label::kDeferred);
 
@@ -119,7 +119,6 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
   GotoIf(WordEqual(arguments_list_map, strict_arguments_map), &if_arguments);
 
-  Node* kind = LoadMapElementsKind(arguments_list_map);
   // Check if {arguments_list} is a fast JSArray.
   Branch(IsJSArrayMap(arguments_list_map), &if_array, &if_runtime);
 
@@ -140,14 +139,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
     STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == FAST_HOLEY_DOUBLE_ELEMENTS);
 
+    Node* kind = LoadMapElementsKind(arguments_list_map);
+
     GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
            &if_runtime);
-    GotoIf(Word32And(kind, Int32Constant(1)), &if_holey_array);
-    GotoIf(Word32Equal(kind, Int32Constant(FAST_DOUBLE_ELEMENTS)), &if_double);
-    CSA_ASSERT(this,
-               Word32Or(Word32Equal(kind, Int32Constant(FAST_ELEMENTS)),
-                        Word32Equal(kind, Int32Constant(FAST_SMI_ELEMENTS))));
-    Goto(&if_done);
+    Branch(Word32And(kind, Int32Constant(1)), &if_holey_array, &if_done);
   }
 
   BIND(&if_holey_array);
@@ -161,50 +157,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
               &if_runtime);
     Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
     DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-    GotoIfNot(
+    Branch(
         WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                   SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
-        &if_runtime);
-
-    Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
-           &if_double, &if_done);
-  }
-
-  BIND(&if_double);
-  {
-    // For JSArrays of doubles, we need to box the elements as they will be
-    // pushed onto the stack.
-    Label if_holey_double(this), if_packed_double(this);
-
-    Node* elements = var_elements.value();
-    Node* length = ChangeInt32ToIntPtr(var_length.value());
-    const ElementsKind new_kind = FAST_ELEMENTS;
-    const ParameterMode mode = INTPTR_PARAMETERS;
-    const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-
-    // Allocate a new FixedArray of Objects.
-    Node* new_elements =
-        AllocateFixedArray(FAST_ELEMENTS, length, mode,
-                           CodeStubAssembler::kAllowLargeObjectAllocation);
-    Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
-           &if_holey_double, &if_packed_double);
-
-    BIND(&if_holey_double);
-    {
-      // Fill the FixedArray with pointers to HeapObjects.
-      CopyFixedArrayElements(FAST_HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
-                             new_elements, length, length, barrier_mode);
-      var_elements.Bind(new_elements);
-      Goto(&if_done);
-    }
-
-    BIND(&if_packed_double);
-    {
-      CopyFixedArrayElements(FAST_DOUBLE_ELEMENTS, elements, new_kind,
-                             new_elements, length, length, barrier_mode);
-      var_elements.Bind(new_elements);
-      Goto(&if_done);
-    }
+        &if_done, &if_runtime);
   }
 
   BIND(&if_arguments);
@@ -237,16 +193,186 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   // a {new_target} passed).
   BIND(&if_done);
   {
+    Label if_not_double(this), if_double(this);
     Node* elements = var_elements.value();
     Node* length = var_length.value();
+    Node* args_count = Int32Constant(0);  // args already on the stack
+
+    Branch(IsFixedDoubleArray(elements), &if_double, &if_not_double);
+
+    BIND(&if_not_double);
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, Int32Constant(0), elements,
-                   length);
+      TailCallStub(callable, context, target, args_count, elements, length);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, Int32Constant(0),
-                   elements, length);
+      TailCallStub(callable, context, target, new_target, args_count, elements,
+                   length);
+    }
+
+    BIND(&if_double);
+    {
+      // Kind is hardcoded here because CreateListFromArrayLike will only
+      // produce holey double arrays.
+      CallOrConstructDoubleVarargs(target, new_target, elements, length,
+                                   args_count, context,
+                                   Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS));
+    }
+  }
+}
+
+// Takes a FixedArray of doubles and creates a new FixedArray with those doubles
+// boxed as HeapNumbers, then tail calls CallVarargs/ConstructVarargs depending
+// on whether {new_target} was passed.
+void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
+    Node* target, Node* new_target, Node* elements, Node* length,
+    Node* args_count, Node* context, Node* kind) {
+  Label if_holey_double(this), if_packed_double(this), if_done(this);
+
+  const ElementsKind new_kind = FAST_ELEMENTS;
+  const ParameterMode mode = INTPTR_PARAMETERS;
+  const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+  Node* intptr_length = ChangeInt32ToIntPtr(length);
+
+  // Allocate a new FixedArray of Objects.
+  Node* new_elements =
+      AllocateFixedArray(new_kind, intptr_length, mode,
+                         CodeStubAssembler::kAllowLargeObjectAllocation);
+  Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+         &if_holey_double, &if_packed_double);
+
+  BIND(&if_holey_double);
+  {
+    // Fill the FixedArray with pointers to HeapObjects.
+    CopyFixedArrayElements(FAST_HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
+                           new_elements, intptr_length, intptr_length,
+                           barrier_mode);
+    Goto(&if_done);
+  }
+
+  BIND(&if_packed_double);
+  {
+    CopyFixedArrayElements(FAST_DOUBLE_ELEMENTS, elements, new_kind,
+                           new_elements, intptr_length, intptr_length,
+                           barrier_mode);
+    Goto(&if_done);
+  }
+
+  BIND(&if_done);
+  {
+    if (new_target == nullptr) {
+      Callable callable = CodeFactory::CallVarargs(isolate());
+      TailCallStub(callable, context, target, args_count, new_elements, length);
+    } else {
+      Callable callable = CodeFactory::ConstructVarargs(isolate());
+      TailCallStub(callable, context, target, new_target, args_count,
+                   new_elements, length);
+    }
+  }
+}
+
+void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
+    Node* target, Node* new_target, Node* spread, Node* args_count,
+    Node* context) {
+  Label if_done(this), if_holey(this), if_runtime(this, Label::kDeferred);
+
+  VARIABLE(spread_result, MachineRepresentation::kTagged, spread);
+
+  GotoIf(TaggedIsSmi(spread), &if_runtime);
+  Node* spread_map = LoadMap(spread);
+  GotoIfNot(IsJSArrayMap(spread_map), &if_runtime);
+
+  Node* native_context = LoadNativeContext(context);
+
+  // Check that we have the original ArrayPrototype.
+  Node* prototype = LoadMapPrototype(spread_map);
+  Node* array_prototype = LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+  GotoIfNot(WordEqual(prototype, array_prototype), &if_runtime);
+
+  // Check that the ArrayPrototype hasn't been modified in a way that would
+  // affect iteration.
+  Node* protector_cell = LoadRoot(Heap::kArrayIteratorProtectorRootIndex);
+  DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
+  GotoIfNot(
+      WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
+      &if_runtime);
+
+  // Check that the map of the initial array iterator hasn't changed.
+  Node* arr_it_proto_map = LoadMap(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX));
+  Node* initial_map = LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX);
+  GotoIfNot(WordEqual(arr_it_proto_map, initial_map), &if_runtime);
+
+  Node* kind = LoadMapElementsKind(spread_map);
+
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+  STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == FAST_HOLEY_DOUBLE_ELEMENTS);
+
+  GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+         &if_runtime);
+  Branch(Word32And(kind, Int32Constant(1)), &if_holey, &if_done);
+
+  // Check the ArrayProtector cell for holey arrays.
+  BIND(&if_holey);
+  {
+    Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
+    DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
+    Branch(
+        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                  SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
+        &if_done, &if_runtime);
+  }
+
+  BIND(&if_runtime);
+  {
+    Node* spread_iterable = LoadContextElement(LoadNativeContext(context),
+                                               Context::SPREAD_ITERABLE_INDEX);
+    spread_result.Bind(CallJS(CodeFactory::Call(isolate()), context,
+                              spread_iterable, UndefinedConstant(), spread));
+    CSA_ASSERT(this, IsJSArray(spread_result.value()));
+    Goto(&if_done);
+  }
+
+  BIND(&if_done);
+  {
+    // The result from if_runtime can be an array of doubles.
+    Label if_not_double(this), if_double(this);
+    Node* elements =
+        LoadObjectField(spread_result.value(), JSArray::kElementsOffset);
+    Node* length = LoadAndUntagToWord32ObjectField(spread_result.value(),
+                                                   JSArray::kLengthOffset);
+
+    Node* kind = LoadMapElementsKind(LoadMap(elements));
+    CSA_ASSERT(this, Int32LessThanOrEqual(
+                         kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)));
+
+    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+           &if_double, &if_not_double);
+
+    BIND(&if_not_double);
+    {
+      if (new_target == nullptr) {
+        Callable callable = CodeFactory::CallVarargs(isolate());
+        TailCallStub(callable, context, target, args_count, elements, length);
+      } else {
+        Callable callable = CodeFactory::ConstructVarargs(isolate());
+        TailCallStub(callable, context, target, new_target, args_count,
+                     elements, length);
+      }
+    }
+
+    BIND(&if_double);
+    {
+      CallOrConstructDoubleVarargs(target, new_target, elements, length,
+                                   args_count, context, kind);
     }
   }
 }
@@ -257,6 +383,15 @@ TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
   Node* arguments_list = Parameter(CallWithArrayLikeDescriptor::kArgumentsList);
   Node* context = Parameter(CallWithArrayLikeDescriptor::kContext);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
+}
+
+TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
+  Node* target = Parameter(CallWithSpreadDescriptor::kTarget);
+  Node* new_target = nullptr;
+  Node* spread = Parameter(CallWithSpreadDescriptor::kSpread);
+  Node* args_count = Parameter(CallWithSpreadDescriptor::kArgumentsCount);
+  Node* context = Parameter(CallWithSpreadDescriptor::kContext);
+  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
 }  // namespace internal

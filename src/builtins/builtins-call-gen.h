@@ -17,6 +17,12 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
 
   void CallOrConstructWithArrayLike(Node* target, Node* new_target,
                                     Node* arguments_list, Node* context);
+  void CallOrConstructDoubleVarargs(Node* target, Node* new_target,
+                                    Node* elements, Node* length,
+                                    Node* args_count, Node* context,
+                                    Node* kind);
+  void CallOrConstructWithSpread(Node* target, Node* new_target, Node* spread,
+                                 Node* args_count, Node* context);
 };
 
 }  // namespace internal

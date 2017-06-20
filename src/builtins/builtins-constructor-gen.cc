@@ -42,6 +42,15 @@ TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
+TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
+  Node* target = Parameter(ConstructWithSpreadDescriptor::kTarget);
+  Node* new_target = Parameter(ConstructWithSpreadDescriptor::kNewTarget);
+  Node* spread = Parameter(ConstructWithSpreadDescriptor::kSpread);
+  Node* args_count = Parameter(ConstructWithSpreadDescriptor::kArgumentsCount);
+  Node* context = Parameter(ConstructWithSpreadDescriptor::kContext);
+  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+}
+
 typedef compiler::Node Node;
 
 Node* ConstructorBuiltinsAssembler::CopyFixedArrayBase(Node* fixed_array) {

@@ -46,12 +46,14 @@ class PlatformInterfaceDescriptor;
   V(CallICTrampoline)                      \
   V(CallVarargs)                           \
   V(CallForwardVarargs)                    \
+  V(CallWithSpread)                        \
   V(CallWithArrayLike)                     \
   V(CallConstruct)                         \
   V(CallTrampoline)                        \
   V(ConstructStub)                         \
   V(ConstructVarargs)                      \
   V(ConstructForwardVarargs)               \
+  V(ConstructWithSpread)                   \
   V(ConstructWithArrayLike)                \
   V(ConstructTrampoline)                   \
   V(TransitionElementsKind)                \
@@ -593,6 +595,13 @@ class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
+class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallWithSpreadDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
 class CallWithArrayLikeDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsList)
@@ -613,6 +622,13 @@ class ConstructForwardVarargsDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kStartIndex)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
       ConstructForwardVarargsDescriptor, CallInterfaceDescriptor)
+};
+
+class ConstructWithSpreadDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsCount, kSpread)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructWithSpreadDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
