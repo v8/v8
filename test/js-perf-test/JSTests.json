@@ -505,6 +505,17 @@
         {"name": "StringConcat"},
         {"name": "BitwiseOr"}
       ]
+    },
+    {
+      "name": "Inspector",
+      "path": ["Inspector"],
+      "main": "run.js",
+      "resources": [ "debugger.js" ],
+      "flags": ["--enable-inspector"],
+      "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Debugger.paused"}
+      ]
     }
   ]
 }
