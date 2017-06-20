@@ -1964,7 +1964,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
       // TODO(all): on ARM we use a call descriptor to specify a storage mode
       // but on ARM64 we only have one storage mode so it isn't necessary. Check
       // this understanding is correct.
-      __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None());
+      __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       DCHECK(instr->target()->IsRegister());
       Register target = ToRegister(instr->target());

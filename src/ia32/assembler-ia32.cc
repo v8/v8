@@ -1592,15 +1592,12 @@ int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
   return 1 /* EMIT */ + sizeof(uint32_t) /* emit */;
 }
 
-
-void Assembler::call(Handle<Code> code,
-                     RelocInfo::Mode rmode,
-                     TypeFeedbackId ast_id) {
+void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode)
       || rmode == RelocInfo::CODE_AGE_SEQUENCE);
   EMIT(0xE8);
-  emit(code, rmode, ast_id);
+  emit(code, rmode);
 }
 
 

@@ -550,7 +550,6 @@ const Instr kLdrStrInstrTypeMask = 0xffff0000;
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     : AssemblerBase(isolate_data, buffer, buffer_size),
-      recorded_ast_id_(TypeFeedbackId::None()),
       pending_32_bit_constants_(),
       pending_64_bit_constants_() {
   pending_32_bit_constants_.reserve(kMinNumPendingConstants);
@@ -563,7 +562,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   first_const_pool_32_use_ = -1;
   first_const_pool_64_use_ = -1;
   last_bound_pos_ = 0;
-  ClearRecordedAstId();
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
     // Register objects tend to be abstracted and survive between scopes, so
     // it's awkward to use CpuFeatures::VFP32DREGS with CpuFeatureScope. To make
@@ -5062,10 +5060,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     return;
   }
   DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    data = RecordedAstId().ToInt();
-    ClearRecordedAstId();
-  }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }

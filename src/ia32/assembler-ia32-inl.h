@@ -368,23 +368,16 @@ void Assembler::emit(Handle<Object> handle) {
   }
 }
 
-
-void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, TypeFeedbackId id) {
-  if (rmode == RelocInfo::CODE_TARGET && !id.IsNone()) {
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, id.ToInt());
-  } else if (!RelocInfo::IsNone(rmode)
-      && rmode != RelocInfo::CODE_AGE_SEQUENCE) {
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode) && rmode != RelocInfo::CODE_AGE_SEQUENCE) {
     RecordRelocInfo(rmode);
   }
   emit(x);
 }
 
-
-void Assembler::emit(Handle<Code> code,
-                     RelocInfo::Mode rmode,
-                     TypeFeedbackId id) {
+void Assembler::emit(Handle<Code> code, RelocInfo::Mode rmode) {
   AllowDeferredHandleDereference embedding_raw_address;
-  emit(reinterpret_cast<intptr_t>(code.location()), rmode, id);
+  emit(reinterpret_cast<intptr_t>(code.location()), rmode);
 }
 
 

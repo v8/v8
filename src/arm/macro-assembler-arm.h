@@ -101,9 +101,7 @@ class MacroAssembler: public Assembler {
   // checking the call size and emitting the actual call.
   static int CallSize(Register target, Condition cond = al);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallStubSize(CodeStub* stub,
-                   TypeFeedbackId ast_id = TypeFeedbackId::None(),
-                   Condition cond = al);
+  int CallStubSize(CodeStub* stub, Condition cond = al);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
@@ -114,12 +112,11 @@ class MacroAssembler: public Assembler {
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
             bool check_constant_pool = true);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            TypeFeedbackId ast_id = TypeFeedbackId::None(), Condition cond = al,
+            Condition cond = al,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
             bool check_constant_pool = true);
   int CallSize(Handle<Code> code,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               TypeFeedbackId ast_id = TypeFeedbackId::None(),
                Condition cond = al);
   void Ret(Condition cond = al);
 
@@ -1013,7 +1010,6 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub,
-                TypeFeedbackId ast_id = TypeFeedbackId::None(),
                 Condition cond = al);
 
   // Call a code stub.

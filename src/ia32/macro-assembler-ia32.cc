@@ -1567,9 +1567,9 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bind(&done);
 }
 
-void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
+void MacroAssembler::CallStub(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
+  call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 

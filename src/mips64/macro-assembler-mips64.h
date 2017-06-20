@@ -219,11 +219,9 @@ class MacroAssembler: public Assembler {
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
   int CallSize(Handle<Code> code,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               TypeFeedbackId ast_id = TypeFeedbackId::None(),
                COND_ARGS);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            TypeFeedbackId ast_id = TypeFeedbackId::None(),
             COND_ARGS);
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,
@@ -1427,9 +1425,7 @@ class MacroAssembler: public Assembler {
 const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Call a code stub.
-  void CallStub(CodeStub* stub,
-                TypeFeedbackId ast_id = TypeFeedbackId::None(),
-                COND_ARGS);
+  void CallStub(CodeStub* stub, COND_ARGS);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub, COND_ARGS);

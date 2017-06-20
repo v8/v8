@@ -173,9 +173,9 @@ void FullCodeGenerator::Initialize(uintptr_t stack_limit) {
   masm_->set_predictable_code_size(true);
 }
 
-void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
+void FullCodeGenerator::CallIC(Handle<Code> code) {
   ic_total_count_++;
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
+  __ Call(code, RelocInfo::CODE_TARGET);
 }
 
 void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {

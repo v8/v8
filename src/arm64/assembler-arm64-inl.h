@@ -1273,18 +1273,6 @@ inline void Assembler::CheckBuffer() {
   }
 }
 
-
-TypeFeedbackId Assembler::RecordedAstId() {
-  DCHECK(!recorded_ast_id_.IsNone());
-  return recorded_ast_id_;
-}
-
-
-void Assembler::ClearRecordedAstId() {
-  recorded_ast_id_ = TypeFeedbackId::None();
-}
-
-
 }  // namespace internal
 }  // namespace v8
 

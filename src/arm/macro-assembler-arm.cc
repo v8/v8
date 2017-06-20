@@ -91,10 +91,8 @@ int MacroAssembler::CallSize(
          mov_operand.InstructionsRequired(this, mov_instr) * kInstrSize;
 }
 
-
-int MacroAssembler::CallStubSize(
-    CodeStub* stub, TypeFeedbackId ast_id, Condition cond) {
-  return CallSize(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond);
+int MacroAssembler::CallStubSize(CodeStub* stub, Condition cond) {
+  return CallSize(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
@@ -141,23 +139,17 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
 
 int MacroAssembler::CallSize(Handle<Code> code,
                              RelocInfo::Mode rmode,
-                             TypeFeedbackId ast_id,
                              Condition cond) {
   AllowDeferredHandleDereference using_raw_address;
   return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
-                          TypeFeedbackId ast_id, Condition cond,
-                          TargetAddressStorageMode mode,
+                          Condition cond, TargetAddressStorageMode mode,
                           bool check_constant_pool) {
   Label start;
   bind(&start);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  if (rmode == RelocInfo::CODE_TARGET && !ast_id.IsNone()) {
-    SetRecordedAstId(ast_id);
-    rmode = RelocInfo::CODE_TARGET_WITH_ID;
-  }
   // 'code' is always generated ARM code, never THUMB code
   AllowDeferredHandleDereference embedding_raw_address;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, mode);
@@ -2317,11 +2309,10 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
 }
 
 void MacroAssembler::CallStub(CodeStub* stub,
-                              TypeFeedbackId ast_id,
                               Condition cond) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond,
-       CAN_INLINE_TARGET_ADDRESS, false);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, CAN_INLINE_TARGET_ADDRESS,
+       false);
 }
 
 

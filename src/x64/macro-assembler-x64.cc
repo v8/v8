@@ -597,10 +597,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
   int3();
 }
 
-
-void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
+void MacroAssembler::CallStub(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -3122,16 +3121,13 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 #endif
 }
 
-
-void MacroAssembler::Call(Handle<Code> code_object,
-                          RelocInfo::Mode rmode,
-                          TypeFeedbackId ast_id) {
+void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
   DCHECK(RelocInfo::IsCodeTarget(rmode) ||
       rmode == RelocInfo::CODE_AGE_SEQUENCE);
-  call(code_object, rmode, ast_id);
+  call(code_object, rmode);
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
 #endif

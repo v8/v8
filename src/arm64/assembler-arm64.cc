@@ -585,7 +585,6 @@ void ConstPool::EmitEntries() {
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     : AssemblerBase(isolate_data, buffer, buffer_size),
       constpool_(this),
-      recorded_ast_id_(TypeFeedbackId::None()),
       unresolved_branches_() {
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
@@ -615,7 +614,6 @@ void Assembler::Reset() {
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
   no_const_pool_before_ = 0;
-  ClearRecordedAstId();
 }
 
 void Assembler::set_heap_number(Handle<HeapObject> number, Address pc) {
@@ -4788,14 +4786,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(reinterpret_cast<byte*>(pc_), rmode,
-                                       RecordedAstId().ToInt(), NULL);
-      ClearRecordedAstId();
-      reloc_info_writer.Write(&reloc_info_with_ast_id);
-    } else {
-      reloc_info_writer.Write(&rinfo);
-    }
+    DCHECK(rmode != RelocInfo::CODE_TARGET_WITH_ID);
+    reloc_info_writer.Write(&rinfo);
   }
 }
 

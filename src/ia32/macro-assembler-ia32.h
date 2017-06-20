@@ -617,7 +617,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
+  void CallStub(CodeStub* stub);
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
@@ -702,10 +702,7 @@ class MacroAssembler: public Assembler {
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }
-  void Call(Handle<Code> target, RelocInfo::Mode rmode,
-            TypeFeedbackId id = TypeFeedbackId::None()) {
-    call(target, rmode, id);
-  }
+  void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
   void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
   void Push(Register src) { push(src); }
   void Push(const Operand& src) { push(src); }

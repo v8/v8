@@ -312,8 +312,8 @@ void FullCodeGenerator::Generate() {
     PredictableCodeSizeScope predictable(masm_);
     predictable.ExpectSize(
         masm_->CallSize(stack_check, RelocInfo::CODE_TARGET));
-    __ Call(stack_check, RelocInfo::CODE_TARGET, TypeFeedbackId::None(), al,
-            CAN_INLINE_TARGET_ADDRESS, false);
+    __ Call(stack_check, RelocInfo::CODE_TARGET, al, CAN_INLINE_TARGET_ADDRESS,
+            false);
     __ bind(&ok);
   }
 

@@ -290,8 +290,7 @@ const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size),
-      recorded_ast_id_(TypeFeedbackId::None()) {
+    : AssemblerBase(isolate_data, buffer, buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -307,8 +306,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   trampoline_emitted_ = FLAG_force_long_branches;
   unbound_labels_count_ = 0;
   block_buffer_growth_ = false;
-
-  ClearRecordedAstId();
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -3669,14 +3666,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // Too late to grow buffer here.
-    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId().ToInt(),
-                                       NULL);
-      ClearRecordedAstId();
-      reloc_info_writer.Write(&reloc_info_with_ast_id);
-    } else {
-      reloc_info_writer.Write(&rinfo);
-    }
+    DCHECK(rmode != RelocInfo::CODE_TARGET_WITH_ID);
+    reloc_info_writer.Write(&rinfo);
   }
 }
 

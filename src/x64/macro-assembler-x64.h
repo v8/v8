@@ -995,9 +995,7 @@ class MacroAssembler: public Assembler {
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
   void Call(const Operand& op);
-  void Call(Handle<Code> code_object,
-            RelocInfo::Mode rmode,
-            TypeFeedbackId ast_id = TypeFeedbackId::None());
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // The size of the code generated for different call instructions.
   int CallSize(Address destination) {
@@ -1270,7 +1268,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.
-  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
+  void CallStub(CodeStub* stub);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);

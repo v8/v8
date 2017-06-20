@@ -483,8 +483,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Platform-specific code for pushing a slot to the stack.
   void EmitPushSlot(FeedbackSlot slot);
 
-  void CallIC(Handle<Code> code,
-              TypeFeedbackId id = TypeFeedbackId::None());
+  void CallIC(Handle<Code> code);
 
   void CallLoadIC(FeedbackSlot slot, Handle<Object> name);
   enum StoreICKind { kStoreNamed, kStoreOwn, kStoreGlobal };

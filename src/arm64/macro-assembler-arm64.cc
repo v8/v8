@@ -1897,9 +1897,9 @@ void MacroAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
-void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
+void MacroAssembler::CallStub(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -2173,26 +2173,18 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
 #endif
 }
 
-
-void MacroAssembler::Call(Handle<Code> code,
-                          RelocInfo::Mode rmode,
-                          TypeFeedbackId ast_id) {
+void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
 #ifdef DEBUG
   Label start_call;
   Bind(&start_call);
 #endif
-
-  if ((rmode == RelocInfo::CODE_TARGET) && (!ast_id.IsNone())) {
-    SetRecordedAstId(ast_id);
-    rmode = RelocInfo::CODE_TARGET_WITH_ID;
-  }
 
   AllowDeferredHandleDereference embedding_raw_address;
   Call(reinterpret_cast<Address>(code.location()), rmode);
 
 #ifdef DEBUG
   // Check the size of the code generated.
-  AssertSizeOfCodeGeneratedSince(&start_call, CallSize(code, rmode, ast_id));
+  AssertSizeOfCodeGeneratedSince(&start_call, CallSize(code, rmode));
 #endif
 }
 
@@ -2222,12 +2214,8 @@ int MacroAssembler::CallSize(Address target, RelocInfo::Mode rmode) {
   }
 }
 
-
-int MacroAssembler::CallSize(Handle<Code> code,
-                             RelocInfo::Mode rmode,
-                             TypeFeedbackId ast_id) {
+int MacroAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
   USE(code);
-  USE(ast_id);
 
   // Addresses always have 64 bits, so we shouldn't encounter NONE32.
   DCHECK(rmode != RelocInfo::NONE32);

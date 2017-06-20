@@ -1679,7 +1679,7 @@ class MacroAssembler : public Assembler {
   // This is required for compatibility in architecture indepenedant code.
   inline void jmp(Label* L);
 
-  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
+  void CallStub(CodeStub* stub);
   void TailCallStub(CodeStub* stub);
 
   void CallRuntime(const Runtime::Function* f,
@@ -1739,9 +1739,7 @@ class MacroAssembler : public Assembler {
   void Call(Register target);
   void Call(Label* target);
   void Call(Address target, RelocInfo::Mode rmode);
-  void Call(Handle<Code> code,
-            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            TypeFeedbackId ast_id = TypeFeedbackId::None());
+  void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // For every Call variant, there is a matching CallSize function that returns
   // the size (in bytes) of the call sequence.
@@ -1749,8 +1747,7 @@ class MacroAssembler : public Assembler {
   static int CallSize(Label* target);
   static int CallSize(Address target, RelocInfo::Mode rmode);
   static int CallSize(Handle<Code> code,
-                      RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-                      TypeFeedbackId ast_id = TypeFeedbackId::None());
+                      RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.

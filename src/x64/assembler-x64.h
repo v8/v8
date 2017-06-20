@@ -930,8 +930,7 @@ class Assembler : public AssemblerBase {
   void call(Label* L);
   void call(Address entry, RelocInfo::Mode rmode);
   void call(Handle<Code> target,
-            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            TypeFeedbackId ast_id = TypeFeedbackId::None());
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Calls directly to the given address using a relative offset.
   // Should only ever be used in Code objects for calls within the
@@ -2068,9 +2067,7 @@ class Assembler : public AssemblerBase {
   inline void emitp(void* x, RelocInfo::Mode rmode);
   inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
-  inline void emit_code_target(Handle<Code> target,
-                               RelocInfo::Mode rmode,
-                               TypeFeedbackId ast_id = TypeFeedbackId::None());
+  inline void emit_code_target(Handle<Code> target, RelocInfo::Mode rmode);
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
   inline void emit(Immediate x);
 

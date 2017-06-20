@@ -863,9 +863,7 @@ class Assembler : public AssemblerBase {
   void call(Register reg) { call(Operand(reg)); }
   void call(const Operand& adr);
   int CallSize(Handle<Code> code, RelocInfo::Mode mode);
-  void call(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            TypeFeedbackId id = TypeFeedbackId::None());
+  void call(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Jumps
   // unconditional jump to L
@@ -1746,12 +1744,8 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   inline void emit(uint32_t x);
   inline void emit(Handle<Object> handle);
-  inline void emit(uint32_t x,
-                   RelocInfo::Mode rmode,
-                   TypeFeedbackId id = TypeFeedbackId::None());
-  inline void emit(Handle<Code> code,
-                   RelocInfo::Mode rmode,
-                   TypeFeedbackId id = TypeFeedbackId::None());
+  inline void emit(uint32_t x, RelocInfo::Mode rmode);
+  inline void emit(Handle<Code> code, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
   inline void emit_b(Immediate x);
   inline void emit_w(const Immediate& x);
