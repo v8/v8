@@ -352,62 +352,65 @@ class TypedSlotSet {
   typedef std::pair<SlotType, uint32_t> TypeAndOffset;
 
   struct TypedSlot {
-    TypedSlot() {
-      type_and_offset_.SetValue(0);
-      host_offset_.SetValue(0);
-    }
+    TypedSlot() : type_and_offset_(0), host_offset_(0) {}
 
-    TypedSlot(SlotType type, uint32_t host_offset, uint32_t offset) {
-      type_and_offset_.SetValue(TypeField::encode(type) |
-                                OffsetField::encode(offset));
-      host_offset_.SetValue(host_offset);
-    }
+    TypedSlot(SlotType type, uint32_t host_offset, uint32_t offset)
+        : type_and_offset_(TypeField::encode(type) |
+                           OffsetField::encode(offset)),
+          host_offset_(host_offset) {}
 
     bool operator==(const TypedSlot other) {
-      return type_and_offset_.Value() == other.type_and_offset_.Value() &&
-             host_offset_.Value() == other.host_offset_.Value();
+      return type_and_offset() == other.type_and_offset() &&
+             host_offset() == other.host_offset();
     }
 
     bool operator!=(const TypedSlot other) { return !(*this == other); }
 
-    SlotType type() { return TypeField::decode(type_and_offset_.Value()); }
+    SlotType type() const { return TypeField::decode(type_and_offset()); }
 
-    uint32_t offset() { return OffsetField::decode(type_and_offset_.Value()); }
+    uint32_t offset() const { return OffsetField::decode(type_and_offset()); }
 
-    TypeAndOffset GetTypeAndOffset() {
-      uint32_t type_and_offset = type_and_offset_.Value();
-      return std::make_pair(TypeField::decode(type_and_offset),
-                            OffsetField::decode(type_and_offset));
+    TypeAndOffset GetTypeAndOffset() const {
+      uint32_t t_and_o = type_and_offset();
+      return std::make_pair(TypeField::decode(t_and_o),
+                            OffsetField::decode(t_and_o));
     }
 
-    uint32_t host_offset() { return host_offset_.Value(); }
+    uint32_t type_and_offset() const {
+      return base::AsAtomic32::Acquire_Load(&type_and_offset_);
+    }
+
+    uint32_t host_offset() const {
+      return base::AsAtomic32::Acquire_Load(&host_offset_);
+    }
 
     void Set(TypedSlot slot) {
-      type_and_offset_.SetValue(slot.type_and_offset_.Value());
-      host_offset_.SetValue(slot.host_offset_.Value());
+      base::AsAtomic32::Release_Store(&type_and_offset_,
+                                      slot.type_and_offset());
+      base::AsAtomic32::Release_Store(&host_offset_, slot.host_offset());
     }
 
     void Clear() {
-      type_and_offset_.SetValue(TypeField::encode(CLEARED_SLOT) |
-                                OffsetField::encode(0));
-      host_offset_.SetValue(0);
+      base::AsAtomic32::Release_Store(
+          &type_and_offset_,
+          TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0));
+      base::AsAtomic32::Release_Store(&host_offset_, 0);
     }
 
-    base::AtomicValue<uint32_t> type_and_offset_;
-    base::AtomicValue<uint32_t> host_offset_;
+    uint32_t type_and_offset_;
+    uint32_t host_offset_;
   };
   static const int kMaxOffset = 1 << 29;
 
-  explicit TypedSlotSet(Address page_start) : page_start_(page_start) {
-    chunk_.SetValue(new Chunk(nullptr, kInitialBufferSize));
-  }
+  explicit TypedSlotSet(Address page_start)
+      : page_start_(page_start), top_(new Chunk(nullptr, kInitialBufferSize)) {}
 
   ~TypedSlotSet() {
-    Chunk* chunk = chunk_.Value();
+    Chunk* chunk = load_top();
     while (chunk != nullptr) {
-      Chunk* next = chunk->next.Value();
+      Chunk* n = chunk->next();
       delete chunk;
-      chunk = next;
+      chunk = n;
     }
     FreeToBeFreedChunks();
   }
@@ -416,16 +419,16 @@ class TypedSlotSet {
   // This method can only be called on the main thread.
   void Insert(SlotType type, uint32_t host_offset, uint32_t offset) {
     TypedSlot slot(type, host_offset, offset);
-    Chunk* top_chunk = chunk_.Value();
+    Chunk* top_chunk = load_top();
     if (!top_chunk) {
       top_chunk = new Chunk(nullptr, kInitialBufferSize);
-      chunk_.SetValue(top_chunk);
+      set_top(top_chunk);
     }
     if (!top_chunk->AddSlot(slot)) {
       Chunk* new_top_chunk =
-          new Chunk(top_chunk, NextCapacity(top_chunk->capacity.Value()));
+          new Chunk(top_chunk, NextCapacity(top_chunk->capacity()));
       bool added = new_top_chunk->AddSlot(slot);
-      chunk_.SetValue(new_top_chunk);
+      set_top(new_top_chunk);
       DCHECK(added);
       USE(added);
     }
@@ -443,18 +446,17 @@ class TypedSlotSet {
   template <typename Callback>
   int Iterate(Callback callback, IterationMode mode) {
     STATIC_ASSERT(CLEARED_SLOT < 8);
-    Chunk* chunk = chunk_.Value();
+    Chunk* chunk = load_top();
     Chunk* previous = nullptr;
     int new_count = 0;
     while (chunk != nullptr) {
-      TypedSlot* buffer = chunk->buffer.Value();
-      int count = chunk->count.Value();
+      TypedSlot* buf = chunk->buffer();
       bool empty = true;
-      for (int i = 0; i < count; i++) {
+      for (int i = 0; i < chunk->count(); i++) {
         // Order is important here. We have to read out the slot type last to
         // observe the concurrent removal case consistently.
-        Address host_addr = page_start_ + buffer[i].host_offset();
-        TypeAndOffset type_and_offset = buffer[i].GetTypeAndOffset();
+        Address host_addr = page_start_ + buf[i].host_offset();
+        TypeAndOffset type_and_offset = buf[i].GetTypeAndOffset();
         SlotType type = type_and_offset.first;
         if (type != CLEARED_SLOT) {
           Address addr = page_start_ + type_and_offset.second;
@@ -462,26 +464,26 @@ class TypedSlotSet {
             new_count++;
             empty = false;
           } else {
-            buffer[i].Clear();
+            buf[i].Clear();
           }
         }
       }
 
-      Chunk* next = chunk->next.Value();
+      Chunk* n = chunk->next();
       if (mode == PREFREE_EMPTY_CHUNKS && empty) {
         // We remove the chunk from the list but let it still point its next
         // chunk to allow concurrent iteration.
         if (previous) {
-          previous->next.SetValue(next);
+          previous->set_next(n);
         } else {
-          chunk_.SetValue(next);
+          set_top(n);
         }
         base::LockGuard<base::Mutex> guard(&to_be_freed_chunks_mutex_);
         to_be_freed_chunks_.push(chunk);
       } else {
         previous = chunk;
       }
-      chunk = next;
+      chunk = n;
     }
     return new_count;
   }
@@ -496,12 +498,11 @@ class TypedSlotSet {
   }
 
   void RemoveInvaldSlots(std::map<uint32_t, uint32_t>& invalid_ranges) {
-    Chunk* chunk = chunk_.Value();
+    Chunk* chunk = load_top();
     while (chunk != nullptr) {
-      TypedSlot* buffer = chunk->buffer.Value();
-      int count = chunk->count.Value();
-      for (int i = 0; i < count; i++) {
-        uint32_t host_offset = buffer[i].host_offset();
+      TypedSlot* buf = chunk->buffer();
+      for (int i = 0; i < chunk->count(); i++) {
+        uint32_t host_offset = buf[i].host_offset();
         std::map<uint32_t, uint32_t>::iterator upper_bound =
             invalid_ranges.upper_bound(host_offset);
         if (upper_bound == invalid_ranges.begin()) continue;
@@ -510,10 +511,10 @@ class TypedSlotSet {
         upper_bound--;
         DCHECK_LE(upper_bound->first, host_offset);
         if (upper_bound->second > host_offset) {
-          buffer[i].Clear();
+          buf[i].Clear();
         }
       }
-      chunk = chunk->next.Value();
+      chunk = chunk->next();
     }
   }
 
@@ -530,31 +531,55 @@ class TypedSlotSet {
 
   struct Chunk : Malloced {
     explicit Chunk(Chunk* next_chunk, int chunk_capacity) {
-      count.SetValue(0);
-      capacity.SetValue(chunk_capacity);
-      buffer.SetValue(NewArray<TypedSlot>(chunk_capacity));
-      next.SetValue(next_chunk);
+      next_ = next_chunk;
+      buffer_ = NewArray<TypedSlot>(chunk_capacity);
+      capacity_ = chunk_capacity;
+      count_ = 0;
     }
+
+    ~Chunk() { DeleteArray(buffer_); }
+
     bool AddSlot(TypedSlot slot) {
-      int current_count = count.Value();
-      if (current_count == capacity.Value()) return false;
-      TypedSlot* current_buffer = buffer.Value();
+      int current_count = count();
+      if (current_count == capacity()) return false;
+      TypedSlot* current_buffer = buffer();
       // Order is important here. We have to write the slot first before
       // increasing the counter to guarantee that a consistent state is
       // observed by concurrent threads.
       current_buffer[current_count].Set(slot);
-      count.SetValue(current_count + 1);
+      set_count(current_count + 1);
       return true;
     }
-    ~Chunk() { DeleteArray(buffer.Value()); }
-    base::AtomicValue<Chunk*> next;
-    base::AtomicValue<int> count;
-    base::AtomicValue<int> capacity;
-    base::AtomicValue<TypedSlot*> buffer;
+
+    Chunk* next() const { return base::AsAtomicWord::Acquire_Load(&next_); }
+
+    void set_next(Chunk* n) {
+      return base::AsAtomicWord::Release_Store(&next_, n);
+    }
+
+    TypedSlot* buffer() const { return buffer_; }
+
+    int32_t capacity() const { return capacity_; }
+
+    int32_t count() const { return base::AsAtomic32::Acquire_Load(&count_); }
+
+    void set_count(int32_t new_value) {
+      base::AsAtomic32::Release_Store(&count_, new_value);
+    }
+
+   private:
+    Chunk* next_;
+    TypedSlot* buffer_;
+    int32_t capacity_;
+    int32_t count_;
   };
 
+  Chunk* load_top() { return base::AsAtomicWord::Acquire_Load(&top_); }
+
+  void set_top(Chunk* c) { base::AsAtomicWord::Release_Store(&top_, c); }
+
   Address page_start_;
-  base::AtomicValue<Chunk*> chunk_;
+  Chunk* top_;
   base::Mutex to_be_freed_chunks_mutex_;
   std::stack<Chunk*> to_be_freed_chunks_;
 };

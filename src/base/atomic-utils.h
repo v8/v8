@@ -318,6 +318,10 @@ class AsAtomic32 {
   static base::Atomic32* to_storage_addr(T* value) {
     return reinterpret_cast<base::Atomic32*>(value);
   }
+  template <typename T>
+  static const base::Atomic32* to_storage_addr(const T* value) {
+    return reinterpret_cast<const base::Atomic32*>(value);
+  }
 };
 
 class AsAtomicWord {
@@ -370,6 +374,10 @@ class AsAtomicWord {
   template <typename T>
   static base::AtomicWord* to_storage_addr(T* value) {
     return reinterpret_cast<base::AtomicWord*>(value);
+  }
+  template <typename T>
+  static const base::AtomicWord* to_storage_addr(const T* value) {
+    return reinterpret_cast<const base::AtomicWord*>(value);
   }
 };
 
