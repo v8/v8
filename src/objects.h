@@ -2499,19 +2499,6 @@ class JSObject: public JSReceiver {
 
   static bool IsExtensible(Handle<JSObject> object);
 
-  // Copy object.
-  enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
-
-  MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopy(
-      Handle<JSObject> object,
-      AllocationSiteUsageContext* site_context,
-      DeepCopyHints hints = kNoHints);
-  MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
-      Handle<JSObject> object,
-      AllocationSiteCreationContext* site_context);
-  MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
-      Handle<JSObject> object, DeprecationUpdateContext* site_context);
-
   DECLARE_CAST(JSObject)
 
   // Dispatched behavior.

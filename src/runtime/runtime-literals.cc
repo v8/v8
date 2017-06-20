@@ -33,6 +33,208 @@ Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
                                       Handle<FeedbackVector> vector,
                                       Handle<FixedArray> compile_time_value);
 
+enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
+
+template <class ContextObject>
+class JSObjectWalkVisitor {
+ public:
+  JSObjectWalkVisitor(ContextObject* site_context, DeepCopyHints hints)
+      : site_context_(site_context), hints_(hints) {}
+
+  MUST_USE_RESULT MaybeHandle<JSObject> StructureWalk(Handle<JSObject> object);
+
+ protected:
+  MUST_USE_RESULT inline MaybeHandle<JSObject> VisitElementOrProperty(
+      Handle<JSObject> object, Handle<JSObject> value) {
+    Handle<AllocationSite> current_site = site_context()->EnterNewScope();
+    MaybeHandle<JSObject> copy_of_value = StructureWalk(value);
+    site_context()->ExitScope(current_site, value);
+    return copy_of_value;
+  }
+
+  inline ContextObject* site_context() { return site_context_; }
+  inline Isolate* isolate() { return site_context()->isolate(); }
+
+ private:
+  ContextObject* site_context_;
+  const DeepCopyHints hints_;
+};
+
+template <class ContextObject>
+MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
+    Handle<JSObject> object) {
+  Isolate* isolate = this->isolate();
+  bool copying = ContextObject::kCopying;
+  bool shallow = hints_ == kObjectIsShallow;
+
+  if (!shallow) {
+    StackLimitCheck check(isolate);
+
+    if (check.HasOverflowed()) {
+      isolate->StackOverflow();
+      return MaybeHandle<JSObject>();
+    }
+  }
+
+  if (object->map()->is_deprecated()) {
+    JSObject::MigrateInstance(object);
+  }
+
+  Handle<JSObject> copy;
+  if (copying) {
+    // JSFunction objects are not allowed to be in normal boilerplates at all.
+    DCHECK(!object->IsJSFunction());
+    Handle<AllocationSite> site_to_pass;
+    if (site_context()->ShouldCreateMemento(object)) {
+      site_to_pass = site_context()->current();
+    }
+    copy = isolate->factory()->CopyJSObjectWithAllocationSite(object,
+                                                              site_to_pass);
+  } else {
+    copy = object;
+  }
+
+  DCHECK(copying || copy.is_identical_to(object));
+
+  if (shallow) return copy;
+
+  HandleScope scope(isolate);
+
+  // Deep copy own properties. Arrays only have 1 property "length".
+  if (!copy->IsJSArray()) {
+    if (copy->HasFastProperties()) {
+      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
+      int limit = copy->map()->NumberOfOwnDescriptors();
+      for (int i = 0; i < limit; i++) {
+        DCHECK_EQ(kField, descriptors->GetDetails(i).location());
+        DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
+        FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
+        if (copy->IsUnboxedDoubleField(index)) continue;
+        Object* raw = copy->RawFastPropertyAt(index);
+        if (raw->IsJSObject()) {
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) copy->FastPropertyAtPut(index, *value);
+        } else if (copying && raw->IsMutableHeapNumber()) {
+          DCHECK(descriptors->GetDetails(i).representation().IsDouble());
+          uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
+          Handle<HeapNumber> value = isolate->factory()->NewHeapNumber(MUTABLE);
+          value->set_value_as_bits(double_value);
+          copy->FastPropertyAtPut(index, *value);
+        }
+      }
+    } else {
+      Handle<NameDictionary> dict(NameDictionary::cast(copy->properties()));
+      for (int i = 0; i < dict->Capacity(); i++) {
+        Object* raw = dict->ValueAt(i);
+        if (!raw->IsJSObject()) continue;
+        DCHECK(dict->KeyAt(i)->IsName());
+        Handle<JSObject> value(JSObject::cast(raw), isolate);
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, value, VisitElementOrProperty(copy, value), JSObject);
+        if (copying) dict->ValueAtPut(i, *value);
+      }
+    }
+
+    // Assume non-arrays don't end up having elements.
+    if (copy->elements()->length() == 0) return copy;
+  }
+
+  // Deep copy own elements.
+  switch (copy->GetElementsKind()) {
+    case FAST_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
+      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
+      if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
+#ifdef DEBUG
+        for (int i = 0; i < elements->length(); i++) {
+          DCHECK(!elements->get(i)->IsJSObject());
+        }
+#endif
+      } else {
+        for (int i = 0; i < elements->length(); i++) {
+          Object* raw = elements->get(i);
+          if (!raw->IsJSObject()) continue;
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) elements->set(i, *value);
+        }
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      Handle<SeededNumberDictionary> element_dictionary(
+          copy->element_dictionary());
+      int capacity = element_dictionary->Capacity();
+      for (int i = 0; i < capacity; i++) {
+        Object* raw = element_dictionary->ValueAt(i);
+        if (!raw->IsJSObject()) continue;
+        Handle<JSObject> value(JSObject::cast(raw), isolate);
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, value, VisitElementOrProperty(copy, value), JSObject);
+        if (copying) element_dictionary->ValueAtPut(i, *value);
+      }
+      break;
+    }
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
+      UNREACHABLE();
+      break;
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
+
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+      // Typed elements cannot be created using an object literal.
+      UNREACHABLE();
+      break;
+
+    case FAST_SMI_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case NO_ELEMENTS:
+      // No contained objects, nothing to do.
+      break;
+  }
+
+  return copy;
+}
+
+MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
+                               DeprecationUpdateContext* site_context) {
+  JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context, kNoHints);
+  MaybeHandle<JSObject> result = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
+  return result;
+}
+
+MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
+                               AllocationSiteCreationContext* site_context) {
+  JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context, kNoHints);
+  MaybeHandle<JSObject> result = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
+  return result;
+}
+
+MaybeHandle<JSObject> DeepCopy(Handle<JSObject> object,
+                               AllocationSiteUsageContext* site_context,
+                               DeepCopyHints hints) {
+  JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context, hints);
+  MaybeHandle<JSObject> copy = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  DCHECK(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
+  return copy;
+}
+
 struct ObjectBoilerplate {
   static Handle<JSObject> Create(Isolate* isolate,
                                  Handle<FeedbackVector> vector,
@@ -193,12 +395,11 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
 
   STATIC_ASSERT(static_cast<int>(ObjectLiteral::kShallowProperties) ==
                 static_cast<int>(ArrayLiteral::kShallowElements));
-  JSObject::DeepCopyHints copy_hints =
-      (flags & ObjectLiteral::kShallowProperties) ? JSObject::kObjectIsShallow
-                                                  : JSObject::kNoHints;
+  DeepCopyHints copy_hints =
+      (flags & ObjectLiteral::kShallowProperties) ? kObjectIsShallow : kNoHints;
   if (FLAG_track_double_fields && !FLAG_unbox_double_fields) {
     // Make sure we properly clone mutable heap numbers on 32-bit platforms.
-    copy_hints = JSObject::kNoHints;
+    copy_hints = kNoHints;
   }
 
   Handle<AllocationSite> site;
@@ -213,10 +414,9 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     boilerplate = Boilerplate::Create(isolate, vector, description, flags);
     if (IsUninitializedLiteralSite(literal_site)) {
       PreInitializeLiteralSite(vector, literals_slot);
-      if (copy_hints == JSObject::kNoHints) {
+      if (copy_hints == kNoHints) {
         DeprecationUpdateContext update_context(isolate);
-        RETURN_ON_EXCEPTION(isolate,
-                            JSObject::DeepWalk(boilerplate, &update_context),
+        RETURN_ON_EXCEPTION(isolate, DeepWalk(boilerplate, &update_context),
                             JSObject);
       }
       return boilerplate;
@@ -224,8 +424,8 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     // Install AllocationSite objects.
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();
-    RETURN_ON_EXCEPTION(
-        isolate, JSObject::DeepWalk(boilerplate, &creation_context), JSObject);
+    RETURN_ON_EXCEPTION(isolate, DeepWalk(boilerplate, &creation_context),
+                        JSObject);
     creation_context.ExitScope(site, boilerplate);
 
     vector->Set(literals_slot, *site);
@@ -239,7 +439,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
   AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
   usage_context.EnterNewScope();
   MaybeHandle<JSObject> copy =
-      JSObject::DeepCopy(boilerplate, &usage_context, copy_hints);
+      DeepCopy(boilerplate, &usage_context, copy_hints);
   usage_context.ExitScope(site, boilerplate);
   return copy;
 }
