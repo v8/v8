@@ -1127,8 +1127,16 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   if (len == 0) return;
 
   DCHECK(array->map() != fixed_cow_array_map());
-  Object** dst_objects = array->data_start() + dst_index;
-  MemMove(dst_objects, array->data_start() + src_index, len * kPointerSize);
+  Object** dst = array->data_start() + dst_index;
+  Object** src = array->data_start() + src_index;
+  if (FLAG_concurrent_marking && concurrent_marking()->IsTaskPending()) {
+    for (int i = 0; i < len; i++) {
+      base::AsAtomicWord::Relaxed_Store(
+          dst + i, base::AsAtomicWord::Relaxed_Load(src + i));
+    }
+  } else {
+    MemMove(dst, src, len * kPointerSize);
+  }
   FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, array, dst_index, len);
 }
 
