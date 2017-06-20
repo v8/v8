@@ -2091,42 +2091,36 @@ void Isolate::ReleaseManagedObjects() {
   while (current != nullptr) {
     Isolate::ManagedObjectFinalizer* next = current->next_;
     current->Dispose();
-    delete current;
     current = next;
   }
   // No new managed objects should pop up during finalization.
   DCHECK_NULL(managed_object_finalizers_list_.next_);
 }
 
-Isolate::ManagedObjectFinalizer* Isolate::RegisterForReleaseAtTeardown(
-    void* value, Isolate::ManagedObjectFinalizer::Deleter deleter) {
-  DCHECK_NOT_NULL(value);
-  DCHECK_NOT_NULL(deleter);
+void Isolate::RegisterForReleaseAtTeardown(
+    Isolate::ManagedObjectFinalizer* finalizer) {
+  DCHECK_NOT_NULL(finalizer->value_);
+  DCHECK_NOT_NULL(finalizer->deleter_);
+  DCHECK_NULL(finalizer->prev_);
+  DCHECK_NULL(finalizer->next_);
 
-  Isolate::ManagedObjectFinalizer* ret = new Isolate::ManagedObjectFinalizer();
-  ret->value_ = value;
-  ret->deleter_ = deleter;
   // Insert at head. We keep the head alive for the lifetime of the Isolate
   // because otherwise we can't reset the head, should we delete it before
   // the isolate expires
   Isolate::ManagedObjectFinalizer* next = managed_object_finalizers_list_.next_;
-  managed_object_finalizers_list_.next_ = ret;
-  ret->prev_ = &managed_object_finalizers_list_;
-  ret->next_ = next;
-  if (next != nullptr) next->prev_ = ret;
-  return ret;
+  managed_object_finalizers_list_.next_ = finalizer;
+  finalizer->prev_ = &managed_object_finalizers_list_;
+  finalizer->next_ = next;
+  if (next != nullptr) next->prev_ = finalizer;
 }
 
 void Isolate::UnregisterFromReleaseAtTeardown(
-    Isolate::ManagedObjectFinalizer** finalizer_ptr) {
-  DCHECK_NOT_NULL(finalizer_ptr);
-  Isolate::ManagedObjectFinalizer* finalizer = *finalizer_ptr;
+    Isolate::ManagedObjectFinalizer* finalizer) {
+  DCHECK_NOT_NULL(finalizer);
   DCHECK_NOT_NULL(finalizer->prev_);
 
   finalizer->prev_->next_ = finalizer->next_;
   if (finalizer->next_ != nullptr) finalizer->next_->prev_ = finalizer->prev_;
-  delete finalizer;
-  *finalizer_ptr = nullptr;
 }
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {

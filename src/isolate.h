@@ -1273,36 +1273,39 @@ class Isolate {
 
   // List of native heap values allocated by the runtime as part of its
   // implementation that must be freed at isolate deinit.
-  class ManagedObjectFinalizer final {
+  class ManagedObjectFinalizer {
    public:
-    typedef void (*Deleter)(void*);
-    void Dispose() { deleter_(value_); }
+    using Deleter = void (*)(ManagedObjectFinalizer*);
 
-   private:
-    friend class Isolate;
-
-    ManagedObjectFinalizer() {
+    ManagedObjectFinalizer(void* value, Deleter deleter)
+        : value_(value), deleter_(deleter) {
       DCHECK_EQ(reinterpret_cast<void*>(this),
                 reinterpret_cast<void*>(&value_));
     }
 
-    // value_ must be the first member
+    void Dispose() { deleter_(this); }
+
+    void* value() const { return value_; }
+
+   private:
+    friend class Isolate;
+
+    ManagedObjectFinalizer() = default;
+
     void* value_ = nullptr;
     Deleter deleter_ = nullptr;
     ManagedObjectFinalizer* prev_ = nullptr;
     ManagedObjectFinalizer* next_ = nullptr;
   };
 
-  // Register a native value for destruction at isolate teardown.
-  ManagedObjectFinalizer* RegisterForReleaseAtTeardown(
-      void* value, ManagedObjectFinalizer::Deleter deleter);
+  // Register a finalizer to be called at isolate teardown.
+  void RegisterForReleaseAtTeardown(ManagedObjectFinalizer*);
 
   // Unregister a previously registered value from release at
-  // isolate teardown, deleting the ManagedObjectFinalizer.
+  // isolate teardown.
   // This transfers the responsibility of the previously managed value's
-  // deletion to the caller. Pass by pointer, because *finalizer_ptr gets
-  // reset to nullptr.
-  void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer** finalizer_ptr);
+  // deletion to the caller.
+  void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer*);
 
   size_t elements_deletion_counter() { return elements_deletion_counter_; }
   void set_elements_deletion_counter(size_t value) {
