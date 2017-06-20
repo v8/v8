@@ -116,12 +116,12 @@ bool BreakLocation::HasBreakPoint(Handle<DebugInfo> debug_info) const {
   if (abstract_code_->IsCode()) {
     DCHECK_EQ(debug_info->DebugCode(), abstract_code_->GetCode());
     CodeBreakIterator it(debug_info);
-    it.SkipToPosition(position_, BREAK_POSITION_ALIGNED);
+    it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
   } else {
     DCHECK(abstract_code_->IsBytecodeArray());
     BytecodeArrayBreakIterator it(debug_info);
-    it.SkipToPosition(position_, BREAK_POSITION_ALIGNED);
+    it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
   }
 }
@@ -159,18 +159,11 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
   statement_position_ = position_;
 }
 
-int BreakIterator::BreakIndexFromPosition(int source_position,
-                                          BreakPositionAlignment alignment) {
+int BreakIterator::BreakIndexFromPosition(int source_position) {
   int distance = kMaxInt;
   int closest_break = break_index();
   while (!Done()) {
-    int next_position;
-    if (alignment == STATEMENT_ALIGNED) {
-      next_position = statement_position();
-    } else {
-      DCHECK(alignment == BREAK_POSITION_ALIGNED);
-      next_position = position();
-    }
+    int next_position = position();
     if (source_position <= next_position &&
         next_position - source_position < distance) {
       closest_break = break_index();
@@ -243,10 +236,9 @@ DebugBreakType CodeBreakIterator::GetDebugBreakType() {
   }
 }
 
-void CodeBreakIterator::SkipToPosition(int position,
-                                       BreakPositionAlignment alignment) {
+void CodeBreakIterator::SkipToPosition(int position) {
   CodeBreakIterator it(debug_info_);
-  SkipTo(it.BreakIndexFromPosition(position, alignment));
+  SkipTo(it.BreakIndexFromPosition(position));
 }
 
 int CodeBreakIterator::code_offset() {
@@ -332,10 +324,9 @@ DebugBreakType BytecodeArrayBreakIterator::GetDebugBreakType() {
   }
 }
 
-void BytecodeArrayBreakIterator::SkipToPosition(
-    int position, BreakPositionAlignment alignment) {
+void BytecodeArrayBreakIterator::SkipToPosition(int position) {
   BytecodeArrayBreakIterator it(debug_info_);
-  SkipTo(it.BreakIndexFromPosition(position, alignment));
+  SkipTo(it.BreakIndexFromPosition(position));
 }
 
 void BytecodeArrayBreakIterator::SetDebugBreak() {
@@ -687,8 +678,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   DCHECK(*source_position >= 0);
 
   // Find the break point and change it.
-  *source_position =
-      FindBreakablePosition(debug_info, *source_position, STATEMENT_ALIGNED);
+  *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
   DCHECK(debug_info->GetBreakPointCount() > 0);
@@ -700,11 +690,9 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   return true;
 }
 
-
 bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    Handle<Object> break_point_object,
-                                   int* source_position,
-                                   BreakPositionAlignment alignment) {
+                                   int* source_position) {
   if (script->type() == Script::TYPE_WASM) {
     Handle<WasmCompiledModule> compiled_module(
         WasmCompiledModule::cast(script->wasm_compiled_module()), isolate_);
@@ -732,8 +720,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   // Find the break point and change it.
-  *source_position =
-      FindBreakablePosition(debug_info, *source_position, alignment);
+  *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
   DCHECK(debug_info->GetBreakPointCount() > 0);
@@ -746,23 +733,19 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 }
 
 int Debug::FindBreakablePosition(Handle<DebugInfo> debug_info,
-                                 int source_position,
-                                 BreakPositionAlignment alignment) {
-  int statement_position;
+                                 int source_position) {
   int position;
   if (debug_info->HasDebugCode()) {
     CodeBreakIterator it(debug_info);
-    it.SkipToPosition(source_position, alignment);
-    statement_position = it.statement_position();
+    it.SkipToPosition(source_position);
     position = it.position();
   } else {
     DCHECK(debug_info->HasDebugBytecodeArray());
     BytecodeArrayBreakIterator it(debug_info);
-    it.SkipToPosition(source_position, alignment);
-    statement_position = it.statement_position();
+    it.SkipToPosition(source_position);
     position = it.position();
   }
-  return alignment == STATEMENT_ALIGNED ? statement_position : position;
+  return position;
 }
 
 void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
@@ -775,12 +758,12 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     if (info->GetBreakPointCount() == 0) continue;
     if (debug_info->HasDebugCode()) {
       CodeBreakIterator it(debug_info);
-      it.SkipToPosition(info->source_position(), BREAK_POSITION_ALIGNED);
+      it.SkipToPosition(info->source_position());
       it.SetDebugBreak();
     }
     if (debug_info->HasDebugBytecodeArray()) {
       BytecodeArrayBreakIterator it(debug_info);
-      it.SkipToPosition(info->source_position(), BREAK_POSITION_ALIGNED);
+      it.SkipToPosition(info->source_position());
       it.SetDebugBreak();
     }
   }
@@ -1115,8 +1098,7 @@ void Debug::PrepareStep(StepAction step_action) {
 
 // Simple function for returning the source positions for active break points.
 Handle<Object> Debug::GetSourceBreakLocations(
-    Handle<SharedFunctionInfo> shared,
-    BreakPositionAlignment position_alignment) {
+    Handle<SharedFunctionInfo> shared) {
   Isolate* isolate = shared->GetIsolate();
   if (!shared->HasBreakInfo()) {
     return isolate->factory()->undefined_value();
@@ -1134,25 +1116,10 @@ Handle<Object> Debug::GetSourceBreakLocations(
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       int break_points = break_point_info->GetBreakPointCount();
       if (break_points == 0) continue;
-      Smi* position = NULL;
-      if (position_alignment == STATEMENT_ALIGNED) {
-        if (debug_info->HasDebugCode()) {
-          CodeBreakIterator it(debug_info);
-          it.SkipToPosition(break_point_info->source_position(),
-                            BREAK_POSITION_ALIGNED);
-          position = Smi::FromInt(it.statement_position());
-        } else {
-          DCHECK(debug_info->HasDebugBytecodeArray());
-          BytecodeArrayBreakIterator it(debug_info);
-          it.SkipToPosition(break_point_info->source_position(),
-                            BREAK_POSITION_ALIGNED);
-          position = Smi::FromInt(it.statement_position());
-        }
-      } else {
-        DCHECK_EQ(BREAK_POSITION_ALIGNED, position_alignment);
-        position = Smi::FromInt(break_point_info->source_position());
+      for (int j = 0; j < break_points; ++j) {
+        locations->set(count++,
+                       Smi::FromInt(break_point_info->source_position()));
       }
-      for (int j = 0; j < break_points; ++j) locations->set(count++, position);
     }
   }
   return locations;

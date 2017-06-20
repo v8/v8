@@ -50,13 +50,6 @@ enum ExceptionBreakType {
 };
 
 
-// The different types of breakpoint position alignments.
-// Must match Debug.BreakPositionAlignment in debug.js
-enum BreakPositionAlignment {
-  STATEMENT_ALIGNED = 0,
-  BREAK_POSITION_ALIGNED = 1
-};
-
 enum DebugBreakType {
   NOT_DEBUG_BREAK,
   DEBUGGER_STATEMENT,
@@ -149,7 +142,7 @@ class BreakIterator {
  protected:
   explicit BreakIterator(Handle<DebugInfo> debug_info);
 
-  int BreakIndexFromPosition(int position, BreakPositionAlignment alignment);
+  int BreakIndexFromPosition(int position);
 
   Isolate* isolate() { return debug_info_->GetIsolate(); }
 
@@ -176,7 +169,7 @@ class CodeBreakIterator : public BreakIterator {
   void ClearDebugBreak() override;
   void SetDebugBreak() override;
 
-  void SkipToPosition(int position, BreakPositionAlignment alignment);
+  void SkipToPosition(int position);
 
   int code_offset() override;
 
@@ -205,7 +198,7 @@ class BytecodeArrayBreakIterator : public BreakIterator {
   void ClearDebugBreak() override;
   void SetDebugBreak() override;
 
-  void SkipToPosition(int position, BreakPositionAlignment alignment);
+  void SkipToPosition(int position);
 
   int code_offset() override { return source_position_iterator_.code_offset(); }
 
@@ -294,8 +287,7 @@ class Debug {
                      int* source_position);
   bool SetBreakPointForScript(Handle<Script> script,
                               Handle<Object> break_point_object,
-                              int* source_position,
-                              BreakPositionAlignment alignment);
+                              int* source_position);
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
@@ -348,8 +340,7 @@ class Debug {
                                                 int position);
 
   static Handle<Object> GetSourceBreakLocations(
-      Handle<SharedFunctionInfo> shared,
-      BreakPositionAlignment position_aligment);
+      Handle<SharedFunctionInfo> shared);
 
   // Check whether a global object is the debug global object.
   bool IsDebugGlobal(JSGlobalObject* global);
@@ -483,8 +474,7 @@ class Debug {
   void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
 
   // Find the closest source position for a break point for a given position.
-  int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position,
-                            BreakPositionAlignment alignment);
+  int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position);
   // Instrument code to break at break points.
   void ApplyBreakPoints(Handle<DebugInfo> debug_info);
   // Clear code from instrumentation.
