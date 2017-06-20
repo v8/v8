@@ -357,7 +357,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
-  auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
+  GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
 
   // If args.Length < 2, this will be undefined - see FunctionCallbackInfo.
