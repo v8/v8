@@ -1446,10 +1446,19 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           return -1;
         }
         if (module_->is_asm_js()) {
-          if (module_->globals[import.index].type == kWasmI32) {
-            value = Object::ToInt32(isolate_, value).ToHandleChecked();
-          } else {
-            value = Object::ToNumber(value).ToHandleChecked();
+          // Accepting {JSFunction} on top of just primitive values here is a
+          // workaround to support legacy asm.js code with broken binding. Note
+          // that using {NaN} (or Smi::kZero) here is what using the observable
+          // conversion via {ToPrimitive} would produce as well.
+          // TODO(mstarzinger): Still observable if Function.prototype.valueOf
+          // or friends are patched, we might need to check for that as well.
+          if (value->IsJSFunction()) value = isolate_->factory()->nan_value();
+          if (value->IsPrimitive() && !value->IsSymbol()) {
+            if (module_->globals[import.index].type == kWasmI32) {
+              value = Object::ToInt32(isolate_, value).ToHandleChecked();
+            } else {
+              value = Object::ToNumber(value).ToHandleChecked();
+            }
           }
         }
         if (!value->IsNumber()) {

@@ -1153,19 +1153,7 @@ function TestForeignVariables() {
   TestCase({foo: null, bar: null, baz: null}, 0, 0, 0, 0);
   // Check that string values are converted properly.
   TestCase({foo: 'hi', bar: 'there', baz: 'dude'}, 0, NaN, 0, NaN);
-  TestCase({foo: '0xff', bar: '234', baz: '456.1'}, 255, 234, 456, 456.1, 456);
-  // Check that Date values are converted properly.
-  TestCase({foo: new Date(123), bar: new Date(456),
-            baz: new Date(789)}, 123, 456, 789, 789);
-  // Check that list values are converted properly.
-  TestCase({foo: [], bar: [], baz: []}, 0, 0, 0, 0);
-  // Check that object values are converted properly.
-  TestCase({foo: {}, bar: {}, baz: {}}, 0, NaN, 0, NaN);
-  // Check that objects with valueOf are converted properly.
-  var o = {
-    valueOf: function() { return 99; }
-  };
-  TestCase({foo: o, bar: o, baz: o}, 99, 99, 99, 99);
+  TestCase({foo: '0xff', bar: '234', baz: '456.1'}, 255, 234, 456, 456.1);
   // Check that function values are converted properly.
   TestCase({foo: TestCase, bar: TestCase, qux: TestCase}, 0, NaN, 0, NaN);
 }
