@@ -1249,10 +1249,10 @@ template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
-  SlotSet* slot_set = base::AsAtomicWord::Acquire_Load(&slot_set_[type]);
+  SlotSet* slot_set = slot_set_[type];
   if (slot_set) {
+    slot_set_[type] = nullptr;
     delete[] slot_set;
-    base::AsAtomicWord::Release_Store(&slot_set_[type], nullptr);
   }
 }
 
@@ -1277,11 +1277,10 @@ template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseTypedSlotSet() {
-  TypedSlotSet* typed_slot_set =
-      base::AsAtomicWord::Acquire_Load(&typed_slot_set_[type]);
+  TypedSlotSet* typed_slot_set = typed_slot_set_[type];
   if (typed_slot_set) {
+    typed_slot_set_[type] = nullptr;
     delete typed_slot_set;
-    base::AsAtomicWord::Release_Store(&typed_slot_set_[type], nullptr);
   }
 }
 

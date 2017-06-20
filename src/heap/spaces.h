@@ -461,19 +461,22 @@ class MemoryChunk {
     return typed_slot_set_[type];
   }
 
-  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
-  bool contains_array_buffers();
-
   template <RememberedSetType type>
   SlotSet* AllocateSlotSet();
+  // Not safe to be called concurrently.
   template <RememberedSetType type>
   void ReleaseSlotSet();
   template <RememberedSetType type>
   TypedSlotSet* AllocateTypedSlotSet();
+  // Not safe to be called concurrently.
   template <RememberedSetType type>
   void ReleaseTypedSlotSet();
+
   void AllocateLocalTracker();
   void ReleaseLocalTracker();
+  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
+  bool contains_array_buffers();
+
   void AllocateYoungGenerationBitmap();
   void ReleaseYoungGenerationBitmap();
 
