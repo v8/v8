@@ -39,14 +39,22 @@ namespace internal {
 namespace wasm {
 
 ModuleCompiler::CodeGenerationSchedule::CodeGenerationSchedule(
-    base::RandomNumberGenerator* random_number_generator)
-    : random_number_generator_(random_number_generator) {
+    base::RandomNumberGenerator* random_number_generator, size_t max_memory)
+    : random_number_generator_(random_number_generator),
+      max_memory_(max_memory) {
   DCHECK_NOT_NULL(random_number_generator_);
+  DCHECK_GT(max_memory_, 0);
 }
 
 void ModuleCompiler::CodeGenerationSchedule::Schedule(
     std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
+  size_t cost = item->memory_cost();
   schedule_.push_back(std::move(item));
+  allocated_memory_.Increment(cost);
+}
+
+bool ModuleCompiler::CodeGenerationSchedule::CanAcceptWork() const {
+  return (!throttle_ || allocated_memory_.Value() <= max_memory_);
 }
 
 std::unique_ptr<compiler::WasmCompilationUnit>
@@ -56,6 +64,7 @@ ModuleCompiler::CodeGenerationSchedule::GetNext() {
   auto ret = std::move(schedule_[index]);
   std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
   schedule_.pop_back();
+  allocated_memory_.Decrement(ret->memory_cost());
   return ret;
 }
 
@@ -73,24 +82,65 @@ ModuleCompiler::ModuleCompiler(Isolate* isolate,
       module_(std::move(module)),
       counters_shared_(isolate->counters_shared()),
       is_sync_(is_sync),
-      executed_units_(isolate->random_number_generator()) {
+      executed_units_(
+          isolate->random_number_generator(),
+          (isolate->heap()->memory_allocator()->code_range()->valid()
+               ? isolate->heap()->memory_allocator()->code_range()->size()
+               : isolate->heap()->code_space()->Capacity()) /
+              2),
+      num_background_tasks_(
+          Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
+              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())),
+      stopped_compilation_tasks_(num_background_tasks_) {
   counters_ = counters_shared_.get();
+}
+
+bool ModuleCompiler::GetNextUncompiledFunctionId(size_t* index) {
+  DCHECK_NOT_NULL(index);
+  // - 1 because AtomicIncrement returns the value after the atomic increment.
+  *index = next_unit_.Increment(1) - 1;
+  return *index < compilation_units_.size();
 }
 
 // The actual runnable task that performs compilations in the background.
 ModuleCompiler::CompilationTask::CompilationTask(ModuleCompiler* compiler)
-    : CancelableTask(compiler->isolate_), compiler_(compiler) {}
+    : CancelableTask(&compiler->background_task_manager_),
+      compiler_(compiler) {}
 
 void ModuleCompiler::CompilationTask::RunInternal() {
-  while (compiler_->FetchAndExecuteCompilationUnit()) {
+  size_t index = 0;
+  while (compiler_->executed_units_.CanAcceptWork() &&
+         compiler_->GetNextUncompiledFunctionId(&index)) {
+    compiler_->CompileAndSchedule(index);
   }
-  compiler_->module_->pending_tasks.get()->Signal();
+  compiler_->OnBackgroundTaskStopped();
 }
 
-// Run by each compilation task and by the main thread. The
-// no_finisher_callback is called within the result_mutex_ lock when no
-// finishing task is running, i.e. when the finisher_is_running_ flag is not
-// set.
+void ModuleCompiler::OnBackgroundTaskStopped() {
+  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+  ++stopped_compilation_tasks_;
+  DCHECK_LE(stopped_compilation_tasks_, num_background_tasks_);
+}
+
+void ModuleCompiler::CompileAndSchedule(size_t index) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+  DisallowCodeDependencyChange no_dependency_change;
+  DCHECK_LT(index, compilation_units_.size());
+
+  std::unique_ptr<compiler::WasmCompilationUnit> unit =
+      std::move(compilation_units_.at(index));
+  unit->ExecuteCompilation();
+  {
+    base::LockGuard<base::Mutex> guard(&result_mutex_);
+    executed_units_.Schedule(std::move(unit));
+  }
+}
+
+// Run by each compilation task The no_finisher_callback is called
+// within the result_mutex_ lock when no finishing task is running,
+// i.e. when the finisher_is_running_ flag is not set.
 bool ModuleCompiler::FetchAndExecuteCompilationUnit(
     std::function<void()> no_finisher_callback) {
   DisallowHeapAllocation no_allocation;
@@ -99,6 +149,7 @@ bool ModuleCompiler::FetchAndExecuteCompilationUnit(
   DisallowCodeDependencyChange no_dependency_change;
 
   // - 1 because AtomicIncrement returns the value after the atomic increment.
+  // Bail out fast if there's no work to do.
   size_t index = next_unit_.Increment(1) - 1;
   if (index >= compilation_units_.size()) {
     return false;
@@ -136,41 +187,27 @@ size_t ModuleCompiler::InitializeParallelCompilation(
   return funcs_to_compile;
 }
 
-uint32_t* ModuleCompiler::StartCompilationTasks() {
-  num_background_tasks_ =
-      Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
-          V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
-  uint32_t* task_ids = new uint32_t[num_background_tasks_];
-  for (size_t i = 0; i < num_background_tasks_; ++i) {
-    CompilationTask* task = new CompilationTask(this);
-    task_ids[i] = task->id();
+void ModuleCompiler::RestartCompilationTasks() {
+  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+  for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
-  }
-  return task_ids;
-}
-
-void ModuleCompiler::WaitForCompilationTasks(uint32_t* task_ids) {
-  for (size_t i = 0; i < num_background_tasks_; ++i) {
-    // If the task has not started yet, then we abort it. Otherwise we wait
-    // for it to finish.
-    if (isolate_->cancelable_task_manager()->TryAbort(task_ids[i]) !=
-        CancelableTaskManager::kTaskAborted) {
-      module_->pending_tasks.get()->Wait();
-    }
+        new CompilationTask(this),
+        v8::Platform::ExpectedRuntime::kShortRunningTask);
   }
 }
 
-void ModuleCompiler::FinishCompilationUnits(std::vector<Handle<Code>>& results,
-                                            ErrorThrower* thrower) {
-  SetFinisherIsRunning(true);
+size_t ModuleCompiler::FinishCompilationUnits(
+    std::vector<Handle<Code>>& results, ErrorThrower* thrower) {
+  size_t finished = 0;
   while (true) {
     int func_index = -1;
     Handle<Code> result = FinishCompilationUnit(thrower, &func_index);
     if (func_index < 0) break;
     results[func_index] = result;
+    ++finished;
   }
-  SetFinisherIsRunning(false);
+  RestartCompilationTasks();
+  return finished;
 }
 
 void ModuleCompiler::SetFinisherIsRunning(bool value) {
@@ -221,30 +258,35 @@ void ModuleCompiler::CompileInParallel(ModuleBytesEnv* module_env,
   //    and stores them in the vector {compilation_units}.
   InitializeParallelCompilation(module->functions, *module_env);
 
-  // Objects for the synchronization with the background threads.
-  base::AtomicNumber<size_t> next_unit(
-      static_cast<size_t>(FLAG_skip_compiling_wasm_funcs));
+  executed_units_.EnableThrottling();
 
   // 2) The main thread spawns {CompilationTask} instances which run on
   //    the background threads.
-  std::unique_ptr<uint32_t[]> task_ids(StartCompilationTasks());
+  RestartCompilationTasks();
 
-  // 3.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
-  while (FetchAndExecuteCompilationUnit()) {
+  size_t finished_functions = 0;
+  while (finished_functions < compilation_units_.size()) {
+    // 3.a) The background threads and the main thread pick one compilation
+    //      unit at a time and execute the parallel phase of the compilation
+    //      unit. After finishing the execution of the parallel phase, the
+    //      result is enqueued in {executed_units}.
+    //      The foreground task bypasses waiting on memory threshold, because
+    //      its results will immediately be converted to code (below).
+    size_t index = 0;
+    if (GetNextUncompiledFunctionId(&index)) {
+      CompileAndSchedule(index);
+    }
+
     // 3.b) If {executed_units} contains a compilation unit, the main thread
     //      dequeues it and finishes the compilation unit. Compilation units
     //      are finished concurrently to the background threads to save
     //      memory.
-    FinishCompilationUnits(results, thrower);
+    finished_functions += FinishCompilationUnits(results, thrower);
   }
   // 4) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {CompilationTask} instances to finish.
-  WaitForCompilationTasks(task_ids.get());
-  // Finish the compilation of the remaining compilation units.
-  FinishCompilationUnits(results, thrower);
+  //    main thread waits for all {CompilationTask} instances to finish - which
+  //    happens once they all realize there's no next work item to process.
+  background_task_manager_.CancelAndWait();
 }
 
 void ModuleCompiler::CompileSequentially(ModuleBytesEnv* module_env,

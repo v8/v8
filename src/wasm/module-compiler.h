@@ -42,7 +42,8 @@ class ModuleCompiler {
   class CodeGenerationSchedule {
    public:
     explicit CodeGenerationSchedule(
-        base::RandomNumberGenerator* random_number_generator);
+        base::RandomNumberGenerator* random_number_generator,
+        size_t max_memory = 0);
 
     void Schedule(std::unique_ptr<compiler::WasmCompilationUnit>&& item);
 
@@ -50,11 +51,18 @@ class ModuleCompiler {
 
     std::unique_ptr<compiler::WasmCompilationUnit> GetNext();
 
+    bool CanAcceptWork() const;
+
+    void EnableThrottling() { throttle_ = true; }
+
    private:
     size_t GetRandomIndexInSchedule();
 
     base::RandomNumberGenerator* random_number_generator_ = nullptr;
     std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
+    const size_t max_memory_;
+    bool throttle_ = false;
+    base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
   Isolate* isolate_;
@@ -67,9 +75,10 @@ class ModuleCompiler {
   CodeGenerationSchedule executed_units_;
   base::Mutex result_mutex_;
   base::AtomicNumber<size_t> next_unit_;
-  size_t num_background_tasks_ = 0;
+  const size_t num_background_tasks_;
   // This flag should only be set while holding result_mutex_.
   bool finisher_is_running_ = false;
+  CancelableTaskManager background_task_manager_;
 
   // Run by each compilation task and by the main thread. The
   // no_finisher_callback is called within the result_mutex_ lock when no
@@ -78,15 +87,17 @@ class ModuleCompiler {
   bool FetchAndExecuteCompilationUnit(
       std::function<void()> no_finisher_callback = [] {});
 
+  void CompileAndSchedule(size_t index);
+  bool GetNextUncompiledFunctionId(size_t* index);
+  void OnBackgroundTaskStopped();
+
   size_t InitializeParallelCompilation(
       const std::vector<WasmFunction>& functions, ModuleBytesEnv& module_env);
 
-  uint32_t* StartCompilationTasks();
+  void RestartCompilationTasks();
 
-  void WaitForCompilationTasks(uint32_t* task_ids);
-
-  void FinishCompilationUnits(std::vector<Handle<Code>>& results,
-                              ErrorThrower* thrower);
+  size_t FinishCompilationUnits(std::vector<Handle<Code>>& results,
+                                ErrorThrower* thrower);
 
   void SetFinisherIsRunning(bool value);
 
@@ -114,6 +125,9 @@ class ModuleCompiler {
       Vector<const byte> asm_js_offset_table_bytes, Factory* factory,
       WasmInstance* temp_instance, Handle<FixedArray>* function_tables,
       Handle<FixedArray>* signature_tables);
+
+  size_t stopped_compilation_tasks_ = 0;
+  base::Mutex tasks_mutex_;
 };
 
 class JSToWasmWrapperCache {
