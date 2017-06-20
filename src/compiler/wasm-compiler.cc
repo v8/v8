@@ -3975,6 +3975,12 @@ void WasmCompilationUnit::ExecuteCompilation() {
         isolate_->counters()->wasm_compile_function_time());
   }
   ExecuteCompilationInternal();
+  // Record the memory cost this unit places on the system until
+  // it is finalized. That may be "0" in error cases.
+  if (job_) {
+    size_t cost = job_->AllocatedMemory();
+    set_memory_cost(cost);
+  }
 }
 
 void WasmCompilationUnit::ExecuteCompilationInternal() {
