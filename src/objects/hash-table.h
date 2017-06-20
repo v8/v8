@@ -144,22 +144,10 @@ class HashTable : public HashTableBase {
   typedef Shape ShapeT;
   typedef typename Shape::Key Key;
 
-  // Wrapper methods
-  inline uint32_t Hash(Key key) {
-    if (Shape::UsesSeed) {
-      return Shape::SeededHash(key, GetHeap()->HashSeed());
-    } else {
-      return Shape::Hash(key);
-    }
-  }
-
-  inline uint32_t HashForObject(Object* object) {
-    if (Shape::UsesSeed) {
-      return Shape::SeededHashForObject(GetHeap()->HashSeed(), object);
-    } else {
-      return Shape::HashForObject(object);
-    }
-  }
+  // Wrapper methods.  Defined in src/objects/hash-table-inl.h
+  // to break a cycle with src/heap/heap.h.
+  inline uint32_t Hash(Key key);
+  inline uint32_t HashForObject(Object* object);
 
   // Returns a new HashTable object.
   MUST_USE_RESULT static Handle<Derived> New(
