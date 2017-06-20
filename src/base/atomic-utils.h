@@ -344,7 +344,7 @@ class AsAtomicWord {
   template <typename T>
   static void Relaxed_Store(T* addr,
                             typename std::remove_reference<T>::type new_value) {
-    STATIC_ASSERT(sizeof(T) <= sizeof(base::Atomic32));
+    STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
     base::Relaxed_Store(to_storage_addr(addr), to_storage_type(new_value));
   }
 

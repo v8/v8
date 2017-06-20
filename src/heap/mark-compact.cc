@@ -3433,10 +3433,9 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
   }
 }
 
+template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateSlot(Object** slot) {
-  Object* obj = reinterpret_cast<Object*>(
-      base::Relaxed_Load(reinterpret_cast<base::AtomicWord*>(slot)));
-
+  Object* obj = *slot;
   if (obj->IsHeapObject()) {
     HeapObject* heap_obj = HeapObject::cast(obj);
     MapWord map_word = heap_obj->map_word();
@@ -3446,13 +3445,16 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
              Page::FromAddress(heap_obj->address())
                  ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
       HeapObject* target = map_word.ToForwardingAddress();
-      base::Relaxed_CompareAndSwap(reinterpret_cast<base::AtomicWord*>(slot),
-                                   reinterpret_cast<base::AtomicWord>(obj),
-                                   reinterpret_cast<base::AtomicWord>(target));
+      if (access_mode == AccessMode::NON_ATOMIC) {
+        *slot = target;
+      } else {
+        base::AsAtomicWord::Release_CompareAndSwap(slot, obj, target);
+      }
       DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
   }
+  // OLD_TO_OLD slots are always removed after updating.
   return REMOVE_SLOT;
 }
 
@@ -3462,36 +3464,45 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
 // nevers visits code objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  void VisitPointer(HeapObject* host, Object** p) override { UpdateSlot(p); }
-
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) UpdateSlot(p);
+  void VisitPointer(HeapObject* host, Object** p) override {
+    UpdateSlotInternal(p);
   }
 
-  void VisitRootPointer(Root root, Object** p) override { UpdateSlot(p); }
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
+  }
+
+  void VisitRootPointer(Root root, Object** p) override {
+    UpdateSlotInternal(p);
+  }
 
   void VisitRootPointers(Root root, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) UpdateSlot(p);
+    for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 
   void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateCell(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateCell(rinfo, UpdateSlotInternal);
   }
 
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateEmbeddedPointer(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateEmbeddedPointer(rinfo, UpdateSlotInternal);
   }
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlotInternal);
   }
 
   void VisitCodeEntry(JSFunction* host, Address entry_address) override {
-    UpdateTypedSlotHelper::UpdateCodeEntry(entry_address, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateCodeEntry(entry_address, UpdateSlotInternal);
   }
 
   void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateDebugTarget(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateDebugTarget(rinfo, UpdateSlotInternal);
+  }
+
+ private:
+  static inline SlotCallbackResult UpdateSlotInternal(Object** slot) {
+    return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
   }
 };
 
@@ -4357,22 +4368,21 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
  private:
+  template <AccessMode access_mode>
   inline SlotCallbackResult CheckAndUpdateOldToNewSlot(Address slot_address) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     if (heap_->InFromSpace(*slot)) {
       HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
       DCHECK(heap_object->IsHeapObject());
       MapWord map_word = heap_object->map_word();
-      // There could still be stale pointers in large object space, map space,
-      // and old space for pages that have been promoted.
       if (map_word.IsForwardingAddress()) {
-        // The write is guarded by the page lock, but still needs to be atomic
-        // as the slot could be required for actually iterating objects, e.g.,
-        // if it is part of a Map and thus be read concurrently by some other
-        // task.
-        base::Relaxed_Store(
-            reinterpret_cast<base::AtomicWord*>(slot_address),
-            reinterpret_cast<base::AtomicWord>(map_word.ToForwardingAddress()));
+        if (access_mode == AccessMode::ATOMIC) {
+          HeapObject** heap_obj_slot = reinterpret_cast<HeapObject**>(slot);
+          base::AsAtomicWord::Relaxed_Store(heap_obj_slot,
+                                            map_word.ToForwardingAddress());
+        } else {
+          *slot = map_word.ToForwardingAddress();
+        }
       }
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
@@ -4407,16 +4417,33 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedPointers() {
+    // A map slot might point to new space and be required for iterating
+    // an object concurrently by another task. Hence, we need to update
+    // those slots using atomics.
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
-      RememberedSet<OLD_TO_NEW>::Iterate(chunk_, [this](Address slot) {
-        return CheckAndUpdateOldToNewSlot(slot);
-      });
+      if (chunk_->owner() == heap_->map_space()) {
+        RememberedSet<OLD_TO_NEW>::Iterate(chunk_, [this](Address slot) {
+          return CheckAndUpdateOldToNewSlot<AccessMode::ATOMIC>(slot);
+        });
+      } else {
+        RememberedSet<OLD_TO_NEW>::Iterate(chunk_, [this](Address slot) {
+          return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(slot);
+        });
+      }
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
-      RememberedSet<OLD_TO_OLD>::Iterate(chunk_, [](Address slot) {
-        return UpdateSlot(reinterpret_cast<Object**>(slot));
-      });
+      if (chunk_->owner() == heap_->map_space()) {
+        RememberedSet<OLD_TO_OLD>::Iterate(chunk_, [](Address slot) {
+          return UpdateSlot<AccessMode::ATOMIC>(
+              reinterpret_cast<Object**>(slot));
+        });
+      } else {
+        RememberedSet<OLD_TO_OLD>::Iterate(chunk_, [](Address slot) {
+          return UpdateSlot<AccessMode::NON_ATOMIC>(
+              reinterpret_cast<Object**>(slot));
+        });
+      }
     }
   }
 
@@ -4424,12 +4451,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     Isolate* isolate = heap_->isolate();
     if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
         nullptr) {
+      CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk_,
           [isolate, this](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 isolate, slot_type, slot, [this](Object** slot) {
-                  return CheckAndUpdateOldToNewSlot(
+                  return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(
                       reinterpret_cast<Address>(slot));
                 });
           });
@@ -4437,11 +4465,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() !=
          nullptr)) {
+      CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_OLD>::IterateTyped(
           chunk_,
           [isolate](SlotType slot_type, Address host_addr, Address slot) {
-            return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, slot_type,
-                                                          slot, UpdateSlot);
+            return UpdateTypedSlotHelper::UpdateTypedSlot(
+                isolate, slot_type, slot, UpdateSlot<AccessMode::NON_ATOMIC>);
           });
     }
   }
