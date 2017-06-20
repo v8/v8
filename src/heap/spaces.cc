@@ -1667,7 +1667,8 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
       object->IterateBody(map->instance_type(), size, visitor);
-      if (ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
+      if (ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+              object, MarkingState::Internal(object))) {
         black_size += size;
       }
 
