@@ -16204,11 +16204,13 @@ Dictionary<GlobalDictionary, GlobalDictionaryShape>::New(
 
 template Handle<SeededNumberDictionary>
     Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::AtPut(
-        Handle<SeededNumberDictionary>, uint32_t, Handle<Object>);
+        Handle<SeededNumberDictionary>, uint32_t, Handle<Object>,
+        PropertyDetails);
 
 template Handle<UnseededNumberDictionary>
     Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::AtPut(
-        Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>);
+        Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>,
+        PropertyDetails);
 
 template Object*
 Dictionary<SeededNumberDictionary,
@@ -17550,17 +17552,20 @@ Handle<Object> Dictionary<Derived, Shape>::DeleteProperty(
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::AtPut(Handle<Derived> dictionary,
-                                                  Key key,
-                                                  Handle<Object> value) {
+                                                  Key key, Handle<Object> value,
+                                                  PropertyDetails details) {
   int entry = dictionary->FindEntry(key);
 
   // If the entry is present set the value;
-  if (entry != Dictionary::kNotFound) {
-    dictionary->ValueAtPut(entry, *value);
-    return dictionary;
+  if (entry == Dictionary::kNotFound) {
+    return Add(dictionary, key, value, details);
   }
 
-  return Add(dictionary, key, value, PropertyDetails::Empty());
+  // We don't need to copy over the enumeration index.
+  DCHECK(!Shape::kIsEnumerable);
+  dictionary->ValueAtPut(entry, *value);
+  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
+  return dictionary;
 }
 
 template <typename Derived, typename Shape>
@@ -17664,11 +17669,12 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::DeleteKey(
   return dictionary->Shrink(dictionary);
 }
 
-Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
+Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
     Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, Handle<JSObject> dictionary_holder) {
+    Handle<Object> value, Handle<JSObject> dictionary_holder,
+    PropertyDetails details) {
   dictionary->UpdateMaxNumberKey(key, dictionary_holder);
-  return AtPut(dictionary, key, value);
+  return AtPut(dictionary, key, value, details);
 }
 
 void SeededNumberDictionary::CopyValuesTo(FixedArray* elements) {
@@ -17686,40 +17692,11 @@ void SeededNumberDictionary::CopyValuesTo(FixedArray* elements) {
   DCHECK(pos == elements->length());
 }
 
-Handle<UnseededNumberDictionary> UnseededNumberDictionary::AtNumberPut(
-    Handle<UnseededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  return AtPut(dictionary, key, value);
-}
-
-Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
-    Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, PropertyDetails details,
-    Handle<JSObject> dictionary_holder) {
-  int entry = dictionary->FindEntry(key);
-  if (entry == kNotFound) {
-    return AddNumberEntry(dictionary, key, value, details, dictionary_holder);
-  }
-  // Preserve enumeration index.
-  details = details.set_index(dictionary->DetailsAt(entry).dictionary_index());
-  Handle<Object> object_key =
-      SeededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
-  dictionary->SetEntry(entry, object_key, value, details);
-  return dictionary;
-}
-
-
 Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
     Handle<UnseededNumberDictionary> dictionary,
     uint32_t key,
     Handle<Object> value) {
-  int entry = dictionary->FindEntry(key);
-  if (entry == kNotFound) return AddNumberEntry(dictionary, key, value);
-  Handle<Object> object_key =
-      UnseededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
-  dictionary->SetEntry(entry, object_key, value);
-  return dictionary;
+  return AtPut(dictionary, key, value, PropertyDetails::Empty());
 }
 
 template <typename Derived, typename Shape>

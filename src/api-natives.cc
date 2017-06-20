@@ -311,7 +311,7 @@ void CacheTemplateInstantiation(Isolate* isolate, int serial_number,
     Handle<UnseededNumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
     auto new_cache =
-        UnseededNumberDictionary::AtNumberPut(cache, serial_number, object);
+        UnseededNumberDictionary::Set(cache, serial_number, object);
     if (*new_cache != *cache) {
       isolate->native_context()->set_slow_template_instantiations_cache(
           *new_cache);

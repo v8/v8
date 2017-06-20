@@ -538,8 +538,8 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     Handle<SeededNumberDictionary> dictionary =
         JSObject::NormalizeElements(receiver);
 
-    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, details,
-                                             receiver);
+    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, receiver,
+                                             details);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {

@@ -188,11 +188,8 @@ Handle<Code> CodeStub::GetCode() {
       AddToSpecialCache(new_object);
     } else {
       // Update the dictionary and the root in Heap.
-      Handle<UnseededNumberDictionary> dict =
-          UnseededNumberDictionary::AtNumberPut(
-              Handle<UnseededNumberDictionary>(heap->code_stubs()),
-              GetKey(),
-              new_object);
+      Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
+          handle(heap->code_stubs()), GetKey(), new_object);
       heap->SetRootCodeStubs(*dict);
     }
     code = *new_object;

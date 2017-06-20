@@ -130,7 +130,8 @@ class Dictionary : public HashTable<Derived, Shape> {
  protected:
   // Generic at put operation.
   MUST_USE_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
-                                               Key key, Handle<Object> value);
+                                               Key key, Handle<Object> value,
+                                               PropertyDetails details);
 };
 
 template <typename Key>
@@ -265,17 +266,11 @@ class SeededNumberDictionary
   DECLARE_CAST(SeededNumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT static Handle<SeededNumberDictionary> AtNumberPut(
-      Handle<SeededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value, Handle<JSObject> dictionary_holder);
-  MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
-      Handle<SeededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value, PropertyDetails details,
-      Handle<JSObject> dictionary_holder);
-
-  // Set an existing entry or add a new one if needed.
-  // Return the updated dictionary.
   MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
+      Handle<SeededNumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value, Handle<JSObject> dictionary_holder,
+      PropertyDetails details = PropertyDetails::Empty());
+  MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
       Handle<SeededNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value, PropertyDetails details,
       Handle<JSObject> dictionary_holder);
@@ -322,7 +317,7 @@ class UnseededNumberDictionary
   DECLARE_CAST(UnseededNumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT static Handle<UnseededNumberDictionary> AtNumberPut(
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
       Handle<UnseededNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> AddNumberEntry(
@@ -330,12 +325,6 @@ class UnseededNumberDictionary
       Handle<Object> value);
   static Handle<UnseededNumberDictionary> DeleteKey(
       Handle<UnseededNumberDictionary> dictionary, uint32_t key);
-
-  // Set an existing entry or add a new one if needed.
-  // Return the updated dictionary.
-  MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
-      Handle<UnseededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value);
 
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
