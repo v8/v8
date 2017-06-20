@@ -85,8 +85,6 @@ macro NUMBER_IS_NAN(arg) = (%IS_VAR(arg) !== arg);
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
 macro TO_BOOLEAN(arg) = (!!(arg));
 macro TO_INTEGER(arg) = (%_ToInteger(arg));
-macro TO_INT32(arg) = ((arg) | 0);
-macro TO_UINT32(arg) = ((arg) >>> 0);
 macro INVERT_NEG_ZERO(arg) = ((arg) + 0);
 macro TO_LENGTH(arg) = (%_ToLength(arg));
 macro TO_STRING(arg) = (%_ToString(arg));
@@ -95,9 +93,6 @@ macro TO_OBJECT(arg) = (%_ToObject(arg));
 macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
 
 # Private names.
-macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
-macro HAS_PRIVATE(obj, key) = HAS_OWN_PROPERTY(obj, key);
-macro HAS_DEFINED_PRIVATE(obj, sym) = (!IS_UNDEFINED(obj[sym]));
 macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 
@@ -108,25 +103,8 @@ macro ANONYMOUS_FUNCTION(fn) = (0, (fn));
 define INFINITY = (1/0);
 define UNDEFINED = (void 0);
 
-# Macros implemented in Python.
-python macro CHAR_CODE(str) = ord(str[1]);
-
-# For messages.js
-# Matches Script::Type from objects.h
-define TYPE_NATIVE = 0;
-define TYPE_EXTENSION = 1;
-define TYPE_NORMAL = 2;
-
-# Matches Script::CompilationType from objects.h
-define COMPILATION_TYPE_HOST = 0;
-define COMPILATION_TYPE_EVAL = 1;
-define COMPILATION_TYPE_JSON = 2;
-
 # Must match PropertyFilter in property-details.h
 define PROPERTY_FILTER_NONE = 0;
-define PROPERTY_FILTER_ONLY_ENUMERABLE = 2;
-define PROPERTY_FILTER_SKIP_STRINGS = 8;
-define PROPERTY_FILTER_SKIP_SYMBOLS = 16;
 
 # Use for keys, values and entries iterators.
 define ITERATOR_KIND_KEYS = 1;
@@ -162,35 +140,3 @@ define NOT_FOUND = -1;
 
 # Check whether debug is active.
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
-
-# UseCounters from include/v8.h
-define kUseAsm = 0;
-define kBreakIterator = 1;
-define kLegacyConst = 2;
-define kMarkDequeOverflow = 3;
-define kStoreBufferOverflow = 4;
-define kSlotsBufferOverflow = 5;
-define kForcedGC = 7;
-define kSloppyMode = 8;
-define kStrictMode = 9;
-define kRegExpPrototypeStickyGetter = 11;
-define kRegExpPrototypeToString = 12;
-define kRegExpPrototypeUnicodeGetter = 13;
-define kIntlV8Parse = 14;
-define kIntlPattern = 15;
-define kIntlResolved = 16;
-define kPromiseChain = 17;
-define kPromiseAccept = 18;
-define kPromiseDefer = 19;
-define kHtmlCommentInExternalScript = 20;
-define kHtmlComment = 21;
-define kSloppyModeBlockScopedFunctionRedefinition = 22;
-define kForInInitializer = 23;
-define kArrayProtectorDirtied = 24;
-define kArraySpeciesModified = 25;
-define kArrayPrototypeConstructorModified = 26;
-define kArrayInstanceProtoModified = 27;
-define kArrayInstanceConstructorModified = 28;
-define kLegacyFunctionDeclaration = 29;
-define kRegExpPrototypeSourceGetter = 30;
-define kRegExpPrototypeOldFlagGetter = 31;
