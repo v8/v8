@@ -115,56 +115,56 @@ T UnsignedMaximum(T a, T b) {
 
 template <typename T>
 int Equal(T a, T b) {
-  return a == b ? 1 : 0;
+  return a == b ? -1 : 0;
 }
 
 template <typename T>
 int NotEqual(T a, T b) {
-  return a != b ? 1 : 0;
+  return a != b ? -1 : 0;
 }
 
 template <typename T>
 int Less(T a, T b) {
-  return a < b ? 1 : 0;
+  return a < b ? -1 : 0;
 }
 
 template <typename T>
 int LessEqual(T a, T b) {
-  return a <= b ? 1 : 0;
+  return a <= b ? -1 : 0;
 }
 
 template <typename T>
 int Greater(T a, T b) {
-  return a > b ? 1 : 0;
+  return a > b ? -1 : 0;
 }
 
 template <typename T>
 int GreaterEqual(T a, T b) {
-  return a >= b ? 1 : 0;
+  return a >= b ? -1 : 0;
 }
 
 template <typename T>
 int UnsignedLess(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<UnsignedT>(a) < static_cast<UnsignedT>(b) ? 1 : 0;
+  return static_cast<UnsignedT>(a) < static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 int UnsignedLessEqual(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? 1 : 0;
+  return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 int UnsignedGreater(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<UnsignedT>(a) > static_cast<UnsignedT>(b) ? 1 : 0;
+  return static_cast<UnsignedT>(a) > static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 int UnsignedGreaterEqual(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<UnsignedT>(a) >= static_cast<UnsignedT>(b) ? 1 : 0;
+  return static_cast<UnsignedT>(a) >= static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
@@ -256,7 +256,7 @@ T Not(T a) {
 
 template <typename T>
 T LogicalNot(T a) {
-  return a == 0 ? 1 : 0;
+  return a == 0 ? -1 : 0;
 }
 
 template <typename T>
@@ -369,12 +369,6 @@ T RecipSqrt(T a) {
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
-// Since boolean vectors can't be checked directly, materialize them into
-// integer vectors using a Select operation.
-#define WASM_SIMD_MATERIALIZE_BOOLS(format, x) \
-  x, WASM_SIMD_I##format##_SPLAT(WASM_ONE),    \
-      WASM_SIMD_I##format##_SPLAT(WASM_ZERO), WASM_SIMD_OP(kExprS128Select)
-
 #define WASM_SIMD_F32x4_SPLAT(x) x, WASM_SIMD_OP(kExprF32x4Splat)
 #define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
@@ -580,10 +574,8 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
   byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
         WASM_SET_LOCAL(simd1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(b))),
-        WASM_SET_LOCAL(simd1,
-                       WASM_SIMD_MATERIALIZE_BOOLS(
-                           32x4, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
-                                                 WASM_GET_LOCAL(simd1)))),
+        WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
+                                              WASM_GET_LOCAL(simd1))),
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected), WASM_ONE);
 
   FOR_FLOAT32_INPUTS(i) {
@@ -1012,10 +1004,8 @@ void RunI32x4CompareOpTest(WasmOpcode simd_op, Int32CompareOp expected_op) {
   byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
         WASM_SET_LOCAL(simd1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(b))),
-        WASM_SET_LOCAL(simd1,
-                       WASM_SIMD_MATERIALIZE_BOOLS(
-                           32x4, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
-                                                 WASM_GET_LOCAL(simd1)))),
+        WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
+                                              WASM_GET_LOCAL(simd1))),
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected), WASM_ONE);
 
   FOR_INT32_INPUTS(i) {
@@ -1227,10 +1217,8 @@ void RunI16x8CompareOpTest(WasmOpcode simd_op, Int16CompareOp expected_op) {
   byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(a))),
         WASM_SET_LOCAL(simd1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(b))),
-        WASM_SET_LOCAL(simd1,
-                       WASM_SIMD_MATERIALIZE_BOOLS(
-                           16x8, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
-                                                 WASM_GET_LOCAL(simd1)))),
+        WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
+                                              WASM_GET_LOCAL(simd1))),
         WASM_SIMD_CHECK_SPLAT8(I16x8, simd1, I32, expected), WASM_ONE);
 
   FOR_INT16_INPUTS(i) {
@@ -1409,10 +1397,8 @@ void RunI8x16CompareOpTest(WasmOpcode simd_op, Int8CompareOp expected_op) {
   byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(a))),
         WASM_SET_LOCAL(simd1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(b))),
-        WASM_SET_LOCAL(simd1,
-                       WASM_SIMD_MATERIALIZE_BOOLS(
-                           8x16, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
-                                                 WASM_GET_LOCAL(simd1)))),
+        WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(simd_op, WASM_GET_LOCAL(simd0),
+                                              WASM_GET_LOCAL(simd1))),
         WASM_SIMD_CHECK_SPLAT16(I8x16, simd1, I32, expected), WASM_ONE);
 
   FOR_INT8_INPUTS(i) {
@@ -1495,7 +1481,7 @@ WASM_SIMD_TEST(I8x16ShrU) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
     V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 // Test Select by making a mask where the 0th and 3rd lanes are true and the
-// rest false, and comparing for non-equality with zero to materialize a boolean
+// rest false, and comparing for non-equality with zero to convert to a boolean
 // vector.
 #define WASM_SIMD_SELECT_TEST(format)                                        \
   WASM_SIMD_TEST(S##format##Select) {                                        \
