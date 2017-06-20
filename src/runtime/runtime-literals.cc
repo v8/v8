@@ -196,6 +196,11 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
   JSObject::DeepCopyHints copy_hints =
       (flags & ObjectLiteral::kShallowProperties) ? JSObject::kObjectIsShallow
                                                   : JSObject::kNoHints;
+  if (FLAG_track_double_fields && !FLAG_unbox_double_fields) {
+    // Make sure we properly clone mutable heap numbers on 32-bit platforms.
+    copy_hints = JSObject::kNoHints;
+  }
+
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
 
