@@ -39,70 +39,46 @@ TEST(PreParserScopeAnalysis) {
      (function outer() {
         function test() { ... }
      })();
-     against:
-     (function outer() {
-        (function test() { ... })();
-     })();
+     (Laziness boundary at "test".)
 
      2)
      (function outer() {
         function inner() { function test() { ... } }
      })();
-     against:
-     (function outer() {
-        (function inner() { function test() { ... } })();
-     })();
-     (Modified function is deeper inside the laziness boundary.)
+     (Laziness boundary at "test".)
 
      3)
      (function outer() {
         function inner() { () => { ... } }
-     })();
-     against:
-     (function outer() {
-        (function inner() { () => { ... } })();
      })();
 
      Inner arrow functions are never lazy, so the corresponding case is missing.
   */
 
   struct {
-    const char* prefix;
-    const char* suffix;
-    // The scope start positions must match; note the extra space in
-    // lazy_inner.
-    const char* lazy_inner;
-    const char* eager_inner;
+    const char* code;
     bool strict_outer;
     bool strict_test_function;
     bool arrow;
     std::vector<unsigned> location;  // "Directions" to the relevant scope.
   } outers[] = {
       // Normal case (test function at the laziness boundary):
-      {"(function outer() { ",
-       "})();",
-       " function test(%s) { %s }",
-       "(function test(%s) { %s })()",
+      {"(function outer() { function test(%s) { %s } })();",
        false,
        false,
        false,
        {0, 0}},
 
       // Test function deeper:
-      {"(function outer() { ",
-       "})();",
-       " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()",
+      {"(function outer() { function inner() { "
+       "function test(%s) { %s } } })();",
        false,
        false,
        false,
        {0, 0}},
 
       // Arrow functions (they can never be at the laziness boundary):
-      {"(function outer() { ",
-       "})();",
-       " function inner() { (%s) => { %s } }",
-       "(function inner() { (%s) => { %s } })()",
+      {"(function outer() { function inner() { (%s) => { %s } } })();",
        false,
        false,
        true,
@@ -110,52 +86,38 @@ TEST(PreParserScopeAnalysis) {
 
       // Repeat the above mentioned cases w/ outer function declaring itself
       // strict:
-      {"(function outer() { 'use strict'; ",
-       "})();",
-       " function test(%s) { %s }",
-       "(function test(%s) { %s })()",
+      {"(function outer() { 'use strict'; function test(%s) { %s } })();",
        true,
        false,
        false,
        {0, 0}},
-      {"(function outer() { 'use strict'; ",
-       "})();",
-       " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()",
+      {"(function outer() { 'use strict'; function inner() { "
+       "function test(%s) { %s } } })();",
        true,
        false,
        false,
        {0, 0}},
-      {"(function outer() { 'use strict'; ",
-       "})();",
-       " function inner() { (%s) => { %s } }",
-       "(function inner() { (%s) => { %s } })()",
+      {"(function outer() { 'use strict'; function inner() { "
+       "(%s) => { %s } } })();",
        true,
        false,
        true,
        {0, 0}},
 
       // ... and with the test function declaring itself strict:
-      {"(function outer() { ",
-       "})();",
-       " function test(%s) { 'use strict'; %s }",
-       "(function test(%s) { 'use strict'; %s })()",
+      {"(function outer() { function test(%s) { 'use strict'; %s } })();",
        false,
        true,
        false,
        {0, 0}},
-      {"(function outer() { ",
-       "})();",
-       " function inner() { function test(%s) { 'use strict'; %s } }",
-       "(function inner() { function test(%s) { 'use strict'; %s } })()",
+      {"(function outer() { function inner() { "
+       "function test(%s) { 'use strict'; %s } } })();",
        false,
        true,
        false,
        {0, 0}},
-      {"(function outer() { ",
-       "})();",
-       " function inner() { (%s) => { 'use strict'; %s } }",
-       "(function inner() { (%s) => { 'use strict'; %s } })()",
+      {"(function outer() { function inner() { "
+       "(%s) => { 'use strict'; %s } } })();",
        false,
        true,
        true,
@@ -163,19 +125,13 @@ TEST(PreParserScopeAnalysis) {
 
       // Methods containing skippable functions. Cannot test at the laziness
       // boundary, since there's no way to force eager parsing of a method.
-      {"class MyClass { constructor() {",
-       "} }",
-       " function test(%s) { %s }",
-       "(function test(%s) { %s })()",
+      {"class MyClass { constructor() { function test(%s) { %s } } }",
        true,
        true,
        false,
        {0, 0, 0}},
 
-      {"class MyClass { mymethod() {",
-       "} }",
-       " function test(%s) { %s }",
-       "(function test(%s) { %s })()",
+      {"class MyClass { mymethod() { function test(%s) { %s } } }",
        true,
        true,
        false,
@@ -621,6 +577,7 @@ TEST(PreParserScopeAnalysis) {
       {"try { } catch(var1) { var1 = 3; }"},
       {"try { } catch(var1) { function f() { var1; } }"},
       {"try { } catch(var1) { function f() { var1 = 3; } }"},
+      // FIXME(marja): Add tests for destructuring catch.
 
       // Shadowing the catch variable
       {"try { } catch(var1) { var var1 = 3; }"},
@@ -690,33 +647,23 @@ TEST(PreParserScopeAnalysis) {
         continue;
       }
 
-      const char* prefix = outers[outer_ix].prefix;
-      const char* suffix = outers[outer_ix].suffix;
-      int prefix_len = Utf8LengthHelper(prefix);
-      int suffix_len = Utf8LengthHelper(suffix);
-
-      // First compile with the lazy inner function and extract the scope data.
-      const char* inner_function = outers[outer_ix].lazy_inner;
-      int inner_function_len = Utf8LengthHelper(inner_function) - 4;
+      const char* code = outers[outer_ix].code;
+      int code_len = Utf8LengthHelper(code);
 
       int params_len = Utf8LengthHelper(inners[inner_ix].params);
       int source_len = Utf8LengthHelper(inners[inner_ix].source);
-      int len = prefix_len + inner_function_len + params_len + source_len +
-                suffix_len;
+      int len = code_len + params_len + source_len;
 
-      i::ScopedVector<char> lazy_program(len + 1);
-      i::SNPrintF(lazy_program, "%s", prefix);
-      i::SNPrintF(lazy_program + prefix_len, inner_function,
-                  inners[inner_ix].params, inners[inner_ix].source);
-      i::SNPrintF(lazy_program + prefix_len + inner_function_len + params_len +
-                      source_len,
-                  "%s", suffix);
+      i::ScopedVector<char> program(len + 1);
+      i::SNPrintF(program, code, inners[inner_ix].params,
+                  inners[inner_ix].source);
 
       i::Handle<i::String> source =
-          factory->InternalizeUtf8String(lazy_program.start());
+          factory->InternalizeUtf8String(program.start());
       source->PrintOn(stdout);
       printf("\n");
 
+      // First compile with the lazy inner function and extract the scope data.
       i::Handle<i::Script> script = factory->NewScript(source);
       i::ParseInfo lazy_info(script);
 
@@ -725,33 +672,16 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::parsing::ParseProgram(&lazy_info, isolate));
 
       // Then parse eagerly and check against the scope data.
-      inner_function = outers[outer_ix].eager_inner;
-      inner_function_len = Utf8LengthHelper(inner_function) - 4;
-      len = prefix_len + inner_function_len + params_len + source_len +
-            suffix_len;
-
-      i::ScopedVector<char> eager_program(len + 1);
-      i::SNPrintF(eager_program, "%s", prefix);
-      i::SNPrintF(eager_program + prefix_len, inner_function,
-                  inners[inner_ix].params, inners[inner_ix].source);
-      i::SNPrintF(eager_program + prefix_len + inner_function_len + params_len +
-                      source_len,
-                  "%s", suffix);
-
-      source = factory->InternalizeUtf8String(eager_program.start());
-      source->PrintOn(stdout);
-      printf("\n");
-
       script = factory->NewScript(source);
-
-      // Compare the allocation of the variables in two cases: 1) normal scope
-      // allocation 2) allocation based on the preparse data.
 
       i::ParseInfo eager_normal(script);
       eager_normal.set_allow_lazy_parsing(false);
 
       CHECK(i::parsing::ParseProgram(&eager_normal, isolate));
       CHECK(i::Compiler::Analyze(&eager_normal, isolate));
+
+      // Compare the allocation of the variables in two cases: 1) normal scope
+      // allocation 2) allocation based on the preparse data.
 
       i::Scope* normal_scope = i::ScopeTestHelper::FindScope(
           eager_normal.literal()->scope(), outers[outer_ix].location);
