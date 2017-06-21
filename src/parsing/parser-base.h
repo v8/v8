@@ -87,13 +87,15 @@ struct FormalParametersBase {
 class SourceRangeScope final {
  public:
   enum PositionKind {
-    POSITION,
-    PEEK_POS,
+    POSITION_BEG,
+    POSITION_END,
+    PEEK_POSITION_BEG,
+    PEEK_POSITION_END,
   };
 
   SourceRangeScope(Scanner* scanner, SourceRange* range,
-                   PositionKind pre_kind = PEEK_POS,
-                   PositionKind post_kind = POSITION)
+                   PositionKind pre_kind = PEEK_POSITION_BEG,
+                   PositionKind post_kind = POSITION_END)
       : scanner_(scanner), range_(range), post_kind_(post_kind) {
     range_->start = GetPosition(pre_kind);
     DCHECK_NE(range_->start, kNoSourcePosition);
@@ -106,11 +108,15 @@ class SourceRangeScope final {
 
  private:
   int32_t GetPosition(PositionKind kind) {
-    switch (post_kind_) {
-      case POSITION:
+    switch (kind) {
+      case POSITION_BEG:
         return scanner_->location().beg_pos;
-      case PEEK_POS:
+      case POSITION_END:
+        return scanner_->location().end_pos;
+      case PEEK_POSITION_BEG:
         return scanner_->peek_location().beg_pos;
+      case PEEK_POSITION_END:
+        return scanner_->peek_location().end_pos;
       default:
         UNREACHABLE();
     }

@@ -66,15 +66,49 @@ bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
   return a.start < b.start;
 }
 
+bool HaveSameSourceRange(const CoverageBlock& lhs, const CoverageBlock& rhs) {
+  return lhs.start == rhs.start && lhs.end == rhs.end;
+}
+
+void MergeDuplicateSingletons(std::vector<CoverageBlock>& blocks) {
+  int from = 1;
+  int to = 1;
+  while (from < static_cast<int>(blocks.size())) {
+    CoverageBlock& prev_block = blocks[to - 1];
+    CoverageBlock& this_block = blocks[from];
+
+    // Identical ranges should only occur through singleton ranges. Consider the
+    // ranges for `for (.) break;`: continuation ranges for both the `break` and
+    // `for` statements begin after the trailing semicolon.
+    // Such ranges are merged and keep the maximal execution count.
+    if (HaveSameSourceRange(prev_block, this_block)) {
+      DCHECK_EQ(kNoSourcePosition, this_block.end);  // Singleton range.
+      prev_block.count = std::max(prev_block.count, this_block.count);
+      from++;  // Do not advance {to} cursor.
+      continue;
+    }
+
+    DCHECK(!HaveSameSourceRange(prev_block, this_block));
+
+    // Copy if necessary.
+    if (from != to) blocks[to] = blocks[from];
+
+    from++;
+    to++;
+  }
+  blocks.resize(to);
+}
+
 std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
                                               SharedFunctionInfo* shared) {
   DCHECK(FLAG_block_coverage);
   DCHECK(shared->HasCoverageInfo());
 
-  std::vector<CoverageBlock> result;
-
   CoverageInfo* coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
+
+  std::vector<CoverageBlock> result;
+  if (coverage_info->SlotCount() == 0) return result;
 
   for (int i = 0; i < coverage_info->SlotCount(); i++) {
     const int start_pos = coverage_info->StartSourcePosition(i);
@@ -87,6 +121,12 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
 
   // Sort according to the block nesting structure.
   std::sort(result.begin(), result.end(), CompareCoverageBlock);
+
+  // Remove duplicate singleton ranges, keeping the max count.
+  MergeDuplicateSingletons(result);
+
+  // TODO(jgruber): Merge consecutive ranges with identical counts, remove empty
+  // ranges.
 
   return result;
 }
@@ -103,19 +143,21 @@ void RewritePositionSingletonsToRanges(CoverageFunction* function) {
   for (int i = 0; i < blocks_count; i++) {
     CoverageBlock& block = function->blocks[i];
 
-    while (nesting_stack.back().end < block.start) {
+    while (nesting_stack.back().end <= block.start) {
       nesting_stack.pop_back();
     }
 
     const SourceRange& parent_range = nesting_stack.back();
 
-    DCHECK(block.start != kNoSourcePosition);
+    DCHECK_NE(block.start, kNoSourcePosition);
+    DCHECK_LE(block.end, parent_range.end);
+
     if (block.end == kNoSourcePosition) {
       // The current block ends at the next sibling block (if it exists) or the
       // end of the parent block otherwise.
       if (i < blocks_count - 1 &&
-          function->blocks[i + 1].start <= parent_range.end) {
-        block.end = function->blocks[i + 1].start - 1;
+          function->blocks[i + 1].start < parent_range.end) {
+        block.end = function->blocks[i + 1].start;
       } else {
         block.end = parent_range.end;
       }

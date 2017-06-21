@@ -18,6 +18,7 @@ class Isolate;
 
 struct CoverageBlock {
   CoverageBlock(int s, int e, uint32_t c) : start(s), end(e), count(c) {}
+  CoverageBlock() : CoverageBlock(kNoSourcePosition, kNoSourcePosition, 0) {}
   int start;
   int end;
   uint32_t count;

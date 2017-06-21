@@ -1933,7 +1933,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
       for (size_t k = 0; k < function_data.BlockCount(); k++) {
         debug::Coverage::BlockData block_data = function_data.GetBlockData(k);
         int start_line = LineFromOffset(script, block_data.StartOffset());
-        int end_line = LineFromOffset(script, block_data.EndOffset());
+        int end_line = LineFromOffset(script, block_data.EndOffset() - 1);
         uint32_t count = block_data.Count();
         WriteLcovDataForRange(lines, start_line, end_line, count);
       }

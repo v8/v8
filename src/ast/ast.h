@@ -181,13 +181,15 @@ class AstProperties final BASE_EMBEDDED {
 
 DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 
+// Specifies a range within the source code. {start} is 0-based and inclusive,
+// {end} is 0-based and exclusive.
 struct SourceRange {
   SourceRange() : SourceRange(kNoSourcePosition, kNoSourcePosition) {}
   SourceRange(int start, int end) : start(start), end(end) {}
   bool IsEmpty() const { return start == kNoSourcePosition; }
   static SourceRange ContinuationOf(const SourceRange& that) {
     return that.IsEmpty() ? SourceRange()
-                          : SourceRange(that.end + 1, kNoSourcePosition);
+                          : SourceRange(that.end, kNoSourcePosition);
   }
   int32_t start, end;
 };
