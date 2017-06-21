@@ -1437,31 +1437,6 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label allocate, done_allocate;
-
-  __ Allocate(JSIteratorResult::kSize, r3, r5, r6, &allocate,
-              NO_ALLOCATION_FLAGS);
-  __ b(&done_allocate);
-
-  __ bind(&allocate);
-  __ Push(Smi::FromInt(JSIteratorResult::kSize));
-  __ CallRuntime(Runtime::kAllocateInNewSpace);
-
-  __ bind(&done_allocate);
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, r4);
-  PopOperand(r5);
-  __ LoadRoot(r6,
-              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
-  __ LoadRoot(r7, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(r4, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
-  __ StoreP(r7, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
-  __ StoreP(r7, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
-  __ StoreP(r5, FieldMemOperand(r3, JSIteratorResult::kValueOffset), r0);
-  __ StoreP(r6, FieldMemOperand(r3, JSIteratorResult::kDoneOffset), r0);
-}
-
-
 void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
                                               Token::Value op,
                                               Expression* left_expr,
@@ -2081,35 +2056,6 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
   __ mov(ip, Operand(debug_is_active));
   __ lbz(r3, MemOperand(ip));
   __ SmiTag(r3);
-  context()->Plug(r3);
-}
-
-
-void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  Label runtime, done;
-
-  __ Allocate(JSIteratorResult::kSize, r3, r5, r6, &runtime,
-              NO_ALLOCATION_FLAGS);
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, r4);
-  __ Pop(r5, r6);
-  __ LoadRoot(r7, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(r4, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
-  __ StoreP(r7, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
-  __ StoreP(r7, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
-  __ StoreP(r5, FieldMemOperand(r3, JSIteratorResult::kValueOffset), r0);
-  __ StoreP(r6, FieldMemOperand(r3, JSIteratorResult::kDoneOffset), r0);
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  __ b(&done);
-
-  __ bind(&runtime);
-  CallRuntimeWithOperands(Runtime::kCreateIterResultObject);
-
-  __ bind(&done);
   context()->Plug(r3);
 }
 

@@ -309,11 +309,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // stack depth is in sync with the actual operand stack during runtime.
   void EmitOperandStackDepthCheck();
 
-  // Generate code to create an iterator result object.  The "value" property is
-  // set to a value popped from the stack, and "done" is set according to the
-  // argument.  The result object is left in the result register.
-  void EmitCreateIteratorResult(bool done);
-
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
   // has been matched and all code generated; false otherwise.
@@ -392,8 +387,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(ToLength)                           \
   F(ToNumber)                           \
   F(ToObject)                           \
-  F(DebugIsActive)                      \
-  F(CreateIterResultObject)
+  F(DebugIsActive)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
   FOR_EACH_FULL_CODE_INTRINSIC(GENERATOR_DECLARATION)

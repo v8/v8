@@ -1377,33 +1377,6 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label allocate, done_allocate;
-
-  __ Allocate(JSIteratorResult::kSize, eax, ecx, edx, &allocate,
-              NO_ALLOCATION_FLAGS);
-  __ jmp(&done_allocate, Label::kNear);
-
-  __ bind(&allocate);
-  __ Push(Smi::FromInt(JSIteratorResult::kSize));
-  __ CallRuntime(Runtime::kAllocateInNewSpace);
-
-  __ bind(&done_allocate);
-  __ mov(ebx, NativeContextOperand());
-  __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ pop(FieldOperand(eax, JSIteratorResult::kValueOffset));
-  __ mov(FieldOperand(eax, JSIteratorResult::kDoneOffset),
-         isolate()->factory()->ToBoolean(done));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  OperandStackDepthDecrement(1);
-}
-
-
 void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
                                               Token::Value op,
                                               Expression* left,
@@ -1988,36 +1961,6 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
       ExternalReference::debug_is_active_address(isolate());
   __ movzx_b(eax, Operand::StaticVariable(debug_is_active));
   __ SmiTag(eax);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  Label runtime, done;
-
-  __ Allocate(JSIteratorResult::kSize, eax, ecx, edx, &runtime,
-              NO_ALLOCATION_FLAGS);
-  __ mov(ebx, NativeContextOperand());
-  __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ pop(FieldOperand(eax, JSIteratorResult::kDoneOffset));
-  __ pop(FieldOperand(eax, JSIteratorResult::kValueOffset));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&runtime);
-  CallRuntimeWithOperands(Runtime::kCreateIterResultObject);
-
-  __ bind(&done);
   context()->Plug(eax);
 }
 

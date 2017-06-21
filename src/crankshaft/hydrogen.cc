@@ -1361,37 +1361,6 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
   return environment()->Pop();
 }
 
-HValue* HGraphBuilder::BuildCreateIterResultObject(HValue* value,
-                                                   HValue* done) {
-  NoObservableSideEffectsScope scope(this);
-
-  // Allocate the JSIteratorResult object.
-  HValue* result =
-      Add<HAllocate>(Add<HConstant>(JSIteratorResult::kSize), HType::JSObject(),
-                     NOT_TENURED, JS_OBJECT_TYPE, graph()->GetConstant0());
-
-  // Initialize the JSIteratorResult object.
-  HValue* native_context = BuildGetNativeContext();
-  HValue* map = Add<HLoadNamedField>(
-      native_context, nullptr,
-      HObjectAccess::ForContextSlot(Context::ITERATOR_RESULT_MAP_INDEX));
-  Add<HStoreNamedField>(result, HObjectAccess::ForMap(), map);
-  HValue* empty_fixed_array = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
-  Add<HStoreNamedField>(result, HObjectAccess::ForPropertiesPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(result, HObjectAccess::ForObservableJSObjectOffset(
-                                    JSIteratorResult::kValueOffset),
-                        value);
-  Add<HStoreNamedField>(result, HObjectAccess::ForObservableJSObjectOffset(
-                                    JSIteratorResult::kDoneOffset),
-                        done);
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  return result;
-}
-
-
 HValue* HGraphBuilder::BuildNumberToString(HValue* object, AstType* type) {
   NoObservableSideEffectsScope scope(this);
 

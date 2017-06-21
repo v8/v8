@@ -2030,47 +2030,6 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  Label runtime, done;
-
-  Register result = x0;
-  __ Allocate(JSIteratorResult::kSize, result, x10, x11, &runtime,
-              NO_ALLOCATION_FLAGS);
-  Register map_reg = x1;
-  Register result_value = x2;
-  Register boolean_done = x3;
-  Register empty_fixed_array = x4;
-  Register untagged_result = x5;
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, map_reg);
-  __ Pop(boolean_done);
-  __ Pop(result_value);
-  __ LoadRoot(empty_fixed_array, Heap::kEmptyFixedArrayRootIndex);
-  STATIC_ASSERT(JSObject::kPropertiesOffset + kPointerSize ==
-                JSObject::kElementsOffset);
-  STATIC_ASSERT(JSIteratorResult::kValueOffset + kPointerSize ==
-                JSIteratorResult::kDoneOffset);
-  __ ObjectUntag(untagged_result, result);
-  __ Str(map_reg, MemOperand(untagged_result, HeapObject::kMapOffset));
-  __ Stp(empty_fixed_array, empty_fixed_array,
-         MemOperand(untagged_result, JSObject::kPropertiesOffset));
-  __ Stp(result_value, boolean_done,
-         MemOperand(untagged_result, JSIteratorResult::kValueOffset));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  __ B(&done);
-
-  __ Bind(&runtime);
-  CallRuntimeWithOperands(Runtime::kCreateIterResultObject);
-
-  __ Bind(&done);
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   // Push function.
   __ LoadNativeContextSlot(expr->context_index(), x0);
@@ -2591,45 +2550,6 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
     __ Assert(eq, kUnexpectedStackDepth);
   }
 }
-
-void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label allocate, done_allocate;
-
-  // Allocate and populate an object with this form: { value: VAL, done: DONE }
-
-  Register result = x0;
-  __ Allocate(JSIteratorResult::kSize, result, x10, x11, &allocate,
-              NO_ALLOCATION_FLAGS);
-  __ B(&done_allocate);
-
-  __ Bind(&allocate);
-  __ Push(Smi::FromInt(JSIteratorResult::kSize));
-  __ CallRuntime(Runtime::kAllocateInNewSpace);
-
-  __ Bind(&done_allocate);
-  Register map_reg = x1;
-  Register result_value = x2;
-  Register boolean_done = x3;
-  Register empty_fixed_array = x4;
-  Register untagged_result = x5;
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, map_reg);
-  PopOperand(result_value);
-  __ LoadRoot(boolean_done,
-              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
-  __ LoadRoot(empty_fixed_array, Heap::kEmptyFixedArrayRootIndex);
-  STATIC_ASSERT(JSObject::kPropertiesOffset + kPointerSize ==
-                JSObject::kElementsOffset);
-  STATIC_ASSERT(JSIteratorResult::kValueOffset + kPointerSize ==
-                JSIteratorResult::kDoneOffset);
-  __ ObjectUntag(untagged_result, result);
-  __ Str(map_reg, MemOperand(untagged_result, HeapObject::kMapOffset));
-  __ Stp(empty_fixed_array, empty_fixed_array,
-         MemOperand(untagged_result, JSObject::kPropertiesOffset));
-  __ Stp(result_value, boolean_done,
-         MemOperand(untagged_result, JSIteratorResult::kValueOffset));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-}
-
 
 // TODO(all): I don't like this method.
 // It seems to me that in too many places x0 is used in place of this.

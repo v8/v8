@@ -1401,31 +1401,6 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label allocate, done_allocate;
-
-  __ Allocate(JSIteratorResult::kSize, rax, rcx, rdx, &allocate,
-              NO_ALLOCATION_FLAGS);
-  __ jmp(&done_allocate, Label::kNear);
-
-  __ bind(&allocate);
-  __ Push(Smi::FromInt(JSIteratorResult::kSize));
-  __ CallRuntime(Runtime::kAllocateInNewSpace);
-
-  __ bind(&done_allocate);
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, rbx);
-  __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
-  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
-  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rbx);
-  __ Pop(FieldOperand(rax, JSIteratorResult::kValueOffset));
-  __ LoadRoot(FieldOperand(rax, JSIteratorResult::kDoneOffset),
-              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  OperandStackDepthDecrement(1);
-}
-
-
 void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
                                               Token::Value op,
                                               Expression* left,
@@ -1973,34 +1948,6 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
   __ Move(kScratchRegister, debug_is_active);
   __ movzxbp(rax, Operand(kScratchRegister, 0));
   __ Integer32ToSmi(rax, rax);
-  context()->Plug(rax);
-}
-
-
-void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  Label runtime, done;
-
-  __ Allocate(JSIteratorResult::kSize, rax, rcx, rdx, &runtime,
-              NO_ALLOCATION_FLAGS);
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, rbx);
-  __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
-  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
-  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rbx);
-  __ Pop(FieldOperand(rax, JSIteratorResult::kDoneOffset));
-  __ Pop(FieldOperand(rax, JSIteratorResult::kValueOffset));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&runtime);
-  CallRuntimeWithOperands(Runtime::kCreateIterResultObject);
-
-  __ bind(&done);
   context()->Plug(rax);
 }
 

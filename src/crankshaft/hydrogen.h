@@ -1093,9 +1093,6 @@ class HGraphBuilder {
   HValue* BuildToNumber(HValue* input);
   HValue* BuildToObject(HValue* receiver);
 
-  // ES6 section 7.4.7 CreateIterResultObject ( value, done )
-  HValue* BuildCreateIterResultObject(HValue* value, HValue* done);
-
   // Allocates a new object according with the given allocation properties.
   HAllocate* BuildAllocate(HValue* object_size,
                            HType type,
