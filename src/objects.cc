@@ -3825,17 +3825,10 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
   } else if (!new_map->is_dictionary_map()) {
     MigrateFastToFast(object, new_map);
     if (old_map->is_prototype_map()) {
-      DCHECK(!old_map->is_stable());
-      DCHECK(new_map->is_stable());
-      // Clear out the old descriptor array to avoid problems to sharing
-      // the descriptor array without using an explicit.
-      old_map->InitializeDescriptors(
-          old_map->GetHeap()->empty_descriptor_array(),
-          LayoutDescriptor::FastPointerLayout());
-      // Ensure that no transition was inserted for prototype migrations.
-      DCHECK_EQ(
-          0, TransitionArray::NumberOfTransitions(old_map->raw_transitions()));
-      DCHECK(new_map->GetBackPointer()->IsUndefined(new_map->GetIsolate()));
+      DCHECK_IMPLIES(
+          old_map->instance_descriptors() !=
+              old_map->GetHeap()->empty_descriptor_array(),
+          old_map->instance_descriptors() != new_map->instance_descriptors());
     }
   } else {
     MigrateFastToSlow(object, new_map, expected_additional_properties);
@@ -8722,17 +8715,11 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
     DCHECK_EQ(parent->NumberOfOwnDescriptors(),
               parent->instance_descriptors()->number_of_descriptors());
   }
-  if (parent->is_prototype_map()) {
-    DCHECK(child->is_prototype_map());
+  DCHECK(!parent->is_prototype_map());
+  TransitionArray::Insert(parent, name, child, flag);
 #if V8_TRACE_MAPS
-    Map::TraceTransition("NoTransition", *parent, *child, *name);
+  Map::TraceTransition("Transition", *parent, *child, *name);
 #endif
-  } else {
-    TransitionArray::Insert(parent, name, child, flag);
-#if V8_TRACE_MAPS
-    Map::TraceTransition("Transition", *parent, *child, *name);
-#endif
-  }
 }
 
 
@@ -9317,7 +9304,8 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   // Share descriptors only if map owns descriptors and it not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
       !map->GetBackPointer()->IsUndefined(map->GetIsolate()) &&
-      TransitionArray::CanHaveMoreTransitions(map)) {
+      TransitionArray::CanHaveMoreTransitions(map) &&
+      !map->is_prototype_map()) {
     return ShareDescriptor(map, descriptors, descriptor);
   }
 
