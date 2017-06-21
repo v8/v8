@@ -451,7 +451,10 @@ static void SortIndices(
     Handle<FixedArray> indices, uint32_t sort_size,
     WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
   struct {
-    bool operator()(Object* a, Object* b) {
+    bool operator()(const base::AtomicElement<Object*>& elementA,
+                    const base::AtomicElement<Object*>& elementB) {
+      const Object* a = elementA.value();
+      const Object* b = elementB.value();
       if (a->IsSmi() || !a->IsUndefined(HeapObject::cast(a)->GetIsolate())) {
         if (!b->IsSmi() && b->IsUndefined(HeapObject::cast(b)->GetIsolate())) {
           return true;
@@ -461,8 +464,11 @@ static void SortIndices(
       return !b->IsSmi() && b->IsUndefined(HeapObject::cast(b)->GetIsolate());
     }
   } cmp;
-  Object** start =
-      reinterpret_cast<Object**>(indices->GetFirstElementAddress());
+  // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
+  // store operations that are safe for concurrent marking.
+  base::AtomicElement<Object*>* start =
+      reinterpret_cast<base::AtomicElement<Object*>*>(
+          indices->GetFirstElementAddress());
   std::sort(start, start + sort_size, cmp);
   if (write_barrier_mode != SKIP_WRITE_BARRIER) {
     FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(indices->GetIsolate()->heap(), *indices,

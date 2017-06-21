@@ -381,6 +381,42 @@ class AsAtomicWord {
   }
 };
 
+// This class is intended to be used as a wrapper for elements of an array
+// that is passed in to STL functions such as std::sort. It ensures that
+// elements accesses are atomic.
+// Usage example:
+//   Object** given_array;
+//   AtomicElement<Object*>* wrapped =
+//       reinterpret_cast<AtomicElement<Object*>(given_array);
+//   std::sort(wrapped, wrapped + given_length, cmp);
+// where the cmp function uses the value() accessor to compare the elements.
+template <typename T>
+class AtomicElement {
+ public:
+  AtomicElement(const AtomicElement<T>& other) {
+    AsAtomicWord::Relaxed_Store(&value_,
+                                AsAtomicWord::Relaxed_Load(&other.value_));
+  }
+
+  void operator=(const AtomicElement<T>& other) {
+    AsAtomicWord::Relaxed_Store(&value_,
+                                AsAtomicWord::Relaxed_Load(&other.value_));
+  }
+
+  T value() const { return AsAtomicWord::Relaxed_Load(&value_); }
+
+  bool operator<(const AtomicElement<T>& other) const {
+    return value() < other.value();
+  }
+
+  bool operator==(const AtomicElement<T>& other) const {
+    return value() == other.value();
+  }
+
+ private:
+  T value_;
+};
+
 }  // namespace base
 }  // namespace v8
 
