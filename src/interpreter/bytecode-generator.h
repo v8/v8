@@ -195,13 +195,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
-  void VisitForRegisterValue(Expression* expr, Register destination);
+  INLINE(void VisitForRegisterValue(Expression* expr, Register destination));
   void VisitAndPushIntoRegisterList(Expression* expr, RegisterList* reg_list);
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
-  TypeHint VisitForAddOperand(Expression* expr, RegisterList* operand_registers,
-                              Register* out_register);
+  INLINE(TypeHint VisitForAddOperand(Expression* expr,
+                                     RegisterList* operand_registers,
+                                     Register* out_register));
   void VisitInSameTestExecutionScope(Expression* expr);
 
   // Returns the runtime function id for a store to super for the function's
