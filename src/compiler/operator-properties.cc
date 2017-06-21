@@ -108,6 +108,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCallWithSpread:
 
     // Misc operations
+    case IrOpcode::kJSStringConcat:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:

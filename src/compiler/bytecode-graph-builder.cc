@@ -2159,6 +2159,7 @@ void BytecodeGraphBuilder::VisitToPrimitiveToString() {
 }
 
 void BytecodeGraphBuilder::VisitStringConcat() {
+  PrepareEagerCheckpoint();
   interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(0);
   int operand_count =
       static_cast<int>(bytecode_iterator().GetRegisterCountOperand(1));
