@@ -48,10 +48,45 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   }
 }
 
-template <LiveObjectIterationMode T>
-HeapObject* LiveObjectIterator<T>::Next() {
+template <LiveObjectIterationMode mode>
+LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk,
+                                          MarkingState state, Address start)
+    : chunk_(chunk),
+      one_word_filler_map_(chunk->heap()->one_pointer_filler_map()),
+      two_word_filler_map_(chunk->heap()->two_pointer_filler_map()),
+      free_space_map_(chunk->heap()->free_space_map()),
+      it_(chunk, state) {
+  it_.Advance(Bitmap::IndexToCell(
+      Bitmap::CellAlignIndex(chunk_->AddressToMarkbitIndex(start))));
+  if (!it_.Done()) {
+    cell_base_ = it_.CurrentCellBase();
+    current_cell_ = *it_.CurrentCell();
+    AdvanceToNextValidObject();
+  } else {
+    current_object_ = nullptr;
+  }
+}
+
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator& LiveObjectRange<mode>::iterator::
+operator++() {
+  AdvanceToNextValidObject();
+  return *this;
+}
+
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::iterator::
+operator++(int) {
+  iterator retval = *this;
+  ++(*this);
+  return retval;
+}
+
+template <LiveObjectIterationMode mode>
+void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
   while (!it_.Done()) {
     HeapObject* object = nullptr;
+    int size = 0;
     while (current_cell_ != 0) {
       uint32_t trailing_zeros = base::bits::CountTrailingZeros32(current_cell_);
       Address addr = cell_base_ + trailing_zeros * kPointerSize;
@@ -59,10 +94,8 @@ HeapObject* LiveObjectIterator<T>::Next() {
       // Clear the first bit of the found object..
       current_cell_ &= ~(1u << trailing_zeros);
 
-      uint32_t second_bit_index = 0;
-      if (trailing_zeros < Bitmap::kBitIndexMask) {
-        second_bit_index = 1u << (trailing_zeros + 1);
-      } else {
+      uint32_t second_bit_index = 1u << (trailing_zeros + 1);
+      if (trailing_zeros >= Bitmap::kBitIndexMask) {
         second_bit_index = 0x1;
         // The overlapping case; there has to exist a cell after the current
         // cell.
@@ -71,7 +104,8 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // that case we can return immediately.
         if (!it_.Advance()) {
           DCHECK(HeapObject::FromAddress(addr)->map() == one_word_filler_map_);
-          return nullptr;
+          current_object_ = nullptr;
+          return;
         }
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
@@ -84,7 +118,8 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
         map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
-        Address end = addr + black_object->SizeFromMap(map) - kPointerSize;
+        size = black_object->SizeFromMap(map);
+        Address end = addr + size - kPointerSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
@@ -105,12 +140,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
           current_cell_ &= ~(end_index_mask + end_index_mask - 1);
         }
 
-        if (T == kBlackObjects || T == kAllLiveObjects) {
+        if (mode == kBlackObjects || mode == kAllLiveObjects) {
           object = black_object;
         }
-      } else if ((T == kGreyObjects || T == kAllLiveObjects)) {
+      } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
         map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
         object = HeapObject::FromAddress(addr);
+        size = object->SizeFromMap(map);
       }
 
       // We found a live object.
@@ -139,9 +175,23 @@ HeapObject* LiveObjectIterator<T>::Next() {
         current_cell_ = *it_.CurrentCell();
       }
     }
-    if (object != nullptr) return object;
+    if (object != nullptr) {
+      current_object_ = object;
+      current_size_ = size;
+      return;
+    }
   }
-  return nullptr;
+  current_object_ = nullptr;
+}
+
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::begin() {
+  return iterator(chunk_, state_, start_);
+}
+
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
+  return iterator(chunk_, state_, end_);
 }
 
 }  // namespace internal

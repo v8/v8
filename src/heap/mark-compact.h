@@ -128,7 +128,7 @@ class MarkBitCellIterator BASE_EMBEDDED {
     cells_ = state.bitmap()->cells();
   }
 
-  inline bool Done() { return cell_index_ == last_cell_index_; }
+  inline bool Done() { return cell_index_ >= last_cell_index_; }
 
   inline bool HasNext() { return cell_index_ < last_cell_index_ - 1; }
 
@@ -177,36 +177,65 @@ class MarkBitCellIterator BASE_EMBEDDED {
   Address cell_base_;
 };
 
-// Grey objects can happen on black pages when black objects transition to
-// grey e.g. when calling RecordWrites on them.
 enum LiveObjectIterationMode {
   kBlackObjects,
   kGreyObjects,
   kAllLiveObjects
 };
 
-template <LiveObjectIterationMode T>
-class LiveObjectIterator BASE_EMBEDDED {
+template <LiveObjectIterationMode mode>
+class LiveObjectRange {
  public:
-  LiveObjectIterator(MemoryChunk* chunk, MarkingState state)
-      : chunk_(chunk),
-        it_(chunk_, state),
-        cell_base_(it_.CurrentCellBase()),
-        current_cell_(*it_.CurrentCell()),
-        one_word_filler_map_(chunk->heap()->one_pointer_filler_map()),
-        two_word_filler_map_(chunk->heap()->two_pointer_filler_map()),
-        free_space_map_(chunk->heap()->free_space_map()) {}
+  class iterator {
+   public:
+    using value_type = std::pair<HeapObject*, int /* size */>;
+    using pointer = const value_type*;
+    using reference = const value_type&;
+    using iterator_category = std::forward_iterator_tag;
 
-  V8_INLINE HeapObject* Next();
+    inline iterator(MemoryChunk* chunk, MarkingState state, Address start);
+
+    inline iterator& operator++();
+    inline iterator operator++(int);
+
+    bool operator==(iterator other) const {
+      return current_object_ == other.current_object_;
+    }
+
+    bool operator!=(iterator other) const { return !(*this == other); }
+
+    value_type operator*() {
+      return std::make_pair(current_object_, current_size_);
+    }
+
+   private:
+    inline void AdvanceToNextValidObject();
+
+    MemoryChunk* const chunk_;
+    Map* const one_word_filler_map_;
+    Map* const two_word_filler_map_;
+    Map* const free_space_map_;
+    MarkBitCellIterator it_;
+    Address cell_base_;
+    MarkBit::CellType current_cell_;
+    HeapObject* current_object_;
+    int current_size_;
+  };
+
+  LiveObjectRange(MemoryChunk* chunk, MarkingState state)
+      : chunk_(chunk),
+        state_(state),
+        start_(chunk_->area_start()),
+        end_(chunk->area_end()) {}
+
+  inline iterator begin();
+  inline iterator end();
 
  private:
   MemoryChunk* const chunk_;
-  MarkBitCellIterator it_;
-  Address cell_base_;
-  MarkBit::CellType current_cell_;
-  Map* const one_word_filler_map_;
-  Map* const two_word_filler_map_;
-  Map* const free_space_map_;
+  MarkingState state_;
+  Address start_;
+  Address end_;
 };
 
 class LiveObjectVisitor BASE_EMBEDDED {

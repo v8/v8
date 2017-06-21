@@ -1435,11 +1435,10 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
 
 void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   DCHECK(!marking_deque()->IsFull());
-  LiveObjectIterator<kGreyObjects> it(p, MarkingState::Internal(p));
-  HeapObject* object = NULL;
-  while ((object = it.Next()) != NULL) {
-    bool success =
-        ObjectMarking::GreyToBlack(object, MarkingState::Internal(object));
+  for (auto object_and_size :
+       LiveObjectRange<kGreyObjects>(p, marking_state(p))) {
+    HeapObject* const object = object_and_size.first;
+    bool success = ObjectMarking::GreyToBlack(object, marking_state(object));
     DCHECK(success);
     USE(success);
     PushBlack(object);
@@ -2773,10 +2772,10 @@ void MinorMarkCompactCollector::MakeIterable(
   MarkCompactCollector* full_collector = heap()->mark_compact_collector();
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
-  LiveObjectIterator<kGreyObjects> it(p, marking_state(p));
-  HeapObject* object = nullptr;
 
-  while ((object = it.Next()) != nullptr) {
+  for (auto object_and_size :
+       LiveObjectRange<kGreyObjects>(p, marking_state(p))) {
+    HeapObject* const object = object_and_size.first;
     DCHECK(ObjectMarking::IsGrey(object, marking_state(object)));
     Address free_end = object->address();
     if (free_end != free_start) {
@@ -4021,10 +4020,8 @@ int MarkCompactCollector::Sweeper::RawSweep(
   intptr_t max_freed_bytes = 0;
   int curr_region = -1;
 
-  LiveObjectIterator<kBlackObjects> it(p, state);
-  HeapObject* object = NULL;
-
-  while ((object = it.Next()) != NULL) {
+  for (auto object_and_size : LiveObjectRange<kBlackObjects>(p, state)) {
+    HeapObject* const object = object_and_size.first;
     DCHECK(ObjectMarking::IsBlack(object, state));
     Address free_end = object->address();
     if (free_end != free_start) {
@@ -4145,10 +4142,8 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           const MarkingState& state,
                                           Visitor* visitor,
                                           IterationMode iteration_mode) {
-  LiveObjectIterator<kBlackObjects> it(chunk, state);
-  HeapObject* object = nullptr;
-  while ((object = it.Next()) != nullptr) {
-    DCHECK(ObjectMarking::IsBlack(object, state));
+  for (auto object_and_size : LiveObjectRange<kBlackObjects>(chunk, state)) {
+    HeapObject* const object = object_and_size.first;
     if (!visitor->Visit(object)) {
       if (iteration_mode == kClearMarkbits) {
         state.bitmap()->ClearRange(
@@ -4175,9 +4170,8 @@ bool LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
                                                const MarkingState& state,
                                                Visitor* visitor,
                                                IterationMode iteration_mode) {
-  LiveObjectIterator<kGreyObjects> it(chunk, state);
-  HeapObject* object = nullptr;
-  while ((object = it.Next()) != nullptr) {
+  for (auto object_and_size : LiveObjectRange<kGreyObjects>(chunk, state)) {
+    HeapObject* const object = object_and_size.first;
     DCHECK(ObjectMarking::IsGrey(object, state));
     if (!visitor->Visit(object)) {
       UNREACHABLE();
@@ -4191,11 +4185,9 @@ bool LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
 
 void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
                                            const MarkingState& state) {
-  LiveObjectIterator<kAllLiveObjects> it(chunk, state);
   int new_live_size = 0;
-  HeapObject* object = nullptr;
-  while ((object = it.Next()) != nullptr) {
-    new_live_size += object->Size();
+  for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(chunk, state)) {
+    new_live_size += object_and_size.first->Size();
   }
   state.SetLiveBytes(new_live_size);
 }
@@ -4334,10 +4326,9 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
     PointersUpdatingVisitor visitor;
-    LiveObjectIterator<kAllLiveObjects> it(chunk_, marking_state_);
-    HeapObject* object = nullptr;
-    while ((object = it.Next()) != nullptr) {
-      object->IterateBodyFast(&visitor);
+    for (auto object_and_size :
+         LiveObjectRange<kAllLiveObjects>(chunk_, marking_state_)) {
+      object_and_size.first->IterateBodyFast(&visitor);
     }
   }
 
