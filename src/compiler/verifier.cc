@@ -714,6 +714,7 @@ void Verifier::Visitor::Check(Node* node) {
 
     case IrOpcode::kJSConstructForwardVarargs:
     case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithArrayLike:
     case IrOpcode::kJSConstructWithSpread:
     case IrOpcode::kJSConvertReceiver:
       // Type is Receiver.

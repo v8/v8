@@ -2175,39 +2175,17 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- jssp[0] : receiver (undefined)
   // -----------------------------------
 
-  // 2. Make sure the target is actually a constructor.
-  Label target_not_constructor;
-  __ JumpIfSmi(target, &target_not_constructor);
-  __ Ldr(x10, FieldMemOperand(target, HeapObject::kMapOffset));
-  __ Ldrb(x10, FieldMemOperand(x10, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(x10, 1 << Map::kIsConstructor,
-                             &target_not_constructor);
+  // 2. We don't need to check explicitly for constructor target here,
+  // since that's the first thing the Construct/ConstructWithArrayLike
+  // builtins will do.
 
-  // 3. Make sure the new.target is actually a constructor.
-  Label new_target_not_constructor;
-  __ JumpIfSmi(new_target, &new_target_not_constructor);
-  __ Ldr(x10, FieldMemOperand(new_target, HeapObject::kMapOffset));
-  __ Ldrb(x10, FieldMemOperand(x10, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(x10, 1 << Map::kIsConstructor,
-                             &new_target_not_constructor);
+  // 3. We don't need to check explicitly for constructor new.target here,
+  // since that's the second thing the Construct/ConstructWithArrayLike
+  // builtins will do.
 
-  // 4a. Construct the target with the given new.target and argumentsList.
+  // 4. Construct the target with the given new.target and argumentsList.
   __ Jump(masm->isolate()->builtins()->ConstructWithArrayLike(),
           RelocInfo::CODE_TARGET);
-
-  // 4b. The target is not a constructor, throw an appropriate TypeError.
-  __ Bind(&target_not_constructor);
-  {
-    __ Poke(target, 0);
-    __ TailCallRuntime(Runtime::kThrowNotConstructor);
-  }
-
-  // 4c. The new.target is not a constructor, throw an appropriate TypeError.
-  __ Bind(&new_target_not_constructor);
-  {
-    __ Poke(new_target, 0);
-    __ TailCallRuntime(Runtime::kThrowNotConstructor);
-  }
 }
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {

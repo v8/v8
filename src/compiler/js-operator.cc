@@ -23,7 +23,8 @@ std::ostream& operator<<(std::ostream& os, CallFrequency f) {
 }
 
 CallFrequency CallFrequencyOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         op->opcode() == IrOpcode::kJSConstructWithArrayLike);
   return OpParameter<CallFrequency>(op);
 }
 
@@ -886,6 +887,16 @@ const Operator* JSOperatorBuilder::Construct(uint32_t arity,
       "JSConstruct",                                    // name
       parameters.arity(), 1, 1, 1, 1, 2,                // counts
       parameters);                                      // parameter
+}
+
+const Operator* JSOperatorBuilder::ConstructWithArrayLike(
+    CallFrequency frequency) {
+  return new (zone()) Operator1<CallFrequency>(  // --
+      IrOpcode::kJSConstructWithArrayLike,       // opcode
+      Operator::kNoProperties,                   // properties
+      "JSConstructWithArrayLike",                // name
+      3, 1, 1, 1, 1, 2,                          // counts
+      frequency);                                // parameter
 }
 
 const Operator* JSOperatorBuilder::ConstructWithSpread(uint32_t arity) {

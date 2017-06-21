@@ -743,6 +743,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Construct(uint32_t arity,
                             CallFrequency frequency = CallFrequency(),
                             VectorSlotPair const& feedback = VectorSlotPair());
+  const Operator* ConstructWithArrayLike(CallFrequency frequency);
   const Operator* ConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);

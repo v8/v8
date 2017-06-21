@@ -589,6 +589,23 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
+void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kConstructWithArrayLike);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), 1, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* receiver = jsgraph()->UndefinedConstant();
+  Node* arguments_list = node->InputAt(1);
+  Node* new_target = node->InputAt(2);
+  node->InsertInput(zone(), 0, stub_code);
+  node->ReplaceInput(2, new_target);
+  node->ReplaceInput(3, arguments_list);
+  node->InsertInput(zone(), 4, receiver);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+}
+
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
   SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);

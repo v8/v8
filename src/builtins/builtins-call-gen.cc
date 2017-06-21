@@ -120,6 +120,32 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
       Unreachable();
     }
     BIND(&if_target_callable);
+  } else {
+    // Check that {target} is a Constructor.
+    Label if_target_constructor(this),
+        if_target_not_constructor(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(target), &if_target_not_constructor);
+    Branch(IsConstructor(target), &if_target_constructor,
+           &if_target_not_constructor);
+    BIND(&if_target_not_constructor);
+    {
+      CallRuntime(Runtime::kThrowNotConstructor, context, target);
+      Unreachable();
+    }
+    BIND(&if_target_constructor);
+
+    // Check that {new_target} is a Constructor.
+    Label if_new_target_constructor(this),
+        if_new_target_not_constructor(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(new_target), &if_new_target_not_constructor);
+    Branch(IsConstructor(new_target), &if_new_target_constructor,
+           &if_new_target_not_constructor);
+    BIND(&if_new_target_not_constructor);
+    {
+      CallRuntime(Runtime::kThrowNotConstructor, context, new_target);
+      Unreachable();
+    }
+    BIND(&if_new_target_constructor);
   }
 
   GotoIf(TaggedIsSmi(arguments_list), &if_runtime);

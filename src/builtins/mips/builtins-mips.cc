@@ -2085,39 +2085,17 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- sp[0] : receiver (undefined)
   // -----------------------------------
 
-  // 2. Make sure the target is actually a constructor.
-  Label target_not_constructor;
-  __ JumpIfSmi(a1, &target_not_constructor);
-  __ lw(t0, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ lbu(t0, FieldMemOperand(t0, Map::kBitFieldOffset));
-  __ And(t0, t0, Operand(1 << Map::kIsConstructor));
-  __ Branch(&target_not_constructor, eq, t0, Operand(zero_reg));
+  // 2. We don't need to check explicitly for constructor target here,
+  // since that's the first thing the Construct/ConstructWithArrayLike
+  // builtins will do.
 
-  // 3. Make sure the target is actually a constructor.
-  Label new_target_not_constructor;
-  __ JumpIfSmi(a3, &new_target_not_constructor);
-  __ lw(t0, FieldMemOperand(a3, HeapObject::kMapOffset));
-  __ lbu(t0, FieldMemOperand(t0, Map::kBitFieldOffset));
-  __ And(t0, t0, Operand(1 << Map::kIsConstructor));
-  __ Branch(&new_target_not_constructor, eq, t0, Operand(zero_reg));
+  // 3. We don't need to check explicitly for constructor new.target here,
+  // since that's the second thing the Construct/ConstructWithArrayLike
+  // builtins will do.
 
-  // 4a. Construct the target with the given new.target and argumentsList.
+  // 4. Construct the target with the given new.target and argumentsList.
   __ Jump(masm->isolate()->builtins()->ConstructWithArrayLike(),
           RelocInfo::CODE_TARGET);
-
-  // 4b. The target is not a constructor, throw an appropriate TypeError.
-  __ bind(&target_not_constructor);
-  {
-    __ sw(a1, MemOperand(sp));
-    __ TailCallRuntime(Runtime::kThrowNotConstructor);
-  }
-
-  // 4c. The new.target is not a constructor, throw an appropriate TypeError.
-  __ bind(&new_target_not_constructor);
-  {
-    __ sw(a3, MemOperand(sp));
-    __ TailCallRuntime(Runtime::kThrowNotConstructor);
-  }
 }
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {

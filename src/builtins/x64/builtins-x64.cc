@@ -1839,41 +1839,17 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- rsp[8]  : receiver (undefined)
   // -----------------------------------
 
-  // 2. Make sure the target is actually a constructor.
-  Label target_not_constructor;
-  __ JumpIfSmi(rdi, &target_not_constructor, Label::kNear);
-  __ movp(rcx, FieldOperand(rdi, HeapObject::kMapOffset));
-  __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsConstructor));
-  __ j(zero, &target_not_constructor, Label::kNear);
+  // 2. We don't need to check explicitly for constructor target here,
+  // since that's the first thing the Construct/ConstructWithArrayLike
+  // builtins will do.
 
-  // 3. Make sure the target is actually a constructor.
-  Label new_target_not_constructor;
-  __ JumpIfSmi(rdx, &new_target_not_constructor, Label::kNear);
-  __ movp(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsConstructor));
-  __ j(zero, &new_target_not_constructor, Label::kNear);
+  // 3. We don't need to check explicitly for constructor new.target here,
+  // since that's the second thing the Construct/ConstructWithArrayLike
+  // builtins will do.
 
-  // 4a. Construct the target with the given new.target and argumentsList.
+  // 4. Construct the target with the given new.target and argumentsList.
   __ Jump(masm->isolate()->builtins()->ConstructWithArrayLike(),
           RelocInfo::CODE_TARGET);
-
-  // 4b. The target is not a constructor, throw an appropriate TypeError.
-  __ bind(&target_not_constructor);
-  {
-    StackArgumentsAccessor args(rsp, 0);
-    __ movp(args.GetReceiverOperand(), rdi);
-    __ TailCallRuntime(Runtime::kThrowNotConstructor);
-  }
-
-  // 4c. The new.target is not a constructor, throw an appropriate TypeError.
-  __ bind(&new_target_not_constructor);
-  {
-    StackArgumentsAccessor args(rsp, 0);
-    __ movp(args.GetReceiverOperand(), rdx);
-    __ TailCallRuntime(Runtime::kThrowNotConstructor);
-  }
 }
 
 void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {

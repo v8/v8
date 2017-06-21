@@ -24,6 +24,8 @@ Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
+    case IrOpcode::kJSConstructWithArrayLike:
+      return ReduceJSConstructWithArrayLike(node);
     case IrOpcode::kJSConstructWithSpread:
       return ReduceJSConstructWithSpread(node);
     case IrOpcode::kJSCall:
@@ -436,6 +438,30 @@ Reduction JSCallReducer::ReduceReflectApply(Node* node) {
   return reduction.Changed() ? reduction : Changed(node);
 }
 
+// ES6 section 26.1.2 Reflect.construct ( target, argumentsList [, newTarget] )
+Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  int arity = static_cast<int>(p.arity() - 2);
+  DCHECK_LE(0, arity);
+  // Massage value inputs appropriately.
+  node->RemoveInput(0);
+  node->RemoveInput(0);
+  while (arity < 2) {
+    node->InsertInput(graph()->zone(), arity++, jsgraph()->UndefinedConstant());
+  }
+  if (arity < 3) {
+    node->InsertInput(graph()->zone(), arity++, node->InputAt(0));
+  }
+  while (arity-- > 3) {
+    node->RemoveInput(arity);
+  }
+  NodeProperties::ChangeOp(node,
+                           javascript()->ConstructWithArrayLike(p.frequency()));
+  Reduction const reduction = ReduceJSConstructWithArrayLike(node);
+  return reduction.Changed() ? reduction : Changed(node);
+}
+
 // ES6 section 26.1.7 Reflect.getPrototypeOf ( target )
 Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -664,6 +690,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Node* node, int arity, CallFrequency const& frequency) {
   DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
          node->opcode() == IrOpcode::kJSCallWithSpread ||
+         node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
          node->opcode() == IrOpcode::kJSConstructWithSpread);
 
   // In case of a call/construct with spread, we need to
@@ -855,6 +882,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceObjectPrototypeIsPrototypeOf(node);
         case Builtins::kReflectApply:
           return ReduceReflectApply(node);
+        case Builtins::kReflectConstruct:
+          return ReduceReflectConstruct(node);
         case Builtins::kReflectGetPrototypeOf:
           return ReduceReflectGetPrototypeOf(node);
         case Builtins::kArrayForEach:
@@ -1116,6 +1145,12 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   }
 
   return NoChange();
+}
+
+Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
+  CallFrequency frequency = CallFrequencyOf(node->op());
+  return ReduceCallOrConstructWithArrayLikeOrSpread(node, 1, frequency);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {

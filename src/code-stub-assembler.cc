@@ -3204,6 +3204,10 @@ Node* CodeStubAssembler::IsConstructorMap(Node* map) {
   return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsConstructor);
 }
 
+Node* CodeStubAssembler::IsConstructor(Node* object) {
+  return IsConstructorMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
   STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
   return Int32LessThanOrEqual(instance_type,
