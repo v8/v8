@@ -1615,11 +1615,9 @@ class WasmFullDecoder : public WasmDecoder {
         break;
       }
       case kExprS128LoadMem:
-        CHECK_PROTOTYPE_OPCODE(simd);
         len = DecodePrefixedLoadMem(kWasmS128, MachineType::Simd128());
         break;
       case kExprS128StoreMem:
-        CHECK_PROTOTYPE_OPCODE(simd);
         len = DecodePrefixedStoreMem(kWasmS128, MachineType::Simd128());
         break;
       default: {
