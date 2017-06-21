@@ -172,7 +172,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     DCHECK(!compiler_thrower.error());
     result_compiled = testing::CallWasmFunctionForTesting(
         i_isolate, compiled_instance.ToHandleChecked(), &compiler_thrower,
-        "main", num_args, compiler_args.get(), ModuleOrigin::kWasmOrigin);
+        "main", num_args, compiler_args.get());
   }
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.

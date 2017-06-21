@@ -49,8 +49,6 @@
 /test/benchmarks/data
 /test/fuzzer/wasm_corpus
 /test/fuzzer/wasm_corpus.tar.gz
-/test/fuzzer/wasm_asmjs_corpus
-/test/fuzzer/wasm_asmjs_corpus.tar.gz
 /test/mozilla/data
 /test/promises-aplus/promises-tests
 /test/promises-aplus/promises-tests.tar.gz

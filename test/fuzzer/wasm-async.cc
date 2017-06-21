@@ -71,7 +71,7 @@ void InstantiateCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!maybe_instance.ToHandle(&instance)) {
     return;
   }
-  RunWasmModuleForTesting(i_isolate, instance, 0, nullptr, kWasmOrigin);
+  RunWasmModuleForTesting(i_isolate, instance, 0, nullptr);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

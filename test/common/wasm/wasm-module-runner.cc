@@ -43,12 +43,10 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                int argc, Handle<Object> argv[],
-                                ModuleOrigin origin) {
+                                int argc, Handle<Object> argv[]) {
   ErrorThrower thrower(isolate, "RunWasmModule");
-  const char* f_name = origin == ModuleOrigin::kAsmJsOrigin ? "caller" : "main";
-  return CallWasmFunctionForTesting(isolate, instance, &thrower, f_name, argc,
-                                    argv, origin);
+  return CallWasmFunctionForTesting(isolate, instance, &thrower, "main", argc,
+                                    argv);
 }
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
@@ -61,7 +59,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
     return -1;
   }
   return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
-                                 nullptr, kWasmOrigin);
+                                 nullptr);
 }
 
 int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
@@ -81,7 +79,7 @@ int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
   if (instance.is_null()) return -1;
 
   return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
-                                 nullptr, kAsmJsOrigin);
+                                 nullptr);
 }
 int32_t InterpretWasmModule(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
@@ -115,16 +113,12 @@ int32_t InterpretWasmModule(Isolate* isolate,
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
                                    ErrorThrower* thrower, const char* name,
-                                   int argc, Handle<Object> argv[],
-                                   ModuleOrigin origin) {
+                                   int argc, Handle<Object> argv[]) {
   Handle<JSObject> exports_object;
-  if (origin == ModuleOrigin::kAsmJsOrigin) {
-    exports_object = instance;
-  } else {
-    Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-    exports_object = Handle<JSObject>::cast(
-        JSObject::GetProperty(instance, exports).ToHandleChecked());
-  }
+  Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
+  exports_object = Handle<JSObject>::cast(
+      JSObject::GetProperty(instance, exports).ToHandleChecked());
+
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
