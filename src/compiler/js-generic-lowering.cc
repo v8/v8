@@ -456,11 +456,11 @@ void JSGenericLowering::LowerJSCreateGeneratorObject(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kCreateIterResultObject);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSCreateKeyValueArray(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kCreateKeyValueArray);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
@@ -520,19 +520,11 @@ void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
-  const CreateCatchContextParameters& parameters =
-      CreateCatchContextParametersOf(node->op());
-  node->InsertInput(zone(), 0,
-                    jsgraph()->HeapConstant(parameters.catch_name()));
-  node->InsertInput(zone(), 2,
-                    jsgraph()->HeapConstant(parameters.scope_info()));
-  ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSCreateWithContext(Node* node) {
-  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
-  ReplaceWithRuntimeCall(node, Runtime::kPushWithContext);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
