@@ -1032,7 +1032,7 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   // can be reported later (in strict mode).
   // We don't report the error immediately, because the octal escape can
   // occur before the "use strict" directive.
-  if (c != '0' || i > 0) {
+  if (c != '0' || i > 0 || c0_ == '8' || c0_ == '9') {
     octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
     octal_message_ = MessageTemplate::kStrictOctalEscape;
   }
