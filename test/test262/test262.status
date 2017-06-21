@@ -505,11 +505,6 @@
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
-  # Symbol.toStringTag on namespace objects was made non-configurable, tests
-  # need to be updated.
-  'language/module-code/namespace/Symbol.toStringTag': [SKIP],
-  'language/module-code/namespace/internals/delete-non-exported': [SKIP],
-
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
