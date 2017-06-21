@@ -1484,8 +1484,8 @@ class DictionaryElementsAccessor
             ? JSObject::NormalizeElements(object)
             : handle(SeededNumberDictionary::cast(object->elements()));
     Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
-                                               details, object);
+        SeededNumberDictionary::Add(dictionary, index, value, details);
+    new_dictionary->UpdateMaxNumberKey(index, object);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (dictionary.is_identical_to(new_dictionary)) return;
     object->set_elements(*new_dictionary);
@@ -1826,14 +1826,20 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     PropertyDetails details = PropertyDetails::Empty();
     int j = 0;
+    int max_number_key = -1;
     for (int i = 0; j < capacity; i++) {
       if (IsHoleyElementsKind(kind)) {
         if (BackingStore::cast(*store)->is_the_hole(isolate, i)) continue;
       }
+      max_number_key = i;
       Handle<Object> value = Subclass::GetImpl(isolate, *store, i);
-      dictionary = SeededNumberDictionary::AddNumberEntry(dictionary, i, value,
-                                                          details, object);
+      dictionary = SeededNumberDictionary::Add(dictionary, i, value, details);
       j++;
+    }
+
+    if (max_number_key > 0) {
+      dictionary->UpdateMaxNumberKey(static_cast<uint32_t>(max_number_key),
+                                     object);
     }
     return dictionary;
   }
@@ -3734,8 +3740,7 @@ class SlowSloppyArgumentsElementsAccessor
             : JSObject::NormalizeElements(object);
     PropertyDetails details(kData, attributes, 0, PropertyCellType::kNoCell);
     Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
-                                               details, object);
+        SeededNumberDictionary::Add(dictionary, index, value, details);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (*dictionary != *new_dictionary) {
       elements->set_arguments(*new_dictionary);
@@ -3768,8 +3773,7 @@ class SlowSloppyArgumentsElementsAccessor
       PropertyDetails details(kData, attributes, 0, PropertyCellType::kNoCell);
       Handle<SeededNumberDictionary> arguments(
           SeededNumberDictionary::cast(elements->arguments()), isolate);
-      arguments = SeededNumberDictionary::AddNumberEntry(
-          arguments, entry, value, details, object);
+      arguments = SeededNumberDictionary::Add(arguments, entry, value, details);
       // If the attributes were NONE, we would have called set rather than
       // reconfigure.
       DCHECK_NE(NONE, attributes);

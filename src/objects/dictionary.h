@@ -276,10 +276,6 @@ class SeededNumberDictionary
       Handle<SeededNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value, Handle<JSObject> dictionary_holder,
       PropertyDetails details = PropertyDetails::Empty());
-  MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
-      Handle<SeededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value, PropertyDetails details,
-      Handle<JSObject> dictionary_holder);
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
   void UpdateMaxNumberKey(uint32_t key, Handle<JSObject> dictionary_holder);
@@ -325,9 +321,6 @@ class UnseededNumberDictionary
 
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
-      Handle<UnseededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value);
-  MUST_USE_RESULT static Handle<UnseededNumberDictionary> AddNumberEntry(
       Handle<UnseededNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
   static Handle<UnseededNumberDictionary> DeleteKey(

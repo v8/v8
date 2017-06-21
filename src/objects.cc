@@ -16365,8 +16365,8 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
         // allocation. Bailout.
         return bailout;
       } else {
-        Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-            new_dict, pos, value, details, object);
+        Handle<Object> result =
+            SeededNumberDictionary::Add(new_dict, pos, value, details);
         DCHECK(result.is_identical_to(new_dict));
         USE(result);
         pos++;
@@ -16376,8 +16376,8 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
       // allocation. Bailout.
       return bailout;
     } else {
-      Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-          new_dict, key, value, details, object);
+      Handle<Object> result =
+          SeededNumberDictionary::Add(new_dict, key, value, details);
       DCHECK(result.is_identical_to(new_dict));
       USE(result);
     }
@@ -16392,9 +16392,8 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
       return bailout;
     }
     HandleScope scope(isolate);
-    Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-        new_dict, pos, isolate->factory()->undefined_value(), no_details,
-        object);
+    Handle<Object> result = SeededNumberDictionary::Add(
+        new_dict, pos, isolate->factory()->undefined_value(), no_details);
     DCHECK(result.is_identical_to(new_dict));
     USE(result);
     pos++;
@@ -16402,6 +16401,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
   }
 
   object->set_elements(*new_dict);
+  new_dict->UpdateMaxNumberKey(pos - 1, object);
 
   AllowHeapAllocation allocate_return_value;
   return isolate->factory()->NewNumberFromUint(result);
@@ -17641,24 +17641,6 @@ void SeededNumberDictionary::UpdateMaxNumberKey(
     FixedArray::set(kMaxNumberKeyIndex,
                     Smi::FromInt(key << kRequiresSlowElementsTagSize));
   }
-}
-
-Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
-    Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, PropertyDetails details,
-    Handle<JSObject> dictionary_holder) {
-  dictionary->UpdateMaxNumberKey(key, dictionary_holder);
-  SLOW_DCHECK(dictionary->FindEntry(key) == kNotFound);
-  return Add(dictionary, key, value, details);
-}
-
-
-Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
-    Handle<UnseededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  SLOW_DCHECK(dictionary->FindEntry(key) == kNotFound);
-  return Add(dictionary, key, value, PropertyDetails::Empty());
 }
 
 Handle<UnseededNumberDictionary> UnseededNumberDictionary::DeleteKey(
