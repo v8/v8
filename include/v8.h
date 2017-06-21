@@ -7545,10 +7545,9 @@ class V8_EXPORT Isolate {
    */
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
-  V8_DEPRECATE_SOON(
-      "Use callback with source parameter.",
-      void SetAllowCodeGenerationFromStringsCallback(
-          DeprecatedAllowCodeGenerationFromStringsCallback callback));
+  V8_DEPRECATED("Use callback with source parameter.",
+                void SetAllowCodeGenerationFromStringsCallback(
+                    DeprecatedAllowCodeGenerationFromStringsCallback callback));
 
   /**
    * Embedder over{ride|load} injection points for wasm APIs. The expectation
