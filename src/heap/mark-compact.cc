@@ -4154,12 +4154,9 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
         state.bitmap()->ClearRange(
             chunk->AddressToMarkbitIndex(chunk->area_start()),
             chunk->AddressToMarkbitIndex(object->address()));
-        SlotSet* slot_set = chunk->slot_set<OLD_TO_NEW>();
-        if (slot_set != nullptr) {
-          slot_set->RemoveRange(
-              0, static_cast<int>(object->address() - chunk->address()),
-              SlotSet::PREFREE_EMPTY_BUCKETS);
-        }
+        RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, chunk->address(),
+                                               object->address(),
+                                               SlotSet::PREFREE_EMPTY_BUCKETS);
         RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(chunk, chunk->address(),
                                                     object->address());
         RecomputeLiveBytes(chunk, state);
