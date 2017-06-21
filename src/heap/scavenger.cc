@@ -222,7 +222,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     SLOW_DCHECK(object->Size() == object_size);
     Heap* heap = map->GetHeap();
 
-    if (!heap->ShouldBePromoted(object->address(), object_size)) {
+    if (!heap->ShouldBePromoted(object->address())) {
       // A semi-space copy may fail due to fragmentation. In that case, we
       // try to promote the object.
       if (SemiSpaceCopyObject<alignment>(map, slot, object, object_size)) {

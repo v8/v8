@@ -1649,7 +1649,7 @@ class YoungGenerationRecordMigratedSlotVisitor final
 class HeapObjectVisitor {
  public:
   virtual ~HeapObjectVisitor() {}
-  virtual bool Visit(HeapObject* object) = 0;
+  virtual bool Visit(HeapObject* object, int size) = 0;
 };
 
 class EvacuateVisitorBase : public HeapObjectVisitor {
@@ -1710,11 +1710,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
   inline bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
-                                HeapObject** target_object) {
+                                int size, HeapObject** target_object) {
 #ifdef VERIFY_HEAP
     if (AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
-    int size = object->Size();
     AllocationAlignment alignment = object->RequiredAlignment();
     AllocationResult allocation = target_space->AllocateRaw(size, alignment);
     if (allocation.To(target_object)) {
@@ -1779,11 +1778,10 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         semispace_copied_size_(0),
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
-  inline bool Visit(HeapObject* object) override {
-    int size = object->Size();
+  inline bool Visit(HeapObject* object, int size) override {
     HeapObject* target_object = nullptr;
-    if (heap_->ShouldBePromoted(object->address(), size) &&
-        TryEvacuateObject(compaction_spaces_->Get(OLD_SPACE), object,
+    if (heap_->ShouldBePromoted(object->address()) &&
+        TryEvacuateObject(compaction_spaces_->Get(OLD_SPACE), object, size,
                           &target_object)) {
       promoted_size_ += size;
       return true;
@@ -1791,7 +1789,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     heap_->UpdateAllocationSite<Heap::kCached>(object,
                                                local_pretenuring_feedback_);
     HeapObject* target = nullptr;
-    AllocationSpace space = AllocateTargetObject(object, &target);
+    AllocationSpace space = AllocateTargetObject(object, size, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
     semispace_copied_size_ += size;
     return true;
@@ -1807,9 +1805,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     kStickyBailoutOldSpace,
   };
 
-  inline AllocationSpace AllocateTargetObject(HeapObject* old_object,
+  inline AllocationSpace AllocateTargetObject(HeapObject* old_object, int size,
                                               HeapObject** target_object) {
-    const int size = old_object->Size();
     AllocationAlignment alignment = old_object->RequiredAlignment();
     AllocationResult allocation;
     AllocationSpace space_allocated_in = space_to_allocate_;
@@ -1933,7 +1930,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
     }
   }
 
-  inline bool Visit(HeapObject* object) {
+  inline bool Visit(HeapObject* object, int size) {
     if (mode == NEW_TO_NEW) {
       heap_->UpdateAllocationSite<Heap::kCached>(object,
                                                  local_pretenuring_feedback_);
@@ -1960,11 +1957,11 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
                           RecordMigratedSlotVisitor* record_visitor)
       : EvacuateVisitorBase(heap, compaction_spaces, record_visitor) {}
 
-  inline bool Visit(HeapObject* object) override {
+  inline bool Visit(HeapObject* object, int size) override {
     CompactionSpace* target_space = compaction_spaces_->Get(
         Page::FromAddress(object->address())->owner()->identity());
     HeapObject* target_object = nullptr;
-    if (TryEvacuateObject(target_space, object, &target_object)) {
+    if (TryEvacuateObject(target_space, object, size, &target_object)) {
       DCHECK(object->map_word().IsForwardingAddress());
       return true;
     }
@@ -1976,7 +1973,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
 
-  inline bool Visit(HeapObject* object) {
+  inline bool Visit(HeapObject* object, int size) {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBody(&visitor);
     return true;
@@ -2155,7 +2152,7 @@ class ObjectStatsVisitor : public HeapObjectVisitor {
     live_collector_.CollectGlobalStatistics();
   }
 
-  bool Visit(HeapObject* obj) override {
+  bool Visit(HeapObject* obj, int size) override {
     if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
       live_collector_.CollectStatistics(obj);
     } else {
@@ -2177,7 +2174,7 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
     std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
     ObjectIterator* obj_it = it.get();
     while ((obj = obj_it->Next()) != nullptr) {
-      visitor->Visit(obj);
+      visitor->Visit(obj, obj->Size());
     }
   }
 }
@@ -4144,7 +4141,7 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           IterationMode iteration_mode) {
   for (auto object_and_size : LiveObjectRange<kBlackObjects>(chunk, state)) {
     HeapObject* const object = object_and_size.first;
-    if (!visitor->Visit(object)) {
+    if (!visitor->Visit(object, object_and_size.second)) {
       if (iteration_mode == kClearMarkbits) {
         state.bitmap()->ClearRange(
             chunk->AddressToMarkbitIndex(chunk->area_start()),
@@ -4173,7 +4170,7 @@ bool LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
   for (auto object_and_size : LiveObjectRange<kGreyObjects>(chunk, state)) {
     HeapObject* const object = object_and_size.first;
     DCHECK(ObjectMarking::IsGrey(object, state));
-    if (!visitor->Visit(object)) {
+    if (!visitor->Visit(object, object_and_size.second)) {
       UNREACHABLE();
     }
   }
@@ -4187,7 +4184,7 @@ void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
                                            const MarkingState& state) {
   int new_live_size = 0;
   for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(chunk, state)) {
-    new_live_size += object_and_size.first->Size();
+    new_live_size += object_and_size.second;
   }
   state.SetLiveBytes(new_live_size);
 }

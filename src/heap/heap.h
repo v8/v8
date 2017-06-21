@@ -866,7 +866,7 @@ class Heap {
 
   // An object should be promoted if the object has survived a
   // scavenge operation.
-  inline bool ShouldBePromoted(Address old_address, int object_size);
+  inline bool ShouldBePromoted(Address old_address);
 
   void ClearNormalizedMapCaches();
 
