@@ -17479,8 +17479,10 @@ Handle<Derived> Dictionary<Derived, Shape>::New(
   Handle<Derived> dict = DerivedHashTable::New(isolate, at_least_space_for,
                                                capacity_option, pretenure);
 
-  // Initialize the next enumeration index.
-  dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
+  if (Shape::kIsEnumerable) {
+    // Initialize the next enumeration index.
+    dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
+  }
   return dict;
 }
 
@@ -17490,8 +17492,10 @@ Handle<Derived> Dictionary<Derived, Shape>::NewEmpty(Isolate* isolate,
   Handle<Derived> dict = DerivedHashTable::New(isolate, 1, pretenure);
   // Attempt to add one element to the empty dictionary must cause reallocation.
   DCHECK(!dict->HasSufficientCapacityToAdd(1));
-  // Initialize the next enumeration index.
-  dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
+  if (Shape::kIsEnumerable) {
+    // Initialize the next enumeration index.
+    dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
+  }
   return dict;
 }
 

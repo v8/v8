@@ -2106,8 +2106,6 @@ Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
                          SmiTag(capacity), SKIP_WRITE_BARRIER);
   // Initialize Dictionary fields.
   Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
-  StoreFixedArrayElement(result, NameDictionary::kMaxNumberKeyIndex, filler,
-                         SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(result, NameDictionary::kNextEnumerationIndexIndex,
                          SmiConstant(PropertyDetails::kInitialIndex),
                          SKIP_WRITE_BARRIER);

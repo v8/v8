@@ -61,6 +61,9 @@ class Dictionary : public HashTable<Derived, Shape> {
     return DerivedHashTable::Shrink(dictionary);
   }
 
+  int NextEnumerationIndex() { UNREACHABLE(); }
+  void SetNextEnumerationIndex(int index) { UNREACHABLE(); }
+
   int NumberOfEnumerableProperties();
 
   // Return the key indices sorted by its enumeration index.
@@ -76,16 +79,6 @@ class Dictionary : public HashTable<Derived, Shape> {
   static void CopyEnumKeysTo(Handle<Dictionary<Derived, Shape>> dictionary,
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);
-
-  // Accessors for next enumeration index.
-  void SetNextEnumerationIndex(int index) {
-    DCHECK(index != 0);
-    this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
-  }
-
-  int NextEnumerationIndex() {
-    return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
-  }
 
   // Creates a new dictionary.
   MUST_USE_RESULT static Handle<Derived> New(
@@ -121,9 +114,6 @@ class Dictionary : public HashTable<Derived, Shape> {
                                              Key key, Handle<Object> value,
                                              PropertyDetails details,
                                              int* entry_out = nullptr);
-
-  static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
-  static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 
   static const bool kIsEnumerable = Shape::kIsEnumerable;
 
@@ -169,7 +159,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(Handle<Name> key);
   static inline uint32_t HashForObject(Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
-  static const int kPrefixSize = 2;
+  static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
@@ -177,13 +167,29 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static const bool kNeedsHoleCheck = false;
 };
 
-class NameDictionary : public Dictionary<NameDictionary, NameDictionaryShape> {
-  typedef Dictionary<NameDictionary, NameDictionaryShape> DerivedDictionary;
+template <typename Derived, typename Shape>
+class BaseNameDictionary : public Dictionary<Derived, Shape> {
+ public:
+  static const int kNextEnumerationIndexIndex =
+      HashTableBase::kPrefixStartIndex;
+  static const int kEntryValueIndex = 1;
 
+  // Accessors for next enumeration index.
+  void SetNextEnumerationIndex(int index) {
+    DCHECK_NE(0, index);
+    this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
+  }
+
+  int NextEnumerationIndex() {
+    return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
+  }
+};
+
+class NameDictionary
+    : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
   DECLARE_CAST(NameDictionary)
 
-  static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
 };
@@ -208,7 +214,7 @@ class GlobalDictionaryShape : public NameDictionaryShape {
 };
 
 class GlobalDictionary
-    : public Dictionary<GlobalDictionary, GlobalDictionaryShape> {
+    : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
   DECLARE_CAST(GlobalDictionary)
 
@@ -225,7 +231,7 @@ class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
 class SeededNumberDictionaryShape : public NumberDictionaryShape {
  public:
   static const bool UsesSeed = true;
-  static const int kPrefixSize = 2;
+  static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
 
   static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
@@ -275,6 +281,7 @@ class SeededNumberDictionary
       Handle<Object> value, PropertyDetails details,
       Handle<JSObject> dictionary_holder);
 
+  static const int kMaxNumberKeyIndex = kPrefixStartIndex;
   void UpdateMaxNumberKey(uint32_t key, Handle<JSObject> dictionary_holder);
 
   // Returns true if the dictionary contains any elements that are non-writable,

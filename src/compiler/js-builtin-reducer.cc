@@ -1929,14 +1929,11 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
     // Initialize Dictionary fields.
     Node* undefined = jsgraph()->UndefinedConstant();
     effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForDictionaryMaxNumberKey()),
-        value, undefined, effect, control);
-    effect = graph()->NewNode(
         simplified()->StoreField(
             AccessBuilder::ForDictionaryNextEnumerationIndex()),
         value, jsgraph()->SmiConstant(PropertyDetails::kInitialIndex), effect,
         control);
-    // Initialize hte Properties fields.
+    // Initialize the Properties fields.
     for (int index = NameDictionary::kNextEnumerationIndexIndex + 1;
          index < length; index++) {
       effect = graph()->NewNode(
