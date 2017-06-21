@@ -1597,7 +1597,7 @@ void RunBinaryLaneOpTest(
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 WASM_SIMD_TEST(I32x4AddHoriz) {
   RunBinaryLaneOpTest<int32_t>(kExprI32x4AddHoriz, {{1, 5, 9, 13}});
 }
@@ -1614,7 +1614,8 @@ WASM_SIMD_TEST(F32x4AddHoriz) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 // Test some regular shuffles that may have special handling on some targets.
 // Test a normal and unary versions (where second operand isn't used).
 WASM_SIMD_TEST(S32x4ZipLeft) {
