@@ -853,10 +853,14 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
 Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
                                    ModuleDescriptor* descr) {
   // Serialize module requests.
-  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->module_requests().size()));
+  int size = static_cast<int>(descr->module_requests().size());
+  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
+  Handle<FixedArray> module_request_positions =
+      isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
-    module_requests->set(elem.second, *elem.first->string());
+    module_requests->set(elem.second.index, *elem.first->string());
+    module_request_positions->set(elem.second.index,
+                                  Smi::FromInt(elem.second.position));
   }
 
   // Serialize special exports.
@@ -903,6 +907,7 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   result->set(kRegularExportsIndex, *regular_exports);
   result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
+  result->set(kModuleRequestPositionsIndex, *module_request_positions);
   return result;
 }
 

@@ -58,14 +58,21 @@ TEST(ModuleInstantiationFailures) {
 
   Local<String> source_text = v8_str(
       "import './foo.js';"
-      "export {} from './bar.js';");
+      "\nexport {} from './bar.js';");
   ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
   CHECK_EQ(2, module->GetModuleRequestsLength());
   CHECK(v8_str("./foo.js")->StrictEquals(module->GetModuleRequest(0)));
+  v8::Location loc = module->GetModuleRequestLocation(0);
+  CHECK_EQ(0, loc.GetLineNumber());
+  CHECK_EQ(7, loc.GetColumnNumber());
+
   CHECK(v8_str("./bar.js")->StrictEquals(module->GetModuleRequest(1)));
+  loc = module->GetModuleRequestLocation(1);
+  CHECK_EQ(1, loc.GetLineNumber());
+  CHECK_EQ(15, loc.GetColumnNumber());
 
   // Instantiation should fail.
   {

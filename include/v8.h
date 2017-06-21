@@ -1076,6 +1076,22 @@ class V8_EXPORT UnboundScript {
 };
 
 /**
+ * A location in JavaScript source.
+ */
+class V8_EXPORT Location {
+ public:
+  int GetLineNumber() { return line_number_; }
+  int GetColumnNumber() { return column_number_; }
+
+  Location(int line_number, int column_number)
+      : line_number_(line_number), column_number_(column_number) {}
+
+ private:
+  int line_number_;
+  int column_number_;
+};
+
+/**
  * This is an unfinished experimental feature, and is only exposed
  * here for internal testing purposes. DO NOT USE.
  *
@@ -1093,6 +1109,12 @@ class V8_EXPORT Module {
    * i must be < GetModuleRequestsLength() and >= 0.
    */
   Local<String> GetModuleRequest(int i) const;
+
+  /**
+   * Returns the source location (line number and column number) of the ith
+   * module specifier's first occurrence in this module.
+   */
+  Location GetModuleRequestLocation(int i) const;
 
   /**
    * Returns the identity hash for this object.

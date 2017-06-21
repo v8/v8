@@ -6799,18 +6799,24 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(5u, descriptor->module_requests().size());
   for (const auto& elem : descriptor->module_requests()) {
-    if (elem.first->IsOneByteEqualTo("m.js"))
-      CHECK_EQ(0, elem.second);
-    else if (elem.first->IsOneByteEqualTo("n.js"))
-      CHECK_EQ(1, elem.second);
-    else if (elem.first->IsOneByteEqualTo("p.js"))
-      CHECK_EQ(2, elem.second);
-    else if (elem.first->IsOneByteEqualTo("q.js"))
-      CHECK_EQ(3, elem.second);
-    else if (elem.first->IsOneByteEqualTo("bar.js"))
-      CHECK_EQ(4, elem.second);
-    else
+    if (elem.first->IsOneByteEqualTo("m.js")) {
+      CHECK_EQ(0, elem.second.index);
+      CHECK_EQ(51, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("n.js")) {
+      CHECK_EQ(1, elem.second.index);
+      CHECK_EQ(72, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("p.js")) {
+      CHECK_EQ(2, elem.second.index);
+      CHECK_EQ(123, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("q.js")) {
+      CHECK_EQ(3, elem.second.index);
+      CHECK_EQ(249, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("bar.js")) {
+      CHECK_EQ(4, elem.second.index);
+      CHECK_EQ(370, elem.second.position);
+    } else {
       CHECK(false);
+    }
   }
 
   CHECK_EQ(3, descriptor->special_exports().length());

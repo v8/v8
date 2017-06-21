@@ -4629,6 +4629,7 @@ ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
 ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
+ACCESSORS(Module, script, Script, kScriptOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 

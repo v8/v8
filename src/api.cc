@@ -2130,6 +2130,21 @@ Local<String> Module::GetModuleRequest(int i) const {
   return ToApiHandle<String>(i::handle(module_requests->get(i), isolate));
 }
 
+Location Module::GetModuleRequestLocation(int i) const {
+  CHECK_GE(i, 0);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::HandleScope scope(isolate);
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Handle<i::FixedArray> module_request_positions(
+      self->info()->module_request_positions(), isolate);
+  CHECK_LT(i, module_request_positions->length());
+  int position = i::Smi::cast(module_request_positions->get(i))->value();
+  i::Handle<i::Script> script(self->script(), isolate);
+  i::Script::PositionInfo info;
+  i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
+  return v8::Location(info.line, info.column);
+}
+
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
 
 bool Module::Instantiate(Local<Context> context,

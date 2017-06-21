@@ -49,6 +49,10 @@ class ModuleInfo : public FixedArray {
     return FixedArray::cast(get(kNamespaceImportsIndex));
   }
 
+  inline FixedArray* module_request_positions() const {
+    return FixedArray::cast(get(kModuleRequestPositionsIndex));
+  }
+
   // Accessors for [regular_exports].
   int RegularExportCount() const;
   String* RegularExportLocalName(int i) const;
@@ -63,7 +67,9 @@ class ModuleInfo : public FixedArray {
     return regular_exports() == other->regular_exports() &&
            regular_imports() == other->regular_imports() &&
            special_exports() == other->special_exports() &&
-           namespace_imports() == other->namespace_imports();
+           namespace_imports() == other->namespace_imports() &&
+           module_requests() == other->module_requests() &&
+           module_request_positions() == other->module_request_positions();
   }
 #endif
 
@@ -76,6 +82,7 @@ class ModuleInfo : public FixedArray {
     kRegularExportsIndex,
     kNamespaceImportsIndex,
     kRegularImportsIndex,
+    kModuleRequestPositionsIndex,
     kLength
   };
   enum {

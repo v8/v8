@@ -4868,6 +4868,9 @@ class Module : public Struct {
   // ModuleInfo::module_requests.
   DECL_ACCESSORS(requested_modules, FixedArray)
 
+  // [script]: Script from which the module originates.
+  DECL_ACCESSORS(script, Script)
+
   // Get the ModuleInfo associated with the code.
   inline ModuleInfo* info() const;
 
@@ -4908,7 +4911,8 @@ class Module : public Struct {
   static const int kRequestedModulesOffset =
       kModuleNamespaceOffset + kPointerSize;
   static const int kStatusOffset = kRequestedModulesOffset + kPointerSize;
-  static const int kSize = kStatusOffset + kPointerSize;
+  static const int kScriptOffset = kStatusOffset + kPointerSize;
+  static const int kSize = kScriptOffset + kPointerSize;
 
  private:
   static void CreateExport(Handle<Module> module, int cell_index,
