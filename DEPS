@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "97e4bb91f15004dc7b6a1e75e07d70bea92032b4",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "9ffcabd06516405e6ca5c5d53ac67d9928d67bb8",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "eb296f67da078ec01f5e3a9ea9cdc6d26d680161",
   "v8/third_party/icu":
@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "644afd349826cb68204226a16c38bde13abe9c3c",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "9a65473a7e8f39f04fd134e69470ab1b48514b0e",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "b92ff913082ac9223b48eee9a5fc9db91346279a",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "39a3450531fc73432e963db8668695d2e8f13053",
   "v8/third_party/jinja2":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "7659b774aefcba45a6969531215369f5f9f395f7",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "9bb118e7fc407624900e3266d1e4352b58b9f39d",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "c4774b47d326e4114f96232f1389a555639d7348",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "023e2f65409a2b7886b8d644d6a88542ead6cd0a",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "c2d7f3a00bd5a59fd099a4959880d3b147dc0d5f",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "a64c010c74cc810921c037fcf7ccee1d5c5b0c00",
   },
 }
 
