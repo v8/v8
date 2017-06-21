@@ -1067,26 +1067,6 @@ RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   return *isolate->factory()->NewJSIteratorResult(value, done->BooleanValue());
 }
 
-RUNTIME_FUNCTION(Runtime_CreateKeyValueArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(2);
-  elements->set(0, *key);
-  elements->set(1, *value);
-  return *isolate->factory()->NewJSArrayWithElements(elements, FAST_ELEMENTS,
-                                                     2);
-}
-
-RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  return isolate->heap()->ToBoolean(object->IsAccessCheckNeeded());
-}
-
-
 RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
