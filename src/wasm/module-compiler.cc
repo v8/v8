@@ -1955,9 +1955,12 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
 
 // A closure to run a compilation step (either as foreground or background
 // task) and schedule the next step(s), if any.
-class AsyncCompileJob::CompileState {
+class AsyncCompileJob::CompileStep {
  public:
-  virtual ~CompileState() {}
+  explicit CompileStep(size_t num_background_tasks = 0)
+      : num_background_tasks_(num_background_tasks) {}
+
+  virtual ~CompileStep() {}
 
   void Run(bool on_foreground) {
     if (on_foreground) {
@@ -1973,9 +1976,10 @@ class AsyncCompileJob::CompileState {
   virtual void RunInForeground() { UNREACHABLE(); }
   virtual void RunInBackground() { UNREACHABLE(); }
 
-  virtual size_t NumberOfBackgroundTasks() { return 0; }
+  size_t NumberOfBackgroundTasks() { return num_background_tasks_; }
 
   AsyncCompileJob* job_ = nullptr;
+  const size_t num_background_tasks_;
 };
 
 class AsyncCompileJob::CompileTask : public CancelableTask {
@@ -1990,7 +1994,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
         job_(job),
         on_foreground_(on_foreground) {}
 
-  void RunInternal() override { job_->state_->Run(on_foreground_); }
+  void RunInternal() override { job_->step_->Run(on_foreground_); }
 
  private:
   AsyncCompileJob* job_;
@@ -2006,16 +2010,16 @@ void AsyncCompileJob::StartForegroundTask() {
 
 template <typename State, typename... Args>
 void AsyncCompileJob::DoSync(Args&&... args) {
-  state_.reset(new State(std::forward<Args>(args)...));
-  state_->job_ = this;
+  step_.reset(new State(std::forward<Args>(args)...));
+  step_->job_ = this;
   StartForegroundTask();
 }
 
 template <typename State, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
-  state_.reset(new State(std::forward<Args>(args)...));
-  state_->job_ = this;
-  size_t end = state_->NumberOfBackgroundTasks();
+  step_.reset(new State(std::forward<Args>(args)...));
+  step_->job_ = this;
+  size_t end = step_->NumberOfBackgroundTasks();
   for (size_t i = 0; i < end; ++i) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         new CompileTask(this, false), v8::Platform::kShortRunningTask);
@@ -2025,8 +2029,9 @@ void AsyncCompileJob::DoAsync(Args&&... args) {
 //==========================================================================
 // Step 1: (async) Decode the module.
 //==========================================================================
-class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileState {
-  size_t NumberOfBackgroundTasks() override { return 1; }
+class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
+ public:
+  DecodeModule() : CompileStep(1) {}
 
   void RunInBackground() override {
     ModuleResult result;
@@ -2053,7 +2058,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileState {
 //==========================================================================
 // Step 1b: (sync) Fail decoding the module.
 //==========================================================================
-class AsyncCompileJob::DecodeFail : public CompileState {
+class AsyncCompileJob::DecodeFail : public CompileStep {
  public:
   explicit DecodeFail(ModuleResult result) : result_(std::move(result)) {}
 
@@ -2072,7 +2077,7 @@ class AsyncCompileJob::DecodeFail : public CompileState {
 //==========================================================================
 // Step 2 (sync): Create heap-allocated data and start compile.
 //==========================================================================
-class AsyncCompileJob::PrepareAndStartCompile : public CompileState {
+class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
   explicit PrepareAndStartCompile(std::unique_ptr<WasmModule> module)
       : module_(std::move(module)) {}
@@ -2165,12 +2170,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileState {
 //==========================================================================
 // Step 3 (async x K tasks): Execute compilation units.
 //==========================================================================
-class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileState {
+class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
  public:
   explicit ExecuteAndFinishCompilationUnits(size_t num_compile_tasks)
-      : num_compile_tasks_(num_compile_tasks) {}
-
-  size_t NumberOfBackgroundTasks() override { return num_compile_tasks_; }
+      : CompileStep(num_compile_tasks) {}
 
   void RunInBackground() override {
     std::function<void()> StartFinishCompilationUnit = [this]() {
@@ -2248,14 +2251,13 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileState {
   }
 
  private:
-  size_t num_compile_tasks_;
   std::atomic<bool> failed_{false};
 };
 
 //==========================================================================
 // Step 5 (sync): Finish heap-allocated data structures.
 //==========================================================================
-class AsyncCompileJob::FinishCompile : public CompileState {
+class AsyncCompileJob::FinishCompile : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(5b) Finish compile...\n");
     HandleScope scope(job_->isolate_);
@@ -2321,7 +2323,7 @@ class AsyncCompileJob::FinishCompile : public CompileState {
 //==========================================================================
 // Step 6 (sync): Compile JS->wasm wrappers.
 //==========================================================================
-class AsyncCompileJob::CompileWrappers : public CompileState {
+class AsyncCompileJob::CompileWrappers : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
@@ -2350,7 +2352,7 @@ class AsyncCompileJob::CompileWrappers : public CompileState {
 //==========================================================================
 // Step 7 (sync): Finish the module and resolve the promise.
 //==========================================================================
-class AsyncCompileJob::FinishModule : public CompileState {
+class AsyncCompileJob::FinishModule : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(7) Finish module...\n");
     HandleScope scope(job_->isolate_);

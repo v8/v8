@@ -272,7 +272,7 @@ class AsyncCompileJob {
 
  private:
   class CompileTask;
-  class CompileState;
+  class CompileStep;
 
   // States of the AsyncCompileJob.
   class DecodeModule;
@@ -303,7 +303,7 @@ class AsyncCompileJob {
   Handle<FixedArray> code_table_;
   std::unique_ptr<WasmInstance> temp_instance_ = nullptr;
   size_t outstanding_units_ = 0;
-  std::unique_ptr<CompileState> state_;
+  std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
 #if DEBUG
   // Counts the number of pending foreground tasks.
