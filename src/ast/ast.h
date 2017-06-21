@@ -365,9 +365,6 @@ class BreakableStatement : public Statement {
   // if it is != NULL, guaranteed to contain at least one entry.
   ZoneList<const AstRawString*>* labels() const { return labels_; }
 
-  // Code generation
-  Label* break_target() { return &break_target_; }
-
   // Testers.
   bool is_target_for_anonymous() const {
     return BreakableTypeField::decode(bit_field_) == TARGET_FOR_ANONYMOUS;
@@ -378,7 +375,6 @@ class BreakableStatement : public Statement {
     return BreakableTypeField::decode(bit_field_);
   }
 
-  Label break_target_;
   ZoneList<const AstRawString*>* labels_;
 
   class BreakableTypeField
@@ -524,9 +520,6 @@ class IterationStatement : public BreakableStatement {
     return osr_id_;
   }
 
-  // Code generation
-  Label* continue_target()  { return &continue_target_; }
-
  protected:
   IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
@@ -547,7 +540,6 @@ class IterationStatement : public BreakableStatement {
   BailoutId osr_id_;
   Statement* body_;
   SourceRange body_range_;
-  Label continue_target_;
   int suspend_count_;
   int first_suspend_id_;
 };
