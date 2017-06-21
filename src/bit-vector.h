@@ -83,13 +83,22 @@ class BitVector : public ZoneObject {
   }
 
   void CopyFrom(const BitVector& other) {
-    DCHECK(other.length() <= length());
-    for (int i = 0; i < other.data_length_; i++) {
-      data_[i] = other.data_[i];
+    DCHECK_LE(other.length(), length());
+    CopyFrom(other.data_, other.data_length_);
+  }
+
+  void Resize(int new_length, Zone* zone) {
+    DCHECK_GT(new_length, length());
+    int new_data_length = SizeFor(new_length);
+    if (new_data_length > data_length_) {
+      uintptr_t* old_data = data_;
+      int old_data_length = data_length_;
+
+      data_ = zone->NewArray<uintptr_t>(new_data_length);
+      data_length_ = new_data_length;
+      CopyFrom(old_data, old_data_length);
     }
-    for (int i = other.data_length_; i < data_length_; i++) {
-      data_[i] = 0;
-    }
+    length_ = new_length;
   }
 
   bool Contains(int i) const {
@@ -182,9 +191,19 @@ class BitVector : public ZoneObject {
 #endif
 
  private:
-  const int length_;
-  const int data_length_;
-  uintptr_t* const data_;
+  int length_;
+  int data_length_;
+  uintptr_t* data_;
+
+  void CopyFrom(uintptr_t* other_data, int other_data_length) {
+    DCHECK_LE(other_data_length, data_length_);
+    for (int i = 0; i < other_data_length; i++) {
+      data_[i] = other_data[i];
+    }
+    for (int i = other_data_length; i < data_length_; i++) {
+      data_[i] = 0;
+    }
+  }
 
   DISALLOW_COPY_AND_ASSIGN(BitVector);
 };
@@ -195,8 +214,8 @@ class GrowableBitVector BASE_EMBEDDED {
   class Iterator BASE_EMBEDDED {
    public:
     Iterator(const GrowableBitVector* target, Zone* zone)
-        : it_(target->bits_ == NULL ? new (zone) BitVector(1, zone)
-                                    : target->bits_) {}
+        : it_(target->bits_ == nullptr ? new (zone) BitVector(1, zone)
+                                       : target->bits_) {}
     bool Done() const { return it_.Done(); }
     void Advance() { it_.Advance(); }
     int Current() const { return it_.Current(); }
@@ -205,7 +224,7 @@ class GrowableBitVector BASE_EMBEDDED {
     BitVector::Iterator it_;
   };
 
-  GrowableBitVector() : bits_(NULL) {}
+  GrowableBitVector() : bits_(nullptr) {}
   GrowableBitVector(int length, Zone* zone)
       : bits_(new (zone) BitVector(length, zone)) {}
 
@@ -226,23 +245,26 @@ class GrowableBitVector BASE_EMBEDDED {
   }
 
   void Clear() {
-    if (bits_ != NULL) bits_->Clear();
+    if (bits_ != nullptr) bits_->Clear();
   }
 
  private:
   static const int kInitialLength = 1024;
 
   bool InBitsRange(int value) const {
-    return bits_ != NULL && bits_->length() > value;
+    return bits_ != nullptr && bits_->length() > value;
   }
 
   void EnsureCapacity(int value, Zone* zone) {
     if (InBitsRange(value)) return;
-    int new_length = bits_ == NULL ? kInitialLength : bits_->length();
+    int new_length = bits_ == nullptr ? kInitialLength : bits_->length();
     while (new_length <= value) new_length *= 2;
-    BitVector* new_bits = new (zone) BitVector(new_length, zone);
-    if (bits_ != NULL) new_bits->CopyFrom(*bits_);
-    bits_ = new_bits;
+
+    if (bits_ == nullptr) {
+      bits_ = new (zone) BitVector(new_length, zone);
+    } else {
+      bits_->Resize(new_length, zone);
+    }
   }
 
   BitVector* bits_;
