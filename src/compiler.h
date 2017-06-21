@@ -216,10 +216,6 @@ class V8_EXPORT_PRIVATE CompilationJob {
   virtual Status ExecuteJobImpl() = 0;
   virtual Status FinalizeJobImpl() = 0;
 
-  // Registers weak object to optimized code dependencies.
-  // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
-
  private:
   CompilationInfo* info_;
   ThreadId isolate_thread_id_;
