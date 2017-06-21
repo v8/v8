@@ -465,6 +465,8 @@ Response V8RuntimeAgentImpl::getProperties(
   if (!response.isSuccess()) return response;
 
   scope.ignoreExceptionsAndMuteConsole();
+  v8::MicrotasksScope microtasks_scope(m_inspector->isolate(),
+                                       v8::MicrotasksScope::kRunMicrotasks);
   if (!scope.object()->IsObject())
     return Response::Error("Value with given id is not an object");
 

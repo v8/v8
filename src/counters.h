@@ -633,14 +633,12 @@ class RuntimeCallTimer final {
   V(Object_GetRealNamedPropertyAttributes)                 \
   V(Object_GetRealNamedPropertyAttributesInPrototypeChain) \
   V(Object_GetRealNamedPropertyInPrototypeChain)           \
+  V(Object_Has)                                            \
   V(Object_HasOwnProperty)                                 \
   V(Object_HasRealIndexedProperty)                         \
   V(Object_HasRealNamedCallbackProperty)                   \
   V(Object_HasRealNamedProperty)                           \
-  V(Object_Int32Value)                                     \
-  V(Object_IntegerValue)                                   \
   V(Object_New)                                            \
-  V(Object_NumberValue)                                    \
   V(Object_ObjectProtoToString)                            \
   V(Object_Set)                                            \
   V(Object_SetAccessor)                                    \
@@ -657,7 +655,6 @@ class RuntimeCallTimer final {
   V(Object_ToObject)                                       \
   V(Object_ToString)                                       \
   V(Object_ToUint32)                                       \
-  V(Object_Uint32Value)                                    \
   V(Persistent_New)                                        \
   V(Private_New)                                           \
   V(Promise_Catch)                                         \
@@ -665,6 +662,7 @@ class RuntimeCallTimer final {
   V(Promise_HasRejectHandler)                              \
   V(Promise_Resolver_New)                                  \
   V(Promise_Resolver_Resolve)                              \
+  V(Promise_Resolver_Reject)                               \
   V(Promise_Result)                                        \
   V(Promise_Status)                                        \
   V(Promise_Then)                                          \
@@ -709,7 +707,11 @@ class RuntimeCallTimer final {
   V(UnboundScript_GetSourceMappingURL)                     \
   V(UnboundScript_GetSourceURL)                            \
   V(Value_InstanceOf)                                      \
+  V(Value_IntegerValue)                                    \
+  V(Value_Int32Value)                                      \
+  V(Value_NumberValue)                                     \
   V(Value_TypeOf)                                          \
+  V(Value_Uint32Value)                                     \
   V(ValueDeserializer_ReadHeader)                          \
   V(ValueDeserializer_ReadValue)                           \
   V(ValueSerializer_WriteValue)

@@ -761,6 +761,8 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
       m_global(global),
       m_installedMethods(v8::Set::New(context->GetIsolate())),
       m_cleanup(false) {
+  v8::MicrotasksScope microtasksScope(context->GetIsolate(),
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!m_commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
   v8::Local<v8::External> externalThis =
@@ -786,6 +788,8 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 }
 
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
+  v8::MicrotasksScope microtasksScope(m_context->GetIsolate(),
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
   m_cleanup = true;
   v8::Local<v8::Array> names = m_installedMethods->AsArray();
   for (uint32_t i = 0; i < names->Length(); ++i) {

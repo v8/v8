@@ -63,6 +63,8 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
   v8::Context::Scope scope(context);
+  v8::MicrotasksScope microtasksScope(isolate,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   // Inject javascript into the context. The compiled script is supposed to
   // evaluate into
@@ -91,8 +93,6 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   v8::Local<v8::Value> info[] = {
       scriptHostWrapper, windowGlobal,
       v8::Number::New(isolate, inspectedContext->contextId())};
-  v8::MicrotasksScope microtasksScope(isolate,
-                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   int contextGroupId = inspectedContext->contextGroupId();
   int contextId = inspectedContext->contextId();

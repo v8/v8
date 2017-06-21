@@ -24156,6 +24156,7 @@ TEST(Promises) {
 TEST(PromiseThen) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   v8::HandleScope scope(isolate);
   Local<Object> global = context->Global();
 

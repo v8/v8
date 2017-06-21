@@ -229,6 +229,8 @@ String16 V8Debugger::setBreakpoint(const ScriptBreakpoint& breakpoint,
   v8::HandleScope scope(m_isolate);
   v8::Local<v8::Context> context = debuggerContext();
   v8::Context::Scope contextScope(context);
+  v8::MicrotasksScope microtasks(m_isolate,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> info = v8::Object::New(m_isolate);
   bool success = false;
@@ -276,6 +278,8 @@ void V8Debugger::removeBreakpoint(const String16& breakpointId) {
   v8::HandleScope scope(m_isolate);
   v8::Local<v8::Context> context = debuggerContext();
   v8::Context::Scope contextScope(context);
+  v8::MicrotasksScope microtasks(m_isolate,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> info = v8::Object::New(m_isolate);
   bool success = false;

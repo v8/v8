@@ -464,6 +464,8 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     v8::Local<v8::Context> debuggerContext =
         v8::debug::GetDebugContext(m_isolate);
     v8::Context::Scope contextScope(debuggerContext);
+    v8::MicrotasksScope microtasks(m_isolate,
+                                   v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(m_isolate);
     it->second->getPossibleBreakpoints(
         v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations);
@@ -930,6 +932,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   v8::Local<v8::Context> debuggerContext =
       v8::debug::GetDebugContext(m_isolate);
   v8::Context::Scope contextScope(debuggerContext);
+  v8::MicrotasksScope microtasks(m_isolate,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Array> objects = v8::Array::New(m_isolate);
 
