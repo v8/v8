@@ -64,22 +64,11 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   int NextEnumerationIndex() { UNREACHABLE(); }
   void SetNextEnumerationIndex(int index) { UNREACHABLE(); }
+  static Handle<FixedArray> IterationIndices(Handle<Derived> dictionary) {
+    UNREACHABLE();
+  }
 
   int NumberOfEnumerableProperties();
-
-  // Return the key indices sorted by its enumeration index.
-  static Handle<FixedArray> IterationIndices(
-      Handle<Dictionary<Derived, Shape>> dictionary);
-
-  // Collect the keys into the given KeyAccumulator, in ascending chronological
-  // order of property creation.
-  static void CollectKeysTo(Handle<Dictionary<Derived, Shape>> dictionary,
-                            KeyAccumulator* keys);
-
-  // Copies enumerable keys to preallocated fixed array.
-  static void CopyEnumKeysTo(Handle<Dictionary<Derived, Shape>> dictionary,
-                             Handle<FixedArray> storage, KeyCollectionMode mode,
-                             KeyAccumulator* accumulator);
 
   // Creates a new dictionary.
   MUST_USE_RESULT static Handle<Derived> New(
@@ -184,6 +173,18 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   int NextEnumerationIndex() {
     return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
   }
+
+  // Collect the keys into the given KeyAccumulator, in ascending chronological
+  // order of property creation.
+  static void CollectKeysTo(Handle<Derived> dictionary, KeyAccumulator* keys);
+
+  // Return the key indices sorted by its enumeration index.
+  static Handle<FixedArray> IterationIndices(Handle<Derived> dictionary);
+
+  // Copies enumerable keys to preallocated fixed array.
+  static void CopyEnumKeysTo(Handle<Derived> dictionary,
+                             Handle<FixedArray> storage, KeyCollectionMode mode,
+                             KeyAccumulator* accumulator);
 };
 
 class NameDictionary

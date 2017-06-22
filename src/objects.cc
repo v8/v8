@@ -16289,30 +16289,28 @@ template int
 Dictionary<NameDictionary, NameDictionaryShape>::NumberOfEnumerableProperties();
 
 template void
-Dictionary<GlobalDictionary, GlobalDictionaryShape>::CopyEnumKeysTo(
-    Handle<Dictionary<GlobalDictionary, GlobalDictionaryShape>> dictionary,
-    Handle<FixedArray> storage, KeyCollectionMode mode,
-    KeyAccumulator* accumulator);
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CopyEnumKeysTo(
+    Handle<GlobalDictionary> dictionary, Handle<FixedArray> storage,
+    KeyCollectionMode mode, KeyAccumulator* accumulator);
 
-template void Dictionary<NameDictionary, NameDictionaryShape>::CopyEnumKeysTo(
-    Handle<Dictionary<NameDictionary, NameDictionaryShape>> dictionary,
-    Handle<FixedArray> storage, KeyCollectionMode mode,
-    KeyAccumulator* accumulator);
-
-template Handle<FixedArray>
-Dictionary<GlobalDictionary, GlobalDictionaryShape>::IterationIndices(
-    Handle<Dictionary<GlobalDictionary, GlobalDictionaryShape>> dictionary);
 template void
-Dictionary<GlobalDictionary, GlobalDictionaryShape>::CollectKeysTo(
-    Handle<Dictionary<GlobalDictionary, GlobalDictionaryShape>> dictionary,
-    KeyAccumulator* keys);
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::CopyEnumKeysTo(
+    Handle<NameDictionary> dictionary, Handle<FixedArray> storage,
+    KeyCollectionMode mode, KeyAccumulator* accumulator);
 
 template Handle<FixedArray>
-Dictionary<NameDictionary, NameDictionaryShape>::IterationIndices(
-    Handle<Dictionary<NameDictionary, NameDictionaryShape>> dictionary);
-template void Dictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
-    Handle<Dictionary<NameDictionary, NameDictionaryShape>> dictionary,
-    KeyAccumulator* keys);
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::IterationIndices(
+    Handle<GlobalDictionary> dictionary);
+template void
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CollectKeysTo(
+    Handle<GlobalDictionary> dictionary, KeyAccumulator* keys);
+
+template Handle<FixedArray>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::IterationIndices(
+    Handle<NameDictionary> dictionary);
+template void
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
+    Handle<NameDictionary> dictionary, KeyAccumulator* keys);
 
 template int
 Dictionary<SeededNumberDictionary,
@@ -17515,7 +17513,7 @@ Handle<Derived> Dictionary<Derived, Shape>::EnsureCapacity(
     // If not, we generate new indices for the properties.
     int length = dictionary->NumberOfElements();
 
-    Handle<FixedArray> iteration_order = IterationIndices(dictionary);
+    Handle<FixedArray> iteration_order = Derived::IterationIndices(dictionary);
     DCHECK_EQ(length, iteration_order->length());
 
     // Iterate over the dictionary using the enumeration order and update
@@ -17701,8 +17699,8 @@ struct EnumIndexComparator {
 };
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::CopyEnumKeysTo(
-    Handle<Dictionary<Derived, Shape>> dictionary, Handle<FixedArray> storage,
+void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
+    Handle<Derived> dictionary, Handle<FixedArray> storage,
     KeyCollectionMode mode, KeyAccumulator* accumulator) {
   DCHECK_IMPLIES(mode != KeyCollectionMode::kOwnOnly, accumulator != nullptr);
   Isolate* isolate = dictionary->GetIsolate();
@@ -17735,9 +17733,9 @@ void Dictionary<Derived, Shape>::CopyEnumKeysTo(
 
   CHECK_EQ(length, properties);
   DisallowHeapAllocation no_gc;
-  Dictionary<Derived, Shape>* raw_dictionary = *dictionary;
+  Derived* raw_dictionary = *dictionary;
   FixedArray* raw_storage = *storage;
-  EnumIndexComparator<Derived> cmp(static_cast<Derived*>(*dictionary));
+  EnumIndexComparator<Derived> cmp(raw_dictionary);
   // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
   base::AtomicElement<Smi*>* start =
@@ -17751,8 +17749,8 @@ void Dictionary<Derived, Shape>::CopyEnumKeysTo(
 }
 
 template <typename Derived, typename Shape>
-Handle<FixedArray> Dictionary<Derived, Shape>::IterationIndices(
-    Handle<Dictionary<Derived, Shape>> dictionary) {
+Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
+    Handle<Derived> dictionary) {
   Isolate* isolate = dictionary->GetIsolate();
   int capacity = dictionary->Capacity();
   int length = dictionary->NumberOfElements();
@@ -17760,17 +17758,17 @@ Handle<FixedArray> Dictionary<Derived, Shape>::IterationIndices(
   int array_size = 0;
   {
     DisallowHeapAllocation no_gc;
-    Dictionary<Derived, Shape>* raw_dict = *dictionary;
+    Derived* raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
-      Object* k = raw_dict->KeyAt(i);
-      if (!raw_dict->IsKey(isolate, k)) continue;
-      if (raw_dict->IsDeleted(i)) continue;
+      Object* k = raw_dictionary->KeyAt(i);
+      if (!raw_dictionary->IsKey(isolate, k)) continue;
+      if (raw_dictionary->IsDeleted(i)) continue;
       array->set(array_size++, Smi::FromInt(i));
     }
 
     DCHECK_EQ(array_size, length);
 
-    EnumIndexComparator<Derived> cmp(static_cast<Derived*>(raw_dict));
+    EnumIndexComparator<Derived> cmp(raw_dictionary);
     // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
     base::AtomicElement<Smi*>* start =
@@ -17783,8 +17781,8 @@ Handle<FixedArray> Dictionary<Derived, Shape>::IterationIndices(
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::CollectKeysTo(
-    Handle<Dictionary<Derived, Shape>> dictionary, KeyAccumulator* keys) {
+void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
+    Handle<Derived> dictionary, KeyAccumulator* keys) {
   Isolate* isolate = keys->isolate();
   int capacity = dictionary->Capacity();
   Handle<FixedArray> array =
@@ -17793,19 +17791,19 @@ void Dictionary<Derived, Shape>::CollectKeysTo(
   PropertyFilter filter = keys->filter();
   {
     DisallowHeapAllocation no_gc;
-    Dictionary<Derived, Shape>* raw_dict = *dictionary;
+    Derived* raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
-      Object* k = raw_dict->KeyAt(i);
-      if (!raw_dict->IsKey(isolate, k) || k->FilterKey(filter)) continue;
-      if (raw_dict->IsDeleted(i)) continue;
-      PropertyDetails details = raw_dict->DetailsAt(i);
+      Object* k = raw_dictionary->KeyAt(i);
+      if (!raw_dictionary->IsKey(isolate, k) || k->FilterKey(filter)) continue;
+      if (raw_dictionary->IsDeleted(i)) continue;
+      PropertyDetails details = raw_dictionary->DetailsAt(i);
       if ((details.attributes() & filter) != 0) {
         keys->AddShadowingKey(k);
         continue;
       }
       if (filter & ONLY_ALL_CAN_READ) {
         if (details.kind() != kAccessor) continue;
-        Object* accessors = raw_dict->ValueAt(i);
+        Object* accessors = raw_dictionary->ValueAt(i);
         if (accessors->IsPropertyCell()) {
           accessors = PropertyCell::cast(accessors)->value();
         }
@@ -17815,7 +17813,7 @@ void Dictionary<Derived, Shape>::CollectKeysTo(
       array->set(array_size++, Smi::FromInt(i));
     }
 
-    EnumIndexComparator<Derived> cmp(static_cast<Derived*>(raw_dict));
+    EnumIndexComparator<Derived> cmp(raw_dictionary);
     // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
     base::AtomicElement<Smi*>* start =
