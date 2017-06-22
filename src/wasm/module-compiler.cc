@@ -57,6 +57,11 @@ bool ModuleCompiler::CodeGenerationSchedule::CanAcceptWork() const {
   return (!throttle_ || allocated_memory_.Value() <= max_memory_);
 }
 
+bool ModuleCompiler::CodeGenerationSchedule::ShouldIncreaseWorkload() const {
+  // Half the memory is unused again, we can increase the workload again.
+  return (!throttle_ || allocated_memory_.Value() <= max_memory_ / 2);
+}
+
 std::unique_ptr<compiler::WasmCompilationUnit>
 ModuleCompiler::CodeGenerationSchedule::GetNext() {
   DCHECK(!IsEmpty());
@@ -2015,14 +2020,18 @@ void AsyncCompileJob::DoSync(Args&&... args) {
   StartForegroundTask();
 }
 
+void AsyncCompileJob::StartBackgroundTask() {
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(
+      new CompileTask(this, false), v8::Platform::kShortRunningTask);
+}
+
 template <typename State, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
   step_.reset(new State(std::forward<Args>(args)...));
   step_->job_ = this;
   size_t end = step_->NumberOfBackgroundTasks();
   for (size_t i = 0; i < end; ++i) {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(this, false), v8::Platform::kShortRunningTask);
+    StartBackgroundTask();
   }
 }
 
@@ -2138,6 +2147,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     constexpr bool is_sync = true;
     job_->compiler_.reset(
         new ModuleCompiler(job_->isolate_, std::move(module_), !is_sync));
+    job_->compiler_->EnableThrottling();
 
     DCHECK_LE(module->num_imported_functions, module->functions.size());
     size_t num_functions =
@@ -2181,14 +2191,25 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
     };
 
     TRACE_COMPILE("(3) Compiling...\n");
-    for (;;) {
+    while (job_->compiler_->CanAcceptWork()) {
       if (failed_) break;
       DisallowHandleAllocation no_handle;
       DisallowHeapAllocation no_allocation;
       if (!job_->compiler_->FetchAndExecuteCompilationUnit(
               StartFinishCompilationUnit)) {
+        finished_ = true;
         break;
       }
+    }
+    stopped_tasks_.Increment(1);
+  }
+
+  void RestartCompilationTasks() {
+    size_t num_restarts = stopped_tasks_.Value();
+    stopped_tasks_.Decrement(num_restarts);
+
+    for (size_t i = 0; i < num_restarts; ++i) {
+      job_->StartBackgroundTask();
     }
   }
 
@@ -2206,6 +2227,10 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
     double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
 
     while (true) {
+      if (!finished_ && job_->compiler_->ShouldIncreaseWorkload()) {
+        RestartCompilationTasks();
+      }
+
       int func_index = -1;
 
       Handle<Code> result =
@@ -2252,6 +2277,8 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
 
  private:
   std::atomic<bool> failed_{false};
+  std::atomic<bool> finished_{false};
+  base::AtomicNumber<size_t> stopped_tasks_{0};
 };
 
 //==========================================================================
