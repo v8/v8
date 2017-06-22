@@ -202,7 +202,7 @@ class V8_BASE_EXPORT OS {
   static void Sleep(TimeDelta interval);
 
   // Abort the current process.
-  V8_NORETURN static void Abort();
+  [[noreturn]] static void Abort();
 
   // Debug break.
   static void DebugBreak();

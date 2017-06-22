@@ -312,13 +312,6 @@
 #endif
 
 
-// A macro used to tell the compiler that a particular function never returns.
-// Use like:
-//   V8_NORETURN void MyAbort() { abort(); }
-// TODO(v8): Replace all uses by [[noreturn]] and remove this macro.
-#define V8_NORETURN [[noreturn]]  // NOLINT(whitespace/braces)
-
-
 // A macro (V8_DEPRECATED) to mark classes or functions as deprecated.
 #if defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
 #define V8_DEPRECATED(message, declarator) \
