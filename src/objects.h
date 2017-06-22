@@ -1928,8 +1928,7 @@ class JSReceiver: public HeapObject {
   inline NameDictionary* property_dictionary();
 
   // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSReceiver> object,
-                                       Handle<Name> name, int entry);
+  static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
   DECLARE_CAST(JSReceiver)
 

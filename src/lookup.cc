@@ -448,8 +448,7 @@ void LookupIterator::Delete() {
                                     "DeletingProperty");
       ReloadPropertyInformation<false>();
     }
-    // TODO(verwaest): Get rid of the name_ argument.
-    JSReceiver::DeleteNormalizedProperty(holder, name_, number_);
+    JSReceiver::DeleteNormalizedProperty(holder, number_);
     if (holder->IsJSObject()) {
       JSObject::ReoptimizeIfPrototype(Handle<JSObject>::cast(holder));
     }
