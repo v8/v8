@@ -1773,7 +1773,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
 }
 
 TEST(CodeSerializerEagerCompilationAndPreAge) {
-  if (FLAG_ignition || FLAG_turbo) return;
+  if (FLAG_ignition) return;
 
   FLAG_lazy = true;
   FLAG_serialize_toplevel = true;

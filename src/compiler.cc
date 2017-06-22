@@ -271,27 +271,20 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 }
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
-  bool must_use_ignition_turbo = shared->must_use_ignition_turbo();
-
   // Check the enabling conditions for Turbofan.
   // 1. "use asm" code.
   bool is_turbofanable_asm = FLAG_turbo_asm && shared->asm_function();
 
-  // 2. Fallback for features unsupported by Crankshaft.
-  bool is_unsupported_by_crankshaft_but_turbofanable =
-      must_use_ignition_turbo && strcmp(FLAG_turbo_filter, "~~") == 0;
-
-  // 3. Explicitly enabled by the command-line filter.
+  // 2. Explicitly enabled by the command-line filter.
   bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);
 
-  return is_turbofanable_asm || is_unsupported_by_crankshaft_but_turbofanable ||
-         passes_turbo_filter;
+  return is_turbofanable_asm || passes_turbo_filter;
 }
 
 bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
                        bool marked_as_debug) {
   // Code which can't be supported by the old pipeline should use Ignition.
-  if (shared->must_use_ignition_turbo()) return true;
+  if (shared->must_use_ignition()) return true;
 
   // Resumable functions are not supported by {FullCodeGenerator}, suspended
   // activations stored as {JSGeneratorObject} on the heap always assume the
@@ -422,8 +415,8 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   if (literal->dont_optimize_reason() != kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }
-  if (literal->flags() & AstProperties::kMustUseIgnitionTurbo) {
-    shared_info->set_must_use_ignition_turbo(true);
+  if (literal->flags() & AstProperties::kMustUseIgnition) {
+    shared_info->set_must_use_ignition(true);
   }
 }
 
@@ -1340,7 +1333,7 @@ bool Compiler::EnsureBaselineCode(CompilationInfo* info) {
     // Don't generate full-codegen code for functions which should use Ignition.
     if (ShouldUseIgnition(info)) return false;
 
-    DCHECK(!shared->must_use_ignition_turbo());
+    DCHECK(!shared->must_use_ignition());
     DCHECK(!IsResumableFunction(shared->kind()));
 
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);

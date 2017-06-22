@@ -265,7 +265,6 @@ DEFINE_BOOL(icu_timezone_data, false,
 DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
-DEFINE_IMPLICATION(future, turbo)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -442,12 +441,11 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
             "deoptimize the optimized code if the layout of the maps changes.")
 
 // Flags for TurboFan.
-DEFINE_BOOL(turbo, true, "enable TurboFan compiler")
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
-DEFINE_STRING(turbo_filter, "~~", "optimization filter for TurboFan compiler")
+DEFINE_STRING(turbo_filter, "*", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
 DEFINE_IMPLICATION(trace_turbo_graph, trace_turbo)

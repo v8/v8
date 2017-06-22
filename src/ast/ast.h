@@ -159,7 +159,7 @@ class AstProperties final BASE_EMBEDDED {
   enum Flag {
     kNoFlags = 0,
     kDontSelfOptimize = 1 << 0,
-    kMustUseIgnitionTurbo = 1 << 1
+    kMustUseIgnition = 1 << 1
   };
 
   typedef base::Flags<Flag> Flags;
