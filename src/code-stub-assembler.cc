@@ -5147,11 +5147,11 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   StoreValueByKeyIndex<NameDictionary>(dictionary, index, value);
 
   // Prepare details of the new property.
-  const int kInitialIndex = 0;
-  PropertyDetails d(kData, NONE, kInitialIndex, PropertyCellType::kNoCell);
+  PropertyDetails d(kData, NONE, PropertyCellType::kNoCell);
   enum_index =
       SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
-  STATIC_ASSERT(kInitialIndex == 0);
+  // We OR over the actual index below, so we expect the initial value to be 0.
+  DCHECK_EQ(0, d.dictionary_index());
   VARIABLE(var_details, MachineRepresentation::kTaggedSigned,
            SmiOr(SmiConstant(d.AsSmi()), enum_index));
 
@@ -5197,21 +5197,17 @@ void CodeStubAssembler::Add(Node* dictionary, Node* key, Node* value,
   CSA_ASSERT(this, SmiAbove(capacity, new_nof));
   Node* half_of_free_elements = SmiShr(SmiSub(capacity, new_nof), 1);
   GotoIf(SmiAbove(deleted, half_of_free_elements), bailout);
-  Node* enum_index = nullptr;
-  if (Dictionary::kIsEnumerable) {
-    enum_index = GetNextEnumerationIndex<Dictionary>(dictionary);
-    Node* new_enum_index = SmiAdd(enum_index, SmiConstant(1));
-    Node* max_enum_index =
-        SmiConstant(PropertyDetails::DictionaryStorageField::kMax);
-    GotoIf(SmiAbove(new_enum_index, max_enum_index), bailout);
 
-    // No more bailouts after this point.
-    // Operations from here on can have side effects.
+  Node* enum_index = GetNextEnumerationIndex<Dictionary>(dictionary);
+  Node* new_enum_index = SmiAdd(enum_index, SmiConstant(1));
+  Node* max_enum_index =
+      SmiConstant(PropertyDetails::DictionaryStorageField::kMax);
+  GotoIf(SmiAbove(new_enum_index, max_enum_index), bailout);
 
-    SetNextEnumerationIndex<Dictionary>(dictionary, new_enum_index);
-  } else {
-    USE(enum_index);
-  }
+  // No more bailouts after this point.
+  // Operations from here on can have side effects.
+
+  SetNextEnumerationIndex<Dictionary>(dictionary, new_enum_index);
   SetNumberOfElements<Dictionary>(dictionary, new_nof);
 
   VARIABLE(var_key_index, MachineType::PointerRepresentation());

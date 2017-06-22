@@ -1303,11 +1303,11 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
                                         uint32_t entry) {
-    return PropertyDetails(kData, NONE, 0, PropertyCellType::kNoCell);
+    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
   }
 
   static PropertyDetails GetDetailsImpl(JSObject* holder, uint32_t entry) {
-    return PropertyDetails(kData, NONE, 0, PropertyCellType::kNoCell);
+    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
   }
 
   PropertyDetails GetDetails(JSObject* holder, uint32_t entry) final {
@@ -1467,15 +1467,16 @@ class DictionaryElementsAccessor
     if (attributes != NONE) object->RequireSlowElements(dictionary);
     dictionary->ValueAtPut(entry, *value);
     PropertyDetails details = dictionary->DetailsAt(entry);
-    details = PropertyDetails(kData, attributes, details.dictionary_index(),
-                              PropertyCellType::kNoCell);
+    details = PropertyDetails(kData, attributes, PropertyCellType::kNoCell,
+                              details.dictionary_index());
+
     dictionary->DetailsAtPut(entry, details);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
-    PropertyDetails details(kData, attributes, 0, PropertyCellType::kNoCell);
+    PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
     Handle<SeededNumberDictionary> dictionary =
         object->HasFastElements() || object->HasFastStringWrapperElements()
             ? JSObject::NormalizeElements(object)
@@ -2790,12 +2791,12 @@ class TypedElementsAccessor
   }
 
   static PropertyDetails GetDetailsImpl(JSObject* holder, uint32_t entry) {
-    return PropertyDetails(kData, DONT_DELETE, 0, PropertyCellType::kNoCell);
+    return PropertyDetails(kData, DONT_DELETE, PropertyCellType::kNoCell);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
                                         uint32_t entry) {
-    return PropertyDetails(kData, DONT_DELETE, 0, PropertyCellType::kNoCell);
+    return PropertyDetails(kData, DONT_DELETE, PropertyCellType::kNoCell);
   }
 
   static bool HasElementImpl(Isolate* isolate, JSObject* holder, uint32_t index,
@@ -3519,7 +3520,7 @@ class SloppyArgumentsElementsAccessor
         SloppyArgumentsElements::cast(holder->elements());
     uint32_t length = elements->parameter_map_length();
     if (entry < length) {
-      return PropertyDetails(kData, NONE, 0, PropertyCellType::kNoCell);
+      return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
     }
     FixedArray* arguments = elements->arguments();
     return ArgumentsAccessor::GetDetailsImpl(arguments, entry - length);
@@ -3730,7 +3731,7 @@ class SlowSloppyArgumentsElementsAccessor
         old_arguments->IsSeededNumberDictionary()
             ? Handle<SeededNumberDictionary>::cast(old_arguments)
             : JSObject::NormalizeElements(object);
-    PropertyDetails details(kData, attributes, 0, PropertyCellType::kNoCell);
+    PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
     Handle<SeededNumberDictionary> new_dictionary =
         SeededNumberDictionary::Add(dictionary, index, value, details);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
@@ -3762,7 +3763,7 @@ class SlowSloppyArgumentsElementsAccessor
         value = isolate->factory()->NewAliasedArgumentsEntry(context_entry);
       }
 
-      PropertyDetails details(kData, attributes, 0, PropertyCellType::kNoCell);
+      PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
       Handle<SeededNumberDictionary> arguments(
           SeededNumberDictionary::cast(elements->arguments()), isolate);
       arguments = SeededNumberDictionary::Add(arguments, entry, value, details);
@@ -3964,7 +3965,7 @@ class StringWrapperElementsAccessor
     if (entry < length) {
       PropertyAttributes attributes =
           static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-      return PropertyDetails(kData, attributes, 0, PropertyCellType::kNoCell);
+      return PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
     }
     return BackingStoreAccessor::GetDetailsImpl(holder, entry - length);
   }

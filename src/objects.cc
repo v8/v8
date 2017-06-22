@@ -3735,7 +3735,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
       value = handle(descs->GetValue(i), isolate);
     }
     DCHECK(!value.is_null());
-    PropertyDetails d(details.kind(), details.attributes(), i + 1,
+    PropertyDetails d(details.kind(), details.attributes(),
                       PropertyCellType::kNoCell);
     dictionary = NameDictionary::Add(dictionary, key, value, d);
   }
@@ -7014,7 +7014,7 @@ Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
   }
 
   Handle<NameDictionary> dict(proxy->property_dictionary());
-  PropertyDetails details(kData, DONT_ENUM, 0, PropertyCellType::kNoCell);
+  PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell);
   Handle<NameDictionary> result =
       NameDictionary::Add(dict, private_name, value, details);
   if (!dict.is_identical_to(result)) proxy->set_properties(*result);
@@ -16171,11 +16171,6 @@ template class Dictionary<UnseededNumberDictionary,
                           UnseededNumberDictionaryShape>;
 
 template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::New(
-    Isolate*, int at_least_space_for, PretenureFlag pretenure,
-    MinimumCapacity capacity_option);
-
-template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::NewEmpty(
     Isolate*, PretenureFlag pretenure);
 
@@ -16183,22 +16178,17 @@ template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::NewEmpty(
     Isolate*, PretenureFlag pretenure);
 
-template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::New(
-    Isolate*, int at_least_space_for, PretenureFlag pretenure,
-    MinimumCapacity capacity_option);
-
 template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape>::New(
-    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
+    Isolate*, int n, MinimumCapacity capacity_option, PretenureFlag pretenure);
 
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape>::NewEmpty(
     Isolate*, PretenureFlag pretenure);
 
 template Handle<GlobalDictionary>
-Dictionary<GlobalDictionary, GlobalDictionaryShape>::New(
-    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
+    Isolate*, int n, MinimumCapacity capacity_option, PretenureFlag pretenure);
 
 template Handle<SeededNumberDictionary>
     Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::AtPut(
@@ -16228,6 +16218,10 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::DeleteEntry(
 template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::
     DeleteEntry(Handle<UnseededNumberDictionary>, int);
+
+template Handle<UnseededNumberDictionary>
+HashTable<UnseededNumberDictionary, UnseededNumberDictionaryShape>::New(
+    Isolate*, int, MinimumCapacity, PretenureFlag);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
@@ -16267,19 +16261,11 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::Add(
     Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
     int*);
 
-template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::EnsureCapacity(
-    Handle<SeededNumberDictionary>, int);
-
-template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::
-    EnsureCapacity(Handle<UnseededNumberDictionary>, int);
-
 template void Dictionary<
     NameDictionary, NameDictionaryShape>::SetRequiresCopyOnCapacityChange();
 
 template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
     Handle<NameDictionary>, int);
 
 template int Dictionary<GlobalDictionary,
@@ -16756,12 +16742,12 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
     if (original_cell_type == PropertyCellType::kInvalidated) {
       cell = PropertyCell::InvalidateEntry(dictionary, entry);
     }
-    PropertyDetails details(kData, NONE, 0, cell_type);
+    PropertyDetails details(kData, NONE, cell_type);
     cell->set_property_details(details);
     return cell;
   }
   cell = isolate->factory()->NewPropertyCell();
-  PropertyDetails details(kData, NONE, 0, cell_type);
+  PropertyDetails details(kData, NONE, cell_type);
   dictionary =
       GlobalDictionary::Add(dictionary, name, cell, details, entry_out);
   // {*entry_out} is initialized inside GlobalDictionary::Add().
@@ -17468,30 +17454,23 @@ void CompilationCacheTable::Remove(Object* value) {
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> Dictionary<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, PretenureFlag pretenure,
-    MinimumCapacity capacity_option) {
-  DCHECK(0 <= at_least_space_for);
-  Handle<Derived> dict = DerivedHashTable::New(isolate, at_least_space_for,
-                                               capacity_option, pretenure);
-
-  if (Shape::kIsEnumerable) {
-    // Initialize the next enumeration index.
-    dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
-  }
+Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
+    Isolate* isolate, int at_least_space_for, MinimumCapacity capacity_option,
+    PretenureFlag pretenure) {
+  DCHECK_LE(0, at_least_space_for);
+  Handle<Derived> dict = Dictionary<Derived, Shape>::New(
+      isolate, at_least_space_for, capacity_option, pretenure);
+  dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return dict;
 }
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::NewEmpty(Isolate* isolate,
                                                      PretenureFlag pretenure) {
-  Handle<Derived> dict = DerivedHashTable::New(isolate, 1, pretenure);
+  Handle<Derived> dict =
+      Derived::New(isolate, 1, USE_CUSTOM_MINIMUM_CAPACITY, pretenure);
   // Attempt to add one element to the empty dictionary must cause reallocation.
   DCHECK(!dict->HasSufficientCapacityToAdd(1));
-  if (Shape::kIsEnumerable) {
-    // Initialize the next enumeration index.
-    dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
-  }
   return dict;
 }
 
@@ -17505,15 +17484,14 @@ void Dictionary<Derived, Shape>::SetRequiresCopyOnCapacityChange() {
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> Dictionary<Derived, Shape>::EnsureCapacity(
+Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
     Handle<Derived> dictionary, int n) {
   // Check whether there are enough enumeration indices to add n elements.
-  if (Shape::kIsEnumerable &&
-      !PropertyDetails::IsValidIndex(dictionary->NextEnumerationIndex() + n)) {
+  if (!PropertyDetails::IsValidIndex(dictionary->NextEnumerationIndex() + n)) {
     // If not, we generate new indices for the properties.
     int length = dictionary->NumberOfElements();
 
-    Handle<FixedArray> iteration_order = Derived::IterationIndices(dictionary);
+    Handle<FixedArray> iteration_order = IterationIndices(dictionary);
     DCHECK_EQ(length, iteration_order->length());
 
     // Iterate over the dictionary using the enumeration order and update
@@ -17534,7 +17512,7 @@ Handle<Derived> Dictionary<Derived, Shape>::EnsureCapacity(
     dictionary->SetNextEnumerationIndex(PropertyDetails::kInitialIndex +
                                         length);
   }
-  return DerivedHashTable::EnsureCapacity(dictionary, n);
+  return HashTable<Derived, Shape>::EnsureCapacity(dictionary, n);
 }
 
 template <typename Derived, typename Shape>
@@ -17557,15 +17535,39 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Handle<Derived> dictionary,
 
   // If the entry is present set the value;
   if (entry == Dictionary::kNotFound) {
-    return Add(dictionary, key, value, details);
+    return Derived::Add(dictionary, key, value, details);
   }
 
   // We don't need to copy over the enumeration index.
-  DCHECK(!Shape::kIsEnumerable);
   dictionary->ValueAtPut(entry, *value);
   if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
   return dictionary;
 }
+
+template <typename Derived, typename Shape>
+Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
+    Handle<Derived> dictionary, Key key, Handle<Object> value,
+    PropertyDetails details, int* entry_out) {
+  // Insert element at empty or deleted entry
+  DCHECK_EQ(0, details.dictionary_index());
+  // Assign an enumeration index to the property and update
+  // SetNextEnumerationIndex.
+  int index = dictionary->NextEnumerationIndex();
+  details = details.set_index(index);
+  dictionary->SetNextEnumerationIndex(index + 1);
+  return Dictionary<Derived, Shape>::Add(dictionary, key, value, details,
+                                         entry_out);
+}
+
+template Handle<NameDictionary>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
+    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
+
+template Handle<GlobalDictionary>
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
+    Handle<GlobalDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
@@ -17577,20 +17579,12 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   // Valdate key is absent.
   SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
-  dictionary = EnsureCapacity(dictionary, 1);
+  dictionary = Derived::EnsureCapacity(dictionary, 1);
 
   // Compute the key object.
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
   uint32_t entry = dictionary->FindInsertionEntry(hash);
-  // Insert element at empty or deleted entry
-  if (details.dictionary_index() == 0 && Shape::kIsEnumerable) {
-    // Assign an enumeration index to the property and update
-    // SetNextEnumerationIndex.
-    int index = dictionary->NextEnumerationIndex();
-    details = details.set_index(index);
-    dictionary->SetNextEnumerationIndex(index + 1);
-  }
   dictionary->SetEntry(entry, k, value, details);
   DCHECK(dictionary->KeyAt(entry)->IsNumber() ||
          dictionary->KeyAt(entry)->IsUniqueName());
@@ -19249,7 +19243,7 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
     index = dictionary->NextEnumerationIndex();
     dictionary->SetNextEnumerationIndex(index + 1);
   }
-  DCHECK(index > 0);
+  DCHECK_LT(0, index);
   details = details.set_index(index);
 
   PropertyCellType new_type = UpdatedType(cell, value, original_details);

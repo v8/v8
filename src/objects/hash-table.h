@@ -194,6 +194,10 @@ class HashTable : public HashTableBase {
     return (entry * kEntrySize) + kElementsStartIndex;
   }
 
+  // Ensure enough space for n additional elements.
+  MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
+      Handle<Derived> table, int n, PretenureFlag pretenure = NOT_TENURED);
+
  protected:
   friend class ObjectHashTable;
 
@@ -206,10 +210,6 @@ class HashTable : public HashTableBase {
 
   // Attempt to shrink hash table after removal of key.
   MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table);
-
-  // Ensure enough space for n additional elements.
-  MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
-      Handle<Derived> table, int n, PretenureFlag pretenure = NOT_TENURED);
 
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);

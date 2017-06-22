@@ -5004,7 +5004,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
           Handle<Object> value(descs->GetValue(i), isolate());
-          PropertyDetails d(kAccessor, details.attributes(), i + 1,
+          PropertyDetails d(kAccessor, details.attributes(),
                             PropertyCellType::kMutable);
           JSObject::SetNormalizedProperty(to, key, value, d);
         }

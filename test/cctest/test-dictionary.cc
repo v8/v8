@@ -302,7 +302,8 @@ TEST(SetRequiresCopyOnCapacityChange) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
+  Handle<NameDictionary> dict =
+      NameDictionary::New(isolate, 0, USE_DEFAULT_MINIMUM_CAPACITY, TENURED);
   dict->SetRequiresCopyOnCapacityChange();
   Handle<Name> key = isolate->factory()->InternalizeString(
       v8::Utils::OpenHandle(*v8_str("key")));

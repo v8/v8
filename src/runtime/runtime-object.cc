@@ -306,10 +306,8 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   DCHECK(name->IsUniqueName());
 
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  int entry;
-  PropertyDetails property_details(kData, NONE, 0, PropertyCellType::kNoCell);
-  dictionary =
-      NameDictionary::Add(dictionary, name, value, property_details, &entry);
+  PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
+  dictionary = NameDictionary::Add(dictionary, name, value, property_details);
   receiver->set_properties(*dictionary);
   return *value;
 }

@@ -62,19 +62,7 @@ class Dictionary : public HashTable<Derived, Shape> {
     return DerivedHashTable::Shrink(dictionary);
   }
 
-  int NextEnumerationIndex() { UNREACHABLE(); }
-  void SetNextEnumerationIndex(int index) { UNREACHABLE(); }
-  static Handle<FixedArray> IterationIndices(Handle<Derived> dictionary) {
-    UNREACHABLE();
-  }
-
   int NumberOfEnumerableProperties();
-
-  // Creates a new dictionary.
-  MUST_USE_RESULT static Handle<Derived> New(
-      Isolate* isolate, int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED,
-      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   // Creates an dictionary with minimal possible capacity.
   MUST_USE_RESULT static Handle<Derived> NewEmpty(
@@ -82,9 +70,6 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   // Ensures that a new dictionary is created when the capacity is checked.
   void SetRequiresCopyOnCapacityChange();
-
-  // Ensure enough space for n additional elements.
-  static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n);
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
@@ -104,8 +89,6 @@ class Dictionary : public HashTable<Derived, Shape> {
                                              Key key, Handle<Object> value,
                                              PropertyDetails details,
                                              int* entry_out = nullptr);
-
-  static const bool kIsEnumerable = Shape::kIsEnumerable;
 
  protected:
   // Generic at put operation.
@@ -153,12 +136,13 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
-  static const bool kIsEnumerable = true;
   static const bool kNeedsHoleCheck = false;
 };
 
 template <typename Derived, typename Shape>
 class BaseNameDictionary : public Dictionary<Derived, Shape> {
+  typedef typename Shape::Key Key;
+
  public:
   static const int kNextEnumerationIndexIndex =
       HashTableBase::kPrefixStartIndex;
@@ -174,6 +158,12 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
     return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
   }
 
+  // Creates a new dictionary.
+  MUST_USE_RESULT static Handle<Derived> New(
+      Isolate* isolate, int at_least_space_for,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // Collect the keys into the given KeyAccumulator, in ascending chronological
   // order of property creation.
   static void CollectKeysTo(Handle<Derived> dictionary, KeyAccumulator* keys);
@@ -185,6 +175,14 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   static void CopyEnumKeysTo(Handle<Derived> dictionary,
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);
+
+  // Ensure enough space for n additional elements.
+  static Handle<Derived> EnsureCapacity(Handle<Derived> dictionary, int n);
+
+  MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
+                                             Key key, Handle<Object> value,
+                                             PropertyDetails details,
+                                             int* entry_out = nullptr);
 };
 
 class NameDictionary
@@ -227,7 +225,6 @@ class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
-  static const bool kIsEnumerable = false;
 };
 
 class SeededNumberDictionaryShape : public NumberDictionaryShape {
