@@ -162,6 +162,12 @@ int WasmExecutionFuzzer::FuzzWasmModule(
         0, interpreter_args.get(), &possible_nondeterminism);
   }
 
+  // Do not execute the generated code if the interpreter did not finished after
+  // a bounded number of steps.
+  if (interpreter_thrower.error()) {
+    return 0;
+  }
+
   int32_t result_compiled;
   {
     ErrorThrower compiler_thrower(i_isolate, "Compiler");
