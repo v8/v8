@@ -135,6 +135,16 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
 
   uint32_t& index = *index_ptr;
 
+  if (IsSkippedFunctionScope(scope)) {
+    // This scope is a function scope representing a function we want to
+    // skip. So just skip over its data.
+    DCHECK(!scope->must_use_preparsed_scope_data());
+    // Check that we're moving forward (not backward) in the data.
+    DCHECK_GT(backing_store_[index + 2], index);
+    index = backing_store_[index + 2];
+    return;
+  }
+
 #ifdef DEBUG
   // Data integrity check.
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
@@ -152,16 +162,6 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
     DCHECK_EQ(index_from_data, index);
   }
 #endif
-
-  if (IsSkippedFunctionScope(scope)) {
-    // This scope is a function scope representing a function we want to
-    // skip. So just skip over its data.
-    DCHECK(!scope->must_use_preparsed_scope_data());
-    // Check that we're moving forward (not backward) in the data.
-    DCHECK_GT(backing_store_[index + 2], index);
-    index = backing_store_[index + 2];
-    return;
-  }
 
   DCHECK_GE(backing_store_.size(), index + 3);
   DCHECK_EQ(backing_store_[index++], scope->scope_type());
