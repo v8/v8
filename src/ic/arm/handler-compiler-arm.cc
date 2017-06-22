@@ -165,8 +165,7 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
   __ LoadWeakValue(scratch, weak_cell, miss);
   __ ldr(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  __ cmp(scratch, ip);
+  __ CompareRoot(scratch, Heap::kTheHoleValueRootIndex);
   __ b(ne, miss);
 }
 
@@ -396,17 +395,22 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ push(receiver());  // receiver
   __ push(holder_reg);
 
-  // If the callback cannot leak, then push the callback directly,
-  // otherwise wrap it in a weak cell.
-  if (callback->data()->IsUndefined(isolate()) || callback->data()->IsSmi()) {
-    __ mov(ip, Operand(callback));
-  } else {
-    Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
-    __ mov(ip, Operand(cell));
+  {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+
+    // If the callback cannot leak, then push the callback directly,
+    // otherwise wrap it in a weak cell.
+    if (callback->data()->IsUndefined(isolate()) || callback->data()->IsSmi()) {
+      __ mov(scratch, Operand(callback));
+    } else {
+      Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+      __ mov(scratch, Operand(cell));
+    }
+    __ push(scratch);
+    __ mov(scratch, Operand(name));
+    __ Push(scratch, value());
   }
-  __ push(ip);
-  __ mov(ip, Operand(name));
-  __ Push(ip, value());
   __ Push(Smi::FromInt(language_mode));
 
   // Do tail-call to the runtime system.
