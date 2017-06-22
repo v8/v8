@@ -113,3 +113,12 @@ function TestUsingNamedExpressionName2() {
   f();
 }
 TestUsingNamedExpressionName2();
+
+function TestSkippedFunctionInsideLoopInitializer() {
+  let saved_func;
+  for (let i = 0, f = function() { return i }; i < 1; ++i) {
+    saved_func = f;
+  }
+  assertEquals(0, saved_func());
+}
+TestSkippedFunctionInsideLoopInitializer();

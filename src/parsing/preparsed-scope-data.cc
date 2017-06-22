@@ -87,11 +87,9 @@ void PreParsedScopeData::SaveData(Scope* scope) {
       SaveDataForVariable(function);
     }
   }
-  if (!scope->is_hidden()) {
-    for (Variable* var : *scope->locals()) {
-      if (IsDeclaredVariableMode(var->mode())) {
-        SaveDataForVariable(var);
-      }
+  for (Variable* var : *scope->locals()) {
+    if (IsDeclaredVariableMode(var->mode())) {
+      SaveDataForVariable(var);
     }
   }
 
@@ -178,11 +176,9 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
       RestoreDataForVariable(function, index_ptr);
     }
   }
-  if (!scope->is_hidden()) {
-    for (Variable* var : *scope->locals()) {
-      if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {
-        RestoreDataForVariable(var, index_ptr);
-      }
+  for (Variable* var : *scope->locals()) {
+    if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {
+      RestoreDataForVariable(var, index_ptr);
     }
   }
 
