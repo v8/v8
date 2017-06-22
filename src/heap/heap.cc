@@ -1130,9 +1130,16 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   Object** dst = array->data_start() + dst_index;
   Object** src = array->data_start() + src_index;
   if (FLAG_concurrent_marking && concurrent_marking()->IsTaskPending()) {
-    for (int i = 0; i < len; i++) {
-      base::AsAtomicWord::Relaxed_Store(
-          dst + i, base::AsAtomicWord::Relaxed_Load(src + i));
+    if (dst < src) {
+      for (int i = 0; i < len; i++) {
+        base::AsAtomicWord::Relaxed_Store(
+            dst + i, base::AsAtomicWord::Relaxed_Load(src + i));
+      }
+    } else {
+      for (int i = len - 1; i >= 0; i--) {
+        base::AsAtomicWord::Relaxed_Store(
+            dst + i, base::AsAtomicWord::Relaxed_Load(src + i));
+      }
     }
   } else {
     MemMove(dst, src, len * kPointerSize);
@@ -3305,7 +3312,8 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        ObjectMarking::IsBlackOrGrey(filler, MarkingState::Internal(filler))) {
+        ObjectMarking::IsBlackOrGrey<IncrementalMarking::kAtomicity>(
+            filler, MarkingState::Internal(filler))) {
       Page* page = Page::FromAddress(new_end);
       MarkingState::Internal(page).bitmap()->ClearRange(
           page->AddressToMarkbitIndex(new_end),
