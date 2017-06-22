@@ -35,7 +35,7 @@
 #define V8_HOST_ARCH_32_BIT 1
 #elif defined(__PPC__) || defined(_ARCH_PPC)
 #define V8_HOST_ARCH_PPC 1
-#if defined(__PPC64__) || defined(_ARCH_PPC64) || defined(_ARCH_PPCGR)
+#if defined(__PPC64__) || defined(_ARCH_PPC64)
 #define V8_HOST_ARCH_64_BIT 1
 #else
 #define V8_HOST_ARCH_32_BIT 1
