@@ -986,7 +986,7 @@ void LazyCompilationOrchestrator::CompileFunction(
                              &sig_tables);
   uint8_t* module_start = compiled_module->module_bytes()->GetChars();
   const WasmFunction* func = &module_env.module->functions[func_index];
-  wasm::FunctionBody body{func->sig, module_start,
+  wasm::FunctionBody body{func->sig, func->code.offset(),
                           module_start + func->code.offset(),
                           module_start + func->code.end_offset()};
   // TODO(wasm): Refactor this to only get the name if it is really needed for

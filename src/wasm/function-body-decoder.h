@@ -30,14 +30,14 @@ struct WasmModule;  // forward declaration of module interface.
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {
   FunctionSig* sig;   // function signature
-  const byte* base;   // base of the module bytes, for error reporting
+  uint32_t offset;    // offset in the module bytes, for error reporting
   const byte* start;  // start of the function body
   const byte* end;    // end of the function body
 };
 
 static inline FunctionBody FunctionBodyForTesting(const byte* start,
                                                   const byte* end) {
-  return {nullptr, start, start, end};
+  return {nullptr, 0, start, end};
 }
 
 // A {DecodeResult} only stores the failure / success status, but no data. Thus
@@ -60,14 +60,14 @@ void PrintRawWasmCode(const byte* start, const byte* end);
 inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                    const WasmModule* module, FunctionSig* sig,
                                    const byte* start, const byte* end) {
-  FunctionBody body = {sig, nullptr, start, end};
+  FunctionBody body = {sig, 0, start, end};
   return VerifyWasmCode(allocator, module, body);
 }
 
 inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                                  TFBuilder* builder, FunctionSig* sig,
                                  const byte* start, const byte* end) {
-  FunctionBody body = {sig, nullptr, start, end};
+  FunctionBody body = {sig, 0, start, end};
   return BuildTFGraph(allocator, builder, body);
 }
 

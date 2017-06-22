@@ -328,7 +328,7 @@ void ModuleCompiler::ValidateSequentially(ModuleBytesEnv* module_env,
     if (func.imported) continue;
 
     const byte* base = module_env->wire_bytes.start();
-    FunctionBody body{func.sig, base, base + func.code.offset(),
+    FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
                       base + func.code.end_offset()};
     DecodeResult result = VerifyWasmCode(isolate_->allocator(),
                                          module_env->module_env.module, body);

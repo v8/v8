@@ -158,8 +158,8 @@ struct Control {
 class WasmDecoder : public Decoder {
  public:
   WasmDecoder(const WasmModule* module, FunctionSig* sig, const byte* start,
-              const byte* end)
-      : Decoder(start, end),
+              const byte* end, uint32_t buffer_offset = 0)
+      : Decoder(start, end, buffer_offset),
         module_(module),
         sig_(sig),
         local_types_(nullptr) {}
@@ -656,18 +656,17 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   bool TraceFailed() {
-    TRACE("wasm-error module+%-6d func+%d: %s\n\n",
-          baserel(start_ + error_offset_), error_offset_, error_msg_.c_str());
+    TRACE("wasm-error module+%-6d func+%d: %s\n\n", error_offset_,
+          GetBufferRelativeOffset(error_offset_), error_msg_.c_str());
     return false;
   }
 
  private:
   WasmFullDecoder(Zone* zone, const wasm::WasmModule* module,
                   TFBuilder* builder, const FunctionBody& body)
-      : WasmDecoder(module, body.sig, body.start, body.end),
+      : WasmDecoder(module, body.sig, body.start, body.end, body.offset),
         zone_(zone),
         builder_(builder),
-        base_(body.base),
         local_type_vec_(zone),
         stack_(zone),
         control_(zone),
@@ -680,7 +679,6 @@ class WasmFullDecoder : public WasmDecoder {
 
   Zone* zone_;
   TFBuilder* builder_;
-  const byte* base_;
 
   SsaEnv* ssa_env_;
 
@@ -763,9 +761,9 @@ class WasmFullDecoder : public WasmDecoder {
 
   // Decodes the body of a function.
   void DecodeFunctionBody() {
-    TRACE("wasm-decode %p...%p (module+%d, %d bytes) %s\n",
-          reinterpret_cast<const void*>(start_),
-          reinterpret_cast<const void*>(end_), baserel(pc_),
+    TRACE("wasm-decode %p...%p (module+%u, %d bytes) %s\n",
+          reinterpret_cast<const void*>(start()),
+          reinterpret_cast<const void*>(end()), pc_offset(),
           static_cast<int>(end_ - start_), builder_ ? "graph building" : "");
 
     {
@@ -1709,10 +1707,6 @@ class WasmFullDecoder : public WasmDecoder {
     Value val = stack_.back();
     stack_.pop_back();
     return val;
-  }
-
-  int baserel(const byte* ptr) {
-    return base_ ? static_cast<int>(ptr - base_) : 0;
   }
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - start_); }

@@ -945,7 +945,7 @@ class ModuleDecoder : public Decoder {
       os << "Verifying wasm function " << func_name << std::endl;
     }
     FunctionBody body = {
-        function->sig, start_,
+        function->sig, function->code.offset(),
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
     DecodeResult result = VerifyWasmCode(
