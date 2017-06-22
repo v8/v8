@@ -89,7 +89,6 @@ class WasmCompilationUnit final {
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
   size_t memory_cost_ = 0;
-  void ExecuteCompilationInternal();
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

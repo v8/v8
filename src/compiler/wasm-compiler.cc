@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/assembler-inl.h"
+#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/builtins/builtins.h"
@@ -3968,22 +3969,14 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
       func_index_(index) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
+  // TODO(karlschimpf): Make this work when asynchronous.
+  // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+  base::Optional<HistogramTimerScope> wasm_compile_function_time_scope;
   if (is_sync_) {
-    // TODO(karlschimpf): Make this work when asynchronous.
-    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-    HistogramTimerScope wasm_compile_function_time_scope(
+    wasm_compile_function_time_scope.emplace(
         isolate_->counters()->wasm_compile_function_time());
   }
-  ExecuteCompilationInternal();
-  // Record the memory cost this unit places on the system until
-  // it is finalized. That may be "0" in error cases.
-  if (job_) {
-    size_t cost = job_->AllocatedMemory();
-    set_memory_cost(cost);
-  }
-}
 
-void WasmCompilationUnit::ExecuteCompilationInternal() {
   if (FLAG_trace_wasm_compiler) {
     if (func_name_.start() != nullptr) {
       PrintF("Compiling wasm function %d:'%.*s'\n\n", func_index(),
@@ -3996,63 +3989,75 @@ void WasmCompilationUnit::ExecuteCompilationInternal() {
   double decode_ms = 0;
   size_t node_count = 0;
 
-  Zone graph_zone(isolate_->allocator(), ZONE_NAME);
-  jsgraph_ = new (&graph_zone) JSGraph(
-      isolate_, new (&graph_zone) Graph(&graph_zone),
-      new (&graph_zone) CommonOperatorBuilder(&graph_zone), nullptr, nullptr,
-      new (&graph_zone) MachineOperatorBuilder(
-          &graph_zone, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements()));
-  SourcePositionTable* source_positions = BuildGraphForWasmFunction(&decode_ms);
+  // Scope for the {graph_zone}.
+  {
+    Zone graph_zone(isolate_->allocator(), ZONE_NAME);
+    jsgraph_ = new (&graph_zone) JSGraph(
+        isolate_, new (&graph_zone) Graph(&graph_zone),
+        new (&graph_zone) CommonOperatorBuilder(&graph_zone), nullptr, nullptr,
+        new (&graph_zone) MachineOperatorBuilder(
+            &graph_zone, MachineType::PointerRepresentation(),
+            InstructionSelector::SupportedMachineOperatorFlags(),
+            InstructionSelector::AlignmentRequirements()));
+    SourcePositionTable* source_positions =
+        BuildGraphForWasmFunction(&decode_ms);
 
-  if (graph_construction_result_.failed()) {
-    ok_ = false;
-    return;
+    if (graph_construction_result_.failed()) {
+      ok_ = false;
+      return;
+    }
+
+    base::ElapsedTimer pipeline_timer;
+    if (FLAG_trace_wasm_decode_time) {
+      node_count = jsgraph_->graph()->NodeCount();
+      pipeline_timer.Start();
+    }
+
+    compilation_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
+
+    // Run the compiler pipeline to generate machine code.
+    CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
+        compilation_zone_.get(), func_body_.sig);
+    if (jsgraph_->machine()->Is32()) {
+      descriptor = module_env_->GetI32WasmCallDescriptor(
+          compilation_zone_.get(), descriptor);
+    }
+    info_.reset(new CompilationInfo(
+        GetDebugName(compilation_zone_.get(), func_name_, func_index_),
+        isolate_, compilation_zone_.get(),
+        Code::ComputeFlags(Code::WASM_FUNCTION)));
+    ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions(
+        compilation_zone_.get());
+
+    job_.reset(Pipeline::NewWasmCompilationJob(
+        info_.get(), jsgraph_, descriptor, source_positions,
+        &protected_instructions, !module_env_->module->is_wasm()));
+    ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
+    // TODO(bradnelson): Improve histogram handling of size_t.
+    if (is_sync_)
+      // TODO(karlschimpf): Make this work when asynchronous.
+      // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+      isolate_->counters()
+          ->wasm_compile_function_peak_memory_bytes()
+          ->AddSample(
+              static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
+
+    if (FLAG_trace_wasm_decode_time) {
+      double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
+      PrintF(
+          "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
+          "%0.3f ms pipeline\n",
+          static_cast<unsigned>(func_body_.end - func_body_.start), decode_ms,
+          node_count, pipeline_ms);
+    }
+    // The graph zone is about to get out of scope. Avoid invalid references.
+    jsgraph_ = nullptr;
   }
 
-  base::ElapsedTimer pipeline_timer;
-  if (FLAG_trace_wasm_decode_time) {
-    node_count = jsgraph_->graph()->NodeCount();
-    pipeline_timer.Start();
-  }
-
-  compilation_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
-
-  // Run the compiler pipeline to generate machine code.
-  CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
-      compilation_zone_.get(), func_body_.sig);
-  if (jsgraph_->machine()->Is32()) {
-    descriptor = module_env_->GetI32WasmCallDescriptor(compilation_zone_.get(),
-                                                       descriptor);
-  }
-  info_.reset(new CompilationInfo(
-      GetDebugName(compilation_zone_.get(), func_name_, func_index_), isolate_,
-      compilation_zone_.get(), Code::ComputeFlags(Code::WASM_FUNCTION)));
-  ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions(
-      compilation_zone_.get());
-
-  job_.reset(Pipeline::NewWasmCompilationJob(
-      info_.get(), jsgraph_, descriptor, source_positions,
-      &protected_instructions, !module_env_->module->is_wasm()));
-  ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
-  // TODO(bradnelson): Improve histogram handling of size_t.
-  if (is_sync_)
-    // TODO(karlschimpf): Make this work when asynchronous.
-    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-    isolate_->counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
-        static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
-
-  if (FLAG_trace_wasm_decode_time) {
-    double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
-    PrintF(
-        "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
-        "%0.3f ms pipeline\n",
-        static_cast<unsigned>(func_body_.end - func_body_.start), decode_ms,
-        node_count, pipeline_ms);
-  }
-  // The graph zone is about to get out of scope. Avoid invalid references.
-  jsgraph_ = nullptr;
+  // Record the memory cost this unit places on the system until
+  // it is finalized.
+  size_t cost = job_->AllocatedMemory();
+  set_memory_cost(cost);
 }
 
 Handle<Code> WasmCompilationUnit::FinishCompilation(
