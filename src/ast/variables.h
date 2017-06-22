@@ -22,6 +22,8 @@ class Variable final : public ZoneObject {
            VariableKind kind, InitializationFlag initialization_flag,
            MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
+  explicit Variable(Variable* other);
+
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not
   // be the script scope). scope() is NULL in that case. Currently the

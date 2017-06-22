@@ -4326,9 +4326,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // parameters.
         int dummy_num_parameters = -1;
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
-        LazyParsingResult result =
-            impl()->SkipFunction(kind, formal_parameters.scope,
-                                 &dummy_num_parameters, false, false, CHECK_OK);
+        LazyParsingResult result = impl()->SkipFunction(
+            nullptr, kind, FunctionLiteral::kAnonymousExpression,
+            formal_parameters.scope, &dummy_num_parameters, false, false,
+            CHECK_OK);
         DCHECK_NE(result, kLazyParsingAborted);
         USE(result);
         formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,

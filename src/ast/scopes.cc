@@ -1554,6 +1554,11 @@ void DeclarationScope::AnalyzePartially(
       arguments_ = nullptr;
     }
 
+    // Migrate function_ to the right Zone.
+    if (function_ != nullptr) {
+      function_ = ast_node_factory->CopyVariable(function_);
+    }
+
     if (need_preparsed_scope_data) {
       // Store the information needed for allocating the locals of this scope
       // and its inner scopes.

@@ -3212,6 +3212,10 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) VariableProxy(proxy);
   }
 
+  Variable* CopyVariable(Variable* variable) {
+    return new (zone_) Variable(variable);
+  }
+
   Property* NewProperty(Expression* obj, Expression* key, int pos) {
     return new (zone_) Property(obj, key, pos);
   }

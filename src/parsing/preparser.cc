@@ -131,7 +131,9 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
 }
 
 PreParser::PreParseResult PreParser::PreParseFunction(
-    FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
+    const AstRawString* function_name, FunctionKind kind,
+    FunctionLiteral::FunctionType function_type,
+    DeclarationScope* function_scope, bool parsing_module,
     bool is_inner_function, bool may_abort, int* use_counts) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
@@ -208,6 +210,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   }
 
   if (!IsArrowFunction(kind) && track_unresolved_variables_) {
+    CreateFunctionNameAssignment(function_name, function_type, function_scope);
+
     // Declare arguments after parsing the function since lexical 'arguments'
     // masks the arguments object. Declare arguments before declaring the
     // function var since the arguments object masks 'function arguments'.

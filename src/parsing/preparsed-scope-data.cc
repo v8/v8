@@ -81,6 +81,12 @@ void PreParsedScopeData::SaveData(Scope* scope) {
   size_t data_end_index = backing_store_.size();
   backing_store_.push_back(0);
 
+  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+    Variable* function = scope->AsDeclarationScope()->function_var();
+    if (function != nullptr) {
+      SaveDataForVariable(function);
+    }
+  }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
       if (IsDeclaredVariableMode(var->mode())) {
@@ -166,6 +172,12 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
   uint32_t data_end_index = backing_store_[index++];
   USE(data_end_index);
 
+  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+    Variable* function = scope->AsDeclarationScope()->function_var();
+    if (function != nullptr) {
+      RestoreDataForVariable(function, index_ptr);
+    }
+  }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
       if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {

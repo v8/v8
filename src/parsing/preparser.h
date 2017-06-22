@@ -925,7 +925,9 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseFunction(FunctionKind kind,
+  PreParseResult PreParseFunction(const AstRawString* function_name,
+                                  FunctionKind kind,
+                                  FunctionLiteral::FunctionType function_type,
                                   DeclarationScope* function_scope,
                                   bool parsing_module,
                                   bool track_unresolved_variables,
@@ -947,11 +949,11 @@ class PreParser : public ParserBase<PreParser> {
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
   bool parse_lazily() const { return false; }
 
-  V8_INLINE LazyParsingResult SkipFunction(FunctionKind kind,
-                                           DeclarationScope* function_scope,
-                                           int* num_parameters,
-                                           bool is_inner_function,
-                                           bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult
+  SkipFunction(const AstRawString* name, FunctionKind kind,
+               FunctionLiteral::FunctionType function_type,
+               DeclarationScope* function_scope, int* num_parameters,
+               bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
   }
   Expression ParseFunctionLiteral(
@@ -1081,10 +1083,27 @@ class PreParser : public ParserBase<PreParser> {
     ParseStatementList(body, Token::RBRACE, ok);
   }
   V8_INLINE void CreateFunctionNameAssignment(
+      const AstRawString* function_name,
+      FunctionLiteral::FunctionType function_type,
+      DeclarationScope* function_scope) {
+    if (track_unresolved_variables_ &&
+        function_type == FunctionLiteral::kNamedExpression) {
+      if (function_scope->LookupLocal(function_name) == nullptr) {
+        DCHECK_EQ(function_scope, scope());
+        Variable* fvar = function_scope->DeclareFunctionVar(function_name);
+        fvar->set_is_used();
+      }
+    }
+  }
+
+  V8_INLINE void CreateFunctionNameAssignment(
       PreParserIdentifier function_name, int pos,
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, PreParserStatementList result,
-      int index) {}
+      int index) {
+    CreateFunctionNameAssignment(function_name.string_, function_type,
+                                 function_scope);
+  }
 
   V8_INLINE PreParserExpression RewriteDoExpression(PreParserStatement body,
                                                     int pos, bool* ok) {

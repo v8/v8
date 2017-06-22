@@ -93,3 +93,23 @@ function lazy_top_level(ctxt_alloc_param) {
 
 lazy_top_level(10);
 assertEquals(34, result);
+
+// Tests for using a function name in an inner function.
+var TestUsingNamedExpressionName1 = function this_is_the_name() {
+  function inner() {
+    this_is_the_name;
+  }
+  inner();
+}
+TestUsingNamedExpressionName1();
+
+function TestUsingNamedExpressionName2() {
+  let f = function this_is_the_name() {
+    function inner() {
+      this_is_the_name;
+    }
+    inner();
+  }
+  f();
+}
+TestUsingNamedExpressionName2();

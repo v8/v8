@@ -29,6 +29,7 @@ enum SkipTests {
 TEST(PreParserScopeAnalysis) {
   i::FLAG_lazy_inner_functions = true;
   i::FLAG_experimental_preparser_scope_analysis = true;
+  i::FLAG_aggressive_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -69,9 +70,22 @@ TEST(PreParserScopeAnalysis) {
        false,
        {0, 0}},
 
+      {"(function outer() { let test2 = function test(%s) { %s } })();",
+       false,
+       false,
+       false,
+       {0, 0}},
+
       // Test function deeper:
       {"(function outer() { function inner() { "
        "function test(%s) { %s } } })();",
+       false,
+       false,
+       false,
+       {0, 0}},
+
+      {"(function outer() { function inner() { "
+       "let test2 = function test(%s) { %s } } })();",
        false,
        false,
        false,
@@ -163,6 +177,8 @@ TEST(PreParserScopeAnalysis) {
       {"var1 = 5;"},
       {"if (true) {}"},
       {"function f1() {}"},
+      {"test;"},
+      {"test2;"},
 
       // Var declarations and assignments.
       {"var var1;"},
