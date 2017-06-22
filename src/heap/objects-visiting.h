@@ -142,105 +142,6 @@ class FixedBodyVisitor : public AllStatic {
   }
 };
 
-
-// Base class for visitors used for a linear new space iteration.
-// IterateBody returns size of visited object.
-// Certain types of objects (i.e. Code objects) are not handled
-// by dispatch table of this visitor because they cannot appear
-// in the new space.
-//
-// This class is intended to be used in the following way:
-//
-//   class SomeVisitor : public StaticNewSpaceVisitor<SomeVisitor> {
-//     ...
-//   }
-//
-// This is an example of Curiously recurring template pattern
-// (see http://en.wikipedia.org/wiki/Curiously_recurring_template_pattern).
-// We use CRTP to guarantee aggressive compile time optimizations (i.e.
-// inlining and specialization of StaticVisitor::VisitPointers methods).
-template <typename StaticVisitor>
-class StaticNewSpaceVisitor : public StaticVisitorBase {
- public:
-  static void Initialize();
-
-  INLINE(static int IterateBody(Map* map, HeapObject* obj)) {
-    return table_.GetVisitor(map)(map, obj);
-  }
-
-  INLINE(static void VisitPointers(Heap* heap, HeapObject* object,
-                                   Object** start, Object** end)) {
-    for (Object** p = start; p < end; p++) {
-      StaticVisitor::VisitPointer(heap, object, p);
-    }
-  }
-
-  inline static void VisitCodeEntry(Heap* heap, HeapObject* object,
-                                    Address entry_address) {
-    // Code is not in new space.
-  }
-
- private:
-  inline static int UnreachableVisitor(Map* map, HeapObject* object) {
-    UNREACHABLE();
-  }
-
-  INLINE(static int VisitByteArray(Map* map, HeapObject* object)) {
-    return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
-  }
-
-  INLINE(static int VisitFixedDoubleArray(Map* map, HeapObject* object)) {
-    int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
-    return FixedDoubleArray::SizeFor(length);
-  }
-
-  INLINE(static int VisitSeqOneByteString(Map* map, HeapObject* object)) {
-    return SeqOneByteString::cast(object)
-        ->SeqOneByteStringSize(map->instance_type());
-  }
-
-  INLINE(static int VisitSeqTwoByteString(Map* map, HeapObject* object)) {
-    return SeqTwoByteString::cast(object)
-        ->SeqTwoByteStringSize(map->instance_type());
-  }
-
-  INLINE(static int VisitFreeSpace(Map* map, HeapObject* object)) {
-    return FreeSpace::cast(object)->size();
-  }
-
-  class DataObjectVisitor {
-   public:
-    template <int object_size>
-    static inline int VisitSpecialized(Map* map, HeapObject* object) {
-      return object_size;
-    }
-
-    INLINE(static int Visit(Map* map, HeapObject* object)) {
-      return map->instance_size();
-    }
-  };
-
-  typedef FlexibleBodyVisitor<StaticVisitor, StructBodyDescriptor, int>
-      StructVisitor;
-
-  typedef FlexibleBodyVisitor<StaticVisitor, JSObject::BodyDescriptor, int>
-      JSObjectVisitor;
-
-  // Visitor for JSObjects without unboxed double fields.
-  typedef FlexibleBodyVisitor<StaticVisitor, JSObject::FastBodyDescriptor, int>
-      JSObjectFastVisitor;
-
-  typedef int (*Callback)(Map* map, HeapObject* object);
-
-  static VisitorDispatchTable<Callback> table_;
-};
-
-
-template <typename StaticVisitor>
-VisitorDispatchTable<typename StaticNewSpaceVisitor<StaticVisitor>::Callback>
-    StaticNewSpaceVisitor<StaticVisitor>::table_;
-
-
 // Base class for visitors used to transitively mark the entire heap.
 // IterateBody returns nothing.
 // Certain types of objects might not be handled by this base class and
@@ -406,6 +307,32 @@ class HeapVisitor : public ObjectVisitor {
   virtual ResultType VisitJSApiObject(Map* map, JSObject* object);
   virtual ResultType VisitStruct(Map* map, HeapObject* object);
   virtual ResultType VisitFreeSpace(Map* map, FreeSpace* object);
+};
+
+class NewSpaceVisitor : public HeapVisitor<int, NewSpaceVisitor> {
+ public:
+  void VisitCodeEntry(JSFunction* host, Address code_entry) final {
+    // Code is not in new space.
+  }
+
+  // Special cases for young generation.
+
+  inline int VisitJSFunction(Map* map, JSFunction* object) final;
+  inline int VisitNativeContext(Map* map, Context* object) final;
+
+  int VisitJSApiObject(Map* map, JSObject* object) final {
+    return VisitJSObject(map, object);
+  }
+
+  int VisitBytecodeArray(Map* map, BytecodeArray* object) final {
+    UNREACHABLE();
+    return 0;
+  }
+
+  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) final {
+    UNREACHABLE();
+    return 0;
+  }
 };
 
 class WeakObjectRetainer;

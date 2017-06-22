@@ -21,111 +21,6 @@ Callback VisitorDispatchTable<Callback>::GetVisitor(Map* map) {
   return reinterpret_cast<Callback>(callbacks_[map->visitor_id()]);
 }
 
-
-template <typename StaticVisitor>
-void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
-  table_.Register(
-      kVisitShortcutCandidate,
-      &FixedBodyVisitor<StaticVisitor, ConsString::BodyDescriptor, int>::Visit);
-
-  table_.Register(
-      kVisitConsString,
-      &FixedBodyVisitor<StaticVisitor, ConsString::BodyDescriptor, int>::Visit);
-
-  table_.Register(
-      kVisitThinString,
-      &FixedBodyVisitor<StaticVisitor, ThinString::BodyDescriptor, int>::Visit);
-
-  table_.Register(kVisitSlicedString,
-                  &FixedBodyVisitor<StaticVisitor, SlicedString::BodyDescriptor,
-                                    int>::Visit);
-
-  table_.Register(
-      kVisitCell,
-      &FixedBodyVisitor<StaticVisitor, Cell::BodyDescriptor, int>::Visit);
-
-  table_.Register(
-      kVisitSymbol,
-      &FixedBodyVisitor<StaticVisitor, Symbol::BodyDescriptor, int>::Visit);
-
-  table_.Register(kVisitFixedArray,
-                  &FlexibleBodyVisitor<StaticVisitor,
-                                       FixedArray::BodyDescriptor, int>::Visit);
-
-  table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
-  table_.Register(
-      kVisitFixedTypedArrayBase,
-      &FlexibleBodyVisitor<StaticVisitor, FixedTypedArrayBase::BodyDescriptor,
-                           int>::Visit);
-
-  table_.Register(
-      kVisitFixedFloat64Array,
-      &FlexibleBodyVisitor<StaticVisitor, FixedTypedArrayBase::BodyDescriptor,
-                           int>::Visit);
-
-  table_.Register(
-      kVisitNativeContext,
-      &FixedBodyVisitor<StaticVisitor, Context::BodyDescriptor, int>::Visit);
-
-  table_.Register(kVisitByteArray, &VisitByteArray);
-
-  table_.Register(
-      kVisitSharedFunctionInfo,
-      &FixedBodyVisitor<StaticVisitor, SharedFunctionInfo::BodyDescriptor,
-                        int>::Visit);
-
-  table_.Register(kVisitSeqOneByteString, &VisitSeqOneByteString);
-
-  table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
-
-  // Don't visit code entry. We are using this visitor only during scavenges.
-  table_.Register(
-      kVisitJSFunction,
-      &FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeak,
-                           int>::Visit);
-
-  table_.Register(
-      kVisitJSArrayBuffer,
-      &FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor,
-                           int>::Visit);
-
-  table_.Register(kVisitFreeSpace, &VisitFreeSpace);
-
-  table_.Register(
-      kVisitJSWeakCollection,
-      &FlexibleBodyVisitor<StaticVisitor, JSWeakCollection::BodyDescriptor,
-                           int>::Visit);
-
-  table_.Register(
-      kVisitSmallOrderedHashMap,
-      &FlexibleBodyVisitor<
-          StaticVisitor,
-          SmallOrderedHashTable<SmallOrderedHashMap>::BodyDescriptor,
-          int>::Visit);
-
-  table_.Register(
-      kVisitSmallOrderedHashSet,
-      &FlexibleBodyVisitor<
-          StaticVisitor,
-          SmallOrderedHashTable<SmallOrderedHashSet>::BodyDescriptor,
-          int>::Visit);
-
-  table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
-
-  table_.Register(kVisitDataObject, &DataObjectVisitor::Visit);
-
-  table_.Register(kVisitJSObjectFast, &JSObjectFastVisitor::Visit);
-  table_.Register(kVisitJSObject, &JSObjectVisitor::Visit);
-
-  // Not using specialized Api object visitor for newspace.
-  table_.Register(kVisitJSApiObject, &JSObjectVisitor::Visit);
-
-  table_.Register(kVisitStruct, &StructVisitor::Visit);
-
-  table_.Register(kVisitBytecodeArray, &UnreachableVisitor);
-  table_.Register(kVisitSharedFunctionInfo, &UnreachableVisitor);
-}
-
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitShortcutCandidate,
@@ -644,6 +539,22 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   if (!visitor->ShouldVisit(object)) return ResultType();
   visitor->VisitMapPointer(object, object->map_slot());
   return static_cast<ResultType>(FreeSpace::cast(object)->size());
+}
+
+int NewSpaceVisitor::VisitJSFunction(Map* map, JSFunction* object) {
+  if (!ShouldVisit(object)) return 0;
+  int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
+  VisitMapPointer(object, object->map_slot());
+  JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
+  return size;
+}
+
+int NewSpaceVisitor::VisitNativeContext(Map* map, Context* object) {
+  if (!ShouldVisit(object)) return 0;
+  int size = Context::BodyDescriptor::SizeOf(map, object);
+  VisitMapPointer(object, object->map_slot());
+  Context::BodyDescriptor::IterateBody(object, size, this);
+  return size;
 }
 
 }  // namespace internal

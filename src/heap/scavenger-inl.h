@@ -61,13 +61,14 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
   return REMOVE_SLOT;
 }
 
-// static
-void StaticScavengeVisitor::VisitPointer(Heap* heap, HeapObject* obj,
-                                         Object** p) {
-  Object* object = *p;
-  if (!heap->InNewSpace(object)) return;
-  Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),
-                            reinterpret_cast<HeapObject*>(object));
+void ScavengeVisitor::VisitPointers(HeapObject* host, Object** start,
+                                    Object** end) {
+  for (Object** p = start; p < end; p++) {
+    Object* object = *p;
+    if (!heap_->InNewSpace(object)) continue;
+    Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),
+                              reinterpret_cast<HeapObject*>(object));
+  }
 }
 
 }  // namespace internal

@@ -59,13 +59,14 @@ class RootScavengeVisitor : public RootVisitor {
   Heap* heap_;
 };
 
-
-// Helper class for turning the scavenger into an object visitor that is also
-// filtering out non-HeapObjects and objects which do not reside in new space.
-class StaticScavengeVisitor
-    : public StaticNewSpaceVisitor<StaticScavengeVisitor> {
+class ScavengeVisitor : public NewSpaceVisitor {
  public:
-  static inline void VisitPointer(Heap* heap, HeapObject* object, Object** p);
+  explicit ScavengeVisitor(Heap* heap) : heap_(heap) {}
+  inline void VisitPointers(HeapObject* host, Object** start,
+                            Object** end) final;
+
+ private:
+  Heap* heap_;
 };
 
 }  // namespace internal

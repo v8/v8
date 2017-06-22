@@ -2236,7 +2236,7 @@ class YoungGenerationMarkingVisitor final
     // Code is not in new space.
   }
 
-  // Special cases for young generation. Also see StaticNewSpaceVisitor.
+  // Special cases for young generation.
 
   int VisitJSFunction(Map* map, JSFunction* object) final {
     if (!ShouldVisit(object)) return 0;
