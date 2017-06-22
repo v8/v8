@@ -131,6 +131,18 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
   return result;
 }
 
+void ResetAllBlockCounts(SharedFunctionInfo* shared) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK(shared->HasCoverageInfo());
+
+  CoverageInfo* coverage_info =
+      CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
+
+  for (int i = 0; i < coverage_info->SlotCount(); i++) {
+    coverage_info->ResetBlockCount(i);
+  }
+}
+
 // Rewrite position singletons (produced by unconditional control flow
 // like return statements, and by continuation counters) into source
 // ranges that end at the next sibling range or the end of the parent
@@ -191,11 +203,12 @@ Coverage* Coverage::Collect(Isolate* isolate,
                             v8::debug::Coverage::Mode collectionMode) {
   SharedToCounterMap counter_map;
 
+  const bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
+
   switch (isolate->code_coverage_mode()) {
     case v8::debug::Coverage::kBlockCount:
     case v8::debug::Coverage::kPreciseBinary:
     case v8::debug::Coverage::kPreciseCount: {
-      bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
       // Feedback vectors are already listed to prevent losing them to GC.
       DCHECK(isolate->factory()->code_coverage_list()->IsArrayList());
       Handle<ArrayList> list =
@@ -285,8 +298,12 @@ Coverage* Coverage::Collect(Isolate* isolate,
 
         if (FLAG_block_coverage && info->HasCoverageInfo()) {
           CoverageFunction* function = &functions->back();
+          function->has_block_coverage = true;
           function->blocks = GetSortedBlockData(isolate, info);
           RewritePositionSingletonsToRanges(function);
+          // TODO(jgruber): Filter empty block ranges with empty parent ranges.
+          // We should probably unify handling of function & block ranges.
+          if (reset_count) ResetAllBlockCounts(info);
         }
       }
     }

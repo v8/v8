@@ -276,6 +276,7 @@ class V8_EXPORT_PRIVATE Coverage {
     uint32_t Count() const;
     MaybeLocal<String> Name() const;
     size_t BlockCount() const;
+    bool HasBlockCoverage() const;
     BlockData GetBlockData(size_t i) const;
 
    private:

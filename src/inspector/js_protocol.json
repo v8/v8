@@ -863,7 +863,8 @@
                 "description": "Coverage data for a JavaScript function.",
                 "properties": [
                     { "name": "functionName", "type": "string", "description": "JavaScript function name." },
-                    { "name": "ranges", "type": "array", "items": { "$ref": "CoverageRange" }, "description": "Source ranges inside the function with coverage data." }
+                    { "name": "ranges", "type": "array", "items": { "$ref": "CoverageRange" }, "description": "Source ranges inside the function with coverage data." },
+                    { "name": "isBlockCoverage", "type": "boolean", "description": "Whether coverage data for this function has block granularity." }
                 ],
                 "experimental": true
             },

@@ -9908,6 +9908,10 @@ size_t debug::Coverage::FunctionData::BlockCount() const {
   return function_->blocks.size();
 }
 
+bool debug::Coverage::FunctionData::HasBlockCoverage() const {
+  return function_->has_block_coverage;
+}
+
 debug::Coverage::BlockData debug::Coverage::FunctionData::GetBlockData(
     size_t i) const {
   return BlockData(&function_->blocks.at(i));

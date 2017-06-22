@@ -154,6 +154,7 @@ class CoverageInfo : public FixedArray {
 
   void InitializeSlot(int slot_index, int start_pos, int end_pos);
   void IncrementBlockCount(int slot_index);
+  void ResetBlockCount(int slot_index);
 
   static int FixedArrayLengthForSlotCount(int slot_count) {
     return slot_count * kSlotIndexCount + kFirstSlotIndex;

@@ -52,7 +52,7 @@ Running test: testPreciseCountCoverage
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -63,12 +63,22 @@ Running test: testPreciseCountCoverage
                     }
                     [1] : {
                         functionName : fib
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 15
                                 endOffset : 73
                                 startOffset : 1
+                            }
+                            [1] : {
+                                count : 8
+                                endOffset : 41
+                                startOffset : 32
+                            }
+                            [2] : {
+                                count : 7
+                                endOffset : 73
+                                startOffset : 41
                             }
                         ]
                     }
@@ -85,7 +95,7 @@ Running test: testPreciseCountCoverage
                     }
                     [3] : {
                         functionName : iife
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -102,7 +112,7 @@ Running test: testPreciseCountCoverage
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -350,7 +360,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -361,12 +371,22 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [1] : {
                         functionName : fib
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
                                 endOffset : 73
                                 startOffset : 1
+                            }
+                            [1] : {
+                                count : 8
+                                endOffset : 41
+                                startOffset : 32
+                            }
+                            [2] : {
+                                count : 7
+                                endOffset : 73
+                                startOffset : 41
                             }
                         ]
                     }
@@ -383,7 +403,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [3] : {
                         functionName : iife
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -400,7 +420,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -424,7 +444,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -435,12 +455,22 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [1] : {
                         functionName : fib
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
                                 endOffset : 73
                                 startOffset : 1
+                            }
+                            [1] : {
+                                count : 8
+                                endOffset : 41
+                                startOffset : 32
+                            }
+                            [2] : {
+                                count : 7
+                                endOffset : 73
+                                startOffset : 41
                             }
                         ]
                     }
@@ -457,7 +487,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [3] : {
                         functionName : iife
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -474,7 +504,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -558,7 +588,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -756,7 +786,7 @@ Running test: testPreciseCountCoveragePartial
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -767,7 +797,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [1] : {
                         functionName : outer
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -778,7 +808,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [2] : {
                         functionName : nested_0
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -789,7 +819,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [3] : {
                         functionName : nested_1
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -800,7 +830,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [4] : {
                         functionName : nested_2
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -811,7 +841,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [5] : {
                         functionName : nested_3
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -846,7 +876,7 @@ Running test: testPreciseCountCoveragePartial
                 functions : [
                     [0] : {
                         functionName : nested_1
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1
@@ -857,7 +887,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [1] : {
                         functionName : nested_2
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 0
@@ -874,7 +904,7 @@ Running test: testPreciseCountCoveragePartial
                 functions : [
                     [0] : {
                         functionName : 
-                        isBlockCoverage : false
+                        isBlockCoverage : true
                         ranges : [
                             [0] : {
                                 count : 1

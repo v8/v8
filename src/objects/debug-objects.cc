@@ -326,5 +326,12 @@ void CoverageInfo::IncrementBlockCount(int slot_index) {
   set(slot_start + kSlotBlockCountIndex, Smi::FromInt(old_count + 1));
 }
 
+void CoverageInfo::ResetBlockCount(int slot_index) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK_LT(slot_index, SlotCount());
+  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
+  set(slot_start + kSlotBlockCountIndex, Smi::kZero);
+}
+
 }  // namespace internal
 }  // namespace v8
