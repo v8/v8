@@ -228,6 +228,9 @@ namespace internal {
   TFC(Typeof, Typeof, 1)                                                       \
   TFC(GetSuperConstructor, Typeof, 1)                                          \
                                                                                \
+  /* Type conversions continuations */                                         \
+  TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter, 1)         \
+                                                                               \
   /* Handlers */                                                               \
   TFH(LoadICProtoArray, BUILTIN, kNoExtraICState, LoadICProtoArray)            \
   TFH(LoadICProtoArrayThrowIfNonexistent, BUILTIN, kNoExtraICState,            \

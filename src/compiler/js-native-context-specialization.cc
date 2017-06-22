@@ -161,6 +161,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   Node* constructor = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Check if the right hand side is a known {receiver}.
@@ -234,11 +235,22 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     access_builder.BuildCheckMaps(constructor, &effect, control,
                                   access_info.receiver_maps());
 
+    // Create a nested frame state inside the current method's most-recent frame
+    // state that will ensure that deopts that happen after this point will not
+    // fallback to the last Checkpoint--which would completely re-execute the
+    // instanceof logic--but rather create an activation of a version of the
+    // ToBoolean stub that finishes the remaining work of instanceof and returns
+    // to the caller without duplicating side-effects upon a lazy deopt.
+    Node* continuation_frame_state = CreateStubBuiltinContinuationFrameState(
+        jsgraph(), Builtins::kToBooleanLazyDeoptContinuation, context, nullptr,
+        0, frame_state, ContinuationFrameStateMode::LAZY);
+
     // Call the @@hasInstance handler.
     Node* target = jsgraph()->Constant(constant);
     node->InsertInput(graph()->zone(), 0, target);
     node->ReplaceInput(1, constructor);
     node->ReplaceInput(2, object);
+    node->ReplaceInput(4, continuation_frame_state);
     node->ReplaceInput(5, effect);
     NodeProperties::ChangeOp(
         node, javascript()->Call(3, CallFrequency(), VectorSlotPair(),

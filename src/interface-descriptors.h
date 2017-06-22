@@ -35,6 +35,7 @@ class PlatformInterfaceDescriptor;
   V(FastNewObject)                         \
   V(FastNewArguments)                      \
   V(TypeConversion)                        \
+  V(TypeConversionStackParameter)          \
   V(Typeof)                                \
   V(FastCloneRegExp)                       \
   V(FastCloneShallowArray)                 \
@@ -511,6 +512,14 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(TypeConversionDescriptor, CallInterfaceDescriptor)
 
   static const Register ArgumentRegister();
+};
+
+class TypeConversionStackParameterDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kArgument)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      TypeConversionStackParameterDescriptor, CallInterfaceDescriptor)
 };
 
 class ForInPrepareDescriptor final : public CallInterfaceDescriptor {

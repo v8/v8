@@ -110,11 +110,11 @@ Node* CreateBuiltinContinuationFrameStateCommon(
   FrameStateType frame_type =
       function.is_null() ? FrameStateType::kBuiltinContinuation
                          : FrameStateType::kJavaScriptBuiltinContinuation;
-  Handle<SharedFunctionInfo> shared(
-      Handle<SharedFunctionInfo>(function->shared()));
   const FrameStateFunctionInfo* state_info =
-      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
-                                           shared);
+      common->CreateFrameStateFunctionInfo(
+          frame_type, parameter_count, 0,
+          function.is_null() ? Handle<SharedFunctionInfo>()
+                             : Handle<SharedFunctionInfo>(function->shared()));
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
 
@@ -140,8 +140,12 @@ Node* CreateStubBuiltinContinuationFrameState(JSGraph* js_graph,
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
   std::vector<Node*> actual_parameters;
-  // Stack parameters first
-  for (int i = 0; i < descriptor.GetStackParameterCount(); ++i) {
+  // Stack parameters first. If the deoptimization is LAZY, the final parameter
+  // is added by the deoptimizer and isn't explicitly passed in the frame state.
+  int stack_parameter_count =
+      descriptor.GetRegisterParameterCount() -
+      (mode == ContinuationFrameStateMode::LAZY ? 1 : 0);
+  for (int i = 0; i < stack_parameter_count; ++i) {
     actual_parameters.push_back(
         parameters[descriptor.GetRegisterParameterCount() + i]);
   }
@@ -152,7 +156,7 @@ Node* CreateStubBuiltinContinuationFrameState(JSGraph* js_graph,
   }
 
   return CreateBuiltinContinuationFrameStateCommon(
-      js_graph, name, context, &actual_parameters[0],
+      js_graph, name, context, actual_parameters.data(),
       static_cast<int>(actual_parameters.size()), outer_frame_state,
       Handle<JSFunction>());
 }

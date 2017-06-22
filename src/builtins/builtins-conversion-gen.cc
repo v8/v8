@@ -259,6 +259,22 @@ TF_BUILTIN(ToBoolean, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
+// ES6 section 7.1.2 ToBoolean ( argument )
+// Requires parameter on stack so that it can be used as a continuation from a
+// LAZY deopt.
+TF_BUILTIN(ToBooleanLazyDeoptContinuation, CodeStubAssembler) {
+  Node* value = Parameter(Descriptor::kArgument);
+
+  Label return_true(this), return_false(this);
+  BranchIfToBooleanIsTrue(value, &return_true, &return_false);
+
+  BIND(&return_true);
+  Return(BooleanConstant(true));
+
+  BIND(&return_false);
+  Return(BooleanConstant(false));
+}
+
 TF_BUILTIN(ToLength, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 

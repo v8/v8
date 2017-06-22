@@ -1981,8 +1981,11 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
-           "  translating BuiltinContinuation to %s, stack param count %d\n",
-           Builtins::name(builtin_name), stack_param_count);
+           "  translating BuiltinContinuation to %s,"
+           " register param count %d,"
+           " stack param count %d\n",
+           Builtins::name(builtin_name), register_parameter_count,
+           stack_param_count);
   }
 
   unsigned output_frame_offset = output_frame_size;
@@ -3203,7 +3206,6 @@ TranslatedFrame TranslatedFrame::ConstructStubFrame(
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
     BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
-  base::OS::DebugBreak();
   TranslatedFrame frame(kBuiltinContinuation, shared_info->GetIsolate(),
                         shared_info, height);
   frame.node_id_ = bailout_id;
@@ -3337,8 +3339,11 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
                bailout_id.ToInt(), height);
       }
+      // Add one to the height to account for the context which was implicitly
+      // added to the translation during code generation.
+      int height_with_context = height + 1;
       return TranslatedFrame::BuiltinContinuationFrame(bailout_id, shared_info,
-                                                       height);
+                                                       height_with_context);
     }
 
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
@@ -3353,8 +3358,11 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
                bailout_id.ToInt(), height);
       }
+      // Add one to the height to account for the context which was implicitly
+      // added to the translation during code generation.
+      int height_with_context = height + 1;
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
-          bailout_id, shared_info, height + 1);
+          bailout_id, shared_info, height_with_context);
     }
 
     case Translation::GETTER_STUB_FRAME: {
