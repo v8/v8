@@ -374,8 +374,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
   __ Call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 
-  if ((code->kind() == Code::BINARY_OP_IC) ||
-      (code->kind() == Code::COMPARE_IC)) {
+  if ((code->kind() == Code::COMPARE_IC)) {
     // Signal that we don't inline smi code before these stubs in the
     // optimizing code generator.
     InlineSmiCheckInfo::EmitNotInlined(masm());
@@ -1670,8 +1669,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->right()).is(x0));
   DCHECK(ToRegister(instr->result()).is(x0));
 
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), instr->op()).code();
-  CallCode(code, RelocInfo::CODE_TARGET, instr);
+  UNREACHABLE();
 }
 
 

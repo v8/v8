@@ -429,13 +429,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // of the stack and the right one in the accumulator.
   void EmitBinaryOp(BinaryOperation* expr, Token::Value op);
 
-  // Helper functions for generating inlined smi code for certain
-  // binary operations.
-  void EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                             Token::Value op,
-                             Expression* left,
-                             Expression* right);
-
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator. slot is only used if FLAG_vector_stores
   // is true.

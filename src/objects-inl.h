@@ -3839,7 +3839,7 @@ bool Code::IsCodeStubOrIC() {
 }
 
 ExtraICState Code::extra_ic_state() {
-  DCHECK(is_binary_op_stub() || is_compare_ic_stub() || is_debug_stub());
+  DCHECK(is_compare_ic_stub() || is_debug_stub());
   return ExtractExtraICStateFromFlags(flags());
 }
 
@@ -4158,7 +4158,6 @@ bool Code::is_debug_stub() {
 }
 bool Code::is_handler() { return kind() == HANDLER; }
 bool Code::is_stub() { return kind() == STUB; }
-bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
 bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
 bool Code::is_optimized_code() { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() { return kind() == WASM_FUNCTION; }

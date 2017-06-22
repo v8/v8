@@ -58,8 +58,8 @@ void IC::SetTargetAtAddress(Address address, Code* target,
                             Address constant_pool) {
   if (AddressIsDeoptimizedCode(target->GetIsolate(), address)) return;
 
-  // Only these two old-style ICs still do code patching.
-  DCHECK(target->is_binary_op_stub() || target->is_compare_ic_stub());
+  // Only one old-style ICs still does code patching.
+  DCHECK(target->is_compare_ic_stub());
 
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);

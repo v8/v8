@@ -725,7 +725,7 @@ class CompareICNexus final : public FeedbackNexus {
   CompareOperationHint GetCompareOperationFeedback() const;
 
   int ExtractMaps(MapHandles* maps) const final {
-    // BinaryOpICs don't record map feedback.
+    // CompareICs don't record map feedback.
     return 0;
   }
   MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {

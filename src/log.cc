@@ -1380,22 +1380,6 @@ void Logger::CompareIC(const Address pc, int line, int column, Code* stub,
   msg.WriteToLogFile();
 }
 
-void Logger::BinaryOpIC(const Address pc, int line, int column, Code* stub,
-                        const char* old_state, const char* new_state,
-                        AllocationSite* allocation_site) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("BinaryOpIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",%d,%d,", line, column);
-  msg.AppendAddress(reinterpret_cast<Address>(stub));
-  msg.Append(",%s,%s,", old_state, new_state);
-  if (allocation_site != nullptr) {
-    msg.AppendAddress(reinterpret_cast<Address>(allocation_site));
-  }
-  msg.WriteToLogFile();
-}
-
 void Logger::PatchIC(const Address pc, const Address test, int delta) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
   Log::MessageBuilder msg(log_);
@@ -1514,7 +1498,6 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log this later using LogCompiledFunctions.
     case AbstractCode::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case AbstractCode::BINARY_OP_IC:    // fall through
     case AbstractCode::COMPARE_IC:      // fall through
 
     case AbstractCode::STUB:

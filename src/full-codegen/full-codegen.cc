@@ -781,11 +781,7 @@ void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   VisitForAccumulatorValue(right);
 
   SetExpressionPosition(expr);
-  if (ShouldInlineSmiCase(op)) {
-    EmitInlineSmiBinaryOp(expr, op, left, right);
-  } else {
-    EmitBinaryOp(expr, op);
-  }
+  EmitBinaryOp(expr, op);
 }
 
 void FullCodeGenerator::VisitProperty(Property* expr) {

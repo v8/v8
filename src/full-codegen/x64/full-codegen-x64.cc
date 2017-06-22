@@ -1344,14 +1344,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     VisitForAccumulatorValue(expr->value());
 
     AccumulatorValueContext context(this);
-    if (ShouldInlineSmiCase(op)) {
-      EmitInlineSmiBinaryOp(expr->binary_operation(),
-                            op,
-                            expr->target(),
-                            expr->value());
-    } else {
-      EmitBinaryOp(expr->binary_operation(), op);
-    }
+    EmitBinaryOp(expr->binary_operation(), op);
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -1401,72 +1394,12 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                                              Token::Value op,
-                                              Expression* left,
-                                              Expression* right) {
-  // Do combined smi check of the operands. Left operand is on the
-  // stack (popped into rdx). Right operand is in rax but moved into
-  // rcx to make the shifts easier.
-  Label done, stub_call, smi_case;
-  PopOperand(rdx);
-  __ movp(rcx, rax);
-  __ orp(rax, rdx);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(rax, &smi_case, Label::kNear);
-
-  __ bind(&stub_call);
-  __ movp(rax, rcx);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  CallIC(code);
-  patch_site.EmitPatchInfo();
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&smi_case);
-  switch (op) {
-    case Token::SAR:
-      __ SmiShiftArithmeticRight(rax, rdx, rcx);
-      break;
-    case Token::SHL:
-      __ SmiShiftLeft(rax, rdx, rcx, &stub_call);
-      break;
-    case Token::SHR:
-      __ SmiShiftLogicalRight(rax, rdx, rcx, &stub_call);
-      break;
-    case Token::ADD:
-      __ SmiAdd(rax, rdx, rcx, &stub_call);
-      break;
-    case Token::SUB:
-      __ SmiSub(rax, rdx, rcx, &stub_call);
-      break;
-    case Token::MUL:
-      __ SmiMul(rax, rdx, rcx, &stub_call);
-      break;
-    case Token::BIT_OR:
-      __ SmiOr(rax, rdx, rcx);
-      break;
-    case Token::BIT_AND:
-      __ SmiAnd(rax, rdx, rcx);
-      break;
-    case Token::BIT_XOR:
-      __ SmiXor(rax, rdx, rcx);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
-
-  __ bind(&done);
-  context()->Plug(rax);
-}
-
 
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   PopOperand(rdx);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
-  CallIC(code);
-  patch_site.EmitPatchInfo();
+  Handle<Code> code = CodeFactory::BinaryOperation(isolate(), op).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
   context()->Plug(rax);
 }
 
@@ -2133,51 +2066,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Inline smi case if we are in a loop.
-  Label done, stub_call;
-  JumpPatchSite patch_site(masm_);
-  if (ShouldInlineSmiCase(expr->op())) {
-    Label slow;
-    patch_site.EmitJumpIfNotSmi(rax, &slow, Label::kNear);
-
-    // Save result for postfix expressions.
-    if (expr->is_postfix()) {
-      if (!context()->IsEffect()) {
-        // Save the result on the stack. If we have a named or keyed property
-        // we store the result under the receiver that is currently on top
-        // of the stack.
-        switch (assign_type) {
-          case VARIABLE:
-            __ Push(rax);
-            break;
-          case NAMED_PROPERTY:
-            __ movp(Operand(rsp, kPointerSize), rax);
-            break;
-          case KEYED_PROPERTY:
-            __ movp(Operand(rsp, 2 * kPointerSize), rax);
-            break;
-          case NAMED_SUPER_PROPERTY:
-          case KEYED_SUPER_PROPERTY:
-            UNREACHABLE();
-            break;
-        }
-      }
-    }
-
-    SmiOperationConstraints constraints =
-        SmiOperationConstraint::kPreserveSourceRegister |
-        SmiOperationConstraint::kBailoutOnNoOverflow;
-    if (expr->op() == Token::INC) {
-      __ SmiAddConstant(rax, rax, Smi::FromInt(1), constraints, &done,
-                        Label::kNear);
-    } else {
-      __ SmiSubConstant(rax, rax, Smi::FromInt(1), constraints, &done,
-                        Label::kNear);
-    }
-    __ jmp(&stub_call, Label::kNear);
-    __ bind(&slow);
-  }
-
   // Convert old value into a number.
   __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
   RestoreContext();
@@ -2209,14 +2097,12 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetExpressionPosition(expr);
 
   // Call stub for +1/-1.
-  __ bind(&stub_call);
   __ movp(rdx, rax);
   __ Move(rax, Smi::FromInt(1));
   Handle<Code> code =
-      CodeFactory::BinaryOpIC(isolate(), expr->binary_op()).code();
-  CallIC(code);
-  patch_site.EmitPatchInfo();
-  __ bind(&done);
+      CodeFactory::BinaryOperation(isolate(), expr->binary_op()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
 
   // Store the value returned in rax.
   switch (assign_type) {

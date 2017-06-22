@@ -646,8 +646,7 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
 
 int LCodeGen::CallCodeSize(Handle<Code> code, RelocInfo::Mode mode) {
   int size = masm()->CallSize(code, mode);
-  if (code->kind() == Code::BINARY_OP_IC ||
-      code->kind() == Code::COMPARE_IC) {
+  if (code->kind() == Code::COMPARE_IC) {
     size += Assembler::kInstrSize;  // extra nop() added in CallCodeGeneric.
   }
   return size;
@@ -676,8 +675,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
 
   // Signal that we don't inline smi code before these stubs in the
   // optimizing code generator.
-  if (code->kind() == Code::BINARY_OP_IC ||
-      code->kind() == Code::COMPARE_IC) {
+  if (code->kind() == Code::COMPARE_IC) {
     __ nop();
   }
 }
@@ -1954,11 +1952,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->right()).is(r0));
   DCHECK(ToRegister(instr->result()).is(r0));
 
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), instr->op()).code();
-  // Block literal pool emission to ensure nop indicating no inlined smi code
-  // is in the correct position.
-  Assembler::BlockConstPoolScope block_const_pool(masm());
-  CallCode(code, RelocInfo::CODE_TARGET, instr);
+  UNREACHABLE();
 }
 
 

@@ -1379,14 +1379,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     VisitForAccumulatorValue(expr->value());
 
     AccumulatorValueContext context(this);
-    if (ShouldInlineSmiCase(op)) {
-      EmitInlineSmiBinaryOp(expr->binary_operation(),
-                            op,
-                            expr->target(),
-                            expr->value());
-    } else {
-      EmitBinaryOp(expr->binary_operation(), op);
-    }
+    EmitBinaryOp(expr->binary_operation(), op);
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -1416,115 +1409,11 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                                              Token::Value op,
-                                              Expression* left_expr,
-                                              Expression* right_expr) {
-  Label done, both_smis, stub_call;
-
-  // Get the arguments.
-  Register left = x1;
-  Register right = x0;
-  Register result = x0;
-  PopOperand(left);
-
-  // Perform combined smi check on both operands.
-  {
-    Assembler::BlockPoolsScope scope(masm_);
-    __ Orr(x10, left, right);
-    JumpPatchSite patch_site(masm_);
-    patch_site.EmitJumpIfSmi(x10, &both_smis);
-
-    __ Bind(&stub_call);
-
-    Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-    CallIC(code);
-    patch_site.EmitPatchInfo();
-
-    __ B(&done);
-    __ Bind(&both_smis);
-  }
-
-  // Smi case. This code works in the same way as the smi-smi case in the type
-  // recording binary operation stub, see
-  // BinaryOpStub::GenerateSmiSmiOperation for comments.
-  // TODO(all): That doesn't exist any more. Where are the comments?
-  //
-  // The set of operations that needs to be supported here is controlled by
-  // FullCodeGenerator::ShouldInlineSmiCase().
-  switch (op) {
-    case Token::SAR:
-      __ Ubfx(right, right, kSmiShift, 5);
-      __ Asr(result, left, right);
-      __ Bic(result, result, kSmiShiftMask);
-      break;
-    case Token::SHL:
-      __ Ubfx(right, right, kSmiShift, 5);
-      __ Lsl(result, left, right);
-      break;
-    case Token::SHR:
-      // If `left >>> right` >= 0x80000000, the result is not representable in a
-      // signed 32-bit smi.
-      __ Ubfx(right, right, kSmiShift, 5);
-      __ Lsr(x10, left, right);
-      __ Tbnz(x10, kXSignBit, &stub_call);
-      __ Bic(result, x10, kSmiShiftMask);
-      break;
-    case Token::ADD:
-      __ Adds(x10, left, right);
-      __ B(vs, &stub_call);
-      __ Mov(result, x10);
-      break;
-    case Token::SUB:
-      __ Subs(x10, left, right);
-      __ B(vs, &stub_call);
-      __ Mov(result, x10);
-      break;
-    case Token::MUL: {
-      Label not_minus_zero, done;
-      STATIC_ASSERT(static_cast<unsigned>(kSmiShift) == (kXRegSizeInBits / 2));
-      STATIC_ASSERT(kSmiTag == 0);
-      __ Smulh(x10, left, right);
-      __ Cbnz(x10, &not_minus_zero);
-      __ Eor(x11, left, right);
-      __ Tbnz(x11, kXSignBit, &stub_call);
-      __ Mov(result, x10);
-      __ B(&done);
-      __ Bind(&not_minus_zero);
-      __ Cls(x11, x10);
-      __ Cmp(x11, kXRegSizeInBits - kSmiShift);
-      __ B(lt, &stub_call);
-      __ SmiTag(result, x10);
-      __ Bind(&done);
-      break;
-    }
-    case Token::BIT_OR:
-      __ Orr(result, left, right);
-      break;
-    case Token::BIT_AND:
-      __ And(result, left, right);
-      break;
-    case Token::BIT_XOR:
-      __ Eor(result, left, right);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ Bind(&done);
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   PopOperand(x1);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  JumpPatchSite patch_site(masm_);    // Unbound, signals no inlined smi code.
-  {
-    Assembler::BlockPoolsScope scope(masm_);
-    CallIC(code);
-    patch_site.EmitPatchInfo();
-  }
+  Handle<Code> code = CodeFactory::BinaryOperation(isolate(), op).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
   context()->Plug(x0);
 }
 
@@ -2203,89 +2092,44 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Inline smi case if we are in a loop.
-  {
-    Assembler::BlockPoolsScope scope(masm_);
-    Label stub_call, done;
-    JumpPatchSite patch_site(masm_);
+  // Convert old value into a number.
+  __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  RestoreContext();
 
-    int count_value = expr->op() == Token::INC ? 1 : -1;
-    if (ShouldInlineSmiCase(expr->op())) {
-      Label slow;
-      patch_site.EmitJumpIfNotSmi(x0, &slow);
-
-      // Save result for postfix expressions.
-      if (expr->is_postfix()) {
-        if (!context()->IsEffect()) {
-          // Save the result on the stack. If we have a named or keyed property
-          // we store the result under the receiver that is currently on top of
-          // the stack.
-          switch (assign_type) {
-            case VARIABLE:
-              __ Push(x0);
-              break;
-            case NAMED_PROPERTY:
-              __ Poke(x0, kPointerSize);
-              break;
-            case KEYED_PROPERTY:
-              __ Poke(x0, kPointerSize * 2);
-              break;
-            case NAMED_SUPER_PROPERTY:
-            case KEYED_SUPER_PROPERTY:
-              UNREACHABLE();
-              break;
-          }
-        }
-      }
-
-      __ Adds(x0, x0, Smi::FromInt(count_value));
-      __ B(vc, &done);
-      // Call stub. Undo operation first.
-      __ Sub(x0, x0, Smi::FromInt(count_value));
-      __ B(&stub_call);
-      __ Bind(&slow);
-    }
-
-    // Convert old value into a number.
-    __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-    RestoreContext();
-
-    // Save result for postfix expressions.
-    if (expr->is_postfix()) {
-      if (!context()->IsEffect()) {
-        // Save the result on the stack. If we have a named or keyed property
-        // we store the result under the receiver that is currently on top
-        // of the stack.
-        switch (assign_type) {
-          case VARIABLE:
-            PushOperand(x0);
-            break;
-          case NAMED_PROPERTY:
-            __ Poke(x0, kXRegSize);
-            break;
-          case KEYED_PROPERTY:
-            __ Poke(x0, 2 * kXRegSize);
-            break;
-          case NAMED_SUPER_PROPERTY:
-          case KEYED_SUPER_PROPERTY:
-            UNREACHABLE();
-            break;
-        }
+  // Save result for postfix expressions.
+  if (expr->is_postfix()) {
+    if (!context()->IsEffect()) {
+      // Save the result on the stack. If we have a named or keyed property
+      // we store the result under the receiver that is currently on top
+      // of the stack.
+      switch (assign_type) {
+        case VARIABLE:
+          PushOperand(x0);
+          break;
+        case NAMED_PROPERTY:
+          __ Poke(x0, kXRegSize);
+          break;
+        case KEYED_PROPERTY:
+          __ Poke(x0, 2 * kXRegSize);
+          break;
+        case NAMED_SUPER_PROPERTY:
+        case KEYED_SUPER_PROPERTY:
+          UNREACHABLE();
+          break;
       }
     }
-
-    __ Bind(&stub_call);
-    __ Mov(x1, x0);
-    __ Mov(x0, Smi::FromInt(count_value));
-
-    SetExpressionPosition(expr);
-
-    Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), Token::ADD).code();
-    CallIC(code);
-    patch_site.EmitPatchInfo();
-
-    __ Bind(&done);
   }
+
+  int count_value = expr->op() == Token::INC ? 1 : -1;
+  __ Mov(x1, x0);
+  __ Mov(x0, Smi::FromInt(count_value));
+
+  SetExpressionPosition(expr);
+
+  Handle<Code> code =
+      CodeFactory::BinaryOperation(isolate(), Token::ADD).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
 
   // Store the value returned in x0.
   switch (assign_type) {

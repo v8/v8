@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
-  static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
+  static Callable BinaryOperation(Isolate* isolate, Token::Value op);
 
   static Callable ApiGetter(Isolate* isolate);
 

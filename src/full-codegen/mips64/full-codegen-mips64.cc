@@ -1396,14 +1396,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     VisitForAccumulatorValue(expr->value());
 
     AccumulatorValueContext context(this);
-    if (ShouldInlineSmiCase(op)) {
-      EmitInlineSmiBinaryOp(expr->binary_operation(),
-                            op,
-                            expr->target(),
-                            expr->value());
-    } else {
-      EmitBinaryOp(expr->binary_operation(), op);
-    }
+    EmitBinaryOp(expr->binary_operation(), op);
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -1468,101 +1461,12 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                                              Token::Value op,
-                                              Expression* left_expr,
-                                              Expression* right_expr) {
-  Label done, smi_case, stub_call;
-
-  Register scratch1 = a2;
-  Register scratch2 = a3;
-
-  // Get the arguments.
-  Register left = a1;
-  Register right = a0;
-  PopOperand(left);
-  __ mov(a0, result_register());
-
-  // Perform combined smi check on both operands.
-  __ Or(scratch1, left, Operand(right));
-  STATIC_ASSERT(kSmiTag == 0);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(scratch1, &smi_case);
-
-  __ bind(&stub_call);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  CallIC(code);
-  patch_site.EmitPatchInfo();
-  __ jmp(&done);
-
-  __ bind(&smi_case);
-  // Smi case. This code works the same way as the smi-smi case in the type
-  // recording binary operation stub, see
-  switch (op) {
-    case Token::SAR:
-      __ GetLeastBitsFromSmi(scratch1, right, 5);
-      __ dsrav(right, left, scratch1);
-      __ And(v0, right, Operand(0xffffffff00000000L));
-      break;
-    case Token::SHL: {
-      __ SmiUntag(scratch1, left);
-      __ GetLeastBitsFromSmi(scratch2, right, 5);
-      __ dsllv(scratch1, scratch1, scratch2);
-      __ SmiTag(v0, scratch1);
-      break;
-    }
-    case Token::SHR: {
-      __ SmiUntag(scratch1, left);
-      __ GetLeastBitsFromSmi(scratch2, right, 5);
-      __ dsrlv(scratch1, scratch1, scratch2);
-      __ And(scratch2, scratch1, 0x80000000);
-      __ Branch(&stub_call, ne, scratch2, Operand(zero_reg));
-      __ SmiTag(v0, scratch1);
-      break;
-    }
-    case Token::ADD:
-      __ DaddBranchOvf(v0, left, Operand(right), &stub_call);
-      break;
-    case Token::SUB:
-      __ DsubBranchOvf(v0, left, Operand(right), &stub_call);
-      break;
-    case Token::MUL: {
-      __ Dmulh(v0, left, right);
-      __ dsra32(scratch2, v0, 0);
-      __ sra(scratch1, v0, 31);
-      __ Branch(USE_DELAY_SLOT, &stub_call, ne, scratch2, Operand(scratch1));
-      __ SmiTag(v0);
-      __ Branch(USE_DELAY_SLOT, &done, ne, v0, Operand(zero_reg));
-      __ Daddu(scratch2, right, left);
-      __ Branch(&stub_call, lt, scratch2, Operand(zero_reg));
-      DCHECK(Smi::kZero == 0);
-      __ mov(v0, zero_reg);
-      break;
-    }
-    case Token::BIT_OR:
-      __ Or(v0, left, Operand(right));
-      break;
-    case Token::BIT_AND:
-      __ And(v0, left, Operand(right));
-      break;
-    case Token::BIT_XOR:
-      __ Xor(v0, left, Operand(right));
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(v0);
-}
-
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   __ mov(a0, result_register());
   PopOperand(a1);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
-  CallIC(code);
-  patch_site.EmitPatchInfo();
+  Handle<Code> code = CodeFactory::BinaryOperation(isolate(), op).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
   context()->Plug(v0);
 }
 
@@ -2241,48 +2145,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Inline smi case if we are in a loop.
-  Label stub_call, done;
-  JumpPatchSite patch_site(masm_);
-
-  int count_value = expr->op() == Token::INC ? 1 : -1;
   __ mov(a0, v0);
-  if (ShouldInlineSmiCase(expr->op())) {
-    Label slow;
-    patch_site.EmitJumpIfNotSmi(v0, &slow);
-
-    // Save result for postfix expressions.
-    if (expr->is_postfix()) {
-      if (!context()->IsEffect()) {
-        // Save the result on the stack. If we have a named or keyed property
-        // we store the result under the receiver that is currently on top
-        // of the stack.
-        switch (assign_type) {
-          case VARIABLE:
-            __ push(v0);
-            break;
-          case NAMED_PROPERTY:
-            __ Sd(v0, MemOperand(sp, kPointerSize));
-            break;
-          case KEYED_PROPERTY:
-            __ Sd(v0, MemOperand(sp, 2 * kPointerSize));
-            break;
-          case NAMED_SUPER_PROPERTY:
-          case KEYED_SUPER_PROPERTY:
-            UNREACHABLE();
-            break;
-        }
-      }
-    }
-
-    Register scratch1 = a1;
-    __ li(scratch1, Operand(Smi::FromInt(count_value)));
-    __ DaddBranchNoOvf(v0, v0, Operand(scratch1), &done);
-    // Call stub. Undo operation first.
-    __ Move(v0, a0);
-    __ jmp(&stub_call);
-    __ bind(&slow);
-  }
 
   // Convert old value into a number.
   __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
@@ -2312,16 +2175,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  __ bind(&stub_call);
+  int count_value = expr->op() == Token::INC ? 1 : -1;
   __ mov(a1, v0);
   __ li(a0, Operand(Smi::FromInt(count_value)));
 
   SetExpressionPosition(expr);
 
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), Token::ADD).code();
-  CallIC(code);
-  patch_site.EmitPatchInfo();
-  __ bind(&done);
+  Handle<Code> code =
+      CodeFactory::BinaryOperation(isolate(), Token::ADD).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
 
   // Store the value returned in v0.
   switch (assign_type) {

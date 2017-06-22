@@ -1399,14 +1399,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     VisitForAccumulatorValue(expr->value());
 
     AccumulatorValueContext context(this);
-    if (ShouldInlineSmiCase(op)) {
-      EmitInlineSmiBinaryOp(expr->binary_operation(),
-                            op,
-                            expr->target(),
-                            expr->value());
-    } else {
-      EmitBinaryOp(expr->binary_operation(), op);
-    }
+    EmitBinaryOp(expr->binary_operation(), op);
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -1460,104 +1453,11 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                                              Token::Value op,
-                                              Expression* left_expr,
-                                              Expression* right_expr) {
-  Label done, smi_case, stub_call;
-
-  Register scratch1 = r2;
-  Register scratch2 = r3;
-
-  // Get the arguments.
-  Register left = r1;
-  Register right = r0;
-  PopOperand(left);
-
-  // Perform combined smi check on both operands.
-  __ orr(scratch1, left, Operand(right));
-  STATIC_ASSERT(kSmiTag == 0);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(scratch1, &smi_case);
-
-  __ bind(&stub_call);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  CallIC(code);
-  patch_site.EmitPatchInfo();
-  __ jmp(&done);
-
-  __ bind(&smi_case);
-  // Smi case. This code works the same way as the smi-smi case in the type
-  // recording binary operation stub, see
-  switch (op) {
-    case Token::SAR:
-      __ GetLeastBitsFromSmi(scratch1, right, 5);
-      __ mov(right, Operand(left, ASR, scratch1));
-      __ bic(right, right, Operand(kSmiTagMask));
-      break;
-    case Token::SHL: {
-      __ SmiUntag(scratch1, left);
-      __ GetLeastBitsFromSmi(scratch2, right, 5);
-      __ mov(scratch1, Operand(scratch1, LSL, scratch2));
-      __ TrySmiTag(right, scratch1, &stub_call);
-      break;
-    }
-    case Token::SHR: {
-      __ SmiUntag(scratch1, left);
-      __ GetLeastBitsFromSmi(scratch2, right, 5);
-      __ mov(scratch1, Operand(scratch1, LSR, scratch2));
-      __ tst(scratch1, Operand(0xc0000000));
-      __ b(ne, &stub_call);
-      __ SmiTag(right, scratch1);
-      break;
-    }
-    case Token::ADD:
-      __ add(scratch1, left, Operand(right), SetCC);
-      __ b(vs, &stub_call);
-      __ mov(right, scratch1);
-      break;
-    case Token::SUB:
-      __ sub(scratch1, left, Operand(right), SetCC);
-      __ b(vs, &stub_call);
-      __ mov(right, scratch1);
-      break;
-    case Token::MUL: {
-      __ SmiUntag(ip, right);
-      __ smull(scratch1, scratch2, left, ip);
-      __ mov(ip, Operand(scratch1, ASR, 31));
-      __ cmp(ip, Operand(scratch2));
-      __ b(ne, &stub_call);
-      __ cmp(scratch1, Operand::Zero());
-      __ mov(right, Operand(scratch1), LeaveCC, ne);
-      __ b(ne, &done);
-      __ add(scratch2, right, Operand(left), SetCC);
-      __ mov(right, Operand(Smi::kZero), LeaveCC, pl);
-      __ b(mi, &stub_call);
-      break;
-    }
-    case Token::BIT_OR:
-      __ orr(right, left, Operand(right));
-      break;
-    case Token::BIT_AND:
-      __ and_(right, left, Operand(right));
-      break;
-    case Token::BIT_XOR:
-      __ eor(right, left, Operand(right));
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(r0);
-}
-
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   PopOperand(r1);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
-  CallIC(code);
-  patch_site.EmitPatchInfo();
+  Handle<Code> code = CodeFactory::BinaryOperation(isolate(), op).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
   context()->Plug(r0);
 }
 
@@ -2225,47 +2125,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Inline smi case if we are in a loop.
-  Label stub_call, done;
-  JumpPatchSite patch_site(masm_);
-
-  int count_value = expr->op() == Token::INC ? 1 : -1;
-  if (ShouldInlineSmiCase(expr->op())) {
-    Label slow;
-    patch_site.EmitJumpIfNotSmi(r0, &slow);
-
-    // Save result for postfix expressions.
-    if (expr->is_postfix()) {
-      if (!context()->IsEffect()) {
-        // Save the result on the stack. If we have a named or keyed property
-        // we store the result under the receiver that is currently on top
-        // of the stack.
-        switch (assign_type) {
-          case VARIABLE:
-            __ push(r0);
-            break;
-          case NAMED_PROPERTY:
-            __ str(r0, MemOperand(sp, kPointerSize));
-            break;
-          case KEYED_PROPERTY:
-            __ str(r0, MemOperand(sp, 2 * kPointerSize));
-            break;
-          case NAMED_SUPER_PROPERTY:
-          case KEYED_SUPER_PROPERTY:
-            UNREACHABLE();
-            break;
-        }
-      }
-    }
-
-    __ add(r0, r0, Operand(Smi::FromInt(count_value)), SetCC);
-    __ b(vc, &done);
-    // Call stub. Undo operation first.
-    __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
-    __ jmp(&stub_call);
-    __ bind(&slow);
-  }
-
   // Convert old value into a number.
   __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
   RestoreContext();
@@ -2294,17 +2153,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-
-  __ bind(&stub_call);
+  int count_value = expr->op() == Token::INC ? 1 : -1;
   __ mov(r1, r0);
   __ mov(r0, Operand(Smi::FromInt(count_value)));
 
   SetExpressionPosition(expr);
 
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), Token::ADD).code();
-  CallIC(code);
-  patch_site.EmitPatchInfo();
-  __ bind(&done);
+  Handle<Code> code =
+      CodeFactory::BinaryOperation(isolate(), Token::ADD).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
 
   // Store the value returned in r0.
   switch (assign_type) {

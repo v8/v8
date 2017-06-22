@@ -60,10 +60,6 @@ function IcProcessor() {
         parsers : [parseInt, parseInt, parseInt, parseInt, null, null, null,
                    null, null, null, null],
         processor: this.processCompareIC },
-      'BinaryOpIC': {
-        parsers : [parseInt, parseInt, parseInt, parseInt, null, null,
-                   parseInt],
-        processor: this.processBinaryOpIC },
       'PatchIC': {
         parsers : [parseInt, parseInt, parseInt],
         processor: this.processPatchIC },
@@ -76,7 +72,6 @@ function IcProcessor() {
   this.KeyedLoadIC = 0;
   this.KeyedStoreIC = 0;
   this.CompareIC = 0;
-  this.BinaryOpIC = 0;
   this.PatchIC = 0;
 }
 inherits(IcProcessor, LogReader);
@@ -119,7 +114,6 @@ IcProcessor.prototype.processLogFile = function(fileName) {
   print("KeyedLoad: " + this.KeyedLoadIC);
   print("KeyedStore: " + this.KeyedStoreIC);
   print("CompareIC: " + this.CompareIC);
-  print("BinaryOpIC: " + this.BinaryOpIC);
   print("PatchIC: " + this.PatchIC);
 };
 
@@ -184,14 +178,6 @@ IcProcessor.prototype.processCompareIC = function (
   print("CompareIC[" + op + "] ((" +
         old_left + "+" + old_right + "=" + old_state + ")->(" +
         new_left + "+" + new_right + "=" + new_state + ")) at " +
-        this.formatName(entry) + ":" + line + ":" + column);
-}
-
-IcProcessor.prototype.processBinaryOpIC = function (
-    pc, line, column, stub, old_state, new_state, allocation_site) {
-  var entry = this.profile_.findEntry(pc);
-  this.BinaryOpIC++;
-  print("BinaryOpIC (" + old_state + "->" + new_state + ") at " +
         this.formatName(entry) + ":" + line + ":" + column);
 }
 
