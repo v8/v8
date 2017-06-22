@@ -804,7 +804,7 @@ void WasmSharedModuleData::ReinitializeAfterDeserialization(
     // TODO(titzer): remember the module origin in the compiled_module
     // For now, we assume serialized modules did not originate from asm.js.
     ModuleResult result =
-        DecodeWasmModule(isolate, start, end, false, kWasmOrigin);
+        SyncDecodeWasmModule(isolate, start, end, false, kWasmOrigin);
     CHECK(result.ok());
     CHECK_NOT_NULL(result.val);
     // Take ownership of the WasmModule and immediately transfer it to the
