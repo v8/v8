@@ -183,8 +183,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                              int feedback_slot, int depth);
 
   // Store value in the accumulator into the variable with |name|.
-  BytecodeArrayBuilder& StoreLookupSlot(const AstRawString* name,
-                                        LanguageMode language_mode);
+  BytecodeArrayBuilder& StoreLookupSlot(
+      const AstRawString* name, LanguageMode language_mode,
+      LookupHoistingMode lookup_hoisting_mode);
 
   // Create a new closure for a SharedFunctionInfo which will be inserted at
   // constant pool index |shared_function_info_entry|.

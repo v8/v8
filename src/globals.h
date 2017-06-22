@@ -317,9 +317,10 @@ inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
     case SLOPPY: return os << "sloppy";
     case STRICT: return os << "strict";
-    default: UNREACHABLE();
+    case LANGUAGE_END:
+      UNREACHABLE();
   }
-  return os;
+  UNREACHABLE();
 }
 
 inline bool is_sloppy(LanguageMode language_mode) {
@@ -357,6 +358,21 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Eager";
     case DeoptimizeKind::kSoft:
       return os << "Soft";
+  }
+  UNREACHABLE();
+}
+
+// Indicates whether the lookup is related to sloppy-mode block-scoped
+// function hoisting, and is a synthetic assignment for that.
+enum class LookupHoistingMode { kNormal, kLegacySloppy };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const LookupHoistingMode& mode) {
+  switch (mode) {
+    case LookupHoistingMode::kNormal:
+      return os << "normal hoisting";
+    case LookupHoistingMode::kLegacySloppy:
+      return os << "legacy sloppy hoisting";
   }
   UNREACHABLE();
 }

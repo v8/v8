@@ -112,9 +112,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildVariableLoadForAccumulatorValue(
       Variable* variable, FeedbackSlot slot, HoleCheckMode hole_check_mode,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void BuildVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackSlot slot,
-                               HoleCheckMode hole_check_mode);
+  void BuildVariableAssignment(
+      Variable* variable, Token::Value op, FeedbackSlot slot,
+      HoleCheckMode hole_check_mode,
+      LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
   void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
   void BuildReturn();
   void BuildAsyncReturn();

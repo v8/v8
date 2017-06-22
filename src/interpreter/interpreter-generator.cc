@@ -500,34 +500,62 @@ IGNITION_HANDLER(LdaLookupGlobalSlotInsideTypeof,
   LookupGlobalSlot(Runtime::kLoadLookupSlotInsideTypeof);
 }
 
-// StaLookupSlotSloppy <name_index>
+// StaLookupSlotSloppy <name_index> <flags>
 //
 // Store the object in accumulator to the object with the name in constant
-// pool entry |name_index| in sloppy mode.
-IGNITION_HANDLER(StaLookupSlotSloppy, InterpreterAssembler) {
+// pool entry |name_index|.
+IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   Node* value = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
+  Node* bytecode_flags = BytecodeOperandFlag(1);
   Node* name = LoadConstantPoolEntry(index);
   Node* context = GetContext();
-  Node* result =
-      CallRuntime(Runtime::kStoreLookupSlot_Sloppy, context, name, value);
-  SetAccumulator(result);
-  Dispatch();
-}
+  Variable var_result(this, MachineRepresentation::kTagged);
 
-// StaLookupSlotStrict <name_index>
-//
-// Store the object in accumulator to the object with the name in constant
-// pool entry |name_index| in strict mode.
-IGNITION_HANDLER(StaLookupSlotStrict, InterpreterAssembler) {
-  Node* value = GetAccumulator();
-  Node* index = BytecodeOperandIdx(0);
-  Node* name = LoadConstantPoolEntry(index);
-  Node* context = GetContext();
-  Node* result =
-      CallRuntime(Runtime::kStoreLookupSlot_Strict, context, name, value);
-  SetAccumulator(result);
-  Dispatch();
+  Label sloppy(this), strict(this), end(this);
+  DCHECK_EQ(0, SLOPPY);
+  DCHECK_EQ(1, STRICT);
+  DCHECK_EQ(0, static_cast<int>(LookupHoistingMode::kNormal));
+  DCHECK_EQ(1, static_cast<int>(LookupHoistingMode::kLegacySloppy));
+  Branch(IsSetWord32<StoreLookupSlotFlags::LanguageModeBit>(bytecode_flags),
+         &strict, &sloppy);
+
+  BIND(&strict);
+  {
+    CSA_ASSERT(this, IsClearWord32<StoreLookupSlotFlags::LookupHoistingModeBit>(
+                         bytecode_flags));
+    var_result.Bind(
+        CallRuntime(Runtime::kStoreLookupSlot_Strict, context, name, value));
+    Goto(&end);
+  }
+
+  BIND(&sloppy);
+  {
+    Label hoisting(this), ordinary(this);
+    Branch(IsSetWord32<StoreLookupSlotFlags::LookupHoistingModeBit>(
+               bytecode_flags),
+           &hoisting, &ordinary);
+
+    BIND(&hoisting);
+    {
+      var_result.Bind(CallRuntime(Runtime::kStoreLookupSlot_SloppyHoisting,
+                                  context, name, value));
+      Goto(&end);
+    }
+
+    BIND(&ordinary);
+    {
+      var_result.Bind(
+          CallRuntime(Runtime::kStoreLookupSlot_Sloppy, context, name, value));
+      Goto(&end);
+    }
+  }
+
+  BIND(&end);
+  {
+    SetAccumulator(var_result.value());
+    Dispatch();
+  }
 }
 
 // LdaNamedProperty <object> <name_index> <slot>

@@ -780,14 +780,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupGlobalSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
-    const AstRawString* name, LanguageMode language_mode) {
+    const AstRawString* name, LanguageMode language_mode,
+    LookupHoistingMode lookup_hoisting_mode) {
   size_t name_index = GetConstantPoolEntry(name);
-  if (language_mode == SLOPPY) {
-    OutputStaLookupSlotSloppy(name_index);
-  } else {
-    DCHECK_EQ(language_mode, STRICT);
-    OutputStaLookupSlotStrict(name_index);
-  }
+  uint8_t flags =
+      StoreLookupSlotFlags::Encode(language_mode, lookup_hoisting_mode);
+  OutputStaLookupSlot(name_index, flags);
   return *this;
 }
 

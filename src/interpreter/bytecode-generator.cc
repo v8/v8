@@ -2331,10 +2331,9 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
   }
 }
 
-void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
-                                                Token::Value op,
-                                                FeedbackSlot slot,
-                                                HoleCheckMode hole_check_mode) {
+void BytecodeGenerator::BuildVariableAssignment(
+    Variable* variable, Token::Value op, FeedbackSlot slot,
+    HoleCheckMode hole_check_mode, LookupHoistingMode lookup_hoisting_mode) {
   VariableMode mode = variable->mode();
   RegisterAllocationScope assignment_register_scope(this);
   BytecodeLabel end_label;
@@ -2407,7 +2406,8 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
       break;
     }
     case VariableLocation::LOOKUP: {
-      builder()->StoreLookupSlot(variable->raw_name(), language_mode());
+      builder()->StoreLookupSlot(variable->raw_name(), language_mode(),
+                                 lookup_hoisting_mode);
       break;
     }
     case VariableLocation::MODULE: {
@@ -2545,7 +2545,8 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       // Is the value in the accumulator safe? Yes, but scary.
       VariableProxy* proxy = expr->target()->AsVariableProxy();
       BuildVariableAssignment(proxy->var(), expr->op(), slot,
-                              proxy->hole_check_mode());
+                              proxy->hole_check_mode(),
+                              expr->lookup_hoisting_mode());
       break;
     }
     case NAMED_PROPERTY:

@@ -248,7 +248,9 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   VariableMode mode;
 
   // Check for a conflict with a lexically scoped variable
-  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &init_flag,
+  const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
+      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
+  context_arg->Lookup(name, lookup_flags, &index, &attributes, &init_flag,
                       &mode);
   if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
     // ES#sec-evaldeclarationinstantiation 5.a.i.1:
@@ -941,8 +943,9 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
 
 namespace {
 
-MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
-                                    LanguageMode language_mode) {
+MaybeHandle<Object> StoreLookupSlot(
+    Handle<String> name, Handle<Object> value, LanguageMode language_mode,
+    ContextLookupFlags context_lookup_flags = FOLLOW_CHAINS) {
   Isolate* const isolate = name->GetIsolate();
   Handle<Context> context(isolate->context(), isolate);
 
@@ -950,8 +953,8 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
   PropertyAttributes attributes;
   InitializationFlag flag;
   VariableMode mode;
-  Handle<Object> holder =
-      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
+  Handle<Object> holder = context->Lookup(name, context_lookup_flags, &index,
+                                          &attributes, &flag, &mode);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
@@ -1018,6 +1021,19 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, SLOPPY));
 }
 
+// Store into a dynamic context for sloppy-mode block-scoped function hoisting
+// which leaks out of an eval. In particular, with-scopes are be skipped to
+// reach the appropriate var-like declaration.
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
+      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           StoreLookupSlot(name, value, SLOPPY, lookup_flags));
+}
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   HandleScope scope(isolate);

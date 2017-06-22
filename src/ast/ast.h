@@ -2158,6 +2158,18 @@ class Assignment final : public Expression {
     bit_field_ = StoreModeField::update(bit_field_, mode);
   }
 
+  // The assignment was generated as part of block-scoped sloppy-mode
+  // function hoisting, see
+  // ES#sec-block-level-function-declarations-web-legacy-compatibility-semantics
+  LookupHoistingMode lookup_hoisting_mode() const {
+    return static_cast<LookupHoistingMode>(
+        LookupHoistingModeField::decode(bit_field_));
+  }
+  void set_lookup_hoisting_mode(LookupHoistingMode mode) {
+    bit_field_ =
+        LookupHoistingModeField::update(bit_field_, static_cast<bool>(mode));
+  }
+
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache);
   FeedbackSlot AssignmentSlot() const { return slot_; }
@@ -2174,6 +2186,8 @@ class Assignment final : public Expression {
   class StoreModeField
       : public BitField<KeyedAccessStoreMode, KeyTypeField::kNext, 3> {};
   class TokenField : public BitField<Token::Value, StoreModeField::kNext, 7> {};
+  class LookupHoistingModeField : public BitField<bool, TokenField::kNext, 1> {
+  };
 
   FeedbackSlot slot_;
   Expression* target_;

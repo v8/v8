@@ -1004,24 +1004,28 @@ void BytecodeGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
   BuildLdaLookupGlobalSlot(TypeofMode::INSIDE_TYPEOF);
 }
 
-void BytecodeGraphBuilder::BuildStaLookupSlot(LanguageMode language_mode) {
+void BytecodeGraphBuilder::VisitStaLookupSlot() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* name =
       jsgraph()->Constant(bytecode_iterator().GetConstantForIndexOperand(0));
+  int bytecode_flags = bytecode_iterator().GetFlagOperand(1);
+  LanguageMode language_mode = static_cast<LanguageMode>(
+      interpreter::StoreLookupSlotFlags::LanguageModeBit::decode(
+          bytecode_flags));
+  LookupHoistingMode lookup_hoisting_mode = static_cast<LookupHoistingMode>(
+      interpreter::StoreLookupSlotFlags::LookupHoistingModeBit::decode(
+          bytecode_flags));
+  DCHECK_IMPLIES(lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy,
+                 is_sloppy(language_mode));
   const Operator* op = javascript()->CallRuntime(
-      is_strict(language_mode) ? Runtime::kStoreLookupSlot_Strict
-                               : Runtime::kStoreLookupSlot_Sloppy);
+      is_strict(language_mode)
+          ? Runtime::kStoreLookupSlot_Strict
+          : lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy
+                ? Runtime::kStoreLookupSlot_SloppyHoisting
+                : Runtime::kStoreLookupSlot_Sloppy);
   Node* store = NewNode(op, name, value);
   environment()->BindAccumulator(store, Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitStaLookupSlotSloppy() {
-  BuildStaLookupSlot(LanguageMode::SLOPPY);
-}
-
-void BytecodeGraphBuilder::VisitStaLookupSlotStrict() {
-  BuildStaLookupSlot(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitLdaNamedProperty() {

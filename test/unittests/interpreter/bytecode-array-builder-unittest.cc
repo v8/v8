@@ -117,8 +117,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(name, LanguageMode::SLOPPY)
-      .StoreLookupSlot(name, LanguageMode::STRICT);
+      .StoreLookupSlot(name, LanguageMode::SLOPPY, LookupHoistingMode::kNormal)
+      .StoreLookupSlot(name, LanguageMode::SLOPPY,
+                       LookupHoistingMode::kLegacySloppy)
+      .StoreLookupSlot(name, LanguageMode::STRICT, LookupHoistingMode::kNormal);
 
   // Emit load / store lookup slots with context fast paths.
   builder.LoadLookupContextSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
@@ -339,8 +341,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY)
-      .StoreLookupSlot(wide_name, LanguageMode::STRICT);
+      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+                       LookupHoistingMode::kNormal)
+      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+                       LookupHoistingMode::kLegacySloppy)
+      .StoreLookupSlot(wide_name, LanguageMode::STRICT,
+                       LookupHoistingMode::kNormal);
 
   // CreateClosureWide
   builder.CreateClosure(1000, 321, NOT_TENURED);

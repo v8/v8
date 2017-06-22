@@ -84,6 +84,15 @@ SuspendFlags SuspendGeneratorBytecodeFlags::Decode(uint8_t flags) {
   return FlagsBits::decode(flags);
 }
 
+// static
+uint8_t StoreLookupSlotFlags::Encode(LanguageMode language_mode,
+                                     LookupHoistingMode lookup_hoisting_mode) {
+  DCHECK_IMPLIES(lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy,
+                 language_mode == SLOPPY);
+  return LanguageModeBit::encode(language_mode) |
+         LookupHoistingModeBit::encode(static_cast<bool>(lookup_hoisting_mode));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

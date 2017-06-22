@@ -70,8 +70,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupGlobalSlotInsideTypeof, AccumulatorUse::kWrite,                   \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
-  V(StaLookupSlotSloppy, AccumulatorUse::kReadWrite, OperandType::kIdx)        \
-  V(StaLookupSlotStrict, AccumulatorUse::kReadWrite, OperandType::kIdx)        \
+  V(StaLookupSlot, AccumulatorUse::kReadWrite, OperandType::kIdx,              \
+    OperandType::kFlag8)                                                       \
                                                                                \
   /* Register-accumulator transfers */                                         \
   V(Ldar, AccumulatorUse::kWrite, OperandType::kReg)                           \

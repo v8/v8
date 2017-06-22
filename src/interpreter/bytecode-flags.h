@@ -89,6 +89,19 @@ class SuspendGeneratorBytecodeFlags {
   DISALLOW_IMPLICIT_CONSTRUCTORS(SuspendGeneratorBytecodeFlags);
 };
 
+class StoreLookupSlotFlags {
+ public:
+  class LanguageModeBit : public BitField8<bool, 0, 1> {};
+  class LookupHoistingModeBit
+      : public BitField8<bool, LanguageModeBit::kNext, 1> {};
+
+  static uint8_t Encode(LanguageMode language_mode,
+                        LookupHoistingMode lookup_hoisting_mode);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StoreLookupSlotFlags);
+};
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

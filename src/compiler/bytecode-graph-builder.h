@@ -162,7 +162,6 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
-  void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCallVarArgs(TailCallMode tail_call_mode,
                         ConvertReceiverMode receiver_mode);
   void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_mode,
