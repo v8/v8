@@ -2493,6 +2493,9 @@ class JSObject: public JSReceiver {
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
 
+  MUST_USE_RESULT static Maybe<bool> TestIntegrityLevel(Handle<JSObject> object,
+                                                        IntegrityLevel lvl);
+
   MUST_USE_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSObject> object, ShouldThrow should_throw);
 

@@ -7423,7 +7423,13 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
 
   if (receiver->IsJSObject()) {
     Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+
     if (!object->HasSloppyArgumentsElements()) {  // Fast path.
+      // prevent memory leaks by not adding unnecessary transitions
+      Maybe<bool> test = JSObject::TestIntegrityLevel(object, level);
+      MAYBE_RETURN(test, Nothing<bool>());
+      if (test.FromJust()) return test;
+
       if (level == SEALED) {
         return JSObject::PreventExtensionsWithTransition<SEALED>(object,
                                                                  should_throw);
@@ -7479,25 +7485,101 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
   return Just(true);
 }
 
+namespace {
 
-Maybe<bool> JSReceiver::TestIntegrityLevel(Handle<JSReceiver> object,
-                                           IntegrityLevel level) {
+template <typename Dictionary>
+bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict, Isolate* isolate,
+                                            PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
-  Isolate* isolate = object->GetIsolate();
 
-  Maybe<bool> extensible = JSReceiver::IsExtensible(object);
+  uint32_t capacity = dict->Capacity();
+  for (uint32_t i = 0; i < capacity; i++) {
+    Object* key = dict->KeyAt(i);
+    if (!dict->IsKey(isolate, key) || key->FilterKey(ALL_PROPERTIES) ||
+        dict->IsDeleted(i))
+      continue;
+    PropertyDetails details = dict->DetailsAt(i);
+    if (details.IsConfigurable()) return false;
+    if (level == FROZEN && details.kind() == kData && !details.IsReadOnly()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool TestFastPropertiesIntegrityLevel(Map* map, PropertyAttributes level) {
+  DCHECK(level == SEALED || level == FROZEN);
+  DCHECK_LT(LAST_CUSTOM_ELEMENTS_RECEIVER, map->instance_type());
+  DCHECK(!map->is_dictionary_map());
+
+  DescriptorArray* descriptors = map->instance_descriptors();
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  for (int i = 0; i < number_of_own_descriptors; i++) {
+    if (descriptors->GetKey(i)->IsPrivate()) continue;
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.IsConfigurable()) return false;
+    if (level == FROZEN && details.kind() == kData && !details.IsReadOnly()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool TestPropertiesIntegrityLevel(JSObject* object, PropertyAttributes level) {
+  DCHECK_LT(LAST_CUSTOM_ELEMENTS_RECEIVER, object->map()->instance_type());
+
+  if (object->HasFastProperties()) {
+    return TestFastPropertiesIntegrityLevel(object->map(), level);
+  }
+
+  return TestDictionaryPropertiesIntegrityLevel(object->property_dictionary(),
+                                                object->GetIsolate(), level);
+}
+
+bool TestElementsIntegrityLevel(JSObject* object, PropertyAttributes level) {
+  DCHECK(!object->HasSloppyArgumentsElements());
+
+  ElementsKind kind = object->GetElementsKind();
+
+  if (IsDictionaryElementsKind(kind)) {
+    return TestDictionaryPropertiesIntegrityLevel(
+        SeededNumberDictionary::cast(object->elements()), object->GetIsolate(),
+        level);
+  }
+
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
+  // Only DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS have
+  // PropertyAttributes so just test if empty
+  return accessor->NumberOfElements(object) == 0;
+}
+
+bool FastTestIntegrityLevel(JSObject* object, PropertyAttributes level) {
+  DCHECK_LT(LAST_CUSTOM_ELEMENTS_RECEIVER, object->map()->instance_type());
+
+  return !object->map()->is_extensible() &&
+         TestElementsIntegrityLevel(object, level) &&
+         TestPropertiesIntegrityLevel(object, level);
+}
+
+Maybe<bool> GenericTestIntegrityLevel(Handle<JSReceiver> receiver,
+                                      PropertyAttributes level) {
+  DCHECK(level == SEALED || level == FROZEN);
+
+  Maybe<bool> extensible = JSReceiver::IsExtensible(receiver);
   MAYBE_RETURN(extensible, Nothing<bool>());
   if (extensible.FromJust()) return Just(false);
 
+  Isolate* isolate = receiver->GetIsolate();
+
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, keys, JSReceiver::OwnPropertyKeys(object), Nothing<bool>());
+      isolate, keys, JSReceiver::OwnPropertyKeys(receiver), Nothing<bool>());
 
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> key(keys->get(i), isolate);
     PropertyDescriptor current_desc;
     Maybe<bool> owned = JSReceiver::GetOwnPropertyDescriptor(
-        isolate, object, key, &current_desc);
+        isolate, receiver, key, &current_desc);
     MAYBE_RETURN(owned, Nothing<bool>());
     if (owned.FromJust()) {
       if (current_desc.configurable()) return Just(false);
@@ -7511,6 +7593,25 @@ Maybe<bool> JSReceiver::TestIntegrityLevel(Handle<JSReceiver> object,
   return Just(true);
 }
 
+}  // namespace
+
+Maybe<bool> JSReceiver::TestIntegrityLevel(Handle<JSReceiver> receiver,
+                                           IntegrityLevel level) {
+  if (receiver->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER) {
+    return JSObject::TestIntegrityLevel(Handle<JSObject>::cast(receiver),
+                                        level);
+  }
+  return GenericTestIntegrityLevel(receiver, level);
+}
+
+Maybe<bool> JSObject::TestIntegrityLevel(Handle<JSObject> object,
+                                         IntegrityLevel level) {
+  if (object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+      !object->HasSloppyArgumentsElements()) {
+    return Just(FastTestIntegrityLevel(*object, level));
+  }
+  return GenericTestIntegrityLevel(Handle<JSReceiver>::cast(object), level);
+}
 
 Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
                                           ShouldThrow should_throw) {
