@@ -1357,6 +1357,10 @@ void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
+void FullCodeGenerator::VisitYieldStar(YieldStar* expr) {
+  // Resumable functions are not supported.
+  UNREACHABLE();
+}
 
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;

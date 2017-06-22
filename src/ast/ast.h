@@ -92,6 +92,7 @@ namespace internal {
   V(VariableProxy)              \
   V(Literal)                    \
   V(Suspend)                    \
+  V(YieldStar)                  \
   V(Throw)                      \
   V(CallRuntime)                \
   V(UnaryOperation)             \
@@ -2250,7 +2251,7 @@ class RewritableExpression final : public Expression {
 // Our Yield is different from the JS yield in that it "returns" its argument as
 // is, without wrapping it in an iterator result object.  Such wrapping, if
 // desired, must be done beforehand (see the parser).
-class Suspend final : public Expression {
+class Suspend : public Expression {
  public:
   // With {kNoControl}, the {Suspend} behaves like yield, except that it never
   // throws and never causes the current generator to return. This is used to
@@ -2300,10 +2301,11 @@ class Suspend final : public Expression {
 
  private:
   friend class AstNodeFactory;
+  friend class YieldStar;
 
-  Suspend(Expression* expression, int pos, OnAbruptResume on_abrupt_resume,
-          SuspendFlags flags)
-      : Expression(pos, kSuspend), suspend_id_(-1), expression_(expression) {
+  Suspend(NodeType node_type, Expression* expression, int pos,
+          OnAbruptResume on_abrupt_resume, SuspendFlags flags)
+      : Expression(pos, node_type), suspend_id_(-1), expression_(expression) {
     bit_field_ |= OnAbruptResumeField::encode(on_abrupt_resume) |
                   FlagsField::encode(flags);
   }
@@ -2318,6 +2320,74 @@ class Suspend final : public Expression {
                         static_cast<int>(SuspendFlags::kBitWidth)> {};
 };
 
+class YieldStar final : public Suspend {
+ public:
+  void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
+                           FeedbackSlotCache* cache) {
+    load_iterable_iterator_slot_ = spec->AddLoadICSlot();
+    load_iterator_return_slot_ = spec->AddLoadICSlot();
+    load_iterator_next_slot_ = spec->AddLoadICSlot();
+    load_iterator_throw_slot_ = spec->AddLoadICSlot();
+    load_output_done_slot_ = spec->AddLoadICSlot();
+    load_output_value_slot_ = spec->AddLoadICSlot();
+    call_iterable_iterator_slot_ = spec->AddCallICSlot();
+    call_iterator_return_slot1_ = spec->AddCallICSlot();
+    call_iterator_return_slot2_ = spec->AddCallICSlot();
+    call_iterator_next_slot_ = spec->AddCallICSlot();
+    call_iterator_throw_slot_ = spec->AddCallICSlot();
+  }
+
+  FeedbackSlot load_iterable_iterator_slot() const {
+    return load_iterable_iterator_slot_;
+  }
+  FeedbackSlot load_iterator_return_slot() const {
+    return load_iterator_return_slot_;
+  }
+  FeedbackSlot load_iterator_next_slot() const {
+    return load_iterator_next_slot_;
+  }
+  FeedbackSlot load_iterator_throw_slot() const {
+    return load_iterator_throw_slot_;
+  }
+  FeedbackSlot load_output_done_slot() const { return load_output_done_slot_; }
+  FeedbackSlot load_output_value_slot() const {
+    return load_output_value_slot_;
+  }
+  FeedbackSlot call_iterable_iterator_slot() const {
+    return call_iterable_iterator_slot_;
+  }
+  FeedbackSlot call_iterator_return_slot1() const {
+    return call_iterator_return_slot1_;
+  }
+  FeedbackSlot call_iterator_return_slot2() const {
+    return call_iterator_return_slot2_;
+  }
+  FeedbackSlot call_iterator_next_slot() const {
+    return call_iterator_next_slot_;
+  }
+  FeedbackSlot call_iterator_throw_slot() const {
+    return call_iterator_throw_slot_;
+  }
+
+ private:
+  friend class AstNodeFactory;
+
+  YieldStar(Expression* expression, int pos, SuspendFlags flags)
+      : Suspend(kYieldStar, expression, pos,
+                Suspend::OnAbruptResume::kNoControl, flags) {}
+
+  FeedbackSlot load_iterable_iterator_slot_;
+  FeedbackSlot load_iterator_return_slot_;
+  FeedbackSlot load_iterator_next_slot_;
+  FeedbackSlot load_iterator_throw_slot_;
+  FeedbackSlot load_output_done_slot_;
+  FeedbackSlot load_output_value_slot_;
+  FeedbackSlot call_iterable_iterator_slot_;
+  FeedbackSlot call_iterator_return_slot1_;
+  FeedbackSlot call_iterator_return_slot2_;
+  FeedbackSlot call_iterator_next_slot_;
+  FeedbackSlot call_iterator_throw_slot_;
+};
 
 class Throw final : public Expression {
  public:
@@ -3312,7 +3382,13 @@ class AstNodeFactory final BASE_EMBEDDED {
                       Suspend::OnAbruptResume on_abrupt_resume,
                       SuspendFlags flags) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_) Suspend(expression, pos, on_abrupt_resume, flags);
+    return new (zone_)
+        Suspend(AstNode::kSuspend, expression, pos, on_abrupt_resume, flags);
+  }
+
+  YieldStar* NewYieldStar(Expression* expression, int pos, SuspendFlags flags) {
+    if (!expression) expression = NewUndefinedLiteral(pos);
+    return new (zone_) YieldStar(expression, pos, flags);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {

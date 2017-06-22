@@ -333,6 +333,7 @@ namespace internal {
   F(ThrowInvalidStringLength, 0, 1)                \
   F(ThrowInvalidTypedArrayAlignment, 2, 1)         \
   F(ThrowIteratorResultNotAnObject, 1, 1)          \
+  F(ThrowThrowMethodMissing, 0, 1)                 \
   F(ThrowSymbolIteratorInvalid, 0, 1)              \
   F(ThrowNonCallableInInstanceOfCheck, 0, 1)       \
   F(ThrowNonObjectInInstanceOfCheck, 0, 1)         \

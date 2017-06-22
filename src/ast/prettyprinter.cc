@@ -256,6 +256,8 @@ void CallPrinter::VisitAssignment(Assignment* node) {
 
 void CallPrinter::VisitSuspend(Suspend* node) { Find(node->expression()); }
 
+void CallPrinter::VisitYieldStar(YieldStar* node) { Find(node->expression()); }
+
 void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
 
 
@@ -1119,6 +1121,12 @@ void AstPrinter::VisitSuspend(Suspend* node) {
   Visit(node->expression());
 }
 
+void AstPrinter::VisitYieldStar(YieldStar* node) {
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "YIELD_STAR id %d", node->suspend_id());
+  IndentedScope indent(this, buf.start(), node->position());
+  Visit(node->expression());
+}
 
 void AstPrinter::VisitThrow(Throw* node) {
   IndentedScope indent(this, "THROW", node->position());

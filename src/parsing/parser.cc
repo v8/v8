@@ -4315,6 +4315,11 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
   IteratorType type =
       is_async_generator() ? IteratorType::kAsync : IteratorType::kNormal;
 
+  if (type == IteratorType::kNormal) {
+    return factory()->NewYieldStar(iterable, pos,
+                                   SuspendFlags::kGeneratorYieldStar);
+  }
+
   // Forward definition for break/continue statements.
   WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
 
@@ -4506,7 +4511,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
   {
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
     Suspend* yield = BuildSuspend(output_proxy, nopos, Suspend::kNoControl,
-                                  SuspendFlags::kYieldStar);
+                                  SuspendFlags::kYield);
     yield_output = factory()->NewExpressionStatement(yield, nopos);
   }
 

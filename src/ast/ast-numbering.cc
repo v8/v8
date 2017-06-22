@@ -240,6 +240,10 @@ void AstNumberingVisitor::VisitSuspend(Suspend* node) {
   Visit(node->expression());
 }
 
+void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
+  VisitSuspend(node);
+  ReserveFeedbackSlots(node);
+}
 
 void AstNumberingVisitor::VisitThrow(Throw* node) {
   IncrementNodeCount();

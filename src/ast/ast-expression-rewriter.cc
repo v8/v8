@@ -270,6 +270,9 @@ void AstExpressionRewriter::VisitSuspend(Suspend* node) {
   AST_REWRITE_PROPERTY(Expression, node, expression);
 }
 
+void AstExpressionRewriter::VisitYieldStar(YieldStar* node) {
+  VisitSuspend(node);
+}
 
 void AstExpressionRewriter::VisitThrow(Throw* node) {
   REWRITE_THIS(node);

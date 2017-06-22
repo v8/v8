@@ -29,7 +29,6 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   return isolate->heap()->undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -41,7 +40,6 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   JSObject::MigrateSlowToFast(container, 0, "ExportFromRuntime");
   return *container;
 }
-
 
 RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
@@ -67,20 +65,17 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
   return isolate->heap()->undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return isolate->Throw(args[0]);
 }
 
-
 RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
 }
-
 
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
@@ -166,13 +161,11 @@ RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   return isolate->UnwindAndFindHandler();
 }
 
-
 RUNTIME_FUNCTION(Runtime_PromoteScheduledException) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   return isolate->PromoteScheduledException();
 }
-
 
 RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   HandleScope scope(isolate);
@@ -181,7 +174,6 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
 }
-
 
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
@@ -193,7 +185,6 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
   return *isolate->factory()->NewTypeError(message_template, arg0);
 }
 
-
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -203,7 +194,6 @@ RUNTIME_FUNCTION(Runtime_NewReferenceError) {
       static_cast<MessageTemplate::Template>(template_index);
   return *isolate->factory()->NewReferenceError(message_template, arg0);
 }
-
 
 RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   HandleScope scope(isolate);
@@ -258,6 +248,13 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowThrowMethodMissing) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kThrowMethodMissing));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
@@ -316,13 +313,11 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-
 RUNTIME_FUNCTION(Runtime_Interrupt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   return isolate->stack_guard()->HandleInterrupts();
 }
-
 
 RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
@@ -333,7 +328,6 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   CHECK(size <= kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
-
 
 RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   HandleScope scope(isolate);
@@ -370,11 +364,9 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   return *result;
 }
 
-
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
 }
-
 
 namespace {
 
@@ -399,7 +391,6 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
   }
   return false;
 }
-
 
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
@@ -474,7 +465,6 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   RETURN_RESULT_OR_FAILURE(isolate, Object::CreateListFromArrayLike(
                                         isolate, object, ElementTypes::kAll));
 }
-
 
 RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   HandleScope scope(isolate);

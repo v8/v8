@@ -137,8 +137,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildGeneratorSuspend(Suspend* expr, RegisterList registers_to_save);
+  void BuildGeneratorSuspend(Suspend* expr, Register value,
+                             RegisterList registers_to_save);
   void BuildGeneratorResume(Suspend* expr, RegisterList registers_to_restore);
+  void BuildAbruptResume(Suspend* expr);
+  void BuildGetIterator(Expression* iterable, IteratorType hint,
+                        FeedbackSlot load_slot, FeedbackSlot call_slot,
+                        FeedbackSlot async_load_slot,
+                        FeedbackSlot async_call_slot);
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
@@ -174,6 +180,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visit the header/body of a loop iteration.
   void VisitIterationHeader(IterationStatement* stmt,
+                            LoopBuilder* loop_builder);
+  void VisitIterationHeader(int first_suspend_id, int suspend_count,
                             LoopBuilder* loop_builder);
   void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop_builder);
 
