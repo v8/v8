@@ -2532,6 +2532,15 @@ group("gn_all") {
   }
 }
 
+group("v8_archive") {
+  deps = [
+    ":d8",
+    ":v8_hello_world",
+    ":v8_parser_shell",
+    ":v8_sample_process",
+  ]
+}
+
 group("v8_fuzzers") {
   testonly = true
   deps = [
