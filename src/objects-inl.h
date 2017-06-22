@@ -4205,10 +4205,12 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
   return result;
 }
 
+Object* Code::GetObjectFromCodeEntry(Address code_entry) {
+  return HeapObject::FromAddress(code_entry - Code::kHeaderSize);
+}
 
 Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
-  return HeapObject::
-      FromAddress(Memory::Address_at(location_of_address) - Code::kHeaderSize);
+  return GetObjectFromCodeEntry(Memory::Address_at(location_of_address));
 }
 
 
@@ -4878,7 +4880,8 @@ Code* JSFunction::code() {
 void JSFunction::set_code(Code* value) {
   DCHECK(!GetHeap()->InNewSpace(value));
   Address entry = value->entry();
-  WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
+  RELAXED_WRITE_INTPTR_FIELD(this, kCodeEntryOffset,
+                             reinterpret_cast<intptr_t>(entry));
   GetHeap()->incremental_marking()->RecordWriteOfCodeEntry(
       this,
       HeapObject::RawField(this, kCodeEntryOffset),
@@ -4889,7 +4892,8 @@ void JSFunction::set_code(Code* value) {
 void JSFunction::set_code_no_write_barrier(Code* value) {
   DCHECK(!GetHeap()->InNewSpace(value));
   Address entry = value->entry();
-  WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
+  RELAXED_WRITE_INTPTR_FIELD(this, kCodeEntryOffset,
+                             reinterpret_cast<intptr_t>(entry));
 }
 
 void JSFunction::ClearOptimizedCodeSlot(const char* reason) {

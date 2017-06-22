@@ -3830,6 +3830,9 @@ class Code: public HeapObject {
   // Convert an entry address into an object.
   static inline Object* GetObjectFromEntryAddress(Address location_of_address);
 
+  // Convert a code entry into an object.
+  static inline Object* GetObjectFromCodeEntry(Address code_entry);
+
   // Returns the address of the first instruction.
   inline byte* instruction_start();
 

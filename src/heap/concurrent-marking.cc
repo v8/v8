@@ -73,6 +73,13 @@ class ConcurrentMarkingVisitor final
     }
   }
 
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
+    Address code_entry = base::AsAtomicWord::Relaxed_Load(
+        reinterpret_cast<Address*>(entry_address));
+    Object* code = Code::GetObjectFromCodeEntry(code_entry);
+    VisitPointer(host, &code);
+  }
+
   // ===========================================================================
   // JS object =================================================================
   // ===========================================================================
@@ -120,15 +127,23 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitBytecodeArray(Map* map, BytecodeArray* object) override {
-    // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
+                                                  marking_state(object))) {
+      int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
+      VisitMapPointer(object, object->map_slot());
+      BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
+      // Aging of bytecode arrays is done on the main thread.
+      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    }
     return 0;
   }
 
   int VisitJSFunction(Map* map, JSFunction* object) override {
-    // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
-    return 0;
+    if (!ShouldVisit(object)) return 0;
+    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
+    return size;
   }
 
   int VisitMap(Map* map, Map* object) override {
@@ -138,14 +153,27 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitNativeContext(Map* map, Context* object) override {
-    // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
+                                                  marking_state(object))) {
+      int size = Context::BodyDescriptorWeak::SizeOf(map, object);
+      VisitMapPointer(object, object->map_slot());
+      Context::BodyDescriptorWeak::IterateBody(object, size, this);
+      // TODO(ulan): implement proper weakness for normalized map cache
+      // and remove this bailout.
+      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    }
     return 0;
   }
 
   int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) override {
-    // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
+                                                  marking_state(object))) {
+      int size = SharedFunctionInfo::BodyDescriptorWeak::SizeOf(map, object);
+      VisitMapPointer(object, object->map_slot());
+      SharedFunctionInfo::BodyDescriptorWeak::IterateBody(object, size, this);
+      // Resetting of IC age counter is done on the main thread.
+      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    }
     return 0;
   }
 

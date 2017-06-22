@@ -65,8 +65,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(
       kVisitNativeContext,
-      &FixedBodyVisitor<StaticVisitor, Context::ScavengeBodyDescriptor,
-                        int>::Visit);
+      &FixedBodyVisitor<StaticVisitor, Context::BodyDescriptor, int>::Visit);
 
   table_.Register(kVisitByteArray, &VisitByteArray);
 
@@ -321,8 +320,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
     Map* map, HeapObject* object) {
-  FixedBodyVisitor<StaticVisitor, Context::MarkCompactBodyDescriptor,
-                   void>::Visit(map, object);
+  FixedBodyVisitor<StaticVisitor, Context::BodyDescriptorWeak, void>::Visit(
+      map, object);
 }
 
 

@@ -712,13 +712,11 @@ class Context: public FixedArray {
   static const int kNotFound = -1;
 
   // GC support.
-  typedef FixedBodyDescriptor<
-      kHeaderSize, kSize, kSize> ScavengeBodyDescriptor;
+  typedef FixedBodyDescriptor<kHeaderSize, kSize, kSize> BodyDescriptor;
 
   typedef FixedBodyDescriptor<
-      kHeaderSize,
-      kHeaderSize + FIRST_WEAK_SLOT * kPointerSize,
-      kSize> MarkCompactBodyDescriptor;
+      kHeaderSize, kHeaderSize + FIRST_WEAK_SLOT * kPointerSize, kSize>
+      BodyDescriptorWeak;
 
  private:
 #ifdef DEBUG

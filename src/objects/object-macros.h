@@ -181,6 +181,11 @@
 #define READ_INTPTR_FIELD(p, offset) \
   (*reinterpret_cast<const intptr_t*>(FIELD_ADDR_CONST(p, offset)))
 
+#define RELAXED_WRITE_INTPTR_FIELD(p, offset, value)              \
+  base::Relaxed_Store(                                            \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::AtomicWord>(value));
+
 #define WRITE_INTPTR_FIELD(p, offset, value) \
   (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
 

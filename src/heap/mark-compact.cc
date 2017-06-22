@@ -2248,9 +2248,9 @@ class YoungGenerationMarkingVisitor final
 
   int VisitNativeContext(Map* map, Context* object) final {
     if (!ShouldVisit(object)) return 0;
-    int size = Context::ScavengeBodyDescriptor::SizeOf(map, object);
+    int size = Context::BodyDescriptor::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    Context::ScavengeBodyDescriptor::IterateBody(object, size, this);
+    Context::BodyDescriptor::IterateBody(object, size, this);
     return size;
   }
 
