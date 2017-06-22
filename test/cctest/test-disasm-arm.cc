@@ -40,26 +40,38 @@
 
 using namespace v8::internal;
 
-
-bool DisassembleAndCompare(byte* pc, const char* compare_string) {
+template <typename... S>
+bool DisassembleAndCompare(byte* begin, S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> disasm_buffer;
+  EmbeddedVector<char, 128> buffer;
 
-  disasm.InstructionDecode(disasm_buffer, pc);
+  std::vector<std::string> expected_disassembly = {expected_strings...};
+  size_t n_expected = expected_disassembly.size();
+  byte* end = begin + (n_expected * Assembler::kInstrSize);
 
-  if (strcmp(compare_string, disasm_buffer.start()) != 0) {
-    fprintf(stderr,
-            "expected: \n"
-            "%s\n"
-            "disassembled: \n"
-            "%s\n\n",
-            compare_string, disasm_buffer.start());
-    return false;
+  std::vector<std::string> disassembly;
+  for (byte* pc = begin; pc < end;) {
+    pc += disasm.InstructionDecode(buffer, pc);
+    disassembly.emplace_back(buffer.start());
   }
-  return true;
-}
 
+  bool test_passed = true;
+
+  for (size_t i = 0; i < disassembly.size(); i++) {
+    if (expected_disassembly[i] != disassembly[i]) {
+      fprintf(stderr,
+              "expected: \n"
+              "%s\n"
+              "disassembled: \n"
+              "%s\n\n",
+              expected_disassembly[i].c_str(), disassembly[i].c_str());
+      test_passed = false;
+    }
+  }
+
+  return test_passed;
+}
 
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
@@ -77,12 +89,12 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // disassembles the generated instruction, comparing the output to the expected
 // value. If the comparison fails an error message is printed, but the test
 // continues to run until the end.
-#define COMPARE(asm_, compare_string) \
-  { \
-    int pc_offset = assm.pc_offset(); \
-    byte *progcounter = &buffer[pc_offset]; \
-    assm.asm_; \
-    if (!DisassembleAndCompare(progcounter, compare_string)) failure = true; \
+#define COMPARE(asm_, ...)                                                \
+  {                                                                       \
+    int pc_offset = assm.pc_offset();                                     \
+    byte* progcounter = &buffer[pc_offset];                               \
+    assm.asm_;                                                            \
+    if (!DisassembleAndCompare(progcounter, __VA_ARGS__)) failure = true; \
   }
 
 // Force emission of any pending literals into a pool.
@@ -272,21 +284,22 @@ TEST(Type0) {
   if (CpuFeatures::IsSupported(ARMv7)) {
     COMPARE(mov(r5, Operand(0x01234), LeaveCC, ne),
             "13015234       movwne r5, #4660");
-    // We only disassemble one instruction so the eor instruction is not here.
     COMPARE(eor(r5, r4, Operand(0x1234), LeaveCC, ne),
-            "1301c234       movwne ip, #4660");
-    // Movw can't do setcc, so first move to ip, then the following instruction
-    // moves to r5.  Mov immediate with setcc is pretty strange anyway.
+            "13015234       movwne r5, #4660",
+            "10245005       eorne r5, r4, r5");
+    // Movw can't do setcc, so first move to r5, then the following instruction
+    // sets the flags. Mov immediate with setcc is pretty strange anyway.
     COMPARE(mov(r5, Operand(0x01234), SetCC, ne),
-            "1301c234       movwne ip, #4660");
+            "13015234       movwne r5, #4660",
+            "11b05005       movnes r5, r5");
     // Emit a literal pool now, otherwise this could be dumped later, in the
     // middle of a different test.
     EMIT_PENDING_LITERALS();
 
-    // We only disassemble one instruction so the eor instruction is not here.
     // The eor does the setcc so we get a movw here.
     COMPARE(eor(r5, r4, Operand(0x1234), SetCC, ne),
-            "1301c234       movwne ip, #4660");
+            "13015234       movwne r5, #4660",
+            "10345005       eornes r5, r4, r5");
 
     COMPARE(movt(r5, 0x4321, ne),
             "13445321       movtne r5, #17185");
@@ -297,7 +310,8 @@ TEST(Type0) {
   // Eor doesn't have an eor-negative variant, but we can do an mvn followed by
   // an eor to get the same effect.
   COMPARE(eor(r5, r4, Operand(0xffffff34), SetCC, ne),
-          "13e0c0cb       mvnne ip, #203");
+          "13e050cb       mvnne r5, #203",
+          "10345005       eornes r5, r4, r5");
 
   // and <-> bic.
   COMPARE(and_(r3, r5, Operand(0xfc03ffff)),
@@ -1401,6 +1415,42 @@ TEST(LoadStore) {
     COMPARE(pld(MemOperand(r2, 128)),
             "f5d2f080       pld [r2, #+128]");
   }
+
+  // Test out-of-bound immediates.
+  COMPARE(ldrb(r6, MemOperand(r7, 42 << 12)),
+          "e3a06a2a       mov r6, #172032",
+          "e7d76006       ldrb r6, [r7, +r6]");
+  COMPARE(ldrh(r6, MemOperand(r7, 42 << 8, PostIndex)),
+          "e3a06c2a       mov r6, #10752",
+          "e09760b6       ldrh r6, [r7], +r6");
+  // Make sure ip is used if the destination is the same as the base.
+  COMPARE(ldr(r8, MemOperand(r8, 42 << 12, PreIndex)),
+          "e3a0ca2a       mov ip, #172032",
+          "e7b8800c       ldr r8, [r8, +ip]!");
+  COMPARE(strb(r6, MemOperand(r7, 42 << 12)),
+          "e3a0ca2a       mov ip, #172032",
+          "e7c7600c       strb r6, [r7, +ip]");
+  COMPARE(strh(r6, MemOperand(r7, 42 << 8, PostIndex)),
+          "e3a0cc2a       mov ip, #10752",
+          "e08760bc       strh r6, [r7], +ip");
+  COMPARE(str(r6, MemOperand(r7, 42 << 12, PreIndex)),
+          "e3a0ca2a       mov ip, #172032",
+          "e7a7600c       str r6, [r7, +ip]!");
+
+  // Test scaled operands for instructions that do not support it natively.
+  COMPARE(ldrh(r0, MemOperand(r1, r2, LSL, 2)),
+          "e1a00102       mov r0, r2, lsl #2",
+          "e19100b0       ldrh r0, [r1, +r0]");
+  COMPARE(strh(r3, MemOperand(r4, r5, LSR, 3)),
+          "e1a0c1a5       mov ip, r5, lsr #3",
+          "e18430bc       strh r3, [r4, +ip]");
+  // Make sure ip is used if the destination is the same as the base.
+  COMPARE(ldrsb(r6, MemOperand(r6, r8, ASR, 4)),
+          "e1a0c248       mov ip, r8, asr #4",
+          "e19660dc       ldrsb r6, [r6, +ip]");
+  COMPARE(ldrsh(r9, MemOperand(sp, r10, ROR, 5)),
+          "e1a092ea       mov r9, r10, ror #5",
+          "e19d90f9       ldrsh r9, [sp, +r9]");
 
   VERIFY_RUN();
 }

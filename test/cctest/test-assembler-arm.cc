@@ -3969,4 +3969,26 @@ TEST(regress4292_CheckConstPool) {
   __ vldr(d0, MemOperand(r0, 0));
 }
 
+TEST(use_scratch_register_scope) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // The assembler should have ip as a scratch by default.
+  CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
+
+  {
+    UseScratchRegisterScope temps(&assm);
+    CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
+
+    Register scratch = temps.Acquire();
+    CHECK_EQ(scratch.code(), ip.code());
+    CHECK_EQ(*assm.GetScratchRegisterList(), 0);
+  }
+
+  CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
+}
+
 #undef __

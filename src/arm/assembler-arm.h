@@ -546,8 +546,8 @@ class Operand BASE_EMBEDDED {
 
   // Return the number of actual instructions required to implement the given
   // instruction for this particular operand. This can be a single instruction,
-  // if no load into the ip register is necessary, or anything between 2 and 4
-  // instructions when we need to load from the constant pool (depending upon
+  // if no load into a scratch register is necessary, or anything between 2 and
+  // 4 instructions when we need to load from the constant pool (depending upon
   // whether the constant pool entry is in the small or extended section). If
   // the instruction this operand is used for is a MOV or MVN instruction the
   // actual instruction to use is required for this calculation. For other
@@ -607,8 +607,9 @@ class MemOperand BASE_EMBEDDED {
   // [rn +/- offset]      Offset/NegOffset
   // [rn +/- offset]!     PreIndex/NegPreIndex
   // [rn], +/- offset     PostIndex/NegPostIndex
-  // offset is any signed 32-bit value; offset is first loaded to register ip if
-  // it does not fit the addressing mode (12-bit unsigned and sign bit)
+  // offset is any signed 32-bit value; offset is first loaded to a scratch
+  // register if it does not fit the addressing mode (12-bit unsigned and sign
+  // bit)
   explicit MemOperand(Register rn, int32_t offset = 0, AddrMode am = Offset);
 
   // [rn +/- rm]          Offset/NegOffset
@@ -822,6 +823,8 @@ class Assembler : public AssemblerBase {
   static constexpr int kDebugBreakSlotInstructions = 4;
   static constexpr int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
+
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1168,7 +1171,7 @@ class Assembler : public AssemblerBase {
   void vmov(const SwVfpRegister dst, float imm);
   void vmov(const DwVfpRegister dst,
             Double imm,
-            const Register scratch = no_reg);
+            const Register extra_scratch = no_reg);
   void vmov(const SwVfpRegister dst,
             const SwVfpRegister src,
             const Condition cond = al);
@@ -1788,6 +1791,9 @@ class Assembler : public AssemblerBase {
   // Map of address of handle to index in pending_32_bit_constants_.
   std::map<Address, int> handle_to_index_map_;
 
+  // Scratch registers available for use by the Assembler.
+  RegList scratch_register_list_;
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -1896,6 +1902,29 @@ class PatchingAssembler : public Assembler {
   void FlushICache(Isolate* isolate);
 };
 
+// This scope utility allows scratch registers to be managed safely. The
+// Assembler's GetScratchRegisterList() is used as a pool of scratch
+// registers. These registers can be allocated on demand, and will be returned
+// at the end of the scope.
+//
+// When the scope ends, the Assembler's list will be restored to its original
+// state, even if the list is modified by some other means. Note that this scope
+// can be nested but the destructors need to run in the opposite order as the
+// constructors. We do not have assertions for this.
+class UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  // Take a register from the list and return it.
+  Register Acquire();
+
+ private:
+  // Currently available scratch registers.
+  RegList* available_;
+  // Available scratch registers at the start of this scope.
+  RegList old_available_;
+};
 
 }  // namespace internal
 }  // namespace v8

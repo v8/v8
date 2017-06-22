@@ -817,7 +817,7 @@ class MacroAssembler: public Assembler {
   // are the same register).  It leaves the heap object in the heap_object
   // register unless the heap_object register is the same register as one of the
   // other registers.
-  // Type_reg can be no_reg. In that case ip is used.
+  // Type_reg can be no_reg. In that case a scratch register is used.
   void CompareObjectType(Register heap_object,
                          Register map,
                          Register type_reg,
@@ -869,11 +869,13 @@ class MacroAssembler: public Assembler {
   void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // Compare the object in a register to a value from the root list.
-  // Uses the ip register as scratch.
+  // Acquires a scratch register.
   void CompareRoot(Register obj, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index) {
-    LoadRoot(ip, index);
-    Push(ip);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    Push(scratch);
   }
 
   // Compare the object in a register to a value and jump if they are equal.
@@ -1090,9 +1092,9 @@ class MacroAssembler: public Assembler {
     return code_object_;
   }
 
-
   // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged and ip gets clobbered. Dividend and result must be different.
+  // unchanged and a scratch register needs to be available. Dividend and result
+  // must be different.
   void TruncatingDiv(Register result, Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
@@ -1168,9 +1170,11 @@ class MacroAssembler: public Assembler {
     TrySmiTag(reg, reg, not_a_smi);
   }
   void TrySmiTag(Register reg, Register src, Label* not_a_smi) {
-    SmiTag(ip, src, SetCC);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    SmiTag(scratch, src, SetCC);
     b(vs, not_a_smi);
-    mov(reg, ip);
+    mov(reg, scratch);
   }
 
 

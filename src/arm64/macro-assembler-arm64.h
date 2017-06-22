@@ -2602,14 +2602,15 @@ class InstructionAccurateScope BASE_EMBEDDED {
 #endif
 };
 
-
 // This scope utility allows scratch registers to be managed safely. The
 // MacroAssembler's TmpList() (and FPTmpList()) is used as a pool of scratch
 // registers. These registers can be allocated on demand, and will be returned
 // at the end of the scope.
 //
 // When the scope ends, the MacroAssembler's lists will be restored to their
-// original state, even if the lists were modified by some other means.
+// original state, even if the lists were modified by some other means. Note
+// that this scope can be nested but the destructors need to run in the opposite
+// order as the constructors. We do not have assertions for this.
 class UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(MacroAssembler* masm)
