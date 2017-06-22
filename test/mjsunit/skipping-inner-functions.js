@@ -122,3 +122,17 @@ function TestSkippedFunctionInsideLoopInitializer() {
   assertEquals(0, saved_func());
 }
 TestSkippedFunctionInsideLoopInitializer();
+
+(function TestSkippedFunctionWithParameters() {
+  var result = 0;
+
+  function lazy(ctxt_alloc_param) {
+    var ctxt_alloc_var = 10;
+    function skip_me(param1, param2) {
+      result = ctxt_alloc_param + ctxt_alloc_var + param1 + param2;
+    }
+    return skip_me;
+  }
+  lazy(9)(8, 7);
+  assertEquals(34, result);
+})();
