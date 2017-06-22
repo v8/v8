@@ -27,7 +27,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/page-parallel-job.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap/workstealing-marking-deque.h"
+#include "src/heap/workstealing-bag.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -2210,7 +2210,7 @@ class YoungGenerationMarkingVisitor final
   using BaseClass = HeapVisitor<int, YoungGenerationMarkingVisitor>;
 
   YoungGenerationMarkingVisitor(Heap* heap,
-                                WorkStealingMarkingDeque* global_marking_deque,
+                                WorkStealingBag* global_marking_deque,
                                 int task_id)
       : heap_(heap), marking_deque_(global_marking_deque, task_id) {}
 
@@ -2303,7 +2303,7 @@ class YoungGenerationMarkingVisitor final
   }
 
   Heap* heap_;
-  LocalWorkStealingMarkingDeque marking_deque_;
+  LocalWorkStealingBag marking_deque_;
 };
 
 class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
@@ -2359,8 +2359,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
  public:
   YoungGenerationMarkingTask(Isolate* isolate,
                              MinorMarkCompactCollector* collector,
-                             WorkStealingMarkingDeque* marking_deque,
-                             int task_id)
+                             WorkStealingBag* marking_deque, int task_id)
       : ItemParallelJob::Task(isolate),
         collector_(collector),
         marking_deque_(marking_deque, task_id),
@@ -2380,7 +2379,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
         EmptyLocalMarkingDeque();
       }
       EmptyMarkingDeque();
-      DCHECK(marking_deque_.IsEmpty());
+      DCHECK(marking_deque_.IsLocalEmpty());
       FlushLiveBytes();
     }
     if (FLAG_trace_minor_mc_parallel_marking) {
@@ -2414,11 +2413,9 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
 
   void EmptyMarkingDeque() {
     HeapObject* object = nullptr;
-    while (marking_deque_.WaitForMoreObjects()) {
-      while (marking_deque_.Pop(&object)) {
-        const int size = visitor_.Visit(object);
-        IncrementLiveBytes(object, size);
-      }
+    while (marking_deque_.Pop(&object)) {
+      const int size = visitor_.Visit(object);
+      IncrementLiveBytes(object, size);
     }
   }
 
@@ -2435,7 +2432,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   MinorMarkCompactCollector* collector_;
-  LocalWorkStealingMarkingDeque marking_deque_;
+  LocalWorkStealingBag marking_deque_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
@@ -2599,11 +2596,11 @@ class MinorMarkCompactCollector::RootMarkingVisitorSeedOnly
 
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
-      marking_deque_(new WorkStealingMarkingDeque()),
+      marking_deque_(new WorkStealingBag()),
       main_marking_visitor_(
           new YoungGenerationMarkingVisitor(heap, marking_deque_, kMainMarker)),
       page_parallel_job_semaphore_(0) {
-  static_assert(kNumMarkers <= WorkStealingMarkingDeque::kMaxNumTasks,
+  static_assert(kNumMarkers <= WorkStealingBag::kMaxNumTasks,
                 "more marker tasks than marking deque can handle");
 }
 
@@ -2668,6 +2665,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
                                                    marking_deque(), i));
       }
       job.Run();
+      DCHECK(marking_deque()->IsGlobalEmpty());
     }
   }
   old_to_new_slots_ = static_cast<int>(slots.Value());
@@ -2704,8 +2702,7 @@ void MinorMarkCompactCollector::ProcessMarkingDeque() {
 }
 
 void MinorMarkCompactCollector::EmptyMarkingDeque() {
-  LocalWorkStealingMarkingDeque local_marking_deque(marking_deque(),
-                                                    kMainMarker);
+  LocalWorkStealingBag local_marking_deque(marking_deque(), kMainMarker);
   HeapObject* object = nullptr;
   while (local_marking_deque.Pop(&object)) {
     DCHECK(!object->IsFiller());
@@ -2717,7 +2714,7 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
         object, marking_state(object))));
     main_marking_visitor()->Visit(object);
   }
-  DCHECK(local_marking_deque.IsEmpty());
+  DCHECK(local_marking_deque.IsLocalEmpty());
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {

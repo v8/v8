@@ -1109,7 +1109,7 @@
         'heap/spaces.h',
         'heap/store-buffer.cc',
         'heap/store-buffer.h',
-        'heap/workstealing-marking-deque.h',
+        'heap/workstealing-bag.h',
         'intl.cc',
         'intl.h',
         'icu_util.cc',
