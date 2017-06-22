@@ -334,13 +334,8 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
         isolate->slow_template_instantiations_cache();
     int entry = cache->FindEntry(serial_number);
     DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
-    Handle<Object> result =
-        UnseededNumberDictionary::DeleteProperty(cache, entry);
-    USE(result);
-    DCHECK(result->IsTrue(isolate));
-    auto new_cache = UnseededNumberDictionary::Shrink(cache);
-    isolate->native_context()->set_slow_template_instantiations_cache(
-        *new_cache);
+    cache = UnseededNumberDictionary::DeleteEntry(cache, entry);
+    isolate->native_context()->set_slow_template_instantiations_cache(*cache);
   }
 }
 

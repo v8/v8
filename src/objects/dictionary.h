@@ -53,7 +53,8 @@ class Dictionary : public HashTable<Derived, Shape> {
   }
 
   // Delete a property from the dictionary.
-  static Handle<Object> DeleteProperty(Handle<Derived> dictionary, int entry);
+  MUST_USE_RESULT static Handle<Derived> DeleteEntry(Handle<Derived> dictionary,
+                                                     int entry);
 
   // Attempt to shrink the dictionary after deletion of key.
   MUST_USE_RESULT static inline Handle<Derived> Shrink(
@@ -323,8 +324,6 @@ class UnseededNumberDictionary
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
       Handle<UnseededNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
-  static Handle<UnseededNumberDictionary> DeleteKey(
-      Handle<UnseededNumberDictionary> dictionary, uint32_t key);
 
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;

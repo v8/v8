@@ -1418,11 +1418,8 @@ class DictionaryElementsAccessor
     // TODO(verwaest): Remove reliance on index in Shrink.
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(obj->elements()));
-    Handle<Object> result = SeededNumberDictionary::DeleteProperty(dict, entry);
-    USE(result);
-    DCHECK(result->IsTrue(dict->GetIsolate()));
-    Handle<FixedArray> new_elements = SeededNumberDictionary::Shrink(dict);
-    obj->set_elements(*new_elements);
+    dict = SeededNumberDictionary::DeleteEntry(dict, entry);
+    obj->set_elements(*dict);
   }
 
   static bool HasAccessorsImpl(JSObject* holder,
@@ -3718,14 +3715,9 @@ class SlowSloppyArgumentsElementsAccessor
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(elements->arguments()), isolate);
     int length = elements->parameter_map_length();
-    Handle<Object> result =
-        SeededNumberDictionary::DeleteProperty(dict, entry - length);
-    USE(result);
-    DCHECK(result->IsTrue(isolate));
-    Handle<FixedArray> new_elements = SeededNumberDictionary::Shrink(dict);
-    elements->set_arguments(*new_elements);
+    dict = SeededNumberDictionary::DeleteEntry(dict, entry - length);
+    elements->set_arguments(*dict);
   }
-
   static void AddImpl(Handle<JSObject> object, uint32_t index,
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {

@@ -6046,9 +6046,8 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
     Handle<NameDictionary> dictionary(object->property_dictionary());
     DCHECK_NE(NameDictionary::kNotFound, entry);
 
-    NameDictionary::DeleteProperty(dictionary, entry);
-    Handle<NameDictionary> new_properties = NameDictionary::Shrink(dictionary);
-    object->set_properties(*new_properties);
+    dictionary = NameDictionary::DeleteEntry(dictionary, entry);
+    object->set_properties(*dictionary);
   }
 }
 
@@ -16219,17 +16218,17 @@ Dictionary<SeededNumberDictionary,
 template Object* Dictionary<
     NameDictionary, NameDictionaryShape>::SlowReverseLookup(Object* value);
 
-template Handle<Object>
-Dictionary<NameDictionary, NameDictionaryShape>::DeleteProperty(
+template Handle<NameDictionary>
+Dictionary<NameDictionary, NameDictionaryShape>::DeleteEntry(
     Handle<NameDictionary>, int);
 
-template Handle<Object>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::DeleteProperty(
+template Handle<SeededNumberDictionary>
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::DeleteEntry(
     Handle<SeededNumberDictionary>, int);
 
-template Handle<Object>
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::
-    DeleteProperty(Handle<UnseededNumberDictionary>, int);
+    DeleteEntry(Handle<UnseededNumberDictionary>, int);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
@@ -17542,16 +17541,15 @@ Handle<Derived> Dictionary<Derived, Shape>::EnsureCapacity(
 }
 
 template <typename Derived, typename Shape>
-Handle<Object> Dictionary<Derived, Shape>::DeleteProperty(
+Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
     Handle<Derived> dictionary, int entry) {
   Factory* factory = dictionary->GetIsolate()->factory();
-  PropertyDetails details = dictionary->DetailsAt(entry);
-  if (!details.IsConfigurable()) return factory->false_value();
-
+  DCHECK(Shape::kEntrySize != 3 ||
+         dictionary->DetailsAt(entry).IsConfigurable());
   dictionary->SetEntry(
       entry, factory->the_hole_value(), factory->the_hole_value());
   dictionary->ElementRemoved();
-  return factory->true_value();
+  return Shrink(dictionary);
 }
 
 template <typename Derived, typename Shape>
@@ -17641,18 +17639,6 @@ void SeededNumberDictionary::UpdateMaxNumberKey(
     FixedArray::set(kMaxNumberKeyIndex,
                     Smi::FromInt(key << kRequiresSlowElementsTagSize));
   }
-}
-
-Handle<UnseededNumberDictionary> UnseededNumberDictionary::DeleteKey(
-    Handle<UnseededNumberDictionary> dictionary, uint32_t key) {
-  int entry = dictionary->FindEntry(key);
-  if (entry == kNotFound) return dictionary;
-
-  Factory* factory = dictionary->GetIsolate()->factory();
-  dictionary->SetEntry(entry, factory->the_hole_value(),
-                       factory->the_hole_value());
-  dictionary->ElementRemoved();
-  return dictionary->Shrink(dictionary);
 }
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::Set(

@@ -120,7 +120,9 @@ Handle<Code> CodeStub::GetCodeCopy(const FindAndReplacePattern& pattern) {
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
   Handle<UnseededNumberDictionary> dict(heap->code_stubs());
-  dict = UnseededNumberDictionary::DeleteKey(dict, GetKey());
+  int entry = dict->FindEntry(GetKey());
+  DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
+  dict = UnseededNumberDictionary::DeleteEntry(dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 
