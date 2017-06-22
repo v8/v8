@@ -960,7 +960,7 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   Handle<UnseededNumberDictionary> types;
 
   if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-    types = UnseededNumberDictionary::NewEmpty(isolate);
+    types = UnseededNumberDictionary::New(isolate, 1);
   } else {
     types = handle(UnseededNumberDictionary::cast(feedback));
   }

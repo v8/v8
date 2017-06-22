@@ -15926,10 +15926,9 @@ void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> HashTable<Derived, Shape>::New(Isolate* isolate,
-                                               int at_least_space_for,
-                                               MinimumCapacity capacity_option,
-                                               PretenureFlag pretenure) {
+Handle<Derived> HashTable<Derived, Shape>::New(
+    Isolate* isolate, int at_least_space_for, PretenureFlag pretenure,
+    MinimumCapacity capacity_option) {
   DCHECK(0 <= at_least_space_for);
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
                  base::bits::IsPowerOfTwo32(at_least_space_for));
@@ -15940,12 +15939,12 @@ Handle<Derived> HashTable<Derived, Shape>::New(Isolate* isolate,
   if (capacity > HashTable::kMaxCapacity) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
   }
-  return New(isolate, capacity, pretenure);
+  return NewInternal(isolate, capacity, pretenure);
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> HashTable<Derived, Shape>::New(Isolate* isolate, int capacity,
-                                               PretenureFlag pretenure) {
+Handle<Derived> HashTable<Derived, Shape>::NewInternal(
+    Isolate* isolate, int capacity, PretenureFlag pretenure) {
   Factory* factory = isolate->factory();
   int length = EntryToIndex(capacity);
   Handle<FixedArray> array = factory->NewFixedArray(length, pretenure);
@@ -16076,13 +16075,15 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   bool should_pretenure = pretenure == TENURED ||
       ((capacity > kMinCapacityForPretenure) &&
           !isolate->heap()->InNewSpace(*table));
-  Handle<Derived> new_table =
-      HashTable::New(isolate, new_nof, USE_DEFAULT_MINIMUM_CAPACITY,
-                     should_pretenure ? TENURED : NOT_TENURED);
+  Handle<Derived> new_table = HashTable::New(
+      isolate, new_nof, should_pretenure ? TENURED : NOT_TENURED);
 
   table->Rehash(*new_table);
   return new_table;
 }
+
+template bool
+HashTable<NameDictionary, NameDictionaryShape>::HasSufficientCapacityToAdd(int);
 
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
@@ -16123,7 +16124,6 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table) {
   Handle<Derived> new_table = HashTable::New(
       isolate,
       at_least_room_for,
-      USE_DEFAULT_MINIMUM_CAPACITY,
       pretenure ? TENURED : NOT_TENURED);
 
   table->Rehash(*new_table);
@@ -16170,25 +16170,13 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 template class Dictionary<UnseededNumberDictionary,
                           UnseededNumberDictionaryShape>;
 
-template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::NewEmpty(
-    Isolate*, PretenureFlag pretenure);
-
-template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::NewEmpty(
-    Isolate*, PretenureFlag pretenure);
-
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
-    Isolate*, int n, MinimumCapacity capacity_option, PretenureFlag pretenure);
-
-template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape>::NewEmpty(
-    Isolate*, PretenureFlag pretenure);
+    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
 
 template Handle<GlobalDictionary>
 BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
-    Isolate*, int n, MinimumCapacity capacity_option, PretenureFlag pretenure);
+    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
 
 template Handle<SeededNumberDictionary>
     Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::AtPut(
@@ -16221,17 +16209,17 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::
 
 template Handle<UnseededNumberDictionary>
 HashTable<UnseededNumberDictionary, UnseededNumberDictionaryShape>::New(
-    Isolate*, int, MinimumCapacity, PretenureFlag);
+    Isolate*, int, PretenureFlag, MinimumCapacity);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
-                                                    MinimumCapacity,
-                                                    PretenureFlag);
+                                                    PretenureFlag,
+                                                    MinimumCapacity);
 
 template Handle<ObjectHashSet>
 HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
-                                                  MinimumCapacity,
-                                                  PretenureFlag);
+                                                  PretenureFlag,
+                                                  MinimumCapacity);
 
 template Handle<NameDictionary> HashTable<
     NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>);
@@ -16241,13 +16229,12 @@ template Handle<UnseededNumberDictionary>
         Handle<UnseededNumberDictionary>);
 
 template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape>::Add(Handle<NameDictionary>,
-                                                     Handle<Name>,
-                                                     Handle<Object>,
-                                                     PropertyDetails, int*);
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
+    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
 
 template Handle<GlobalDictionary>
-Dictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
     Handle<GlobalDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
     int*);
 
@@ -16260,9 +16247,6 @@ template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::Add(
     Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
     int*);
-
-template void Dictionary<
-    NameDictionary, NameDictionaryShape>::SetRequiresCopyOnCapacityChange();
 
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
@@ -17455,32 +17439,13 @@ void CompilationCacheTable::Remove(Object* value) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, MinimumCapacity capacity_option,
-    PretenureFlag pretenure) {
+    Isolate* isolate, int at_least_space_for, PretenureFlag pretenure,
+    MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
-      isolate, at_least_space_for, capacity_option, pretenure);
+      isolate, at_least_space_for, pretenure, capacity_option);
   dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return dict;
-}
-
-template <typename Derived, typename Shape>
-Handle<Derived> Dictionary<Derived, Shape>::NewEmpty(Isolate* isolate,
-                                                     PretenureFlag pretenure) {
-  Handle<Derived> dict =
-      Derived::New(isolate, 1, USE_CUSTOM_MINIMUM_CAPACITY, pretenure);
-  // Attempt to add one element to the empty dictionary must cause reallocation.
-  DCHECK(!dict->HasSufficientCapacityToAdd(1));
-  return dict;
-}
-
-template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::SetRequiresCopyOnCapacityChange() {
-  DCHECK_EQ(0, DerivedHashTable::NumberOfElements());
-  DCHECK_EQ(0, DerivedHashTable::NumberOfDeletedElements());
-  // Make sure that HashTable::EnsureCapacity will create a copy.
-  DerivedHashTable::SetNumberOfDeletedElements(DerivedHashTable::Capacity());
-  DCHECK(!DerivedHashTable::HasSufficientCapacityToAdd(1));
 }
 
 template <typename Derived, typename Shape>
@@ -17558,16 +17523,6 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
   return Dictionary<Derived, Shape>::Add(dictionary, key, value, details,
                                          entry_out);
 }
-
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
-    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
-    int*);
-
-template Handle<GlobalDictionary>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
-    Handle<GlobalDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
-    int*);
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,

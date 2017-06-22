@@ -64,13 +64,6 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   int NumberOfEnumerableProperties();
 
-  // Creates an dictionary with minimal possible capacity.
-  MUST_USE_RESULT static Handle<Derived> NewEmpty(
-      Isolate* isolate, PretenureFlag pretenure = NOT_TENURED);
-
-  // Ensures that a new dictionary is created when the capacity is checked.
-  void SetRequiresCopyOnCapacityChange();
-
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
@@ -161,8 +154,8 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   // Creates a new dictionary.
   MUST_USE_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
-      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
-      PretenureFlag pretenure = NOT_TENURED);
+      PretenureFlag pretenure = NOT_TENURED,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   // Collect the keys into the given KeyAccumulator, in ascending chronological
   // order of property creation.

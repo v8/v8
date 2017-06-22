@@ -298,21 +298,6 @@ TEST(ObjectHashTableCausesGC) {
 }
 #endif
 
-TEST(SetRequiresCopyOnCapacityChange) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<NameDictionary> dict =
-      NameDictionary::New(isolate, 0, USE_DEFAULT_MINIMUM_CAPACITY, TENURED);
-  dict->SetRequiresCopyOnCapacityChange();
-  Handle<Name> key = isolate->factory()->InternalizeString(
-      v8::Utils::OpenHandle(*v8_str("key")));
-  Handle<Object> value = handle(Smi::kZero, isolate);
-  Handle<NameDictionary> new_dict =
-      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
-  CHECK_NE(*dict, *new_dict);
-}
-
 TEST(MaximumClonedShallowObjectProperties) {
   // Assert that a NameDictionary with kMaximumClonedShallowObjectProperties is
   // not in large-object space.

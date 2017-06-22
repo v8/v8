@@ -2769,8 +2769,8 @@ void Heap::CreateInitialObjects() {
   }
 
   Handle<NameDictionary> empty_properties_dictionary =
-      NameDictionary::NewEmpty(isolate(), TENURED);
-  empty_properties_dictionary->SetRequiresCopyOnCapacityChange();
+      NameDictionary::New(isolate(), 1, TENURED, USE_CUSTOM_MINIMUM_CAPACITY);
+  DCHECK(!empty_properties_dictionary->HasSufficientCapacityToAdd(1));
   set_empty_properties_dictionary(*empty_properties_dictionary);
 
   set_public_symbol_table(*empty_properties_dictionary);
@@ -2813,9 +2813,7 @@ void Heap::CreateInitialObjects() {
   set_detached_contexts(empty_fixed_array());
   set_retained_maps(ArrayList::cast(empty_fixed_array()));
 
-  set_weak_object_to_code_table(
-      *WeakHashTable::New(isolate(), 16, USE_DEFAULT_MINIMUM_CAPACITY,
-                          TENURED));
+  set_weak_object_to_code_table(*WeakHashTable::New(isolate(), 16, TENURED));
 
   set_weak_new_space_object_to_code_list(
       ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
@@ -2826,7 +2824,9 @@ void Heap::CreateInitialObjects() {
   set_script_list(Smi::kZero);
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
-      SeededNumberDictionary::NewEmpty(isolate(), TENURED);
+      SeededNumberDictionary::New(isolate(), 1, TENURED,
+                                  USE_CUSTOM_MINIMUM_CAPACITY);
+  DCHECK(!slow_element_dictionary->HasSufficientCapacityToAdd(1));
   slow_element_dictionary->set_requires_slow_elements();
   set_empty_slow_element_dictionary(*slow_element_dictionary);
 
