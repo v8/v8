@@ -175,10 +175,12 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
 }
 
 Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateUninitializedFixedArray(size),
-      FixedArray);
+  // TODO(ulan): As an experiment this temporarily returns an initialized fixed
+  // array. After getting canary/performance coverage, either remove the
+  // function or revert to returning uninitilized array.
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFixedArray(size, NOT_TENURED),
+                     FixedArray);
 }
 
 Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
