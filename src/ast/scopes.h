@@ -446,17 +446,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return scope_info_;
   }
 
-  // ---------------------------------------------------------------------------
-  // Strict mode support.
-  bool IsDeclared(const AstRawString* name) {
-    // During formal parameter list parsing the scope only contains
-    // two variables inserted at initialization: "this" and "arguments".
-    // "this" is an invalid parameter name and "arguments" is invalid parameter
-    // name in strict mode. Therefore looking up with the map which includes
-    // "this" and "arguments" in addition to all formal parameters is safe.
-    return variables_.Lookup(name) != NULL;
-  }
-
   int num_var() const { return variables_.occupancy(); }
 
   // ---------------------------------------------------------------------------
