@@ -74,8 +74,8 @@ class Dictionary : public HashTable<Derived, Shape> {
   Object* SlowReverseLookup(Object* value);
 
   // Sets the entry to (key, value) pair.
-  inline void SetEntry(int entry, Handle<Object> key, Handle<Object> value);
-  inline void SetEntry(int entry, Handle<Object> key, Handle<Object> value,
+  inline void ClearEntry(int entry);
+  inline void SetEntry(int entry, Object* key, Object* value,
                        PropertyDetails details);
 
   MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
@@ -93,6 +93,7 @@ class Dictionary : public HashTable<Derived, Shape> {
 template <typename Key>
 class BaseDictionaryShape : public BaseShape<Key> {
  public:
+  static const bool kHasDetails = true;
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
@@ -113,10 +114,6 @@ class BaseDictionaryShape : public BaseShape<Key> {
   static bool IsDeleted(Dictionary* dict, int entry) {
     return false;
   }
-
-  template <typename Dictionary>
-  static inline void SetEntry(Dictionary* dict, int entry, Handle<Object> key,
-                              Handle<Object> value, PropertyDetails details);
 };
 
 class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
@@ -200,10 +197,6 @@ class GlobalDictionaryShape : public NameDictionaryShape {
 
   template <typename Dictionary>
   static bool IsDeleted(Dictionary* dict, int entry);
-
-  template <typename Dictionary>
-  static inline void SetEntry(Dictionary* dict, int entry, Handle<Object> key,
-                              Handle<Object> value, PropertyDetails details);
 };
 
 class GlobalDictionary
@@ -231,6 +224,7 @@ class SeededNumberDictionaryShape : public NumberDictionaryShape {
 
 class UnseededNumberDictionaryShape : public NumberDictionaryShape {
  public:
+  static const bool kHasDetails = false;
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
 

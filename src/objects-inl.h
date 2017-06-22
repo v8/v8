@@ -6043,51 +6043,22 @@ bool AccessorPair::IsJSAccessor(Object* obj) {
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::SetEntry(int entry, Handle<Object> key,
-                                          Handle<Object> value) {
-  this->SetEntry(entry, key, value, PropertyDetails(Smi::kZero));
+void Dictionary<Derived, Shape>::ClearEntry(int entry) {
+  Object* the_hole = this->GetHeap()->the_hole_value();
+  SetEntry(entry, the_hole, the_hole, PropertyDetails::Empty());
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::SetEntry(int entry, Handle<Object> key,
-                                          Handle<Object> value,
+void Dictionary<Derived, Shape>::SetEntry(int entry, Object* key, Object* value,
                                           PropertyDetails details) {
-  Shape::SetEntry(static_cast<Derived*>(this), entry, key, value, details);
-}
-
-
-template <typename Key>
-template <typename Dictionary>
-void BaseDictionaryShape<Key>::SetEntry(Dictionary* dict, int entry,
-                                        Handle<Object> key,
-                                        Handle<Object> value,
-                                        PropertyDetails details) {
   STATIC_ASSERT(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
   DCHECK(!key->IsName() || details.dictionary_index() > 0);
-  int index = dict->EntryToIndex(entry);
+  int index = DerivedHashTable::EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = dict->GetWriteBarrierMode(no_gc);
-  dict->set(index + Dictionary::kEntryKeyIndex, *key, mode);
-  dict->set(index + Dictionary::kEntryValueIndex, *value, mode);
-  if (Dictionary::kEntrySize == 3) {
-    dict->set(index + Dictionary::kEntryDetailsIndex, details.AsSmi());
-  }
-}
-
-
-template <typename Dictionary>
-void GlobalDictionaryShape::SetEntry(Dictionary* dict, int entry,
-                                     Handle<Object> key, Handle<Object> value,
-                                     PropertyDetails details) {
-  STATIC_ASSERT(Dictionary::kEntrySize == 2);
-  DCHECK(!key->IsName() || details.dictionary_index() > 0);
-  DCHECK(value->IsPropertyCell());
-  int index = dict->EntryToIndex(entry);
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = dict->GetWriteBarrierMode(no_gc);
-  dict->set(index + Dictionary::kEntryKeyIndex, *key, mode);
-  dict->set(index + Dictionary::kEntryValueIndex, *value, mode);
-  PropertyCell::cast(*value)->set_property_details(details);
+  WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
+  this->set(index + Derived::kEntryKeyIndex, key, mode);
+  this->set(index + Derived::kEntryValueIndex, value, mode);
+  if (Shape::kHasDetails) DetailsAtPut(entry, details);
 }
 
 
@@ -6152,7 +6123,7 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
 
 template <typename Dictionary>
 PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary* dict, int entry) {
-  DCHECK(entry >= 0);  // Not found is -1, which is not caught by get().
+  DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
   Object* raw_value = dict->ValueAt(entry);
   DCHECK(raw_value->IsPropertyCell());
   PropertyCell* cell = PropertyCell::cast(raw_value);
@@ -6163,17 +6134,14 @@ PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary* dict, int entry) {
 template <typename Dictionary>
 void GlobalDictionaryShape::DetailsAtPut(Dictionary* dict, int entry,
                                          PropertyDetails value) {
-  DCHECK(entry >= 0);  // Not found is -1, which is not caught by get().
-  Object* raw_value = dict->ValueAt(entry);
-  DCHECK(raw_value->IsPropertyCell());
-  PropertyCell* cell = PropertyCell::cast(raw_value);
+  DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
+  PropertyCell* cell = PropertyCell::cast(dict->ValueAt(entry));
   if (cell->property_details().IsReadOnly() != value.IsReadOnly()) {
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
         cell->GetIsolate(), DependentCode::kPropertyCellChangedGroup);
   }
   cell->set_property_details(value);
 }
-
 
 template <typename Dictionary>
 bool GlobalDictionaryShape::IsDeleted(Dictionary* dict, int entry) {

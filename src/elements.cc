@@ -1385,13 +1385,12 @@ class DictionaryElementsAccessor
         DisallowHeapAllocation no_gc;
         // Remove elements that should be deleted.
         int removed_entries = 0;
-        Handle<Object> the_hole_value = isolate->factory()->the_hole_value();
         for (int entry = 0; entry < capacity; entry++) {
           Object* index = dict->KeyAt(entry);
           if (index->IsNumber()) {
             uint32_t number = static_cast<uint32_t>(index->Number());
             if (length <= number && number < old_length) {
-              dict->SetEntry(entry, the_hole_value, the_hole_value);
+              dict->ClearEntry(entry);
               removed_entries++;
             }
           }

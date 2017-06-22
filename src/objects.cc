@@ -1953,7 +1953,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
       int enumeration_index = original_details.dictionary_index();
       DCHECK(enumeration_index > 0);
       details = details.set_index(enumeration_index);
-      dictionary->SetEntry(entry, name, value, details);
+      dictionary->SetEntry(entry, *name, *value, details);
     }
   }
 }
@@ -17570,11 +17570,9 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
     Handle<Derived> dictionary, int entry) {
-  Factory* factory = dictionary->GetIsolate()->factory();
   DCHECK(Shape::kEntrySize != 3 ||
          dictionary->DetailsAt(entry).IsConfigurable());
-  dictionary->SetEntry(
-      entry, factory->the_hole_value(), factory->the_hole_value());
+  dictionary->ClearEntry(entry);
   dictionary->ElementRemoved();
   return Shrink(dictionary);
 }
@@ -17627,7 +17625,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
   uint32_t entry = dictionary->FindInsertionEntry(hash);
-  dictionary->SetEntry(entry, k, value, details);
+  dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(entry)->IsNumber() ||
          dictionary->KeyAt(entry)->IsUniqueName());
   dictionary->ElementAdded();
