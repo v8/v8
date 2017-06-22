@@ -7,28 +7,10 @@
 
 #include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
-
-class DeprecationUpdateContext {
- public:
-  explicit DeprecationUpdateContext(Isolate* isolate) { isolate_ = isolate; }
-  Isolate* isolate() { return isolate_; }
-  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
-  inline void ExitScope(Handle<AllocationSite> scope_site,
-                        Handle<JSObject> object) {}
-  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
-  Handle<AllocationSite> current() {
-    UNREACHABLE();
-    return Handle<AllocationSite>();
-  }
-
-  static const bool kCopying = false;
-
- private:
-  Isolate* isolate_;
-};
 
 // AllocationSiteContext is the base class for walking and copying a nested
 // boilerplate with AllocationSite and AllocationMemento support.
@@ -62,19 +44,6 @@ class AllocationSiteContext {
 };
 
 
-// AllocationSiteCreationContext aids in the creation of AllocationSites to
-// accompany object literals.
-class AllocationSiteCreationContext : public AllocationSiteContext {
- public:
-  explicit AllocationSiteCreationContext(Isolate* isolate)
-      : AllocationSiteContext(isolate) { }
-
-  Handle<AllocationSite> EnterNewScope();
-  void ExitScope(Handle<AllocationSite> site, Handle<JSObject> object);
-  static const bool kCopying = false;
-};
-
-
 // AllocationSiteUsageContext aids in the creation of AllocationMementos placed
 // behind some/all components of a copied object literal.
 class AllocationSiteUsageContext : public AllocationSiteContext {
@@ -104,7 +73,22 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
     DCHECK(object.is_null() || *object == scope_site->transition_info());
   }
 
-  bool ShouldCreateMemento(Handle<JSObject> object);
+  bool ShouldCreateMemento(Handle<JSObject> object) {
+    if (activated_ &&
+        AllocationSite::CanTrack(object->map()->instance_type())) {
+      if (FLAG_allocation_site_pretenuring ||
+          AllocationSite::ShouldTrack(object->GetElementsKind())) {
+        if (FLAG_trace_creation_allocation_sites) {
+          PrintF("*** Creating Memento for %s %p\n",
+                 object->IsJSArray() ? "JSArray" : "JSObject",
+                 static_cast<void*>(*object));
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
   static const bool kCopying = true;
 
  private:

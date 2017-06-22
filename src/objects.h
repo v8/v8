@@ -930,11 +930,8 @@ enum class ComparisonResult {
 class AbstractCode;
 class AccessorPair;
 class AllocationSite;
-class AllocationSiteCreationContext;
-class AllocationSiteUsageContext;
 class Cell;
 class ConsString;
-class DeprecationUpdateContext;
 class ElementsAccessor;
 class FindAndReplacePattern;
 class FixedArrayBase;

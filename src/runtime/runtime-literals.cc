@@ -207,6 +207,76 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   return copy;
 }
 
+class DeprecationUpdateContext {
+ public:
+  explicit DeprecationUpdateContext(Isolate* isolate) { isolate_ = isolate; }
+  Isolate* isolate() { return isolate_; }
+  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
+  inline void ExitScope(Handle<AllocationSite> scope_site,
+                        Handle<JSObject> object) {}
+  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
+  Handle<AllocationSite> current() {
+    UNREACHABLE();
+    return Handle<AllocationSite>();
+  }
+
+  static const bool kCopying = false;
+
+ private:
+  Isolate* isolate_;
+};
+
+// AllocationSiteCreationContext aids in the creation of AllocationSites to
+// accompany object literals.
+class AllocationSiteCreationContext : public AllocationSiteContext {
+ public:
+  explicit AllocationSiteCreationContext(Isolate* isolate)
+      : AllocationSiteContext(isolate) {}
+
+  Handle<AllocationSite> EnterNewScope() {
+    Handle<AllocationSite> scope_site;
+    if (top().is_null()) {
+      // We are creating the top level AllocationSite as opposed to a nested
+      // AllocationSite.
+      InitializeTraversal(isolate()->factory()->NewAllocationSite());
+      scope_site = Handle<AllocationSite>(*top(), isolate());
+      if (FLAG_trace_creation_allocation_sites) {
+        PrintF("*** Creating top level AllocationSite %p\n",
+               static_cast<void*>(*scope_site));
+      }
+    } else {
+      DCHECK(!current().is_null());
+      scope_site = isolate()->factory()->NewAllocationSite();
+      if (FLAG_trace_creation_allocation_sites) {
+        PrintF("Creating nested site (top, current, new) (%p, %p, %p)\n",
+               static_cast<void*>(*top()), static_cast<void*>(*current()),
+               static_cast<void*>(*scope_site));
+      }
+      current()->set_nested_site(*scope_site);
+      update_current_site(*scope_site);
+    }
+    DCHECK(!scope_site.is_null());
+    return scope_site;
+  }
+  void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
+    if (object.is_null()) return;
+    scope_site->set_transition_info(*object);
+    if (FLAG_trace_creation_allocation_sites) {
+      bool top_level =
+          !scope_site.is_null() && top().is_identical_to(scope_site);
+      if (top_level) {
+        PrintF("*** Setting AllocationSite %p transition_info %p\n",
+               static_cast<void*>(*scope_site), static_cast<void*>(*object));
+      } else {
+        PrintF("Setting AllocationSite (%p, %p) transition_info %p\n",
+               static_cast<void*>(*top()), static_cast<void*>(*scope_site),
+               static_cast<void*>(*object));
+      }
+    }
+  }
+  static const bool kCopying = false;
+};
+
 MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
                                DeprecationUpdateContext* site_context) {
   JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context, kNoHints);

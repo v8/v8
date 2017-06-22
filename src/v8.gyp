@@ -560,7 +560,6 @@
         'address-map.h',
         'allocation.cc',
         'allocation.h',
-        'allocation-site-scopes.cc',
         'allocation-site-scopes.h',
         'api.cc',
         'api.h',
