@@ -16060,14 +16060,12 @@ void HashTable<Derived, Shape>::Rehash(Derived* new_table) {
 
   // Rehash the elements.
   int capacity = this->Capacity();
-  Heap* heap = new_table->GetHeap();
-  Object* the_hole = heap->the_hole_value();
-  Object* undefined = heap->undefined_value();
+  Isolate* isolate = new_table->GetIsolate();
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = this->get(from_index);
-    if (k != the_hole && k != undefined) {
-      uint32_t hash = this->HashForObject(k);
+    if (IsKey(isolate, k)) {
+      uint32_t hash = Shape::HashForObject(isolate, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -16082,7 +16080,7 @@ void HashTable<Derived, Shape>::Rehash(Derived* new_table) {
 template <typename Derived, typename Shape>
 uint32_t HashTable<Derived, Shape>::EntryForProbe(Object* k, int probe,
                                                   uint32_t expected) {
-  uint32_t hash = this->HashForObject(k);
+  uint32_t hash = Shape::HashForObject(GetIsolate(), k);
   uint32_t capacity = this->Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
@@ -17198,7 +17196,7 @@ Handle<StringSet> StringSet::Add(Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(name)) {
     stringset = EnsureCapacity(stringset, 1);
-    uint32_t hash = StringSetShape::Hash(*name);
+    uint32_t hash = ShapeT::Hash(name->GetIsolate(), *name);
     int entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
     stringset->ElementAdded();
@@ -17619,7 +17617,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
                                                 PropertyDetails details,
                                                 int* entry_out) {
   Isolate* isolate = dictionary->GetIsolate();
-  uint32_t hash = dictionary->Hash(key);
+  uint32_t hash = Shape::Hash(isolate, key);
   // Valdate key is absent.
   SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
@@ -18066,7 +18064,8 @@ Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
   // Check whether the hash table should be extended.
   table = EnsureCapacity(table, 1, TENURED);
 
-  table->AddEntry(table->FindInsertionEntry(table->Hash(key)), key_cell, value);
+  uint32_t hash = ShapeT::Hash(isolate, key);
+  table->AddEntry(table->FindInsertionEntry(hash), key_cell, value);
   return table;
 }
 

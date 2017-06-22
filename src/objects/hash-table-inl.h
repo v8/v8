@@ -10,24 +10,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename Derived, typename Shape>
-uint32_t HashTable<Derived, Shape>::Hash(Key key) {
-  if (Shape::UsesSeed) {
-    return Shape::SeededHash(key, GetHeap()->HashSeed());
-  } else {
-    return Shape::Hash(key);
-  }
-}
-
-template <typename Derived, typename Shape>
-uint32_t HashTable<Derived, Shape>::HashForObject(Object* object) {
-  if (Shape::UsesSeed) {
-    return Shape::SeededHashForObject(GetHeap()->HashSeed(), object);
-  } else {
-    return Shape::HashForObject(object);
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
 

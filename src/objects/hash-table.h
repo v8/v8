@@ -34,9 +34,9 @@ namespace internal {
 //     // Tells whether key matches other.
 //     static bool IsMatch(Key key, Object* other);
 //     // Returns the hash value for key.
-//     static uint32_t Hash(Key key);
+//     static uint32_t Hash(Isolate* isolate, Key key);
 //     // Returns the hash value for object.
-//     static uint32_t HashForObject(Object* object);
+//     static uint32_t HashForObject(Isolate* isolate, Object* object);
 //     // Convert key to an object.
 //     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
@@ -56,17 +56,6 @@ template <typename KeyT>
 class BaseShape {
  public:
   typedef KeyT Key;
-  static const bool UsesSeed = false;
-  static uint32_t Hash(Key key) { return 0; }
-  static uint32_t SeededHash(Key key, uint32_t seed) {
-    DCHECK(UsesSeed);
-    return Hash(key);
-  }
-  static uint32_t HashForObject(Object* object) { return 0; }
-  static uint32_t SeededHashForObject(uint32_t seed, Object* object) {
-    DCHECK(UsesSeed);
-    return HashForObject(object);
-  }
   static inline Map* GetMap(Isolate* isolate);
   static const bool kNeedsHoleCheck = true;
 };
@@ -97,7 +86,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
-  inline bool IsKey(Isolate* isolate, Object* k);
+  static inline bool IsKey(Isolate* isolate, Object* k);
 
   // Compute the probe offset (quadratic probing).
   INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
@@ -143,11 +132,6 @@ class HashTable : public HashTableBase {
  public:
   typedef Shape ShapeT;
   typedef typename Shape::Key Key;
-
-  // Wrapper methods.  Defined in src/objects/hash-table-inl.h
-  // to break a cycle with src/heap/heap.h.
-  inline uint32_t Hash(Key key);
-  inline uint32_t HashForObject(Object* object);
 
   // Returns a new HashTable object.
   MUST_USE_RESULT static Handle<Derived> New(
@@ -271,8 +255,8 @@ class HashTableKey {
 class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object* other);
-  static inline uint32_t Hash(Handle<Object> key);
-  static inline uint32_t HashForObject(Object* object);
+  static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -573,8 +557,8 @@ template <int entrysize>
 class WeakHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object* other);
-  static inline uint32_t Hash(Handle<Object> key);
-  static inline uint32_t HashForObject(Object* object);
+  static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;

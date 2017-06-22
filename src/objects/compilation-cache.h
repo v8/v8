@@ -19,7 +19,9 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->IsMatch(value);
   }
 
-  static inline uint32_t Hash(HashTableKey* key) { return key->Hash(); }
+  static inline uint32_t Hash(Isolate* isolate, HashTableKey* key) {
+    return key->Hash();
+  }
 
   static inline uint32_t RegExpHash(String* string, Smi* flags);
 
@@ -28,7 +30,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
                                           LanguageMode language_mode,
                                           int position);
 
-  static inline uint32_t HashForObject(Object* object);
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;

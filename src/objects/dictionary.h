@@ -122,8 +122,8 @@ class BaseDictionaryShape : public BaseShape<Key> {
 class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
   static inline bool IsMatch(Handle<Name> key, Object* other);
-  static inline uint32_t Hash(Handle<Name> key);
-  static inline uint32_t HashForObject(Object* object);
+  static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
@@ -222,12 +222,11 @@ class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
 
 class SeededNumberDictionaryShape : public NumberDictionaryShape {
  public:
-  static const bool UsesSeed = true;
   static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
 
-  static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
-  static inline uint32_t SeededHashForObject(uint32_t seed, Object* object);
+  static inline uint32_t Hash(Isolate* isolate, uint32_t key);
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
 };
 
 class UnseededNumberDictionaryShape : public NumberDictionaryShape {
@@ -235,8 +234,8 @@ class UnseededNumberDictionaryShape : public NumberDictionaryShape {
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
 
-  static inline uint32_t Hash(uint32_t key);
-  static inline uint32_t HashForObject(Object* object);
+  static inline uint32_t Hash(Isolate* isolate, uint32_t key);
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
 
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {

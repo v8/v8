@@ -66,11 +66,11 @@ class CodeCacheHashTableShape : public BaseShape<CodeCacheHashTableKey*> {
     return key->IsMatch(value);
   }
 
-  static inline uint32_t Hash(CodeCacheHashTableKey* key) {
+  static inline uint32_t Hash(Isolate* isolate, CodeCacheHashTableKey* key) {
     return key->Hash();
   }
 
-  static inline uint32_t HashForObject(Object* object) {
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object) {
     FixedArray* pair = FixedArray::cast(object);
     Name* name = Name::cast(pair->get(0));
     Code* code = Code::cast(pair->get(1));

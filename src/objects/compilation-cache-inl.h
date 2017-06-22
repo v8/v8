@@ -39,7 +39,8 @@ uint32_t CompilationCacheShape::StringSharedHash(String* source,
   return hash;
 }
 
-uint32_t CompilationCacheShape::HashForObject(Object* object) {
+uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
+                                              Object* object) {
   if (object->IsNumber()) return static_cast<uint32_t>(object->Number());
 
   FixedArray* val = FixedArray::cast(object);
