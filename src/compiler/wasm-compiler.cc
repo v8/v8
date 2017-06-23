@@ -3944,38 +3944,30 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleBytesEnv* module_env,
-                                         const wasm::WasmFunction* function,
-                                         bool is_sync)
+                                         const wasm::WasmFunction* function)
     : WasmCompilationUnit(
           isolate, &module_env->module_env,
           wasm::FunctionBody{
               function->sig, function->code.offset(),
               module_env->wire_bytes.start() + function->code.offset(),
               module_env->wire_bytes.start() + function->code.end_offset()},
-          module_env->wire_bytes.GetNameOrNull(function), function->func_index,
-          is_sync) {}
+          module_env->wire_bytes.GetNameOrNull(function),
+          function->func_index) {}
 
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleEnv* module_env,
                                          wasm::FunctionBody body,
-                                         wasm::WasmName name, int index,
-                                         bool is_sync)
+                                         wasm::WasmName name, int index)
     : isolate_(isolate),
       module_env_(module_env),
       func_body_(body),
       func_name_(name),
-      is_sync_(is_sync),
       centry_stub_(CEntryStub(isolate, 1).GetCode()),
       func_index_(index) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
-  // TODO(karlschimpf): Make this work when asynchronous.
-  // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-  base::Optional<HistogramTimerScope> wasm_compile_function_time_scope;
-  if (is_sync_) {
-    wasm_compile_function_time_scope.emplace(
-        isolate_->counters()->wasm_compile_function_time());
-  }
+  HistogramTimerScope wasm_compile_function_time_scope(
+      isolate_->counters()->wasm_compile_function_time());
 
   if (FLAG_trace_wasm_compiler) {
     if (func_name_.start() != nullptr) {
@@ -4034,13 +4026,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
         &protected_instructions, !module_env_->module->is_wasm()));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
-    if (is_sync_)
-      // TODO(karlschimpf): Make this work when asynchronous.
-      // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-      isolate_->counters()
-          ->wasm_compile_function_peak_memory_bytes()
-          ->AddSample(
-              static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
+    isolate_->counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
+        static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
 
     if (FLAG_trace_wasm_decode_time) {
       double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();

@@ -247,25 +247,62 @@ class Histogram {
   Counters* counters_;
 };
 
-// A HistogramTimer allows distributions of results to be created.
-class HistogramTimer : public Histogram {
- public:
-  enum Resolution {
-    MILLISECOND,
-    MICROSECOND
-  };
+enum class HistogramTimerResolution { MILLISECOND, MICROSECOND };
 
-  // Note: public for testing purposes only.
-  HistogramTimer(const char* name, int min, int max, Resolution resolution,
-                 int num_buckets, Counters* counters)
+// A thread safe histogram timer. It also allows distributions of
+// nested timed results.
+class TimedHistogram : public Histogram {
+ public:
+  // Start the timer. Log if isolate non-null.
+  void Start(base::ElapsedTimer* timer, Isolate* isolate);
+
+  // Stop the timer and record the results. Log if isolate non-null.
+  void Stop(base::ElapsedTimer* timer, Isolate* isolate);
+
+ protected:
+  friend class Counters;
+  HistogramTimerResolution resolution_;
+
+  TimedHistogram() {}
+  TimedHistogram(const char* name, int min, int max,
+                 HistogramTimerResolution resolution, int num_buckets,
+                 Counters* counters)
       : Histogram(name, min, max, num_buckets, counters),
         resolution_(resolution) {}
+  void AddTimeSample();
+};
 
-  // Start the timer.
-  void Start();
+// Helper class for scoping a TimedHistogram.
+class TimedHistogramScope {
+ public:
+  explicit TimedHistogramScope(TimedHistogram* histogram,
+                               Isolate* isolate = nullptr)
+      : histogram_(histogram), isolate_(isolate) {
+    histogram_->Start(&timer_, isolate);
+  }
+  ~TimedHistogramScope() { histogram_->Stop(&timer_, isolate_); }
 
-  // Stop the timer and record the results.
-  void Stop();
+ private:
+  base::ElapsedTimer timer_;
+  TimedHistogram* histogram_;
+  Isolate* isolate_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
+};
+
+// A HistogramTimer allows distributions of non-nested timed results
+// to be created. WARNING: This class is not thread safe and can only
+// be run on the foreground thread.
+class HistogramTimer : public TimedHistogram {
+ public:
+  // Note: public for testing purposes only.
+  HistogramTimer(const char* name, int min, int max,
+                 HistogramTimerResolution resolution, int num_buckets,
+                 Counters* counters)
+      : TimedHistogram(name, min, max, resolution, num_buckets, counters) {}
+
+  inline void Start();
+  inline void Stop();
 
   // Returns true if the timer is running.
   bool Running() {
@@ -281,7 +318,6 @@ class HistogramTimer : public Histogram {
   friend class Counters;
 
   base::ElapsedTimer timer_;
-  Resolution resolution_;
 
   HistogramTimer() {}
 };
@@ -325,7 +361,6 @@ class HistogramTimerScope BASE_EMBEDDED {
   bool skipped_timer_start_;
 #endif
 };
-
 
 // A histogram timer that can aggregate events within a larger scope.
 //
@@ -1008,24 +1043,26 @@ class RuntimeCallTimerScope {
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
-  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
-     1000000, MICROSECOND)                                                     \
-  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
-     1000000, MICROSECOND)                                                     \
-  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,     \
-     1000000, MICROSECOND)                                                     \
-  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
-     1000000, MICROSECOND)                                                     \
-  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
-     10000000, MICROSECOND)                                                    \
-  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
-     10000000, MICROSECOND)                                                    \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
      MICROSECOND)                                                              \
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
      MICROSECOND)                                                              \
   HT(wasm_lazy_compilation_time, V8.WasmLazyCompilationMicroSeconds, 1000000,  \
      MICROSECOND)
+
+#define TIMED_HISTOGRAM_LIST(HT)                                             \
+  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,       \
+     1000000, MICROSECOND)                                                   \
+  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,     \
+     1000000, MICROSECOND)                                                   \
+  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,   \
+     1000000, MICROSECOND)                                                   \
+  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm, \
+     1000000, MICROSECOND)                                                   \
+  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,     \
+     10000000, MICROSECOND)                                                  \
+  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,   \
+     10000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -1237,6 +1274,11 @@ class Counters : public std::enable_shared_from_this<Counters> {
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define HT(name, caption, max, res) \
+  TimedHistogram* name() { return &name##_; }
+  TIMED_HISTOGRAM_LIST(HT)
+#undef HT
+
 #define AHT(name, caption) \
   AggregatableHistogramTimer* name() { return &name##_; }
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
@@ -1305,6 +1347,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
+    TIMED_HISTOGRAM_LIST(RATE_ID)
 #undef RATE_ID
 #define AGGREGATABLE_ID(name, caption) k_##name,
     AGGREGATABLE_HISTOGRAM_TIMER_LIST(AGGREGATABLE_ID)
@@ -1373,6 +1416,10 @@ class Counters : public std::enable_shared_from_this<Counters> {
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define HT(name, caption, max, res) TimedHistogram name##_;
+  TIMED_HISTOGRAM_LIST(HT)
+#undef HT
+
 #define AHT(name, caption) \
   AggregatableHistogramTimer name##_;
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
@@ -1432,6 +1479,14 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
+
+void HistogramTimer::Start() {
+  TimedHistogram::Start(&timer_, counters()->isolate());
+}
+
+void HistogramTimer::Stop() {
+  TimedHistogram::Stop(&timer_, counters()->isolate());
+}
 
 }  // namespace internal
 }  // namespace v8
