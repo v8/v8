@@ -3640,7 +3640,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
         ArrowFormalParametersUnexpectedToken();
 
         Consume(Token::PERIOD);
-        int pos = peek_position();
+        int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
         expression = factory()->NewProperty(
             expression, factory()->NewStringLiteral(name, pos), pos);
