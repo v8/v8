@@ -2203,21 +2203,14 @@ void MarkCompactCollector::RecordObjectStats() {
   }
 }
 
-class YoungGenerationMarkingVisitor final
-    : public HeapVisitor<int, YoungGenerationMarkingVisitor> {
+class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
  public:
-  using BaseClass = HeapVisitor<int, YoungGenerationMarkingVisitor>;
-
   YoungGenerationMarkingVisitor(Heap* heap,
                                 WorkStealingBag* global_marking_deque,
                                 int task_id)
       : heap_(heap), marking_deque_(global_marking_deque, task_id) {}
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) final {
-    const int kMinRangeForMarkingRecursion = 64;
-    if (end - start >= kMinRangeForMarkingRecursion) {
-      if (MarkRecursively(host, start, end)) return;
-    }
     for (Object** p = start; p < end; p++) {
       VisitPointer(host, p);
     }
@@ -2229,42 +2222,6 @@ class YoungGenerationMarkingVisitor final
       HeapObject* target_object = HeapObject::cast(target);
       MarkObjectViaMarkingDeque(target_object);
     }
-  }
-
-  void VisitCodeEntry(JSFunction* host, Address code_entry) final {
-    // Code is not in new space.
-  }
-
-  // Special cases for young generation.
-
-  int VisitJSFunction(Map* map, JSFunction* object) final {
-    if (!ShouldVisit(object)) return 0;
-    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
-    return size;
-  }
-
-  int VisitNativeContext(Map* map, Context* object) final {
-    if (!ShouldVisit(object)) return 0;
-    int size = Context::BodyDescriptor::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    Context::BodyDescriptor::IterateBody(object, size, this);
-    return size;
-  }
-
-  int VisitJSApiObject(Map* map, JSObject* object) final {
-    return VisitJSObject(map, object);
-  }
-
-  int VisitBytecodeArray(Map* map, BytecodeArray* object) final {
-    UNREACHABLE();
-    return 0;
-  }
-
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) final {
-    UNREACHABLE();
-    return 0;
   }
 
  private:
@@ -2281,24 +2238,6 @@ class YoungGenerationMarkingVisitor final
       // Marking deque overflow is unsupported for the young generation.
       CHECK(marking_deque_.Push(object));
     }
-  }
-
-  inline bool MarkRecursively(HeapObject* host, Object** start, Object** end) {
-    // TODO(mlippautz): Stack check on background tasks. We cannot do a reliable
-    // stack check on background tasks yet.
-    for (Object** p = start; p < end; p++) {
-      Object* target = *p;
-      if (heap_->InNewSpace(target)) {
-        HeapObject* target_object = HeapObject::cast(target);
-        if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(
-                target_object, marking_state(target_object))) {
-          const int size = Visit(target_object);
-          marking_state(target_object)
-              .IncrementLiveBytes<AccessMode::ATOMIC>(size);
-        }
-      }
-    }
-    return true;
   }
 
   Heap* heap_;
