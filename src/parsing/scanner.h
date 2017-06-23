@@ -342,7 +342,11 @@ class Scanner {
 
   // Scans the input as a template literal
   Token::Value ScanTemplateStart();
-  Token::Value ScanTemplateContinuation();
+  Token::Value ScanTemplateContinuation() {
+    DCHECK_EQ(next_.token, Token::RBRACE);
+    next_.location.beg_pos = source_pos() - 1;  // We already consumed }
+    return ScanTemplateSpan();
+  }
 
   Handle<String> SourceUrl(Isolate* isolate) const;
   Handle<String> SourceMappingUrl(Isolate* isolate) const;

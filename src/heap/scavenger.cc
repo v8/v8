@@ -404,17 +404,6 @@ void Scavenger::Initialize() {
 }
 
 
-// static
-void Scavenger::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
-  SLOW_DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
-  MapWord first_word = object->map_word();
-  SLOW_DCHECK(!first_word.IsForwardingAddress());
-  Map* map = first_word.ToMap();
-  Scavenger* scavenger = map->GetHeap()->scavenge_collector_;
-  scavenger->scavenging_visitors_table_.GetVisitor(map)(map, p, object);
-}
-
-
 void Scavenger::SelectScavengingVisitorsTable() {
   bool logging_and_profiling =
       FLAG_verify_predictable || isolate()->logger()->is_logging() ||

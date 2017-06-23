@@ -1234,20 +1234,6 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   }
 }
 
-VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
-                                    const AstRawString* name,
-                                    int start_position, VariableKind kind) {
-  // Note that we must not share the unresolved variables with
-  // the same name because they may be removed selectively via
-  // RemoveUnresolved().
-  DCHECK(!already_resolved_);
-  DCHECK_EQ(factory->zone(), zone());
-  VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_position);
-  proxy->set_next_unresolved(unresolved_);
-  unresolved_ = proxy;
-  return proxy;
-}
-
 void Scope::AddUnresolved(VariableProxy* proxy) {
   DCHECK(!already_resolved_);
   DCHECK(!proxy->is_resolved());

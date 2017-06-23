@@ -5,6 +5,7 @@
 #ifndef V8_AST_SCOPES_H_
 #define V8_AST_SCOPES_H_
 
+#include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
@@ -208,8 +209,18 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
-                               int start_position = kNoSourcePosition,
-                               VariableKind kind = NORMAL_VARIABLE);
+                               int start_pos = kNoSourcePosition,
+                               VariableKind kind = NORMAL_VARIABLE) {
+    // Note that we must not share the unresolved variables with
+    // the same name because they may be removed selectively via
+    // RemoveUnresolved().
+    DCHECK(!already_resolved_);
+    DCHECK_EQ(factory->zone(), zone());
+    VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_pos);
+    proxy->set_next_unresolved(unresolved_);
+    unresolved_ = proxy;
+    return proxy;
+  }
 
   void AddUnresolved(VariableProxy* proxy);
 
