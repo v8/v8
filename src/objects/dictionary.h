@@ -125,7 +125,6 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
-  static const int kEntryDetailsIndex = 2;
   static const bool kNeedsHoleCheck = false;
 };
 
@@ -203,8 +202,6 @@ class GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
   DECLARE_CAST(GlobalDictionary)
-
-  static const int kEntryValueIndex = 1;
 };
 
 class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
@@ -310,7 +307,6 @@ class UnseededNumberDictionary
       Handle<Object> value);
 
   static const int kEntryValueIndex = 1;
-  static const int kEntryDetailsIndex = 2;
 };
 
 }  // namespace internal
