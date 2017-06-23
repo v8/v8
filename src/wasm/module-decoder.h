@@ -60,15 +60,9 @@ typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
 // Decodes the bytes of a wasm module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult SyncDecodeWasmModule(Isolate* isolate,
-                                                    const byte* module_start,
-                                                    const byte* module_end,
-                                                    bool verify_functions,
-                                                    ModuleOrigin origin);
-
-V8_EXPORT_PRIVATE ModuleResult AsyncDecodeWasmModule(
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     Isolate* isolate, const byte* module_start, const byte* module_end,
-    bool verify_functions, ModuleOrigin origin, Counters* async_counters);
+    bool verify_functions, ModuleOrigin origin, bool is_sync = true);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -78,14 +72,9 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
 
 // Decodes the bytes of a wasm function between
 // {function_start} and {function_end}.
-V8_EXPORT_PRIVATE FunctionResult
-SyncDecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
-                       const byte* function_start, const byte* function_end);
-
-V8_EXPORT_PRIVATE FunctionResult
-AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
-                        const byte* function_start, const byte* function_end,
-                        Counters* async_counters);
+V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(
+    Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
+    const byte* function_start, const byte* function_end, bool is_sync = true);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);

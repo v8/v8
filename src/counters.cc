@@ -77,23 +77,27 @@ void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
-void TimedHistogram::Start(base::ElapsedTimer* timer, Isolate* isolate) {
-  if (Enabled()) timer->Start();
-  if (isolate) Logger::CallEventLogger(isolate, name(), Logger::START, true);
+
+// Start the timer.
+void HistogramTimer::Start() {
+  if (Enabled()) {
+    timer_.Start();
+  }
+  Logger::CallEventLogger(counters()->isolate(), name(), Logger::START, true);
 }
 
-void TimedHistogram::Stop(base::ElapsedTimer* timer, Isolate* isolate) {
+
+// Stop the timer and record the results.
+void HistogramTimer::Stop() {
   if (Enabled()) {
+    int64_t sample = resolution_ == MICROSECOND
+                         ? timer_.Elapsed().InMicroseconds()
+                         : timer_.Elapsed().InMilliseconds();
     // Compute the delta between start and stop, in microseconds.
-    int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
-                         ? timer->Elapsed().InMicroseconds()
-                         : timer->Elapsed().InMilliseconds();
-    timer->Stop();
     AddSample(static_cast<int>(sample));
+    timer_.Stop();
   }
-  if (isolate != nullptr) {
-    Logger::CallEventLogger(isolate, name(), Logger::END, true);
-  }
+  Logger::CallEventLogger(counters()->isolate(), name(), Logger::END, true);
 }
 
 Counters::Counters(Isolate* isolate)
@@ -123,38 +127,20 @@ Counters::Counters(Isolate* isolate)
                   histogram.num_buckets, this);
   }
 
-  const int DefaultTimedHistogramNumBuckets = 50;
-
   static const struct {
     HistogramTimer Counters::*member;
     const char* caption;
     int max;
-    HistogramTimerResolution res;
+    HistogramTimer::Resolution res;
   } kHistogramTimers[] = {
 #define HT(name, caption, max, res) \
-  {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
+  {&Counters::name##_, #caption, max, HistogramTimer::res},
       HISTOGRAM_TIMER_LIST(HT)
 #undef HT
   };
   for (const auto& timer : kHistogramTimers) {
-    this->*timer.member = HistogramTimer(timer.caption, 0, timer.max, timer.res,
-                                         DefaultTimedHistogramNumBuckets, this);
-  }
-
-  static const struct {
-    TimedHistogram Counters::*member;
-    const char* caption;
-    int max;
-    HistogramTimerResolution res;
-  } kTimedHistograms[] = {
-#define HT(name, caption, max, res) \
-  {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
-      TIMED_HISTOGRAM_LIST(HT)
-#undef HT
-  };
-  for (const auto& timer : kTimedHistograms) {
-    this->*timer.member = TimedHistogram(timer.caption, 0, timer.max, timer.res,
-                                         DefaultTimedHistogramNumBuckets, this);
+    this->*timer.member =
+        HistogramTimer(timer.caption, 0, timer.max, timer.res, 50, this);
   }
 
   static const struct {
@@ -166,8 +152,8 @@ Counters::Counters(Isolate* isolate)
 #undef AHT
   };
   for (const auto& aht : kAggregatableHistogramTimers) {
-    this->*aht.member = AggregatableHistogramTimer(
-        aht.caption, 0, 10000000, DefaultTimedHistogramNumBuckets, this);
+    this->*aht.member =
+        AggregatableHistogramTimer(aht.caption, 0, 10000000, 50, this);
   }
 
   static const struct {
@@ -306,10 +292,6 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 
 #define HT(name, caption, max, res) name##_.Reset();
     HISTOGRAM_TIMER_LIST(HT)
-#undef HT
-
-#define HT(name, caption, max, res) name##_.Reset();
-    TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
 #define AHT(name, caption) name##_.Reset();
