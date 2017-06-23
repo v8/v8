@@ -15,7 +15,7 @@ namespace internal {
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK((ObjectMarking::IsBlack<AccessMode::NON_ATOMIC>(
       obj, MarkingState::Internal(obj))));
-  if (!marking_deque()->Push(obj)) {
+  if (!marking_worklist()->Push(obj)) {
     ObjectMarking::BlackToGrey<AccessMode::NON_ATOMIC>(
         obj, MarkingState::Internal(obj));
   }
@@ -23,7 +23,7 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   DCHECK(ObjectMarking::IsBlack(obj, MarkingState::Internal(obj)));
-  if (!marking_deque()->Unshift(obj)) {
+  if (!marking_worklist()->Unshift(obj)) {
     ObjectMarking::BlackToGrey(obj, MarkingState::Internal(obj));
   }
 }

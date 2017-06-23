@@ -1536,7 +1536,7 @@ void Heap::MarkCompactEpilogue() {
   PreprocessStackTraces();
   DCHECK(incremental_marking()->IsStopped());
 
-  mark_compact_collector()->marking_deque()->StopUsing();
+  mark_compact_collector()->marking_worklist()->StopUsing();
 }
 
 
@@ -1790,7 +1790,7 @@ void Heap::Scavenge() {
 
   promotion_queue_.Destroy();
 
-  incremental_marking()->UpdateMarkingDequeAfterScavenge();
+  incremental_marking()->UpdateMarkingWorklistAfterScavenge();
 
   ScavengeWeakObjectRetainer weak_object_retainer(this);
   ProcessYoungWeakReferences(&weak_object_retainer);
@@ -4254,11 +4254,11 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_deque()->IsEmpty() &&
+        mark_compact_collector()->marking_worklist()->IsEmpty() &&
         local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
     FinalizeIncrementalMarking(gc_reason);
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
+             (mark_compact_collector()->marking_worklist()->IsEmpty() &&
               local_embedder_heap_tracer()
                   ->ShouldFinalizeIncrementalMarking())) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
@@ -5760,11 +5760,11 @@ bool Heap::SetUp() {
   tracer_ = new GCTracer(this);
   scavenge_collector_ = new Scavenger(this);
   mark_compact_collector_ = new MarkCompactCollector(this);
-  incremental_marking_->set_marking_deque(
-      mark_compact_collector_->marking_deque());
+  incremental_marking_->set_marking_worklist(
+      mark_compact_collector_->marking_worklist());
 #ifdef V8_CONCURRENT_MARKING
   concurrent_marking_ =
-      new ConcurrentMarking(this, mark_compact_collector_->marking_deque());
+      new ConcurrentMarking(this, mark_compact_collector_->marking_worklist());
 #else
   concurrent_marking_ = new ConcurrentMarking(this, nullptr);
 #endif

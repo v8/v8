@@ -404,7 +404,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       compacting_(false),
       black_allocation_(false),
       have_code_to_deoptimize_(false),
-      marking_deque_(heap),
+      marking_worklist_(heap),
       sweeper_(heap) {
   old_to_new_slots_ = -1;
 }
@@ -414,14 +414,14 @@ void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
   DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
-  marking_deque()->SetUp();
+  marking_worklist()->SetUp();
 }
 
 void MinorMarkCompactCollector::SetUp() {}
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
-  marking_deque()->TearDown();
+  marking_worklist()->TearDown();
 }
 
 void MinorMarkCompactCollector::TearDown() {}
@@ -943,7 +943,7 @@ void MarkCompactCollector::Prepare() {
     AbortTransitionArrays();
     AbortCompaction();
     heap_->local_embedder_heap_tracer()->AbortTracing();
-    marking_deque()->Clear();
+    marking_worklist()->Clear();
     was_marked_incrementally_ = false;
   }
 
@@ -1252,7 +1252,7 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
       MarkCompactMarkingVisitor::IterateBody(map, object);
       // Mark all the objects reachable from the map and body.  May leave
       // overflowed objects in the heap.
-      collector_->EmptyMarkingDeque();
+      collector_->EmptyMarkingWorklist();
     }
   }
 
@@ -1420,20 +1420,20 @@ template <class T>
 void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
   // The caller should ensure that the marking stack is initially not full,
   // so that we don't waste effort pointlessly scanning for objects.
-  DCHECK(!marking_deque()->IsFull());
+  DCHECK(!marking_worklist()->IsFull());
 
   Map* filler_map = heap()->one_pointer_filler_map();
   for (HeapObject* object = it->Next(); object != NULL; object = it->Next()) {
     if ((object->map() != filler_map) &&
         ObjectMarking::GreyToBlack(object, MarkingState::Internal(object))) {
       PushBlack(object);
-      if (marking_deque()->IsFull()) return;
+      if (marking_worklist()->IsFull()) return;
     }
   }
 }
 
 void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
-  DCHECK(!marking_deque()->IsFull());
+  DCHECK(!marking_worklist()->IsFull());
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(p, marking_state(p))) {
     HeapObject* const object = object_and_size.first;
@@ -1441,7 +1441,7 @@ void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
     DCHECK(success);
     USE(success);
     PushBlack(object);
-    if (marking_deque()->IsFull()) return;
+    if (marking_worklist()->IsFull()) return;
   }
 }
 
@@ -1985,7 +1985,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
 void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
   for (Page* p : *space) {
     DiscoverGreyObjectsOnPage(p);
-    if (marking_deque()->IsFull()) return;
+    if (marking_worklist()->IsFull()) return;
   }
 }
 
@@ -1994,7 +1994,7 @@ void MarkCompactCollector::DiscoverGreyObjectsInNewSpace() {
   NewSpace* space = heap()->new_space();
   for (Page* page : PageRange(space->bottom(), space->top())) {
     DiscoverGreyObjectsOnPage(page);
-    if (marking_deque()->IsFull()) return;
+    if (marking_worklist()->IsFull()) return;
   }
 }
 
@@ -2013,7 +2013,7 @@ void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
                                   MarkingState::Internal(string_table))) {
     // Explicitly mark the prefix.
     string_table->IteratePrefix(visitor);
-    ProcessMarkingDeque();
+    ProcessMarkingWorklist();
   }
 }
 
@@ -2026,9 +2026,9 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   MarkStringTable(visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_deque()->overflowed()) {
-    RefillMarkingDeque();
-    EmptyMarkingDeque();
+  while (marking_worklist()->overflowed()) {
+    RefillMarkingWorklist();
+    EmptyMarkingWorklist();
   }
 }
 
@@ -2036,9 +2036,9 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 // Before: the marking stack contains zero or more heap object pointers.
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
-void MarkCompactCollector::EmptyMarkingDeque() {
+void MarkCompactCollector::EmptyMarkingWorklist() {
   HeapObject* object;
-  while ((object = marking_deque()->Pop()) != nullptr) {
+  while ((object = marking_worklist()->Pop()) != nullptr) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
@@ -2049,7 +2049,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     MarkObject(map);
     MarkCompactMarkingVisitor::IterateBody(map, object);
   }
-  DCHECK(marking_deque()->IsEmpty());
+  DCHECK(marking_worklist()->IsEmpty());
 }
 
 
@@ -2058,44 +2058,44 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // before sweeping completes.  If sweeping completes, there are no remaining
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
-void MarkCompactCollector::RefillMarkingDeque() {
+void MarkCompactCollector::RefillMarkingWorklist() {
   isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
-  DCHECK(marking_deque()->overflowed());
+  DCHECK(marking_worklist()->overflowed());
 
   DiscoverGreyObjectsInNewSpace();
-  if (marking_deque()->IsFull()) return;
+  if (marking_worklist()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->old_space());
-  if (marking_deque()->IsFull()) return;
+  if (marking_worklist()->IsFull()) return;
   DiscoverGreyObjectsInSpace(heap()->code_space());
-  if (marking_deque()->IsFull()) return;
+  if (marking_worklist()->IsFull()) return;
   DiscoverGreyObjectsInSpace(heap()->map_space());
-  if (marking_deque()->IsFull()) return;
+  if (marking_worklist()->IsFull()) return;
   LargeObjectIterator lo_it(heap()->lo_space());
   DiscoverGreyObjectsWithIterator(&lo_it);
-  if (marking_deque()->IsFull()) return;
+  if (marking_worklist()->IsFull()) return;
 
-  marking_deque()->ClearOverflowed();
+  marking_worklist()->ClearOverflowed();
 }
 
 // Mark all objects reachable (transitively) from objects on the marking
 // stack.  Before: the marking stack contains zero or more heap object
 // pointers.  After: the marking stack is empty and there are no overflowed
 // objects in the heap.
-void MarkCompactCollector::ProcessMarkingDeque() {
-  EmptyMarkingDeque();
-  while (marking_deque()->overflowed()) {
-    RefillMarkingDeque();
-    EmptyMarkingDeque();
+void MarkCompactCollector::ProcessMarkingWorklist() {
+  EmptyMarkingWorklist();
+  while (marking_worklist()->overflowed()) {
+    RefillMarkingWorklist();
+    EmptyMarkingWorklist();
   }
-  DCHECK(marking_deque()->IsEmpty());
+  DCHECK(marking_worklist()->IsEmpty());
 }
 
 // Mark all objects reachable (transitively) from objects on the marking
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
     bool only_process_harmony_weak_collections) {
-  DCHECK(marking_deque()->IsEmpty() && !marking_deque()->overflowed());
+  DCHECK(marking_worklist()->IsEmpty() && !marking_worklist()->overflowed());
   bool work_to_do = true;
   while (work_to_do) {
     if (!only_process_harmony_weak_collections) {
@@ -2115,10 +2115,10 @@ void MarkCompactCollector::ProcessEphemeralMarking(
       heap_->local_embedder_heap_tracer()->ClearCachedWrappersToTrace();
     }
     ProcessWeakCollections();
-    work_to_do = !marking_deque()->IsEmpty();
-    ProcessMarkingDeque();
+    work_to_do = !marking_worklist()->IsEmpty();
+    ProcessMarkingWorklist();
   }
-  CHECK(marking_deque()->IsEmpty());
+  CHECK(marking_worklist()->IsEmpty());
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
 }
 
@@ -2134,7 +2134,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(
       if (!code->CanDeoptAt(it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code, visitor);
       }
-      ProcessMarkingDeque();
+      ProcessMarkingWorklist();
       return;
     }
   }
@@ -2219,7 +2219,7 @@ class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
     Object* target = *slot;
     if (heap_->InNewSpace(target)) {
       HeapObject* target_object = HeapObject::cast(target);
-      MarkObjectViaMarkingDeque(target_object);
+      MarkObjectViaMarkingWorklist(target_object);
     }
   }
 
@@ -2231,7 +2231,7 @@ class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
     return MarkingState::External(object);
   }
 
-  inline void MarkObjectViaMarkingDeque(HeapObject* object) {
+  inline void MarkObjectViaMarkingWorklist(HeapObject* object) {
     if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
                                                        marking_state(object))) {
       // Marking deque overflow is unsupported for the young generation.
@@ -2240,7 +2240,7 @@ class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
   }
 
   Heap* heap_;
-  WorklistView worklist_;
+  MinorMarkCompactCollector::MarkingWorklist worklist_;
 };
 
 class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
@@ -2273,7 +2273,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
     if (ObjectMarking::WhiteToGrey<AccessMode::NON_ATOMIC>(
             object, marking_state(object))) {
       collector_->main_marking_visitor()->Visit(object);
-      collector_->EmptyMarkingDeque();
+      collector_->EmptyMarkingWorklist();
     }
   }
 
@@ -2296,11 +2296,11 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
  public:
   YoungGenerationMarkingTask(Isolate* isolate,
                              MinorMarkCompactCollector* collector,
-                             Worklist* marking_deque, int task_id)
+                             Worklist* global_worklist, int task_id)
       : ItemParallelJob::Task(isolate),
         collector_(collector),
-        marking_deque_(marking_deque, task_id),
-        visitor_(isolate->heap(), marking_deque, task_id) {
+        marking_worklist_(global_worklist, task_id),
+        visitor_(isolate->heap(), global_worklist, task_id) {
     local_live_bytes_.reserve(isolate->heap()->new_space()->Capacity() /
                               Page::kPageSize);
   }
@@ -2313,10 +2313,10 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
       while ((item = GetItem<MarkingItem>()) != nullptr) {
         item->Process(this);
         item->MarkFinished();
-        EmptyLocalMarkingDeque();
+        EmptyLocalMarkingWorklist();
       }
-      EmptyMarkingDeque();
-      DCHECK(marking_deque_.IsLocalEmpty());
+      EmptyMarkingWorklist();
+      DCHECK(marking_worklist_.IsLocalEmpty());
       FlushLiveBytes();
     }
     if (FLAG_trace_minor_mc_parallel_marking) {
@@ -2340,17 +2340,17 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
     return MarkingState::External(object);
   }
 
-  void EmptyLocalMarkingDeque() {
+  void EmptyLocalMarkingWorklist() {
     HeapObject* object = nullptr;
-    while (marking_deque_.Pop(&object)) {
+    while (marking_worklist_.Pop(&object)) {
       const int size = visitor_.Visit(object);
       IncrementLiveBytes(object, size);
     }
   }
 
-  void EmptyMarkingDeque() {
+  void EmptyMarkingWorklist() {
     HeapObject* object = nullptr;
-    while (marking_deque_.Pop(&object)) {
+    while (marking_worklist_.Pop(&object)) {
       const int size = visitor_.Visit(object);
       IncrementLiveBytes(object, size);
     }
@@ -2369,7 +2369,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   MinorMarkCompactCollector* collector_;
-  WorklistView marking_deque_;
+  MinorMarkCompactCollector::MarkingWorklist marking_worklist_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
@@ -2621,7 +2621,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
     heap()->IterateEncounteredWeakCollections(&root_visitor);
-    ProcessMarkingDeque();
+    ProcessMarkingWorklist();
   }
 
   {
@@ -2630,18 +2630,18 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
         &IsUnmarkedObjectForYoungGeneration);
     isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
         &root_visitor);
-    ProcessMarkingDeque();
+    ProcessMarkingWorklist();
   }
 }
 
-void MinorMarkCompactCollector::ProcessMarkingDeque() {
-  EmptyMarkingDeque();
+void MinorMarkCompactCollector::ProcessMarkingWorklist() {
+  EmptyMarkingWorklist();
 }
 
-void MinorMarkCompactCollector::EmptyMarkingDeque() {
-  WorklistView worklist_view(worklist(), kMainMarker);
+void MinorMarkCompactCollector::EmptyMarkingWorklist() {
+  MarkingWorklist marking_worklist(worklist(), kMainMarker);
   HeapObject* object = nullptr;
-  while (worklist_view.Pop(&object)) {
+  while (marking_worklist.Pop(&object)) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
@@ -2651,7 +2651,7 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
         object, marking_state(object))));
     main_marking_visitor()->Visit(object);
   }
-  DCHECK(worklist_view.IsLocalEmpty());
+  DCHECK(marking_worklist.IsLocalEmpty());
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {
@@ -2680,7 +2680,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARKING_DEQUE);
-    heap()->incremental_marking()->UpdateMarkingDequeAfterScavenge();
+    heap()->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
   }
 
   {
@@ -2847,7 +2847,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   state_ = MARK_LIVE_OBJECTS;
 #endif
 
-  marking_deque()->StartUsing();
+  marking_worklist()->StartUsing();
 
   heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
@@ -2883,7 +2883,7 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
       heap()->isolate()->global_handles()->IdentifyWeakHandles(
           &IsUnmarkedHeapObject);
-      ProcessMarkingDeque();
+      ProcessMarkingWorklist();
     }
     // Then we mark the objects.
 
@@ -2891,7 +2891,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
       heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
-      ProcessMarkingDeque();
+      ProcessMarkingWorklist();
     }
 
     // Repeat Harmony weak maps marking to mark unmarked objects reachable from

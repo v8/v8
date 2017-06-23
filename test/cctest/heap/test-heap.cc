@@ -2370,7 +2370,7 @@ TEST(IdleNotificationFinishMarking) {
                   IncrementalMarking::DO_NOT_FORCE_COMPLETION, StepOrigin::kV8);
     CHECK(!marking->IsIdleMarkingDelayCounterLimitReached());
   } while (
-      !CcTest::heap()->mark_compact_collector()->marking_deque()->IsEmpty());
+      !CcTest::heap()->mark_compact_collector()->marking_worklist()->IsEmpty());
 
   // The next invocations of incremental marking are not going to complete
   // marking

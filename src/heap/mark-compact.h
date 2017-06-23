@@ -33,12 +33,6 @@ class ThreadLocalTop;
 class Worklist;
 class YoungGenerationMarkingVisitor;
 
-#ifdef V8_CONCURRENT_MARKING
-using MarkingDeque = ConcurrentMarkingDeque;
-#else
-using MarkingDeque = SequentialMarkingDeque;
-#endif
-
 class ObjectMarking : public AllStatic {
  public:
   V8_INLINE static MarkBit MarkBitFrom(HeapObject* obj,
@@ -290,8 +284,8 @@ class MarkCompactCollectorBase {
   virtual void MarkLiveObjects() = 0;
   // Mark objects reachable (transitively) from objects in the marking
   // stack.
-  virtual void EmptyMarkingDeque() = 0;
-  virtual void ProcessMarkingDeque() = 0;
+  virtual void EmptyMarkingWorklist() = 0;
+  virtual void ProcessMarkingWorklist() = 0;
   // Clear non-live references held in side data structures.
   virtual void ClearNonLiveReferences() = 0;
   virtual void EvacuatePrologue() = 0;
@@ -346,6 +340,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void CleanupSweepToIteratePages();
 
  private:
+  using MarkingWorklist = WorklistView;
   class RootMarkingVisitorSeedOnly;
   class RootMarkingVisitor;
 
@@ -360,8 +355,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
   void MarkRootSetInParallel();
-  void ProcessMarkingDeque() override;
-  void EmptyMarkingDeque() override;
+  void ProcessMarkingWorklist() override;
+  void EmptyMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;
@@ -386,6 +381,12 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
+#ifdef V8_CONCURRENT_MARKING
+  using MarkingWorklist = ConcurrentMarkingDeque;
+#else
+  using MarkingWorklist = SequentialMarkingDeque;
+#endif
+
   class RootMarkingVisitor;
 
   class Sweeper {
@@ -539,7 +540,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   bool evacuation() const { return evacuation_; }
 
-  MarkingDeque* marking_deque() { return &marking_deque_; }
+  MarkingWorklist* marking_worklist() { return &marking_worklist_; }
 
   Sweeper& sweeper() { return sweeper_; }
 
@@ -595,7 +596,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // the string table are weak.
   void MarkStringTable(RootMarkingVisitor* visitor);
 
-  void ProcessMarkingDeque() override;
+  void ProcessMarkingWorklist() override;
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.  This respects references only considered in
@@ -615,15 +616,15 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // This function empties the marking stack, but may leave overflowed objects
   // in the heap, in which case the marking stack's overflow flag will be set.
-  void EmptyMarkingDeque() override;
+  void EmptyMarkingWorklist() override;
 
   // Refill the marking stack with overflowed objects from the heap.  This
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
-  void RefillMarkingDeque();
+  void RefillMarkingWorklist();
 
   // Helper methods for refilling the marking stack by discovering grey objects
-  // on various pages of the heap. Used by {RefillMarkingDeque} only.
+  // on various pages of the heap. Used by {RefillMarkingWorklist} only.
   template <class T>
   void DiscoverGreyObjectsWithIterator(T* it);
   void DiscoverGreyObjectsOnPage(MemoryChunk* p);
@@ -713,7 +714,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   bool have_code_to_deoptimize_;
 
-  MarkingDeque marking_deque_;
+  MarkingWorklist marking_worklist_;
 
   // Candidates for pages that should be evacuated.
   List<Page*> evacuation_candidates_;
