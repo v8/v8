@@ -768,12 +768,13 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+      FrameSummary& frame = frames[i];
+      if (!frame.is_subject_to_debugging()) continue;
       // Filter frames from other security contexts.
       if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-          !this->context()->HasSameSecurityTokenAs(*frames[i].native_context()))
+          !this->context()->HasSameSecurityTokenAs(*frame.native_context()))
         continue;
-      Handle<StackFrameInfo> new_frame_obj =
-          helper.NewStackFrameObject(frames[i]);
+      Handle<StackFrameInfo> new_frame_obj = helper.NewStackFrameObject(frame);
       stack_trace_elems->set(frames_seen, *new_frame_obj);
       frames_seen++;
     }
