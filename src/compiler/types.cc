@@ -341,7 +341,11 @@ Type::bitset BitsetType::Lub(i::Object* value) {
   if (value->IsNumber()) {
     return Lub(value->Number());
   }
-  return Lub(i::HeapObject::cast(value)->map());
+  i::HeapObject* heap_value = i::HeapObject::cast(value);
+  if (value == heap_value->GetHeap()->empty_string()) {
+    return kEmptyString;
+  }
+  return Lub(heap_value->map()) & ~kEmptyString;
 }
 
 Type::bitset BitsetType::Lub(double value) {
