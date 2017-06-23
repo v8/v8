@@ -1107,7 +1107,7 @@
         'heap/spaces.h',
         'heap/store-buffer.cc',
         'heap/store-buffer.h',
-        'heap/workstealing-bag.h',
+        'heap/worklist.h',
         'intl.cc',
         'intl.h',
         'icu_util.cc',

@@ -23,14 +23,14 @@ namespace internal {
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
-class LocalWorkStealingBag;
+class WorklistView;
 class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
 class MigrationObserver;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
-class WorkStealingBag;
+class Worklist;
 class YoungGenerationMarkingVisitor;
 
 #ifdef V8_CONCURRENT_MARKING
@@ -352,7 +352,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   static const int kNumMarkers = 8;
   static const int kMainMarker = 0;
 
-  inline WorkStealingBag* marking_deque() { return marking_deque_; }
+  inline Worklist* worklist() { return worklist_; }
 
   inline YoungGenerationMarkingVisitor* main_marking_visitor() {
     return main_marking_visitor_;
@@ -372,7 +372,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   int NumberOfParallelMarkingTasks(int pages);
 
-  WorkStealingBag* marking_deque_;
+  Worklist* worklist_;
   YoungGenerationMarkingVisitor* main_marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   List<Page*> new_space_evacuation_pages_;

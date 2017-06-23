@@ -26,7 +26,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap/workstealing-bag.h"
+#include "src/heap/worklist.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -2205,10 +2205,9 @@ void MarkCompactCollector::RecordObjectStats() {
 
 class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
  public:
-  YoungGenerationMarkingVisitor(Heap* heap,
-                                WorkStealingBag* global_marking_deque,
+  YoungGenerationMarkingVisitor(Heap* heap, Worklist* global_worklist,
                                 int task_id)
-      : heap_(heap), marking_deque_(global_marking_deque, task_id) {}
+      : heap_(heap), worklist_(global_worklist, task_id) {}
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) final {
     for (Object** p = start; p < end; p++) {
@@ -2236,12 +2235,12 @@ class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
     if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
                                                        marking_state(object))) {
       // Marking deque overflow is unsupported for the young generation.
-      CHECK(marking_deque_.Push(object));
+      CHECK(worklist_.Push(object));
     }
   }
 
   Heap* heap_;
-  LocalWorkStealingBag marking_deque_;
+  WorklistView worklist_;
 };
 
 class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
@@ -2297,7 +2296,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
  public:
   YoungGenerationMarkingTask(Isolate* isolate,
                              MinorMarkCompactCollector* collector,
-                             WorkStealingBag* marking_deque, int task_id)
+                             Worklist* marking_deque, int task_id)
       : ItemParallelJob::Task(isolate),
         collector_(collector),
         marking_deque_(marking_deque, task_id),
@@ -2370,7 +2369,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   MinorMarkCompactCollector* collector_;
-  LocalWorkStealingBag marking_deque_;
+  WorklistView marking_deque_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
@@ -2534,16 +2533,16 @@ class MinorMarkCompactCollector::RootMarkingVisitorSeedOnly
 
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
-      marking_deque_(new WorkStealingBag()),
+      worklist_(new Worklist()),
       main_marking_visitor_(
-          new YoungGenerationMarkingVisitor(heap, marking_deque_, kMainMarker)),
+          new YoungGenerationMarkingVisitor(heap, worklist_, kMainMarker)),
       page_parallel_job_semaphore_(0) {
-  static_assert(kNumMarkers <= WorkStealingBag::kMaxNumTasks,
+  static_assert(kNumMarkers <= Worklist::kMaxNumTasks,
                 "more marker tasks than marking deque can handle");
 }
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() {
-  delete marking_deque_;
+  delete worklist_;
   delete main_marking_visitor_;
 }
 
@@ -2599,11 +2598,11 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
           static_cast<int>(heap()->new_space()->Capacity()) / Page::kPageSize;
       const int num_tasks = NumberOfParallelMarkingTasks(new_space_pages);
       for (int i = 0; i < num_tasks; i++) {
-        job.AddTask(new YoungGenerationMarkingTask(isolate(), this,
-                                                   marking_deque(), i));
+        job.AddTask(
+            new YoungGenerationMarkingTask(isolate(), this, worklist(), i));
       }
       job.Run();
-      DCHECK(marking_deque()->IsGlobalEmpty());
+      DCHECK(worklist()->IsGlobalEmpty());
     }
   }
   old_to_new_slots_ = static_cast<int>(slots.Value());
@@ -2640,9 +2639,9 @@ void MinorMarkCompactCollector::ProcessMarkingDeque() {
 }
 
 void MinorMarkCompactCollector::EmptyMarkingDeque() {
-  LocalWorkStealingBag local_marking_deque(marking_deque(), kMainMarker);
+  WorklistView worklist_view(worklist(), kMainMarker);
   HeapObject* object = nullptr;
-  while (local_marking_deque.Pop(&object)) {
+  while (worklist_view.Pop(&object)) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
@@ -2652,7 +2651,7 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
         object, marking_state(object))));
     main_marking_visitor()->Visit(object);
   }
-  DCHECK(local_marking_deque.IsLocalEmpty());
+  DCHECK(worklist_view.IsLocalEmpty());
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {

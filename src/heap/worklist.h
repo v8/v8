@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_WORKSTEALING_BAG_
-#define V8_HEAP_WORKSTEALING_BAG_
+#ifndef V8_HEAP_WORKLIST_
+#define V8_HEAP_WORKLIST_
 
 #include <cstddef>
 #include <vector>
@@ -18,26 +18,26 @@ namespace internal {
 
 class HeapObject;
 
-// A concurrent work stealing bag based on segments. Each tasks gets private
+// A concurrent worklist based on segments. Each tasks gets private
 // push and pop segments. Empty pop segments are swapped with their
 // corresponding push segments. Full push segments are published to a global
 // pool of segments and replaced with empty segments.
 //
 // Work stealing is best effort, i.e., there is no way to inform other tasks
 // of the need of items.
-class WorkStealingBag {
+class Worklist {
  public:
   static const int kMaxNumTasks = 8;
   static const int kSegmentCapacity = 64;
 
-  WorkStealingBag() {
+  Worklist() {
     for (int i = 0; i < kMaxNumTasks; i++) {
       private_push_segment_[i] = new Segment();
       private_pop_segment_[i] = new Segment();
     }
   }
 
-  ~WorkStealingBag() {
+  ~Worklist() {
     CHECK(IsGlobalEmpty());
     for (int i = 0; i < kMaxNumTasks; i++) {
       DCHECK_NOT_NULL(private_push_segment_[i]);
@@ -90,14 +90,14 @@ class WorkStealingBag {
   }
 
  private:
-  FRIEND_TEST(WorkStealingBag, SegmentCreate);
-  FRIEND_TEST(WorkStealingBag, SegmentPush);
-  FRIEND_TEST(WorkStealingBag, SegmentPushPop);
-  FRIEND_TEST(WorkStealingBag, SegmentIsEmpty);
-  FRIEND_TEST(WorkStealingBag, SegmentIsFull);
-  FRIEND_TEST(WorkStealingBag, SegmentClear);
-  FRIEND_TEST(WorkStealingBag, SegmentFullPushFails);
-  FRIEND_TEST(WorkStealingBag, SegmentEmptyPopFails);
+  FRIEND_TEST(Worklist, SegmentCreate);
+  FRIEND_TEST(Worklist, SegmentPush);
+  FRIEND_TEST(Worklist, SegmentPushPop);
+  FRIEND_TEST(Worklist, SegmentIsEmpty);
+  FRIEND_TEST(Worklist, SegmentIsFull);
+  FRIEND_TEST(Worklist, SegmentClear);
+  FRIEND_TEST(Worklist, SegmentFullPushFails);
+  FRIEND_TEST(Worklist, SegmentEmptyPopFails);
 
   class Segment {
    public:
@@ -154,26 +154,26 @@ class WorkStealingBag {
   std::vector<Segment*> global_pool_;
 };
 
-class LocalWorkStealingBag {
+class WorklistView {
  public:
-  LocalWorkStealingBag(WorkStealingBag* bag, int task_id)
-      : bag_(bag), task_id_(task_id) {}
+  WorklistView(Worklist* worklist, int task_id)
+      : worklist_(worklist), task_id_(task_id) {}
 
-  // Pushes an object onto the bag.
-  bool Push(HeapObject* object) { return bag_->Push(task_id_, object); }
+  // Pushes an object onto the worklist.
+  bool Push(HeapObject* object) { return worklist_->Push(task_id_, object); }
 
-  // Pops an object from the bag.
-  bool Pop(HeapObject** object) { return bag_->Pop(task_id_, object); }
+  // Pops an object from the worklist.
+  bool Pop(HeapObject** object) { return worklist_->Pop(task_id_, object); }
 
-  // Returns true if the local portion of the bag is empty.
-  bool IsLocalEmpty() { return bag_->IsLocalEmpty(task_id_); }
+  // Returns true if the local portion of the worklist is empty.
+  bool IsLocalEmpty() { return worklist_->IsLocalEmpty(task_id_); }
 
-  // Returns true if the bag is empty. Can only be used from the main thread
-  // without concurrent access.
-  bool IsGlobalEmpty() { return bag_->IsGlobalEmpty(); }
+  // Returns true if the worklist is empty. Can only be used from the main
+  // thread without concurrent access.
+  bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
 
  private:
-  WorkStealingBag* bag_;
+  Worklist* worklist_;
   int task_id_;
 };
 
