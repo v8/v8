@@ -51,9 +51,7 @@ class WorkStealingBag {
     DCHECK_LT(task_id, kMaxNumTasks);
     DCHECK_NOT_NULL(private_push_segment_[task_id]);
     if (!private_push_segment_[task_id]->Push(object)) {
-      base::LockGuard<base::Mutex> guard(&lock_);
-      global_pool_.push_back(private_push_segment_[task_id]);
-      private_push_segment_[task_id] = new Segment();
+      PublishPushSegmentToGlobal(task_id);
       bool success = private_push_segment_[task_id]->Push(object);
       USE(success);
       DCHECK(success);
@@ -69,12 +67,8 @@ class WorkStealingBag {
         Segment* tmp = private_pop_segment_[task_id];
         private_pop_segment_[task_id] = private_push_segment_[task_id];
         private_push_segment_[task_id] = tmp;
-      } else {
-        base::LockGuard<base::Mutex> guard(&lock_);
-        if (global_pool_.empty()) return false;
-        delete private_pop_segment_[task_id];
-        private_pop_segment_[task_id] = global_pool_.back();
-        global_pool_.pop_back();
+      } else if (!StealPopSegmentFromGlobal(task_id)) {
+        return false;
       }
       bool success = private_pop_segment_[task_id]->Pop(object);
       USE(success);
@@ -134,6 +128,25 @@ class WorkStealingBag {
     size_t index_;
     HeapObject* objects_[kCapacity];
   };
+
+  // Do not inline the following functions as this would mean that vector fast
+  // paths are inlined into all callers. This is mainly an issue when used
+  // within visitors that have lots of dispatches.
+
+  V8_NOINLINE void PublishPushSegmentToGlobal(int task_id) {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    global_pool_.push_back(private_push_segment_[task_id]);
+    private_push_segment_[task_id] = new Segment();
+  }
+
+  V8_NOINLINE bool StealPopSegmentFromGlobal(int task_id) {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    if (global_pool_.empty()) return false;
+    delete private_pop_segment_[task_id];
+    private_pop_segment_[task_id] = global_pool_.back();
+    global_pool_.pop_back();
+    return true;
+  }
 
   base::Mutex lock_;
   Segment* private_pop_segment_[kMaxNumTasks];
