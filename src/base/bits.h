@@ -26,6 +26,33 @@ class CheckedNumeric;
 
 namespace bits {
 
+// Define overloaded |Name| for |Name32| and |Name64|, depending on the size of
+// the given value.
+//
+// The overloads are only defined for input types of size 4 and 8, respectively,
+// using enable_if and SFINAE to disable them otherwise. enable_if<bool,
+// typename> only has a "type" member if the first parameter is true, in which
+// case "type" is a typedef to the second member (here, set to "unsigned").
+// Otherwise, enable_if::type doesn't exist, making the function signature
+// invalid, and so the entire function is thrown away (without an error) due to
+// SFINAE.
+//
+// Not that we cannot simply check sizeof(T) using an if statement, as we need
+// both branches of the if to be syntactically valid even if one of the branches
+// is dead.
+#define DEFINE_32_64_OVERLOADS(Name)                                   \
+  template <typename T>                                                \
+  inline typename std::enable_if<sizeof(T) == 4, unsigned>::type Name( \
+      T value) {                                                       \
+    return Name##32(value);                                            \
+  }                                                                    \
+                                                                       \
+  template <typename T>                                                \
+  inline typename std::enable_if<sizeof(T) == 8, unsigned>::type Name( \
+      T value) {                                                       \
+    return Name##64(value);                                            \
+  }
+
 // CountPopulation32(value) returns the number of bits set in |value|.
 inline unsigned CountPopulation32(uint32_t value) {
 #if V8_HAS_BUILTIN_POPCOUNT
@@ -51,17 +78,7 @@ inline unsigned CountPopulation64(uint64_t value) {
 #endif
 }
 
-
-// Overloaded versions of CountPopulation32/64.
-inline unsigned CountPopulation(uint32_t value) {
-  return CountPopulation32(value);
-}
-
-
-inline unsigned CountPopulation(uint64_t value) {
-  return CountPopulation64(value);
-}
-
+DEFINE_32_64_OVERLOADS(CountPopulation)
 
 // CountLeadingZeros32(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns 32.
@@ -148,14 +165,7 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #endif
 }
 
-// Overloaded versions of CountTrailingZeros32/64.
-inline unsigned CountTrailingZeros(uint32_t value) {
-  return CountTrailingZeros32(value);
-}
-
-inline unsigned CountTrailingZeros(uint64_t value) {
-  return CountTrailingZeros64(value);
-}
+DEFINE_32_64_OVERLOADS(CountTrailingZeros)
 
 // Returns true iff |value| is a power of 2.
 constexpr inline bool IsPowerOfTwo32(uint32_t value) {
@@ -329,6 +339,8 @@ V8_BASE_EXPORT int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
 // SignedSaturatedSub64(lhs, rhs) substracts |lhs| by |rhs|,
 // checks and returns the result.
 V8_BASE_EXPORT int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
+
+#undef DEFINE_32_64_OVERLOADS
 
 }  // namespace bits
 }  // namespace base

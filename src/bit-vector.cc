@@ -44,12 +44,7 @@ void BitVector::Iterator::Advance() {
 int BitVector::Count() const {
   int count = 0;
   for (int i = 0; i < data_length_; i++) {
-    uintptr_t data = data_[i];
-    if (sizeof(data) == 8) {
-      count += base::bits::CountPopulation64(data);
-    } else {
-      count += base::bits::CountPopulation32(static_cast<uint32_t>(data));
-    }
+    count += base::bits::CountPopulation(data_[i]);
   }
   return count;
 }
