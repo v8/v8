@@ -593,7 +593,11 @@ TEST(PreParserScopeAnalysis) {
       {"try { } catch(var1) { var1 = 3; }"},
       {"try { } catch(var1) { function f() { var1; } }"},
       {"try { } catch(var1) { function f() { var1 = 3; } }"},
-      // FIXME(marja): Add tests for destructuring catch.
+
+      {"try { } catch({var1, var2}) { function f() { var1 = 3; } }"},
+      {"try { } catch([var1, var2]) { function f() { var1 = 3; } }"},
+      {"try { } catch({}) { }"},
+      {"try { } catch([]) { }"},
 
       // Shadowing the catch variable
       {"try { } catch(var1) { var var1 = 3; }"},
