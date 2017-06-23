@@ -164,6 +164,15 @@ void CallForwardVarargsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallWithSpreadDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r2 : number of arguments (on the stack, not including receiver)
+  // r3 : the target to call
+  // r4 : the object to spread
+  Register registers[] = {r3, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CallWithArrayLikeDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r3 : the target to call
@@ -189,6 +198,16 @@ void ConstructForwardVarargsDescriptor::InitializePlatformSpecific(
   // r5 : the new target
   // r4 : start index (to support rest parameters)
   // r3 : the target to call
+  Register registers[] = {r3, r5, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructWithSpreadDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r2 : number of arguments (on the stack, not including receiver)
+  // r3 : the target to call
+  // r5 : the new target
+  // r4 : the object to spread
   Register registers[] = {r3, r5, r2, r4};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
