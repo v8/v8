@@ -500,14 +500,6 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
   }
 }
 
-bool ScopeInfo::HasHeapAllocatedLocals() {
-  if (length() > 0) {
-    return ContextLocalCount() > 0;
-  } else {
-    return false;
-  }
-}
-
 bool ScopeInfo::HasContext() { return ContextLength() > 0; }
 
 String* ScopeInfo::FunctionName() {
@@ -674,13 +666,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
   }
 
   return -1;
-}
-
-String* ScopeInfo::ContextSlotName(int slot_index) {
-  int const var = slot_index - Context::MIN_CONTEXT_SLOTS;
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, ContextLocalCount());
-  return ContextLocalName(var);
 }
 
 int ScopeInfo::ParameterIndex(String* name) {
@@ -930,20 +915,6 @@ int ModuleInfo::RegularExportCellIndex(int i) const {
 FixedArray* ModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
-}
-
-Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(
-    Handle<ModuleInfo> info, Handle<String> local_name) {
-  Isolate* isolate = info->GetIsolate();
-  Handle<FixedArray> regular_imports(info->regular_imports(), isolate);
-  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> entry(
-        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
-    if (String::cast(entry->local_name())->Equals(*local_name)) {
-      return entry;
-    }
-  }
-  UNREACHABLE();
 }
 
 }  // namespace internal

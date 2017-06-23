@@ -203,7 +203,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }

@@ -53,7 +53,6 @@ class JSContextSpecialization final : public AdvancedReducer {
                                   size_t new_depth);
 
   Isolate* isolate() const;
-  JSOperatorBuilder* javascript() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Maybe<OuterContext> outer() const { return outer_; }
   MaybeHandle<JSFunction> closure() const { return closure_; }

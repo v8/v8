@@ -264,10 +264,6 @@ class SmallMapList final {
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }
 
-  void AddMapIfMissing(Handle<Map> map, Zone* zone);
-
-  void FilterForPossibleTransitions(Map* root_map);
-
   void Add(Handle<Map> handle, Zone* zone) {
     list_.Add(handle.location(), zone);
   }

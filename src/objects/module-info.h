@@ -59,9 +59,6 @@ class ModuleInfo : public FixedArray {
   int RegularExportCellIndex(int i) const;
   FixedArray* RegularExportExportNames(int i) const;
 
-  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
-                                                     Handle<String> local_name);
-
 #ifdef DEBUG
   inline bool Equals(ModuleInfo* other) const {
     return regular_exports() == other->regular_exports() &&

@@ -94,10 +94,8 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
   Handle<Context> native_context() const { return native_context_; }
-  JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
-  MachineOperatorBuilder* machine() const;
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
 

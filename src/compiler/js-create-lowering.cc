@@ -1498,20 +1498,12 @@ Graph* JSCreateLowering::graph() const { return jsgraph()->graph(); }
 
 Isolate* JSCreateLowering::isolate() const { return jsgraph()->isolate(); }
 
-JSOperatorBuilder* JSCreateLowering::javascript() const {
-  return jsgraph()->javascript();
-}
-
 CommonOperatorBuilder* JSCreateLowering::common() const {
   return jsgraph()->common();
 }
 
 SimplifiedOperatorBuilder* JSCreateLowering::simplified() const {
   return jsgraph()->simplified();
-}
-
-MachineOperatorBuilder* JSCreateLowering::machine() const {
-  return jsgraph()->machine();
 }
 
 }  // namespace compiler

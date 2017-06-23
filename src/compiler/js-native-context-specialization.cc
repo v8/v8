@@ -2396,10 +2396,6 @@ Factory* JSNativeContextSpecialization::factory() const {
   return isolate()->factory();
 }
 
-MachineOperatorBuilder* JSNativeContextSpecialization::machine() const {
-  return jsgraph()->machine();
-}
-
 CommonOperatorBuilder* JSNativeContextSpecialization::common() const {
   return jsgraph()->common();
 }
