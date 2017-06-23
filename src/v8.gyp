@@ -1093,7 +1093,6 @@
         'heap/objects-visiting-inl.h',
         'heap/objects-visiting.cc',
         'heap/objects-visiting.h',
-        'heap/page-parallel-job.h',
         'heap/remembered-set.h',
         'heap/scavenge-job.h',
         'heap/scavenge-job.cc',

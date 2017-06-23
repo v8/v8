@@ -28,8 +28,6 @@ class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
 class MigrationObserver;
-template <typename JobTraits>
-class PageParallelJob;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
 class WorkStealingBag;
@@ -304,7 +302,7 @@ class MarkCompactCollectorBase {
 
   template <class Evacuator, class Collector>
   void CreateAndExecuteEvacuationTasks(
-      Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
+      Collector* collector, ItemParallelJob* job,
       RecordMigratedSlotVisitor* record_visitor,
       MigrationObserver* migration_observer, const intptr_t live_bytes);
 

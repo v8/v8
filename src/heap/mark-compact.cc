@@ -25,7 +25,6 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
-#include "src/heap/page-parallel-job.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/workstealing-bag.h"
 #include "src/ic/ic.h"
@@ -3810,24 +3809,36 @@ bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
   return success;
 }
 
-class EvacuationJobTraits {
+class PageEvacuationItem : public ItemParallelJob::Item {
  public:
-  struct PageData {
-    MarkingState marking_state;
+  explicit PageEvacuationItem(Page* page) : page_(page) {}
+  virtual ~PageEvacuationItem() {}
+  Page* page() const { return page_; }
+
+ private:
+  Page* page_;
+};
+
+class PageEvacuationTask : public ItemParallelJob::Task {
+ public:
+  PageEvacuationTask(Isolate* isolate, Evacuator* evacuator)
+      : ItemParallelJob::Task(isolate), evacuator_(evacuator) {}
+
+  void RunInParallel() override {
+    PageEvacuationItem* item = nullptr;
+    while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
+      evacuator_->EvacuatePage(item->page());
+      item->MarkFinished();
+    }
   };
 
-  typedef PageData PerPageData;
-  typedef Evacuator* PerTaskData;
-
-  static void ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
-                                    MemoryChunk* chunk, PerPageData) {
-    evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk));
-  }
+ private:
+  Evacuator* evacuator_;
 };
 
 template <class Evacuator, class Collector>
 void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
-    Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
+    Collector* collector, ItemParallelJob* job,
     RecordMigratedSlotVisitor* record_visitor,
     MigrationObserver* migration_observer, const intptr_t live_bytes) {
   // Used for trace summary.
@@ -3843,15 +3854,16 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
   ProfilingMigrationObserver profiling_observer(heap());
 
   const int wanted_num_tasks =
-      NumberOfParallelCompactionTasks(job->NumberOfPages());
+      NumberOfParallelCompactionTasks(job->NumberOfItems());
   Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i] = new Evacuator(collector, record_visitor);
     if (profiling) evacuators[i]->AddObserver(&profiling_observer);
     if (migration_observer != nullptr)
       evacuators[i]->AddObserver(migration_observer);
+    job->AddTask(new PageEvacuationTask(heap()->isolate(), evacuators[i]));
   }
-  job->Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
+  job->Run();
   const Address top = heap()->new_space()->top();
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
@@ -3872,7 +3884,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
                  "wanted_tasks=%d tasks=%d cores=%" PRIuS
                  " live_bytes=%" V8PRIdPTR " compaction_speed=%.f\n",
                  isolate()->time_millis_since_init(),
-                 FLAG_parallel_compaction ? "yes" : "no", job->NumberOfPages(),
+                 FLAG_parallel_compaction ? "yes" : "no", job->NumberOfItems(),
                  wanted_num_tasks, job->NumberOfTasks(),
                  V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
                  live_bytes, compaction_speed);
@@ -3888,14 +3900,13 @@ bool MarkCompactCollectorBase::ShouldMovePage(Page* p, intptr_t live_bytes) {
 }
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
-  PageParallelJob<EvacuationJobTraits> job(
-      heap_, heap_->isolate()->cancelable_task_manager(),
-      &page_parallel_job_semaphore_);
+  ItemParallelJob evacuation_job(isolate()->cancelable_task_manager(),
+                                 &page_parallel_job_semaphore_);
   intptr_t live_bytes = 0;
 
   for (Page* page : old_space_evacuation_pages_) {
     live_bytes += MarkingState::Internal(page).live_bytes();
-    job.AddPage(page, {marking_state(page)});
+    evacuation_job.AddItem(new PageEvacuationItem(page));
   }
 
   for (Page* page : new_space_evacuation_pages_) {
@@ -3909,20 +3920,19 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
-    job.AddPage(page, {marking_state(page)});
+    evacuation_job.AddItem(new PageEvacuationItem(page));
   }
-  if (job.NumberOfPages() == 0) return;
+  if (evacuation_job.NumberOfItems() == 0) return;
 
   RecordMigratedSlotVisitor record_visitor(this);
-  CreateAndExecuteEvacuationTasks<FullEvacuator>(this, &job, &record_visitor,
-                                                 nullptr, live_bytes);
+  CreateAndExecuteEvacuationTasks<FullEvacuator>(
+      this, &evacuation_job, &record_visitor, nullptr, live_bytes);
   PostProcessEvacuationCandidates();
 }
 
 void MinorMarkCompactCollector::EvacuatePagesInParallel() {
-  PageParallelJob<EvacuationJobTraits> job(
-      heap_, heap_->isolate()->cancelable_task_manager(),
-      &page_parallel_job_semaphore_);
+  ItemParallelJob evacuation_job(isolate()->cancelable_task_manager(),
+                                 &page_parallel_job_semaphore_);
   intptr_t live_bytes = 0;
 
   for (Page* page : new_space_evacuation_pages_) {
@@ -3936,16 +3946,16 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
-    job.AddPage(page, {marking_state(page)});
+    evacuation_job.AddItem(new PageEvacuationItem(page));
   }
-  if (job.NumberOfPages() == 0) return;
+  if (evacuation_job.NumberOfItems() == 0) return;
 
   YoungGenerationMigrationObserver observer(heap(),
                                             heap()->mark_compact_collector());
   YoungGenerationRecordMigratedSlotVisitor record_visitor(
       heap()->mark_compact_collector());
   CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
-      this, &job, &record_visitor, &observer, live_bytes);
+      this, &evacuation_job, &record_visitor, &observer, live_bytes);
 }
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
