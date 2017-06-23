@@ -1415,7 +1415,6 @@ class DictionaryElementsAccessor
 
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
-    // TODO(verwaest): Remove reliance on index in Shrink.
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(obj->elements()));
     dict = SeededNumberDictionary::DeleteEntry(dict, entry);
