@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 (function(global, utils) {
+
 "use strict";
 
 %CheckIsBootstrapping();
