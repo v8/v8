@@ -581,10 +581,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Note that this assumes live bytes have not yet been counted.
   V8_INLINE void PushBlack(HeapObject* obj);
 
-  // Unshifts a black object into the marking stack and accounts for live bytes.
-  // Note that this assumes lives bytes have already been counted.
-  V8_INLINE void UnshiftBlack(HeapObject* obj);
-
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
   V8_INLINE void MarkObject(HeapObject* obj);

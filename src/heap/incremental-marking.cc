@@ -237,30 +237,33 @@ class IncrementalMarkingMarkingVisitor
       int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
       int start_offset =
           Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
-      int end_offset =
-          Min(object_size, start_offset + kProgressBarScanningChunk);
-      int already_scanned_offset = start_offset;
-      bool scan_until_end = false;
-      do {
-        VisitPointers(heap, object, HeapObject::RawField(object, start_offset),
-                      HeapObject::RawField(object, end_offset));
-        start_offset = end_offset;
-        end_offset = Min(object_size, end_offset + kProgressBarScanningChunk);
-        scan_until_end =
-            heap->incremental_marking()->marking_worklist()->IsFull();
-      } while (scan_until_end && start_offset < object_size);
-      chunk->set_progress_bar(start_offset);
       if (start_offset < object_size) {
         if (ObjectMarking::IsGrey<IncrementalMarking::kAtomicity>(
                 object, heap->incremental_marking()->marking_state(object))) {
-          heap->incremental_marking()->marking_worklist()->Unshift(object);
+          heap->incremental_marking()->marking_worklist()->Push(object);
         } else {
           DCHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
               object, heap->incremental_marking()->marking_state(object)));
-          heap->mark_compact_collector()->UnshiftBlack(object);
+          heap->mark_compact_collector()->PushBlack(object);
         }
-        heap->incremental_marking()->NotifyIncompleteScanOfObject(
-            object_size - (start_offset - already_scanned_offset));
+        int end_offset =
+            Min(object_size, start_offset + kProgressBarScanningChunk);
+        int already_scanned_offset = start_offset;
+        bool scan_until_end = false;
+        do {
+          VisitPointers(heap, object,
+                        HeapObject::RawField(object, start_offset),
+                        HeapObject::RawField(object, end_offset));
+          start_offset = end_offset;
+          end_offset = Min(object_size, end_offset + kProgressBarScanningChunk);
+          scan_until_end =
+              heap->incremental_marking()->marking_worklist()->IsFull();
+        } while (scan_until_end && start_offset < object_size);
+        chunk->set_progress_bar(start_offset);
+        if (start_offset < object_size) {
+          heap->incremental_marking()->NotifyIncompleteScanOfObject(
+              object_size - (start_offset - already_scanned_offset));
+        }
       }
     } else {
       FixedArrayVisitor::Visit(map, object);

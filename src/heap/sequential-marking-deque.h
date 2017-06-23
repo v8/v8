@@ -78,19 +78,6 @@ class SequentialMarkingDeque {
     return object;
   }
 
-  // Unshift the object into the marking stack if there is room, otherwise mark
-  // the deque as overflowed and wait for a rescan of the heap.
-  INLINE(bool Unshift(HeapObject* object)) {
-    if (IsFull()) {
-      SetOverflowed();
-      return false;
-    } else {
-      bottom_ = ((bottom_ - 1) & mask_);
-      array_[bottom_] = object;
-      return true;
-    }
-  }
-
   // Calls the specified callback on each element of the deque and replaces
   // the element with the result of the callback. If the callback returns
   // nullptr then the element is removed from the deque.

@@ -83,14 +83,6 @@ class ConcurrentMarkingDeque {
 
   int Size() { return bailout_deque_.Size() + shared_deque_.Size(); }
 
-  // This is used for a large array with a progress bar.
-  // For simpicity, unshift to the bailout deque so that the concurrent thread
-  // does not see such objects.
-  bool Unshift(HeapObject* object) {
-    bailout_deque_.Unshift(object);
-    return true;
-  }
-
   // Calls the specified callback on each element of the deques and replaces
   // the element with the result of the callback. If the callback returns
   // nullptr then the element is removed from the deque.
@@ -139,10 +131,6 @@ class ConcurrentMarkingDeque {
       HeapObject* result = deque_.back();
       deque_.pop_back();
       return result;
-    }
-    void Unshift(HeapObject* object) {
-      base::LockGuard<base::Mutex> guard(&mutex_);
-      deque_.push_front(object);
     }
     template <typename Callback>
     void Update(Callback callback) {
