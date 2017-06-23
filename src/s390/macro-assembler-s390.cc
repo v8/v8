@@ -126,22 +126,22 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
 }
 
 int MacroAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
-                             TypeFeedbackId ast_id, Condition cond) {
+                             Condition cond) {
   return 6;  // BRASL
 }
 
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
-                          TypeFeedbackId ast_id, Condition cond) {
+                          Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode) && cond == al);
 
 #ifdef DEBUG
   // Check the expected size before generating code to ensure we assume the same
   // constant pool availability (e.g., whether constant pool is full or not).
-  int expected_size = CallSize(code, rmode, ast_id, cond);
+  int expected_size = CallSize(code, rmode, cond);
   Label start;
   bind(&start);
 #endif
-  call(code, rmode, ast_id);
+  call(code, rmode);
   DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
 }
 
@@ -1948,10 +1948,9 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bind(&done);
 }
 
-void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id,
-                              Condition cond) {
+void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {

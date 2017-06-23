@@ -371,15 +371,10 @@ void Assembler::CheckBuffer() {
   }
 }
 
-int32_t Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode,
-                                    TypeFeedbackId ast_id) {
+int32_t Assembler::emit_code_target(Handle<Code> target,
+                                    RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  if (rmode == RelocInfo::CODE_TARGET && !ast_id.IsNone()) {
-    SetRecordedAstId(ast_id);
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID);
-  } else {
-    RecordRelocInfo(rmode);
-  }
+  RecordRelocInfo(rmode);
 
   int current = code_targets_.length();
   if (current > 0 && code_targets_.last().is_identical_to(target)) {
