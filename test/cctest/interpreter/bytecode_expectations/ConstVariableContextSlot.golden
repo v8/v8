@@ -94,7 +94,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 26
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
@@ -105,7 +105,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   48 S> */ B(LdaSmi), I8(20),
+  /*   48 S> */ B(Nop),
   /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(LdaUndefined),
   /*   82 S> */ B(Return),

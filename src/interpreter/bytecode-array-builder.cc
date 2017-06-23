@@ -5,12 +5,11 @@
 #include "src/interpreter/bytecode-array-builder.h"
 
 #include "src/globals.h"
-#include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
-#include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/bytecode-source-info.h"
+#include "src/interpreter/bytecode-traits.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 
@@ -42,17 +41,29 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
     FunctionLiteral* literal,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),
+      bytecodes_(zone),
       literal_(literal),
-      bytecode_generated_(false),
+
       constant_array_builder_(zone),
       handler_table_builder_(zone),
-      return_seen_in_block_(false),
+      source_position_table_builder_(zone, source_position_mode),
+
+      register_allocator_(locals_count),
+      register_optimizer_(nullptr),
+
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
-      register_allocator_(fixed_register_count()),
-      bytecode_array_writer_(zone, &constant_array_builder_,
-                             source_position_mode),
-      register_optimizer_(nullptr) {
+      return_position_(literal ? literal->return_position()
+                               : kNoSourcePosition),
+      unbound_jumps_(0),
+
+      bytecode_generated_(false),
+      elide_noneffectful_bytecodes_(FLAG_ignition_elide_noneffectful_bytecodes),
+      exit_seen_in_block_(false),
+      last_bytecode_had_source_info_(false),
+
+      last_bytecode_offset_(0),
+      last_bytecode_(Bytecode::kIllegal) {
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(local_register_count_, 0);
 
@@ -61,8 +72,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
         new (zone) RegisterTransferWriter(this));
   }
-
-  return_position_ = literal ? literal->return_position() : kNoSourcePosition;
 }
 
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
@@ -83,7 +92,7 @@ Register BytecodeArrayBuilder::Local(int index) const {
 }
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
-  DCHECK(return_seen_in_block_);
+  DCHECK(exit_seen_in_block_);
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
 
@@ -94,10 +103,25 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
     register_count = register_optimizer_->maxiumum_register_index() + 1;
   }
 
+  int bytecode_size = static_cast<int>(bytecodes()->size());
+  int frame_size = register_count * kPointerSize;
+
+  Handle<FixedArray> constant_pool =
+      constant_array_builder()->ToFixedArray(isolate);
+  Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
+      bytecode_size, &bytecodes()->front(), frame_size, parameter_count(),
+      constant_pool);
+
   Handle<FixedArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
-  return bytecode_array_writer_.ToBytecodeArray(
-      isolate, register_count, parameter_count(), handler_table);
+  bytecode_array->set_handler_table(*handler_table);
+
+  Handle<ByteArray> source_position_table =
+      source_position_table_builder()->ToSourcePositionTable(
+          isolate, Handle<AbstractCode>::cast(bytecode_array));
+  bytecode_array->set_source_position_table(*source_position_table);
+
+  return bytecode_array;
 }
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
@@ -118,63 +142,137 @@ BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
   return source_position;
 }
 
-void BytecodeArrayBuilder::SetDeferredSourceInfo(
-    BytecodeSourceInfo source_info) {
-  if (!source_info.is_valid()) return;
-  if (deferred_source_info_.is_valid()) {
-    // Emit any previous deferred source info now as a nop.
-    BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    bytecode_array_writer_.Write(&node);
+void BytecodeArrayBuilder::PatchJump(size_t jump_target, size_t jump_location) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  int delta = static_cast<int>(jump_target - jump_location);
+  int prefix_offset = 0;
+  OperandScale operand_scale = OperandScale::kSingle;
+  if (Bytecodes::IsPrefixScalingBytecode(jump_bytecode)) {
+    // If a prefix scaling bytecode is emitted the target offset is one
+    // less than the case of no prefix scaling bytecode.
+    delta -= 1;
+    prefix_offset = 1;
+    operand_scale = Bytecodes::PrefixBytecodeToOperandScale(jump_bytecode);
+    jump_bytecode =
+        Bytecodes::FromByte(bytecodes()->at(jump_location + prefix_offset));
   }
-  deferred_source_info_ = source_info;
+
+  DCHECK(Bytecodes::IsJump(jump_bytecode));
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      PatchJumpWith8BitOperand(jump_location, delta);
+      break;
+    case OperandScale::kDouble:
+      PatchJumpWith16BitOperand(jump_location + prefix_offset, delta);
+      break;
+    case OperandScale::kQuadruple:
+      PatchJumpWith32BitOperand(jump_location + prefix_offset, delta);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  unbound_jumps_--;
 }
 
-void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
-  if (!deferred_source_info_.is_valid()) return;
-
-  if (!node->source_info().is_valid()) {
-    node->set_source_info(deferred_source_info_);
+void BytecodeArrayBuilder::PatchJumpWith8BitOperand(size_t jump_location,
+                                                    int delta) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  DCHECK(Bytecodes::IsForwardJump(jump_bytecode));
+  DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  DCHECK_EQ(Bytecodes::GetOperandType(jump_bytecode, 0), OperandType::kUImm);
+  DCHECK_GT(delta, 0);
+  size_t operand_location = jump_location + 1;
+  DCHECK_EQ(bytecodes()->at(operand_location), k8BitJumpPlaceholder);
+  if (Bytecodes::ScaleForUnsignedOperand(delta) == OperandScale::kSingle) {
+    // The jump fits within the range of an UImm8 operand, so cancel
+    // the reservation and jump directly.
+    constant_array_builder()->DiscardReservedEntry(OperandSize::kByte);
+    bytecodes()->at(operand_location) = static_cast<uint8_t>(delta);
   } else {
-    BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    bytecode_array_writer_.Write(&node);
+    // The jump does not fit within the range of an UImm8 operand, so
+    // commit reservation putting the offset into the constant pool,
+    // and update the jump instruction and operand.
+    size_t entry = constant_array_builder()->CommitReservedEntry(
+        OperandSize::kByte, Smi::FromInt(delta));
+    DCHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<uint32_t>(entry)),
+              OperandSize::kByte);
+    jump_bytecode = Bytecodes::GetJumpWithConstantOperand(jump_bytecode);
+    bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
+    bytecodes()->at(operand_location) = static_cast<uint8_t>(entry);
   }
-  deferred_source_info_.set_invalid();
 }
 
-void BytecodeArrayBuilder::Write(BytecodeNode* node) {
-  AttachOrEmitDeferredSourceInfo(node);
-  bytecode_array_writer_.Write(node);
+void BytecodeArrayBuilder::PatchJumpWith16BitOperand(size_t jump_location,
+                                                     int delta) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  DCHECK(Bytecodes::IsForwardJump(jump_bytecode));
+  DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  DCHECK_EQ(Bytecodes::GetOperandType(jump_bytecode, 0), OperandType::kUImm);
+  DCHECK_GT(delta, 0);
+  size_t operand_location = jump_location + 1;
+  uint8_t operand_bytes[2];
+  if (Bytecodes::ScaleForUnsignedOperand(delta) <= OperandScale::kDouble) {
+    // The jump fits within the range of an Imm16 operand, so cancel
+    // the reservation and jump directly.
+    constant_array_builder()->DiscardReservedEntry(OperandSize::kShort);
+    WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(delta));
+  } else {
+    // The jump does not fit within the range of an Imm16 operand, so
+    // commit reservation putting the offset into the constant pool,
+    // and update the jump instruction and operand.
+    size_t entry = constant_array_builder()->CommitReservedEntry(
+        OperandSize::kShort, Smi::FromInt(delta));
+    jump_bytecode = Bytecodes::GetJumpWithConstantOperand(jump_bytecode);
+    bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
+    WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
+  }
+  DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder);
+  bytecodes()->at(operand_location++) = operand_bytes[0];
+  bytecodes()->at(operand_location) = operand_bytes[1];
 }
 
-void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
-  AttachOrEmitDeferredSourceInfo(node);
-  bytecode_array_writer_.WriteJump(node, label);
-}
-
-void BytecodeArrayBuilder::WriteSwitch(BytecodeNode* node,
-                                       BytecodeJumpTable* jump_table) {
-  AttachOrEmitDeferredSourceInfo(node);
-  bytecode_array_writer_.WriteSwitch(node, jump_table);
+void BytecodeArrayBuilder::PatchJumpWith32BitOperand(size_t jump_location,
+                                                     int delta) {
+  DCHECK(Bytecodes::IsJumpImmediate(
+      Bytecodes::FromByte(bytecodes()->at(jump_location))));
+  constant_array_builder()->DiscardReservedEntry(OperandSize::kQuad);
+  uint8_t operand_bytes[4];
+  WriteUnalignedUInt32(operand_bytes, static_cast<uint32_t>(delta));
+  size_t operand_location = jump_location + 1;
+  DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 2) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 3) == k8BitJumpPlaceholder);
+  bytecodes()->at(operand_location++) = operand_bytes[0];
+  bytecodes()->at(operand_location++) = operand_bytes[1];
+  bytecodes()->at(operand_location++) = operand_bytes[2];
+  bytecodes()->at(operand_location) = operand_bytes[3];
 }
 
 void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
-  uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
-  BytecodeNode node(BytecodeNode::Ldar(BytecodeSourceInfo(), operand));
-  Write(&node);
+  // Exit early for dead code.
+  if (exit_seen_in_block_) return;
+  Write<AccumulatorUse::kWrite, OperandType::kReg>(
+      Bytecode::kLdar, BytecodeSourceInfo(),
+      {{static_cast<uint32_t>(reg.ToOperand())}});
 }
 
 void BytecodeArrayBuilder::OutputStarRaw(Register reg) {
-  uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
-  BytecodeNode node(BytecodeNode::Star(BytecodeSourceInfo(), operand));
-  Write(&node);
+  // Exit early for dead code.
+  if (exit_seen_in_block_) return;
+  Write<AccumulatorUse::kRead, OperandType::kRegOut>(
+      Bytecode::kStar, BytecodeSourceInfo(),
+      {{static_cast<uint32_t>(reg.ToOperand())}});
 }
 
 void BytecodeArrayBuilder::OutputMovRaw(Register src, Register dest) {
-  uint32_t operand0 = static_cast<uint32_t>(src.ToOperand());
-  uint32_t operand1 = static_cast<uint32_t>(dest.ToOperand());
-  BytecodeNode node(
-      BytecodeNode::Mov(BytecodeSourceInfo(), operand0, operand1));
-  Write(&node);
+  // Exit early for dead code.
+  if (exit_seen_in_block_) return;
+  Write<AccumulatorUse::kNone, OperandType::kReg, OperandType::kRegOut>(
+      Bytecode::kMov, BytecodeSourceInfo(),
+      {{static_cast<uint32_t>(src.ToOperand()),
+        static_cast<uint32_t>(dest.ToOperand())}});
 }
 
 namespace {
@@ -290,63 +388,418 @@ class OperandHelper<OperandType::kRegOutTriple> {
   }
 };
 
-}  // namespace
+// Recursively defined helper for operating on an array of operands (calculating
+// the maximum scale needed, and emitting them). Each recursion peels off one of
+// the operand types, and increments the index we check in the value array, e.g.
+// for:
+//
+//    OperandArrayHelper<0, OperandType::kReg, OperandType::kImm>
+//
+// then OperandArrayHelper::ScaleForOperands is defined for std::array<uint32_t,
+// 2>, and recursively calls
+//
+//    OperandArrayHelper<1, OperandType::kImm>::ScaleForOperands()
+//    OperandArrayHelper<2>::ScaleForOperands()
 
-template <Bytecode bytecode, AccumulatorUse accumulator_use,
-          OperandType... operand_types>
-class BytecodeNodeBuilder {
+template <size_t I, OperandType... operand_types>
+struct OperandArrayHelper;
+
+// Base case: I points past the end of the array.
+template <size_t I>
+struct OperandArrayHelper<I> {
+ private:
+  static const int kArraySize = I;
+
  public:
-  template <typename... Operands>
-  INLINE(static BytecodeNode Make(BytecodeArrayBuilder* builder,
-                                  Operands... operands)) {
-    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,
-                  "too many operands for bytecode");
-    builder->PrepareToOutputBytecode<bytecode, accumulator_use>();
-    // The "OperandHelper<operand_types>::Convert(builder, operands)..." will
-    // expand both the OperandType... and Operands... parameter packs e.g. for:
-    //   BytecodeNodeBuilder<OperandType::kReg, OperandType::kImm>::Make<
-    //       Register, int>(..., Register reg, int immediate)
-    // the code will expand into:
-    //    OperandHelper<OperandType::kReg>::Convert(builder, reg),
-    //    OperandHelper<OperandType::kImm>::Convert(builder, immediate),
-    return BytecodeNode::Create<bytecode, accumulator_use, operand_types...>(
-        builder->CurrentSourcePosition(bytecode),
-        OperandHelper<operand_types>::Convert(builder, operands)...);
+  typedef std::array<uint32_t, kArraySize> OperandArray;
+
+  static OperandScale ScaleForOperands(const OperandArray& operand_values) {
+    return OperandScale::kSingle;
   }
+
+  template <OperandScale operand_scale>
+  static void Emit(ZoneVector<uint8_t>* out,
+                   const OperandArray& operand_values) {}
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(OperandArrayHelper);
 };
 
-#define DEFINE_BYTECODE_OUTPUT(name, ...)                             \
-  template <typename... Operands>                                     \
-  BytecodeNode BytecodeArrayBuilder::Create##name##Node(              \
-      Operands... operands) {                                         \
-    return BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make( \
-        this, operands...);                                           \
-  }                                                                   \
-                                                                      \
-  template <typename... Operands>                                     \
-  void BytecodeArrayBuilder::Output##name(Operands... operands) {     \
-    BytecodeNode node(Create##name##Node(operands...));               \
-    Write(&node);                                                     \
-  }                                                                   \
-                                                                      \
-  template <typename... Operands>                                     \
-  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,       \
-                                          Operands... operands) {     \
-    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                     \
-    BytecodeNode node(Create##name##Node(operands...));               \
-    WriteJump(&node, label);                                          \
-    LeaveBasicBlock();                                                \
+// Recursive case.
+template <size_t I, OperandType operand_type, OperandType... operand_types>
+struct OperandArrayHelper<I, operand_type, operand_types...> {
+ private:
+  // The array has had I items iterated through already, and has remaning the
+  // current operand type plus the remainining operand types.
+  static const int kArraySize = I + 1 + sizeof...(operand_types);
+  typedef OperandArrayHelper<I + 1, operand_types...> NextRecursion;
+
+ public:
+  typedef std::array<uint32_t, kArraySize> OperandArray;
+
+  static OperandScale ScaleForOperands(const OperandArray& operand_values) {
+    uint32_t operand_value = std::get<I>(operand_values);
+    OperandScale operand_scale = OperandScale::kSingle;
+    if (BytecodeOperands::IsScalableUnsignedByte(operand_type)) {
+      operand_scale = Bytecodes::ScaleForUnsignedOperand(operand_value);
+    } else if (BytecodeOperands::IsScalableSignedByte(operand_type)) {
+      operand_scale = Bytecodes::ScaleForSignedOperand(operand_value);
+    }
+
+    return std::max(operand_scale,
+                    NextRecursion::ScaleForOperands(operand_values));
   }
+
+  template <OperandScale operand_scale>
+  static void Emit(ZoneVector<uint8_t>* out,
+                   const OperandArray& operand_values) {
+    uint32_t operand_value = std::get<I>(operand_values);
+    switch (OperandScaler<operand_type, operand_scale>::kOperandSize) {
+      case OperandSize::kNone:
+        UNREACHABLE();
+        break;
+      case OperandSize::kByte:
+        out->push_back(static_cast<uint8_t>(operand_value));
+        break;
+      case OperandSize::kShort: {
+        uint16_t operand_u16 = static_cast<uint16_t>(operand_value);
+        const uint8_t* raw_operand =
+            reinterpret_cast<const uint8_t*>(&operand_u16);
+        out->push_back(raw_operand[0]);
+        out->push_back(raw_operand[1]);
+        break;
+      }
+      case OperandSize::kQuad: {
+        const uint8_t* raw_operand =
+            reinterpret_cast<const uint8_t*>(&operand_value);
+        out->push_back(raw_operand[0]);
+        out->push_back(raw_operand[1]);
+        out->push_back(raw_operand[2]);
+        out->push_back(raw_operand[3]);
+        break;
+      }
+    }
+
+    NextRecursion::template Emit<operand_scale>(out, operand_values);
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(OperandArrayHelper);
+};
+
+// Helper class for building an array of integer operand values given template
+// packs of operand types and generic operand values. This has to be a separate
+// struct to allow us to initialize the operand_types template pack using a
+// variadic macro.
+template <Bytecode bytecode, AccumulatorUse accumulator_use,
+          OperandType... operand_types>
+class OperandArrayBuilder {
+ public:
+  typedef std::array<uint32_t, sizeof...(operand_types)> Array;
+
+  template <typename... Operands>
+  INLINE(static Array Build(BytecodeArrayBuilder* builder,
+                            Operands... operands)) {
+    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,
+                  "too many operands for bytecode");
+    static_assert(sizeof...(Operands) == sizeof...(operand_types),
+                  "wrong number of operands");
+
+    // Calculate and store the converted operand values.
+    //
+    // The "OperandHelper<operand_types>::Convert(builder, operands)..."
+    // will expand both the OperandType... and Operands... parameter packs
+    // e.g. for:
+    //
+    //   OperandArrayBuilder<..., OperandType::kReg, OperandType::kImm>
+    //       ::Build<Register, int>(..., Register reg, int immediate)
+    //
+    // the code will expand into:
+    //
+    //   return {{
+    //     OperandHelper<OperandType::kReg>::Convert(builder, reg),
+    //     OperandHelper<OperandType::kImm>::Convert(builder, immediate)
+    //   }};
+    return {{OperandHelper<operand_types>::Convert(builder, operands)...}};
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(OperandArrayBuilder);
+};
+
+}  // namespace
+
+void BytecodeArrayBuilder::AttachSourceInfo(
+    const BytecodeSourceInfo& source_info) {
+  if (!source_info.is_valid()) return;
+
+  int bytecode_offset = static_cast<int>(bytecodes()->size());
+  source_position_table_builder()->AddPosition(
+      bytecode_offset, SourcePosition(source_info.source_position()),
+      source_info.is_statement());
+}
+
+void BytecodeArrayBuilder::AttachDeferredAndCurrentSourceInfo(
+    BytecodeSourceInfo source_info) {
+  if (deferred_source_info_.is_valid()) {
+    if (source_info.is_valid()) {
+      // We need to attach the current source info to the current bytecode, so
+      // attach the deferred source to a nop instead.
+      AttachSourceInfo(deferred_source_info_);
+      bytecodes()->push_back(Bytecodes::ToByte(Bytecode::kNop));
+    } else {
+      if (last_bytecode_had_source_info_) {
+        // We've taken over an elided source info, but don't have source info
+        // for ourselves. Emit a nop for the elided source info, since we're
+        // attaching deferred source info to the current bytecode.
+        // TODO(leszeks): Eliding and deferring feel very similar, maybe we can
+        // unify them.
+        bytecodes()->push_back(Bytecodes::ToByte(Bytecode::kNop));
+      }
+      // Attach the deferred source info to the current bytecode.
+      source_info = deferred_source_info_;
+    }
+    // Either way, we can invalidate the stored deferred source info.
+    deferred_source_info_.set_invalid();
+  }
+
+  AttachSourceInfo(source_info);
+  // We may have decided to attach the last bytecode's source info to the
+  // current one, so include that decision in the builder state.
+  last_bytecode_had_source_info_ |= source_info.is_valid();
+}
+
+void BytecodeArrayBuilder::SetDeferredSourceInfo(
+    BytecodeSourceInfo source_info) {
+  if (!source_info.is_valid()) return;
+  if (deferred_source_info_.is_valid()) {
+    // Emit any previous deferred source info now as a nop.
+    AttachSourceInfo(deferred_source_info_);
+    bytecodes()->push_back(Bytecodes::ToByte(Bytecode::kNop));
+  }
+  deferred_source_info_ = source_info;
+}
+
+template <AccumulatorUse accumulator_use, OperandType... operand_types>
+void BytecodeArrayBuilder::Write(
+    Bytecode bytecode, BytecodeSourceInfo source_info,
+    std::array<uint32_t, sizeof...(operand_types)> operand_values) {
+  DCHECK(!Bytecodes::IsJump(bytecode));
+  DCHECK(!Bytecodes::IsSwitch(bytecode));
+  DCHECK(!exit_seen_in_block_);  // Don't emit dead code.
+
+  MaybeElideLastBytecode(bytecode, source_info.is_valid());
+  AttachDeferredAndCurrentSourceInfo(source_info);
+  EmitBytecode<operand_types...>(bytecode, operand_values);
+}
+
+template <AccumulatorUse accumulator_use, OperandType... operand_types>
+void BytecodeArrayBuilder::WriteJump(
+    Bytecode bytecode, BytecodeSourceInfo source_info, BytecodeLabel* label,
+    std::array<uint32_t, sizeof...(operand_types)> operand_values) {
+  DCHECK(Bytecodes::IsJump(bytecode));
+  DCHECK_EQ(0u, operand_values[0]);
+  DCHECK(!exit_seen_in_block_);  // Don't emit dead code.
+
+  MaybeElideLastBytecode(bytecode, source_info.is_valid());
+  AttachDeferredAndCurrentSourceInfo(source_info);
+
+  size_t current_offset = bytecodes()->size();
+  if (bytecode == Bytecode::kJumpLoop) {
+    // This is a backwards jump, so label has already been bound.
+    DCHECK(label->is_bound());
+    CHECK_GE(current_offset, label->offset());
+    CHECK_LE(current_offset, static_cast<size_t>(kMaxUInt32));
+    uint32_t delta = static_cast<uint32_t>(current_offset - label->offset());
+    OperandScale operand_scale = Bytecodes::ScaleForUnsignedOperand(delta);
+    if (operand_scale > OperandScale::kSingle) {
+      // Adjust for scaling byte prefix for wide jump offset.
+      delta += 1;
+    }
+    operand_values[0] = delta;
+  } else {
+    DCHECK(Bytecodes::IsForwardJump(bytecode));
+    DCHECK(!label->is_bound());
+    // The label has not yet been bound so this is a forward reference
+    // that will be patched when the label is bound. We create a
+    // reservation in the constant pool so the jump can be patched
+    // when the label is bound. The reservation means the maximum size
+    // of the operand for the constant is known and the jump can
+    // be emitted into the bytecode stream with space for the operand.
+    unbound_jumps_++;
+    label->set_referrer(current_offset);
+    OperandSize reserved_operand_size =
+        constant_array_builder()->CreateReservedEntry();
+    switch (reserved_operand_size) {
+      case OperandSize::kNone:
+        UNREACHABLE();
+        break;
+      case OperandSize::kByte:
+        operand_values[0] = k8BitJumpPlaceholder;
+        break;
+      case OperandSize::kShort:
+        operand_values[0] = k16BitJumpPlaceholder;
+        break;
+      case OperandSize::kQuad:
+        operand_values[0] = k32BitJumpPlaceholder;
+        break;
+    }
+  }
+
+  EmitBytecode<operand_types...>(bytecode, operand_values);
+}
+
+template <AccumulatorUse accumulator_use, OperandType... operand_types>
+void BytecodeArrayBuilder::WriteSwitch(
+    Bytecode bytecode, BytecodeSourceInfo source_info,
+    BytecodeJumpTable* jump_table,
+    std::array<uint32_t, sizeof...(operand_types)> operand_values) {
+  DCHECK(Bytecodes::IsSwitch(bytecode));
+  DCHECK(!exit_seen_in_block_);  // Don't emit dead code.
+
+  MaybeElideLastBytecode(bytecode, source_info.is_valid());
+  AttachDeferredAndCurrentSourceInfo(source_info);
+
+  size_t current_offset = bytecodes()->size();
+  const OperandScale operand_scale =
+      OperandArrayHelper<0, operand_types...>::ScaleForOperands(operand_values);
+  if (operand_scale > OperandScale::kSingle) {
+    // Adjust for scaling byte prefix.
+    current_offset += 1;
+  }
+  jump_table->set_switch_bytecode_offset(current_offset);
+
+  EmitBytecode<operand_types...>(bytecode, operand_values);
+}
+
+template <OperandType... operand_types>
+void BytecodeArrayBuilder::EmitBytecode(
+    Bytecode bytecode,
+    std::array<uint32_t, sizeof...(operand_types)> operand_values) {
+  // Create a typedef for the OperandArrayHelper we'll be using for operating
+  // on the operands.
+  typedef OperandArrayHelper<0, operand_types...> OperandArrayHelper;
+
+  // Calculate the maximum scale needed by the operand values.
+  const OperandScale operand_scale =
+      OperandArrayHelper::ScaleForOperands(operand_values);
+
+  // Update the state of the builder
+  last_bytecode_ = bytecode;
+  last_bytecode_offset_ = bytecodes()->size();
+  exit_seen_in_block_ = Bytecodes::EndsBasicBlock(bytecode);
+
+  // Emit a prefix scaling bytecode if needed.
+  if (operand_scale != OperandScale::kSingle) {
+    Bytecode prefix = Bytecodes::OperandScaleToPrefixBytecode(operand_scale);
+    bytecodes()->push_back(Bytecodes::ToByte(prefix));
+  }
+
+  // Emit the current bytecode.
+  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
+
+  // Emit the operands using the helper. We switch once on the operand scale
+  // and call OperandArrayHelper::Emit with a static operand scale, to avoid
+  // testing the operand scale multiple times.
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      OperandArrayHelper::template Emit<OperandScale::kSingle>(bytecodes(),
+                                                               operand_values);
+      break;
+    case OperandScale::kDouble:
+      OperandArrayHelper::template Emit<OperandScale::kDouble>(bytecodes(),
+                                                               operand_values);
+      break;
+    case OperandScale::kQuadruple:
+      OperandArrayHelper::template Emit<OperandScale::kQuadruple>(
+          bytecodes(), operand_values);
+      break;
+  }
+}
+
+void BytecodeArrayBuilder::MaybeElideLastBytecode(Bytecode next_bytecode,
+                                                  bool has_source_info) {
+  if (!elide_noneffectful_bytecodes_) return;
+
+  // If the last bytecode loaded the accumulator without any external effect,
+  // and the next bytecode clobbers this load without reading the accumulator,
+  // then the previous bytecode can be elided as it has no effect.
+  if (Bytecodes::IsAccumulatorLoadWithoutEffects(last_bytecode_) &&
+      Bytecodes::GetAccumulatorUse(next_bytecode) == AccumulatorUse::kWrite) {
+    DCHECK_GT(bytecodes()->size(), last_bytecode_offset_);
+    bytecodes()->resize(last_bytecode_offset_);
+
+    if (last_bytecode_had_source_info_) {
+      // If we can, attach the last bytecode's source info to the current
+      // bytecode, otherwise emit a nop to attach it to.
+      if (!has_source_info) {
+        has_source_info = true;
+      } else {
+        bytecodes()->push_back(Bytecodes::ToByte(Bytecode::kNop));
+      }
+    }
+  }
+  // We may have decided to attach the last bytecode's source info to the
+  // current one, so update the builder state now.
+  last_bytecode_had_source_info_ = has_source_info;
+}
+
+void BytecodeArrayBuilder::InvalidateLastBytecode() {
+  last_bytecode_ = Bytecode::kIllegal;
+}
+
+#define DEFINE_BYTECODE_OUTPUT(Name, ...)                                      \
+                                                                               \
+  template <typename... Operands>                                              \
+  void BytecodeArrayBuilder::Output##Name(Operands... operands) {              \
+    PrepareToOutputBytecode<Bytecode::k##Name, __VA_ARGS__>();                 \
+    /* Exit early for dead code. */                                            \
+    if (exit_seen_in_block_) return;                                           \
+    BytecodeSourceInfo source_info = CurrentSourcePosition(Bytecode::k##Name); \
+    Write<__VA_ARGS__>(                                                        \
+        Bytecode::k##Name, source_info,                                        \
+        OperandArrayBuilder<Bytecode::k##Name, __VA_ARGS__>::Build(            \
+            this, operands...));                                               \
+  }                                                                            \
+                                                                               \
+  template <typename... Operands>                                              \
+  void BytecodeArrayBuilder::Output##Name(BytecodeLabel* label,                \
+                                          Operands... operands) {              \
+    PrepareToOutputBytecode<Bytecode::k##Name, __VA_ARGS__>();                 \
+    /* Exit early for dead code. */                                            \
+    if (exit_seen_in_block_) return;                                           \
+    BytecodeSourceInfo source_info = CurrentSourcePosition(Bytecode::k##Name); \
+    WriteJump<__VA_ARGS__>(                                                    \
+        Bytecode::k##Name, source_info, label,                                 \
+        OperandArrayBuilder<Bytecode::k##Name, __VA_ARGS__>::Build(            \
+            this, operands...));                                               \
+  }                                                                            \
+                                                                               \
+  template <typename... Operands>                                              \
+  void BytecodeArrayBuilder::Output##Name(BytecodeJumpTable* jump_table,       \
+                                          Operands... operands) {              \
+    PrepareToOutputBytecode<Bytecode::k##Name, __VA_ARGS__>();                 \
+    /* Exit early for dead code. */                                            \
+    if (exit_seen_in_block_) return;                                           \
+    BytecodeSourceInfo source_info = CurrentSourcePosition(Bytecode::k##Name); \
+    WriteSwitch<__VA_ARGS__>(                                                  \
+        Bytecode::k##Name, source_info, jump_table,                            \
+        OperandArrayBuilder<Bytecode::k##Name, __VA_ARGS__>::Build(            \
+            this, operands...));                                               \
+  }
+
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
 
 void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
     BytecodeJumpTable* jump_table) {
-  BytecodeNode node(CreateSwitchOnSmiNoFeedbackNode(
-      jump_table->constant_pool_index(), jump_table->size(),
-      jump_table->case_value_base()));
-  WriteSwitch(&node, jump_table);
-  LeaveBasicBlock();
+  // We pass in the jump table object so that its offset can be updated, as well
+  // as the jump table's parameters which are operands for the bytecode.
+  // TODO(leszeks): Do this parameter extraction in the macro-defined function,
+  // to avoid overloading OutputSwitchOnSmiNoFeedback.
+  OutputSwitchOnSmiNoFeedback(jump_table, jump_table->constant_pool_index(),
+                              jump_table->size(),
+                              jump_table->case_value_base());
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
@@ -1016,15 +1469,36 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.
   if (register_optimizer_) register_optimizer_->Flush();
-  bytecode_array_writer_.BindLabel(label);
+
+  size_t current_offset = bytecodes()->size();
+  if (label->is_forward_target()) {
+    // An earlier jump instruction refers to this label. Update it's location.
+    PatchJump(current_offset, label->offset());
+    // Now treat as if the label will only be back referred to.
+  }
+  label->bind_to(current_offset);
+  InvalidateLastBytecode();
+
+  // Starting a new basic block.
   LeaveBasicBlock();
+
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
-  bytecode_array_writer_.BindLabel(target, label);
-  LeaveBasicBlock();
+  DCHECK(!label->is_bound());
+  DCHECK(target.is_bound());
+  if (label->is_forward_target()) {
+    // An earlier jump instruction refers to this label. Update it's location.
+    PatchJump(target.offset(), label->offset());
+    // Now treat as if the label will only be back referred to.
+  }
+  label->bind_to(target.offset());
+  InvalidateLastBytecode();
+  // exit_seen_in_block_ was reset when target was bound, so shouldn't be
+  // changed here.
+
   return *this;
 }
 
@@ -1033,8 +1507,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeJumpTable* jump_table,
   // Flush the register optimizer when binding a jump table entry to ensure
   // all expected registers are valid when jumping to this location.
   if (register_optimizer_) register_optimizer_->Flush();
-  bytecode_array_writer_.BindJumpTableEntry(jump_table, case_value);
+
+  DCHECK(!jump_table->is_bound(case_value));
+
+  size_t current_offset = bytecodes()->size();
+  size_t relative_jump = current_offset - jump_table->switch_bytecode_offset();
+
+  constant_array_builder()->SetJumpTableSmi(
+      jump_table->ConstantPoolEntryFor(case_value),
+      Smi::FromInt(static_cast<int>(relative_jump)));
+  jump_table->mark_bound(case_value);
+  InvalidateLastBytecode();
+
+  // Starting a new basic block.
   LeaveBasicBlock();
+
   return *this;
 }
 
@@ -1187,7 +1674,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   SetReturnPosition();
   OutputReturn();
-  return_seen_in_block_ = true;
   return *this;
 }
 
@@ -1502,7 +1988,8 @@ bool BytecodeArrayBuilder::RegisterListIsValid(RegisterList reg_list) const {
   }
 }
 
-template <Bytecode bytecode, AccumulatorUse accumulator_use>
+template <Bytecode bytecode, AccumulatorUse accumulator_use,
+          OperandType... operand_types>
 void BytecodeArrayBuilder::PrepareToOutputBytecode() {
   if (register_optimizer_)
     register_optimizer_->PrepareForBytecode<bytecode, accumulator_use>();

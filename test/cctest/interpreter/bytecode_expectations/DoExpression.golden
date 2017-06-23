@@ -62,7 +62,7 @@ bytecodes: [
                 B(Star), R(0),
                 B(Star), R(1),
   /*   74 S> */ B(Jump), U8(2),
-                B(LdaUndefined),
+  /*   84 S> */ B(LdaUndefined),
   /*   94 S> */ B(Return),
 ]
 constant pool: [
