@@ -50,7 +50,7 @@
       'v8-mac-release': 'gyp_release_x86_disassembler',
     },
     'client.dynamorio': {
-      'linux-v8-dr': 'gyp_release_x64',
+      'linux-v8-dr': 'gn_release_x64',
     },
     'client.v8': {
       # Linux.
@@ -99,9 +99,9 @@
       'V8 Linux - vtunejit': 'gn_debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'gyp_release_x64_gcc_coverage',
       'V8 Linux - predictable': 'gn_release_x86_predictable',
-      'V8 Linux - full debug': 'gyp_full_debug_x86',
+      'V8 Linux - full debug': 'gn_full_debug_x86',
       'V8 Linux - interpreted regexp': 'gn_release_x86_interpreted_regexp',
-      'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
+      'V8 Random Deopt Fuzzer - debug': 'gn_debug_x86',
     },
     'client.v8.clusterfuzz': {
       'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
@@ -433,6 +433,9 @@
       'gn', 'debug_trybot', 'x86', 'swarming'],
     'gn_debug_x86_vtunejit': [
       'gn', 'debug_bot', 'x86', 'v8_enable_vtunejit'],
+    'gn_full_debug_x86': [
+      'gn', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
 
     # GN release configs for x86.
     'gn_release_x86': [
@@ -471,13 +474,6 @@
     # Gyp debug configs for simulators.
     'gyp_debug_simulate_x87': [
       'gyp', 'debug_bot_static', 'simulate_x87', 'swarming'],
-
-    # Gyp debug configs for x86.
-    'gyp_debug_x86': [
-      'gyp', 'debug_bot', 'x86', 'swarming'],
-    'gyp_full_debug_x86': [
-      'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
-      'v8_full_debug'],
 
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
