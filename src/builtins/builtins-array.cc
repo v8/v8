@@ -966,7 +966,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   ElementsKind kind = FAST_SMI_ELEMENTS;
 
   uint32_t estimate_result_length = 0;
-  uint32_t estimate_nof_elements = 0;
+  uint32_t estimate_nof = 0;
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < argument_count, i++, {
     Handle<Object> obj((*args)[i], isolate);
     uint32_t length_estimate;
@@ -994,10 +994,10 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     } else {
       estimate_result_length += length_estimate;
     }
-    if (JSObject::kMaxElementCount - estimate_nof_elements < element_estimate) {
-      estimate_nof_elements = JSObject::kMaxElementCount;
+    if (JSObject::kMaxElementCount - estimate_nof < element_estimate) {
+      estimate_nof = JSObject::kMaxElementCount;
     } else {
-      estimate_nof_elements += element_estimate;
+      estimate_nof += element_estimate;
     }
   });
 
@@ -1005,7 +1005,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   // fixed array (fast case) is more time and space-efficient than a
   // dictionary.
   bool fast_case = is_array_species &&
-                   (estimate_nof_elements * 2) >= estimate_result_length &&
+                   (estimate_nof * 2) >= estimate_result_length &&
                    isolate->IsIsConcatSpreadableLookupChainIntact();
 
   if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
@@ -1093,10 +1093,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage =
         isolate->factory()->NewFixedArrayWithHoles(estimate_result_length);
   } else if (is_array_species) {
-    // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
-    uint32_t at_least_space_for =
-        estimate_nof_elements + (estimate_nof_elements >> 2);
-    storage = SeededNumberDictionary::New(isolate, at_least_space_for);
+    storage = SeededNumberDictionary::New(isolate, estimate_nof);
   } else {
     DCHECK(species->IsConstructor());
     Handle<Object> length(Smi::kZero, isolate);
