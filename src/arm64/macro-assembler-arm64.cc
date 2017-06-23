@@ -2936,11 +2936,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   STATIC_ASSERT((-3 * kPointerSize) == ExitFrameConstants::kCodeOffset);
 
   // Save the frame pointer and context pointer in the top frame.
-  Mov(scratch, Operand(ExternalReference(Isolate::kCEntryFPAddress,
+  Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
                                          isolate())));
   Str(fp, MemOperand(scratch));
-  Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
-                                         isolate())));
+  Mov(scratch,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   Str(cp, MemOperand(scratch));
 
   STATIC_ASSERT((-3 * kPointerSize) == ExitFrameConstants::kLastExitFrameField);
@@ -2996,19 +2996,19 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
 
   // Restore the context pointer from the top frame.
   if (restore_context) {
-    Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
+    Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
                                            isolate())));
     Ldr(cp, MemOperand(scratch));
   }
 
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
-    Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
+    Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
                                            isolate())));
     Str(xzr, MemOperand(scratch));
   }
   // Clear the frame pointer from the top frame.
-  Mov(scratch, Operand(ExternalReference(Isolate::kCEntryFPAddress,
+  Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
                                          isolate())));
   Str(xzr, MemOperand(scratch));
 
@@ -3087,7 +3087,7 @@ void MacroAssembler::PushStackHandler() {
   // (See JSEntryStub::GenerateBody().)
 
   // Link the current handler as the next handler.
-  Mov(x11, ExternalReference(Isolate::kHandlerAddress, isolate()));
+  Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
   Ldr(x10, MemOperand(x11));
   Push(x10);
 
@@ -3099,7 +3099,7 @@ void MacroAssembler::PushStackHandler() {
 void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   Pop(x10);
-  Mov(x11, ExternalReference(Isolate::kHandlerAddress, isolate()));
+  Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
   Drop(StackHandlerConstants::kSize - kXRegSize, kByteSizeInBytes);
   Str(x10, MemOperand(x11));
 }

@@ -897,7 +897,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    __ Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
+    __ Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
                                               masm->isolate())));
     __ Ldr(cp, MemOperand(scratch));
 

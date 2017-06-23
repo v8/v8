@@ -41,7 +41,6 @@
 #include "src/builtins/builtins.h"
 #include "src/deoptimize-reason.h"
 #include "src/globals.h"
-#include "src/isolate.h"
 #include "src/label.h"
 #include "src/log.h"
 #include "src/register-configuration.h"
@@ -55,6 +54,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class Isolate;
 class SourcePosition;
 class StatsCounter;
 
@@ -852,7 +852,7 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(StatsCounter* counter);
 
-  ExternalReference(Isolate::AddressId id, Isolate* isolate);
+  ExternalReference(IsolateAddressId id, Isolate* isolate);
 
   explicit ExternalReference(const SCTableReference& table_ref);
 
@@ -1078,12 +1078,7 @@ class ExternalReference BASE_EMBEDDED {
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
   static void set_redirector(Isolate* isolate,
-                             ExternalReferenceRedirector* redirector) {
-    // We can't stack them.
-    DCHECK(isolate->external_reference_redirector() == NULL);
-    isolate->set_external_reference_redirector(
-        reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
-  }
+                             ExternalReferenceRedirector* redirector);
 
   static ExternalReference stress_deopt_count(Isolate* isolate);
 

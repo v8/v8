@@ -532,8 +532,8 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   {
 // A stack overflow was detected in RegExp code.
 #ifdef DEBUG
-    Node* const pending_exception_address = ExternalConstant(
-        ExternalReference(Isolate::kPendingExceptionAddress, isolate()));
+    Node* const pending_exception_address = ExternalConstant(ExternalReference(
+        IsolateAddressId::kPendingExceptionAddress, isolate()));
     CSA_ASSERT(this, IsTheHole(Load(MachineType::AnyTagged(),
                                     pending_exception_address)));
 #endif  // DEBUG

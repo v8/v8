@@ -142,7 +142,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kSavedRegistersAreaSize =
       kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
 
-  __ Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
+  __ Store(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()),
+           rbp);
 
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing

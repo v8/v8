@@ -1432,9 +1432,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   str(ip, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                    isolate())));
   str(fp, MemOperand(ip));
-  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   str(cp, MemOperand(ip));
 
   // Optionally save all double registers.
@@ -1494,16 +1496,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 
   // Clear top frame.
   mov(r3, Operand::Zero());
-  mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                    isolate())));
   str(r3, MemOperand(ip));
 
   // Restore current context from top and clear it in debug mode.
   if (restore_context) {
-    mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+    mov(ip, Operand(ExternalReference(IsolateAddressId::kContextAddress,
+                                      isolate())));
     ldr(cp, MemOperand(ip));
   }
 #ifdef DEBUG
-  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   str(r3, MemOperand(ip));
 #endif
 
@@ -1840,7 +1845,8 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
   // Link the current handler as the next handler.
-  mov(r6, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  mov(r6,
+      Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   ldr(r5, MemOperand(r6));
   push(r5);
 
@@ -1852,7 +1858,8 @@ void MacroAssembler::PushStackHandler() {
 void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r1);
-  mov(ip, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(ip));
 }

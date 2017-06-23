@@ -3435,7 +3435,8 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
 
   // Link the current handler as the next handler.
-  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
+  ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
+                                    isolate());
   Push(ExternalOperand(handler_address));
 
   // Set this new handler as the current one.
@@ -3445,7 +3446,8 @@ void MacroAssembler::PushStackHandler() {
 
 void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
+  ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
+                                    isolate());
   Pop(ExternalOperand(handler_address));
   addp(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
@@ -4203,9 +4205,9 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
     movp(r14, rax);  // Backup rax in callee-save register.
   }
 
-  Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
-  Store(ExternalReference(Isolate::kContextAddress, isolate()), rsi);
-  Store(ExternalReference(Isolate::kCFunctionAddress, isolate()), rbx);
+  Store(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
+  Store(ExternalReference(IsolateAddressId::kContextAddress, isolate()), rsi);
+  Store(ExternalReference(IsolateAddressId::kCFunctionAddress, isolate()), rbx);
 }
 
 
@@ -4304,7 +4306,8 @@ void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
 
 void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(Isolate::kContextAddress, isolate());
+  ExternalReference context_address(IsolateAddressId::kContextAddress,
+                                    isolate());
   Operand context_operand = ExternalOperand(context_address);
   if (restore_context) {
     movp(rsi, context_operand);
@@ -4314,7 +4317,7 @@ void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress,
+  ExternalReference c_entry_fp_address(IsolateAddressId::kCEntryFPAddress,
                                        isolate());
   Operand c_entry_fp_operand = ExternalOperand(c_entry_fp_address);
   movp(c_entry_fp_operand, Immediate(0));

@@ -133,7 +133,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   saved_registers.Combine(fp);
   __ PushCPURegList(saved_registers);
 
-  __ Mov(x3, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ Mov(x3, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                       isolate())));
   __ Str(fp, MemOperand(x3));
 
   const int kSavedRegistersAreaSize =

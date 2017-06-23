@@ -4181,7 +4181,8 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
   // Link the current handler as the next handler.
-  li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  li(t2,
+     Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   lw(t1, MemOperand(t2));
   push(t1);
 
@@ -4194,7 +4195,8 @@ void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Addu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
-  li(at, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  li(at,
+     Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   sw(a1, MemOperand(at));
 }
 
@@ -5644,9 +5646,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   sw(t8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  li(t8, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate())));
   sw(fp, MemOperand(t8));
-  li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   sw(cp, MemOperand(t8));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
@@ -5697,16 +5701,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   }
 
   // Clear top frame.
-  li(t8, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate())));
   sw(zero_reg, MemOperand(t8));
 
   // Restore current context from top and clear it in debug mode.
   if (restore_context) {
-    li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+    li(t8, Operand(ExternalReference(IsolateAddressId::kContextAddress,
+                                     isolate())));
     lw(cp, MemOperand(t8));
   }
 #ifdef DEBUG
-  li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   sw(a3, MemOperand(t8));
 #endif
 

@@ -408,8 +408,8 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
 #undef BUILD_NAME_LITERAL
   };
 
-  for (int i = 0; i < Isolate::kIsolateAddressCount; ++i) {
-    Add(isolate->get_address_from_id(static_cast<Isolate::AddressId>(i)),
+  for (int i = 0; i < IsolateAddressId::kIsolateAddressCount; ++i) {
+    Add(isolate->get_address_from_id(static_cast<IsolateAddressId>(i)),
         address_names[i]);
   }
 }

@@ -1084,9 +1084,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   StoreP(r1, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  mov(r1, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  mov(r1, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                    isolate())));
   StoreP(fp, MemOperand(r1));
-  mov(r1, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  mov(r1,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   StoreP(cp, MemOperand(r1));
 
   // Optionally save all volatile double registers.
@@ -1145,16 +1147,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   }
 
   // Clear top frame.
-  mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                    isolate())));
   StoreP(MemOperand(ip), Operand(0, kRelocInfo_NONEPTR), r0);
 
   // Restore current context from top and clear it in debug mode.
   if (restore_context) {
-    mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+    mov(ip, Operand(ExternalReference(IsolateAddressId::kContextAddress,
+                                      isolate())));
     LoadP(cp, MemOperand(ip));
   }
 #ifdef DEBUG
-  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   StoreP(MemOperand(ip), Operand(0, kRelocInfo_NONEPTR), r0);
 #endif
 
@@ -1473,7 +1478,8 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
   // Link the current handler as the next handler.
-  mov(r7, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  mov(r7,
+      Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
 
   // Buy the full stack frame for 5 slots.
   lay(sp, MemOperand(sp, -StackHandlerConstants::kSize));
@@ -1491,7 +1497,8 @@ void MacroAssembler::PopStackHandler() {
 
   // Pop the Next Handler into r3 and store it into Handler Address reference.
   Pop(r3);
-  mov(ip, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
 
   StoreP(r3, MemOperand(ip));
 }

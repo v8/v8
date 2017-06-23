@@ -1457,6 +1457,27 @@ inline std::ostream& operator<<(std::ostream& os,
 
 enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
 
+#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \
+  C(Handler, handler)                                   \
+  C(CEntryFP, c_entry_fp)                               \
+  C(CFunction, c_function)                              \
+  C(Context, context)                                   \
+  C(PendingException, pending_exception)                \
+  C(PendingHandlerContext, pending_handler_context)     \
+  C(PendingHandlerCode, pending_handler_code)           \
+  C(PendingHandlerOffset, pending_handler_offset)       \
+  C(PendingHandlerFP, pending_handler_fp)               \
+  C(PendingHandlerSP, pending_handler_sp)               \
+  C(ExternalCaughtException, external_caught_exception) \
+  C(JSEntrySP, js_entry_sp)
+
+enum IsolateAddressId {
+#define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
+  FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
+#undef DECLARE_ENUM
+      kIsolateAddressCount
+};
+
 }  // namespace internal
 }  // namespace v8
 
