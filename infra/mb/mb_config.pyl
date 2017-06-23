@@ -63,6 +63,7 @@
       'V8 Linux - verify csa': 'gn_release_x86_verify_csa',
       # Linux64.
       'V8 Linux64 - builder': 'gn_release_x64_valgrind',
+      'V8 Linux64 - concurrent marking - builder': 'gn_release_x64_concurrent_marking',
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
@@ -376,6 +377,8 @@
       'gn', 'release_bot', 'x64', 'cfi', 'swarming'],
     'gn_release_x64_clang': [
       'gn', 'release_bot', 'x64', 'clang', 'swarming'],
+    'gn_release_x64_concurrent_marking': [
+      'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'swarming'],
     'gn_release_x64_correctness_fuzzer' : [
       'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'gn_release_x64_internal': [
