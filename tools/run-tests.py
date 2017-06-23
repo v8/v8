@@ -412,10 +412,6 @@ def SetupEnvironment(options):
     if not utils.GuessOS() == 'macos':
       # LSAN is not available on mac.
       asan_options.append('detect_leaks=1')
-      os.environ['LSAN_OPTIONS'] = ":".join([
-        'suppressions=%s' % os.path.join(
-            BASE_DIR, 'tools', 'memory', 'lsan', 'suppressions.txt'),
-      ])
     os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
   if options.sancov_dir:
