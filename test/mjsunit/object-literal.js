@@ -57,7 +57,8 @@ function testBasicPrototype() {
   assertEquals(Object.getPrototypeOf(obj), Object.prototype);
   assertEquals(Object.getPrototypeOf(obj.b), Object.prototype);
 };
-runTest(testBasicPrototype);
+testBasicPrototype();
+testBasicPrototype();
 
 function testDynamicValue() {
   var z = 24;
@@ -73,9 +74,10 @@ function testDynamicValue() {
   assertEquals(24, obj2.b.y);
   assertEquals('Zebra', obj2.c);
 }
-runTest(testDynamicValue);
+testDynamicValue();
+testDynamicValue();
 
-function testMultipleInstatiations() {
+(function testMultipleInstatiations() {
   var arr = [];
   for (var i = 0; i < 2; i++) {
     arr[i] = {
@@ -88,8 +90,7 @@ function testMultipleInstatiations() {
   arr[0].b.x = 2;
   assertEquals(2, arr[0].b.x);
   assertEquals(12, arr[1].b.x);
-}
-runTest(testMultipleInstatiations);
+})();
 
 function testSparseElements() {
   let sa1 = {
@@ -253,7 +254,8 @@ function TestSimpleElements() {
   o[0] = 0;
   assertEquals({0:0, 1:"one", 2:"two"}, o);
 }
-runTest(TestSimpleElements);
+TestSimpleElements();
+TestSimpleElements();
 
 function TestNumericNames() {
   var o = {
@@ -277,7 +279,8 @@ function TestNumericNames() {
   %HeapObjectVerify(o);
   assertEquals(['1.2', '1.3'], Object.keys(o));
 }
-runTest(TestNumericNames);
+TestNumericNames();
+TestNumericNames();
 
 function TestDictionaryElements() {
   let o = {1024: true};
@@ -298,7 +301,10 @@ function TestDictionaryElements() {
   o2[1024] = "test";
   assertEquals(["test"], Object.values(o2));
 }
-runTest(TestDictionaryElements);
+TestDictionaryElements();
+TestDictionaryElements();
+%OptimizeFunctionOnNextCall(TestDictionaryElements);
+TestDictionaryElements();
 
 function TestLiteralElementsKind() {
   let o = {0:0, 1:1, 2:2};
@@ -324,7 +330,10 @@ function TestLiteralElementsKind() {
 
   assertTrue(%HasDictionaryElements({0xFFFFFF:true}));
 }
-runTest(TestLiteralElementsKind);
+TestLiteralElementsKind();
+TestLiteralElementsKind();
+%OptimizeFunctionOnNextCall(TestLiteralElementsKind);
+TestLiteralElementsKind();
 
 function TestNonNumberElementValues() {
   var o = {
@@ -379,7 +388,11 @@ function TestNonNumberElementValues() {
   %HeapObjectVerify(o4);
   assertEquals(['1', '2', '3', '4', 'a', 'b'], Object.keys(o4));
 }
-runTest(TestNonNumberElementValues);
+TestNonNumberElementValues();
+TestNonNumberElementValues();
+TestNonNumberElementValues();
+%OptimizeFunctionOnNextCall(TestNonNumberElementValues);
+TestNonNumberElementValues();
 
 
 function numericGetters() {
@@ -406,7 +419,8 @@ function numericGetters() {
     get 1.30() {}
   });
 }
-runTest(numericGetters);
+numericGetters();
+numericGetters();
 
 function numericSetters() {
   function TestNumericNamesSetter(expectedKeys, object) {
@@ -432,7 +446,9 @@ function numericSetters() {
     set 1.30(_) {; }
   });
 };
-runTest(numericSetters);
+
+numericSetters();
+numericSetters();
 
 function TestProxyWithDefinitionInObjectLiteral() {
   // Trap for set should not be used if the definition
@@ -448,12 +464,14 @@ function TestProxyWithDefinitionInObjectLiteral() {
   p[prop] = 'my value';
   assertEquals(undefined, p[prop]);
 
+
   var l = new Proxy({[prop]: 'my value'}, handler);
   assertEquals('my value', l[prop]);
 };
-runTest(TestProxyWithDefinitionInObjectLiteral);
+TestProxyWithDefinitionInObjectLiteral();
+TestProxyWithDefinitionInObjectLiteral();
 
-function TestLiteralWithNullProto() {
+(function TestLiteralWithNullProto() {
   // Assume dictionary usage for simple null prototype literal objects,
   // this is equivalent to Object.create(null). Note that on the first call
   // the literal boilerplate is initialized, and from then on we use a the
@@ -480,8 +498,7 @@ function TestLiteralWithNullProto() {
   testDictModeNullProtoLiteral(() => ({a:1, b:2, __proto__:null}));
   testDictModeNullProtoLiteral(() => ({["a"]: 1, __proto__: null}));
   testDictModeNullProtoLiteral(() => ({a: Object, __proto__: null}));
-}
-runTest(TestLiteralWithNullProto);
+})();
 
 function testNestedNullProtoLiteral() {
   let obj;
@@ -507,7 +524,8 @@ function testNestedNullProtoLiteral() {
   obj.foo.bar = "barValue2";
   assertEquals("barValue2", obj.foo.bar);
 }
-runTest(testNestedNullProtoLiteral);
+testNestedNullProtoLiteral();
+testNestedNullProtoLiteral();
 
 
 function TestSlowLiteralOptimized() {
@@ -531,9 +549,10 @@ function TestSlowLiteralOptimized() {
   obj.bar = "barValue2";
   assertEquals("barValue2", obj.bar);
 };
-runTest(TestSlowLiteralOptimized);
+TestSlowLiteralOptimized();
+TestSlowLiteralOptimized();
 
-function TestLargeDictionaryLiteral() {
+(function TestLargeDictionaryLiteral() {
   // Create potential large-space object literal.
   function createObject() {
     // This literal has least kMaxRegularHeapObjectSize / 64 number of
@@ -1549,8 +1568,7 @@ function TestLargeDictionaryLiteral() {
   assertFalse(%HasFastProperties(object2));
   assertEquals(Object.getPrototypeOf(object2), null);
   assertEquals(keys, Object.keys(object2));
-}
-runTest(TestLargeDictionaryLiteral);
+})();
 
 
 (function TestPrototypeInObjectLiteral() {

@@ -207,25 +207,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   return copy;
 }
 
-class DeprecationUpdateContext {
- public:
-  explicit DeprecationUpdateContext(Isolate* isolate) { isolate_ = isolate; }
-  Isolate* isolate() { return isolate_; }
-  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
-  inline void ExitScope(Handle<AllocationSite> scope_site,
-                        Handle<JSObject> object) {}
-  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
-  Handle<AllocationSite> current() {
-    UNREACHABLE();
-    return Handle<AllocationSite>();
-  }
-
-  static const bool kCopying = false;
-
- private:
-  Isolate* isolate_;
-};
-
 // AllocationSiteCreationContext aids in the creation of AllocationSites to
 // accompany object literals.
 class AllocationSiteCreationContext : public AllocationSiteContext {
@@ -276,15 +257,6 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   }
   static const bool kCopying = false;
 };
-
-MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
-                               DeprecationUpdateContext* site_context) {
-  JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context, kNoHints);
-  MaybeHandle<JSObject> result = v.StructureWalk(object);
-  Handle<JSObject> for_assert;
-  DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
-  return result;
-}
 
 MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
                                AllocationSiteCreationContext* site_context) {
@@ -482,15 +454,8 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
   } else {
     // Instantiate a JSArray or JSObject literal from the given {description}.
     boilerplate = Boilerplate::Create(isolate, vector, description, flags);
-    if (IsUninitializedLiteralSite(literal_site)) {
-      PreInitializeLiteralSite(vector, literals_slot);
-      if (copy_hints == kNoHints) {
-        DeprecationUpdateContext update_context(isolate);
-        RETURN_ON_EXCEPTION(isolate, DeepWalk(boilerplate, &update_context),
-                            JSObject);
-      }
-      return boilerplate;
-    }
+    // TODO(cbruni): enable pre-initialized state for boilerplates after
+    // investigating regressions.
     // Install AllocationSite objects.
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();
