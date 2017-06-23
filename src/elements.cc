@@ -777,6 +777,10 @@ class ElementsAccessorBase : public ElementsAccessor {
                                    ? (capacity - length) / 2
                                    : capacity - length;
         isolate->heap()->RightTrimFixedArray(*backing_store, elements_to_trim);
+        // Fill the non-trimmed elements with holes.
+        BackingStore::cast(*backing_store)
+            ->FillWithHoles(length,
+                            std::min(old_length, capacity - elements_to_trim));
       } else {
         // Otherwise, fill the unused tail with holes.
         BackingStore::cast(*backing_store)->FillWithHoles(length, old_length);
