@@ -80,6 +80,28 @@ TEST(Worklist, SegmentEmptyPopFails) {
   EXPECT_FALSE(segment.Pop(&object));
 }
 
+TEST(Worklist, SegmentUpdateNull) {
+  Worklist::Segment segment;
+  HeapObject* object;
+  object = reinterpret_cast<HeapObject*>(&object);
+  EXPECT_TRUE(segment.Push(object));
+  segment.Update([](HeapObject* object) { return nullptr; });
+  EXPECT_TRUE(segment.IsEmpty());
+}
+
+TEST(Worklist, SegmentUpdate) {
+  Worklist::Segment segment;
+  HeapObject* objectA;
+  objectA = reinterpret_cast<HeapObject*>(&objectA);
+  HeapObject* objectB;
+  objectB = reinterpret_cast<HeapObject*>(&objectB);
+  EXPECT_TRUE(segment.Push(objectA));
+  segment.Update([objectB](HeapObject* object) { return objectB; });
+  HeapObject* object;
+  EXPECT_TRUE(segment.Pop(&object));
+  EXPECT_EQ(object, objectB);
+}
+
 TEST(Worklist, CreateEmpty) {
   Worklist worklist;
   WorklistView worklist_view(&worklist, 0);
@@ -127,6 +149,51 @@ TEST(Worklist, LocalPushStaysPrivate) {
   EXPECT_EQ(nullptr, retrieved);
   EXPECT_TRUE(worklist_view1.Pop(&retrieved));
   EXPECT_EQ(&dummy, retrieved);
+  EXPECT_TRUE(worklist.IsGlobalEmpty());
+}
+
+TEST(Worklist, GlobalUpdateNull) {
+  Worklist worklist;
+  WorklistView worklist_view(&worklist, 0);
+  HeapObject* object;
+  object = reinterpret_cast<HeapObject*>(&object);
+  for (size_t i = 0; i < Worklist::kSegmentCapacity; i++) {
+    EXPECT_TRUE(worklist_view.Push(object));
+  }
+  EXPECT_TRUE(worklist_view.Push(object));
+  worklist.Update([](HeapObject* object) { return nullptr; });
+  EXPECT_TRUE(worklist.IsGlobalEmpty());
+}
+
+TEST(Worklist, GlobalUpdate) {
+  Worklist worklist;
+  WorklistView worklist_view(&worklist, 0);
+  HeapObject* objectA;
+  objectA = reinterpret_cast<HeapObject*>(&objectA);
+  HeapObject* objectB;
+  objectB = reinterpret_cast<HeapObject*>(&objectB);
+  for (size_t i = 0; i < Worklist::kSegmentCapacity; i++) {
+    EXPECT_TRUE(worklist_view.Push(objectA));
+  }
+  EXPECT_TRUE(worklist_view.Push(objectA));
+  worklist.Update([objectB](HeapObject* object) { return objectB; });
+  for (size_t i = 0; i < Worklist::kSegmentCapacity + 1; i++) {
+    HeapObject* object;
+    EXPECT_TRUE(worklist_view.Pop(&object));
+    EXPECT_EQ(object, objectB);
+  }
+}
+
+TEST(Worklist, Clear) {
+  Worklist worklist;
+  WorklistView worklist_view(&worklist, 0);
+  HeapObject* object;
+  object = reinterpret_cast<HeapObject*>(&object);
+  for (size_t i = 0; i < Worklist::kSegmentCapacity; i++) {
+    EXPECT_TRUE(worklist_view.Push(object));
+  }
+  EXPECT_TRUE(worklist_view.Push(object));
+  worklist.Clear();
   EXPECT_TRUE(worklist.IsGlobalEmpty());
 }
 
