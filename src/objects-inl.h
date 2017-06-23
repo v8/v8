@@ -2402,6 +2402,8 @@ FixedArrayBase* Map::GetInitialElements() {
     result = GetHeap()->empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
     result = GetHeap()->EmptyFixedTypedArrayForMap(this);
+  } else if (has_dictionary_elements()) {
+    result = GetHeap()->empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }

@@ -1361,43 +1361,44 @@ class DictionaryElementsAccessor
     int capacity = dict->Capacity();
     uint32_t old_length = 0;
     CHECK(array->length()->ToArrayLength(&old_length));
-    if (length < old_length) {
-      if (dict->requires_slow_elements()) {
-        // Find last non-deletable element in range of elements to be
-        // deleted and adjust range accordingly.
-        for (int entry = 0; entry < capacity; entry++) {
-          DisallowHeapAllocation no_gc;
-          Object* index = dict->KeyAt(entry);
-          if (index->IsNumber()) {
-            uint32_t number = static_cast<uint32_t>(index->Number());
-            if (length <= number && number < old_length) {
-              PropertyDetails details = dict->DetailsAt(entry);
-              if (!details.IsConfigurable()) length = number + 1;
-            }
-          }
-        }
-      }
-
-      if (length == 0) {
-        // Flush the backing store.
-        JSObject::ResetElements(array);
-      } else {
-        DisallowHeapAllocation no_gc;
-        // Remove elements that should be deleted.
-        int removed_entries = 0;
-        for (int entry = 0; entry < capacity; entry++) {
-          Object* index = dict->KeyAt(entry);
-          if (index->IsNumber()) {
-            uint32_t number = static_cast<uint32_t>(index->Number());
-            if (length <= number && number < old_length) {
-              dict->ClearEntry(entry);
-              removed_entries++;
+    {
+      DisallowHeapAllocation no_gc;
+      if (length < old_length) {
+        if (dict->requires_slow_elements()) {
+          // Find last non-deletable element in range of elements to be
+          // deleted and adjust range accordingly.
+          for (int entry = 0; entry < capacity; entry++) {
+            Object* index = dict->KeyAt(entry);
+            if (dict->IsKey(isolate, index)) {
+              uint32_t number = static_cast<uint32_t>(index->Number());
+              if (length <= number && number < old_length) {
+                PropertyDetails details = dict->DetailsAt(entry);
+                if (!details.IsConfigurable()) length = number + 1;
+              }
             }
           }
         }
 
-        // Update the number of elements.
-        dict->ElementsRemoved(removed_entries);
+        if (length == 0) {
+          // Flush the backing store.
+          array->initialize_elements();
+        } else {
+          // Remove elements that should be deleted.
+          int removed_entries = 0;
+          for (int entry = 0; entry < capacity; entry++) {
+            Object* index = dict->KeyAt(entry);
+            if (dict->IsKey(isolate, index)) {
+              uint32_t number = static_cast<uint32_t>(index->Number());
+              if (length <= number && number < old_length) {
+                dict->ClearEntry(entry);
+                removed_entries++;
+              }
+            }
+          }
+
+          // Update the number of elements.
+          dict->ElementsRemoved(removed_entries);
+        }
       }
     }
 
@@ -1714,15 +1715,18 @@ class DictionaryElementsAccessor
           if (*dictionary == receiver->elements()) continue;
 
           // Otherwise, bailout or update elements
+
+          // If switched to initial elements, return true if searching for
+          // undefined, and false otherwise.
+          if (receiver->map()->GetInitialElements() == receiver->elements()) {
+            return Just(search_for_hole);
+          }
+
+          // If switched to fast elements, continue with the correct accessor.
           if (receiver->GetElementsKind() != DICTIONARY_ELEMENTS) {
-            if (receiver->map()->GetInitialElements() == receiver->elements()) {
-              // If switched to initial elements, return true if searching for
-              // undefined, and false otherwise.
-              return Just(search_for_hole);
-            }
-            // Otherwise, switch to slow path.
-            return IncludesValueSlowPath(isolate, receiver, value, k + 1,
-                                         length);
+            ElementsAccessor* accessor = receiver->GetElementsAccessor();
+            return accessor->IncludesValue(isolate, receiver, value, k + 1,
+                                           length);
           }
           dictionary = handle(
               SeededNumberDictionary::cast(receiver->elements()), isolate);

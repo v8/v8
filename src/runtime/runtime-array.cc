@@ -132,7 +132,7 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
   JSObject::SetMapAndElements(to, new_map, new_elements);
   to->set_length(from->length());
 
-  JSObject::ResetElements(from);
+  from->initialize_elements();
   from->set_length(Smi::kZero);
 
   JSObject::ValidateElements(to);
