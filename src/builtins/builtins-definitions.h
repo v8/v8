@@ -703,7 +703,7 @@ namespace internal {
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \
   /* ES #sec-object.create */                                                  \
-  TFJ(ObjectCreate, 2, kPrototype, kProperties)                                \
+  TFJ(ObjectCreate, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   CPP(ObjectDefineGetter)                                                      \
   CPP(ObjectDefineProperties)                                                  \
   CPP(ObjectDefineProperty)                                                    \

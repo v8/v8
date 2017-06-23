@@ -410,9 +410,16 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
 
 // ES #sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
-  Node* prototype = Parameter(Descriptor::kPrototype);
-  Node* properties = Parameter(Descriptor::kProperties);
-  Node* context = Parameter(Descriptor::kContext);
+  int const kPrototypeArg = 0;
+  int const kPropertiesArg = 1;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* prototype = args.GetOptionalArgumentValue(kPrototypeArg);
+  Node* properties = args.GetOptionalArgumentValue(kPropertiesArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
@@ -483,13 +490,15 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&instantiate_map);
     {
       Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
-      Return(instance);
+      args.PopAndReturn(instance);
     }
   }
 
   BIND(&call_runtime);
   {
-    Return(CallRuntime(Runtime::kObjectCreate, context, prototype, properties));
+    Node* result =
+        CallRuntime(Runtime::kObjectCreate, context, prototype, properties);
+    args.PopAndReturn(result);
   }
 }
 

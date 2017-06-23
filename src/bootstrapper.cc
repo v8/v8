@@ -1271,7 +1271,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> object_create =
         SimpleInstallFunction(object_function, factory->create_string(),
-                              Builtins::kObjectCreate, 2, true);
+                              Builtins::kObjectCreate, 2, false);
     native_context()->set_object_create(*object_create);
 
     Handle<JSFunction> object_define_properties = SimpleInstallFunction(
