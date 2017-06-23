@@ -3001,7 +3001,8 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
 
 bool Isolate::use_optimizer() {
   return FLAG_opt && !serializer_enabled_ &&
-         CpuFeatures::SupportsCrankshaft() && !is_precise_count_code_coverage();
+         CpuFeatures::SupportsCrankshaft() &&
+         !is_precise_count_code_coverage() && !is_block_count_code_coverage();
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {

@@ -775,8 +775,13 @@ class JumpStatement : public Statement {
  public:
   bool IsJump() const { return true; }
 
+  int32_t continuation_pos() const { return continuation_pos_; }
+
  protected:
-  JumpStatement(int pos, NodeType type) : Statement(pos, type) {}
+  JumpStatement(int pos, NodeType type, int32_t continuation_pos)
+      : Statement(pos, type), continuation_pos_(continuation_pos) {}
+
+  int32_t continuation_pos_;
 };
 
 
@@ -787,8 +792,9 @@ class ContinueStatement final : public JumpStatement {
  private:
   friend class AstNodeFactory;
 
-  ContinueStatement(IterationStatement* target, int pos)
-      : JumpStatement(pos, kContinueStatement), target_(target) {}
+  ContinueStatement(IterationStatement* target, int pos, int continuation_pos)
+      : JumpStatement(pos, kContinueStatement, continuation_pos),
+        target_(target) {}
 
   IterationStatement* target_;
 };
@@ -801,8 +807,9 @@ class BreakStatement final : public JumpStatement {
  private:
   friend class AstNodeFactory;
 
-  BreakStatement(BreakableStatement* target, int pos)
-      : JumpStatement(pos, kBreakStatement), target_(target) {}
+  BreakStatement(BreakableStatement* target, int pos, int continuation_pos)
+      : JumpStatement(pos, kBreakStatement, continuation_pos),
+        target_(target) {}
 
   BreakableStatement* target_;
 };
@@ -820,8 +827,10 @@ class ReturnStatement final : public JumpStatement {
  private:
   friend class AstNodeFactory;
 
-  ReturnStatement(Expression* expression, Type type, int pos)
-      : JumpStatement(pos, kReturnStatement), expression_(expression) {
+  ReturnStatement(Expression* expression, Type type, int pos,
+                  int continuation_pos)
+      : JumpStatement(pos, kReturnStatement, continuation_pos),
+        expression_(expression) {
     bit_field_ |= TypeField::encode(type);
   }
 
@@ -3110,22 +3119,29 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) ExpressionStatement(expression, pos);
   }
 
-  ContinueStatement* NewContinueStatement(IterationStatement* target, int pos) {
-    return new (zone_) ContinueStatement(target, pos);
+  ContinueStatement* NewContinueStatement(
+      IterationStatement* target, int pos,
+      int continuation_pos = kNoSourcePosition) {
+    return new (zone_) ContinueStatement(target, pos, continuation_pos);
   }
 
-  BreakStatement* NewBreakStatement(BreakableStatement* target, int pos) {
-    return new (zone_) BreakStatement(target, pos);
+  BreakStatement* NewBreakStatement(BreakableStatement* target, int pos,
+                                    int continuation_pos = kNoSourcePosition) {
+    return new (zone_) BreakStatement(target, pos, continuation_pos);
   }
 
-  ReturnStatement* NewReturnStatement(Expression* expression, int pos) {
-    return new (zone_)
-        ReturnStatement(expression, ReturnStatement::kNormal, pos);
+  ReturnStatement* NewReturnStatement(
+      Expression* expression, int pos,
+      int continuation_pos = kNoSourcePosition) {
+    return new (zone_) ReturnStatement(expression, ReturnStatement::kNormal,
+                                       pos, continuation_pos);
   }
 
-  ReturnStatement* NewAsyncReturnStatement(Expression* expression, int pos) {
-    return new (zone_)
-        ReturnStatement(expression, ReturnStatement::kAsyncReturn, pos);
+  ReturnStatement* NewAsyncReturnStatement(
+      Expression* expression, int pos,
+      int continuation_pos = kNoSourcePosition) {
+    return new (zone_) ReturnStatement(
+        expression, ReturnStatement::kAsyncReturn, pos, continuation_pos);
   }
 
   WithStatement* NewWithStatement(Scope* scope,

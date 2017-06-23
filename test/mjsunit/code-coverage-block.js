@@ -103,6 +103,7 @@ TestCoverage(
 [{"start":0,"end":399,"count":1},
  {"start":1,"end":351,"count":1},
  {"start":62,"end":253,"count":1},
+ {"start":161,"end":253,"count":0},
  {"start":253,"end":351,"count":0}]
 );
 
@@ -231,10 +232,13 @@ TestCoverage(
 [{"start":0,"end":999,"count":1},
  {"start":1,"end":951,"count":1},
  {"start":81,"end":253,"count":10},
+ {"start":163,"end":253,"count":0},
  {"start":253,"end":361,"count":1},
  {"start":361,"end":553,"count":1},
+ {"start":460,"end":553,"count":0},
  {"start":553,"end":661,"count":1},
  {"start":661,"end":853,"count":1},
+ {"start":761,"end":853,"count":0},
  {"start":853,"end":951,"count":0}]
 );
 
@@ -274,6 +278,7 @@ function g() {}                           // 0000
  {"start":562,"end":570,"count":1},
  {"start":570,"end":612,"count":1},
  {"start":612,"end":622,"count":1},
+ {"start":620,"end":622,"count":0},
  {"start":622,"end":651,"count":1}]
 );
 
@@ -305,10 +310,13 @@ TestCoverage(
 [{"start":0,"end":1049,"count":1},
  {"start":1,"end":1001,"count":1},
  {"start":117,"end":303,"count":10},
+ {"start":213,"end":303,"count":0},
  {"start":303,"end":415,"count":1},
  {"start":415,"end":603,"count":1},
+ {"start":510,"end":603,"count":0},
  {"start":603,"end":715,"count":1},
  {"start":715,"end":903,"count":1},
+ {"start":811,"end":903,"count":0},
  {"start":903,"end":1001,"count":0}]
 );
 
@@ -340,11 +348,28 @@ TestCoverage(
 [{"start":0,"end":1049,"count":1},
  {"start":1,"end":1001,"count":1},
  {"start":105,"end":303,"count":10},
+ {"start":213,"end":303,"count":0},
  {"start":303,"end":405,"count":1},
  {"start":405,"end":603,"count":1},
+ {"start":510,"end":603,"count":0},
  {"start":603,"end":705,"count":1},
  {"start":705,"end":903,"count":1},
+ {"start":811,"end":903,"count":0},
  {"start":903,"end":1001,"count":0}]
+);
+
+TestCoverage(
+"return statements",
+`
+!function() { nop(); return; nop(); }();  // 0000
+!function() { nop(); return 42;           // 0050
+              nop(); }();                 // 0100
+`,
+[{"start":0,"end":149,"count":1},
+ {"start":1,"end":37,"count":1},
+ {"start":28,"end":37,"count":0},
+ {"start":51,"end":122,"count":1},
+ {"start":81,"end":122,"count":0}]
 );
 
 %DebugToggleBlockCoverage(false);

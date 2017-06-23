@@ -155,6 +155,13 @@ void RewritePositionSingletonsToRanges(CoverageFunction* function) {
   for (int i = 0; i < blocks_count; i++) {
     CoverageBlock& block = function->blocks[i];
 
+    if (block.start >= function->end) {
+      // Continuation singletons past the end of the source file.
+      DCHECK_EQ(block.end, kNoSourcePosition);
+      nesting_stack.resize(1);
+      break;
+    }
+
     while (nesting_stack.back().end <= block.start) {
       nesting_stack.pop_back();
     }

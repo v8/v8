@@ -675,12 +675,14 @@ class PreParserFactory {
                                  int pos) {
     return PreParserExpression::Default();
   }
-  PreParserStatement NewReturnStatement(PreParserExpression expression,
-                                        int pos) {
+  PreParserStatement NewReturnStatement(
+      PreParserExpression expression, int pos,
+      int continuation_pos = kNoSourcePosition) {
     return PreParserStatement::Jump();
   }
-  PreParserStatement NewAsyncReturnStatement(PreParserExpression expression,
-                                             int pos) {
+  PreParserStatement NewAsyncReturnStatement(
+      PreParserExpression expression, int pos,
+      int continuation_pos = kNoSourcePosition) {
     return PreParserStatement::Jump();
   }
   PreParserExpression NewFunctionLiteral(
@@ -729,11 +731,15 @@ class PreParserFactory {
     return else_statement.IsJumpStatement() ? then_statement : else_statement;
   }
 
-  PreParserStatement NewBreakStatement(PreParserStatement target, int pos) {
+  PreParserStatement NewBreakStatement(
+      PreParserStatement target, int pos,
+      int continuation_pos = kNoSourcePosition) {
     return PreParserStatement::Jump();
   }
 
-  PreParserStatement NewContinueStatement(PreParserStatement target, int pos) {
+  PreParserStatement NewContinueStatement(
+      PreParserStatement target, int pos,
+      int continuation_pos = kNoSourcePosition) {
     return PreParserStatement::Jump();
   }
 

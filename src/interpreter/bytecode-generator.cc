@@ -1277,16 +1277,22 @@ void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
 }
 
 void BytecodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
+  AllocateBlockCoverageSlotIfEnabled(
+      {stmt->continuation_pos(), kNoSourcePosition});
   builder()->SetStatementPosition(stmt);
   execution_control()->Continue(stmt->target());
 }
 
 void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
+  AllocateBlockCoverageSlotIfEnabled(
+      {stmt->continuation_pos(), kNoSourcePosition});
   builder()->SetStatementPosition(stmt);
   execution_control()->Break(stmt->target());
 }
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+  AllocateBlockCoverageSlotIfEnabled(
+      {stmt->continuation_pos(), kNoSourcePosition});
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
   if (stmt->is_async_return()) {

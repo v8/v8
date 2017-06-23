@@ -1423,11 +1423,12 @@ class ParserBase {
 
   // Convenience method which determines the type of return statement to emit
   // depending on the current function type.
-  inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
+  inline StatementT BuildReturnStatement(
+      ExpressionT expr, int pos, int continuation_pos = kNoSourcePosition) {
     if (is_async_function()) {
-      return factory()->NewAsyncReturnStatement(expr, pos);
+      return factory()->NewAsyncReturnStatement(expr, pos, continuation_pos);
     }
-    return factory()->NewReturnStatement(expr, pos);
+    return factory()->NewReturnStatement(expr, pos, continuation_pos);
   }
 
   inline SuspendExpressionT BuildSuspend(
@@ -5230,7 +5231,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
     return impl()->NullStatement();
   }
   ExpectSemicolon(CHECK_OK);
-  return factory()->NewContinueStatement(target, pos);
+  int continuation_pos = scanner_->location().end_pos;
+  return factory()->NewContinueStatement(target, pos, continuation_pos);
 }
 
 template <typename Impl>
@@ -5268,7 +5270,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
     return impl()->NullStatement();
   }
   ExpectSemicolon(CHECK_OK);
-  return factory()->NewBreakStatement(target, pos);
+  int continuation_pos = scanner_->location().end_pos;
+  return factory()->NewBreakStatement(target, pos, continuation_pos);
 }
 
 template <typename Impl>
@@ -5322,7 +5325,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
-  return BuildReturnStatement(return_value, loc.beg_pos);
+  int continuation_pos = scanner_->location().end_pos;
+  return BuildReturnStatement(return_value, loc.beg_pos, continuation_pos);
 }
 
 template <typename Impl>
