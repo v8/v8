@@ -135,18 +135,11 @@ int LayoutDescriptor::capacity() {
 
 
 LayoutDescriptor* LayoutDescriptor::cast_gc_safe(Object* object) {
-  if (object->IsSmi()) {
-    // Fast mode layout descriptor.
-    return reinterpret_cast<LayoutDescriptor*>(object);
-  }
-
-  // This is a mixed descriptor which is a fixed typed array.
-  MapWord map_word = reinterpret_cast<HeapObject*>(object)->map_word();
-  if (map_word.IsForwardingAddress()) {
-    // Mark-compact has already moved layout descriptor.
-    object = map_word.ToForwardingAddress();
-  }
-  return LayoutDescriptor::cast(object);
+  // The map word of the object can be a forwarding pointer during
+  // object evacuation phase of GC. Since the layout descriptor methods
+  // for checking whether a field is tagged or not do not depend on the
+  // object map, it should be safe.
+  return reinterpret_cast<LayoutDescriptor*>(object);
 }
 
 int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {

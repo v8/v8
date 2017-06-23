@@ -609,8 +609,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
     layout_desc->set_map_word(
         MapWord::FromForwardingAddress(*layout_descriptor_copy));
     CHECK(layout_desc->map_word().IsForwardingAddress());
-    CHECK_EQ(*layout_descriptor_copy,
-             LayoutDescriptor::cast_gc_safe(layout_desc));
+    CHECK_EQ(layout_desc, LayoutDescriptor::cast_gc_safe(layout_desc));
 
     // Restore it back.
     layout_desc->set_map_word(map_word);
