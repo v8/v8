@@ -30,7 +30,7 @@ class Scavenger {
                                                           Address slot_address);
 
   // Slow part of {ScavengeObject} above.
-  static inline void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
+  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Chooses an appropriate static visitor table depending on the current state
   // of the heap (i.e. incremental marking, logging and profiling).

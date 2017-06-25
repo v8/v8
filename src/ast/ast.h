@@ -1585,18 +1585,8 @@ class VariableProxy final : public Expression {
   friend class AstNodeFactory;
 
   VariableProxy(Variable* var, int start_position);
-
   VariableProxy(const AstRawString* name, VariableKind variable_kind,
-                int start_position)
-      : Expression(start_position, kVariableProxy),
-        raw_name_(name),
-        next_unresolved_(nullptr) {
-    bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                  IsAssignedField::encode(false) |
-                  IsResolvedField::encode(false) |
-                  HoleCheckModeField::encode(HoleCheckMode::kElided);
-  }
-
+                int start_position);
   explicit VariableProxy(const VariableProxy* copy_from);
 
   class IsThisField : public BitField<bool, Expression::kNextBitFieldIndex, 1> {

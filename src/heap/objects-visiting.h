@@ -86,11 +86,11 @@ class StaticVisitorBase : public AllStatic {
 
   // Determine which specialized visitor should be used for given instance type
   // and instance type.
-  static inline VisitorId GetVisitorId(int instance_type, int instance_size,
-                                       bool has_unboxed_fields);
+  static VisitorId GetVisitorId(int instance_type, int instance_size,
+                                bool has_unboxed_fields);
 
   // Determine which specialized visitor should be used for given map.
-  static inline VisitorId GetVisitorId(Map* map);
+  static VisitorId GetVisitorId(Map* map);
 };
 
 

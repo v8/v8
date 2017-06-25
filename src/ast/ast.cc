@@ -200,6 +200,17 @@ VariableProxy::VariableProxy(Variable* var, int start_position)
   BindTo(var);
 }
 
+VariableProxy::VariableProxy(const AstRawString* name,
+                             VariableKind variable_kind, int start_position)
+    : Expression(start_position, kVariableProxy),
+      raw_name_(name),
+      next_unresolved_(nullptr) {
+  bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
+                IsAssignedField::encode(false) |
+                IsResolvedField::encode(false) |
+                HoleCheckModeField::encode(HoleCheckMode::kElided);
+}
+
 VariableProxy::VariableProxy(const VariableProxy* copy_from)
     : Expression(copy_from->position(), kVariableProxy),
       next_unresolved_(nullptr) {

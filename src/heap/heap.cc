@@ -4028,6 +4028,11 @@ AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
 }
 
 
+AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
+  return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
+}
+
+
 AllocationResult Heap::AllocateUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
 
