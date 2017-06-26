@@ -739,12 +739,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
   code->set_handler_table(*handler_table);
 }
 
-void TransitionElementsKindStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
-}
-
 
 void AllocateHeapNumberStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {

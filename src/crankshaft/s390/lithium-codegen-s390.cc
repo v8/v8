@@ -4304,37 +4304,7 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 }
 
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
-  Register object_reg = ToRegister(instr->object());
-  Register scratch = scratch0();
-
-  Handle<Map> from_map = instr->original_map();
-  Handle<Map> to_map = instr->transitioned_map();
-  ElementsKind from_kind = instr->from_kind();
-  ElementsKind to_kind = instr->to_kind();
-
-  Label not_applicable;
-  __ LoadP(scratch, FieldMemOperand(object_reg, HeapObject::kMapOffset));
-  __ CmpP(scratch, Operand(from_map));
-  __ bne(&not_applicable);
-
-  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    __ mov(new_map_reg, Operand(to_map));
-    __ StoreP(new_map_reg, FieldMemOperand(object_reg, HeapObject::kMapOffset));
-    // Write barrier.
-    __ RecordWriteForMap(object_reg, new_map_reg, scratch,
-                         GetLinkRegisterState(), kDontSaveFPRegs);
-  } else {
-    DCHECK(ToRegister(instr->context()).is(cp));
-    DCHECK(object_reg.is(r2));
-    PushSafepointRegistersScope scope(this);
-    __ Move(r3, to_map);
-    TransitionElementsKindStub stub(isolate(), from_kind, to_kind);
-    __ CallStub(&stub);
-    RecordSafepointWithRegisters(instr->pointer_map(), 0,
-                                 Safepoint::kLazyDeopt);
-  }
-  __ bind(&not_applicable);
+  UNREACHABLE();
 }
 
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {

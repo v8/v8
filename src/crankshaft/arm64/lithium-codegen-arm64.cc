@@ -5263,42 +5263,7 @@ void LCodeGen::DoThisFunction(LThisFunction* instr) {
 
 
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
-  Register object = ToRegister(instr->object());
-
-  Handle<Map> from_map = instr->original_map();
-  Handle<Map> to_map = instr->transitioned_map();
-  ElementsKind from_kind = instr->from_kind();
-  ElementsKind to_kind = instr->to_kind();
-
-  Label not_applicable;
-
-  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
-    Register temp1 = ToRegister(instr->temp1());
-    Register new_map = ToRegister(instr->temp2());
-    __ CheckMap(object, temp1, from_map, &not_applicable, DONT_DO_SMI_CHECK);
-    __ Mov(new_map, Operand(to_map));
-    __ Str(new_map, FieldMemOperand(object, HeapObject::kMapOffset));
-    // Write barrier.
-    __ RecordWriteForMap(object, new_map, temp1, GetLinkRegisterState(),
-                         kDontSaveFPRegs);
-  } else {
-    {
-      UseScratchRegisterScope temps(masm());
-      // Use the temp register only in a restricted scope - the codegen checks
-      // that we do not use any register across a call.
-      __ CheckMap(object, temps.AcquireX(), from_map, &not_applicable,
-                  DONT_DO_SMI_CHECK);
-    }
-    DCHECK(object.is(x0));
-    DCHECK(ToRegister(instr->context()).is(cp));
-    PushSafepointRegistersScope scope(this);
-    __ Mov(x1, Operand(to_map));
-    TransitionElementsKindStub stub(isolate(), from_kind, to_kind);
-    __ CallStub(&stub);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(), 0, Safepoint::kLazyDeopt);
-  }
-  __ Bind(&not_applicable);
+  UNREACHABLE();
 }
 
 
