@@ -54,3 +54,32 @@ checkExports('☺☺mul☺☺', '☺☺mul☺☺', '☺☺add☺☺', '☺☺add
       () => builder.instantiate(), WebAssembly.CompileError,
       /Compiling wasm function #0:three snowmen: ☃☃☃ failed: /);
 })();
+
+(function errorMessageUnicodeInImportModuleName() {
+  var builder = new WasmModuleBuilder();
+  builder.addImport('three snowmen: ☃☃☃', 'foo', kSig_i_v);
+  assertThrows(
+      () => builder.instantiate({}), TypeError,
+      /WebAssembly Instantiation: Import #0 module="three snowmen: ☃☃☃" error: /);
+})();
+
+(function errorMessageUnicodeInImportElemName() {
+  var builder = new WasmModuleBuilder();
+  builder.addImport('mod', 'three snowmen: ☃☃☃', kSig_i_v);
+  assertThrows(
+      () => builder.instantiate({mod: {}}), WebAssembly.LinkError,
+      'WebAssembly Instantiation: Import #0 module="mod" function="three ' +
+          'snowmen: ☃☃☃" error: function import requires a callable');
+})();
+
+(function errorMessageUnicodeInImportModAndElemName() {
+  var builder = new WasmModuleBuilder();
+  let mod_name = '☮▁▂▃▄☾ ♛ ◡ ♛ ☽▄▃▂▁☮';
+  let func_name = '☾˙❀‿❀˙☽';
+  builder.addImport(mod_name, func_name, kSig_i_v);
+  assertThrows(
+      () => builder.instantiate({[mod_name]: {}}), WebAssembly.LinkError,
+      'WebAssembly Instantiation: Import #0 module="' + mod_name +
+          '" function="' + func_name +
+          '" error: function import requires a callable');
+})();
