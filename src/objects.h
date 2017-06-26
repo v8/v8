@@ -4655,6 +4655,7 @@ class ContextExtension : public Struct {
   V(Atomics, xor, AtomicsXor)
 
 enum BuiltinFunctionId {
+  kInvalidBuiltinFunctionId = -1,
   kArrayCode,
 #define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
   k##name,

@@ -17,58 +17,6 @@
 namespace v8 {
 namespace internal {
 
-static void InstallCode(
-    Isolate* isolate, Handle<JSObject> holder, const char* name,
-    Handle<Code> code, int argc = -1,
-    BuiltinFunctionId id = static_cast<BuiltinFunctionId>(-1)) {
-  Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
-  Handle<JSFunction> optimized =
-      isolate->factory()->NewFunctionWithoutPrototype(key, code, true);
-  if (argc < 0) {
-    optimized->shared()->DontAdaptArguments();
-  } else {
-    optimized->shared()->set_internal_formal_parameter_count(argc);
-  }
-  if (id >= 0) {
-    optimized->shared()->set_builtin_function_id(id);
-  }
-  optimized->shared()->set_language_mode(STRICT);
-  optimized->shared()->set_native(true);
-  JSObject::AddProperty(holder, key, optimized, NONE);
-}
-
-static void InstallBuiltin(
-    Isolate* isolate, Handle<JSObject> holder, const char* name,
-    Builtins::Name builtin_name, int argc = -1,
-    BuiltinFunctionId id = static_cast<BuiltinFunctionId>(-1)) {
-  InstallCode(isolate, holder, name,
-              handle(isolate->builtins()->builtin(builtin_name), isolate), argc,
-              id);
-}
-
-RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  Handle<JSObject> holder =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  InstallBuiltin(isolate, holder, "pop", Builtins::kFastArrayPop);
-  InstallBuiltin(isolate, holder, "push", Builtins::kFastArrayPush);
-  InstallBuiltin(isolate, holder, "shift", Builtins::kFastArrayShift);
-  InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
-  InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
-  InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
-  InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes);
-  InstallBuiltin(isolate, holder, "indexOf", Builtins::kArrayIndexOf);
-  InstallBuiltin(isolate, holder, "keys", Builtins::kArrayPrototypeKeys, 0,
-                 kArrayKeys);
-  InstallBuiltin(isolate, holder, "values", Builtins::kArrayPrototypeValues, 0,
-                 kArrayValues);
-  InstallBuiltin(isolate, holder, "entries", Builtins::kArrayPrototypeEntries,
-                 0, kArrayEntries);
-  return *holder;
-}
-
 RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

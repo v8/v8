@@ -385,13 +385,37 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
 }
 
 Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                         Handle<String> name,
+                                         Handle<Name> property_name,
+                                         Handle<String> function_name,
                                          Builtins::Name call, int len,
                                          bool adapt,
                                          PropertyAttributes attrs = DONT_ENUM) {
   Handle<JSFunction> fun =
-      SimpleCreateFunction(base->GetIsolate(), name, call, len, adapt);
-  InstallFunction(base, fun, name, attrs);
+      SimpleCreateFunction(base->GetIsolate(), function_name, call, len, adapt);
+  InstallFunction(base, fun, property_name, attrs);
+  return fun;
+}
+
+Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                         Handle<String> name,
+                                         Builtins::Name call, int len,
+                                         bool adapt,
+                                         PropertyAttributes attrs = DONT_ENUM) {
+  return SimpleInstallFunction(base, name, name, call, len, adapt, attrs);
+}
+
+Handle<JSFunction> SimpleInstallFunction(
+    Handle<JSObject> base, Handle<Name> property_name,
+    const char* function_name, Builtins::Name call, int len, bool adapt,
+    PropertyAttributes attrs = DONT_ENUM,
+    BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
+  Factory* const factory = base->GetIsolate()->factory();
+  Handle<JSFunction> fun = SimpleInstallFunction(
+      base, property_name, factory->InternalizeUtf8String(function_name), call,
+      len, adapt, attrs);
+  if (id != kInvalidBuiltinFunctionId) {
+    fun->shared()->set_builtin_function_id(id);
+  }
   return fun;
 }
 
@@ -1454,15 +1478,44 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     array_function->shared()->SetConstructStub(*code);
 
     // Set up %ArrayPrototype%.
-    Handle<JSArray> array_prototype =
+    Handle<JSArray> proto =
         Handle<JSArray>::cast(factory->NewJSObject(array_function, TENURED));
-    JSArray::Initialize(array_prototype, 0);
-    JSFunction::SetPrototype(array_function, array_prototype);
-    native_context()->set_initial_array_prototype(*array_prototype);
+    JSArray::Initialize(proto, 0);
+    JSFunction::SetPrototype(array_function, proto);
+    native_context()->set_initial_array_prototype(*proto);
 
     Handle<JSFunction> is_arraylike = SimpleInstallFunction(
         array_function, "isArray", Builtins::kArrayIsArray, 1, true);
     native_context()->set_is_arraylike(*is_arraylike);
+
+    JSObject::AddProperty(proto, factory->constructor_string(), array_function,
+                          DONT_ENUM);
+
+    SimpleInstallFunction(proto, "concat", Builtins::kArrayConcat, 1, false);
+    SimpleInstallFunction(proto, "pop", Builtins::kFastArrayPop, 0, false);
+    SimpleInstallFunction(proto, "push", Builtins::kFastArrayPush, 1, false);
+    SimpleInstallFunction(proto, "shift", Builtins::kFastArrayShift, 0, false);
+    SimpleInstallFunction(proto, "unshift", Builtins::kArrayUnshift, 1, false);
+    SimpleInstallFunction(proto, "slice", Builtins::kArraySlice, 2, false);
+    SimpleInstallFunction(proto, "splice", Builtins::kArraySplice, 2, false);
+    SimpleInstallFunction(proto, "includes", Builtins::kArrayIncludes, 1,
+                          false);
+    SimpleInstallFunction(proto, "indexOf", Builtins::kArrayIndexOf, 1, false);
+    SimpleInstallFunction(proto, "keys", Builtins::kArrayPrototypeKeys, 0, true,
+                          kArrayKeys);
+    SimpleInstallFunction(proto, "entries", Builtins::kArrayPrototypeEntries, 0,
+                          true, kArrayEntries);
+    SimpleInstallFunction(proto, factory->iterator_symbol(), "values",
+                          Builtins::kArrayPrototypeValues, 0, false, DONT_ENUM,
+                          kArrayValues);
+    SimpleInstallFunction(proto, "forEach", Builtins::kArrayForEach, 1, false);
+    SimpleInstallFunction(proto, "filter", Builtins::kArrayFilter, 1, false);
+    SimpleInstallFunction(proto, "map", Builtins::kArrayMap, 1, false);
+    SimpleInstallFunction(proto, "every", Builtins::kArrayEvery, 1, false);
+    SimpleInstallFunction(proto, "some", Builtins::kArraySome, 1, false);
+    SimpleInstallFunction(proto, "reduce", Builtins::kArrayReduce, 1, false);
+    SimpleInstallFunction(proto, "reduceRight", Builtins::kArrayReduceRight, 1,
+                          false);
   }
 
   {  // --- A r r a y I t e r a t o r ---
@@ -4375,18 +4428,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     // This is necessary to enable fast checks for absence of elements
     // on Array.prototype and below.
     proto->set_elements(heap()->empty_fixed_array());
-
-    SimpleInstallFunction(proto, "concat", Builtins::kArrayConcat, 1, false);
-    Handle<JSFunction> for_each = SimpleInstallFunction(
-        proto, "forEach", Builtins::kArrayForEach, 1, false);
-    native_context()->set_array_for_each_iterator(*for_each);
-    SimpleInstallFunction(proto, "filter", Builtins::kArrayFilter, 1, false);
-    SimpleInstallFunction(proto, "map", Builtins::kArrayMap, 1, false);
-    SimpleInstallFunction(proto, "every", Builtins::kArrayEvery, 1, false);
-    SimpleInstallFunction(proto, "some", Builtins::kArraySome, 1, false);
-    SimpleInstallFunction(proto, "reduce", Builtins::kArrayReduce, 1, false);
-    SimpleInstallFunction(proto, "reduceRight", Builtins::kArrayReduceRight, 1,
-                          false);
   }
 
   // Install InternalArray.prototype.concat
