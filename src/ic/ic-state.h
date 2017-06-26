@@ -11,8 +11,6 @@
 namespace v8 {
 namespace internal {
 
-class AstType;
-
 const int kMaxKeyedPolymorphism = 4;
 
 
@@ -44,9 +42,6 @@ class CompareICState {
     KNOWN_RECEIVER,  // JSReceiver with specific map (faster check)
     GENERIC
   };
-
-  static AstType* StateToType(Zone* zone, State state,
-                              Handle<Map> map = Handle<Map>());
 
   static State NewInputState(State old_state, Handle<Object> value);
 

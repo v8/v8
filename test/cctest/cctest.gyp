@@ -32,7 +32,6 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
     'cctest_sources': [  ### gcmole(all) ###
-      'ast-types-fuzz.h',
       'compiler/c-signature.h',
       'compiler/call-tester.h',
       'compiler/codegen-tester.cc',
@@ -193,7 +192,6 @@
       'test-traced-value.cc',
       'test-transitions.cc',
       'test-typedarrays.cc',
-      'test-ast-types.cc',
       'test-types.cc',
       'test-unbound-queue.cc',
       'test-unboxed-doubles.cc',

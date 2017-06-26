@@ -4,7 +4,6 @@
 
 #include "src/ic/ic-state.h"
 
-#include "src/ast/ast-types.h"
 #include "src/feedback-vector.h"
 #include "src/ic/ic.h"
 #include "src/objects-inl.h"
@@ -41,32 +40,6 @@ const char* CompareICState::GetStateName(State state) {
       return "KNOWN_RECEIVER";
     case GENERIC:
       return "GENERIC";
-  }
-  UNREACHABLE();
-}
-
-AstType* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
-  switch (state) {
-    case UNINITIALIZED:
-      return AstType::None();
-    case BOOLEAN:
-      return AstType::Boolean();
-    case SMI:
-      return AstType::SignedSmall();
-    case NUMBER:
-      return AstType::Number();
-    case STRING:
-      return AstType::String();
-    case INTERNALIZED_STRING:
-      return AstType::InternalizedString();
-    case UNIQUE_NAME:
-      return AstType::UniqueName();
-    case RECEIVER:
-      return AstType::Receiver();
-    case KNOWN_RECEIVER:
-      return map.is_null() ? AstType::Receiver() : AstType::Class(map, zone);
-    case GENERIC:
-      return AstType::Any();
   }
   UNREACHABLE();
 }

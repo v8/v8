@@ -5,7 +5,7 @@
 #ifndef V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
 #define V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
 
-#include "src/ast/ast-types.h"
+#include <stdint.h>
 
 namespace v8 {
 namespace internal {

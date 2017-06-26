@@ -2698,17 +2698,6 @@ TEST(TransitionAccessorConstantToSameAccessorConstant) {
   TestTransitionTo(transition_op, transition_op, checker);
 }
 
-TEST(FieldTypeConvertSimple) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-
-  CHECK_EQ(FieldType::Any()->Convert(&zone), AstType::NonInternal());
-  CHECK_EQ(FieldType::None()->Convert(&zone), AstType::None());
-}
-
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.
 // TEST(TransitionAccessorConstantToAnotherAccessorConstant)
 
