@@ -1029,8 +1029,8 @@ void LazyCompilationOrchestrator::CompileFunction(
     Address mem_start =
         reinterpret_cast<Address>(instance->memory_buffer()->backing_store());
     int mem_size = instance->memory_buffer()->byte_length()->Number();
-    DCHECK_IMPLIES(mem_size == 0, mem_start == nullptr);
-    if (mem_size > 0) {
+    DCHECK_IMPLIES(mem_start == nullptr, mem_size == 0);
+    if (mem_start != nullptr) {
       code_specialization.RelocateMemoryReferences(nullptr, 0, mem_start,
                                                    mem_size);
     }
