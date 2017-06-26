@@ -130,7 +130,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_SMI_ARG_CHECKED(length, 1);
-  CHECK((length & 0xC0000000) == 0xC0000000 || (length & 0xC0000000) == 0x0);
   fun->shared()->set_length(length);
   return isolate->heap()->undefined_value();
 }
