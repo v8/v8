@@ -36,7 +36,7 @@ function CheckGetter(object, name) {
 
 
 (function TestIntl() {
-  if (Intl == undefined) return;
+  if (typeof (Intl) == "undefined") return;
   CheckMethod(Intl, "getCanonicalLocales", 1);
 
   CheckMethod(Intl.Collator, "supportedLocalesOf", 1);
