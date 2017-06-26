@@ -872,8 +872,17 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     UNREACHABLE();
   }
 
-  // Returns the size of |operand| for |operand_scale|.
-  static OperandSize SizeOfOperand(OperandType operand, OperandScale scale);
+  // Returns the size of |operand_type| for |operand_scale|.
+  static OperandSize SizeOfOperand(OperandType operand_type,
+                                   OperandScale operand_scale) {
+    DCHECK_LE(operand_type, OperandType::kLast);
+    DCHECK_GE(operand_scale, OperandScale::kSingle);
+    DCHECK_LE(operand_scale, OperandScale::kLast);
+    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+                  OperandScale::kLast == OperandScale::kQuadruple);
+    int scale_index = static_cast<int>(operand_scale) >> 1;
+    return kOperandKindSizes[static_cast<size_t>(operand_type)][scale_index];
+  }
 
   // Returns true if |operand_type| is a runtime-id operand (kRuntimeId).
   static bool IsRuntimeIdOperandType(OperandType operand_type);
@@ -929,6 +938,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   static const bool kIsScalable[];
   static const int kBytecodeSizes[][3];
   static const OperandSize* const kOperandSizes[][3];
+  static OperandSize const kOperandKindSizes[][3];
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

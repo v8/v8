@@ -2006,8 +2006,8 @@ class Heap {
   CopyBytecodeArray(BytecodeArray* bytecode_array);
 
   // Allocates a fixed array initialized with undefined values
-  MUST_USE_RESULT AllocationResult
-  AllocateFixedArray(int length, PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT inline AllocationResult AllocateFixedArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   MUST_USE_RESULT AllocationResult AllocateSmallOrderedHashSet(
       int length, PretenureFlag pretenure = NOT_TENURED);

@@ -1178,13 +1178,6 @@ Token::Value Scanner::ScanTemplateStart() {
   return ScanTemplateSpan();
 }
 
-
-Token::Value Scanner::ScanTemplateContinuation() {
-  DCHECK_EQ(next_.token, Token::RBRACE);
-  next_.location.beg_pos = source_pos() - 1;  // We already consumed }
-  return ScanTemplateSpan();
-}
-
 Handle<String> Scanner::SourceUrl(Isolate* isolate) const {
   Handle<String> tmp;
   if (source_url_.length() > 0) tmp = source_url_.Internalize(isolate);

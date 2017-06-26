@@ -294,6 +294,9 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
   return CopyFixedDoubleArrayWithMap(src, src->map());
 }
 
+AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
+  return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
+}
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
                                    AllocationAlignment alignment) {
