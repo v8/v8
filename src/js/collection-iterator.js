@@ -25,65 +25,66 @@ function SetIteratorConstructor(set, kind) {
 }
 
 
-function SetIteratorNextJS() {
-  if (!IS_SET_ITERATOR(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set Iterator.prototype.next', this);
+DEFINE_METHOD(
+  SetIterator.prototype,
+  next() {
+    if (!IS_SET_ITERATOR(this)) {
+      throw %make_type_error(kIncompatibleMethodReceiver,
+                          'Set Iterator.prototype.next', this);
+    }
+
+    var value_array = [UNDEFINED, UNDEFINED];
+    var result = %_CreateIterResultObject(value_array, false);
+    switch (%SetIteratorNext(this, value_array)) {
+      case 0:
+        result.value = UNDEFINED;
+        result.done = true;
+        break;
+      case ITERATOR_KIND_VALUES:
+        result.value = value_array[0];
+        break;
+      case ITERATOR_KIND_ENTRIES:
+        value_array[1] = value_array[0];
+        break;
+    }
+
+    return result;
   }
+);
 
-  var value_array = [UNDEFINED, UNDEFINED];
-  var result = %_CreateIterResultObject(value_array, false);
-  switch (%SetIteratorNext(this, value_array)) {
-    case 0:
-      result.value = UNDEFINED;
-      result.done = true;
-      break;
-    case ITERATOR_KIND_VALUES:
-      result.value = value_array[0];
-      break;
-    case ITERATOR_KIND_ENTRIES:
-      value_array[1] = value_array[0];
-      break;
+DEFINE_METHODS(
+  GlobalSet.prototype,
+  {
+    entries() {
+      if (!IS_SET(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Set.prototype.entries', this);
+      }
+      return new SetIterator(this, ITERATOR_KIND_ENTRIES);
+    }
+
+    values() {
+      if (!IS_SET(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Set.prototype.values', this);
+      }
+      return new SetIterator(this, ITERATOR_KIND_VALUES);
+    }
   }
-
-  return result;
-}
-
-
-function SetEntries() {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set.prototype.entries', this);
-  }
-  return new SetIterator(this, ITERATOR_KIND_ENTRIES);
-}
-
-
-function SetValues() {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set.prototype.values', this);
-  }
-  return new SetIterator(this, ITERATOR_KIND_VALUES);
-}
+);
 
 // -------------------------------------------------------------------
 
 %SetCode(SetIterator, SetIteratorConstructor);
 %FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
-utils.InstallFunctions(SetIterator.prototype, DONT_ENUM, [
-  'next', SetIteratorNextJS
-]);
+
+var SetIteratorNext = SetIterator.prototype.next;
 
 %AddNamedProperty(SetIterator.prototype, toStringTagSymbol,
     "Set Iterator", READ_ONLY | DONT_ENUM);
 
-utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
-  'entries', SetEntries,
-  'keys', SetValues,
-  'values', SetValues
-]);
-
+var SetValues = GlobalSet.prototype.values;
+%AddNamedProperty(GlobalSet.prototype, "keys", SetValues, DONT_ENUM);
 %AddNamedProperty(GlobalSet.prototype, iteratorSymbol, SetValues, DONT_ENUM);
 
 // -------------------------------------------------------------------
@@ -93,76 +94,77 @@ function MapIteratorConstructor(map, kind) {
 }
 
 
-function MapIteratorNextJS() {
-  if (!IS_MAP_ITERATOR(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map Iterator.prototype.next', this);
+DEFINE_METHOD(
+  MapIterator.prototype,
+  next() {
+    if (!IS_MAP_ITERATOR(this)) {
+      throw %make_type_error(kIncompatibleMethodReceiver,
+                          'Map Iterator.prototype.next', this);
+    }
+
+    var value_array = [UNDEFINED, UNDEFINED];
+    var result = %_CreateIterResultObject(value_array, false);
+    switch (%MapIteratorNext(this, value_array)) {
+      case 0:
+        result.value = UNDEFINED;
+        result.done = true;
+        break;
+      case ITERATOR_KIND_KEYS:
+        result.value = value_array[0];
+        break;
+      case ITERATOR_KIND_VALUES:
+        result.value = value_array[1];
+        break;
+      // ITERATOR_KIND_ENTRIES does not need any processing.
+    }
+
+    return result;
   }
+);
 
-  var value_array = [UNDEFINED, UNDEFINED];
-  var result = %_CreateIterResultObject(value_array, false);
-  switch (%MapIteratorNext(this, value_array)) {
-    case 0:
-      result.value = UNDEFINED;
-      result.done = true;
-      break;
-    case ITERATOR_KIND_KEYS:
-      result.value = value_array[0];
-      break;
-    case ITERATOR_KIND_VALUES:
-      result.value = value_array[1];
-      break;
-    // ITERATOR_KIND_ENTRIES does not need any processing.
+
+DEFINE_METHODS(
+  GlobalMap.prototype,
+  {
+    entries() {
+      if (!IS_MAP(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Map.prototype.entries', this);
+      }
+      return new MapIterator(this, ITERATOR_KIND_ENTRIES);
+    }
+
+    keys() {
+      if (!IS_MAP(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Map.prototype.keys', this);
+      }
+      return new MapIterator(this, ITERATOR_KIND_KEYS);
+    }
+
+    values() {
+      if (!IS_MAP(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Map.prototype.values', this);
+      }
+      return new MapIterator(this, ITERATOR_KIND_VALUES);
+    }
   }
+);
 
-  return result;
-}
-
-
-function MapEntries() {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.entries', this);
-  }
-  return new MapIterator(this, ITERATOR_KIND_ENTRIES);
-}
-
-
-function MapKeys() {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.keys', this);
-  }
-  return new MapIterator(this, ITERATOR_KIND_KEYS);
-}
-
-
-function MapValues() {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.values', this);
-  }
-  return new MapIterator(this, ITERATOR_KIND_VALUES);
-}
 
 // -------------------------------------------------------------------
 
 %SetCode(MapIterator, MapIteratorConstructor);
 %FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
-utils.InstallFunctions(MapIterator.prototype, DONT_ENUM, [
-  'next', MapIteratorNextJS
-]);
+
+var MapIteratorNext = MapIterator.prototype.next;
 
 %AddNamedProperty(MapIterator.prototype, toStringTagSymbol,
     "Map Iterator", READ_ONLY | DONT_ENUM);
 
 
-utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
-  'entries', MapEntries,
-  'keys', MapKeys,
-  'values', MapValues
-]);
-
+var MapEntries = GlobalMap.prototype.entries;
 %AddNamedProperty(GlobalMap.prototype, iteratorSymbol, MapEntries, DONT_ENUM);
 
 // -------------------------------------------------------------------
@@ -170,8 +172,8 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 
 utils.Export(function(to) {
   to.MapEntries = MapEntries;
-  to.MapIteratorNext = MapIteratorNextJS;
-  to.SetIteratorNext = SetIteratorNextJS;
+  to.MapIteratorNext = MapIteratorNext;
+  to.SetIteratorNext = SetIteratorNext;
   to.SetValues = SetValues;
 });
 

@@ -120,163 +120,158 @@ function GetHash(key) {
 // -------------------------------------------------------------------
 // Harmony Set
 
-function SetAdd(key) {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver, 'Set.prototype.add', this);
+//Set up the non-enumerable functions on the Set prototype object.
+DEFINE_METHODS(
+  GlobalSet.prototype,
+  {
+    add(key) {
+      if (!IS_SET(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver, 'Set.prototype.add', this);
+      }
+      // Normalize -0 to +0 as required by the spec.
+      // Even though we use SameValueZero as the comparison for the keys we don't
+      // want to ever store -0 as the key since the key is directly exposed when
+      // doing iteration.
+      if (key === 0) {
+        key = 0;
+      }
+      var table = %_JSCollectionGetTable(this);
+      var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+      var hash = GetHash(key);
+      if (SetFindEntry(table, numBuckets, key, hash) !== NOT_FOUND) return this;
+
+      var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+      var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+      var capacity = numBuckets << 1;
+      if ((nof + nod) >= capacity) {
+        // Need to grow, bail out to runtime.
+        %SetGrow(this);
+        // Re-load state from the grown backing store.
+        table = %_JSCollectionGetTable(this);
+        numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+        nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+        nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+      }
+      var entry = nof + nod;
+      var index = ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets);
+      var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
+      var chainEntry = ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
+      ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry);
+      ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof + 1);
+      FIXED_ARRAY_SET(table, index, key);
+      FIXED_ARRAY_SET_SMI(table, index + 1, chainEntry);
+      return this;
+    }
+
+    delete(key) {
+      if (!IS_SET(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Set.prototype.delete', this);
+      }
+      var table = %_JSCollectionGetTable(this);
+      var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+      var hash = GetExistingHash(key);
+      if (IS_UNDEFINED(hash)) return false;
+      var entry = SetFindEntry(table, numBuckets, key, hash);
+      if (entry === NOT_FOUND) return false;
+
+      var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
+      var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
+      var index = ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets);
+      FIXED_ARRAY_SET(table, index, %_TheHole());
+      ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
+      ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
+      if (nof < (numBuckets >>> 1)) %SetShrink(this);
+      return true;
+    }
   }
-  // Normalize -0 to +0 as required by the spec.
-  // Even though we use SameValueZero as the comparison for the keys we don't
-  // want to ever store -0 as the key since the key is directly exposed when
-  // doing iteration.
-  if (key === 0) {
-    key = 0;
-  }
-  var table = %_JSCollectionGetTable(this);
-  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-  var hash = GetHash(key);
-  if (SetFindEntry(table, numBuckets, key, hash) !== NOT_FOUND) return this;
+);
 
-  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
-  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
-  var capacity = numBuckets << 1;
-  if ((nof + nod) >= capacity) {
-    // Need to grow, bail out to runtime.
-    %SetGrow(this);
-    // Re-load state from the grown backing store.
-    table = %_JSCollectionGetTable(this);
-    numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-    nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
-    nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
-  }
-  var entry = nof + nod;
-  var index = ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets);
-  var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
-  var chainEntry = ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
-  ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry);
-  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof + 1);
-  FIXED_ARRAY_SET(table, index, key);
-  FIXED_ARRAY_SET_SMI(table, index + 1, chainEntry);
-  return this;
-}
-
-
-function SetDelete(key) {
-  if (!IS_SET(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Set.prototype.delete', this);
-  }
-  var table = %_JSCollectionGetTable(this);
-  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-  var hash = GetExistingHash(key);
-  if (IS_UNDEFINED(hash)) return false;
-  var entry = SetFindEntry(table, numBuckets, key, hash);
-  if (entry === NOT_FOUND) return false;
-
-  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
-  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
-  var index = ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets);
-  FIXED_ARRAY_SET(table, index, %_TheHole());
-  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
-  ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
-  if (nof < (numBuckets >>> 1)) %SetShrink(this);
-  return true;
-}
-
-// Set up the non-enumerable functions on the Set prototype object.
-utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
-  "add", SetAdd,
-  "delete", SetDelete,
-]);
-
-
-// -------------------------------------------------------------------
 // Harmony Map
 
+//Set up the non-enumerable functions on the Map prototype object.
+DEFINE_METHODS(
+  GlobalMap.prototype,
+  {
+    set(key, value) {
+      if (!IS_MAP(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Map.prototype.set', this);
+      }
+      // Normalize -0 to +0 as required by the spec.
+      // Even though we use SameValueZero as the comparison for the keys we don't
+      // want to ever store -0 as the key since the key is directly exposed when
+      // doing iteration.
+      if (key === 0) {
+        key = 0;
+      }
 
-function MapSet(key, value) {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.set', this);
+      var table = %_JSCollectionGetTable(this);
+      var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+      var hash = GetHash(key);
+      var entry = MapFindEntry(table, numBuckets, key, hash);
+      if (entry !== NOT_FOUND) {
+        var existingIndex = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
+        FIXED_ARRAY_SET(table, existingIndex + 1, value);
+        return this;
+      }
+
+      var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+      var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+      var capacity = numBuckets << 1;
+      if ((nof + nod) >= capacity) {
+        // Need to grow, bail out to runtime.
+        %MapGrow(this);
+        // Re-load state from the grown backing store.
+        table = %_JSCollectionGetTable(this);
+        numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+        nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+        nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+      }
+      entry = nof + nod;
+      var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
+      var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
+      var chainEntry = ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
+      ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry);
+      ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof + 1);
+      FIXED_ARRAY_SET(table, index, key);
+      FIXED_ARRAY_SET(table, index + 1, value);
+      FIXED_ARRAY_SET(table, index + 2, chainEntry);
+      return this;
+    }
+
+    delete(key) {
+      if (!IS_MAP(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Map.prototype.delete', this);
+      }
+      var table = %_JSCollectionGetTable(this);
+      var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+      var hash = GetHash(key);
+      var entry = MapFindEntry(table, numBuckets, key, hash);
+      if (entry === NOT_FOUND) return false;
+
+      var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
+      var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
+      var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
+      FIXED_ARRAY_SET(table, index, %_TheHole());
+      FIXED_ARRAY_SET(table, index + 1, %_TheHole());
+      ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
+      ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
+      if (nof < (numBuckets >>> 1)) %MapShrink(this);
+      return true;
+    }
   }
-  // Normalize -0 to +0 as required by the spec.
-  // Even though we use SameValueZero as the comparison for the keys we don't
-  // want to ever store -0 as the key since the key is directly exposed when
-  // doing iteration.
-  if (key === 0) {
-    key = 0;
-  }
-
-  var table = %_JSCollectionGetTable(this);
-  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-  var hash = GetHash(key);
-  var entry = MapFindEntry(table, numBuckets, key, hash);
-  if (entry !== NOT_FOUND) {
-    var existingIndex = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
-    FIXED_ARRAY_SET(table, existingIndex + 1, value);
-    return this;
-  }
-
-  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
-  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
-  var capacity = numBuckets << 1;
-  if ((nof + nod) >= capacity) {
-    // Need to grow, bail out to runtime.
-    %MapGrow(this);
-    // Re-load state from the grown backing store.
-    table = %_JSCollectionGetTable(this);
-    numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-    nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
-    nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
-  }
-  entry = nof + nod;
-  var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
-  var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
-  var chainEntry = ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
-  ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry);
-  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof + 1);
-  FIXED_ARRAY_SET(table, index, key);
-  FIXED_ARRAY_SET(table, index + 1, value);
-  FIXED_ARRAY_SET(table, index + 2, chainEntry);
-  return this;
-}
-
-
-function MapDelete(key) {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.delete', this);
-  }
-  var table = %_JSCollectionGetTable(this);
-  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-  var hash = GetHash(key);
-  var entry = MapFindEntry(table, numBuckets, key, hash);
-  if (entry === NOT_FOUND) return false;
-
-  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
-  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
-  var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
-  FIXED_ARRAY_SET(table, index, %_TheHole());
-  FIXED_ARRAY_SET(table, index + 1, %_TheHole());
-  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
-  ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
-  if (nof < (numBuckets >>> 1)) %MapShrink(this);
-  return true;
-}
-
-// Set up the non-enumerable functions on the Map prototype object.
-utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
-  "set", MapSet,
-  "delete", MapDelete,
-]);
+);
 
 // -----------------------------------------------------------------------
 // Exports
 
 %InstallToContext([
-  "map_set", MapSet,
-  "map_delete", MapDelete,
-  "set_add", SetAdd,
-  "set_delete", SetDelete,
+  "map_set", GlobalMap.prototype.set,
+  "map_delete", GlobalMap.prototype.delete,
+  "set_add", GlobalSet.prototype.add,
+  "set_delete", GlobalSet.prototype.delete,
 ]);
 
 utils.Export(function(to) {
