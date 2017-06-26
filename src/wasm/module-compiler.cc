@@ -948,10 +948,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   for (WasmDataSegment& seg : module_->data_segments) {
     uint32_t base = EvalUint32InitExpr(seg.dest_addr);
-    uint32_t mem_size =
-        memory_.is_null()
-            ? 0
-            : static_cast<uint32_t>(memory_->byte_length()->Number());
+    uint32_t mem_size = 0;
+    if (!memory_.is_null()) CHECK(memory_->byte_length()->ToUint32(&mem_size));
     if (!in_bounds(base, seg.source.length(), mem_size)) {
       thrower_->LinkError("data segment is out of bounds");
       return {};

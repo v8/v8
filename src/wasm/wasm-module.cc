@@ -80,7 +80,8 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 
     return memory;
   } else {
-    void* memory = isolate->array_buffer_allocator()->Allocate(size);
+    void* memory =
+        size == 0 ? nullptr : isolate->array_buffer_allocator()->Allocate(size);
     allocation_base = memory;
     allocation_length = size;
     return memory;
@@ -276,7 +277,7 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
   void* memory = TryAllocateBackingStore(isolate, size, enable_guard_regions,
                                          allocation_base, allocation_length);
 
-  if (memory == nullptr) {
+  if (size > 0 && memory == nullptr) {
     return Handle<JSArrayBuffer>::null();
   }
 
@@ -288,7 +289,7 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
   }
 #endif
 
-  const bool is_external = false;
+  constexpr bool is_external = false;
   return SetupArrayBuffer(isolate, allocation_base, allocation_length, memory,
                           size, is_external, enable_guard_regions);
 }
@@ -706,34 +707,26 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
     if (!name->Equals(*section_name.ToHandleChecked())) continue;
 
     // Make a copy of the payload data in the section.
-    void* allocation_base = nullptr;  // Set by TryAllocateBackingStore
-    size_t allocation_length = 0;     // Set by TryAllocateBackingStore
-    const bool enable_guard_regions = false;
-    void* memory = TryAllocateBackingStore(isolate, section.payload.length(),
-                                           enable_guard_regions,
-                                           allocation_base, allocation_length);
+    size_t size = section.payload.length();
+    void* memory =
+        size == 0 ? nullptr : isolate->array_buffer_allocator()->Allocate(size);
 
-    Handle<Object> section_data = factory->undefined_value();
-    if (memory) {
-      Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-      const bool is_external = false;
-      JSArrayBuffer::Setup(buffer, isolate, is_external, allocation_base,
-                           allocation_length, memory,
-                           static_cast<int>(section.payload.length()));
-      DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-      Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
-                                            isolate);
-      const byte* start =
-          reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
-      memcpy(memory, start + section.payload.offset(),
-             section.payload.length());
-      section_data = buffer;
-    } else {
+    if (size && !memory) {
       thrower->RangeError("out of memory allocating custom section data");
       return Handle<JSArray>();
     }
+    Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+    constexpr bool is_external = false;
+    JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size, memory,
+                         size);
+    DisallowHeapAllocation no_gc;  // for raw access to string bytes.
+    Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
+                                          isolate);
+    const byte* start =
+        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
+    memcpy(memory, start + section.payload.offset(), section.payload.length());
 
-    matching_sections.push_back(section_data);
+    matching_sections.push_back(buffer);
   }
 
   int num_custom_sections = static_cast<int>(matching_sections.size());
