@@ -130,7 +130,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const OperandScale& operand_scale);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const OperandSize& operand_size);
-std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandType& operand_type);
 
 class BytecodeOperands {
  public:
