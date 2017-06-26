@@ -2631,8 +2631,8 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
 }
 
 bool Isolate::InitializeCounters() {
-  if (async_counters_) return false;
-  async_counters_ = std::make_shared<Counters>(this);
+  if (counters_shared_) return false;
+  counters_shared_ = std::make_shared<Counters>(this);
   return true;
 }
 
