@@ -4067,11 +4067,10 @@ Handle<Code> WasmCompilationUnit::FinishCompilation(
       // Add the function as another context for the exception
       ScopedVector<char> buffer(128);
       if (func_name_.start() == nullptr) {
-        SNPrintF(buffer,
-                 "Compiling wasm function #%d:%.*s failed:", func_index_,
-                 func_name_.length(), func_name_.start());
+        SNPrintF(buffer, "Compiling wasm function #%d failed", func_index_);
       } else {
-        SNPrintF(buffer, "Compiling wasm function #%d failed:", func_index_);
+        SNPrintF(buffer, "Compiling wasm function #%d:%.*s failed", func_index_,
+                 func_name_.length(), func_name_.start());
       }
       thrower->CompileFailed(buffer.start(), graph_construction_result_);
     }

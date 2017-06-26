@@ -425,7 +425,11 @@ var failWithMessage;
             'invalid use of assertThrows, maybe you want assertThrowsEquals');
       }
       if (arguments.length >= 3) {
-        assertEquals(cause_opt, e.message);
+        if (cause_opt instanceof RegExp) {
+          assertMatches(cause_opt, e.message, "Error message");
+        } else {
+          assertEquals(cause_opt, e.message, "Error message");
+        }
       }
       // Success.
       return;
