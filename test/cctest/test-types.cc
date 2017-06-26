@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "src/compiler/types.h"
-#include "src/crankshaft/hydrogen-types.h"
 #include "src/factory.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"

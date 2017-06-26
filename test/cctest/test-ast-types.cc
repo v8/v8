@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "src/crankshaft/hydrogen-types.h"
 #include "src/factory.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
@@ -1833,18 +1832,6 @@ struct Tests {
       }
     }
   }
-
-  void HTypeFromType() {
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        AstType* type1 = *it1;
-        AstType* type2 = *it2;
-        HType htype1 = HType::FromType(type1);
-        HType htype2 = HType::FromType(type2);
-        CHECK(!type1->Is(type2) || htype1.IsSubtypeOf(htype2));
-      }
-    }
-  }
 };
 
 }  // namespace
@@ -1900,5 +1887,3 @@ TEST(AstIntersect_zone) { Tests().Intersect(); }
 TEST(AstDistributivity_zone) { Tests().Distributivity(); }
 
 TEST(AstGetRange_zone) { Tests().GetRange(); }
-
-TEST(AstHTypeFromType_zone) { Tests().HTypeFromType(); }

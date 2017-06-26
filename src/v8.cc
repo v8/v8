@@ -10,7 +10,6 @@
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
-#include "src/crankshaft/lithium-allocator.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -46,7 +45,6 @@ bool V8::Initialize() {
 void V8::TearDown() {
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
-  LOperand::TearDownCaches();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
   sampler::Sampler::TearDown();
@@ -80,7 +78,6 @@ void V8::InitializeOncePerProcessImpl() {
   sampler::Sampler::SetUp();
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
-  LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
   ExternalReference::SetUp();
   Bootstrapper::InitializeOncePerProcess();
