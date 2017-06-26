@@ -1000,7 +1000,7 @@ utils.InstallConstants(global, [
 ]);
 
 // Functions needed by the debugger runtime.
-utils.InstallFunctions(utils, DONT_ENUM, [
+utils.InstallConstants(utils, [
   "MakeExecutionState", MakeExecutionState,
   "MakeExceptionEvent", MakeExceptionEvent,
   "MakeBreakEvent", MakeBreakEvent,
