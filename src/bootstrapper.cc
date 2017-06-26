@@ -566,6 +566,9 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     native_context()->set_initial_object_prototype(*object_function_prototype);
     JSFunction::SetPrototype(object_fun, object_function_prototype);
 
+    JSObject::AddProperty(object_function_prototype,
+                          factory->constructor_string(), object_fun, DONT_ENUM);
+
     {
       // Set up slow map for Object.create(null) instances without in-object
       // properties.
