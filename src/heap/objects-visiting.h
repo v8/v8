@@ -267,11 +267,10 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
   V(TransitionArray)             \
   V(WeakCell)
 
-// The base class for visitors that need to dispatch on object type.
-// It is similar to StaticVisitor except it uses virtual dispatch
-// instead of static dispatch table. The default behavour of all
-// visit functions is to iterate body of the given object using
-// the BodyDescriptor of the object.
+// The base class for visitors that need to dispatch on object type. It is
+// similar to StaticVisitor except it uses virtual dispatch instead of static
+// dispatch table. The default behavior of all visit functions is to iterate
+// body of the given object using the BodyDescriptor of the object.
 //
 // The visit functions return the size of the object cast to ResultType.
 //
@@ -281,7 +280,6 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
 //     ...
 //   }
 //
-// This is an example of Curiously recurring template pattern.
 // TODO(ulan): replace static visitors with the HeapVisitor.
 template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
@@ -293,43 +291,44 @@ class HeapVisitor : public ObjectVisitor {
   // A guard predicate for visiting the object.
   // If it returns false then the default implementations of the Visit*
   // functions bailout from iterating the object pointers.
-  virtual bool ShouldVisit(HeapObject* object);
+  V8_INLINE bool ShouldVisit(HeapObject* object);
+  // Guard predicate for visiting the objects map pointer separately.
+  V8_INLINE bool ShouldVisitMapPointer();
   // A callback for visiting the map pointer in the object header.
-  virtual void VisitMapPointer(HeapObject* host, HeapObject** map);
+  V8_INLINE void VisitMapPointer(HeapObject* host, HeapObject** map);
 
-#define VISIT(type) virtual ResultType Visit##type(Map* map, type* object);
+#define VISIT(type) V8_INLINE ResultType Visit##type(Map* map, type* object);
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
-  virtual ResultType VisitShortcutCandidate(Map* map, ConsString* object);
-  virtual ResultType VisitNativeContext(Map* map, Context* object);
-  virtual ResultType VisitDataObject(Map* map, HeapObject* object);
-  virtual ResultType VisitJSObjectFast(Map* map, JSObject* object);
-  virtual ResultType VisitJSApiObject(Map* map, JSObject* object);
-  virtual ResultType VisitStruct(Map* map, HeapObject* object);
-  virtual ResultType VisitFreeSpace(Map* map, FreeSpace* object);
+  V8_INLINE ResultType VisitShortcutCandidate(Map* map, ConsString* object);
+  V8_INLINE ResultType VisitNativeContext(Map* map, Context* object);
+  V8_INLINE ResultType VisitDataObject(Map* map, HeapObject* object);
+  V8_INLINE ResultType VisitJSObjectFast(Map* map, JSObject* object);
+  V8_INLINE ResultType VisitJSApiObject(Map* map, JSObject* object);
+  V8_INLINE ResultType VisitStruct(Map* map, HeapObject* object);
+  V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
 };
 
 class NewSpaceVisitor : public HeapVisitor<int, NewSpaceVisitor> {
  public:
+  V8_INLINE bool ShouldVisitMapPointer() { return false; }
+
   void VisitCodeEntry(JSFunction* host, Address code_entry) final {
     // Code is not in new space.
   }
 
   // Special cases for young generation.
 
-  inline int VisitJSFunction(Map* map, JSFunction* object) final;
-  inline int VisitNativeContext(Map* map, Context* object) final;
+  V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
+  V8_INLINE int VisitNativeContext(Map* map, Context* object);
+  V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
 
-  int VisitJSApiObject(Map* map, JSObject* object) final {
-    return VisitJSObject(map, object);
-  }
-
-  int VisitBytecodeArray(Map* map, BytecodeArray* object) final {
+  int VisitBytecodeArray(Map* map, BytecodeArray* object) {
     UNREACHABLE();
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) final {
+  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
     UNREACHABLE();
     return 0;
   }

@@ -51,7 +51,7 @@ class ConcurrentMarkingVisitor final
   explicit ConcurrentMarkingVisitor(ConcurrentMarkingDeque* deque)
       : deque_(deque) {}
 
-  bool ShouldVisit(HeapObject* object) override {
+  bool ShouldVisit(HeapObject* object) {
     return ObjectMarking::GreyToBlack<AccessMode::ATOMIC>(
         object, marking_state(object));
   }
@@ -84,7 +84,7 @@ class ConcurrentMarkingVisitor final
   // JS object =================================================================
   // ===========================================================================
 
-  int VisitJSObject(Map* map, JSObject* object) override {
+  int VisitJSObject(Map* map, JSObject* object) {
     int size = JSObject::BodyDescriptor::SizeOf(map, object);
     const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
     if (!ShouldVisit(object)) return 0;
@@ -92,11 +92,11 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitJSObjectFast(Map* map, JSObject* object) override {
+  int VisitJSObjectFast(Map* map, JSObject* object) {
     return VisitJSObject(map, object);
   }
 
-  int VisitJSApiObject(Map* map, JSObject* object) override {
+  int VisitJSApiObject(Map* map, JSObject* object) {
     return VisitJSObject(map, object);
   }
 
@@ -104,7 +104,7 @@ class ConcurrentMarkingVisitor final
   // Fixed array object ========================================================
   // ===========================================================================
 
-  int VisitFixedArray(Map* map, FixedArray* object) override {
+  int VisitFixedArray(Map* map, FixedArray* object) {
     int length = object->synchronized_length();
     int size = FixedArray::SizeFor(length);
     if (!ShouldVisit(object)) return 0;
@@ -117,7 +117,7 @@ class ConcurrentMarkingVisitor final
   // Code object ===============================================================
   // ===========================================================================
 
-  int VisitCode(Map* map, Code* object) override {
+  int VisitCode(Map* map, Code* object) {
     deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
     return 0;
   }
@@ -126,7 +126,7 @@ class ConcurrentMarkingVisitor final
   // Objects with weak fields and/or side-effectiful visitation.
   // ===========================================================================
 
-  int VisitBytecodeArray(Map* map, BytecodeArray* object) override {
+  int VisitBytecodeArray(Map* map, BytecodeArray* object) {
     if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
                                                   marking_state(object))) {
       int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
@@ -138,7 +138,7 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitJSFunction(Map* map, JSFunction* object) override {
+  int VisitJSFunction(Map* map, JSFunction* object) {
     if (!ShouldVisit(object)) return 0;
     int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
@@ -146,13 +146,13 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitMap(Map* map, Map* object) override {
+  int VisitMap(Map* map, Map* object) {
     // TODO(ulan): implement iteration of strong fields.
     deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
     return 0;
   }
 
-  int VisitNativeContext(Map* map, Context* object) override {
+  int VisitNativeContext(Map* map, Context* object) {
     if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
                                                   marking_state(object))) {
       int size = Context::BodyDescriptorWeak::SizeOf(map, object);
@@ -165,7 +165,7 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) override {
+  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
     if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
                                                   marking_state(object))) {
       int size = SharedFunctionInfo::BodyDescriptorWeak::SizeOf(map, object);
@@ -177,19 +177,19 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitTransitionArray(Map* map, TransitionArray* object) override {
+  int VisitTransitionArray(Map* map, TransitionArray* object) {
     // TODO(ulan): implement iteration of strong fields.
     deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
     return 0;
   }
 
-  int VisitWeakCell(Map* map, WeakCell* object) override {
+  int VisitWeakCell(Map* map, WeakCell* object) {
     // TODO(ulan): implement iteration of strong fields.
     deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
     return 0;
   }
 
-  int VisitJSWeakCollection(Map* map, JSWeakCollection* object) override {
+  int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
     // TODO(ulan): implement iteration of strong fields.
     deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
     return 0;
