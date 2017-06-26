@@ -87,10 +87,8 @@ class ModuleCompiler {
   // finishing task is running, i.e. when the finisher_is_running_ flag is not
   // set.
   bool FetchAndExecuteCompilationUnit(
-      std::function<void()> no_finisher_callback = [] {});
+      std::function<void()> no_finisher_callback = nullptr);
 
-  void CompileAndSchedule(size_t index);
-  bool GetNextUncompiledFunctionId(size_t* index);
   void OnBackgroundTaskStopped();
 
   void EnableThrottling() { executed_units_.EnableThrottling(); }
