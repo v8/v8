@@ -74,14 +74,12 @@ class TranslatedValue {
     kBoolBit,
     kFloat,
     kDouble,
-    kCapturedObject,    // Object captured by the escape analysis.
-                        // The number of nested objects can be obtained
-                        // with the DeferredObjectLength() method
-                        // (the values of the nested objects follow
-                        // this value in the depth-first order.)
-    kDuplicatedObject,  // Duplicated object of a deferred object.
-    kArgumentsObject    // Arguments object - only used to keep indexing
-                        // in sync, it should not be materialized.
+    kCapturedObject,   // Object captured by the escape analysis.
+                       // The number of nested objects can be obtained
+                       // with the DeferredObjectLength() method
+                       // (the values of the nested objects follow
+                       // this value in the depth-first order.)
+    kDuplicatedObject  // Duplicated object of a deferred object.
   };
 
   TranslatedValue(TranslatedState* container, Kind kind)
@@ -90,8 +88,6 @@ class TranslatedValue {
   void Handlify();
   int GetChildrenCount() const;
 
-  static TranslatedValue NewArgumentsObject(TranslatedState* container,
-                                            int length, int object_index);
   static TranslatedValue NewDeferredObject(TranslatedState* container,
                                            int length, int object_index);
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
@@ -118,7 +114,7 @@ class TranslatedValue {
 
   struct MaterializedObjectInfo {
     int id_;
-    int length_;  // Applies only to kArgumentsObject or kCapturedObject kinds.
+    int length_;  // Applies only to kCapturedObject kinds.
   };
 
   union {
@@ -132,8 +128,7 @@ class TranslatedValue {
     Float32 float_value_;
     // kind is kDouble
     Float64 double_value_;
-    // kind is kDuplicatedObject or kArgumentsObject or
-    // kCapturedObject.
+    // kind is kDuplicatedObject or kCapturedObject.
     MaterializedObjectInfo materialization_info_;
   };
 
@@ -333,7 +328,6 @@ class TranslatedState {
   class CapturedObjectMaterializer;
   Handle<Object> MaterializeCapturedObjectAt(TranslatedValue* slot,
                                              int frame_index, int* value_index);
-  bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
   static Float32 GetFloatSlot(Address fp, int slot_index);
@@ -342,7 +336,6 @@ class TranslatedState {
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_;
   Address stack_frame_pointer_;
-  bool has_adapted_arguments_;
   int formal_parameter_count_;
 
   struct ObjectPosition {
@@ -931,7 +924,6 @@ class TranslationIterator BASE_EMBEDDED {
   V(TAIL_CALLER_FRAME)                      \
   V(COMPILED_STUB_FRAME)                    \
   V(DUPLICATED_OBJECT)                      \
-  V(ARGUMENTS_OBJECT)                       \
   V(ARGUMENTS_ELEMENTS)                     \
   V(ARGUMENTS_LENGTH)                       \
   V(CAPTURED_OBJECT)                        \
@@ -984,7 +976,6 @@ class Translation BASE_EMBEDDED {
                                                int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
-  void BeginArgumentsObject(int args_length);
   void ArgumentsElements(bool is_rest);
   void ArgumentsLength(bool is_rest);
   void BeginCapturedObject(int length);
@@ -1002,7 +993,6 @@ class Translation BASE_EMBEDDED {
   void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
-  void StoreArgumentsObject(bool args_known, int args_index, int args_length);
   void StoreJSFrameFunction();
 
   Zone* zone() const { return zone_; }

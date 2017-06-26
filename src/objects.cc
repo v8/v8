@@ -14242,7 +14242,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
-        case Translation::ARGUMENTS_OBJECT:
         case Translation::CAPTURED_OBJECT: {
           int args_length = iterator.Next();
           os << "{length=" << args_length << "}";

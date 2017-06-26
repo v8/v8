@@ -2481,11 +2481,6 @@ void Translation::BeginCompiledStubFrame(int height) {
 }
 
 
-void Translation::BeginArgumentsObject(int args_length) {
-  buffer_->Add(ARGUMENTS_OBJECT);
-  buffer_->Add(args_length);
-}
-
 void Translation::ArgumentsElements(bool is_rest) {
   buffer_->Add(ARGUMENTS_ELEMENTS);
   buffer_->Add(is_rest);
@@ -2582,16 +2577,6 @@ void Translation::StoreLiteral(int literal_id) {
 }
 
 
-void Translation::StoreArgumentsObject(bool args_known,
-                                       int args_index,
-                                       int args_length) {
-  buffer_->Add(ARGUMENTS_OBJECT);
-  buffer_->Add(args_known);
-  buffer_->Add(args_index);
-  buffer_->Add(args_length);
-}
-
-
 void Translation::StoreJSFrameFunction() {
   StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
                   StandardFrameConstants::kFunctionOffset) /
@@ -2603,7 +2588,6 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case DUPLICATED_OBJECT:
-    case ARGUMENTS_OBJECT:
     case CAPTURED_OBJECT:
     case REGISTER:
     case INT32_REGISTER:
@@ -2861,15 +2845,6 @@ int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
 }
 
 // static
-TranslatedValue TranslatedValue::NewArgumentsObject(TranslatedState* container,
-                                                    int length,
-                                                    int object_index) {
-  TranslatedValue slot(container, kArgumentsObject);
-  slot.materialization_info_ = {object_index, length};
-  return slot;
-}
-
-// static
 TranslatedValue TranslatedValue::NewDeferredObject(TranslatedState* container,
                                                    int length,
                                                    int object_index) {
@@ -2979,14 +2954,13 @@ Float64 TranslatedValue::double_value() const {
 
 
 int TranslatedValue::object_length() const {
-  DCHECK(kind() == kArgumentsObject || kind() == kCapturedObject);
+  DCHECK(kind() == kCapturedObject);
   return materialization_info_.length_;
 }
 
 
 int TranslatedValue::object_index() const {
-  DCHECK(kind() == kArgumentsObject || kind() == kCapturedObject ||
-         kind() == kDuplicatedObject);
+  DCHECK(kind() == kCapturedObject || kind() == kDuplicatedObject);
   return materialization_info_.id_;
 }
 
@@ -3055,7 +3029,6 @@ Handle<Object> TranslatedValue::GetValue() {
       return value_.ToHandleChecked();
     }
 
-    case TranslatedValue::kArgumentsObject:
     case TranslatedValue::kCapturedObject:
     case TranslatedValue::kDuplicatedObject:
       return container_->MaterializeObjectAt(object_index());
@@ -3104,7 +3077,6 @@ void TranslatedValue::MaterializeSimple() {
 
     case kCapturedObject:
     case kDuplicatedObject:
-    case kArgumentsObject:
     case kInvalid:
     case kTagged:
     case kBoolBit:
@@ -3118,7 +3090,6 @@ bool TranslatedValue::IsMaterializedObject() const {
   switch (kind()) {
     case kCapturedObject:
     case kDuplicatedObject:
-    case kArgumentsObject:
       return true;
     default:
       return false;
@@ -3131,7 +3102,7 @@ bool TranslatedValue::IsMaterializableByDebugger() const {
 }
 
 int TranslatedValue::GetChildrenCount() const {
-  if (kind() == kCapturedObject || kind() == kArgumentsObject) {
+  if (kind() == kCapturedObject) {
     return object_length();
   } else {
     return 0;
@@ -3399,7 +3370,6 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case Translation::BEGIN:
     case Translation::DUPLICATED_OBJECT:
-    case Translation::ARGUMENTS_OBJECT:
     case Translation::ARGUMENTS_ELEMENTS:
     case Translation::ARGUMENTS_LENGTH:
     case Translation::CAPTURED_OBJECT:
@@ -3545,20 +3515,6 @@ int TranslatedState::CreateNextTranslatedValue(
       object_positions_.push_back(object_positions_[object_id]);
       TranslatedValue translated_value =
           TranslatedValue::NewDuplicateObject(this, object_id);
-      frame.Add(translated_value);
-      return translated_value.GetChildrenCount();
-    }
-
-    case Translation::ARGUMENTS_OBJECT: {
-      int arg_count = iterator->Next();
-      int object_index = static_cast<int>(object_positions_.size());
-      if (trace_file != nullptr) {
-        PrintF(trace_file, "arguments object #%d (length = %d)", object_index,
-               arg_count);
-      }
-      object_positions_.push_back({frame_index, value_index});
-      TranslatedValue translated_value =
-          TranslatedValue::NewArgumentsObject(this, arg_count, object_index);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3812,11 +3768,8 @@ int TranslatedState::CreateNextTranslatedValue(
   return translated_value.GetChildrenCount();
 }
 
-
 TranslatedState::TranslatedState(JavaScriptFrame* frame)
-    : isolate_(nullptr),
-      stack_frame_pointer_(nullptr),
-      has_adapted_arguments_(false) {
+    : isolate_(nullptr), stack_frame_pointer_(nullptr) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
@@ -3828,11 +3781,8 @@ TranslatedState::TranslatedState(JavaScriptFrame* frame)
        frame->function()->shared()->internal_formal_parameter_count());
 }
 
-
 TranslatedState::TranslatedState()
-    : isolate_(nullptr),
-      stack_frame_pointer_(nullptr),
-      has_adapted_arguments_(false) {}
+    : isolate_(nullptr), stack_frame_pointer_(nullptr) {}
 
 void TranslatedState::Init(Address input_frame_pointer,
                            TranslationIterator* iterator,
@@ -3912,7 +3862,6 @@ void TranslatedState::Prepare(bool has_adapted_arguments,
   for (auto& frame : frames_) frame.Handlify();
 
   stack_frame_pointer_ = stack_frame_pointer;
-  has_adapted_arguments_ = has_adapted_arguments;
 
   UpdateFromPreviouslyMaterializedObjects();
 }
@@ -4324,29 +4273,6 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
       return value;
     }
 
-    case TranslatedValue::kArgumentsObject: {
-      int length = slot->GetChildrenCount();
-      Handle<JSObject> arguments;
-      if (GetAdaptedArguments(&arguments, frame_index)) {
-        // Store the materialized object and consume the nested values.
-        for (int i = 0; i < length; ++i) {
-          MaterializeAt(frame_index, value_index);
-        }
-      } else {
-        Handle<JSFunction> function =
-            Handle<JSFunction>::cast(frame->front().GetValue());
-        arguments = isolate_->factory()->NewArgumentsObject(function, length);
-        Handle<FixedArray> array = isolate_->factory()->NewFixedArray(length);
-        DCHECK_EQ(array->length(), length);
-        arguments->set_elements(*array);
-        for (int i = 0; i < length; ++i) {
-          Handle<Object> value = MaterializeAt(frame_index, value_index);
-          array->set(i, *value);
-        }
-      }
-      slot->value_ = arguments;
-      return arguments;
-    }
     case TranslatedValue::kCapturedObject: {
       // The map must be a tagged object.
       CHECK(frame->values_[*value_index].kind() == TranslatedValue::kTagged);
@@ -4386,45 +4312,6 @@ Handle<Object> TranslatedState::MaterializeObjectAt(int object_index) {
   CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
   TranslatedState::ObjectPosition pos = object_positions_[object_index];
   return MaterializeAt(pos.frame_index_, &(pos.value_index_));
-}
-
-bool TranslatedState::GetAdaptedArguments(Handle<JSObject>* result,
-                                          int frame_index) {
-  if (frame_index == 0) {
-    // Top level frame -> we need to go to the parent frame on the stack.
-    if (!has_adapted_arguments_) return false;
-
-    // This is top level frame, so we need to go to the stack to get
-    // this function's argument. (Note that this relies on not inlining
-    // recursive functions!)
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(frames_[frame_index].front().GetValue());
-    *result = Accessors::FunctionGetArguments(function);
-    return true;
-  } else {
-    TranslatedFrame* previous_frame = &(frames_[frame_index]);
-    if (previous_frame->kind() != TranslatedFrame::kArgumentsAdaptor) {
-      return false;
-    }
-    // We get the adapted arguments from the parent translation.
-    int length = previous_frame->height();
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(previous_frame->front().GetValue());
-    Handle<JSObject> arguments =
-        isolate_->factory()->NewArgumentsObject(function, length);
-    Handle<FixedArray> array = isolate_->factory()->NewFixedArray(length);
-    arguments->set_elements(*array);
-    TranslatedFrame::iterator arg_iterator = previous_frame->begin();
-    arg_iterator++;  // Skip function.
-    for (int i = 0; i < length; ++i) {
-      Handle<Object> value = arg_iterator->GetValue();
-      array->set(i, *value);
-      arg_iterator++;
-    }
-    CHECK(arg_iterator == previous_frame->end());
-    *result = arguments;
-    return true;
-  }
 }
 
 TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
