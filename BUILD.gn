@@ -21,6 +21,9 @@ declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
+  # Set flags for tracking code coverage with gcov. Requires is_clang=false.
+  v8_code_coverage = false
+
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
 
@@ -505,6 +508,27 @@ config("toolchain") {
       # http://crbug.com/v8/6341).
       "-Wno-strict-overflow",
     ]
+  }
+}
+
+# Configs for code coverage with gcov. Separate configs for cflags and ldflags
+# to selectively influde cflags in non-test targets only.
+config("v8_code_coverage_cflags") {
+  # Make sure we're using gcc toolchain.
+  if (v8_code_coverage) {
+    assert(!is_clang)
+    cflags = [
+      "-fprofile-arcs",
+      "-ftest-coverage",
+    ]
+  }
+}
+
+config("v8_code_coverage_ldflags") {
+  # Make sure we're using gcc toolchain.
+  if (v8_code_coverage) {
+    assert(!is_clang)
+    ldflags = [ "-fprofile-arcs" ]
   }
 }
 

@@ -545,7 +545,7 @@
     },
 
     'coverage': {
-      # TODO(machenbach): Add this to gn.
+      'gn_args': 'v8_code_coverage=true',
       'gyp_defines': 'coverage=1',
     },
 

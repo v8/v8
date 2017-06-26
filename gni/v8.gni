@@ -68,6 +68,7 @@ v8_remove_configs = []
 v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
+  v8_path_prefix + ":v8_code_coverage_ldflags",
 ]
 
 if (is_debug && !v8_optimized_debug) {
@@ -105,6 +106,7 @@ template("v8_source_set") {
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
+    configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
   }
 }
 
@@ -114,6 +116,7 @@ template("v8_header_set") {
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
+    configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
   }
 }
 
@@ -135,6 +138,11 @@ template("v8_executable") {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }
+    if (!defined(testonly) || !testonly) {
+      # Only add code coverage cflags for non-test files for performance
+      # reasons.
+      configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
+    }
   }
 }
 
@@ -144,5 +152,6 @@ template("v8_component") {
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
+    configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
   }
 }
