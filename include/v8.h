@@ -4665,7 +4665,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    private:
     void* allocation_base_;
     size_t allocation_length_;
-    ArrayBuffer::Allocator::Allocator::AllocationMode allocation_mode_;
+    ArrayBuffer::Allocator::AllocationMode allocation_mode_;
     void* data_;
     size_t byte_length_;
 
