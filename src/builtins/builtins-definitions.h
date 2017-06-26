@@ -157,8 +157,6 @@ namespace internal {
   ASM(NotifyDeoptimized)                                                       \
   ASM(NotifySoftDeoptimized)                                                   \
   ASM(NotifyLazyDeoptimized)                                                   \
-  ASM(NotifyStubFailure)                                                       \
-  ASM(NotifyStubFailureSaveDoubles)                                            \
   ASM(NotifyBuiltinContinuation)                                               \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \

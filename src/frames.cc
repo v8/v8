@@ -508,7 +508,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case JAVA_SCRIPT_BUILTIN_CONTINUATION:
     case BUILTIN_EXIT:
     case STUB:
-    case STUB_FAILURE_TRAMPOLINE:
     case INTERNAL:
     case CONSTRUCT:
     case ARGUMENTS_ADAPTOR:
@@ -807,7 +806,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case BUILTIN_CONTINUATION:
       case JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case BUILTIN_EXIT:
-      case STUB_FAILURE_TRAMPOLINE:
       case ARGUMENTS_ADAPTOR:
       case STUB:
       case INTERNAL:
@@ -2056,41 +2054,6 @@ void InternalFrame::Iterate(RootVisitor* v) const {
   // This is used for the WasmCompileLazy builtin, where we actually pass
   // untagged arguments and also store untagged values on the stack.
   if (code->has_tagged_params()) IterateExpressions(v);
-}
-
-void StubFailureTrampolineFrame::Iterate(RootVisitor* v) const {
-  Object** base = &Memory::Object_at(sp());
-  Object** limit = &Memory::Object_at(
-      fp() + StubFailureTrampolineFrameConstants::kFixedHeaderBottomOffset);
-  v->VisitRootPointers(Root::kTop, base, limit);
-  base = &Memory::Object_at(fp() + StandardFrameConstants::kFunctionOffset);
-  const int offset = StandardFrameConstants::kLastObjectOffset;
-  limit = &Memory::Object_at(fp() + offset) + 1;
-  v->VisitRootPointers(Root::kTop, base, limit);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-}
-
-
-Address StubFailureTrampolineFrame::GetCallerStackPointer() const {
-  return fp() + StandardFrameConstants::kCallerSPOffset;
-}
-
-
-Code* StubFailureTrampolineFrame::unchecked_code() const {
-  Code* trampoline;
-  StubFailureTrampolineStub(isolate(), NOT_JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline);
-  if (trampoline->contains(pc())) {
-    return trampoline;
-  }
-
-  StubFailureTrampolineStub(isolate(), JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline);
-  if (trampoline->contains(pc())) {
-    return trampoline;
-  }
-
-  UNREACHABLE();
 }
 
 

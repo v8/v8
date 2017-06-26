@@ -189,9 +189,9 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   Address* pc_address =
       reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
   Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  // If there's another JavaScript frame on the stack or a
-  // StubFailureTrampoline, we need to look one frame further down the stack to
-  // find the frame pointer and the return address stack slot.
+  // If there's another JavaScript frame on the stack we need to look one frame
+  // further down the stack to find the frame pointer and the return address
+  // stack slot.
   if (depth == EXTRA_CALL_FRAME) {
     if (FLAG_enable_embedded_constant_pool) {
       constant_pool = reinterpret_cast<Address*>(

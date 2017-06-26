@@ -1736,39 +1736,6 @@ void Builtins::Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm) {
   Generate_MarkCodeAsExecutedOnce(masm);
 }
 
-static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
-                                             SaveFPRegsMode save_doubles) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve registers across notification, this is important for compiled
-    // stubs that tail call the runtime on deopts passing their parameters in
-    // registers.
-    // TODO(jbramley): Is it correct (and appropriate) to use safepoint
-    // registers here? According to the comment above, we should only need to
-    // preserve the registers with parameters.
-    __ PushXRegList(kSafepointSavedRegisters);
-    // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyStubFailure, save_doubles);
-    __ PopXRegList(kSafepointSavedRegisters);
-  }
-
-  // Ignore state (pushed by Deoptimizer::EntryGenerator::Generate).
-  __ Drop(1);
-
-  // Jump to the miss handler. Deoptimizer::EntryGenerator::Generate loads this
-  // into lr before it jumps here.
-  __ Br(lr);
-}
-
-void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
-  Generate_NotifyStubFailureHelper(masm, kDontSaveFPRegs);
-}
-
-void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
-  Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
-}
-
 void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

@@ -2835,7 +2835,6 @@ bool Isolate::Init(Deserializer* des) {
     HandleScope scope(this);
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
-    StubFailureTrampolineStub::GenerateAheadOfTime(this);
   }
 
   initialized_from_snapshot_ = (des != NULL);

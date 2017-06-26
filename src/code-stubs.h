@@ -48,9 +48,6 @@ class Node;
   V(StoreSlowElement)                         \
   V(SubString)                                \
   V(NameDictionaryLookup)                     \
-  /* This can be removed once there are no */ \
-  /* more deopting Hydrogen stubs. */         \
-  V(StubFailureTrampoline)                    \
   /* These are only called from FCG */        \
   /* They can be removed when only the TF  */ \
   /* version of the corresponding stub is  */ \
@@ -1381,27 +1378,6 @@ class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
   DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
-};
-
-
-class StubFailureTrampolineStub : public PlatformCodeStub {
- public:
-  StubFailureTrampolineStub(Isolate* isolate, StubFunctionMode function_mode)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = FunctionModeField::encode(function_mode);
-  }
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  StubFunctionMode function_mode() const {
-    return FunctionModeField::decode(minor_key_);
-  }
-
-  class FunctionModeField : public BitField<StubFunctionMode, 0, 1> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(StubFailureTrampoline, PlatformCodeStub);
 };
 
 

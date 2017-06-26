@@ -271,12 +271,6 @@ inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }
 
-
-inline StubFailureTrampolineFrame::StubFailureTrampolineFrame(
-    StackFrameIteratorBase* iterator) : StandardFrame(iterator) {
-}
-
-
 inline ConstructFrame::ConstructFrame(StackFrameIteratorBase* iterator)
     : InternalFrame(iterator) {
 }

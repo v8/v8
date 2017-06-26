@@ -21,12 +21,6 @@ Register JavaScriptFrame::constant_pool_pointer_register() {
   UNREACHABLE();
 }
 
-Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
-Register StubFailureTrampolineFrame::context_register() { return cp; }
-Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
-  UNREACHABLE();
-}
-
 }  // namespace internal
 }  // namespace v8
 

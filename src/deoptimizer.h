@@ -152,7 +152,6 @@ class TranslatedFrame {
     kTailCallerFunction,
     kArgumentsAdaptor,
     kConstructStub,
-    kCompiledStub,
     kBuiltinContinuation,
     kJavaScriptBuiltinContinuation,
     kInvalid
@@ -228,9 +227,6 @@ class TranslatedFrame {
       BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
-  static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
-    return TranslatedFrame(kCompiledStub, isolate, nullptr, height);
-  }
   static TranslatedFrame InvalidFrame() {
     return TranslatedFrame(kInvalid, nullptr);
   }
@@ -555,8 +551,6 @@ class Deoptimizer : public Malloced {
                                    int frame_index);
   void DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
                                   int frame_index, bool is_setter_stub_frame);
-  void DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
-                                  int frame_index);
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index, bool java_script_frame);
 
@@ -599,15 +593,6 @@ class Deoptimizer : public Malloced {
   // containing the given address (which is supposedly faster than
   // searching all code objects).
   Code* FindDeoptimizingCode(Address addr);
-
-  // Fill the given output frame's registers to contain the failure handler
-  // address and the number of parameters for a stub failure trampoline.
-  void SetPlatformCompiledStubRegisters(FrameDescription* output_frame,
-                                        CodeStubDescriptor* desc);
-
-  // Fill the given output frame's double registers with the original values
-  // from the input frame's double registers.
-  void CopyDoubleRegisters(FrameDescription* output_frame);
 
   Isolate* isolate_;
   JSFunction* function_;
@@ -922,7 +907,6 @@ class TranslationIterator BASE_EMBEDDED {
   V(SETTER_STUB_FRAME)                      \
   V(ARGUMENTS_ADAPTOR_FRAME)                \
   V(TAIL_CALLER_FRAME)                      \
-  V(COMPILED_STUB_FRAME)                    \
   V(DUPLICATED_OBJECT)                      \
   V(ARGUMENTS_ELEMENTS)                     \
   V(ARGUMENTS_LENGTH)                       \
@@ -965,7 +949,6 @@ class Translation BASE_EMBEDDED {
   // Commands.
   void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
                              unsigned height);
-  void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginTailCallerFrame(int literal_id);
   void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,

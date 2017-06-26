@@ -1518,33 +1518,6 @@ void Builtins::Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm) {
   Generate_MarkCodeAsExecutedOnce(masm);
 }
 
-static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
-                                             SaveFPRegsMode save_doubles) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve registers across notification, this is important for compiled
-    // stubs that tail call the runtime on deopts passing their parameters in
-    // registers.
-    __ pushad();
-    __ CallRuntime(Runtime::kNotifyStubFailure, save_doubles);
-    __ popad();
-    // Tear down internal frame.
-  }
-
-  __ pop(MemOperand(esp, 0));  // Ignore state offset
-  __ ret(0);  // Return to IC Miss stub, continuation still on stack.
-}
-
-void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
-  Generate_NotifyStubFailureHelper(masm, kDontSaveFPRegs);
-}
-
-void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
-  Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
-}
-
 void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
   // Enter an internal frame.
   {

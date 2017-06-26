@@ -867,14 +867,6 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
-  StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
-  stub1.GetCode();
-  stub2.GetCode();
-}
-
-
 void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer,
                                                Isolate* isolate) {
