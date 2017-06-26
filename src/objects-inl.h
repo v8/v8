@@ -2632,16 +2632,6 @@ int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key,
   return kNotFound;
 }
 
-template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::Has(Key key) {
-  return FindEntry(key) != kNotFound;
-}
-
-template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::Has(Isolate* isolate, Key key) {
-  return FindEntry(isolate, key) != kNotFound;
-}
-
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
   return FindEntry(isolate, key, hash) != kNotFound;
 }

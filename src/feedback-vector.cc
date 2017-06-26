@@ -967,12 +967,12 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
 
   Handle<ArrayList> position_specific_types;
 
-  if (types->Has(position)) {
-    int entry = types->FindEntry(position);
+  int entry = types->FindEntry(position);
+  if (entry == UnseededNumberDictionary::kNotFound) {
+    position_specific_types = ArrayList::New(isolate, 1);
+  } else {
     DCHECK(types->ValueAt(entry)->IsArrayList());
     position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
-  } else {
-    position_specific_types = ArrayList::New(isolate, 1);
   }
 
   types = UnseededNumberDictionary::Set(

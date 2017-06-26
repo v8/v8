@@ -149,8 +149,6 @@ class HashTable : public HashTableBase {
   inline int FindEntry(Key key);
   inline int FindEntry(Isolate* isolate, Key key, int32_t hash);
   int FindEntry(Isolate* isolate, Key key);
-  inline bool Has(Isolate* isolate, Key key);
-  inline bool Has(Key key);
 
   // Rehashes the table in-place.
   void Rehash();
