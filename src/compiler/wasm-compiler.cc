@@ -12,7 +12,6 @@
 #include "src/base/platform/platform.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -3945,7 +3944,7 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleBytesEnv* module_env,
                                          const wasm::WasmFunction* function,
-                                         bool is_sync)
+                                         Handle<Code> centry_stub, bool is_sync)
     : WasmCompilationUnit(
           isolate, &module_env->module_env,
           wasm::FunctionBody{
@@ -3953,19 +3952,19 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
               module_env->wire_bytes.start() + function->code.offset(),
               module_env->wire_bytes.start() + function->code.end_offset()},
           module_env->wire_bytes.GetNameOrNull(function), function->func_index,
-          is_sync) {}
+          centry_stub, is_sync) {}
 
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleEnv* module_env,
                                          wasm::FunctionBody body,
                                          wasm::WasmName name, int index,
-                                         bool is_sync)
+                                         Handle<Code> centry_stub, bool is_sync)
     : isolate_(isolate),
       module_env_(module_env),
       func_body_(body),
       func_name_(name),
       is_sync_(is_sync),
-      centry_stub_(CEntryStub(isolate, 1).GetCode()),
+      centry_stub_(centry_stub),
       func_index_(index) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
@@ -4108,7 +4107,8 @@ Handle<Code> WasmCompilationUnit::FinishCompilation(
 Handle<Code> WasmCompilationUnit::CompileWasmFunction(
     wasm::ErrorThrower* thrower, Isolate* isolate,
     wasm::ModuleBytesEnv* module_env, const wasm::WasmFunction* function) {
-  WasmCompilationUnit unit(isolate, module_env, function);
+  WasmCompilationUnit unit(isolate, module_env, function,
+                           CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }

@@ -48,14 +48,14 @@ namespace compiler {
 class WasmCompilationUnit final {
  public:
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
-                      const wasm::WasmFunction* function, bool is_sync = true);
+                      const wasm::WasmFunction* function,
+                      Handle<Code> centry_stub, bool is_sync = true);
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
                       wasm::FunctionBody body, wasm::WasmName name, int index,
-                      bool is_sync = true);
+                      Handle<Code> centry_stub, bool is_sync = true);
 
   int func_index() const { return func_index_; }
 
-  void ReopenCentryStub() { centry_stub_ = handle(*centry_stub_, isolate_); }
   void ExecuteCompilation();
   Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
 

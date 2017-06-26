@@ -8,6 +8,7 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/property-descriptor.h"
 #include "src/wasm/compilation-manager.h"
@@ -96,7 +97,8 @@ ModuleCompiler::ModuleCompiler(Isolate* isolate,
       num_background_tasks_(
           Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
               V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())),
-      stopped_compilation_tasks_(num_background_tasks_) {
+      stopped_compilation_tasks_(num_background_tasks_),
+      centry_stub_(CEntryStub(isolate, 1).GetCode()) {
   counters_ = counters_shared_.get();
 }
 
@@ -163,9 +165,13 @@ size_t ModuleCompiler::InitializeParallelCompilation(
     constexpr bool is_sync = true;
     compilation_units_.push_back(std::unique_ptr<compiler::WasmCompilationUnit>(
         new compiler::WasmCompilationUnit(isolate_, &module_env, func,
-                                          !is_sync)));
+                                          centry_stub_, !is_sync)));
   }
   return funcs_to_compile;
+}
+
+void ModuleCompiler::ReopenHandlesInDeferredScope() {
+  centry_stub_ = handle(*centry_stub_, isolate_);
 }
 
 void ModuleCompiler::RestartCompilationTasks() {
@@ -1913,9 +1919,7 @@ void AsyncCompileJob::ReopenHandlesInDeferredScope() {
   signature_tables_ = handle(*signature_tables_, isolate_);
   code_table_ = handle(*code_table_, isolate_);
   temp_instance_->ReopenHandles(isolate_);
-  for (auto& unit : compiler_->compilation_units_) {
-    unit->ReopenCentryStub();
-  }
+  compiler_->ReopenHandlesInDeferredScope();
   deferred_handles_.push_back(deferred.Detach());
 }
 
@@ -2120,11 +2124,13 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
         new ModuleCompiler(job_->isolate_, std::move(module_), !is_sync));
     job_->compiler_->EnableThrottling();
 
+    // Reopen all handles which should survive in the DeferredHandleScope.
+    job_->ReopenHandlesInDeferredScope();
+
     DCHECK_LE(module->num_imported_functions, module->functions.size());
     size_t num_functions =
         module->functions.size() - module->num_imported_functions;
     if (num_functions == 0) {
-      job_->ReopenHandlesInDeferredScope();
       // Degenerate case of an empty module.
       job_->DoSync<FinishCompile>();
       return;
@@ -2142,8 +2148,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     job_->outstanding_units_ = job_->compiler_->InitializeParallelCompilation(
         module->functions, *job_->module_bytes_env_);
 
-    // Reopen all handles which should survive in the DeferredHandleScope.
-    job_->ReopenHandlesInDeferredScope();
     job_->DoAsync<ExecuteAndFinishCompilationUnits>(num_background_tasks);
   }
 };
@@ -2286,7 +2290,7 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
     // The {module_wrapper} will take ownership of the {WasmModule} object,
     // and it will be destroyed when the GC reclaims the wrapper object.
     Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(
-        job_->isolate_, job_->compiler_->module_.release());
+        job_->isolate_, job_->compiler_->ReleaseModule().release());
 
     // Create the shared module data.
     // TODO(clemensh): For the same module (same bytes / same hash), we should

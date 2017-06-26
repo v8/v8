@@ -994,7 +994,8 @@ void LazyCompilationOrchestrator::CompileFunction(
   }
   ErrorThrower thrower(isolate, "WasmLazyCompile");
   compiler::WasmCompilationUnit unit(isolate, &module_env, body,
-                                     CStrVector(func_name.c_str()), func_index);
+                                     CStrVector(func_name.c_str()), func_index,
+                                     CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
   Handle<Code> code = unit.FinishCompilation(&thrower);
 
