@@ -13,15 +13,13 @@
 namespace v8 {
 namespace internal {
 
-class ConcurrentMarkingDeque;
-class ConcurrentMarkingVisitor;
 class Heap;
 class Isolate;
+class Worklist;
 
 class ConcurrentMarking {
  public:
-  ConcurrentMarking(Heap* heap, ConcurrentMarkingDeque* deque_);
-  ~ConcurrentMarking();
+  ConcurrentMarking(Heap* heap, Worklist* shared_, Worklist* bailout_);
 
   void StartTask();
   void WaitForTaskToComplete();
@@ -30,11 +28,11 @@ class ConcurrentMarking {
 
  private:
   class Task;
-  void Run();
+  void Run(int task_id);
   Heap* heap_;
   base::Semaphore pending_task_semaphore_;
-  ConcurrentMarkingDeque* deque_;
-  ConcurrentMarkingVisitor* visitor_;
+  Worklist* shared_;
+  Worklist* bailout_;
   bool is_task_pending_;
 };
 

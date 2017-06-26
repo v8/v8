@@ -143,7 +143,7 @@ void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
   ObjectMarking::WhiteToGrey<kAtomicity>(obj, marking_state(obj));
   if (ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
 #ifdef V8_CONCURRENT_MARKING
-    marking_worklist()->Push(obj, MarkingThread::kMain, TargetDeque::kBailout);
+    marking_worklist()->PushBailout(obj);
 #else
     if (!marking_worklist()->Push(obj)) {
       ObjectMarking::BlackToGrey<kAtomicity>(obj, marking_state(obj));

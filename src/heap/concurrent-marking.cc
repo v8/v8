@@ -7,12 +7,12 @@
 #include <stack>
 #include <unordered_map>
 
-#include "src/heap/concurrent-marking-deque.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/worklist.h"
 #include "src/isolate.h"
 #include "src/locked-queue-inl.h"
 #include "src/utils-inl.h"
@@ -48,8 +48,9 @@ class ConcurrentMarkingVisitor final
  public:
   using BaseClass = HeapVisitor<int, ConcurrentMarkingVisitor>;
 
-  explicit ConcurrentMarkingVisitor(ConcurrentMarkingDeque* deque)
-      : deque_(deque) {}
+  explicit ConcurrentMarkingVisitor(Worklist* shared, Worklist* bailout,
+                                    int task_id)
+      : shared_(shared, task_id), bailout_(bailout, task_id) {}
 
   bool ShouldVisit(HeapObject* object) {
     return ObjectMarking::GreyToBlack<AccessMode::ATOMIC>(
@@ -118,7 +119,7 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitCode(Map* map, Code* object) {
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    bailout_.Push(object);
     return 0;
   }
 
@@ -133,7 +134,7 @@ class ConcurrentMarkingVisitor final
       VisitMapPointer(object, object->map_slot());
       BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
       // Aging of bytecode arrays is done on the main thread.
-      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+      bailout_.Push(object);
     }
     return 0;
   }
@@ -148,7 +149,7 @@ class ConcurrentMarkingVisitor final
 
   int VisitMap(Map* map, Map* object) {
     // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    bailout_.Push(object);
     return 0;
   }
 
@@ -160,7 +161,7 @@ class ConcurrentMarkingVisitor final
       Context::BodyDescriptorWeak::IterateBody(object, size, this);
       // TODO(ulan): implement proper weakness for normalized map cache
       // and remove this bailout.
-      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+      bailout_.Push(object);
     }
     return 0;
   }
@@ -172,26 +173,26 @@ class ConcurrentMarkingVisitor final
       VisitMapPointer(object, object->map_slot());
       SharedFunctionInfo::BodyDescriptorWeak::IterateBody(object, size, this);
       // Resetting of IC age counter is done on the main thread.
-      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+      bailout_.Push(object);
     }
     return 0;
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* object) {
     // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    bailout_.Push(object);
     return 0;
   }
 
   int VisitWeakCell(Map* map, WeakCell* object) {
     // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    bailout_.Push(object);
     return 0;
   }
 
   int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
     // TODO(ulan): implement iteration of strong fields.
-    deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+    bailout_.Push(object);
     return 0;
   }
 
@@ -205,7 +206,7 @@ class ConcurrentMarkingVisitor final
 #endif
     if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
                                                        marking_state(object))) {
-      deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kShared);
+      shared_.Push(object);
     }
   }
 
@@ -245,47 +246,50 @@ class ConcurrentMarkingVisitor final
     return MarkingState::Internal(object);
   }
 
-  ConcurrentMarkingDeque* deque_;
+  WorklistView shared_;
+  WorklistView bailout_;
   SlotSnapshot slot_snapshot_;
 };
 
 class ConcurrentMarking::Task : public CancelableTask {
  public:
   Task(Isolate* isolate, ConcurrentMarking* concurrent_marking,
-       base::Semaphore* on_finish)
+       base::Semaphore* on_finish, int task_id)
       : CancelableTask(isolate),
         concurrent_marking_(concurrent_marking),
-        on_finish_(on_finish) {}
+        on_finish_(on_finish),
+        task_id_(task_id) {}
 
   virtual ~Task() {}
 
  private:
   // v8::internal::CancelableTask overrides.
   void RunInternal() override {
-    concurrent_marking_->Run();
+    concurrent_marking_->Run(task_id_);
     on_finish_->Signal();
   }
 
   ConcurrentMarking* concurrent_marking_;
   base::Semaphore* on_finish_;
+  int task_id_;
   DISALLOW_COPY_AND_ASSIGN(Task);
 };
 
-ConcurrentMarking::ConcurrentMarking(Heap* heap, ConcurrentMarkingDeque* deque)
+ConcurrentMarking::ConcurrentMarking(Heap* heap, Worklist* shared,
+                                     Worklist* bailout)
     : heap_(heap),
       pending_task_semaphore_(0),
-      deque_(deque),
-      visitor_(new ConcurrentMarkingVisitor(deque_)),
+      shared_(shared),
+      bailout_(bailout),
       is_task_pending_(false) {
-  // The runtime flag should be set only if the compile time flag was set.
+// The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
   CHECK(!FLAG_concurrent_marking);
 #endif
 }
 
-ConcurrentMarking::~ConcurrentMarking() { delete visitor_; }
-
-void ConcurrentMarking::Run() {
+void ConcurrentMarking::Run(int task_id) {
+  ConcurrentMarkingVisitor visitor(shared_, bailout_, task_id);
   double time_ms = heap_->MonotonicallyIncreasingTimeInMs();
   size_t bytes_marked = 0;
   base::Mutex* relocation_mutex = heap_->relocation_mutex();
@@ -293,17 +297,23 @@ void ConcurrentMarking::Run() {
     TimedScope scope(&time_ms);
     while (true) {
       base::LockGuard<base::Mutex> guard(relocation_mutex);
-      HeapObject* object = deque_->Pop(MarkingThread::kConcurrent);
-      if (object == nullptr) break;
+      HeapObject* object;
+      if (!shared_->Pop(task_id, &object)) break;
       Address new_space_top = heap_->new_space()->original_top();
       Address new_space_limit = heap_->new_space()->original_limit();
       Address addr = object->address();
       if (new_space_top <= addr && addr < new_space_limit) {
-        deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+        bailout_->Push(task_id, object);
       } else {
         Map* map = object->synchronized_map();
-        bytes_marked += visitor_->Visit(map, object);
+        bytes_marked += visitor.Visit(map, object);
       }
+    }
+    {
+      // Take the lock to synchronize with worklist update after
+      // young generation GC.
+      base::LockGuard<base::Mutex> guard(relocation_mutex);
+      bailout_->FlushToGlobal(task_id);
     }
   }
   if (FLAG_trace_concurrent_marking) {
@@ -314,10 +324,12 @@ void ConcurrentMarking::Run() {
 }
 
 void ConcurrentMarking::StartTask() {
+  const int kConcurrentMarkingTaskId = 1;
   if (!FLAG_concurrent_marking) return;
   is_task_pending_ = true;
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new Task(heap_->isolate(), this, &pending_task_semaphore_),
+      new Task(heap_->isolate(), this, &pending_task_semaphore_,
+               kConcurrentMarkingTaskId),
       v8::Platform::kShortRunningTask);
 }
 

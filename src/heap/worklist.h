@@ -82,6 +82,11 @@ class Worklist {
            private_push_segment_[task_id]->IsEmpty();
   }
 
+  bool IsGlobalPoolEmpty() {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    return global_pool_.empty();
+  }
+
   bool IsGlobalEmpty() {
     for (int i = 0; i < kMaxNumTasks; i++) {
       if (!IsLocalEmpty(i)) return false;
@@ -125,8 +130,14 @@ class Worklist {
         global_pool_[i] = global_pool_.back();
         global_pool_.pop_back();
         delete segment;
+        --i;
       }
     }
+  }
+
+  void FlushToGlobal(int task_id) {
+    PublishPushSegmentToGlobal(task_id);
+    PublishPopSegmentToGlobal(task_id);
   }
 
  private:
@@ -149,14 +160,12 @@ class Worklist {
 
     bool Push(HeapObject* object) {
       if (IsFull()) return false;
-
       objects_[index_++] = object;
       return true;
     }
 
     bool Pop(HeapObject** object) {
       if (IsEmpty()) return false;
-
       *object = objects_[--index_];
       return true;
     }
@@ -192,6 +201,14 @@ class Worklist {
     if (!private_push_segment_[task_id]->IsEmpty()) {
       global_pool_.push_back(private_push_segment_[task_id]);
       private_push_segment_[task_id] = new Segment();
+    }
+  }
+
+  V8_NOINLINE void PublishPopSegmentToGlobal(int task_id) {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    if (!private_pop_segment_[task_id]->IsEmpty()) {
+      global_pool_.push_back(private_pop_segment_[task_id]);
+      private_pop_segment_[task_id] = new Segment();
     }
   }
 

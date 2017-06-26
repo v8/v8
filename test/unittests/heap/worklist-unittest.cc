@@ -168,19 +168,26 @@ TEST(Worklist, GlobalUpdateNull) {
 TEST(Worklist, GlobalUpdate) {
   Worklist worklist;
   WorklistView worklist_view(&worklist, 0);
-  HeapObject* objectA;
+  HeapObject* objectA = nullptr;
   objectA = reinterpret_cast<HeapObject*>(&objectA);
-  HeapObject* objectB;
+  HeapObject* objectB = nullptr;
   objectB = reinterpret_cast<HeapObject*>(&objectB);
+  HeapObject* objectC = nullptr;
+  objectC = reinterpret_cast<HeapObject*>(&objectC);
   for (size_t i = 0; i < Worklist::kSegmentCapacity; i++) {
     EXPECT_TRUE(worklist_view.Push(objectA));
   }
+  for (size_t i = 0; i < Worklist::kSegmentCapacity; i++) {
+    EXPECT_TRUE(worklist_view.Push(objectB));
+  }
   EXPECT_TRUE(worklist_view.Push(objectA));
-  worklist.Update([objectB](HeapObject* object) { return objectB; });
-  for (size_t i = 0; i < Worklist::kSegmentCapacity + 1; i++) {
+  worklist.Update([objectA, objectC](HeapObject* object) {
+    return (object == objectA) ? nullptr : objectC;
+  });
+  for (size_t i = 0; i < Worklist::kSegmentCapacity; i++) {
     HeapObject* object;
     EXPECT_TRUE(worklist_view.Pop(&object));
-    EXPECT_EQ(object, objectB);
+    EXPECT_EQ(object, objectC);
   }
 }
 

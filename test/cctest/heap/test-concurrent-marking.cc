@@ -9,6 +9,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/worklist.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -18,9 +19,12 @@ TEST(ConcurrentMarking) {
   if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  ConcurrentMarkingDeque deque(heap);
-  deque.Push(heap->undefined_value());
-  ConcurrentMarking* concurrent_marking = new ConcurrentMarking(heap, &deque);
+  Worklist shared, bailout;
+  for (int i = 0; i <= Worklist::kSegmentCapacity; i++) {
+    shared.Push(0, heap->undefined_value());
+  }
+  ConcurrentMarking* concurrent_marking =
+      new ConcurrentMarking(heap, &shared, &bailout);
   concurrent_marking->StartTask();
   concurrent_marking->WaitForTaskToComplete();
   delete concurrent_marking;

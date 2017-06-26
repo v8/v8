@@ -5763,10 +5763,12 @@ bool Heap::SetUp() {
   incremental_marking_->set_marking_worklist(
       mark_compact_collector_->marking_worklist());
 #ifdef V8_CONCURRENT_MARKING
-  concurrent_marking_ =
-      new ConcurrentMarking(this, mark_compact_collector_->marking_worklist());
+  MarkCompactCollector::MarkingWorklist* marking_worklist =
+      mark_compact_collector_->marking_worklist();
+  concurrent_marking_ = new ConcurrentMarking(this, marking_worklist->shared(),
+                                              marking_worklist->bailout());
 #else
-  concurrent_marking_ = new ConcurrentMarking(this, nullptr);
+  concurrent_marking_ = new ConcurrentMarking(this, nullptr, nullptr);
 #endif
   minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();

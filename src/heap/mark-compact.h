@@ -10,11 +10,11 @@
 #include "src/base/bits.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/cancelable-task.h"
-#include "src/heap/concurrent-marking-deque.h"
 #include "src/heap/marking.h"
 #include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
+#include "src/heap/worklist.h"
 
 namespace v8 {
 namespace internal {
@@ -382,7 +382,71 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
 #ifdef V8_CONCURRENT_MARKING
-  using MarkingWorklist = ConcurrentMarkingDeque;
+  // Wrapper for the shared and bailout worklists.
+  class MarkingWorklist {
+   public:
+    static const int kMainThread = 0;
+    // The heap parameter is not used but needed to match the sequential case.
+    explicit MarkingWorklist(Heap* heap) {}
+
+    bool Push(HeapObject* object) { return shared_.Push(kMainThread, object); }
+
+    bool PushBailout(HeapObject* object) {
+      return bailout_.Push(kMainThread, object);
+    }
+
+    HeapObject* Pop() {
+      HeapObject* result;
+      if (bailout_.Pop(kMainThread, &result)) return result;
+      if (shared_.Pop(kMainThread, &result)) return result;
+      return nullptr;
+    }
+
+    void Clear() {
+      bailout_.Clear();
+      shared_.Clear();
+    }
+
+    bool IsFull() { return false; }
+
+    bool IsEmpty() {
+      return bailout_.IsLocalEmpty(kMainThread) &&
+             shared_.IsLocalEmpty(kMainThread) &&
+             bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty();
+    }
+
+    int Size() {
+      return static_cast<int>(bailout_.LocalSize(kMainThread) +
+                              shared_.LocalSize(kMainThread));
+    }
+
+    // Calls the specified callback on each element of the deques and replaces
+    // the element with the result of the callback. If the callback returns
+    // nullptr then the element is removed from the deque.
+    // The callback must accept HeapObject* and return HeapObject*.
+    template <typename Callback>
+    void Update(Callback callback) {
+      bailout_.Update(callback);
+      shared_.Update(callback);
+    }
+
+    Worklist* shared() { return &shared_; }
+    Worklist* bailout() { return &bailout_; }
+
+    // These empty functions are needed to match the interface
+    // of the sequential marking deque.
+    void SetUp() {}
+    void TearDown() { Clear(); }
+    void StartUsing() {}
+    void StopUsing() {}
+    void ClearOverflowed() {}
+    void SetOverflowed() {}
+    bool overflowed() const { return false; }
+
+   private:
+    Worklist shared_;
+    Worklist bailout_;
+  };
 #else
   using MarkingWorklist = SequentialMarkingDeque;
 #endif
