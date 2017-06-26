@@ -270,12 +270,6 @@ hooks = [
     'action': ['python', 'v8/tools/clang/scripts/update.py', '--if-needed'],
   },
   {
-    # Pull gold plugin if needed or requested via GYP_DEFINES.
-    'name': 'gold_plugin',
-    'pattern': '.',
-    'action': ['python', 'v8/gypfiles/download_gold_plugin.py'],
-  },
-  {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     "pattern": ".",
     "action": ["python", "v8/gypfiles/gyp_v8", "--running-as-hook"],
