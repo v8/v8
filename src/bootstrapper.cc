@@ -4145,19 +4145,17 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
 
   {
     Handle<String> name = factory()->InternalizeUtf8String("toLowerCase");
-    SetFunction(string_prototype,
-                SimpleCreateFunction(isolate(), name,
-                                     Builtins::kStringPrototypeToLowerCaseIntl,
-                                     0, true),
-                name);
+    Handle<JSFunction> to_lower_case = SimpleCreateFunction(
+        isolate(), name, Builtins::kStringPrototypeToLowerCaseIntl, 0, true);
+    SetFunction(string_prototype, to_lower_case, name);
+    to_lower_case->shared()->set_builtin_function_id(kStringToLowerCaseIntl);
   }
   {
     Handle<String> name = factory()->InternalizeUtf8String("toUpperCase");
-    SetFunction(string_prototype,
-                SimpleCreateFunction(isolate(), name,
-                                     Builtins::kStringPrototypeToUpperCaseIntl,
-                                     0, false),
-                name);
+    Handle<JSFunction> to_upper_case = SimpleCreateFunction(
+        isolate(), name, Builtins::kStringPrototypeToUpperCaseIntl, 0, false);
+    SetFunction(string_prototype, to_upper_case, name);
+    to_upper_case->shared()->set_builtin_function_id(kStringToUpperCaseIntl);
   }
 
   Handle<JSFunction> to_locale_lower_case = Handle<JSFunction>::cast(

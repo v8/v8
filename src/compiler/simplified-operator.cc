@@ -477,6 +477,8 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)          \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
+  V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)        \
+  V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)        \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)       \
   V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)      \

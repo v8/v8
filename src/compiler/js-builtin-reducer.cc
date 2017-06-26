@@ -2368,6 +2368,30 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceStringToLowerCaseIntl(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    RelaxEffectsAndControls(node);
+    node->ReplaceInput(0, receiver);
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->StringToLowerCaseIntl());
+    NodeProperties::SetType(node, Type::String());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction JSBuiltinReducer::ReduceStringToUpperCaseIntl(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    RelaxEffectsAndControls(node);
+    node->ReplaceInput(0, receiver);
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->StringToUpperCaseIntl());
+    NodeProperties::SetType(node, Type::String());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -2572,6 +2596,10 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringIterator(node);
     case kStringIteratorNext:
       return ReduceStringIteratorNext(node);
+    case kStringToLowerCaseIntl:
+      return ReduceStringToLowerCaseIntl(node);
+    case kStringToUpperCaseIntl:
+      return ReduceStringToUpperCaseIntl(node);
     case kDataViewByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,

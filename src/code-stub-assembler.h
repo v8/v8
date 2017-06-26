@@ -784,6 +784,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
   Node* IsFixedDoubleArray(Node* object);
   Node* IsFixedTypedArray(Node* object);
+  Node* IsZeroOrFixedArray(Node* object);
   Node* IsHashTable(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsIndirectStringInstanceType(Node* instance_type);

@@ -2368,7 +2368,12 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kTaggedSigned);
         return;
       }
-
+      case IrOpcode::kStringToLowerCaseIntl:
+      case IrOpcode::kStringToUpperCaseIntl: {
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));
         Type* length_type = TypeOf(node->InputAt(1));

@@ -4697,6 +4697,8 @@ enum BuiltinFunctionId {
   kSharedArrayBufferByteLength,
   kStringIterator,
   kStringIteratorNext,
+  kStringToLowerCaseIntl,
+  kStringToUpperCaseIntl
 };
 
 class JSGeneratorObject: public JSObject {

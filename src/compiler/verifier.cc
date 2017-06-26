@@ -989,6 +989,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 2, Type::SignedSmall());
       CheckTypeIs(node, Type::SignedSmall());
       break;
+    case IrOpcode::kStringToLowerCaseIntl:
+    case IrOpcode::kStringToUpperCaseIntl:
+      CheckValueInputIs(node, 0, Type::String());
+      CheckTypeIs(node, Type::String());
+      break;
 
     case IrOpcode::kReferenceEqual:
       // (Unique, Any) -> Boolean  and

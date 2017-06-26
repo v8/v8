@@ -320,6 +320,8 @@
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \
   V(StringIndexOf)                  \
+  V(StringToLowerCaseIntl)          \
+  V(StringToUpperCaseIntl)          \
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \

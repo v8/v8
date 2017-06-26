@@ -382,6 +382,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringFromCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
+  const Operator* StringToLowerCaseIntl();
+  const Operator* StringToUpperCaseIntl();
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint);
 

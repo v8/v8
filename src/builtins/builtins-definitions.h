@@ -1067,6 +1067,7 @@ namespace internal {
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG) \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \
                                                              \
+  TFS(StringToLowerCaseIntl, kString)                        \
   /* ES #sec-string.prototype.tolowercase */                 \
   TFJ(StringPrototypeToLowerCaseIntl, 0)                     \
   /* ES #sec-string.prototype.touppercase */                 \
