@@ -333,36 +333,51 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
   return !RelocInfo::IsNone(rmode);
 }
 
+bool ConstPool::AddSharedEntry(SharedEntryMap& entry_map, uint64_t data,
+                               int offset) {
+  auto existing = entry_map.find(data);
+  if (existing == entry_map.end()) {
+    entry_map[data] = static_cast<int>(entries_.size());
+    entries_.push_back(std::make_pair(data, std::vector<int>(1, offset)));
+    return true;
+  }
+  int index = existing->second;
+  entries_[index].second.push_back(offset);
+  return false;
+}
 
 // Constant Pool.
-void ConstPool::RecordEntry(intptr_t data,
-                            RelocInfo::Mode mode) {
+bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
          mode != RelocInfo::CODE_AGE_SEQUENCE &&
          mode != RelocInfo::DEOPT_SCRIPT_OFFSET &&
          mode != RelocInfo::DEOPT_INLINING_ID &&
          mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
+
+  bool write_reloc_info = true;
+
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
   if (IsEmpty()) {
     first_use_ = offset;
   }
 
-  std::pair<uint64_t, int> entry = std::make_pair(raw_data, offset);
   if (CanBeShared(mode)) {
-    shared_entries_.insert(entry);
-    if (shared_entries_.count(entry.first) == 1) {
-      shared_entries_count++;
-    }
+    write_reloc_info = AddSharedEntry(shared_entries_, raw_data, offset);
+  } else if (mode == RelocInfo::CODE_TARGET &&
+             assm_->IsCodeTargetSharingAllowed()) {
+    write_reloc_info = AddSharedEntry(handle_to_index_map_, raw_data, offset);
   } else {
-    unique_entries_.push_back(entry);
+    entries_.push_back(std::make_pair(raw_data, std::vector<int>(1, offset)));
   }
 
   if (EntryCount() > Assembler::kApproxMaxPoolEntryCount) {
     // Request constant pool emission after the next instruction.
     assm_->SetNextConstPoolCheckIn(1);
   }
+
+  return write_reloc_info;
 }
 
 
@@ -471,8 +486,8 @@ void ConstPool::Emit(bool require_jump) {
 
 void ConstPool::Clear() {
   shared_entries_.clear();
-  shared_entries_count = 0;
-  unique_entries_.clear();
+  handle_to_index_map_.clear();
+  entries_.clear();
   first_use_ = -1;
 }
 
@@ -482,8 +497,7 @@ bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::NONE32);
 
   return RelocInfo::IsNone(mode) ||
-         (!assm_->serializer_enabled() &&
-          (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE));
+         (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
 }
 
 
@@ -541,43 +555,19 @@ void ConstPool::EmitGuard() {
 void ConstPool::EmitEntries() {
   DCHECK(IsAligned(assm_->pc_offset(), 8));
 
-  typedef std::multimap<uint64_t, int>::const_iterator SharedEntriesIterator;
-  SharedEntriesIterator value_it;
-  // Iterate through the keys (constant pool values).
-  for (value_it = shared_entries_.begin();
-       value_it != shared_entries_.end();
-       value_it = shared_entries_.upper_bound(value_it->first)) {
-    std::pair<SharedEntriesIterator, SharedEntriesIterator> range;
-    uint64_t data = value_it->first;
-    range = shared_entries_.equal_range(data);
-    SharedEntriesIterator offset_it;
-    // Iterate through the offsets of a given key.
-    for (offset_it = range.first; offset_it != range.second; offset_it++) {
-      Instruction* instr = assm_->InstructionAt(offset_it->second);
+  // Emit entries.
+  for (const auto& entry : entries_) {
+    for (const auto& pc : entry.second) {
+      Instruction* instr = assm_->InstructionAt(pc);
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
       DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
       instr->SetImmPCOffsetTarget(assm_->isolate_data(), assm_->pc());
     }
-    assm_->dc64(data);
-  }
-  shared_entries_.clear();
-  shared_entries_count = 0;
 
-  // Emit unique entries.
-  std::vector<std::pair<uint64_t, int> >::const_iterator unique_it;
-  for (unique_it = unique_entries_.begin();
-       unique_it != unique_entries_.end();
-       unique_it++) {
-    Instruction* instr = assm_->InstructionAt(unique_it->second);
-
-    // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
-    DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-    instr->SetImmPCOffsetTarget(assm_->isolate_data(), assm_->pc());
-    assm_->dc64(unique_it->first);
+    assm_->dc64(entry.first);
   }
-  unique_entries_.clear();
-  first_use_ = -1;
+  Clear();
 }
 
 
@@ -588,22 +578,25 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
       unresolved_branches_() {
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
+  code_target_sharing_blocked_nesting_ = 0;
   Reset();
 }
 
 
 Assembler::~Assembler() {
   DCHECK(constpool_.IsEmpty());
-  DCHECK(const_pool_blocked_nesting_ == 0);
-  DCHECK(veneer_pool_blocked_nesting_ == 0);
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(veneer_pool_blocked_nesting_, 0);
+  DCHECK_EQ(code_target_sharing_blocked_nesting_, 0);
 }
 
 
 void Assembler::Reset() {
 #ifdef DEBUG
   DCHECK((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
-  DCHECK(const_pool_blocked_nesting_ == 0);
-  DCHECK(veneer_pool_blocked_nesting_ == 0);
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(veneer_pool_blocked_nesting_, 0);
+  DCHECK_EQ(code_target_sharing_blocked_nesting_, 0);
   DCHECK(unresolved_branches_.empty());
   memset(buffer_, 0, pc_ - buffer_);
 #endif
@@ -4758,6 +4751,8 @@ void Assembler::GrowBuffer() {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  bool write_reloc_info = true;
+
   if (((rmode >= RelocInfo::COMMENT) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
@@ -4773,13 +4768,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
-    constpool_.RecordEntry(data, rmode);
+    write_reloc_info = constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
   }
 
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNone(rmode) && write_reloc_info) {
     // Don't record external references unless the heap will be serialized.
     if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
         !serializer_enabled() && !emit_debug_code()) {

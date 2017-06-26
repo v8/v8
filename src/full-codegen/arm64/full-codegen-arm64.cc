@@ -108,6 +108,10 @@ class JumpPatchSite BASE_EMBEDDED {
 // frames-arm.h for its layout.
 void FullCodeGenerator::Generate() {
   CompilationInfo* info = info_;
+  // Block sharing of code target entries. The interrupt checks must be
+  // possible to patch individually, and replacing code with a debug version
+  // relies on RelocInfo not being shared.
+  Assembler::BlockCodeTargetSharingScope block_code_target_sharing(masm_);
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(literal());

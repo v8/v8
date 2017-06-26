@@ -806,17 +806,11 @@ class MemOperand {
 
 class ConstPool {
  public:
-  explicit ConstPool(Assembler* assm)
-      : assm_(assm),
-        first_use_(-1),
-        shared_entries_count(0) {}
-  void RecordEntry(intptr_t data, RelocInfo::Mode mode);
-  int EntryCount() const {
-    return shared_entries_count + static_cast<int>(unique_entries_.size());
-  }
-  bool IsEmpty() const {
-    return shared_entries_.empty() && unique_entries_.empty();
-  }
+  explicit ConstPool(Assembler* assm) : assm_(assm), first_use_(-1) {}
+  // Returns true when we need to write RelocInfo and false when we do not.
+  bool RecordEntry(intptr_t data, RelocInfo::Mode mode);
+  int EntryCount() const { return static_cast<int>(entries_.size()); }
+  bool IsEmpty() const { return entries_.empty(); }
   // Distance in bytes between the current pc and the first instruction
   // using the pool. If there are no pending entries return kMaxInt.
   int DistanceToFirstUse();
@@ -840,16 +834,29 @@ class ConstPool {
   void EmitGuard();
   void EmitEntries();
 
+  typedef std::map<uint64_t, int> SharedEntryMap;
+  // Adds a shared entry to entries_, using 'entry_map' to determine whether we
+  // already track this entry. Returns true if this is the first time we add
+  // this entry, false otherwise.
+  bool AddSharedEntry(SharedEntryMap& entry_map, uint64_t data, int offset);
+
   Assembler* assm_;
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_use_;
-  // values, pc offset(s) of entries which can be shared.
-  std::multimap<uint64_t, int> shared_entries_;
-  // Number of distinct literal in shared entries.
-  int shared_entries_count;
-  // values, pc offset of entries which cannot be shared.
-  std::vector<std::pair<uint64_t, int> > unique_entries_;
+
+  // Map of data to index in entries_ for shared entries.
+  SharedEntryMap shared_entries_;
+
+  // Map of address of handle to index in entries_. We need to keep track of
+  // code targets separately from other shared entries, as they can be
+  // relocated.
+  SharedEntryMap handle_to_index_map_;
+
+  // Values, pc offset(s) of entries. Use a vector to preserve the order of
+  // insertion, as the serializer expects code target RelocInfo to point to
+  // constant pool addresses in an ascending order.
+  std::vector<std::pair<uint64_t, std::vector<int> > > entries_;
 };
 
 
@@ -1011,7 +1018,7 @@ class Assembler : public AssemblerBase {
 
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
-  // number of call to EndBlockConstpool.
+  // number of calls to EndBlockConstpool.
   void StartBlockConstPool();
 
   // Resume constant pool emission. Need to be called as many time as
@@ -1026,7 +1033,7 @@ class Assembler : public AssemblerBase {
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
   // Call to this function can be nested but must be followed by an equal
-  // number of call to EndBlockConstpool.
+  // number of calls to EndBlockConstpool.
   void StartBlockVeneerPool();
 
   // Resume constant pool emission. Need to be called as many time as
@@ -3187,6 +3194,34 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
+  // Class for blocking sharing of code targets in constant pool.
+  class BlockCodeTargetSharingScope {
+   public:
+    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
+      Open(assem);
+    }
+    // This constructor does not initialize the scope. The user needs to
+    // explicitly call Open() before using it.
+    BlockCodeTargetSharingScope() : assem_(nullptr) {}
+    ~BlockCodeTargetSharingScope() { Close(); }
+    void Open(Assembler* assem) {
+      DCHECK_NULL(assem_);
+      DCHECK_NOT_NULL(assem);
+      assem_ = assem;
+      assem_->StartBlockCodeTargetSharing();
+    }
+
+   private:
+    void Close() {
+      if (assem_ != nullptr) {
+        assem_->EndBlockCodeTargetSharing();
+      }
+    }
+    Assembler* assem_;
+
+    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
+  };
+
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
@@ -3271,6 +3306,16 @@ class Assembler : public AssemblerBase {
   void RemoveBranchFromLabelLinkChain(Instruction* branch,
                                       Label* label,
                                       Instruction* label_veneer = NULL);
+
+  // Prevent sharing of code target constant pool entries until
+  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
+  // but must be followed by an equal number of call to
+  // EndBlockCodeTargetSharing.
+  void StartBlockCodeTargetSharing() { ++code_target_sharing_blocked_nesting_; }
+
+  // Resume sharing of constant pool code target entries. Needs to be called
+  // as many times as StartBlockCodeTargetSharing to have an effect.
+  void EndBlockCodeTargetSharing() { --code_target_sharing_blocked_nesting_; }
 
  private:
   static uint32_t FPToImm8(double imm);
@@ -3452,6 +3497,12 @@ class Assembler : public AssemblerBase {
 
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
+
+  // Sharing of code target entries may be blocked in some code sequences.
+  int code_target_sharing_blocked_nesting_;
+  bool IsCodeTargetSharingAllowed() const {
+    return code_target_sharing_blocked_nesting_ == 0;
+  }
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
