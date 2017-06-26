@@ -5152,10 +5152,6 @@ class JSFunction: public JSObject {
   static void SetPrototype(Handle<JSFunction> function,
                            Handle<Object> value);
 
-  // After prototype is removed, it will not be created when accessed, and
-  // [[Construct]] from this function will not be allowed.
-  bool RemovePrototype();
-
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
