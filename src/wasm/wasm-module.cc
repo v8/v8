@@ -7,6 +7,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
@@ -298,20 +299,91 @@ class CompilationHelper {
   // reclaimed by explicitely releasing the {module_} field.
   CompilationHelper(Isolate* isolate, std::unique_ptr<WasmModule> module,
                     bool is_sync)
-      : isolate_(isolate), module_(std::move(module)), is_sync_(is_sync) {}
+      : isolate_(isolate),
+        module_(std::move(module)),
+        is_sync_(is_sync),
+        executed_units_(
+            isolate->random_number_generator(),
+            (isolate->heap()->memory_allocator()->code_range()->valid()
+                 ? isolate->heap()->memory_allocator()->code_range()->size()
+                 : isolate->heap()->code_space()->Capacity()) /
+                2),
+        num_background_tasks_(Min(
+            static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
+            V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())),
+        stopped_compilation_tasks_(num_background_tasks_) {}
+
+  bool GetNextUncompiledFunctionId(size_t* index) {
+    DCHECK_NOT_NULL(index);
+    // - 1 because AtomicIncrement returns the value after the atomic increment.
+    *index = next_unit_.Increment(1) - 1;
+    return *index < compilation_units_.size();
+  }
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
    public:
     CompilationHelper* helper_;
     explicit CompilationTask(CompilationHelper* helper)
-        : CancelableTask(helper->isolate_), helper_(helper) {}
+        : CancelableTask(helper->isolate_, &helper->background_task_manager_),
+          helper_(helper) {}
 
     void RunInternal() override {
-      while (helper_->FetchAndExecuteCompilationUnit()) {
+      size_t index = 0;
+      while (helper_->executed_units_.CanAcceptWork() &&
+             helper_->GetNextUncompiledFunctionId(&index)) {
+        helper_->CompileAndSchedule(index);
       }
-      helper_->module_->pending_tasks.get()->Signal();
+      helper_->OnBackgroundTaskStopped();
     }
+  };
+
+  void OnBackgroundTaskStopped() {
+    base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+    ++stopped_compilation_tasks_;
+    DCHECK_LE(stopped_compilation_tasks_, num_background_tasks_);
+  }
+
+  void CompileAndSchedule(size_t index) {
+    DisallowHeapAllocation no_allocation;
+    DisallowHandleAllocation no_handles;
+    DisallowHandleDereference no_deref;
+    DisallowCodeDependencyChange no_dependency_change;
+    DCHECK_LT(index, compilation_units_.size());
+
+    std::unique_ptr<compiler::WasmCompilationUnit> unit =
+        std::move(compilation_units_.at(index));
+    unit->ExecuteCompilation();
+    {
+      base::LockGuard<base::Mutex> guard(&result_mutex_);
+      executed_units_.Schedule(std::move(unit));
+    }
+  }
+
+  class CodeGenerationSchedule {
+   public:
+    explicit CodeGenerationSchedule(
+        base::RandomNumberGenerator* random_number_generator,
+        size_t max_memory = 0);
+
+    void Schedule(std::unique_ptr<compiler::WasmCompilationUnit>&& item);
+
+    bool IsEmpty() const { return schedule_.empty(); }
+
+    std::unique_ptr<compiler::WasmCompilationUnit> GetNext();
+
+    bool CanAcceptWork() const;
+
+    void EnableThrottling() { throttle_ = true; }
+
+   private:
+    size_t GetRandomIndexInSchedule();
+
+    base::RandomNumberGenerator* random_number_generator_ = nullptr;
+    std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
+    const size_t max_memory_;
+    bool throttle_ = false;
+    base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
   Isolate* isolate_;
@@ -319,10 +391,11 @@ class CompilationHelper {
   bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
-  std::queue<std::unique_ptr<compiler::WasmCompilationUnit>> executed_units_;
+  CodeGenerationSchedule executed_units_;
   base::Mutex result_mutex_;
   base::AtomicNumber<size_t> next_unit_;
-  size_t num_background_tasks_ = 0;
+  const size_t num_background_tasks_ = 0;
+  CancelableTaskManager background_task_manager_;
 
   // Run by each compilation task and by the main thread.
   bool FetchAndExecuteCompilationUnit() {
@@ -341,7 +414,7 @@ class CompilationHelper {
         std::move(compilation_units_.at(index));
     unit->ExecuteCompilation();
     base::LockGuard<base::Mutex> guard(&result_mutex_);
-    executed_units_.push(std::move(unit));
+    executed_units_.Schedule(std::move(unit));
     return true;
   }
 
@@ -363,24 +436,12 @@ class CompilationHelper {
     return funcs_to_compile;
   }
 
-  void InitializeHandles() {
-    for (auto& unit : compilation_units_) {
-      unit->InitializeHandles();
-    }
-  }
-
-  uint32_t* StartCompilationTasks() {
-    num_background_tasks_ =
-        Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
-            V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
-    uint32_t* task_ids = new uint32_t[num_background_tasks_];
-    for (size_t i = 0; i < num_background_tasks_; ++i) {
-      CompilationTask* task = new CompilationTask(this);
-      task_ids[i] = task->id();
+  void RestartCompilationTasks() {
+    base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+    for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
       V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          task, v8::Platform::kShortRunningTask);
+          new CompilationTask(this), v8::Platform::kShortRunningTask);
     }
-    return task_ids;
   }
 
   void WaitForCompilationTasks(uint32_t* task_ids) {
@@ -394,23 +455,26 @@ class CompilationHelper {
     }
   }
 
-  void FinishCompilationUnits(std::vector<Handle<Code>>& results,
-                              ErrorThrower* thrower) {
+  size_t FinishCompilationUnits(std::vector<Handle<Code>>& results,
+                                ErrorThrower* thrower) {
+    size_t finished = 0;
     while (true) {
       int func_index = -1;
       Handle<Code> result = FinishCompilationUnit(thrower, &func_index);
       if (func_index < 0) break;
       results[func_index] = result;
+      ++finished;
     }
+    RestartCompilationTasks();
+    return finished;
   }
 
   Handle<Code> FinishCompilationUnit(ErrorThrower* thrower, int* func_index) {
     std::unique_ptr<compiler::WasmCompilationUnit> unit;
     {
       base::LockGuard<base::Mutex> guard(&result_mutex_);
-      if (executed_units_.empty()) return Handle<Code>::null();
-      unit = std::move(executed_units_.front());
-      executed_units_.pop();
+      if (executed_units_.IsEmpty()) return Handle<Code>::null();
+      unit = executed_units_.GetNext();
     }
     *func_index = unit->func_index();
     Handle<Code> result = unit->FinishCompilation(thrower);
@@ -446,32 +510,34 @@ class CompilationHelper {
     // 1) The main thread allocates a compilation unit for each wasm function
     //    and stores them in the vector {compilation_units}.
     InitializeParallelCompilation(module->functions, *module_env);
-    InitializeHandles();
 
-    // Objects for the synchronization with the background threads.
-    base::AtomicNumber<size_t> next_unit(
-        static_cast<size_t>(FLAG_skip_compiling_wasm_funcs));
+    executed_units_.EnableThrottling();
 
     // 2) The main thread spawns {CompilationTask} instances which run on
     //    the background threads.
-    std::unique_ptr<uint32_t[]> task_ids(StartCompilationTasks());
+    RestartCompilationTasks();
 
-    // 3.a) The background threads and the main thread pick one compilation
-    //      unit at a time and execute the parallel phase of the compilation
-    //      unit. After finishing the execution of the parallel phase, the
-    //      result is enqueued in {executed_units}.
-    while (FetchAndExecuteCompilationUnit()) {
+    size_t finished_functions = 0;
+    while (finished_functions < compilation_units_.size()) {
+      // 3.a) The background threads and the main thread pick one compilation
+      //      unit at a time and execute the parallel phase of the compilation
+      //      unit. After finishing the execution of the parallel phase, the
+      //      result is enqueued in {executed_units}.
+      size_t index = 0;
+      if (GetNextUncompiledFunctionId(&index)) {
+        CompileAndSchedule(index);
+      }
       // 3.b) If {executed_units} contains a compilation unit, the main thread
       //      dequeues it and finishes the compilation unit. Compilation units
       //      are finished concurrently to the background threads to save
       //      memory.
-      FinishCompilationUnits(results, thrower);
+      finished_functions += FinishCompilationUnits(results, thrower);
     }
     // 4) After the parallel phase of all compilation units has started, the
-    //    main thread waits for all {CompilationTask} instances to finish.
-    WaitForCompilationTasks(task_ids.get());
-    // Finish the compilation of the remaining compilation units.
-    FinishCompilationUnits(results, thrower);
+    //    main thread waits for all {CompilationTask} instances to finish -
+    //    which happens once they all realize there's no next work item to
+    //    process.
+    background_task_manager_.CancelAndWait();
   }
 
   void CompileSequentially(ModuleBytesEnv* module_env,
@@ -673,7 +739,47 @@ class CompilationHelper {
 
     return WasmModuleObject::New(isolate_, compiled_module);
   }
+  size_t stopped_compilation_tasks_ = 0;
+  base::Mutex tasks_mutex_;
 };
+
+CompilationHelper::CodeGenerationSchedule::CodeGenerationSchedule(
+    base::RandomNumberGenerator* random_number_generator, size_t max_memory)
+    : random_number_generator_(random_number_generator),
+      max_memory_(max_memory) {
+  DCHECK_NOT_NULL(random_number_generator_);
+  DCHECK_GT(max_memory_, 0);
+}
+
+void CompilationHelper::CodeGenerationSchedule::Schedule(
+    std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
+  size_t cost = item->memory_cost();
+  schedule_.push_back(std::move(item));
+  allocated_memory_.Increment(cost);
+}
+
+bool CompilationHelper::CodeGenerationSchedule::CanAcceptWork() const {
+  return (!throttle_ || allocated_memory_.Value() <= max_memory_);
+}
+
+std::unique_ptr<compiler::WasmCompilationUnit>
+CompilationHelper::CodeGenerationSchedule::GetNext() {
+  DCHECK(!IsEmpty());
+  size_t index = GetRandomIndexInSchedule();
+  auto ret = std::move(schedule_[index]);
+  std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
+  schedule_.pop_back();
+  allocated_memory_.Decrement(ret->memory_cost());
+  return ret;
+}
+
+size_t CompilationHelper::CodeGenerationSchedule::GetRandomIndexInSchedule() {
+  double factor = random_number_generator_->NextDouble();
+  size_t index = (size_t)(factor * schedule_.size());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, schedule_.size());
+  return index;
+}
 
 static void MemoryInstanceFinalizer(Isolate* isolate,
                                     WasmInstanceObject* instance) {
@@ -2645,7 +2751,9 @@ class AsyncCompileJob {
     signature_tables_ = handle(*signature_tables_, isolate_);
     code_table_ = handle(*code_table_, isolate_);
     temp_instance_->ReopenHandles(isolate_);
-    helper_->InitializeHandles();
+    for (auto& unit : helper_->compilation_units_) {
+      unit->ReopenCentryStub();
+    }
     deferred_handles_.push_back(deferred.Detach());
   }
 
@@ -3205,7 +3313,6 @@ void LazyCompilationOrchestrator::CompileFunction(
   ErrorThrower thrower(isolate, "WasmLazyCompile");
   compiler::WasmCompilationUnit unit(isolate, &module_env, body,
                                      CStrVector(func_name.c_str()), func_index);
-  unit.InitializeHandles();
   unit.ExecuteCompilation();
   Handle<Code> code = unit.FinishCompilation(&thrower);
 
