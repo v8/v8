@@ -67,10 +67,15 @@ class ModuleCompiler {
     base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
-  // Run by each compilation task and by the main thread. The
-  // no_finisher_callback is called within the result_mutex_ lock when no
-  // finishing task is running, i.e. when the finisher_is_running_ flag is not
-  // set.
+  const std::shared_ptr<Counters>& async_counters() const {
+    return async_counters_;
+  }
+  Counters* counters() const { return async_counters().get(); }
+
+  // Run by each compilation task and by the main thread (i.e. in both
+  // foreground and background threads). The no_finisher_callback is called
+  // within the result_mutex_ lock when no finishing task is running, i.e. when
+  // the finisher_is_running_ flag is not set.
   bool FetchAndExecuteCompilationUnit(
       std::function<void()> no_finisher_callback = nullptr);
 
@@ -125,8 +130,7 @@ class ModuleCompiler {
 
   Isolate* isolate_;
   std::unique_ptr<WasmModule> module_;
-  std::shared_ptr<Counters> counters_shared_;
-  Counters* counters_;
+  const std::shared_ptr<Counters> async_counters_;
   bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
@@ -180,8 +184,7 @@ class InstanceBuilder {
 
   Isolate* isolate_;
   WasmModule* const module_;
-  std::shared_ptr<Counters> counters_shared_;
-  Counters* counters_;
+  const std::shared_ptr<Counters> async_counters_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
   Handle<JSReceiver> ffi_;        // TODO(titzer): Use MaybeHandle
@@ -192,6 +195,11 @@ class InstanceBuilder {
   std::vector<Handle<JSFunction>> js_wrappers_;
   JSToWasmWrapperCache js_to_wasm_cache_;
   WeakCallbackInfo<void>::Callback instance_finalizer_callback_;
+
+  const std::shared_ptr<Counters>& async_counters() const {
+    return async_counters_;
+  }
+  Counters* counters() const { return async_counters().get(); }
 
 // Helper routines to print out errors with imports.
 #define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
@@ -293,8 +301,7 @@ class AsyncCompileJob {
   class FinishModule;
 
   Isolate* isolate_;
-  std::shared_ptr<Counters> counters_shared_;
-  Counters* counters_;
+  const std::shared_ptr<Counters> async_counters_;
   std::unique_ptr<byte[]> bytes_copy_;
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
@@ -316,6 +323,11 @@ class AsyncCompileJob {
   // Counts the number of pending foreground tasks.
   int32_t num_pending_foreground_tasks_ = 0;
 #endif
+
+  const std::shared_ptr<Counters>& async_counters() const {
+    return async_counters_;
+  }
+  Counters* counters() const { return async_counters().get(); }
 
   void ReopenHandlesInDeferredScope();
 

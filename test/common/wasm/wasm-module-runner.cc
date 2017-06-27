@@ -30,7 +30,7 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
     const byte* module_end, ModuleOrigin origin, bool verify_functions) {
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
-  ModuleResult decoding_result = DecodeWasmModule(
+  ModuleResult decoding_result = SyncDecodeWasmModule(
       isolate, module_start, module_end, verify_functions, origin);
 
   if (decoding_result.failed()) {

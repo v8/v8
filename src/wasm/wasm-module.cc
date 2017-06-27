@@ -744,8 +744,8 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
 
 bool wasm::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result =
-      DecodeWasmModule(isolate, bytes.start(), bytes.end(), true, kWasmOrigin);
+  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
+                                             bytes.end(), true, kWasmOrigin);
   return result.ok();
 }
 
@@ -753,9 +753,8 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-
-  ModuleResult result = DecodeWasmModule(isolate, bytes.start(), bytes.end(),
-                                         false, kAsmJsOrigin);
+  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
+                                             bytes.end(), false, kAsmJsOrigin);
   if (result.failed()) {
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};
@@ -777,8 +776,8 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
     return {};
   }
 
-  ModuleResult result =
-      DecodeWasmModule(isolate, bytes.start(), bytes.end(), false, kWasmOrigin);
+  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
+                                             bytes.end(), false, kWasmOrigin);
   if (result.failed()) {
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};
@@ -951,8 +950,7 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
 }
 
 void LazyCompilationOrchestrator::CompileFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-    Counters* counters) {
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
   if (Code::cast(compiled_module->code_table()->get(func_index))->kind() ==
@@ -1040,7 +1038,7 @@ void LazyCompilationOrchestrator::CompileFunction(
   code_specialization.ApplyToWasmCode(*code, SKIP_ICACHE_FLUSH);
   Assembler::FlushICache(isolate, code->instruction_start(),
                          code->instruction_size());
-  RecordLazyCodeStats(*code, counters);
+  RecordLazyCodeStats(*code, isolate->counters());
 }
 
 Handle<Code> LazyCompilationOrchestrator::CompileLazy(
@@ -1050,7 +1048,6 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     int offset;
     int func_index;
   };
-  std::shared_ptr<Counters> counters_shared = isolate->counters_shared();
   std::vector<NonCompiledFunction> non_compiled_functions;
   int func_to_return_idx = exported_func_index;
   wasm::Decoder decoder(nullptr, nullptr);
@@ -1094,7 +1091,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
 
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
-  CompileFunction(isolate, instance, func_to_return_idx, counters_shared.get());
+  CompileFunction(isolate, instance, func_to_return_idx);
 
   if (is_js_to_wasm || patch_caller) {
     DisallowHeapAllocation no_gc;
