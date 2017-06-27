@@ -98,7 +98,7 @@
       'V8 Linux - swarming staging': 'gn_release_x64',
       'V8 Linux64 - cfi': 'gn_release_x64_cfi',
       'V8 Linux - vtunejit': 'gn_debug_x86_vtunejit',
-      'V8 Linux64 - gcov coverage': 'gyp_release_x64_gcc_coverage',
+      'V8 Linux64 - gcov coverage': 'gn_release_x64_gcc_coverage',
       'V8 Linux - predictable': 'gn_release_x86_predictable',
       'V8 Linux - full debug': 'gn_full_debug_x86',
       'V8 Linux - interpreted regexp': 'gn_release_x86_interpreted_regexp',
@@ -384,6 +384,8 @@
       'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'swarming'],
     'gn_release_x64_correctness_fuzzer' : [
       'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
+    'gn_release_x64_gcc_coverage': [
+      'gn', 'release_bot', 'x64', 'coverage', 'gcc'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -499,8 +501,6 @@
     # Gyp release configs for x64.
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
-    'gyp_release_x64_gcc_coverage': [
-      'gyp', 'release_bot', 'x64', 'coverage', 'gcc'],
 
     # Gyp release configs for x86.
     'gyp_release_x86_disassembler': [
