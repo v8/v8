@@ -117,7 +117,8 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   int counter = jsframe_index;
   for (auto it = translated_values.begin(); it != translated_values.end();
        it++) {
-    if (it->kind() == TranslatedFrame::kInterpretedFunction) {
+    if (it->kind() == TranslatedFrame::kInterpretedFunction ||
+        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
       if (counter == 0) {
         frame_it = it;
         break;
@@ -126,6 +127,9 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
     }
   }
   CHECK(frame_it != translated_values.end());
+  // We only include kJavaScriptBuiltinContinuation frames above to get the
+  // counting right.
+  CHECK_EQ(frame_it->kind(), TranslatedFrame::kInterpretedFunction);
 
   DeoptimizedFrameInfo* info =
       new DeoptimizedFrameInfo(&translated_values, frame_it, isolate);
