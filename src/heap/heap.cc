@@ -3445,7 +3445,6 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   DCHECK(!memory_allocator()->code_range()->valid() ||
          memory_allocator()->code_range()->contains(code->address()) ||
          object_size <= code_space()->AreaSize());
-  code->set_ic_age(global_ic_age_);
   return code;
 }
 

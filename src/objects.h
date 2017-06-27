@@ -3639,11 +3639,6 @@ class Code: public HeapObject {
   // Note that storage for this field is overlapped with typefeedback_info.
   DECL_ACCESSORS(next_code_link, Object)
 
-  // [ic_age]: Inline caching age: the value of the Heap::global_ic_age
-  // at the moment when this object was created.
-  inline void set_ic_age(int count);
-  inline int ic_age() const;
-
   // [prologue_offset]: Offset of the function prologue, used for aging
   // FUNCTIONs and OPTIMIZED_FUNCTIONs.
   inline int prologue_offset() const;
@@ -3998,8 +3993,7 @@ class Code: public HeapObject {
       kSourcePositionTableOffset + kPointerSize;
   static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kInstructionSizeOffset = kNextCodeLinkOffset + kPointerSize;
-  static const int kICAgeOffset = kInstructionSizeOffset + kIntSize;
-  static const int kFlagsOffset = kICAgeOffset + kIntSize;
+  static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlags2Offset =
       kKindSpecificFlags1Offset + kIntSize;

@@ -1726,7 +1726,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowHeapAllocation no_gc;
-  code->set_ic_age(isolate()->heap()->global_ic_age());
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
   code->set_flags(flags);
