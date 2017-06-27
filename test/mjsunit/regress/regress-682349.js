@@ -6,7 +6,7 @@
 
 let success = false;
 function f() {
-  success = (f.caller === null);
+  success = (f.caller.arguments === null);
 }
 Promise.resolve().then(f);
 %RunMicrotasks();

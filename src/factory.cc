@@ -1486,7 +1486,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   Handle<Context> context(isolate()->native_context());
   Handle<SharedFunctionInfo> info =
       NewSharedFunctionInfo(name, code, map->is_constructor());
-  // Proper language mode in shared function info will be set outside.
   DCHECK(is_sloppy(info->language_mode()));
   DCHECK(!map->IsUndefined(isolate()));
   DCHECK(
@@ -1505,10 +1504,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name) {
-  Handle<JSFunction> result =
-      NewFunction(isolate()->sloppy_function_map(), name, MaybeHandle<Code>());
-  DCHECK(is_sloppy(result->shared()->language_mode()));
-  return result;
+  return NewFunction(
+      isolate()->sloppy_function_map(), name, MaybeHandle<Code>());
 }
 
 
@@ -1518,9 +1515,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
   Handle<Map> map = is_strict
                         ? isolate()->strict_function_without_prototype_map()
                         : isolate()->sloppy_function_without_prototype_map();
-  Handle<JSFunction> result = NewFunction(map, name, code);
-  result->shared()->set_language_mode(is_strict ? STRICT : SLOPPY);
-  return result;
+  return NewFunction(map, name, code);
 }
 
 
@@ -1531,7 +1526,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                               : isolate()->sloppy_function_map();
   Handle<JSFunction> result = NewFunction(map, name, code);
   result->set_prototype_or_initial_map(*prototype);
-  result->shared()->set_language_mode(is_strict ? STRICT : SLOPPY);
   return result;
 }
 

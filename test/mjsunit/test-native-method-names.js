@@ -12,9 +12,6 @@ function CheckMethodEx(object, prop_name, function_name, length) {
   assertTrue(desc.configurable);
   assertTrue(desc.writable);
   assertThrows(() => new desc.value());
-  // Check that built-in function is strict.
-  assertThrows(() => desc.value.arguments);
-  assertThrows(() => desc.value.caller);
 }
 
 function CheckMethod(object, name, length) {
@@ -35,9 +32,6 @@ function CheckGetter(object, name) {
   assertEquals(0, desc.get.length);
   assertFalse(desc.enumerable);
   assertTrue(desc.configurable);
-  // Check that built-in function is strict.
-  assertThrows(() => desc.get.arguments);
-  assertThrows(() => desc.get.caller);
 }
 
 

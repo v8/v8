@@ -242,6 +242,9 @@ class Genesis BASE_EMBEDDED {
 
   void MakeFunctionInstancePrototypeWritable();
 
+  void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
+                                           FunctionMode function_mode);
+
   static bool CallUtilsFunction(Isolate* isolate, const char* name);
 
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
@@ -333,15 +336,17 @@ void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
 Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
                                   InstanceType type, int instance_size,
                                   MaybeHandle<JSObject> maybe_prototype,
-                                  Builtins::Name call) {
+                                  Builtins::Name call,
+                                  bool strict_function_map = false) {
   Factory* factory = isolate->factory();
   Handle<Code> call_code(isolate->builtins()->builtin(call));
   Handle<JSObject> prototype;
   Handle<JSFunction> result =
       maybe_prototype.ToHandle(&prototype)
           ? factory->NewFunction(name, call_code, prototype, type,
-                                 instance_size, true)
-          : factory->NewFunctionWithoutPrototype(name, call_code, true);
+                                 instance_size, strict_function_map)
+          : factory->NewFunctionWithoutPrototype(name, call_code,
+                                                 strict_function_map);
   result->shared()->set_native(true);
   return result;
 }
@@ -350,11 +355,12 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
                                    InstanceType type, int instance_size,
                                    MaybeHandle<JSObject> maybe_prototype,
                                    Builtins::Name call,
-                                   PropertyAttributes attributes) {
+                                   PropertyAttributes attributes,
+                                   bool strict_function_map = false) {
   Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
   Handle<JSFunction> function =
       CreateFunction(target->GetIsolate(), name_string, type, instance_size,
-                     maybe_prototype, call);
+                     maybe_prototype, call, strict_function_map);
   InstallFunction(target, name, function, name_string, attributes);
   return function;
 }
@@ -362,11 +368,13 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
 Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
                                    InstanceType type, int instance_size,
                                    MaybeHandle<JSObject> maybe_prototype,
-                                   Builtins::Name call) {
+                                   Builtins::Name call,
+                                   bool strict_function_map = false) {
   Factory* const factory = target->GetIsolate()->factory();
   PropertyAttributes attributes = DONT_ENUM;
   return InstallFunction(target, factory->InternalizeUtf8String(name), type,
-                         instance_size, maybe_prototype, call, attributes);
+                         instance_size, maybe_prototype, call, attributes,
+                         strict_function_map);
 }
 
 Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
@@ -381,6 +389,24 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
     fun->shared()->DontAdaptArguments();
   }
   fun->shared()->set_length(len);
+  return fun;
+}
+
+Handle<JSFunction> InstallArrayBuiltinFunction(Handle<JSObject> base,
+                                               const char* name,
+                                               Builtins::Name call) {
+  Isolate* isolate = base->GetIsolate();
+  Handle<String> str_name = isolate->factory()->InternalizeUtf8String(name);
+  Handle<JSFunction> fun =
+      CreateFunction(isolate, str_name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                     MaybeHandle<JSObject>(), call, true);
+  fun->shared()->set_internal_formal_parameter_count(
+      Builtins::GetBuiltinParameterCount(call));
+
+  // Set the length to 1 to satisfy ECMA-262.
+  fun->shared()->set_length(1);
+  fun->shared()->set_language_mode(STRICT);
+  InstallFunction(base, fun, str_name);
   return fun;
 }
 
@@ -1461,7 +1487,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_initial_array_prototype(*array_prototype);
 
     Handle<JSFunction> is_arraylike = SimpleInstallFunction(
-        array_function, "isArray", Builtins::kArrayIsArray, 1, true);
+        array_function, isolate->factory()->InternalizeUtf8String("isArray"),
+        Builtins::kArrayIsArray, 1, true);
     native_context()->set_is_arraylike(*is_arraylike);
   }
 
@@ -3580,9 +3607,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         container, factory->InternalizeUtf8String("GeneratorFunctionPrototype"),
         generator_function_prototype, NONE);
 
+    static const bool kUseStrictFunctionMap = true;
     Handle<JSFunction> generator_function_function = InstallFunction(
         container, "GeneratorFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
-        generator_function_prototype, Builtins::kGeneratorFunctionConstructor);
+        generator_function_prototype, Builtins::kGeneratorFunctionConstructor,
+        kUseStrictFunctionMap);
     generator_function_function->set_prototype_or_initial_map(
         native_context->generator_function_map());
     generator_function_function->shared()->DontAdaptArguments();
@@ -3609,10 +3638,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSObject> async_generator_function_prototype(
         iter.GetCurrent<JSObject>());
 
-    Handle<JSFunction> async_generator_function_function =
-        InstallFunction(container, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
-                        JSFunction::kSize, async_generator_function_prototype,
-                        Builtins::kAsyncGeneratorFunctionConstructor);
+    static const bool kUseStrictFunctionMap = true;
+    Handle<JSFunction> async_generator_function_function = InstallFunction(
+        container, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
+        JSFunction::kSize, async_generator_function_prototype,
+        Builtins::kAsyncGeneratorFunctionConstructor, kUseStrictFunctionMap);
     async_generator_function_function->set_prototype_or_initial_map(
         native_context->async_generator_function_map());
     async_generator_function_function->shared()->DontAdaptArguments();
@@ -3790,9 +3820,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     PrototypeIterator iter(native_context->async_function_map());
     Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
 
+    static const bool kUseStrictFunctionMap = true;
     Handle<JSFunction> async_function_constructor = InstallFunction(
         container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
-        async_function_prototype, Builtins::kAsyncFunctionConstructor);
+        async_function_prototype, Builtins::kAsyncFunctionConstructor,
+        kUseStrictFunctionMap);
     async_function_constructor->set_prototype_or_initial_map(
         native_context->async_function_map());
     async_function_constructor->shared()->DontAdaptArguments();
@@ -4376,17 +4408,43 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     // on Array.prototype and below.
     proto->set_elements(heap()->empty_fixed_array());
 
-    SimpleInstallFunction(proto, "concat", Builtins::kArrayConcat, 1, false);
-    Handle<JSFunction> for_each = SimpleInstallFunction(
-        proto, "forEach", Builtins::kArrayForEach, 1, false);
-    native_context()->set_array_for_each_iterator(*for_each);
-    SimpleInstallFunction(proto, "filter", Builtins::kArrayFilter, 1, false);
-    SimpleInstallFunction(proto, "map", Builtins::kArrayMap, 1, false);
-    SimpleInstallFunction(proto, "every", Builtins::kArrayEvery, 1, false);
-    SimpleInstallFunction(proto, "some", Builtins::kArraySome, 1, false);
-    SimpleInstallFunction(proto, "reduce", Builtins::kArrayReduce, 1, false);
-    SimpleInstallFunction(proto, "reduceRight", Builtins::kArrayReduceRight, 1,
-                          false);
+    // Install Array.prototype.concat
+    Handle<JSFunction> concat =
+        InstallFunction(proto, "concat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        MaybeHandle<JSObject>(), Builtins::kArrayConcat);
+
+    // Make sure that Array.prototype.concat appears to be compiled.
+    // The code will never be called, but inline caching for call will
+    // only work if it appears to be compiled.
+    concat->shared()->DontAdaptArguments();
+    DCHECK(concat->is_compiled());
+    // Set the lengths for the functions to satisfy ECMA-262.
+    concat->shared()->set_length(1);
+
+    // Install Array.prototype.forEach
+    Handle<JSFunction> forEach =
+        InstallArrayBuiltinFunction(proto, "forEach", Builtins::kArrayForEach);
+    // Add forEach to the context.
+    native_context()->set_array_for_each_iterator(*forEach);
+
+    // Install Array.prototype.filter
+    InstallArrayBuiltinFunction(proto, "filter", Builtins::kArrayFilter);
+
+    // Install Array.prototype.map
+    InstallArrayBuiltinFunction(proto, "map", Builtins::kArrayMap);
+
+    // Install Array.prototype.every
+    InstallArrayBuiltinFunction(proto, "every", Builtins::kArrayEvery);
+
+    // Install Array.prototype.some
+    InstallArrayBuiltinFunction(proto, "some", Builtins::kArraySome);
+
+    // Install Array.prototype.reduce
+    InstallArrayBuiltinFunction(proto, "reduce", Builtins::kArrayReduce);
+
+    // Install Array.prototype.reduceRight
+    InstallArrayBuiltinFunction(proto, "reduceRight",
+                                Builtins::kArrayReduceRight);
   }
 
   // Install InternalArray.prototype.concat
@@ -4394,7 +4452,17 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     Handle<JSFunction> array_constructor(
         native_context()->internal_array_function());
     Handle<JSObject> proto(JSObject::cast(array_constructor->prototype()));
-    SimpleInstallFunction(proto, "concat", Builtins::kArrayConcat, 1, false);
+    Handle<JSFunction> concat =
+        InstallFunction(proto, "concat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        MaybeHandle<JSObject>(), Builtins::kArrayConcat);
+
+    // Make sure that InternalArray.prototype.concat appears to be compiled.
+    // The code will never be called, but inline caching for call will
+    // only work if it appears to be compiled.
+    concat->shared()->DontAdaptArguments();
+    DCHECK(concat->is_compiled());
+    // Set the lengths for the functions to satisfy ECMA-262.
+    concat->shared()->set_length(1);
   }
 
   InstallBuiltinFunctionIds();
