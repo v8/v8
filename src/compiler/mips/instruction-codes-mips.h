@@ -138,6 +138,7 @@ namespace compiler {
   V(MipsI32x4ExtractLane)          \
   V(MipsI32x4ReplaceLane)          \
   V(MipsI32x4Add)                  \
+  V(MipsI32x4AddHoriz)             \
   V(MipsI32x4Sub)                  \
   V(MipsF32x4Splat)                \
   V(MipsF32x4ExtractLane)          \
@@ -159,6 +160,7 @@ namespace compiler {
   V(MipsF32x4RecipApprox)          \
   V(MipsF32x4RecipSqrtApprox)      \
   V(MipsF32x4Add)                  \
+  V(MipsF32x4AddHoriz)             \
   V(MipsF32x4Sub)                  \
   V(MipsF32x4Mul)                  \
   V(MipsF32x4Max)                  \
@@ -183,6 +185,7 @@ namespace compiler {
   V(MipsI16x8ShrU)                 \
   V(MipsI16x8Add)                  \
   V(MipsI16x8AddSaturateS)         \
+  V(MipsI16x8AddHoriz)             \
   V(MipsI16x8Sub)                  \
   V(MipsI16x8SubSaturateS)         \
   V(MipsI16x8Mul)                  \

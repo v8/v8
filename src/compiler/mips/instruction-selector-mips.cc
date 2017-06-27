@@ -1986,6 +1986,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 #define SIMD_BINOP_LIST(V)                       \
   V(F32x4Add, kMipsF32x4Add)                     \
+  V(F32x4AddHoriz, kMipsF32x4AddHoriz)           \
   V(F32x4Sub, kMipsF32x4Sub)                     \
   V(F32x4Mul, kMipsF32x4Mul)                     \
   V(F32x4Max, kMipsF32x4Max)                     \
@@ -1995,6 +1996,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Lt, kMipsF32x4Lt)                       \
   V(F32x4Le, kMipsF32x4Le)                       \
   V(I32x4Add, kMipsI32x4Add)                     \
+  V(I32x4AddHoriz, kMipsI32x4AddHoriz)           \
   V(I32x4Sub, kMipsI32x4Sub)                     \
   V(I32x4Mul, kMipsI32x4Mul)                     \
   V(I32x4MaxS, kMipsI32x4MaxS)                   \
@@ -2010,6 +2012,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8Add, kMipsI16x8Add)                     \
   V(I16x8AddSaturateS, kMipsI16x8AddSaturateS)   \
   V(I16x8AddSaturateU, kMipsI16x8AddSaturateU)   \
+  V(I16x8AddHoriz, kMipsI16x8AddHoriz)           \
   V(I16x8Sub, kMipsI16x8Sub)                     \
   V(I16x8SubSaturateS, kMipsI16x8SubSaturateS)   \
   V(I16x8SubSaturateU, kMipsI16x8SubSaturateU)   \

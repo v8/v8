@@ -172,6 +172,7 @@ namespace compiler {
   V(Mips64I32x4ExtractLane)         \
   V(Mips64I32x4ReplaceLane)         \
   V(Mips64I32x4Add)                 \
+  V(Mips64I32x4AddHoriz)            \
   V(Mips64I32x4Sub)                 \
   V(Mips64F32x4Splat)               \
   V(Mips64F32x4ExtractLane)         \
@@ -193,6 +194,7 @@ namespace compiler {
   V(Mips64F32x4RecipApprox)         \
   V(Mips64F32x4RecipSqrtApprox)     \
   V(Mips64F32x4Add)                 \
+  V(Mips64F32x4AddHoriz)            \
   V(Mips64F32x4Sub)                 \
   V(Mips64F32x4Mul)                 \
   V(Mips64F32x4Max)                 \
@@ -217,6 +219,7 @@ namespace compiler {
   V(Mips64I16x8ShrU)                \
   V(Mips64I16x8Add)                 \
   V(Mips64I16x8AddSaturateS)        \
+  V(Mips64I16x8AddHoriz)            \
   V(Mips64I16x8Sub)                 \
   V(Mips64I16x8SubSaturateS)        \
   V(Mips64I16x8Mul)                 \
