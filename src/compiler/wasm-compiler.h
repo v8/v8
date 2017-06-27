@@ -113,7 +113,6 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
-class WasmTrapHelper;
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
@@ -266,7 +265,6 @@ class WasmGraphBuilder {
 
  private:
   static const int kDefaultBufferSize = 16;
-  friend class WasmTrapHelper;
 
   Zone* zone_;
   JSGraph* jsgraph_;
