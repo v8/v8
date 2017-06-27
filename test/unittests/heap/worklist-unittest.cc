@@ -191,6 +191,32 @@ TEST(Worklist, GlobalUpdate) {
   }
 }
 
+TEST(Worklist, FlushToGlobalPushSegment) {
+  Worklist worklist;
+  WorklistView worklist_view0(&worklist, 0);
+  WorklistView worklist_view1(&worklist, 1);
+  HeapObject* object = nullptr;
+  HeapObject* objectA = nullptr;
+  objectA = reinterpret_cast<HeapObject*>(&objectA);
+  EXPECT_TRUE(worklist_view0.Push(objectA));
+  worklist.FlushToGlobal(0);
+  EXPECT_TRUE(worklist_view1.Pop(&object));
+}
+
+TEST(Worklist, FlushToGlobalPopSegment) {
+  Worklist worklist;
+  WorklistView worklist_view0(&worklist, 0);
+  WorklistView worklist_view1(&worklist, 1);
+  HeapObject* object = nullptr;
+  HeapObject* objectA = nullptr;
+  objectA = reinterpret_cast<HeapObject*>(&objectA);
+  EXPECT_TRUE(worklist_view0.Push(objectA));
+  EXPECT_TRUE(worklist_view0.Push(objectA));
+  EXPECT_TRUE(worklist_view0.Pop(&object));
+  worklist.FlushToGlobal(0);
+  EXPECT_TRUE(worklist_view1.Pop(&object));
+}
+
 TEST(Worklist, Clear) {
   Worklist worklist;
   WorklistView worklist_view(&worklist, 0);
