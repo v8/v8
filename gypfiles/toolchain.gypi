@@ -128,9 +128,6 @@
       }],
     ],
 
-    # Link-Time Optimizations
-    'use_lto%': 0,
-
     # Indicates if gcmole tools are downloaded by a hook.
     'gcmole%': 0,
   },
@@ -278,17 +275,6 @@
                       'USE_EABI_HARDFLOAT=0',
                     ],
                   }],
-                ],
-              }],
-              # Disable GCC LTO for v8
-              # v8 is optimized for speed. Because GCC LTO merges flags at link
-              # time, we disable LTO to prevent any -O2 flags from taking
-              # precedence over v8's -Os flag. However, LLVM LTO does not work
-              # this way so we keep LTO enabled under LLVM.
-              ['clang==0 and use_lto==1', {
-                'cflags!': [
-                  '-flto',
-                  '-ffat-lto-objects',
                 ],
               }],
             ],
@@ -1284,9 +1270,7 @@
               }],
             ],
           }],
-          # TODO(pcc): Re-enable in LTO builds once we've fixed the intermittent
-          # link failures (crbug.com/513074).
-          ['linux_use_gold_flags==1 and use_lto==0', {
+          ['linux_use_gold_flags==1', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'ldflags': [
