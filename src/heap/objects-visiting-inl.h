@@ -638,20 +638,10 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-bool HeapVisitor<ResultType, ConcreteVisitor>::ShouldVisitMapPointer() {
-  return true;
-}
-
-template <typename ResultType, typename ConcreteVisitor>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
     HeapObject* host, HeapObject** map) {
   static_cast<ConcreteVisitor*>(this)->VisitPointer(
       host, reinterpret_cast<Object**>(map));
-}
-
-template <typename ResultType, typename ConcreteVisitor>
-bool HeapVisitor<ResultType, ConcreteVisitor>::ShouldVisit(HeapObject* object) {
-  return true;
 }
 
 #define VISIT(type)                                                 \
@@ -757,14 +747,12 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
 
 int NewSpaceVisitor::VisitJSFunction(Map* map, JSFunction* object) {
   int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-  VisitMapPointer(object, object->map_slot());
   JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
   return size;
 }
 
 int NewSpaceVisitor::VisitNativeContext(Map* map, Context* object) {
   int size = Context::BodyDescriptor::SizeOf(map, object);
-  VisitMapPointer(object, object->map_slot());
   Context::BodyDescriptor::IterateBody(object, size, this);
   return size;
 }
