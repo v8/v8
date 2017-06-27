@@ -909,6 +909,9 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
+                               data->info()->is_bailout_on_uninitialized()
+                                   ? JSCallReducer::kBailoutOnUninitialized
+                                   : JSCallReducer::kNoFlags,
                                data->native_context(),
                                data->info()->dependencies());
     JSContextSpecialization context_specialization(

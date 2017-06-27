@@ -28,11 +28,16 @@ class SimplifiedOperatorBuilder;
 // which might allow inlining or other optimizations to be performed afterwards.
 class JSCallReducer final : public AdvancedReducer {
  public:
-  JSCallReducer(Editor* editor, JSGraph* jsgraph,
+  // Flags that control the mode of operation.
+  enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 0 };
+  typedef base::Flags<Flag> Flags;
+
+  JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
                 Handle<Context> native_context,
                 CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
+        flags_(flags),
         native_context_(native_context),
         dependencies_(dependencies) {}
 
@@ -74,9 +79,11 @@ class JSCallReducer final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
+  Flags flags() const { return flags_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
+  Flags const flags_;
   Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;
 };

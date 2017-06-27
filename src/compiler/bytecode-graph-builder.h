@@ -188,6 +188,8 @@ class BytecodeGraphBuilder {
                                    FeedbackSlot slot);
   Node* TryBuildSimplifiedToNumber(Node* input, FeedbackSlot slot);
   Node* TryBuildSimplifiedToPrimitiveToString(Node* input, FeedbackSlot slot);
+  Node* TryBuildSimplifiedCall(const Operator* op, Node* const* args,
+                               int arg_count, FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadNamed(const Operator* op, Node* receiver,
                                     FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadKeyed(const Operator* op, Node* receiver,

@@ -274,6 +274,22 @@ Reduction JSTypeHintLowering::ReduceToPrimitiveToStringOperation(
   return Reduction();
 }
 
+Reduction JSTypeHintLowering::ReduceCallOperation(const Operator* op,
+                                                  Node* const* args,
+                                                  int arg_count, Node* effect,
+                                                  Node* control,
+                                                  FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSCall, op->opcode());
+  DCHECK(!slot.IsInvalid());
+  CallICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
 Reduction JSTypeHintLowering::ReduceLoadNamedOperation(
     const Operator* op, Node* obj, Node* effect, Node* control,
     FeedbackSlot slot) const {

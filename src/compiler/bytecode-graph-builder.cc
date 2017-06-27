@@ -1374,10 +1374,17 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
-  const Operator* call = javascript()->Call(arg_count, frequency, feedback,
-                                            receiver_mode, tail_call_mode);
-  Node* value = ProcessCallArguments(call, args, static_cast<int>(arg_count));
-  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+  const Operator* op = javascript()->Call(arg_count, frequency, feedback,
+                                          receiver_mode, tail_call_mode);
+  Node* node = nullptr;
+  if (Node* simplified = TryBuildSimplifiedCall(
+          op, args, static_cast<int>(arg_count), feedback.slot())) {
+    if (environment() == nullptr) return;
+    node = simplified;
+  } else {
+    node = ProcessCallArguments(op, args, static_cast<int>(arg_count));
+  }
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildCallVarArgs(TailCallMode tail_call_mode,
@@ -2656,6 +2663,25 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedToPrimitiveToString(
   Reduction early_reduction =
       type_hint_lowering().ReduceToPrimitiveToStringOperation(value, effect,
                                                               control, slot);
+  if (early_reduction.Changed()) {
+    ApplyEarlyReduction(early_reduction);
+    return early_reduction.replacement();
+  }
+  return nullptr;
+}
+
+Node* BytecodeGraphBuilder::TryBuildSimplifiedCall(const Operator* op,
+                                                   Node* const* args,
+                                                   int arg_count,
+                                                   FeedbackSlot slot) {
+  // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
+  // pruned from the graph by a soft-deopt. It can happen that a CallIC that
+  // control-dominates the OSR entry is still in "uninitialized" state.
+  if (!osr_ast_id_.IsNone()) return nullptr;
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  Reduction early_reduction = type_hint_lowering().ReduceCallOperation(
+      op, args, arg_count, effect, control, slot);
   if (early_reduction.Changed()) {
     ApplyEarlyReduction(early_reduction);
     return early_reduction.replacement();
