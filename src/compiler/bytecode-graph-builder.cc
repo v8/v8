@@ -2178,8 +2178,12 @@ void BytecodeGraphBuilder::VisitStringConcat() {
       local_zone()->NewArray<Node*>(static_cast<size_t>(operand_count));
   int operand_base = first_reg.index();
   for (int i = 0; i < operand_count; ++i) {
-    operands[i] =
+    Node* reg =
         environment()->LookupRegister(interpreter::Register(operand_base + i));
+    // Explicitly insert a string check here. All operands are already strings,
+    // however in the case of generator yields in the middle of string
+    // concatenations we might lose the knowledge that the operand is a string.
+    operands[i] = NewNode(simplified()->CheckString(), reg);
   }
 
   Node* node = MakeNode(javascript()->StringConcat(operand_count),
