@@ -409,6 +409,18 @@ class WasmGraphBuilder {
                         wasm::FunctionSig* sig);
 
   void SetNeedsStackCheck() { needs_stack_check_ = true; }
+
+  //-----------------------------------------------------------------------
+  // Operations involving the CEntryStub, a dependency we want to remove
+  // to get off the GC heap.
+  //-----------------------------------------------------------------------
+  Node* BuildCallToRuntime(Runtime::FunctionId f, Node** parameters,
+                           int parameter_count);
+
+  Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* context,
+                                      Node** parameters, int parameter_count);
+
+  Node* BuildModifyThreadInWasmFlag(bool new_value);
 };
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,
