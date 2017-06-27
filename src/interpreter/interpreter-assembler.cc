@@ -587,6 +587,9 @@ Node* InterpreterAssembler::CallJSWithFeedback(
   Label call_function(this), extra_checks(this, Label::kDeferred), call(this),
       end(this);
 
+  // Increment the call count.
+  IncrementCallCount(feedback_vector, slot_id);
+
   // The checks. First, does function match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
@@ -600,9 +603,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(
 
   BIND(&call_function);
   {
-    // Increment the call count.
-    IncrementCallCount(feedback_vector, slot_id);
-
     // Call using call function builtin.
     Callable callable = CodeFactory::InterpreterPushArgsThenCall(
         isolate(), receiver_mode, tail_call_mode,
@@ -639,9 +639,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(
                                               Context::ARRAY_FUNCTION_INDEX);
       Node* is_array_function = WordEqual(context_slot, function);
       GotoIfNot(is_array_function, &mark_megamorphic);
-
-      // It is a monomorphic Array function. Increment the call count.
-      IncrementCallCount(feedback_vector, slot_id);
 
       // Call ArrayConstructorStub.
       Callable callable_call =
@@ -723,10 +720,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
 
   BIND(&call);
   {
-    Comment("Increment call count and call using Call builtin");
-    // Increment the call count.
-    IncrementCallCount(feedback_vector, slot_id);
-
+    Comment("invoke using Call builtin");
     // Call using call builtin.
     Callable callable_call = CodeFactory::InterpreterPushArgsThenCall(
         isolate(), receiver_mode, tail_call_mode,
@@ -782,10 +776,8 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
   Label call_construct_function(this, &allocation_feedback),
       extra_checks(this, Label::kDeferred), call_construct(this), end(this);
 
-  // Slot id of 0 is used to indicate no type feedback is available.
-  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
-  Node* is_feedback_unavailable = WordEqual(slot_id, IntPtrConstant(0));
-  GotoIf(is_feedback_unavailable, &call_construct);
+  // Increment the call count.
+  IncrementCallCount(feedback_vector, slot_id);
 
   // Check that the constructor is not a smi.
   Node* is_smi = TaggedIsSmi(constructor);
@@ -806,8 +798,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
 
   BIND(&call_construct_function);
   {
-    Comment("call using ConstructFunction");
-    IncrementCallCount(feedback_vector, slot_id);
+    Comment("construct using ConstructFunction");
     Callable callable_function = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kJSFunction);
     return_value.Bind(CallStub(callable_function.descriptor(),
