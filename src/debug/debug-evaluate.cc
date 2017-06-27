@@ -440,7 +440,6 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToObject:
     case Bytecode::kToNumber:
     case Bytecode::kToName:
-    case Bytecode::kToPrimitiveToString:
     // Misc.
     case Bytecode::kStringConcat:
     case Bytecode::kForInPrepare:
