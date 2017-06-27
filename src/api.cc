@@ -1117,7 +1117,6 @@ void Context::Enter() {
   isolate->set_context(*env);
 }
 
-
 void Context::Exit() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
@@ -1132,6 +1131,22 @@ void Context::Exit() {
   isolate->set_context(impl->RestoreContext());
 }
 
+Context::BackupIncumbentScope::BackupIncumbentScope(
+    Local<Context> backup_incumbent_context)
+    : backup_incumbent_context_(backup_incumbent_context) {
+  DCHECK(!backup_incumbent_context_.IsEmpty());
+
+  i::Handle<i::Context> env = Utils::OpenHandle(*backup_incumbent_context_);
+  i::Isolate* isolate = env->GetIsolate();
+  prev_ = isolate->top_backup_incumbent_scope();
+  isolate->set_top_backup_incumbent_scope(this);
+}
+
+Context::BackupIncumbentScope::~BackupIncumbentScope() {
+  i::Handle<i::Context> env = Utils::OpenHandle(*backup_incumbent_context_);
+  i::Isolate* isolate = env->GetIsolate();
+  isolate->set_top_backup_incumbent_scope(prev_);
+}
 
 static void* DecodeSmiToAligned(i::Object* value, const char* location) {
   Utils::ApiCheck(value->IsSmi(), location, "Not a Smi");
@@ -8291,6 +8306,12 @@ v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
   }
   if (last.is_null()) return Local<Context>();
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));
+}
+
+v8::Local<v8::Context> Isolate::GetIncumbentContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Context> context = isolate->GetIncumbentContext();
+  return Utils::ToLocal(context);
 }
 
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {

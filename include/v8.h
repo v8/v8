@@ -7168,6 +7168,12 @@ class V8_EXPORT Isolate {
   Local<Context> GetEnteredOrMicrotaskContext();
 
   /**
+   * Returns the Context that corresponds to the Incumbent realm in HTML spec.
+   * https://html.spec.whatwg.org/multipage/webappapis.html#incumbent
+   */
+  Local<Context> GetIncumbentContext();
+
+  /**
    * Schedules an exception to be thrown when returning to JavaScript.  When an
    * exception has been scheduled it is illegal to invoke any JavaScript
    * operation; the caller must return immediately and only after the exception
@@ -8645,6 +8651,27 @@ class V8_EXPORT Context {
 
    private:
     Local<Context> context_;
+  };
+
+  /**
+   * Stack-allocated class to support the backup incumbent settings object
+   * stack.
+   * https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
+   */
+  class BackupIncumbentScope {
+   public:
+    /**
+     * |backup_incumbent_context| is pushed onto the backup incumbent settings
+     * object stack.
+     */
+    explicit BackupIncumbentScope(Local<Context> backup_incumbent_context);
+    ~BackupIncumbentScope();
+
+   private:
+    friend class internal::Isolate;
+
+    Local<Context> backup_incumbent_context_;
+    const BackupIncumbentScope* prev_ = nullptr;
   };
 
  private:

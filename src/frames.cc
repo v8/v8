@@ -138,13 +138,24 @@ void JavaScriptFrameIterator::Advance() {
   } while (!iterator_.done() && !iterator_.frame()->is_java_script());
 }
 
-
 void JavaScriptFrameIterator::AdvanceToArgumentsFrame() {
   if (!frame()->has_adapted_arguments()) return;
   iterator_.Advance();
   DCHECK(iterator_.frame()->is_arguments_adaptor());
 }
 
+void JavaScriptFrameIterator::AdvanceWhileDebugContext(Debug* debug) {
+  if (!debug->in_debug_scope()) return;
+
+  while (!done()) {
+    Context* context = Context::cast(frame()->context());
+    if (context->native_context() == *debug->debug_context()) {
+      Advance();
+    } else {
+      break;
+    }
+  }
+}
 
 // -------------------------------------------------------------------------
 

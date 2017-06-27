@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class AbstractCode;
+class Debug;
 class ObjectVisitor;
 class StringStream;
 
@@ -1542,6 +1543,9 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
   // frame. This only affects the current frame if it has adapted
   // arguments.
   void AdvanceToArgumentsFrame();
+
+  // Skips the frames that point to the debug context.
+  void AdvanceWhileDebugContext(Debug* debug);
 
  private:
   StackFrameIterator iterator_;

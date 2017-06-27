@@ -2028,23 +2028,40 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
 
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
-  if (debug_->in_debug_scope()) {
-    while (!it.done()) {
-      JavaScriptFrame* frame = it.frame();
-      Context* context = Context::cast(frame->context());
-      if (context->native_context() == *debug_->debug_context()) {
-        it.Advance();
-      } else {
-        break;
-      }
-    }
-  }
+  it.AdvanceWhileDebugContext(debug_);
   if (it.done()) return Handle<Context>::null();
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());
   return Handle<Context>(context->native_context(), this);
 }
 
+Handle<Context> Isolate::GetIncumbentContext() {
+  JavaScriptFrameIterator it(this);
+  it.AdvanceWhileDebugContext(debug_);
+
+  // 1st candidate: most-recently-entered author function's context
+  // if it's newer than the last Context::BackupIncumbentScope entry.
+  if (!it.done() &&
+      static_cast<const void*>(it.frame()) >
+          static_cast<const void*>(top_backup_incumbent_scope())) {
+    Context* context = Context::cast(it.frame()->context());
+    return Handle<Context>(context->native_context(), this);
+  }
+
+  // 2nd candidate: the last Context::Scope's incumbent context if any.
+  if (top_backup_incumbent_scope()) {
+    return Utils::OpenHandle(
+        *top_backup_incumbent_scope()->backup_incumbent_context_);
+  }
+
+  // Last candidate: the entered context.
+  // Given that there is no other author function is running, there must be
+  // no cross-context function running, then the incumbent realm must match
+  // the entry realm.
+  v8::Local<v8::Context> entered_context =
+      reinterpret_cast<v8::Isolate*>(this)->GetEnteredContext();
+  return Utils::OpenHandle(*entered_context);
+}
 
 char* Isolate::ArchiveThread(char* to) {
   MemCopy(to, reinterpret_cast<char*>(thread_local_top()),

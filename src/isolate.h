@@ -808,6 +808,8 @@ class Isolate {
   // is, the native context of the top-most JavaScript frame.
   Handle<Context> GetCallingNativeContext();
 
+  Handle<Context> GetIncumbentContext();
+
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
 
@@ -1284,6 +1286,14 @@ class Isolate {
     elements_deletion_counter_ = value;
   }
 
+  const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
+    return top_backup_incumbent_scope_;
+  }
+  void set_top_backup_incumbent_scope(
+      const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope) {
+    top_backup_incumbent_scope_ = top_backup_incumbent_scope;
+  }
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1572,6 +1582,10 @@ class Isolate {
   size_t total_regexp_code_generated_;
 
   size_t elements_deletion_counter_ = 0;
+
+  // The top entry of the v8::Context::BackupIncumbentScope stack.
+  const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
+      nullptr;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
