@@ -2143,7 +2143,7 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateCell(Object* value);
 
   // Allocate a tenured JS global property cell initialized with the hole.
-  MUST_USE_RESULT AllocationResult AllocatePropertyCell();
+  MUST_USE_RESULT AllocationResult AllocatePropertyCell(Name* name);
 
   MUST_USE_RESULT AllocationResult AllocateWeakCell(HeapObject* value);
 

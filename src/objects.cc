@@ -1927,7 +1927,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
     int entry = dictionary->FindEntry(isolate, name, hash);
 
     if (entry == GlobalDictionary::kNotFound) {
-      auto cell = isolate->factory()->NewPropertyCell();
+      auto cell = isolate->factory()->NewPropertyCell(name);
       cell->set_value(*value);
       auto cell_type = value->IsUndefined(isolate)
                            ? PropertyCellType::kUndefined
@@ -3085,10 +3085,12 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case PROPERTY_CELL_TYPE: {
-      os << "<PropertyCell value=";
+      PropertyCell* cell = PropertyCell::cast(this);
+      os << "<PropertyCell name=";
+      cell->name()->ShortPrint(os);
+      os << " value=";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      PropertyCell* cell = PropertyCell::cast(this);
       cell->value()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
       os << '>';
@@ -5772,12 +5774,11 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   int current_offset = 0;
   for (int i = 0; i < instance_descriptor_length; i++) {
     int index = Smi::cast(iteration_order->get(i))->value();
-    Object* k = dictionary->KeyAt(index);
-    DCHECK(dictionary->IsKey(isolate, k));
+    Name* k = dictionary->NameAt(index);
     // Dictionary keys are internalized upon insertion.
     // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
     CHECK(k->IsUniqueName());
-    Handle<Name> key(Name::cast(k), isolate);
+    Handle<Name> key(k, isolate);
 
     Object* value = dictionary->ValueAt(index);
 
@@ -7467,16 +7468,15 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
 namespace {
 
 template <typename Dictionary>
-bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict, Isolate* isolate,
+bool TestDictionaryPropertiesIntegrityLevel(Dictionary* dict, Isolate* isolate,
                                             PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
 
   uint32_t capacity = dict->Capacity();
   for (uint32_t i = 0; i < capacity; i++) {
-    Object* key = dict->KeyAt(i);
-    if (!dict->IsKey(isolate, key) || key->FilterKey(ALL_PROPERTIES) ||
-        dict->IsDeleted(i))
-      continue;
+    Object* key;
+    if (!dict->ToKey(isolate, i, &key)) continue;
+    if (key->FilterKey(ALL_PROPERTIES)) continue;
     PropertyDetails details = dict->DetailsAt(i);
     if (details.IsConfigurable()) return false;
     if (level == FROZEN && details.kind() == kData && !details.IsReadOnly()) {
@@ -7777,21 +7777,18 @@ void ApplyAttributesToDictionary(Isolate* isolate,
                                  const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = dictionary->KeyAt(i);
-    if (dictionary->IsKey(isolate, k) &&
-        !(k->IsSymbol() && Symbol::cast(k)->is_private())) {
-      PropertyDetails details = dictionary->DetailsAt(i);
-      int attrs = attributes;
-      // READ_ONLY is an invalid attribute for JS setters/getters.
-      if ((attributes & READ_ONLY) && details.kind() == kAccessor) {
-        Object* v = dictionary->ValueAt(i);
-        if (v->IsPropertyCell()) v = PropertyCell::cast(v)->value();
-        if (v->IsAccessorPair()) attrs &= ~READ_ONLY;
-      }
-      details = details.CopyAddAttributes(
-          static_cast<PropertyAttributes>(attrs));
-      dictionary->DetailsAtPut(i, details);
+    Object* k;
+    if (!dictionary->ToKey(isolate, i, &k)) continue;
+    if (k->FilterKey(ALL_PROPERTIES)) continue;
+    PropertyDetails details = dictionary->DetailsAt(i);
+    int attrs = attributes;
+    // READ_ONLY is an invalid attribute for JS setters/getters.
+    if ((attributes & READ_ONLY) && details.kind() == kAccessor) {
+      Object* v = dictionary->ValueAt(i);
+      if (v->IsAccessorPair()) attrs &= ~READ_ONLY;
     }
+    details = details.CopyAddAttributes(static_cast<PropertyAttributes>(attrs));
+    dictionary->DetailsAtPut(i, details);
   }
 }
 
@@ -15523,7 +15520,7 @@ void Dictionary<Derived, Shape>::Print(std::ostream& os) {  // NOLINT
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(isolate, k)) {
+    if (Shape::IsLive(isolate, k)) {
       os << "\n   ";
       if (k->IsString()) {
         String::cast(k)->StringPrint(os);
@@ -16043,7 +16040,7 @@ void HashTable<Derived, Shape>::Rehash(Derived* new_table) {
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = this->get(from_index);
-    if (IsKey(isolate, k)) {
+    if (Shape::IsLive(isolate, k)) {
       uint32_t hash = Shape::HashForObject(isolate, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
@@ -16099,11 +16096,11 @@ void HashTable<Derived, Shape>::Rehash() {
     done = true;
     for (uint32_t current = 0; current < capacity; current++) {
       Object* current_key = KeyAt(current);
-      if (IsKey(isolate, current_key)) {
+      if (Shape::IsLive(isolate, current_key)) {
         uint32_t target = EntryForProbe(current_key, probe, current);
         if (current == target) continue;
         Object* target_key = KeyAt(target);
-        if (!IsKey(isolate, target_key) ||
+        if (!Shape::IsLive(isolate, target_key) ||
             EntryForProbe(target_key, probe, target) != target) {
           // Put the current element into the correct position.
           Swap(current, target, mode);
@@ -16204,8 +16201,7 @@ uint32_t HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
   // EnsureCapacity will guarantee the hash table is never full.
   Isolate* isolate = GetIsolate();
   while (true) {
-    Object* element = KeyAt(entry);
-    if (!IsKey(isolate, element)) break;
+    if (!Shape::IsLive(isolate, KeyAt(entry))) break;
     entry = NextProbe(entry, count++, capacity);
   }
   return entry;
@@ -16371,8 +16367,8 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
   // allocated one that is large enough for all entries.
   DisallowHeapAllocation no_gc;
   for (int i = 0; i < capacity; i++) {
-    Object* k = dict->KeyAt(i);
-    if (!dict->IsKey(isolate, k)) continue;
+    Object* k;
+    if (!dict->ToKey(isolate, i, &k)) continue;
 
     DCHECK(k->IsNumber());
     DCHECK(!k->IsSmi() || Smi::cast(k)->value() >= 0);
@@ -16782,9 +16778,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
   Handle<PropertyCell> cell;
   if (entry != GlobalDictionary::kNotFound) {
     if (entry_out) *entry_out = entry;
-    // This call should be idempotent.
-    DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
-    cell = handle(PropertyCell::cast(dictionary->ValueAt(entry)));
+    cell = handle(dictionary->CellAt(entry));
     PropertyCellType original_cell_type = cell->property_details().cell_type();
     DCHECK(original_cell_type == PropertyCellType::kInvalidated ||
            original_cell_type == PropertyCellType::kUninitialized);
@@ -16796,7 +16790,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
     cell->set_property_details(details);
     return cell;
   }
-  cell = isolate->factory()->NewPropertyCell();
+  cell = isolate->factory()->NewPropertyCell(name);
   PropertyDetails details(kData, NONE, cell_type);
   dictionary =
       GlobalDictionary::Add(dictionary, name, cell, details, entry_out);
@@ -17606,7 +17600,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   uint32_t entry = dictionary->FindInsertionEntry(hash);
   dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(entry)->IsNumber() ||
-         dictionary->KeyAt(entry)->IsUniqueName());
+         Shape::Unwrap(dictionary->KeyAt(entry))->IsUniqueName());
   dictionary->ElementAdded();
   if (entry_out) *entry_out = entry;
   return dictionary;
@@ -17617,9 +17611,8 @@ bool SeededNumberDictionary::HasComplexElements() {
   Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (!this->IsKey(isolate, k)) continue;
-    DCHECK(!IsDeleted(i));
+    Object* k;
+    if (!this->ToKey(isolate, i, &k)) continue;
     PropertyDetails details = this->DetailsAt(i);
     if (details.kind() == kAccessor) return true;
     PropertyAttributes attr = details.attributes();
@@ -17666,8 +17659,8 @@ void SeededNumberDictionary::CopyValuesTo(FixedArray* elements) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (this->IsKey(isolate, k)) {
+    Object* k;
+    if (this->ToKey(isolate, i, &k)) {
       elements->set(pos++, this->ValueAt(i), mode);
     }
   }
@@ -17687,13 +17680,12 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
   int capacity = this->Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (this->IsKey(isolate, k) && !k->FilterKey(ENUMERABLE_STRINGS)) {
-      if (this->IsDeleted(i)) continue;
-      PropertyDetails details = this->DetailsAt(i);
-      PropertyAttributes attr = details.attributes();
-      if ((attr & ONLY_ENUMERABLE) == 0) result++;
-    }
+    Object* k;
+    if (!this->ToKey(isolate, i, &k)) continue;
+    if (k->FilterKey(ENUMERABLE_STRINGS)) continue;
+    PropertyDetails details = this->DetailsAt(i);
+    PropertyAttributes attr = details.attributes();
+    if ((attr & ONLY_ENUMERABLE) == 0) result++;
   }
   return result;
 }
@@ -17721,9 +17713,9 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   int capacity = dictionary->Capacity();
   int properties = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* key = dictionary->KeyAt(i);
+    Object* key;
+    if (!dictionary->ToKey(isolate, i, &key)) continue;
     bool is_shadowing_key = false;
-    if (!dictionary->IsKey(isolate, key)) continue;
     if (key->IsSymbol()) continue;
     PropertyDetails details = dictionary->DetailsAt(i);
     if (details.IsDontEnum()) {
@@ -17733,7 +17725,6 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
         continue;
       }
     }
-    if (dictionary->IsDeleted(i)) continue;
     if (is_shadowing_key) {
       accumulator->AddShadowingKey(key);
       continue;
@@ -17757,7 +17748,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     int index = Smi::cast(raw_storage->get(i))->value();
-    raw_storage->set(i, raw_dictionary->KeyAt(index));
+    raw_storage->set(i, raw_dictionary->NameAt(index));
   }
 }
 
@@ -17773,9 +17764,8 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     DisallowHeapAllocation no_gc;
     Derived* raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
-      Object* k = raw_dictionary->KeyAt(i);
-      if (!raw_dictionary->IsKey(isolate, k)) continue;
-      if (raw_dictionary->IsDeleted(i)) continue;
+      Object* k;
+      if (!raw_dictionary->ToKey(isolate, i, &k)) continue;
       array->set(array_size++, Smi::FromInt(i));
     }
 
@@ -17806,9 +17796,9 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
     DisallowHeapAllocation no_gc;
     Derived* raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
-      Object* k = raw_dictionary->KeyAt(i);
-      if (!raw_dictionary->IsKey(isolate, k) || k->FilterKey(filter)) continue;
-      if (raw_dictionary->IsDeleted(i)) continue;
+      Object* k;
+      if (!raw_dictionary->ToKey(isolate, i, &k)) continue;
+      if (k->FilterKey(filter)) continue;
       PropertyDetails details = raw_dictionary->DetailsAt(i);
       if ((details.attributes() & filter) != 0) {
         keys->AddShadowingKey(k);
@@ -17817,9 +17807,6 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
       if (filter & ONLY_ALL_CAN_READ) {
         if (details.kind() != kAccessor) continue;
         Object* accessors = raw_dictionary->ValueAt(i);
-        if (accessors->IsPropertyCell()) {
-          accessors = PropertyCell::cast(accessors)->value();
-        }
         if (!accessors->IsAccessorInfo()) continue;
         if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
       }
@@ -17838,7 +17825,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
   bool has_seen_symbol = false;
   for (int i = 0; i < array_size; i++) {
     int index = Smi::cast(array->get(i))->value();
-    Object* key = dictionary->KeyAt(index);
+    Object* key = dictionary->NameAt(index);
     if (key->IsSymbol()) {
       has_seen_symbol = true;
       continue;
@@ -17848,27 +17835,23 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
   if (has_seen_symbol) {
     for (int i = 0; i < array_size; i++) {
       int index = Smi::cast(array->get(i))->value();
-      Object* key = dictionary->KeyAt(index);
+      Object* key = dictionary->NameAt(index);
       if (!key->IsSymbol()) continue;
       keys->AddKey(key, DO_NOT_CONVERT);
     }
   }
 }
 
-
 // Backwards lookup (slow).
 template <typename Derived, typename Shape>
 Object* Dictionary<Derived, Shape>::SlowReverseLookup(Object* value) {
-  Isolate* isolate = this->GetIsolate();
-  int capacity = this->Capacity();
+  Derived* dictionary = Derived::cast(this);
+  Isolate* isolate = dictionary->GetIsolate();
+  int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (!this->IsKey(isolate, k)) continue;
-    Object* e = this->ValueAt(i);
-    // TODO(dcarney): this should be templatized.
-    if (e->IsPropertyCell()) {
-      e = PropertyCell::cast(e)->value();
-    }
+    Object* k;
+    if (!dictionary->ToKey(isolate, i, &k)) continue;
+    Object* e = dictionary->ValueAt(i);
     if (e == value) return k;
   }
   return isolate->heap()->undefined_value();
@@ -18743,11 +18726,11 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
     int count = 0;
     for (int i = 0;
          count / values_per_entry < max_entries && i < table->Capacity(); i++) {
-      Handle<Object> key(table->KeyAt(i), isolate);
-      if (table->IsKey(isolate, *key)) {
-        entries->set(count++, *key);
+      Object* key;
+      if (table->ToKey(isolate, i, &key)) {
+        entries->set(count++, key);
         if (values_per_entry > 1) {
-          Object* value = table->Lookup(key);
+          Object* value = table->Lookup(handle(key, isolate));
           entries->set(count++, value);
         }
       }
@@ -19164,9 +19147,9 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
     Handle<GlobalDictionary> dictionary, int entry) {
   Isolate* isolate = dictionary->GetIsolate();
   // Swap with a copy.
-  DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
-  Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
-  Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell();
+  Handle<PropertyCell> cell(dictionary->CellAt(entry));
+  Handle<Name> name(cell->name(), isolate);
+  Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell(name);
   new_cell->set_value(cell->value());
   dictionary->ValueAtPut(entry, *new_cell);
   bool is_the_hole = cell->value()->IsTheHole(isolate);
@@ -19249,19 +19232,20 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
     PropertyDetails details) {
   Isolate* isolate = dictionary->GetIsolate();
   DCHECK(!value->IsTheHole(isolate));
-  DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
-  Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
+  Handle<PropertyCell> cell(dictionary->CellAt(entry));
   const PropertyDetails original_details = cell->property_details();
   // Data accesses could be cached in ics or optimized code.
   bool invalidate =
       original_details.kind() == kData && details.kind() == kAccessor;
-  int index = original_details.dictionary_index();
+  int index;
   PropertyCellType old_type = original_details.cell_type();
   // Preserve the enumeration index unless the property was deleted or never
   // initialized.
   if (cell->value()->IsTheHole(isolate)) {
     index = dictionary->NextEnumerationIndex();
     dictionary->SetNextEnumerationIndex(index + 1);
+  } else {
+    index = original_details.dictionary_index();
   }
   DCHECK_LT(0, index);
   details = details.set_index(index);
@@ -19879,9 +19863,9 @@ void FetchStarExports(Handle<Module> module, Zone* zone,
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
     for (int i = 0, n = requested_exports->Capacity(); i < n; ++i) {
-      Handle<Object> key(requested_exports->KeyAt(i), isolate);
-      if (!requested_exports->IsKey(isolate, *key)) continue;
-      Handle<String> name = Handle<String>::cast(key);
+      Object* key;
+      if (!requested_exports->ToKey(isolate, i, &key)) continue;
+      Handle<String> name(String::cast(key), isolate);
 
       if (name->Equals(isolate->heap()->default_string())) continue;
       if (!exports->Lookup(name)->IsTheHole(isolate)) continue;
@@ -19945,10 +19929,9 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   ZoneVector<Handle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
   for (int i = 0, n = exports->Capacity(); i < n; ++i) {
-    Handle<Object> key(exports->KeyAt(i), isolate);
-    if (!exports->IsKey(isolate, *key)) continue;
-    DCHECK(exports->ValueAt(i)->IsCell());
-    names.push_back(Handle<String>::cast(key));
+    Object* key;
+    if (!exports->ToKey(isolate, i, &key)) continue;
+    names.push_back(handle(String::cast(key), isolate));
   }
   DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());
 

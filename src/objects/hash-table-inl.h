@@ -10,6 +10,12 @@
 namespace v8 {
 namespace internal {
 
+template <typename KeyT>
+bool BaseShape<KeyT>::IsLive(Isolate* isolate, Object* k) {
+  Heap* heap = isolate->heap();
+  return k != heap->the_hole_value() && k != heap->undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
 

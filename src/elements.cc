@@ -1435,7 +1435,6 @@ class DictionaryElementsAccessor
     for (int i = 0; i < capacity; i++) {
       Object* key = dict->KeyAt(i);
       if (!dict->IsKey(isolate, key)) continue;
-      DCHECK(!dict->IsDeleted(i));
       PropertyDetails details = dict->DetailsAt(i);
       if (details.kind() == kAccessor) return true;
     }
@@ -1534,7 +1533,6 @@ class DictionaryElementsAccessor
 
   static uint32_t FilterKey(Handle<SeededNumberDictionary> dictionary,
                             int entry, Object* raw_key, PropertyFilter filter) {
-    DCHECK(!dictionary->IsDeleted(entry));
     DCHECK(raw_key->IsNumber());
     DCHECK_LE(raw_key->Number(), kMaxUInt32);
     PropertyDetails details = dictionary->DetailsAt(entry);
@@ -1607,16 +1605,12 @@ class DictionaryElementsAccessor
                                               KeyAccumulator* accumulator,
                                               AddKeyConversion convert) {
     Isolate* isolate = accumulator->isolate();
-    Handle<Object> undefined = isolate->factory()->undefined_value();
-    Handle<Object> the_hole = isolate->factory()->the_hole_value();
     Handle<SeededNumberDictionary> dictionary(
         SeededNumberDictionary::cast(receiver->elements()), isolate);
     int capacity = dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* k = dictionary->KeyAt(i);
-      if (k == *undefined) continue;
-      if (k == *the_hole) continue;
-      if (dictionary->IsDeleted(i)) continue;
+      if (!dictionary->IsKey(isolate, k)) continue;
       Object* value = dictionary->ValueAt(i);
       DCHECK(!value->IsTheHole(isolate));
       DCHECK(!value->IsAccessorPair());

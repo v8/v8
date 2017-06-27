@@ -6043,6 +6043,8 @@ class Cell: public HeapObject {
 
 class PropertyCell : public HeapObject {
  public:
+  // [name]: the name of the global property.
+  DECL_ACCESSORS(name, Name)
   // [property_details]: details of the global property.
   DECL_ACCESSORS(property_details_raw, Object)
   // [value]: value of the global property.
@@ -6082,13 +6084,12 @@ class PropertyCell : public HeapObject {
 
   // Layout description.
   static const int kDetailsOffset = HeapObject::kHeaderSize;
-  static const int kValueOffset = kDetailsOffset + kPointerSize;
+  static const int kNameOffset = kDetailsOffset + kPointerSize;
+  static const int kValueOffset = kNameOffset + kPointerSize;
   static const int kDependentCodeOffset = kValueOffset + kPointerSize;
   static const int kSize = kDependentCodeOffset + kPointerSize;
 
-  typedef FixedBodyDescriptor<kValueOffset,
-                              kSize,
-                              kSize> BodyDescriptor;
+  typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 

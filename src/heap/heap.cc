@@ -2535,7 +2535,8 @@ AllocationResult Heap::AllocateCell(Object* value) {
   return result;
 }
 
-AllocationResult Heap::AllocatePropertyCell() {
+AllocationResult Heap::AllocatePropertyCell(Name* name) {
+  DCHECK(name->IsUniqueName());
   int size = PropertyCell::kSize;
   STATIC_ASSERT(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
 
@@ -2549,6 +2550,7 @@ AllocationResult Heap::AllocatePropertyCell() {
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
   cell->set_property_details(PropertyDetails(Smi::kZero));
+  cell->set_name(name);
   cell->set_value(the_hole_value());
   return result;
 }
@@ -2841,15 +2843,15 @@ void Heap::CreateInitialObjects() {
   script->set_type(Script::TYPE_NATIVE);
   set_empty_script(*script);
 
-  Handle<PropertyCell> cell = factory->NewPropertyCell();
+  Handle<PropertyCell> cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_protector(*cell);
 
-  cell = factory->NewPropertyCell();
+  cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(the_hole_value());
   set_empty_property_cell(*cell);
 
-  cell = factory->NewPropertyCell();
+  cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_iterator_protector(*cell);
 
@@ -2861,7 +2863,7 @@ void Heap::CreateInitialObjects() {
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_species_protector(*species_cell);
 
-  cell = factory->NewPropertyCell();
+  cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_string_length_protector(*cell);
 
@@ -2869,7 +2871,7 @@ void Heap::CreateInitialObjects() {
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_fast_array_iteration_protector(*fast_array_iteration_cell);
 
-  cell = factory->NewPropertyCell();
+  cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_buffer_neutering_protector(*cell);
 

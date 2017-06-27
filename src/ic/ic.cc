@@ -857,8 +857,7 @@ Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSObject> holder,
     GlobalDictionary* dict = global->global_dictionary();
     int number = dict->FindEntry(name);
     DCHECK_NE(NameDictionary::kNotFound, number);
-    Handle<PropertyCell> cell(PropertyCell::cast(dict->ValueAt(number)),
-                              isolate);
+    Handle<PropertyCell> cell(dict->CellAt(number), isolate);
     return isolate->factory()->NewWeakCell(cell);
   }
   return Map::GetOrCreatePrototypeWeakCell(holder, isolate);

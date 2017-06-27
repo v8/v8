@@ -5012,22 +5012,16 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     // Copy all keys and values in enumeration order.
     Handle<GlobalDictionary> properties =
         Handle<GlobalDictionary>(from->global_dictionary());
-    Handle<FixedArray> key_indices =
-        GlobalDictionary::IterationIndices(properties);
-    for (int i = 0; i < key_indices->length(); i++) {
-      int key_index = Smi::cast(key_indices->get(i))->value();
-      Object* raw_key = properties->KeyAt(key_index);
-      DCHECK(properties->IsKey(isolate(), raw_key));
-      DCHECK(raw_key->IsName());
+    Handle<FixedArray> indices = GlobalDictionary::IterationIndices(properties);
+    for (int i = 0; i < indices->length(); i++) {
+      int index = Smi::cast(indices->get(i))->value();
       // If the property is already there we skip it.
-      Handle<Name> key(Name::cast(raw_key), isolate());
+      Handle<PropertyCell> cell(properties->CellAt(index));
+      Handle<Name> key(cell->name(), isolate());
       LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
       CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
       if (it.IsFound()) continue;
       // Set the property.
-      DCHECK(properties->ValueAt(key_index)->IsPropertyCell());
-      Handle<PropertyCell> cell(
-          PropertyCell::cast(properties->ValueAt(key_index)), isolate());
       Handle<Object> value(cell->value(), isolate());
       if (value->IsTheHole(isolate())) continue;
       PropertyDetails details = cell->property_details();

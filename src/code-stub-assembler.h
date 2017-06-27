@@ -1137,6 +1137,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // {if_not_found}.
   static const int kInlinedDictionaryProbes = 4;
   enum LookupMode { kFindExisting, kFindInsertionIndex };
+
+  template <typename Dictionary>
+  Node* LoadName(Node* key);
+
   template <typename Dictionary>
   void NameDictionaryLookup(Node* dictionary, Node* unique_name,
                             Label* if_found, Variable* var_name_index,

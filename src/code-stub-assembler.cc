@@ -4968,6 +4968,19 @@ void CodeStubAssembler::SetNextEnumerationIndex(Node* dictionary,
                          next_enum_index_smi, SKIP_WRITE_BARRIER);
 }
 
+template <>
+Node* CodeStubAssembler::LoadName<NameDictionary>(Node* key) {
+  CSA_ASSERT(this, Word32Or(IsTheHole(key), IsName(key)));
+  return key;
+}
+
+template <>
+Node* CodeStubAssembler::LoadName<GlobalDictionary>(Node* key) {
+  CSA_ASSERT(this, IsPropertyCell(key));
+  CSA_ASSERT(this, IsNotTheHole(key));
+  return LoadObjectField(key, PropertyCell::kNameOffset);
+}
+
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
                                              Node* unique_name, Label* if_found,
@@ -4988,12 +5001,15 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
   // See Dictionary::FirstProbe().
   Node* count = IntPtrConstant(0);
   Node* entry = WordAnd(hash, mask);
+  Node* undefined = UndefinedConstant();
 
   for (int i = 0; i < inlined_probes; i++) {
     Node* index = EntryToIndex<Dictionary>(entry);
     var_name_index->Bind(index);
 
     Node* current = LoadFixedArrayElement(dictionary, index);
+    GotoIf(WordEqual(current, undefined), if_not_found);
+    current = LoadName<Dictionary>(current);
     GotoIf(WordEqual(current, unique_name), if_found);
 
     // See Dictionary::NextProbe().
@@ -5005,7 +5021,6 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     var_name_index->Bind(IntPtrConstant(0));
   }
 
-  Node* undefined = UndefinedConstant();
   Node* the_hole = mode == kFindExisting ? nullptr : TheHoleConstant();
 
   VARIABLE(var_count, MachineType::PointerRepresentation(), count);
@@ -5023,6 +5038,7 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     if (mode == kFindExisting) {
+      current = LoadName<Dictionary>(current);
       GotoIf(WordEqual(current, unique_name), if_found);
     } else {
       DCHECK_EQ(kFindInsertionIndex, mode);
@@ -5589,8 +5605,8 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
   Comment("[ LoadPropertyFromGlobalDictionary");
   CSA_ASSERT(this, IsDictionary(dictionary));
 
-  Node* property_cell =
-      LoadValueByKeyIndex<GlobalDictionary>(dictionary, name_index);
+  Node* property_cell = LoadFixedArrayElement(dictionary, name_index);
+  CSA_ASSERT(this, IsPropertyCell(property_cell));
 
   Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
   GotoIf(WordEqual(value, TheHoleConstant()), if_deleted);

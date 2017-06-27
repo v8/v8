@@ -58,6 +58,11 @@ class BaseShape {
   typedef KeyT Key;
   static inline Map* GetMap(Isolate* isolate);
   static const bool kNeedsHoleCheck = true;
+  static Object* Unwrap(Object* key) { return key; }
+  static bool IsKey(Isolate* isolate, Object* key) {
+    return IsLive(isolate, key);
+  }
+  static inline bool IsLive(Isolate* isolate, Object* key);
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
@@ -83,10 +88,6 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   // Computes the required capacity for a table holding the given
   // number of elements. May be more than HashTable::kMaxCapacity.
   static inline int ComputeCapacity(int at_least_space_for);
-
-  // Tells whether k is a real key.  The hole and undefined are not allowed
-  // as keys and can be used to indicate missing or deleted elements.
-  static inline bool IsKey(Isolate* isolate, Object* k);
 
   // Compute the probe offset (quadratic probing).
   INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
@@ -152,6 +153,19 @@ class HashTable : public HashTableBase {
 
   // Rehashes the table in-place.
   void Rehash();
+
+  // Tells whether k is a real key.  The hole and undefined are not allowed
+  // as keys and can be used to indicate missing or deleted elements.
+  static bool IsKey(Isolate* isolate, Object* k) {
+    return Shape::IsKey(isolate, k);
+  }
+
+  inline bool ToKey(Isolate* isolate, int entry, Object** out_k) {
+    Object* k = KeyAt(entry);
+    if (!IsKey(isolate, k)) return false;
+    *out_k = Shape::Unwrap(k);
+    return true;
+  }
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }

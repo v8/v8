@@ -371,7 +371,7 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<Cell> NewCell(Handle<Object> value);
 
-  Handle<PropertyCell> NewPropertyCell();
+  Handle<PropertyCell> NewPropertyCell(Handle<Name> name);
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
 

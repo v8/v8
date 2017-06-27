@@ -1235,11 +1235,9 @@ Handle<Cell> Factory::NewManyClosuresCell(Handle<Object> value) {
   return cell;
 }
 
-Handle<PropertyCell> Factory::NewPropertyCell() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocatePropertyCell(),
-      PropertyCell);
+Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name) {
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocatePropertyCell(*name),
+                     PropertyCell);
 }
 
 
@@ -1850,7 +1848,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
     PropertyDetails d(kAccessor, details.attributes(),
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i));
-    Handle<PropertyCell> cell = NewPropertyCell();
+    Handle<PropertyCell> cell = NewPropertyCell(name);
     cell->set_value(descs->GetValue(i));
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(dictionary, name, cell, d));

@@ -1151,6 +1151,8 @@ void Cell::CellPrint(std::ostream& os) {  // NOLINT
 
 void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyCell");
+  os << "\n - name: ";
+  name()->NamePrint(os);
   os << "\n - value: " << Brief(value());
   os << "\n - details: ";
   property_details().PrintAsSlowTo(os);
