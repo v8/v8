@@ -728,6 +728,8 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "candidates pages (requires --stress_compaction).")
 DEFINE_BOOL(fast_promotion_new_space, false,
             "fast promote new space on high survival rates")
+DEFINE_BOOL(oom_on_compaction_failure, true,
+            "compaction failure results in an OOM")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,

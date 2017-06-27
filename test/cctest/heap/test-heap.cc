@@ -4854,6 +4854,7 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 HEAP_TEST(Regress538257) {
+  FLAG_oom_on_compaction_failure = false;
   FLAG_concurrent_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
   v8::Isolate::CreateParams create_params;
@@ -5692,6 +5693,7 @@ HEAP_TEST(Regress587004) {
 }
 
 HEAP_TEST(Regress589413) {
+  FLAG_oom_on_compaction_failure = false;
   if (!FLAG_incremental_marking) return;
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
