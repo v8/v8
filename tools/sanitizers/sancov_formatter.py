@@ -78,7 +78,8 @@ EXE_BLACKLIST = [
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 
-# Executable location. TODO(machenbach): Only release is supported for now.
+# Executable location.
+# FIXME(machenbach): Pass real builddir to work with developer gn checkouts.
 BUILD_DIR = os.path.join(BASE_DIR, 'out', 'Release')
 
 # Path prefix added by the llvm symbolizer including trailing slash.
@@ -168,7 +169,7 @@ def get_instrumented_lines(executable):
   process = subprocess.Popen(
       'objdump -d %s | '
       'grep \'^\s\+[0-9a-f]\+:.*\scall\(q\|\)\s\+[0-9a-f]\+ '
-      '<__sanitizer_cov\(_with_check\|\)\(@plt\|\)>\' | '
+      '<__sanitizer_cov\(_with_check\|\|_trace_pc_guard\)\(@plt\|\)>\' | '
       'grep \'^\s\+[0-9a-f]\+\' -o | '
       '%s | '
       '%s --obj %s -functions=none' %
