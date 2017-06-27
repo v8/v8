@@ -3516,7 +3516,7 @@ class Evacuator : public Malloced {
 
   virtual ~Evacuator() {}
 
-  void EvacuatePage(Page* page);
+  bool EvacuatePage(Page* page);
 
   void AddObserver(MigrationObserver* observer) {
     new_space_visitor_.AddObserver(observer);
@@ -3534,7 +3534,7 @@ class Evacuator : public Malloced {
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   // |saved_live_bytes| returns the live bytes of the page that was processed.
-  virtual void RawEvacuatePage(Page* page, intptr_t* saved_live_bytes) = 0;
+  virtual bool RawEvacuatePage(Page* page, intptr_t* saved_live_bytes) = 0;
 
   inline Heap* heap() { return heap_; }
 
@@ -3562,29 +3562,31 @@ class Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-void Evacuator::EvacuatePage(Page* page) {
+bool Evacuator::EvacuatePage(Page* page) {
+  bool success = false;
   DCHECK(page->SweepingDone());
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
     TimedScope timed_scope(&evacuation_time);
-    RawEvacuatePage(page, &saved_live_bytes);
+    success = RawEvacuatePage(page, &saved_live_bytes);
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (FLAG_trace_evacuation) {
-    PrintIsolate(
-        heap()->isolate(),
-        "evacuation[%p]: page=%p new_space=%d "
-        "page_evacuation=%d executable=%d contains_age_mark=%d "
-        "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
-        static_cast<void*>(this), static_cast<void*>(page), page->InNewSpace(),
-        page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
-            page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-        page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-        page->Contains(heap()->new_space()->age_mark()), saved_live_bytes,
-        evacuation_time, page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+    PrintIsolate(heap()->isolate(),
+                 "evacuation[%p]: page=%p new_space=%d "
+                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
+                 static_cast<void*>(this), static_cast<void*>(page),
+                 page->InNewSpace(),
+                 page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
+                     page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
+                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+                 page->Contains(heap()->new_space()->age_mark()),
+                 saved_live_bytes, evacuation_time, success);
   }
+  return success;
 }
 
 void Evacuator::Finalize() {
@@ -3612,68 +3614,64 @@ class FullEvacuator : public Evacuator {
       : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
 
  protected:
-  void RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
+  bool RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
 
   MarkCompactCollector* collector_;
 };
 
-void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
+bool FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
+  bool success = false;
+  LiveObjectVisitor object_visitor;
   const MarkingState state = collector_->marking_state(page);
   *live_bytes = state.live_bytes();
-  HeapObject* failed_object = nullptr;
   switch (ComputeEvacuationMode(page)) {
     case kObjectsNewToOld:
-      LiveObjectVisitor::VisitBlackObjectsNoFail(
+      success = object_visitor.VisitBlackObjects(
           page, state, &new_space_visitor_, LiveObjectVisitor::kClearMarkbits);
+      DCHECK(success);
       ArrayBufferTracker::ProcessBuffers(
           page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
       break;
     case kPageNewToOld:
-      LiveObjectVisitor::VisitBlackObjectsNoFail(
+      success = object_visitor.VisitBlackObjects(
           page, state, &new_to_old_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
+      DCHECK(success);
       new_to_old_page_visitor_.account_moved_bytes(state.live_bytes());
       // ArrayBufferTracker will be updated during sweeping.
       break;
     case kPageNewToNew:
-      LiveObjectVisitor::VisitBlackObjectsNoFail(
+      success = object_visitor.VisitBlackObjects(
           page, state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
+      DCHECK(success);
       new_to_new_page_visitor_.account_moved_bytes(state.live_bytes());
       // ArrayBufferTracker will be updated during sweeping.
       break;
-    case kObjectsOldToOld: {
-      const bool success = LiveObjectVisitor::VisitBlackObjects(
-          page, state, &old_space_visitor_, LiveObjectVisitor::kClearMarkbits,
-          &failed_object);
+    case kObjectsOldToOld:
+      success = object_visitor.VisitBlackObjects(
+          page, state, &old_space_visitor_, LiveObjectVisitor::kClearMarkbits);
       if (!success) {
-        if (FLAG_oom_on_compaction_failure) {
-          FatalProcessOutOfMemory("Compaction");
-        }
         // Aborted compaction page. We have to record slots here, since we
         // might not have recorded them in first place.
         // Note: We mark the page as aborted here to be able to record slots
         // for code objects in |RecordMigratedSlotVisitor| and to be able
         // to identify the page later on for post processing.
         page->SetFlag(Page::COMPACTION_WAS_ABORTED);
-        RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(),
-                                               failed_object->address(),
-                                               SlotSet::PREFREE_EMPTY_BUCKETS);
-        RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
-                                                    failed_object->address());
-        LiveObjectVisitor::RecomputeLiveBytes(page, state);
         EvacuateRecordOnlyVisitor record_visitor(heap());
-        LiveObjectVisitor::VisitBlackObjectsNoFail(
+        success = object_visitor.VisitBlackObjects(
             page, state, &record_visitor, LiveObjectVisitor::kKeepMarking);
         ArrayBufferTracker::ProcessBuffers(
             page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
+        DCHECK(success);
+        success = false;
       } else {
         ArrayBufferTracker::ProcessBuffers(
             page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
       }
       break;
-    }
   }
+  return success;
 }
 
 class YoungGenerationEvacuator : public Evacuator {
@@ -3683,26 +3681,30 @@ class YoungGenerationEvacuator : public Evacuator {
       : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
 
  protected:
-  void RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
+  bool RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
 
   MinorMarkCompactCollector* collector_;
 };
 
-void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
+bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
                                                intptr_t* live_bytes) {
+  bool success = false;
+  LiveObjectVisitor object_visitor;
   const MarkingState state = collector_->marking_state(page);
   *live_bytes = state.live_bytes();
   switch (ComputeEvacuationMode(page)) {
     case kObjectsNewToOld:
-      LiveObjectVisitor::VisitGreyObjectsNoFail(
+      success = object_visitor.VisitGreyObjectsNoFail(
           page, state, &new_space_visitor_, LiveObjectVisitor::kClearMarkbits);
+      DCHECK(success);
       ArrayBufferTracker::ProcessBuffers(
           page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
       break;
     case kPageNewToOld:
-      LiveObjectVisitor::VisitGreyObjectsNoFail(
+      success = object_visitor.VisitGreyObjectsNoFail(
           page, state, &new_to_old_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
+      DCHECK(success);
       new_to_old_page_visitor_.account_moved_bytes(state.live_bytes());
       // TODO(mlippautz): If cleaning array buffers is too slow here we can
       // delay it until the next GC.
@@ -3719,9 +3721,10 @@ void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
       }
       break;
     case kPageNewToNew:
-      LiveObjectVisitor::VisitGreyObjectsNoFail(
+      success = object_visitor.VisitGreyObjectsNoFail(
           page, state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
+      DCHECK(success);
       new_to_new_page_visitor_.account_moved_bytes(state.live_bytes());
       // TODO(mlippautz): If cleaning array buffers is too slow here we can
       // delay it until the next GC.
@@ -3741,6 +3744,7 @@ void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
       UNREACHABLE();
       break;
   }
+  return success;
 }
 
 class PageEvacuationItem : public ItemParallelJob::Item {
@@ -4070,17 +4074,16 @@ bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
 
 void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
   EvacuateRecordOnlyVisitor visitor(heap());
-  LiveObjectVisitor::VisitBlackObjectsNoFail(page, MarkingState::Internal(page),
-                                             &visitor,
-                                             LiveObjectVisitor::kKeepMarking);
+  LiveObjectVisitor object_visitor;
+  object_visitor.VisitBlackObjects(page, MarkingState::Internal(page), &visitor,
+                                   LiveObjectVisitor::kKeepMarking);
 }
 
 template <class Visitor>
 bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           const MarkingState& state,
                                           Visitor* visitor,
-                                          IterationMode iteration_mode,
-                                          HeapObject** failed_object) {
+                                          IterationMode iteration_mode) {
   for (auto object_and_size : LiveObjectRange<kBlackObjects>(chunk, state)) {
     HeapObject* const object = object_and_size.first;
     if (!visitor->Visit(object, object_and_size.second)) {
@@ -4088,7 +4091,12 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
         state.bitmap()->ClearRange(
             chunk->AddressToMarkbitIndex(chunk->area_start()),
             chunk->AddressToMarkbitIndex(object->address()));
-        *failed_object = object;
+        RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, chunk->address(),
+                                               object->address(),
+                                               SlotSet::PREFREE_EMPTY_BUCKETS);
+        RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(chunk, chunk->address(),
+                                                    object->address());
+        RecomputeLiveBytes(chunk, state);
       }
       return false;
     }
@@ -4100,37 +4108,21 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
 }
 
 template <class Visitor>
-void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
-                                                const MarkingState& state,
-                                                Visitor* visitor,
-                                                IterationMode iteration_mode) {
-  for (auto object_and_size : LiveObjectRange<kBlackObjects>(chunk, state)) {
-    HeapObject* const object = object_and_size.first;
-    DCHECK(ObjectMarking::IsBlack(object, state));
-    const bool success = visitor->Visit(object, object_and_size.second);
-    USE(success);
-    DCHECK(success);
-  }
-  if (iteration_mode == kClearMarkbits) {
-    state.ClearLiveness();
-  }
-}
-
-template <class Visitor>
-void LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
+bool LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
                                                const MarkingState& state,
                                                Visitor* visitor,
                                                IterationMode iteration_mode) {
   for (auto object_and_size : LiveObjectRange<kGreyObjects>(chunk, state)) {
     HeapObject* const object = object_and_size.first;
     DCHECK(ObjectMarking::IsGrey(object, state));
-    const bool success = visitor->Visit(object, object_and_size.second);
-    USE(success);
-    DCHECK(success);
+    if (!visitor->Visit(object, object_and_size.second)) {
+      UNREACHABLE();
+    }
   }
   if (iteration_mode == kClearMarkbits) {
     state.ClearLiveness();
   }
+  return true;
 }
 
 void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,

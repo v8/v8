@@ -230,38 +230,28 @@ class LiveObjectRange {
   Address end_;
 };
 
-class LiveObjectVisitor : AllStatic {
+class LiveObjectVisitor BASE_EMBEDDED {
  public:
   enum IterationMode {
     kKeepMarking,
     kClearMarkbits,
   };
 
-  // Visits black objects on a MemoryChunk until the Visitor returns |false| for
-  // an object. If IterationMode::kClearMarkbits is passed the markbits and
-  // slots for visited objects are cleared for each successfully visited object.
+  // Visits black objects on a MemoryChunk until the Visitor returns for an
+  // object. If IterationMode::kClearMarkbits is passed the markbits and slots
+  // for visited objects are cleared for each successfully visited object.
   template <class Visitor>
-  static bool VisitBlackObjects(MemoryChunk* chunk, const MarkingState& state,
-                                Visitor* visitor, IterationMode iteration_mode,
-                                HeapObject** failed_object);
+  bool VisitBlackObjects(MemoryChunk* chunk, const MarkingState& state,
+                         Visitor* visitor, IterationMode iteration_mode);
 
-  // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
-  // visitation for an object.
+  // Visits grey objects on a Memorychunk. Is not allowed to fail visitation
+  // for an object.
   template <class Visitor>
-  static void VisitBlackObjectsNoFail(MemoryChunk* chunk,
-                                      const MarkingState& state,
-                                      Visitor* visitor,
-                                      IterationMode iteration_mode);
+  bool VisitGreyObjectsNoFail(MemoryChunk* chunk, const MarkingState& state,
+                              Visitor* visitor, IterationMode iteration_mode);
 
-  // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
-  // visitation for an object.
-  template <class Visitor>
-  static void VisitGreyObjectsNoFail(MemoryChunk* chunk,
-                                     const MarkingState& state,
-                                     Visitor* visitor,
-                                     IterationMode iteration_mode);
-
-  static void RecomputeLiveBytes(MemoryChunk* chunk, const MarkingState& state);
+ private:
+  void RecomputeLiveBytes(MemoryChunk* chunk, const MarkingState& state);
 };
 
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
