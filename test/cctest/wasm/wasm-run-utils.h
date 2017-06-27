@@ -517,7 +517,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   MachineOperatorBuilder* machine() { return &main_machine_; }
   CallDescriptor* descriptor() {
     if (descriptor_ == nullptr) {
-      descriptor_ = testing_module_->GetWasmCallDescriptor(zone(), sig);
+      descriptor_ = compiler::GetWasmCallDescriptor(zone(), sig);
     }
     return descriptor_;
   }
@@ -604,7 +604,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   Handle<Code> Compile() {
     CallDescriptor* desc = descriptor();
     if (kPointerSize == 4) {
-      desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
+      desc = compiler::GetI32WasmCallDescriptor(this->zone(), desc);
     }
     EmbeddedVector<char, 16> comp_name;
     int comp_name_len = SNPrintF(comp_name, "wasm#%u", this->function_index());

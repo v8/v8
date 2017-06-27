@@ -2190,8 +2190,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   args[params + 1] = *effect_;
   args[params + 2] = *control_;
 
-  CallDescriptor* descriptor =
-      wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  CallDescriptor* descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig);
   const Operator* op = jsgraph()->common()->Call(descriptor);
   Node* call = graph()->NewNode(op, static_cast<int>(count), args);
   SetSourcePosition(call, position);
@@ -2655,8 +2654,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
 
     // We only need a dummy call descriptor.
     wasm::FunctionSig::Builder dummy_sig_builder(jsgraph()->zone(), 0, 0);
-    CallDescriptor* desc = wasm::ModuleEnv::GetWasmCallDescriptor(
-        jsgraph()->zone(), dummy_sig_builder.Build());
+    CallDescriptor* desc =
+        GetWasmCallDescriptor(jsgraph()->zone(), dummy_sig_builder.Build());
     *effect_ = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
     Return(jsgraph()->UndefinedConstant());
     return;
@@ -2676,8 +2675,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   args[pos++] = *control_;
 
   // Call the wasm code.
-  CallDescriptor* desc =
-      wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig);
 
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
   *effect_ = call;
@@ -3753,10 +3751,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
     }
 
     // Schedule and compile to machine code.
-    CallDescriptor* incoming =
-        wasm::ModuleEnv::GetWasmCallDescriptor(&zone, sig);
+    CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
     if (machine.Is32()) {
-      incoming = wasm::ModuleEnv::GetI32WasmCallDescriptor(&zone, incoming);
+      incoming = GetI32WasmCallDescriptor(&zone, incoming);
     }
     Code::Flags flags = Code::ComputeFlags(Code::WASM_TO_JS_FUNCTION);
     bool debugging =
@@ -3838,10 +3835,9 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     }
 
     // Schedule and compile to machine code.
-    CallDescriptor* incoming =
-        wasm::ModuleEnv::GetWasmCallDescriptor(&zone, sig);
+    CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
     if (machine.Is32()) {
-      incoming = wasm::ModuleEnv::GetI32WasmCallDescriptor(&zone, incoming);
+      incoming = GetI32WasmCallDescriptor(&zone, incoming);
     }
     Code::Flags flags = Code::ComputeFlags(Code::WASM_INTERPRETER_ENTRY);
     EmbeddedVector<char, 32> debug_name;
@@ -4015,11 +4011,11 @@ void WasmCompilationUnit::ExecuteCompilation() {
     compilation_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
 
     // Run the compiler pipeline to generate machine code.
-    CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
-        compilation_zone_.get(), func_body_.sig);
+    CallDescriptor* descriptor =
+        GetWasmCallDescriptor(compilation_zone_.get(), func_body_.sig);
     if (jsgraph_->machine()->Is32()) {
-      descriptor = module_env_->GetI32WasmCallDescriptor(
-          compilation_zone_.get(), descriptor);
+      descriptor =
+          GetI32WasmCallDescriptor(compilation_zone_.get(), descriptor);
     }
     info_.reset(new CompilationInfo(
         GetDebugName(compilation_zone_.get(), func_name_, func_index_),

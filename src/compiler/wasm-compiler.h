@@ -411,6 +411,13 @@ class WasmGraphBuilder {
   void SetNeedsStackCheck() { needs_stack_check_ = true; }
 };
 
+V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,
+                                                        wasm::FunctionSig* sig);
+V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
+    Zone* zone, CallDescriptor* descriptor);
+V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
+    Zone* zone, CallDescriptor* descriptor);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -12,6 +12,7 @@
 #include "src/compiler/node-properties.h"
 
 #include "src/compiler/node.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone.h"
@@ -296,8 +297,8 @@ void Int64Lowering::LowerNode(Node* node) {
           (descriptor->ReturnCount() == 1 &&
            descriptor->GetReturnType(0) == MachineType::Int64())) {
         // We have to adjust the call descriptor.
-        const Operator* op = common()->Call(
-            wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), descriptor));
+        const Operator* op =
+            common()->Call(GetI32WasmCallDescriptor(zone(), descriptor));
         NodeProperties::ChangeOp(node, op);
       }
       if (descriptor->ReturnCount() == 1 &&

@@ -9,6 +9,7 @@
 #include "src/compiler/node-properties.h"
 
 #include "src/compiler/node.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 
@@ -786,8 +787,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
            descriptor->GetReturnType(0) == MachineType::Simd128())) {
         // We have to adjust the call descriptor.
         const Operator* op =
-            common()->Call(wasm::ModuleEnv::GetI32WasmCallDescriptorForSimd(
-                zone(), descriptor));
+            common()->Call(GetI32WasmCallDescriptorForSimd(zone(), descriptor));
         NodeProperties::ChangeOp(node, op);
       }
       if (descriptor->ReturnCount() == 1 &&

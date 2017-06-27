@@ -268,9 +268,6 @@ class InstanceBuilder {
 // of the work of compilation) can be background tasks.
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
-  // TODO(ahaas): Fix https://bugs.chromium.org/p/v8/issues/detail?id=6263 to
-  // make sure that d8 does not shut down before the AsyncCompileJob is
-  // finished.
  public:
   explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
                            size_t length, Handle<Context> context,
