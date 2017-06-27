@@ -284,8 +284,8 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
 template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
  public:
-  ResultType Visit(HeapObject* object);
-  ResultType Visit(Map* map, HeapObject* object);
+  V8_INLINE ResultType Visit(HeapObject* object);
+  V8_INLINE ResultType Visit(Map* map, HeapObject* object);
 
  protected:
   // A guard predicate for visiting the object.
@@ -309,7 +309,8 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
 };
 
-class NewSpaceVisitor : public HeapVisitor<int, NewSpaceVisitor> {
+template <typename ConcreteVisitor>
+class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
  public:
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 

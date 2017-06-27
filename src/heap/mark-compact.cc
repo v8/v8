@@ -2203,19 +2203,21 @@ void MarkCompactCollector::RecordObjectStats() {
   }
 }
 
-class YoungGenerationMarkingVisitor final : public NewSpaceVisitor {
+class YoungGenerationMarkingVisitor final
+    : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
  public:
   YoungGenerationMarkingVisitor(Heap* heap, Worklist* global_worklist,
                                 int task_id)
       : heap_(heap), worklist_(global_worklist, task_id) {}
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) final {
+  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
+                               Object** end) final {
     for (Object** p = start; p < end; p++) {
       VisitPointer(host, p);
     }
   }
 
-  void VisitPointer(HeapObject* host, Object** slot) final {
+  V8_INLINE void VisitPointer(HeapObject* host, Object** slot) final {
     Object* target = *slot;
     if (heap_->InNewSpace(target)) {
       HeapObject* target_object = HeapObject::cast(target);

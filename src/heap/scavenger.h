@@ -59,11 +59,11 @@ class RootScavengeVisitor : public RootVisitor {
   Heap* heap_;
 };
 
-class ScavengeVisitor final : public NewSpaceVisitor {
+class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
  public:
   explicit ScavengeVisitor(Heap* heap) : heap_(heap) {}
-  inline void VisitPointers(HeapObject* host, Object** start,
-                            Object** end) final;
+  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
+                               Object** end) final;
 
  private:
   Heap* heap_;
