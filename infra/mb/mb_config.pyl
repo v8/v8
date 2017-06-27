@@ -45,9 +45,9 @@
     },
 
     'client.dart.fyi': {
-      'v8-linux-release': 'gyp_release_x86_disassembler',
-      'v8-win-release': 'gyp_release_x86_disassembler',
-      'v8-mac-release': 'gyp_release_x86_disassembler',
+      'v8-linux-release': 'gn_release_x86_disassembler',
+      'v8-win-release': 'gn_release_x86_disassembler',
+      'v8-mac-release': 'gn_release_x86_disassembler',
     },
     'client.dynamorio': {
       'linux-v8-dr': 'gn_release_x64',
@@ -448,6 +448,8 @@
     # GN release configs for x86.
     'gn_release_x86': [
       'gn', 'release_bot', 'x86', 'swarming'],
+    'gn_release_x86_disassembler': [
+      'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
       'gn', 'release_bot', 'x86', 'gcc'],
     'gn_release_x86_gcc_minimal_symbols': [
@@ -501,10 +503,6 @@
     # Gyp release configs for x64.
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
-
-    # Gyp release configs for x86.
-    'gyp_release_x86_disassembler': [
-      'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
   },
 
   'mixins': {
