@@ -23,6 +23,8 @@ TEST(ConcurrentMarking) {
   for (int i = 0; i <= Worklist::kSegmentCapacity; i++) {
     shared.Push(0, heap->undefined_value());
   }
+  HeapObject* object;
+  CHECK(shared.Pop(0, &object));
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &shared, &bailout);
   concurrent_marking->StartTask();
