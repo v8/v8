@@ -230,28 +230,38 @@ class LiveObjectRange {
   Address end_;
 };
 
-class LiveObjectVisitor BASE_EMBEDDED {
+class LiveObjectVisitor : AllStatic {
  public:
   enum IterationMode {
     kKeepMarking,
     kClearMarkbits,
   };
 
-  // Visits black objects on a MemoryChunk until the Visitor returns for an
-  // object. If IterationMode::kClearMarkbits is passed the markbits and slots
-  // for visited objects are cleared for each successfully visited object.
+  // Visits black objects on a MemoryChunk until the Visitor returns |false| for
+  // an object. If IterationMode::kClearMarkbits is passed the markbits and
+  // slots for visited objects are cleared for each successfully visited object.
   template <class Visitor>
-  bool VisitBlackObjects(MemoryChunk* chunk, const MarkingState& state,
-                         Visitor* visitor, IterationMode iteration_mode);
+  static bool VisitBlackObjects(MemoryChunk* chunk, const MarkingState& state,
+                                Visitor* visitor, IterationMode iteration_mode,
+                                HeapObject** failed_object);
 
-  // Visits grey objects on a Memorychunk. Is not allowed to fail visitation
-  // for an object.
+  // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
+  // visitation for an object.
   template <class Visitor>
-  bool VisitGreyObjectsNoFail(MemoryChunk* chunk, const MarkingState& state,
-                              Visitor* visitor, IterationMode iteration_mode);
+  static void VisitBlackObjectsNoFail(MemoryChunk* chunk,
+                                      const MarkingState& state,
+                                      Visitor* visitor,
+                                      IterationMode iteration_mode);
 
- private:
-  void RecomputeLiveBytes(MemoryChunk* chunk, const MarkingState& state);
+  // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
+  // visitation for an object.
+  template <class Visitor>
+  static void VisitGreyObjectsNoFail(MemoryChunk* chunk,
+                                     const MarkingState& state,
+                                     Visitor* visitor,
+                                     IterationMode iteration_mode);
+
+  static void RecomputeLiveBytes(MemoryChunk* chunk, const MarkingState& state);
 };
 
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
@@ -744,7 +754,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void ReleaseEvacuationCandidates();
   void PostProcessEvacuationCandidates();
+  void ReportAbortedEvacuationCandidate(HeapObject* failed_object, Page* page);
 
+  base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_;
 
 #ifdef DEBUG
@@ -781,10 +793,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Pages that are actually processed during evacuation.
   List<Page*> old_space_evacuation_pages_;
   List<Page*> new_space_evacuation_pages_;
+  std::vector<std::pair<HeapObject*, Page*>> aborted_evacuation_candidates_;
 
   Sweeper sweeper_;
 
   friend class CodeMarkingVisitor;
+  friend class FullEvacuator;
   friend class Heap;
   friend class IncrementalMarkingMarkingVisitor;
   friend class MarkCompactMarkingVisitor;
