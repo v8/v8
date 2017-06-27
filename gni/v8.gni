@@ -7,6 +7,10 @@ import("//build/config/v8_target_cpu.gni")
 import("//build/split_static_library.gni")
 
 declare_args() {
+  # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
+  # coverage with clang.
+  v8_code_coverage = false
+
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
 
@@ -68,7 +72,6 @@ v8_remove_configs = []
 v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
-  v8_path_prefix + ":v8_code_coverage_ldflags",
 ]
 
 if (is_debug && !v8_optimized_debug) {
@@ -84,6 +87,13 @@ if (is_debug && !v8_optimized_debug) {
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
   }
+}
+
+if (v8_code_coverage && !is_clang) {
+  v8_add_configs += [
+    v8_path_prefix + ":v8_gcov_coverage_cflags",
+    v8_path_prefix + ":v8_gcov_coverage_ldflags",
+  ]
 }
 
 if (is_posix && v8_enable_backtrace) {
@@ -106,7 +116,6 @@ template("v8_source_set") {
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
-    configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
   }
 }
 
@@ -116,7 +125,6 @@ template("v8_header_set") {
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
-    configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
   }
 }
 
@@ -138,10 +146,15 @@ template("v8_executable") {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }
-    if (!defined(testonly) || !testonly) {
+    if (defined(testonly) && testonly && v8_code_coverage) {
       # Only add code coverage cflags for non-test files for performance
       # reasons.
-      configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
+      if (is_clang) {
+        configs -= [ "//build/config/sanitizers:default_sanitizer_flags" ]
+        configs += [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
+      } else {
+        configs -= [ v8_path_prefix + ":v8_gcov_coverage_cflags" ]
+      }
     }
   }
 }
@@ -152,6 +165,5 @@ template("v8_component") {
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
-    configs += [ v8_path_prefix + ":v8_code_coverage_cflags" ]
   }
 }
