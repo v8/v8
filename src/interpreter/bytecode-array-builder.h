@@ -5,10 +5,10 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
-#include <array>
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
+#include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
@@ -16,7 +16,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
-#include "src/source-position-table.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -463,7 +462,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     latest_source_info_.MakeStatementPosition(expr->position());
   }
 
-  bool RequiresImplicitReturn() const { return !exit_seen_in_block_; }
+  bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
 
   // Returns the raw operand value for the given register or register list.
   uint32_t GetInputRegisterOperand(Register reg);
@@ -487,70 +486,29 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   Zone* zone() const { return zone_; }
 
  private:
-  // Maximum sized packed bytecode is comprised of a prefix bytecode,
-  // plus the actual bytecode, plus the maximum number of operands times
-  // the maximum operand size.
-  static const size_t kMaxSizeOfPackedBytecode =
-      2 * sizeof(Bytecode) +
-      Bytecodes::kMaxOperands * static_cast<size_t>(OperandSize::kLast);
+  friend class BytecodeRegisterAllocator;
+  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+            OperandType... operand_types>
+  friend class BytecodeNodeBuilder;
 
-  // Constants that act as placeholders for jump operands to be
-  // patched. These have operand sizes that match the sizes of
-  // reserved constant pool entries.
-  static const uint32_t k8BitJumpPlaceholder = 0x7f;
-  static const uint32_t k16BitJumpPlaceholder =
-      k8BitJumpPlaceholder | (k8BitJumpPlaceholder << 8);
-  static const uint32_t k32BitJumpPlaceholder =
-      k16BitJumpPlaceholder | (k16BitJumpPlaceholder << 16);
+  const FeedbackVectorSpec* feedback_vector_spec() const {
+    return literal_->feedback_vector_spec();
+  }
 
-  void PatchJump(size_t jump_target, size_t jump_location);
-  void PatchJumpWith8BitOperand(size_t jump_location, int delta);
-  void PatchJumpWith16BitOperand(size_t jump_location, int delta);
-  void PatchJumpWith32BitOperand(size_t jump_location, int delta);
+  // Returns the current source position for the given |bytecode|.
+  INLINE(BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode));
 
-  // Emit a non-jump bytecode with the given integer operand values.
-  template <AccumulatorUse accumulator_use, OperandType... operand_types>
-  void Write(Bytecode bytecode, BytecodeSourceInfo source_info,
-             std::array<uint32_t, sizeof...(operand_types)> operand_values);
-
-  // Emit a jump bytecode with the given integer operand values.
-  template <AccumulatorUse accumulator_use, OperandType... operand_types>
-  void WriteJump(Bytecode bytecode, BytecodeSourceInfo source_info,
-                 BytecodeLabel* label,
-                 std::array<uint32_t, sizeof...(operand_types)> operand_values);
-
-  // Emit a switch bytecode with the given integer operand values.
-  template <AccumulatorUse accumulator_use, OperandType... operand_types>
-  void WriteSwitch(
-      Bytecode bytecode, BytecodeSourceInfo source_info,
-      BytecodeJumpTable* jump_table,
-      std::array<uint32_t, sizeof...(operand_types)> operand_values);
-
-  // Emit the actual bytes of a bytecode and its operands. Called by Emit for
-  // jump and non-jump bytecodes.
-  template <OperandType... operand_types>
-  void EmitBytecode(
-      Bytecode bytecode,
-      std::array<uint32_t, sizeof...(operand_types)> operand_values);
-
-#define DECLARE_BYTECODE_OUTPUT(Name, ...)                               \
-  template <typename... Operands>                                        \
-  INLINE(void Output##Name(Operands... operands));                       \
-                                                                         \
-  template <typename... Operands>                                        \
-  INLINE(void Output##Name(BytecodeLabel* label, Operands... operands)); \
-                                                                         \
-  template <typename... Operands>                                        \
-  INLINE(                                                                \
-      void Output##Name(BytecodeJumpTable* jump_table, Operands... operands));
-
+#define DECLARE_BYTECODE_OUTPUT(Name, ...)                       \
+  template <typename... Operands>                                \
+  INLINE(BytecodeNode Create##Name##Node(Operands... operands)); \
+  template <typename... Operands>                                \
+  INLINE(void Output##Name(Operands... operands));               \
+  template <typename... Operands>                                \
+  INLINE(void Output##Name(BytecodeLabel* label, Operands... operands));
   BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
 
   INLINE(void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table));
-
-  void MaybeElideLastBytecode(Bytecode next_bytecode, bool has_source_info);
-  void InvalidateLastBytecode();
 
   bool RegisterIsValid(Register reg) const;
   bool RegisterListIsValid(RegisterList reg_list) const;
@@ -558,32 +516,31 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Set position for return.
   void SetReturnPosition();
 
-  // Returns the current source position for the given |bytecode|.
-  INLINE(BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode));
-
-  // Update the source table for the current offset with the given source info.
-  void AttachSourceInfo(const BytecodeSourceInfo& source_info);
   // Sets a deferred source info which should be emitted before any future
   // source info (either attached to a following bytecode or as a nop).
   void SetDeferredSourceInfo(BytecodeSourceInfo source_info);
-  // Attach the deferred and given source infos to the current bytecode,
-  // possibly emitting a nop for the deferred info if both the deferred and
-  // given source infos are valid.
-  void AttachDeferredAndCurrentSourceInfo(BytecodeSourceInfo source_info);
+  // Either attach deferred source info to node, or emit it as a nop bytecode
+  // if node already have valid source info.
+  void AttachOrEmitDeferredSourceInfo(BytecodeNode* node);
+
+  // Write bytecode to bytecode array.
+  void Write(BytecodeNode* node);
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+  void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* label);
 
   // Not implemented as the illegal bytecode is used inside internally
   // to indicate a bytecode field is not valid or an error has occured
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  template <Bytecode bytecode, AccumulatorUse accumulator_use,
-            OperandType... operand_types>
+  template <Bytecode bytecode, AccumulatorUse accumulator_use>
   void PrepareToOutputBytecode();
 
-  void LeaveBasicBlock() { exit_seen_in_block_ = false; }
+  void LeaveBasicBlock() { return_seen_in_block_ = false; }
 
-  ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
-  const ZoneVector<uint8_t>* bytecodes() const { return &bytecodes_; }
+  BytecodeArrayWriter* bytecode_array_writer() {
+    return &bytecode_array_writer_;
+  }
   ConstantArrayBuilder* constant_array_builder() {
     return &constant_array_builder_;
   }
@@ -593,45 +550,24 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   HandlerTableBuilder* handler_table_builder() {
     return &handler_table_builder_;
   }
-  SourcePositionTableBuilder* source_position_table_builder() {
-    return &source_position_table_builder_;
-  }
-  const FeedbackVectorSpec* feedback_vector_spec() const {
-    return literal_->feedback_vector_spec();
-  }
-  void set_latest_source_info(BytecodeSourceInfo source_info) {
-    latest_source_info_ = source_info;
-  }
 
   Zone* zone_;
-  ZoneVector<uint8_t> bytecodes_;
   FunctionLiteral* literal_;
-
+  bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
-  SourcePositionTableBuilder source_position_table_builder_;
-
+  bool return_seen_in_block_;
+  int parameter_count_;
+  int local_register_count_;
+  int return_position_;
   BytecodeRegisterAllocator register_allocator_;
+  BytecodeArrayWriter bytecode_array_writer_;
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;
 
-  int parameter_count_;
-  int local_register_count_;
-  int return_position_;
-  int unbound_jumps_;
-
-  bool bytecode_generated_;
-  bool elide_noneffectful_bytecodes_;
-  bool exit_seen_in_block_;
-  bool last_bytecode_had_source_info_;
-
-  size_t last_bytecode_offset_;
-  Bytecode last_bytecode_;
-
   static int const kNoFeedbackSlot = 0;
 
-  friend class BytecodeArrayBuilderTest;
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };
 

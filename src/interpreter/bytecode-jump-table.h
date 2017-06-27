@@ -78,7 +78,7 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
   int size_;
   int case_value_base_;
 
-  friend class BytecodeArrayBuilder;
+  friend class BytecodeArrayWriter;
 };
 
 }  // namespace interpreter

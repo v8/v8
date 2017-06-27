@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE BytecodeLabel final {
   bool bound_;
   size_t offset_;
 
-  friend class BytecodeArrayBuilder;
+  friend class BytecodeArrayWriter;
 };
 
 // Class representing a branch target of multiple jumps.

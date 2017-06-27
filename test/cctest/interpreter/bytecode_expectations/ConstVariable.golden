@@ -75,12 +75,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
-  /*   48 S> */ B(Nop),
+  /*   48 S> */ B(LdaSmi), I8(20),
   /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(LdaUndefined),
   /*   56 S> */ B(Return),

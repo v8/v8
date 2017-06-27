@@ -624,37 +624,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     return IsJump(bytecode) && !IsJumpIfToBoolean(bytecode);
   }
 
-  // Return the constant operand version of the given immediate operand forward
-  // jump.
-  static Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
-    DCHECK(IsJumpImmediate(jump_bytecode));
-    DCHECK(IsForwardJump(jump_bytecode));
-    switch (jump_bytecode) {
-      case Bytecode::kJump:
-        return Bytecode::kJumpConstant;
-      case Bytecode::kJumpIfTrue:
-        return Bytecode::kJumpIfTrueConstant;
-      case Bytecode::kJumpIfFalse:
-        return Bytecode::kJumpIfFalseConstant;
-      case Bytecode::kJumpIfToBooleanTrue:
-        return Bytecode::kJumpIfToBooleanTrueConstant;
-      case Bytecode::kJumpIfToBooleanFalse:
-        return Bytecode::kJumpIfToBooleanFalseConstant;
-      case Bytecode::kJumpIfNull:
-        return Bytecode::kJumpIfNullConstant;
-      case Bytecode::kJumpIfNotNull:
-        return Bytecode::kJumpIfNotNullConstant;
-      case Bytecode::kJumpIfUndefined:
-        return Bytecode::kJumpIfUndefinedConstant;
-      case Bytecode::kJumpIfNotUndefined:
-        return Bytecode::kJumpIfNotUndefinedConstant;
-      case Bytecode::kJumpIfJSReceiver:
-        return Bytecode::kJumpIfJSReceiverConstant;
-      default:
-        UNREACHABLE();
-    }
-  }
-
   // Returns true if the bytecode is a switch.
   static constexpr bool IsSwitch(Bytecode bytecode) {
     return bytecode == Bytecode::kSwitchOnSmiNoFeedback;
@@ -667,13 +636,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
             IsRegisterLoadWithoutEffects(bytecode) ||
             IsCompareWithoutEffects(bytecode) || bytecode == Bytecode::kNop ||
             IsJumpWithoutEffects(bytecode) || IsSwitch(bytecode));
-  }
-
-  // True if the given bytecode unconditionally ends the current basic block.
-  static constexpr bool EndsBasicBlock(Bytecode bytecode) {
-    return bytecode == Bytecode::kReturn || bytecode == Bytecode::kThrow ||
-           bytecode == Bytecode::kReThrow || bytecode == Bytecode::kJump ||
-           bytecode == Bytecode::kJumpConstant;
   }
 
   // Returns true if the bytecode is Ldar or Star.
