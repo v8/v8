@@ -9,12 +9,9 @@
 #include <vector>
 
 #include "src/base/bits.h"
-#include "src/base/platform/condition-variable.h"
-#include "src/cancelable-task.h"
 #include "src/heap/marking.h"
 #include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"
-#include "src/heap/store-buffer.h"
 #include "src/heap/worklist.h"
 
 namespace v8 {
@@ -24,15 +21,11 @@ namespace internal {
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
-class WorklistView;
-class MarkCompactCollector;
-class MinorMarkCompactCollector;
-class MarkingVisitor;
 class MigrationObserver;
 class RecordMigratedSlotVisitor;
-class ThreadLocalTop;
-class Worklist;
 class YoungGenerationMarkingVisitor;
+class Worklist;
+class WorklistView;
 
 class ObjectMarking : public AllStatic {
  public:
@@ -110,7 +103,7 @@ class ObjectMarking : public AllStatic {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectMarking);
 };
 
-class MarkBitCellIterator BASE_EMBEDDED {
+class MarkBitCellIterator {
  public:
   MarkBitCellIterator(MemoryChunk* chunk, MarkingState state) : chunk_(chunk) {
     last_cell_index_ = Bitmap::IndexToCell(Bitmap::CellAlignIndex(
@@ -386,7 +379,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   std::vector<Page*> new_space_evacuation_pages_;
   std::vector<Page*> sweep_to_iterate_pages_;
 
-  friend class MarkYoungGenerationJobTraits;
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingVisitor;
 };
@@ -803,18 +795,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   Sweeper sweeper_;
 
-  friend class CodeMarkingVisitor;
   friend class FullEvacuator;
   friend class Heap;
   friend class IncrementalMarkingMarkingVisitor;
   friend class MarkCompactMarkingVisitor;
-  friend class MarkingVisitor;
   friend class RecordMigratedSlotVisitor;
-  friend class SharedFunctionInfoMarkingVisitor;
-  friend class StoreBuffer;
 };
 
-class EvacuationScope BASE_EMBEDDED {
+class EvacuationScope {
  public:
   explicit EvacuationScope(MarkCompactCollector* collector)
       : collector_(collector) {
