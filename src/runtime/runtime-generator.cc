@@ -36,13 +36,9 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorClose) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  generator->set_continuation(JSGeneratorObject::kGeneratorClosed);
-
-  return isolate->heap()->undefined_value();
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
@@ -74,10 +70,9 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInputOrDebugPos) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSAsyncGeneratorObject, generator, 0);
-  return generator->await_input_or_debug_pos();
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
