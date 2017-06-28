@@ -804,6 +804,7 @@ action("v8_dump_build_config") {
   outputs = [
     "$root_out_dir/v8_build_config.json",
   ]
+  is_gcov_coverage = v8_code_coverage && !is_clang
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "current_cpu=\"$current_cpu\"",
@@ -812,6 +813,7 @@ action("v8_dump_build_config") {
     "is_cfi=$is_cfi",
     "is_component_build=$is_component_build",
     "is_debug=$is_debug",
+    "is_gcov_coverage=$is_gcov_coverage",
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
     "target_cpu=\"$target_cpu\"",

@@ -495,6 +495,7 @@ def ProcessOptions(options):
       options.arch = 'ia32'
     options.asan = build_config["is_asan"]
     options.dcheck_always_on = build_config["dcheck_always_on"]
+    options.gcov_coverage = build_config["is_gcov_coverage"]
     options.mode = 'debug' if build_config["is_debug"] else 'release'
     options.msan = build_config["is_msan"]
     options.no_i18n = not build_config["v8_enable_i18n_support"]
