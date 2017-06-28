@@ -224,11 +224,9 @@ def BuildOptions():
   result.description = """TESTS: %s""" % (TEST_MAP["default"])
   result.add_option("--arch",
                     help=("The architecture to run tests for, "
-                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS),
-                    default="ia32,x64,arm")
+                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS))
   result.add_option("--arch-and-mode",
-                    help="Architecture and mode in the format 'arch.mode'",
-                    default=None)
+                    help="Architecture and mode in the format 'arch.mode'")
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
@@ -277,8 +275,7 @@ def BuildOptions():
                     default=0, type="int")
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated,"
-                    " uppercase for ninja and buildbot builds): %s" % MODES.keys(),
-                    default="release,debug")
+                    " uppercase for ninja and buildbot builds): %s" % MODES.keys())
   result.add_option("--no-harness", "--noharness",
                     help="Run without test harness of a given suite",
                     default=False, action="store_true")
@@ -474,6 +471,7 @@ def ProcessOptions(options):
     build_config_path = os.path.join(
         BASE_DIR, options.outdir, "v8_build_config.json")
 
+  # Auto-detect test configurations based on the build (GN only).
   if os.path.exists(build_config_path):
     try:
       with open(build_config_path) as f:
@@ -487,20 +485,52 @@ def ProcessOptions(options):
     # In auto-detect mode the outdir is always where we found the build config.
     # This ensures that we'll also take the build products from there.
     options.outdir = os.path.dirname(build_config_path)
-
     options.arch_and_mode = None
-    options.arch = build_config["v8_target_cpu"]
-    if options.arch == 'x86':
-      # TODO(machenbach): Transform all to x86 eventually.
-      options.arch = 'ia32'
-    options.asan = build_config["is_asan"]
-    options.dcheck_always_on = build_config["dcheck_always_on"]
-    options.gcov_coverage = build_config["is_gcov_coverage"]
-    options.mode = 'debug' if build_config["is_debug"] else 'release'
-    options.msan = build_config["is_msan"]
-    options.no_i18n = not build_config["v8_enable_i18n_support"]
-    options.no_snap = not build_config["v8_use_snapshot"]
-    options.tsan = build_config["is_tsan"]
+    if options.mode:
+      # In auto-detect mode we don't use the mode for more path-magic.
+      # Therefore transform the buildbot mode here to fit to the GN build
+      # config.
+      options.mode = BuildbotToV8Mode(options.mode)
+
+    # In V8 land, GN's x86 is called ia32.
+    if build_config["v8_target_cpu"] == "x86":
+      build_config["v8_target_cpu"] = "ia32"
+
+    # Update options based on the build config. Sanity check that we're not
+    # trying to use inconsistent options.
+    for param, value in (
+        ('arch', build_config["v8_target_cpu"]),
+        ('asan', build_config["is_asan"]),
+        ('dcheck_always_on', build_config["dcheck_always_on"]),
+        ('gcov_coverage', build_config["is_gcov_coverage"]),
+        ('mode', 'debug' if build_config["is_debug"] else 'release'),
+        ('msan', build_config["is_msan"]),
+        ('no_i18n', not build_config["v8_enable_i18n_support"]),
+        ('no_snap', not build_config["v8_use_snapshot"]),
+        ('tsan', build_config["is_tsan"])):
+      cmd_line_value = getattr(options, param)
+      if cmd_line_value not in [None, True, False] and cmd_line_value != value:
+        # TODO(machenbach): This is for string options only. Requires options
+        # to not have default values. We should make this more modular and
+        # implement it in our own version of the option parser.
+        print "Attempted to set %s to %s, while build is %s." % (
+            param, cmd_line_value, value)
+        return False
+      if cmd_line_value == True and value == False:
+        print "Attempted to turn on %s, but it's not available." % (
+            param)
+        return False
+      if cmd_line_value != value:
+        print ">>> Auto-detected %s=%s" % (param, value)
+      setattr(options, param, value)
+
+  else:
+    # Non-GN build without auto-detect. Set default values for missing
+    # parameters.
+    if not options.mode:
+      options.mode = "release,debug"
+    if not options.arch:
+      options.arch = "ia32,x64,arm"
 
   # Architecture and mode related stuff.
   if options.arch_and_mode:
