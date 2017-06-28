@@ -429,7 +429,7 @@ void MinorMarkCompactCollector::TearDown() {}
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   DCHECK(!p->NeverEvacuate());
   p->MarkEvacuationCandidate();
-  evacuation_candidates_.Add(p);
+  evacuation_candidates_.push_back(p);
 }
 
 
@@ -444,7 +444,7 @@ static void TraceFragmentation(PagedSpace* space) {
 
 bool MarkCompactCollector::StartCompaction() {
   if (!compacting_) {
-    DCHECK(evacuation_candidates_.length() == 0);
+    DCHECK(evacuation_candidates_.empty());
 
     CollectEvacuationCandidates(heap()->old_space());
 
@@ -458,7 +458,7 @@ bool MarkCompactCollector::StartCompaction() {
       TraceFragmentation(heap()->map_space());
     }
 
-    compacting_ = evacuation_candidates_.length() > 0;
+    compacting_ = !evacuation_candidates_.empty();
   }
 
   return compacting_;
@@ -904,9 +904,9 @@ void MarkCompactCollector::AbortCompaction() {
       p->ClearEvacuationCandidate();
     }
     compacting_ = false;
-    evacuation_candidates_.Rewind(0);
+    evacuation_candidates_.clear();
   }
-  DCHECK_EQ(0, evacuation_candidates_.length());
+  DCHECK(evacuation_candidates_.empty());
 }
 
 
@@ -2771,7 +2771,7 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
   NewSpace* new_space = heap()->new_space();
   // Append the list of new space pages to be processed.
   for (Page* p : PageRange(new_space->bottom(), new_space->top())) {
-    new_space_evacuation_pages_.Add(p);
+    new_space_evacuation_pages_.push_back(p);
   }
   new_space->Flip();
   new_space->ResetAllocationInfo();
@@ -2818,7 +2818,7 @@ void MinorMarkCompactCollector::Evacuate() {
         sweep_to_iterate_pages_.push_back(p);
       }
     }
-    new_space_evacuation_pages_.Rewind(0);
+    new_space_evacuation_pages_.clear();
   }
 
   {
@@ -3455,15 +3455,16 @@ void MarkCompactCollector::EvacuatePrologue() {
   NewSpace* new_space = heap()->new_space();
   // Append the list of new space pages to be processed.
   for (Page* p : PageRange(new_space->bottom(), new_space->top())) {
-    new_space_evacuation_pages_.Add(p);
+    new_space_evacuation_pages_.push_back(p);
   }
   new_space->Flip();
   new_space->ResetAllocationInfo();
 
   // Old space.
-  DCHECK(old_space_evacuation_pages_.is_empty());
-  old_space_evacuation_pages_.Swap(&evacuation_candidates_);
-  DCHECK(evacuation_candidates_.is_empty());
+  DCHECK(old_space_evacuation_pages_.empty());
+  old_space_evacuation_pages_ = std::move(evacuation_candidates_);
+  evacuation_candidates_.clear();
+  DCHECK(evacuation_candidates_.empty());
 }
 
 void MarkCompactCollector::EvacuateEpilogue() {
@@ -4173,7 +4174,7 @@ void MarkCompactCollector::Evacuate() {
         sweeper().AddPage(p->owner()->identity(), p);
       }
     }
-    new_space_evacuation_pages_.Rewind(0);
+    new_space_evacuation_pages_.clear();
 
     for (Page* p : old_space_evacuation_pages_) {
       // Important: skip list should be cleared only after roots were updated
@@ -4662,7 +4663,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     CHECK(p->SweepingDone());
     space->ReleasePage(p);
   }
-  old_space_evacuation_pages_.Rewind(0);
+  old_space_evacuation_pages_.clear();
   compacting_ = false;
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
@@ -4763,7 +4764,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
     if (p->IsEvacuationCandidate()) {
       // Will be processed in Evacuate.
-      DCHECK(evacuation_candidates_.length() > 0);
+      DCHECK(!evacuation_candidates_.empty());
       continue;
     }
 
