@@ -1108,6 +1108,7 @@ namespace internal {
 // The exception thrown in the following builtins are not caught
 // internally and should trigger the catch prediction heuristic.
 #define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) \
+  V(ArrayForEachLoopLazyDeoptContinuation)            \
   V(MapConstructor)                                   \
   V(SetConstructor)                                   \
   V(GeneratorPrototypeNext)                           \
