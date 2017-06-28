@@ -4966,7 +4966,7 @@ class Module : public Struct {
       v8::Module::ResolveCallback callback);
   static MUST_USE_RESULT bool FinishInstantiate(
       Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
-      unsigned* dfs_index);
+      unsigned* dfs_index, Zone* zone);
   static MUST_USE_RESULT MaybeHandle<Object> Evaluate(
       Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
       unsigned* dfs_index);

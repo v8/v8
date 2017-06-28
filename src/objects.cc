@@ -19712,7 +19712,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneForwardList<Handle<Module>> stack(&zone);
   unsigned dfs_index = 0;
-  if (!FinishInstantiate(module, &stack, &dfs_index)) {
+  if (!FinishInstantiate(module, &stack, &dfs_index, &zone)) {
     for (auto& descendant : stack) {
       descendant->RecordError();
     }
@@ -19821,7 +19821,7 @@ void Module::MaybeTransitionComponent(Handle<Module> module,
 
 bool Module::FinishInstantiate(Handle<Module> module,
                                ZoneForwardList<Handle<Module>>* stack,
-                               unsigned* dfs_index) {
+                               unsigned* dfs_index, Zone* zone) {
   DCHECK_NE(module->status(), kErrored);
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() >= kInstantiating) return true;
@@ -19847,7 +19847,7 @@ bool Module::FinishInstantiate(Handle<Module> module,
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
-    if (!FinishInstantiate(requested_module, stack, dfs_index)) {
+    if (!FinishInstantiate(requested_module, stack, dfs_index, zone)) {
       return false;
     }
 
@@ -19868,8 +19868,6 @@ bool Module::FinishInstantiate(Handle<Module> module,
     }
   }
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
-
   // Resolve imports.
   Handle<ModuleInfo> module_info(shared->scope_info()->ModuleDescriptorInfo(),
                                  isolate);
@@ -19882,7 +19880,7 @@ bool Module::FinishInstantiate(Handle<Module> module,
         Script::cast(JSFunction::cast(module->code())->shared()->script()),
         isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
-    ResolveSet resolve_set(&zone);
+    ResolveSet resolve_set(zone);
     Handle<Cell> cell;
     if (!ResolveImport(module, name, entry->module_request(), loc, true,
                        &resolve_set)
@@ -19903,7 +19901,7 @@ bool Module::FinishInstantiate(Handle<Module> module,
         Script::cast(JSFunction::cast(module->code())->shared()->script()),
         isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
-    ResolveSet resolve_set(&zone);
+    ResolveSet resolve_set(zone);
     if (ResolveExport(module, Handle<String>::cast(name), loc, true,
                       &resolve_set)
             .is_null()) {
