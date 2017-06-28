@@ -670,14 +670,14 @@ class ModuleDecoder : public Decoder {
           &module_->functions[i + module_->num_imported_functions];
       uint32_t size = consume_u32v("body size");
       function->code = {pc_offset(), size};
-      if (verify_functions) {
+      consume_bytes(size, "function body");
+      if (ok() && verify_functions) {
         ModuleBytesEnv module_env(module_.get(), nullptr,
                                   ModuleWireBytes(start_, end_));
         VerifyFunctionBody(module_->signature_zone->allocator(),
                            i + module_->num_imported_functions, &module_env,
                            function);
       }
-      consume_bytes(size, "function body");
     }
   }
 
