@@ -1100,6 +1100,28 @@ class V8_EXPORT Location {
 class V8_EXPORT Module {
  public:
   /**
+   * The different states a module can be in.
+   */
+  enum Status {
+    kUninstantiated,
+    kInstantiating,
+    kInstantiated,
+    kEvaluating,
+    kEvaluated,
+    kErrored
+  };
+
+  /**
+   * Returns the module's current status.
+   */
+  Status GetStatus() const;
+
+  /**
+   * For a module in kErrored status, this returns the corresponding exception.
+   */
+  Local<Value> GetException() const;
+
+  /**
    * Returns the number of modules requested by this module.
    */
   int GetModuleRequestsLength() const;
@@ -1142,6 +1164,7 @@ class V8_EXPORT Module {
    * ModuleEvaluation
    *
    * Returns the completion value.
+   * TODO(neis): Be more precise or say nothing.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 };

@@ -57,12 +57,13 @@ TEST(ModuleInstantiationFailures) {
   v8::TryCatch try_catch(isolate);
 
   Local<String> source_text = v8_str(
-      "import './foo.js';"
-      "\nexport {} from './bar.js';");
+      "import './foo.js';\n"
+      "export {} from './bar.js';");
   ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
   CHECK_EQ(2, module->GetModuleRequestsLength());
   CHECK(v8_str("./foo.js")->StrictEquals(module->GetModuleRequest(0)));
   v8::Location loc = module->GetModuleRequestLocation(0);
@@ -81,6 +82,10 @@ TEST(ModuleInstantiationFailures) {
               .IsNothing());
     CHECK(inner_try_catch.HasCaught());
     CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    Local<Value> exception = module->GetException();
+    CHECK(exception->StrictEquals(v8_str("boom")));
+    // TODO(neis): Check object identity.
   }
 
   // Start over again...
@@ -95,6 +100,9 @@ TEST(ModuleInstantiationFailures) {
             .IsNothing());
     CHECK(inner_try_catch.HasCaught());
     CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("booom")));
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    Local<Value> exception = module->GetException();
+    CHECK(exception->StrictEquals(v8_str("booom")));
   }
 
   CHECK(!try_catch.HasCaught());
@@ -121,12 +129,59 @@ TEST(ModuleEvaluation) {
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
   CHECK(module
             ->InstantiateModule(env.local(),
                                 CompileSpecifierAsModuleResolveCallback)
             .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
   CHECK(!module->Evaluate(env.local()).IsEmpty());
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
   ExpectInt32("Object.expando", 10);
+
+  CHECK(!try_catch.HasCaught());
+}
+
+TEST(ModuleEvaluationError) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  Local<String> source_text =
+      v8_str("Object.x = (Object.x || 0) + 1; throw 'boom';");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    CHECK(module->Evaluate(env.local()).IsEmpty());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    Local<Value> exception = module->GetException();
+    CHECK(exception->StrictEquals(v8_str("boom")));
+    ExpectInt32("Object.x", 1);
+  }
+
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    CHECK(module->Evaluate(env.local()).IsEmpty());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    Local<Value> exception = module->GetException();
+    CHECK(exception->StrictEquals(v8_str("boom")));
+    ExpectInt32("Object.x", 1);
+  }
 
   CHECK(!try_catch.HasCaught());
 }
@@ -163,11 +218,16 @@ TEST(ModuleEvaluationCompletion1) {
     ScriptCompiler::Source source(source_text, origin);
     Local<Module> module =
         ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
     CHECK(module
               ->InstantiateModule(env.local(),
                                   CompileSpecifierAsModuleResolveCallback)
               .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
     CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
   }
 
   CHECK(!try_catch.HasCaught());
@@ -204,13 +264,18 @@ TEST(ModuleEvaluationCompletion2) {
     ScriptCompiler::Source source(source_text, origin);
     Local<Module> module =
         ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
     CHECK(module
               ->InstantiateModule(env.local(),
                                   CompileSpecifierAsModuleResolveCallback)
               .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
     CHECK(module->Evaluate(env.local())
               .ToLocalChecked()
               ->StrictEquals(v8_str("gaga")));
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
   }
 
   CHECK(!try_catch.HasCaught());
