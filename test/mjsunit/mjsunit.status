@@ -325,7 +325,7 @@
   'whitespaces': [PASS, SLOW],
 }],  # 'arch == arm64'
 
-['arch == arm64 and mode == debug and simulator_run == True', {
+['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, SLOW],
@@ -337,7 +337,7 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True'
+}],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
 ['asan == True', {
@@ -589,11 +589,11 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
-}],  # 'arch == ppc and simulator_run == True'
+}],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
 ['arch == ppc64', {
