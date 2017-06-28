@@ -439,6 +439,9 @@ config("toolchain") {
       ldflags += [ "/STACK:2097152" ]
     }
   }
+  if (v8_current_cpu == "x87") {
+    defines += [ "V8_TARGET_ARCH_X87" ]
+  }
   if (is_android && v8_android_log_stdout) {
     defines += [ "V8_ANDROID_LOG_STDOUT" ]
   }

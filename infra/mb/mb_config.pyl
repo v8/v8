@@ -483,7 +483,7 @@
 
     # Gyp debug configs for simulators.
     'gyp_debug_simulate_x87': [
-      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming'],
+      'gyp', 'debug_bot_static', 'simulate_x87', 'gcc', 'swarming'],
 
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
