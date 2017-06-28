@@ -83,7 +83,6 @@ namespace internal {
   T(SHL, "<<", 11)                                                   \
   T(SAR, ">>", 11)                                                   \
   T(SHR, ">>>", 11)                                                  \
-  T(ROR, "rotate right", 11) /* only used by Crankshaft */           \
   T(ADD, "+", 12)                                                    \
   T(SUB, "-", 12)                                                    \
   T(MUL, "*", 13)                                                    \
@@ -248,7 +247,7 @@ class Token {
   static bool IsBinaryOp(Value op) { return COMMA <= op && op <= EXP; }
 
   static bool IsTruncatingBinaryOp(Value op) {
-    return BIT_OR <= op && op <= ROR;
+    return BIT_OR <= op && op <= SHR;
   }
 
   static bool IsCompareOp(Value op) {
