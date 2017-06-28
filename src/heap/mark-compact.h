@@ -369,6 +369,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void EvacuatePagesInParallel() override;
   void UpdatePointersAfterEvacuation() override;
 
+  void CollectNewSpaceArrayBufferTrackerItems(ItemParallelJob* job);
+
   int NumberOfParallelMarkingTasks(int pages);
 
   Worklist* worklist_;
@@ -744,6 +746,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void Evacuate() override;
   void EvacuatePagesInParallel() override;
   void UpdatePointersAfterEvacuation() override;
+
+  void CollectNewSpaceArrayBufferTrackerItems(ItemParallelJob* job);
+  void CollectOldSpaceArrayBufferTrackerItems(ItemParallelJob* job);
 
   void ReleaseEvacuationCandidates();
   void PostProcessEvacuationCandidates();

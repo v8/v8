@@ -3490,7 +3490,6 @@ class Evacuator : public Malloced {
     if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION))
       return kPageNewToNew;
     if (chunk->InNewSpace()) return kObjectsNewToOld;
-    DCHECK(chunk->IsEvacuationCandidate());
     return kObjectsOldToOld;
   }
 
@@ -3628,8 +3627,7 @@ void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
     case kObjectsNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
           page, state, &new_space_visitor_, LiveObjectVisitor::kClearMarkbits);
-      ArrayBufferTracker::ProcessBuffers(
-          page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+      // ArrayBufferTracker will be updated during pointers updating.
       break;
     case kPageNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
@@ -3654,8 +3652,7 @@ void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
         // thread for simplicity reasons.
         collector_->ReportAbortedEvacuationCandidate(failed_object, page);
       } else {
-        ArrayBufferTracker::ProcessBuffers(
-            page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+        // ArrayBufferTracker will be updated during pointers updating.
       }
       break;
     }
@@ -3682,8 +3679,7 @@ void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
     case kObjectsNewToOld:
       LiveObjectVisitor::VisitGreyObjectsNoFail(
           page, state, &new_space_visitor_, LiveObjectVisitor::kClearMarkbits);
-      ArrayBufferTracker::ProcessBuffers(
-          page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+      // ArrayBufferTracker will be updated during pointers updating.
       break;
     case kPageNewToOld:
       LiveObjectVisitor::VisitGreyObjectsNoFail(
@@ -4424,6 +4420,25 @@ class GlobalHandlesUpdatingItem : public UpdatingItem {
   size_t end_;
 };
 
+// Update array buffers on a page that has been evacuated by copying objects.
+// Target page exclusivity in old space is guaranteed by the fact that
+// evacuation tasks either (a) retrieved a fresh page, or (b) retrieved all
+// free list items of a given page. For new space the tracker will update
+// using a lock.
+class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
+ public:
+  explicit ArrayBufferTrackerUpdatingItem(Page* page) : page_(page) {}
+  virtual ~ArrayBufferTrackerUpdatingItem() {}
+
+  void Process() override {
+    ArrayBufferTracker::ProcessBuffers(
+        page_, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+  }
+
+ private:
+  Page* page_;
+};
+
 int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
     ItemParallelJob* job) {
   // Seed to space pages.
@@ -4470,12 +4485,43 @@ int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
              : NumberOfParallelPointerUpdateTasks(pages, old_to_new_slots_);
 }
 
+void MinorMarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
+    ItemParallelJob* job) {
+  for (Page* p : new_space_evacuation_pages_) {
+    if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsNewToOld) {
+      job->AddItem(new ArrayBufferTrackerUpdatingItem(p));
+    }
+  }
+}
+
+void MarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
+    ItemParallelJob* job) {
+  for (Page* p : new_space_evacuation_pages_) {
+    if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsNewToOld) {
+      job->AddItem(new ArrayBufferTrackerUpdatingItem(p));
+    }
+  }
+}
+
+void MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
+    ItemParallelJob* job) {
+  for (Page* p : old_space_evacuation_pages_) {
+    if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsOldToOld &&
+        p->IsEvacuationCandidate()) {
+      job->AddItem(new ArrayBufferTrackerUpdatingItem(p));
+    }
+  }
+}
+
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
   PointersUpdatingVisitor updating_visitor;
   ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                &page_parallel_job_semaphore_);
+
+  CollectNewSpaceArrayBufferTrackerItems(&updating_job);
+  CollectOldSpaceArrayBufferTrackerItems(&updating_job);
 
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
   const int remembered_set_tasks = CollectRememberedSetUpdatingItems(
@@ -4516,6 +4562,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                &page_parallel_job_semaphore_);
 
+  CollectNewSpaceArrayBufferTrackerItems(&updating_job);
   // Create batches of global handles.
   SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
                                                &updating_job);

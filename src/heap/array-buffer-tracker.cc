@@ -55,18 +55,17 @@ void LocalArrayBufferTracker::Process(Callback callback) {
     } else if (result == kUpdateEntry) {
       DCHECK_NOT_NULL(new_buffer);
       Page* target_page = Page::FromAddress(new_buffer->address());
-      // We need to lock the target page because we cannot guarantee
-      // exclusive access to new space pages.
-      if (target_page->InNewSpace()) target_page->mutex()->Lock();
-      LocalArrayBufferTracker* tracker = target_page->local_tracker();
-      if (tracker == nullptr) {
-        target_page->AllocateLocalTracker();
-        tracker = target_page->local_tracker();
+      {
+        base::LockGuard<base::RecursiveMutex> guard(target_page->mutex());
+        LocalArrayBufferTracker* tracker = target_page->local_tracker();
+        if (tracker == nullptr) {
+          target_page->AllocateLocalTracker();
+          tracker = target_page->local_tracker();
+        }
+        DCHECK_NOT_NULL(tracker);
+        DCHECK_EQ(length, new_buffer->allocation_length());
+        tracker->Add(new_buffer, length);
       }
-      DCHECK_NOT_NULL(tracker);
-      DCHECK_EQ(length, new_buffer->allocation_length());
-      tracker->Add(new_buffer, length);
-      if (target_page->InNewSpace()) target_page->mutex()->Unlock();
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
       freed_memory += length;
