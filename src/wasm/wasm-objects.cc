@@ -271,7 +271,7 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
   if (instance.is_null()) return dispatch_tables;
   // TODO(titzer): use weak cells here to avoid leaking instances.
 
-  // Grow the dispatch table and add a new triple at the end.
+  // Grow the dispatch table and add a new entry at the end.
   Handle<FixedArray> new_dispatch_tables =
       isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 4);
 
@@ -360,9 +360,9 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
 
   // TODO(gdeepti): Change the protection here instead of allocating a new
   // buffer before guard regions are turned on, see issue #5886.
-  const bool enable_guard_regions =
-      (old_buffer.is_null() && EnableGuardRegions()) ||
-      (!old_buffer.is_null() && old_buffer->has_guard_region());
+  const bool enable_guard_regions = old_buffer.is_null()
+                                        ? EnableGuardRegions()
+                                        : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
   Handle<JSArrayBuffer> new_buffer =

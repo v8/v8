@@ -121,7 +121,6 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
                         i::wasm::kV8MaxWasmModuleSize, length);
   }
   if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
-  // TODO(titzer): use the handle as well?
   return i::wasm::ModuleWireBytes(start, start + length);
 }
 
@@ -839,12 +838,10 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
 void WasmJs::Install(Isolate* isolate) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
-  // TODO(titzer): once FLAG_expose_wasm is gone, this should become a DCHECK.
+  // Check if the map is already installed and do nothing otherwise.
   if (context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) return;
 
   // Install Maps.
-
-  // TODO(titzer): Also make one for strict mode functions?
   Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
 
   InstanceType instance_type = prev_map->instance_type();

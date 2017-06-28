@@ -358,7 +358,7 @@ WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
 }
 
 WasmModule::WasmModule(std::unique_ptr<Zone> owned)
-    : signature_zone(std::move(owned)), pending_tasks(new base::Semaphore(0)) {}
+    : signature_zone(std::move(owned)) {}
 
 WasmFunction* wasm::GetWasmFunctionForImportWrapper(Isolate* isolate,
                                                     Handle<Object> target) {

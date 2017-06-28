@@ -399,13 +399,6 @@ FunctionSig* WasmOpcodes::AtomicSignature(WasmOpcode opcode) {
       kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
 }
 
-// TODO(titzer): pull WASM_64 up to a common header.
-#if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
-#define WASM_64 1
-#else
-#define WASM_64 0
-#endif
-
 int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   switch (reason) {
 #define TRAPREASON_TO_MESSAGE(name) \
