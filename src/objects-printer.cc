@@ -1298,14 +1298,7 @@ void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
 
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Module");
-  // TODO(neis): Simplify once modules have a script field.
-  if (status() < kEvaluating) {
-    SharedFunctionInfo* shared = code()->IsSharedFunctionInfo()
-                                     ? SharedFunctionInfo::cast(code())
-                                     : JSFunction::cast(code())->shared();
-    Object* origin = Script::cast(shared->script())->GetNameOrSourceURL();
-    os << "\n - origin: " << Brief(origin);
-  }
+  os << "\n - origin: " << Brief(script()->GetNameOrSourceURL());
   os << "\n - code: " << Brief(code());
   os << "\n - exports: " << Brief(exports());
   os << "\n - requested_modules: " << Brief(requested_modules());
