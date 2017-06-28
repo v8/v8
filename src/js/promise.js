@@ -25,43 +25,39 @@ var GlobalPromise = global.Promise;
 
 // ES#sec-promise.race
 // Promise.race ( iterable )
-function PromiseRace(iterable) {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kCalledOnNonObject, PromiseRace);
-  }
-
-  // false debugEvent so that forwarding the rejection through race does not
-  // trigger redundant ExceptionEvents
-  var deferred = %new_promise_capability(this, false);
-
-  // For catch prediction, don't treat the .then calls as handling it;
-  // instead, recurse outwards.
-  var instrumenting = DEBUG_IS_ACTIVE;
-  if (instrumenting) {
-    SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
-  }
-
-  try {
-    for (var value of iterable) {
-      var throwawayPromise = this.resolve(value).then(deferred.resolve,
-                                                      deferred.reject);
-      // For catch prediction, mark that rejections here are semantically
-      // handled by the combined Promise.
-      if (instrumenting && %is_promise(throwawayPromise)) {
-        SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
-      }
+DEFINE_METHOD(
+  GlobalPromise,
+  race(iterable) {
+    if (!IS_RECEIVER(this)) {
+      throw %make_type_error(kCalledOnNonObject, this);
     }
-  } catch (e) {
-    %_Call(deferred.reject, UNDEFINED, e);
+
+    // false debugEvent so that forwarding the rejection through race does not
+    // trigger redundant ExceptionEvents
+    var deferred = %new_promise_capability(this, false);
+
+    // For catch prediction, don't treat the .then calls as handling it;
+    // instead, recurse outwards.
+    var instrumenting = DEBUG_IS_ACTIVE;
+    if (instrumenting) {
+      SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+    }
+
+    try {
+      for (var value of iterable) {
+        var throwawayPromise = this.resolve(value).then(deferred.resolve,
+                                                        deferred.reject);
+        // For catch prediction, mark that rejections here are semantically
+        // handled by the combined Promise.
+        if (instrumenting && %is_promise(throwawayPromise)) {
+          SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
+        }
+      }
+    } catch (e) {
+      %_Call(deferred.reject, UNDEFINED, e);
+    }
+    return deferred.promise;
   }
-  return deferred.promise;
-}
-
-// -------------------------------------------------------------------
-// Install exported functions.
-
-utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
-  "race", PromiseRace,
-]);
+);
 
 })
