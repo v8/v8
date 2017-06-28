@@ -154,7 +154,7 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool && host_ != NULL) {
     Address constant_pool = host_->constant_pool();
     return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
   }
