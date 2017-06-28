@@ -319,7 +319,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch1_(scratch1),
         mode_(mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
-        unwinding_info_writer_(unwinding_info_writer) {}
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -339,10 +340,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(),
                                                            __ StackPointer());
     }
-    RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         remembered_set_action, save_fp_mode);
     __ Add(scratch1_, object_, index_);
-    __ CallStub(&stub);
+    __ CallStubDelayed(
+        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
+                                    remembered_set_action, save_fp_mode));
     if (must_save_lr_) {
       __ Pop(lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
@@ -358,6 +359,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   RecordWriteMode const mode_;
   bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
+  Zone* zone_;
 };
 
 
@@ -935,8 +937,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      MathPowStub stub(isolate(), MathPowStub::DOUBLE);
-      __ CallStub(&stub);
+      __ CallStubDelayed(new (zone())
+                             MathPowStub(nullptr, MathPowStub::DOUBLE));
       break;
     }
     case kIeee754Float64Sin:
@@ -2479,7 +2481,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // Initialize the jssp because it is required for the runtime call.
       __ Mov(jssp, csp);
       __ Move(cp, Smi::kZero);
-      __ CallRuntime(Runtime::kThrowWasmStackOverflow);
+      __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple, 0,

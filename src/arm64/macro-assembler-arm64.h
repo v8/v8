@@ -1680,8 +1680,11 @@ class MacroAssembler : public Assembler {
   inline void jmp(Label* L);
 
   void CallStub(CodeStub* stub);
+  void CallStubDelayed(CodeStub* stub);
   void TailCallStub(CodeStub* stub);
 
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);

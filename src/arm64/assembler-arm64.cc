@@ -34,6 +34,7 @@
 #include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/register-configuration.h"
 
 namespace v8 {
@@ -366,7 +367,8 @@ bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
   if (CanBeShared(mode)) {
     write_reloc_info = AddSharedEntry(shared_entries_, raw_data, offset);
   } else if (mode == RelocInfo::CODE_TARGET &&
-             assm_->IsCodeTargetSharingAllowed()) {
+             assm_->IsCodeTargetSharingAllowed() && raw_data != 0) {
+    // A zero data value is a placeholder and must not be shared.
     write_reloc_info = AddSharedEntry(handle_to_index_map_, raw_data, offset);
   } else {
     entries_.push_back(std::make_pair(raw_data, std::vector<int>(1, offset)));
@@ -609,9 +611,23 @@ void Assembler::Reset() {
   no_const_pool_before_ = 0;
 }
 
-void Assembler::set_heap_number(Handle<HeapObject> number, Address pc) {
-  Memory::Address_at(target_pointer_address_at(pc)) =
-      reinterpret_cast<Address>(number.location());
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        object = request.code_stub()->GetCode();
+        break;
+    }
+    Address pc = buffer_ + request.offset();
+    Memory::Address_at(target_pointer_address_at(pc)) =
+        reinterpret_cast<Address>(object.location());
+  }
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -619,7 +635,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   CheckConstPool(true, false);
   DCHECK(constpool_.IsEmpty());
 
-  AllocateRequestedHeapNumbers(isolate);
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   if (desc) {
@@ -1709,20 +1725,28 @@ void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
   Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
-Operand Operand::EmbeddedNumber(double value) {
+Operand Operand::EmbeddedNumber(double number) {
   int32_t smi;
-  if (DoubleToSmiInteger(value, &smi)) {
+  if (DoubleToSmiInteger(number, &smi)) {
     return Operand(Immediate(Smi::FromInt(smi)));
   }
-  Operand result(bit_cast<int64_t>(value), RelocInfo::EMBEDDED_OBJECT);
-  result.is_heap_number_ = true;
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.heap_object_request_.emplace(number);
+  DCHECK(result.IsHeapObjectRequest());
+  return result;
+}
+
+Operand Operand::EmbeddedCode(CodeStub* stub) {
+  Operand result(0, RelocInfo::CODE_TARGET);
+  result.heap_object_request_.emplace(stub);
+  DCHECK(result.IsHeapObjectRequest());
   return result;
 }
 
 void Assembler::ldr(const CPURegister& rt, const Operand& operand) {
-  if (operand.is_heap_number()) {
-    RequestHeapNumber(operand.heap_number());
-    ldr(rt, Immediate(0, RelocInfo::EMBEDDED_OBJECT));
+  if (operand.IsHeapObjectRequest()) {
+    RequestHeapObject(operand.heap_object_request());
+    ldr(rt, operand.immediate_for_heap_object_request());
   } else {
     ldr(rt, operand.immediate());
   }

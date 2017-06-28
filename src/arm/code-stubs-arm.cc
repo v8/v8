@@ -2183,14 +2183,24 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Fall through when we need to inform the incremental marker.
 }
 
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+                                                     Zone* zone) {
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    masm->MaybeCheckConstPool();
+    PredictableCodeSizeScope predictable(masm);
+    predictable.ExpectSize(masm->CallStubSize() + 2 * Assembler::kInstrSize);
+    __ push(lr);
+    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
+    __ pop(lr);
+  }
+}
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
     masm->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(masm);
-    predictable.ExpectSize(masm->CallStubSize(&stub) +
-                           2 * Assembler::kInstrSize);
+    predictable.ExpectSize(masm->CallStubSize() + 2 * Assembler::kInstrSize);
     __ push(lr);
     __ CallStub(&stub);
     __ pop(lr);

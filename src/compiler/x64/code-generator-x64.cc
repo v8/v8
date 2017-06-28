@@ -236,7 +236,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
-        mode_(mode) {}
+        mode_(mode),
+        zone_(gen->zone()) {}
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -250,10 +251,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                              : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         remembered_set_action, save_fp_mode);
     __ leap(scratch1_, operand_);
-    __ CallStub(&stub);
+    __ CallStubDelayed(
+        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
+                                    remembered_set_action, save_fp_mode));
   }
 
  private:
@@ -263,6 +264,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  Zone* zone_;
 };
 
 class WasmOutOfLineTrap final : public OutOfLineCode {
@@ -292,7 +294,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     // with AssembleArchTrap.
     __ Push(Smi::FromInt(position_));
     __ Move(rsi, Smi::kZero);
-    __ CallRuntime(Runtime::kThrowWasmError);
+    __ CallRuntimeDelayed(gen_->zone(), Runtime::kThrowWasmError);
 
     ReferenceMap* reference_map =
         new (gen_->code()->zone()) ReferenceMap(gen_->code()->zone());
@@ -1061,8 +1063,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Pow: {
       // TODO(bmeurer): Improve integration of the stub.
       __ Movsd(xmm2, xmm0);
-      MathPowStub stub(isolate(), MathPowStub::DOUBLE);
-      __ CallStub(&stub);
+      __ CallStubDelayed(new (zone())
+                             MathPowStub(nullptr, MathPowStub::DOUBLE));
       __ Movsd(xmm0, xmm3);
       break;
     }

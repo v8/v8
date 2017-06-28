@@ -191,19 +191,6 @@ void AssemblerBase::Print(Isolate* isolate) {
   v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
 }
 
-AssemblerBase::RequestedHeapNumber::RequestedHeapNumber(double value,
-                                                        int offset)
-    : value(value), offset(offset) {
-  DCHECK(!IsSmiDouble(value));
-}
-
-void AssemblerBase::AllocateRequestedHeapNumbers(Isolate* isolate) {
-  for (auto& heap_number : heap_numbers_) {
-    Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
-        heap_number.value, IMMUTABLE, TENURED);
-    Assembler::set_heap_number(object, buffer_ + heap_number.offset);
-  }
-}
 
 // -----------------------------------------------------------------------------
 // Implementation of PredictableCodeSizeScope
@@ -1921,6 +1908,17 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
   return !empty ? emitted_label_.pos() : 0;
 }
 
+HeapObjectRequest::HeapObjectRequest(double heap_number, int offset)
+    : kind_(kHeapNumber), offset_(offset) {
+  value_.heap_number = heap_number;
+  DCHECK(!IsSmiDouble(value_.heap_number));
+}
+
+HeapObjectRequest::HeapObjectRequest(CodeStub* code_stub, int offset)
+    : kind_(kCodeStub), offset_(offset) {
+  value_.code_stub = code_stub;
+  DCHECK_NOT_NULL(value_.code_stub);
+}
 
 // Platform specific but identical code for all the platforms.
 
@@ -1954,6 +1952,11 @@ void Assembler::DataAlign(int m) {
   while ((pc_offset() & (m - 1)) != 0) {
     db(0);
   }
+}
+
+void Assembler::RequestHeapObject(HeapObjectRequest request) {
+  request.set_offset(pc_offset());
+  heap_object_requests_.push_front(request);
 }
 
 }  // namespace internal

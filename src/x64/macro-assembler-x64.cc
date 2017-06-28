@@ -597,6 +597,11 @@ void MacroAssembler::Abort(BailoutReason reason) {
   int3();
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
+  call(stub);
+}
+
 void MacroAssembler::CallStub(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
   Call(stub->GetCode(), RelocInfo::CODE_TARGET);
@@ -610,6 +615,18 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame_ || !stub->SometimesSetsUpAFrame();
+}
+
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(rax, f->nargs);
+  LoadAddress(rbx, ExternalReference(f, isolate()));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, f->result_size, save_doubles));
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,

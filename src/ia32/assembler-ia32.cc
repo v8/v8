@@ -49,6 +49,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
@@ -60,8 +61,15 @@ Immediate Immediate::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Immediate(Smi::FromInt(smi));
   Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
-  result.is_heap_number_ = true;
-  result.value_.heap_number = value;
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(value);
+  return result;
+}
+
+Immediate Immediate::EmbeddedCode(CodeStub* stub) {
+  Immediate result(0, RelocInfo::CODE_TARGET);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(stub);
   return result;
 }
 
@@ -308,6 +316,23 @@ Register Operand::reg() const {
   return Register::from_code(buf_[0] & 0x07);
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        object = request.code_stub()->GetCode();
+        break;
+    }
+    Address pc = buffer_ + request.offset();
+    Memory::Object_Handle_at(pc) = object;
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
@@ -335,7 +360,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // that we are still not overlapping instructions and relocation info).
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
 
-  AllocateRequestedHeapNumbers(isolate);
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -1600,6 +1625,11 @@ void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   emit(code, rmode);
 }
 
+void Assembler::call(CodeStub* stub) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xE8);
+  emit(Immediate::EmbeddedCode(stub));
+}
 
 void Assembler::jmp(Label* L, Label::Distance distance) {
   EnsureSpace ensure_space(this);

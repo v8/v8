@@ -13,6 +13,7 @@
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
+#include "src/base/optional.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -690,19 +691,12 @@ class Operand {
                  Extend extend,
                  unsigned shift_amount = 0);
 
-  static Operand EmbeddedNumber(double value);  // Smi or HeapNumber.
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
 
-  bool is_heap_number() const {
-    DCHECK_IMPLIES(is_heap_number_, reg_.Is(NoReg));
-    DCHECK_IMPLIES(is_heap_number_,
-                   immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT);
-    return is_heap_number_;
-  }
-
-  double heap_number() const {
-    DCHECK(is_heap_number());
-    return bit_cast<double>(immediate_.value());
-  }
+  inline bool IsHeapObjectRequest() const;
+  inline HeapObjectRequest heap_object_request() const;
+  inline Immediate immediate_for_heap_object_request() const;
 
   template<typename T>
   inline explicit Operand(Handle<T> handle);
@@ -739,12 +733,12 @@ class Operand {
   inline static Operand UntagSmiAndScale(Register smi, int scale);
 
  private:
+  base::Optional<HeapObjectRequest> heap_object_request_;
   Immediate immediate_;
   Register reg_;
   Shift shift_;
   Extend extend_;
   unsigned shift_amount_;
-  bool is_heap_number_ = false;
 };
 
 
@@ -1085,11 +1079,6 @@ class Assembler : public AssemblerBase {
   // The parameter indicates the size of the pool (in bytes), including
   // the marker and branch over the data.
   void RecordConstPool(int size);
-
-  // Patch the dummy heap number that we emitted during code assembly in the
-  // constant pool entry referenced by {pc}. Replace it with the actual heap
-  // object (handle).
-  static void set_heap_number(Handle<HeapObject> number, Address pc);
 
   // Instruction set functions ------------------------------------------------
 
@@ -3608,6 +3597,19 @@ class Assembler : public AssemblerBase {
   // if pending unresolved information exists. Its complexity is proportional to
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
  private:
   friend class EnsureSpace;

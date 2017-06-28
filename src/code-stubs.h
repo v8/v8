@@ -142,7 +142,7 @@ class Node;
 static const int kHasReturnedMinusZeroSentinel = 1;
 
 // Stub is base classes of all stubs.
-class CodeStub BASE_EMBEDDED {
+class CodeStub : public ZoneObject {
  public:
   enum Major {
     // TODO(mvstanton): eliminate the NoCache key by getting rid
@@ -223,6 +223,11 @@ class CodeStub BASE_EMBEDDED {
   }
 
   Isolate* isolate() const { return isolate_; }
+  void set_isolate(Isolate* isolate) {
+    DCHECK_NOT_NULL(isolate);
+    DCHECK(isolate_ == nullptr || isolate_ == isolate);
+    isolate_ = isolate;
+  }
 
   void DeleteStubFromCacheForTesting();
 
@@ -1390,6 +1395,7 @@ class ProfileEntryHookStub : public PlatformCodeStub {
 
   // Generates a call to the entry hook if it's enabled.
   static void MaybeCallEntryHook(MacroAssembler* masm);
+  static void MaybeCallEntryHookDelayed(MacroAssembler* masm, Zone* zone);
 
  private:
   static void EntryHookTrampoline(intptr_t function,

@@ -388,8 +388,8 @@ void Assembler::emit(const Immediate& x) {
     return;
   }
   if (!RelocInfo::IsNone(x.rmode_)) RecordRelocInfo(x.rmode_);
-  if (x.is_heap_number()) {
-    RequestHeapNumber(x.heap_number());
+  if (x.is_heap_object_request()) {
+    RequestHeapObject(x.heap_object_request());
     emit(0);
   } else {
     emit(x.immediate());

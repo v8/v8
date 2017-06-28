@@ -149,17 +149,6 @@ class AssemblerBase: public Malloced {
   // The program counter, which points into the buffer above and moves forward.
   byte* pc_;
 
-  // The following two functions help with avoiding allocations of heap numbers
-  // during the code assembly phase. {RequestHeapNumber} records the need for a
-  // future heap number allocation, together with the current pc offset. After
-  // code assembly, {AllocateRequestedHeapNumbers} will allocate these numbers
-  // and, with the help of {Assembler::set_heap_number}, place them where they
-  // are expected (determined by the recorded pc offset).
-  void RequestHeapNumber(double value) {
-    heap_numbers_.emplace_front(value, pc_offset());
-  }
-  void AllocateRequestedHeapNumbers(Isolate* isolate);
-
  private:
   IsolateData isolate_data_;
   uint64_t enabled_cpu_features_;
@@ -173,18 +162,7 @@ class AssemblerBase: public Malloced {
   // Constant pool.
   friend class FrameAndConstantPoolScope;
   friend class ConstantPoolUnavailableScope;
-
-  // Delayed allocation of heap numbers.
-  struct RequestedHeapNumber {
-    RequestedHeapNumber(double value, int offset);
-    double value;  // The number for which we later need to create a HeapObject.
-    int offset;  // The {buffer_} offset where we emitted a dummy that needs to
-                 // get replaced by the actual HeapObject via
-                 // {Assembler::set_heap_number}.
-  };
-  std::forward_list<RequestedHeapNumber> heap_numbers_;
 };
-
 
 // Avoids emitting debug code during the lifetime of this scope object.
 class DontEmitDebugCodeScope BASE_EMBEDDED {
@@ -1280,6 +1258,46 @@ class ConstantPoolBuilder BASE_EMBEDDED {
 
   Label emitted_label_;  // Records pc_offset of emitted pool
   PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
+};
+
+class HeapObjectRequest {
+ public:
+  explicit HeapObjectRequest(double heap_number, int offset = -1);
+  explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
+
+  enum Kind { kHeapNumber, kCodeStub };
+  Kind kind() const { return kind_; }
+
+  double heap_number() const {
+    DCHECK_EQ(kind(), kHeapNumber);
+    return value_.heap_number;
+  }
+
+  CodeStub* code_stub() const {
+    DCHECK_EQ(kind(), kCodeStub);
+    return value_.code_stub;
+  }
+
+  // The code buffer offset at the time of the request.
+  int offset() const {
+    DCHECK_GE(offset_, 0);
+    return offset_;
+  }
+  void set_offset(int offset) {
+    DCHECK_LT(offset_, 0);
+    offset_ = offset;
+    DCHECK_GE(offset_, 0);
+  }
+
+ private:
+  Kind kind_;
+
+  union {
+    double heap_number;
+    CodeStub* code_stub;
+  } value_;
+
+  int offset_;
 };
 
 }  // namespace internal

@@ -195,7 +195,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch1_(scratch1),
         mode_(mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
-        unwinding_info_writer_(unwinding_info_writer) {}
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t index,
                        Register value, Register scratch0, Register scratch1,
@@ -210,7 +211,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch1_(scratch1),
         mode_(mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
-        unwinding_info_writer_(unwinding_info_writer) {}
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -229,15 +231,15 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(lr);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
     }
-    RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         remembered_set_action, save_fp_mode);
     if (index_.is(no_reg)) {
       __ add(scratch1_, object_, Operand(index_immediate_));
     } else {
       DCHECK_EQ(0, index_immediate_);
       __ add(scratch1_, object_, Operand(index_));
     }
-    __ CallStub(&stub);
+    __ CallStubDelayed(
+        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
+                                    remembered_set_action, save_fp_mode));
     if (must_save_lr_) {
       __ Pop(lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
@@ -254,6 +256,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   RecordWriteMode const mode_;
   bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
+  Zone* zone_;
 };
 
 template <typename T>
@@ -940,8 +943,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      MathPowStub stub(isolate(), MathPowStub::DOUBLE);
-      __ CallStub(&stub);
+      __ CallStubDelayed(new (zone())
+                             MathPowStub(nullptr, MathPowStub::DOUBLE));
       __ vmov(d0, d2);
       break;
     }
@@ -2819,7 +2822,7 @@ void CodeGenerator::AssembleConstructFrame() {
           __ EnterFrame(StackFrame::WASM_COMPILED);
         }
         __ Move(cp, Smi::kZero);
-        __ CallRuntime(Runtime::kThrowWasmStackOverflow);
+        __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
         // We come from WebAssembly, there are no references for the GC.
         ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
         RecordSafepoint(reference_map, Safepoint::kSimple, 0,

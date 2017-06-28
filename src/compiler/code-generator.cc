@@ -93,7 +93,7 @@ void CodeGenerator::AssembleCode() {
 
   // Place function entry hook if requested to do so.
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    ProfileEntryHookStub::MaybeCallEntryHook(masm());
+    ProfileEntryHookStub::MaybeCallEntryHookDelayed(masm(), zone());
   }
   // Architecture-specific, linkage-specific prologue.
   info->set_prologue_offset(masm()->pc_offset());

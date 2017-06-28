@@ -42,6 +42,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 
@@ -421,8 +422,15 @@ Operand Operand::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
   Operand result(0, RelocInfo::EMBEDDED_OBJECT);
-  result.is_heap_number_ = true;
-  result.value_.heap_number = value;
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(value);
+  return result;
+}
+
+Operand Operand::EmbeddedCode(CodeStub* stub) {
+  Operand result(0, RelocInfo::CODE_TARGET);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(stub);
   return result;
 }
 
@@ -493,6 +501,25 @@ void NeonMemOperand::SetAlignment(int align) {
       UNREACHABLE();
       align_ = 0;
       break;
+  }
+}
+
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        object = request.code_stub()->GetCode();
+        break;
+    }
+    Address pc = buffer_ + request.offset();
+    Memory::Address_at(constant_pool_entry_address(pc, 0 /* unused */)) =
+        reinterpret_cast<Address>(object.location());
   }
 }
 
@@ -583,7 +610,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   DCHECK(pending_32_bit_constants_.empty());
   DCHECK(pending_64_bit_constants_.empty());
 
-  AllocateRequestedHeapNumbers(isolate);
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -1185,8 +1212,8 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     }
   } else {
     int32_t immediate;
-    if (x.IsHeapNumber()) {
-      RequestHeapNumber(x.heap_number());
+    if (x.IsHeapObjectRequest()) {
+      RequestHeapObject(x.heap_object_request());
       immediate = 0;
     } else {
       immediate = x.immediate();
@@ -5092,7 +5119,10 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     }
   }
 
-  if (rmode == RelocInfo::CODE_TARGET && IsCodeTargetSharingAllowed()) {
+  // Share entries if allowed and possible.
+  // Null-values are placeholders and must be ignored.
+  if (rmode == RelocInfo::CODE_TARGET && IsCodeTargetSharingAllowed() &&
+      value != 0) {
     // Sharing entries here relies on canonicalized handles - without them, we
     // will miss the optimisation opportunity.
     Address handle_address = reinterpret_cast<Address>(value);

@@ -105,11 +105,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
                        int arguments, Safepoint::DeoptMode deopt_mode);
 
+  Zone* zone() const { return code()->zone(); }
+
  private:
   MacroAssembler* masm() { return &masm_; }
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
-  Zone* zone() const { return code()->zone(); }
   CompilationInfo* info() const { return info_; }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
 

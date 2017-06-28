@@ -394,9 +394,21 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
   DCHECK(reg.Is64Bits() || ((extend != SXTX) && (extend != UXTX)));
 }
 
+bool Operand::IsHeapObjectRequest() const {
+  DCHECK_IMPLIES(heap_object_request_.has_value(), reg_.Is(NoReg));
+  DCHECK_IMPLIES(heap_object_request_.has_value(),
+                 immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT ||
+                     immediate_.rmode() == RelocInfo::CODE_TARGET);
+  return heap_object_request_.has_value();
+}
+
+HeapObjectRequest Operand::heap_object_request() const {
+  DCHECK(IsHeapObjectRequest());
+  return *heap_object_request_;
+}
 
 bool Operand::IsImmediate() const {
-  return reg_.Is(NoReg) && !is_heap_number();
+  return reg_.Is(NoReg) && !IsHeapObjectRequest();
 }
 
 
@@ -425,6 +437,13 @@ Operand Operand::ToExtendedRegister() const {
   return Operand(reg_, reg_.Is64Bits() ? UXTX : UXTW, shift_amount_);
 }
 
+Immediate Operand::immediate_for_heap_object_request() const {
+  DCHECK((heap_object_request().kind() == HeapObjectRequest::kHeapNumber &&
+          immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT) ||
+         (heap_object_request().kind() == HeapObjectRequest::kCodeStub &&
+          immediate_.rmode() == RelocInfo::CODE_TARGET));
+  return immediate_;
+}
 
 Immediate Operand::immediate() const {
   DCHECK(IsImmediate());

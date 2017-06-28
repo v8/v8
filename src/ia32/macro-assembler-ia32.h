@@ -618,6 +618,7 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.  Generate the code if necessary.
   void CallStub(CodeStub* stub);
+  void CallStubDelayed(CodeStub* stub);
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);

@@ -2101,6 +2101,12 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   }
 }
 
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+                                                     Zone* zone) {
+  if (masm->isolate()->function_entry_hook() != nullptr) {
+    masm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
+  }
+}
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // This stub can be called from essentially anywhere, so it needs to save

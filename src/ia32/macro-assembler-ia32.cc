@@ -1578,6 +1578,10 @@ void MacroAssembler::CallStub(CodeStub* stub) {
   call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
+  call(stub);
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
@@ -2067,7 +2071,8 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Move(Register dst, const Immediate& x) {
-  if (!x.is_heap_number() && x.is_zero() && RelocInfo::IsNone(x.rmode_)) {
+  if (!x.is_heap_object_request() && x.is_zero() &&
+      RelocInfo::IsNone(x.rmode_)) {
     xor_(dst, dst);  // Shorter than mov of 32-bit immediate 0.
   } else {
     mov(dst, x);

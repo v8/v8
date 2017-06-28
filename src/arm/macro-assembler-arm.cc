@@ -91,8 +91,8 @@ int MacroAssembler::CallSize(
          mov_operand.InstructionsRequired(this, mov_instr) * kInstrSize;
 }
 
-int MacroAssembler::CallStubSize(CodeStub* stub, Condition cond) {
-  return CallSize(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+int MacroAssembler::CallStubSize() {
+  return CallSize(Handle<Code>(), RelocInfo::CODE_TARGET, al);
 }
 
 void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
@@ -147,8 +147,6 @@ int MacroAssembler::CallSize(Handle<Code> code,
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, TargetAddressStorageMode mode,
                           bool check_constant_pool) {
-  Label start;
-  bind(&start);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
   AllowDeferredHandleDereference embedding_raw_address;
@@ -2322,6 +2320,36 @@ void MacroAssembler::CallStub(CodeStub* stub,
        false);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+
+  // Block constant pool for the call instruction sequence.
+  BlockConstPoolScope block_const_pool(this);
+  Label start;
+  bind(&start);
+
+#ifdef DEBUG
+  // Check the expected size before generating code to ensure we assume the same
+  // constant pool availability (e.g., whether constant pool is full or not).
+  int expected_size = CallStubSize();
+#endif
+
+  // Call sequence on V7 or later may be :
+  //  movw  ip, #... @ call address low 16
+  //  movt  ip, #... @ call address high 16
+  //  blx   ip
+  //                      @ return address
+  // Or for pre-V7 or values that may be back-patched
+  // to avoid ICache flushes:
+  //  ldr   ip, [pc, #...] @ call address
+  //  blx   ip
+  //                      @ return address
+
+  mov(ip, Operand::EmbeddedCode(stub));
+  blx(ip, al);
+
+  DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
@@ -2506,6 +2534,17 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
   and_(dst, src, Operand((1 << num_least_bits) - 1));
 }
 
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r0, Operand(f->nargs));
+  mov(r1, Operand(ExternalReference(f, isolate())));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
+}
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments,

@@ -1902,11 +1902,36 @@ void MacroAssembler::CallStub(CodeStub* stub) {
   Call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub) {
+  BlockPoolsScope scope(this);
+#ifdef DEBUG
+  Label start_call;
+  Bind(&start_call);
+#endif
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  Ldr(temp, Operand::EmbeddedCode(stub));
+  Blr(temp);
+#ifdef DEBUG
+  AssertSizeOfCodeGeneratedSince(&start_call, kCallSizeWithRelocation);
+#endif
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Mov(x0, f->nargs);
+  Mov(x1, ExternalReference(f, isolate()));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
+}
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments,

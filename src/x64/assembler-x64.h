@@ -449,15 +449,14 @@ class Operand BASE_EMBEDDED {
 
 // Shift instructions on operands/registers with kPointerSize, kInt32Size and
 // kInt64Size.
-#define SHIFT_INSTRUCTION_LIST(V)       \
-  V(rol, 0x0)                           \
-  V(ror, 0x1)                           \
-  V(rcl, 0x2)                           \
-  V(rcr, 0x3)                           \
-  V(shl, 0x4)                           \
-  V(shr, 0x5)                           \
-  V(sar, 0x7)                           \
-
+#define SHIFT_INSTRUCTION_LIST(V) \
+  V(rol, 0x0)                     \
+  V(ror, 0x1)                     \
+  V(rcl, 0x2)                     \
+  V(rcr, 0x3)                     \
+  V(shl, 0x4)                     \
+  V(shr, 0x5)                     \
+  V(sar, 0x7)
 
 class Assembler : public AssemblerBase {
  private:
@@ -706,12 +705,6 @@ class Assembler : public AssemblerBase {
   // move.
   void movp_heap_number(Register dst, double value);
 
-  // Patch the dummy heap number that we emitted at {pc} during code assembly
-  // with the actual heap object (handle).
-  static void set_heap_number(Handle<HeapObject> number, Address pc) {
-    Memory::Object_Handle_at(pc) = number;
-  }
-
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value,
             RelocInfo::Mode rmode = RelocInfo::NONE64);
@@ -929,6 +922,7 @@ class Assembler : public AssemblerBase {
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
   void call(Address entry, RelocInfo::Mode rmode);
+  void call(CodeStub* stub);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
@@ -2510,6 +2504,19 @@ class Assembler : public AssemblerBase {
   std::deque<int> internal_reference_positions_;
 
   List< Handle<Code> > code_targets_;
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 

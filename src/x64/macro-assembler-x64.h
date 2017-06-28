@@ -1268,7 +1268,12 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.
+  // The first version is deprecated.
   void CallStub(CodeStub* stub);
+  // The second version, which expects {stub} to be zone-allocated, does not
+  // trigger generation of the stub's code object but instead files a
+  // HeapObjectRequest that will be fulfilled after code assembly.
+  void CallStubDelayed(CodeStub* stub);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);
@@ -1277,6 +1282,8 @@ class MacroAssembler: public Assembler {
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Call a runtime function and save the value of XMM registers.
   void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {

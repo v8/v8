@@ -262,7 +262,6 @@ enum RoundingMode {
   kRoundToZero = 0x3
 };
 
-
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -275,24 +274,27 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(Address addr);
   inline explicit Immediate(Address x, RelocInfo::Mode rmode);
 
-  static Immediate EmbeddedNumber(double value);  // Smi or HeapNumber.
+  static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Immediate EmbeddedCode(CodeStub* code);
 
   static Immediate CodeRelativeOffset(Label* label) {
     return Immediate(label);
   }
 
-  bool is_heap_number() const {
-    DCHECK_IMPLIES(is_heap_number_, rmode_ == RelocInfo::EMBEDDED_OBJECT);
-    return is_heap_number_;
+  bool is_heap_object_request() const {
+    DCHECK_IMPLIES(is_heap_object_request_,
+                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                       rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
   }
 
-  double heap_number() const {
-    DCHECK(is_heap_number());
-    return value_.heap_number;
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(is_heap_object_request());
+    return value_.heap_object_request;
   }
 
   int immediate() const {
-    DCHECK(!is_heap_number());
+    DCHECK(!is_heap_object_request());
     return value_.immediate;
   }
 
@@ -314,11 +316,12 @@ class Immediate BASE_EMBEDDED {
  private:
   inline explicit Immediate(Label* value);
 
-  union {
-    double heap_number;
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;
     int immediate;
   } value_;
-  bool is_heap_number_ = false;
+  bool is_heap_object_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Operand;
@@ -510,7 +513,7 @@ class Assembler : public AssemblerBase {
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
-  virtual ~Assembler() { }
+  virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -864,6 +867,7 @@ class Assembler : public AssemblerBase {
   void call(const Operand& adr);
   int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
+  void call(CodeStub* stub);
 
   // Jumps
   // unconditional jump to L
@@ -1717,12 +1721,6 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
-  // Patch the dummy heap number that we emitted at {pc} during code assembly
-  // with the actual heap object (handle).
-  static void set_heap_number(Handle<HeapObject> number, Address pc) {
-    Memory::Object_Handle_at(pc) = number;
-  }
-
  protected:
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
@@ -1813,6 +1811,19 @@ class Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 

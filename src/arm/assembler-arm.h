@@ -524,7 +524,8 @@ class Operand BASE_EMBEDDED {
   // rm <shift_op> rs
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
-  static Operand EmbeddedNumber(double value);  // Smi or HeapNumber
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
   bool IsRegister() const {
@@ -558,21 +559,23 @@ class Operand BASE_EMBEDDED {
 
   inline int32_t immediate() const {
     DCHECK(IsImmediate());
-    DCHECK(!IsHeapNumber());
+    DCHECK(!IsHeapObjectRequest());
     return value_.immediate;
   }
   bool IsImmediate() const {
     return !rm_.is_valid();
   }
 
-  double heap_number() const {
-    DCHECK(IsHeapNumber());
-    return value_.heap_number;
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(IsHeapObjectRequest());
+    return value_.heap_object_request;
   }
-  bool IsHeapNumber() const {
-    DCHECK_IMPLIES(is_heap_number_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_number_, rmode_ == RelocInfo::EMBEDDED_OBJECT);
-    return is_heap_number_;
+  bool IsHeapObjectRequest() const {
+    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_object_request_,
+        rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+        rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
   }
 
   Register rm() const { return rm_; }
@@ -585,11 +588,12 @@ class Operand BASE_EMBEDDED {
   Register rs_;
   ShiftOp shift_op_;
   int shift_imm_;                // valid if rm_ != no_reg && rs_ == no_reg
-  union {
-    double heap_number;          // if is_heap_number_
-    int32_t immediate;           // otherwise
-  } value_;                      // valid if rm_ == no_reg
-  bool is_heap_number_ = false;
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    int32_t immediate;                      // otherwise
+  } value_;                                 // valid if rm_ == no_reg
+  bool is_heap_object_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -1583,14 +1587,6 @@ class Assembler : public AssemblerBase {
   // the marker and branch over the data.
   void RecordConstPool(int size);
 
-  // Patch the dummy heap number that we emitted during code assembly in the
-  // constant pool entry referenced by {pc}. Replace it with the actual heap
-  // object (handle).
-  static void set_heap_number(Handle<HeapObject> number, Address pc) {
-    Memory::Address_at(constant_pool_entry_address(pc, 0 /* unused */)) =
-        reinterpret_cast<Address>(number.location());
-  }
-
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables. CheckConstantPool() should be
   // called before any use of db/dd/dq/dp to ensure that constant pools
@@ -1868,6 +1864,19 @@ class Assembler : public AssemblerBase {
   friend class BlockConstPoolScope;
   friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 constexpr int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;

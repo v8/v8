@@ -18,6 +18,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
 
@@ -292,6 +293,25 @@ bool Operand::AddressUsesRegister(Register reg) const {
   }
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Address pc = buffer_ + request.offset();
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber: {
+        Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
+            request.heap_number(), IMMUTABLE, TENURED);
+        Memory::Object_Handle_at(pc) = object;
+        break;
+      }
+      case HeapObjectRequest::kCodeStub: {
+        request.code_stub()->set_isolate(isolate);
+        code_targets_[Memory::int32_at(pc)] = request.code_stub()->GetCode();
+        break;
+      }
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
@@ -314,7 +334,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // that we are still not overlapping instructions and relocation info.
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
 
-  AllocateRequestedHeapNumbers(isolate);
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -880,6 +900,14 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   // 1110 1000 #32-bit disp.
   emit(0xE8);
   emit_runtime_entry(entry, rmode);
+}
+
+void Assembler::call(CodeStub* stub) {
+  EnsureSpace ensure_space(this);
+  // 1110 1000 #32-bit disp.
+  emit(0xE8);
+  RequestHeapObject(HeapObjectRequest(stub));
+  emit_code_target(Handle<Code>(), RelocInfo::CODE_TARGET);
 }
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
@@ -1541,7 +1569,7 @@ void Assembler::movp_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
-  RequestHeapNumber(value);
+  RequestHeapObject(HeapObjectRequest(value));
   emitp(nullptr, RelocInfo::EMBEDDED_OBJECT);
 }
 

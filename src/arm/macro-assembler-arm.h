@@ -101,7 +101,7 @@ class MacroAssembler: public Assembler {
   // checking the call size and emitting the actual call.
   static int CallSize(Register target, Condition cond = al);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallStubSize(CodeStub* stub, Condition cond = al);
+  int CallStubSize();
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
@@ -1011,11 +1011,14 @@ class MacroAssembler: public Assembler {
   // Call a code stub.
   void CallStub(CodeStub* stub,
                 Condition cond = al);
+  void CallStubDelayed(CodeStub* stub);
 
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
