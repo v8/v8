@@ -4621,23 +4621,17 @@ ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 ACCESSORS(Module, script, Script, kScriptOffset)
+ACCESSORS(Module, exception, Object, kExceptionOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
+SMI_ACCESSORS(Module, dfs_index, kDfsIndexOffset)
+SMI_ACCESSORS(Module, dfs_ancestor_index, kDfsAncestorIndexOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-bool Module::evaluated() const { return code()->IsModuleInfo(); }
-
-void Module::set_evaluated() {
-  DCHECK(instantiated());
-  DCHECK(!evaluated());
-  return set_code(
-      JSFunction::cast(code())->shared()->scope_info()->ModuleDescriptorInfo());
-}
-
-bool Module::instantiated() const { return !code()->IsSharedFunctionInfo(); }
-
 ModuleInfo* Module::info() const {
-  if (evaluated()) return ModuleInfo::cast(code());
-  ScopeInfo* scope_info = instantiated()
+  if (status() >= kEvaluating) {
+    return ModuleInfo::cast(code());
+  }
+  ScopeInfo* scope_info = status() >= kInstantiating
                               ? JSFunction::cast(code())->shared()->scope_info()
                               : SharedFunctionInfo::cast(code())->scope_info();
   return scope_info->ModuleDescriptorInfo();

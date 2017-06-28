@@ -2019,9 +2019,10 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
   module->set_script(Script::cast(code->script()));
-  module->set_status(Module::kUnprepared);
-  DCHECK(!module->instantiated());
-  DCHECK(!module->evaluated());
+  module->set_status(Module::kUninstantiated);
+  module->set_exception(isolate()->heap()->the_hole_value());
+  module->set_dfs_index(-1);
+  module->set_dfs_ancestor_index(-1);
   return module;
 }
 

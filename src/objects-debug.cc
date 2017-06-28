@@ -1250,27 +1250,26 @@ void Module::ModuleVerify() {
   VerifyPointer(module_namespace());
   VerifyPointer(requested_modules());
   VerifyPointer(script());
+  VerifyPointer(exception());
   VerifySmiField(kHashOffset);
   VerifySmiField(kStatusOffset);
 
-  CHECK((!instantiated() && code()->IsSharedFunctionInfo()) ||
-        (instantiated() && !evaluated() && code()->IsJSFunction()) ||
-        (instantiated() && evaluated() && code()->IsModuleInfo()));
+  CHECK((status() < kInstantiating && code()->IsSharedFunctionInfo()) ||
+        (status() < kEvaluating && code()->IsJSFunction()) ||
+        code()->IsModuleInfo());
+
+  CHECK_EQ(status() == kErrored, !exception()->IsTheHole(GetIsolate()));
 
   CHECK(module_namespace()->IsUndefined(GetIsolate()) ||
         module_namespace()->IsJSModuleNamespace());
   if (module_namespace()->IsJSModuleNamespace()) {
-    CHECK(instantiated());
+    CHECK_LE(kInstantiating, status());
     CHECK_EQ(JSModuleNamespace::cast(module_namespace())->module(), this);
   }
 
   CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
 
   CHECK_NE(hash(), 0);
-
-  CHECK_LE(kUnprepared, status());
-  CHECK_LE(status(), kPrepared);
-  CHECK_IMPLIES(instantiated(), status() == kPrepared);
 }
 
 void PrototypeInfo::PrototypeInfoVerify() {
