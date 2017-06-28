@@ -755,7 +755,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     GotoIf(WordNotEqual(proto, initial_array_prototype), &runtime);
 
     Node* species_protector = SpeciesProtectorConstant();
-    Node* value = LoadObjectField(species_protector, Cell::kValueOffset);
+    Node* value =
+        LoadObjectField(species_protector, PropertyCell::kValueOffset);
     Node* const protector_invalid = SmiConstant(Isolate::kProtectorInvalid);
     GotoIf(WordEqual(value, protector_invalid), &runtime);
 
