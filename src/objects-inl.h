@@ -1251,64 +1251,6 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 }
 
 
-inline bool AllocationSite::MakePretenureDecision(
-    PretenureDecision current_decision,
-    double ratio,
-    bool maximum_size_scavenge) {
-  // Here we just allow state transitions from undecided or maybe tenure
-  // to don't tenure, maybe tenure, or tenure.
-  if ((current_decision == kUndecided || current_decision == kMaybeTenure)) {
-    if (ratio >= kPretenureRatio) {
-      // We just transition into tenure state when the semi-space was at
-      // maximum capacity.
-      if (maximum_size_scavenge) {
-        set_deopt_dependent_code(true);
-        set_pretenure_decision(kTenure);
-        // Currently we just need to deopt when we make a state transition to
-        // tenure.
-        return true;
-      }
-      set_pretenure_decision(kMaybeTenure);
-    } else {
-      set_pretenure_decision(kDontTenure);
-    }
-  }
-  return false;
-}
-
-
-inline bool AllocationSite::DigestPretenuringFeedback(
-    bool maximum_size_scavenge) {
-  bool deopt = false;
-  int create_count = memento_create_count();
-  int found_count = memento_found_count();
-  bool minimum_mementos_created = create_count >= kPretenureMinimumCreated;
-  double ratio =
-      minimum_mementos_created || FLAG_trace_pretenuring_statistics ?
-          static_cast<double>(found_count) / create_count : 0.0;
-  PretenureDecision current_decision = pretenure_decision();
-
-  if (minimum_mementos_created) {
-    deopt = MakePretenureDecision(
-        current_decision, ratio, maximum_size_scavenge);
-  }
-
-  if (FLAG_trace_pretenuring_statistics) {
-    PrintIsolate(GetIsolate(),
-                 "pretenuring: AllocationSite(%p): (created, found, ratio) "
-                 "(%d, %d, %f) %s => %s\n",
-                 static_cast<void*>(this), create_count, found_count, ratio,
-                 PretenureDecisionName(current_decision),
-                 PretenureDecisionName(pretenure_decision()));
-  }
-
-  // Clear feedback calculation fields until the next gc.
-  set_memento_found_count(0);
-  set_memento_create_count(0);
-  return deopt;
-}
-
-
 bool AllocationMemento::IsValid() {
   return allocation_site()->IsAllocationSite() &&
          !AllocationSite::cast(allocation_site())->IsZombie();

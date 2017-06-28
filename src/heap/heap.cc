@@ -554,6 +554,65 @@ class Heap::PretenuringScope {
   Heap* heap_;
 };
 
+namespace {
+inline bool MakePretenureDecision(
+    AllocationSite* site, AllocationSite::PretenureDecision current_decision,
+    double ratio, bool maximum_size_scavenge) {
+  // Here we just allow state transitions from undecided or maybe tenure
+  // to don't tenure, maybe tenure, or tenure.
+  if ((current_decision == AllocationSite::kUndecided ||
+       current_decision == AllocationSite::kMaybeTenure)) {
+    if (ratio >= AllocationSite::kPretenureRatio) {
+      // We just transition into tenure state when the semi-space was at
+      // maximum capacity.
+      if (maximum_size_scavenge) {
+        site->set_deopt_dependent_code(true);
+        site->set_pretenure_decision(AllocationSite::kTenure);
+        // Currently we just need to deopt when we make a state transition to
+        // tenure.
+        return true;
+      }
+      site->set_pretenure_decision(AllocationSite::kMaybeTenure);
+    } else {
+      site->set_pretenure_decision(AllocationSite::kDontTenure);
+    }
+  }
+  return false;
+}
+
+inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite* site,
+                                      bool maximum_size_scavenge) {
+  bool deopt = false;
+  int create_count = site->memento_create_count();
+  int found_count = site->memento_found_count();
+  bool minimum_mementos_created =
+      create_count >= AllocationSite::kPretenureMinimumCreated;
+  double ratio = minimum_mementos_created || FLAG_trace_pretenuring_statistics
+                     ? static_cast<double>(found_count) / create_count
+                     : 0.0;
+  AllocationSite::PretenureDecision current_decision =
+      site->pretenure_decision();
+
+  if (minimum_mementos_created) {
+    deopt = MakePretenureDecision(site, current_decision, ratio,
+                                  maximum_size_scavenge);
+  }
+
+  if (FLAG_trace_pretenuring_statistics) {
+    PrintIsolate(isolate,
+                 "pretenuring: AllocationSite(%p): (created, found, ratio) "
+                 "(%d, %d, %f) %s => %s\n",
+                 static_cast<void*>(site), create_count, found_count, ratio,
+                 site->PretenureDecisionName(current_decision),
+                 site->PretenureDecisionName(site->pretenure_decision()));
+  }
+
+  // Clear feedback calculation fields until the next gc.
+  site->set_memento_found_count(0);
+  site->set_memento_create_count(0);
+  return deopt;
+}
+}  // namespace
 
 void Heap::ProcessPretenuringFeedback() {
   bool trigger_deoptimization = false;
@@ -580,7 +639,7 @@ void Heap::ProcessPretenuringFeedback() {
         DCHECK(site->IsAllocationSite());
         active_allocation_sites++;
         allocation_mementos_found += found_count;
-        if (site->DigestPretenuringFeedback(maximum_size_scavenge)) {
+        if (DigestPretenuringFeedback(isolate_, site, maximum_size_scavenge)) {
           trigger_deoptimization = true;
         }
         if (site->GetPretenureMode() == TENURED) {
