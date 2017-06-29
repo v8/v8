@@ -5060,6 +5060,10 @@ template void CodeStubAssembler::NameDictionaryLookup<NameDictionary>(
 template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
     Node*, Node*, Label*, Variable*, Label*, int, LookupMode);
 
+Node* CodeStubAssembler::ComputeIntegerHash(Node* key) {
+  return ComputeIntegerHash(key, IntPtrConstant(kZeroHashSeed));
+}
+
 Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   // See v8::internal::ComputeIntegerHash()
   Node* hash = TruncateWordToWord32(key);

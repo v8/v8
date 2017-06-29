@@ -2162,8 +2162,7 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
   DCHECK(base::bits::IsPowerOfTwo32(kInnerPointerToCodeCacheSize));
-  uint32_t hash = ComputeIntegerHash(ObjectAddressForHashing(inner_pointer),
-                                     v8::internal::kZeroHashSeed);
+  uint32_t hash = ComputeIntegerHash(ObjectAddressForHashing(inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {

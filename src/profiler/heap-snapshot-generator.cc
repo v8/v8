@@ -677,9 +677,9 @@ SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
                                            static_cast<int>(strlen(label)),
                                            heap_->HashSeed());
   intptr_t element_count = info->GetElementCount();
-  if (element_count != -1)
-    id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
-                             v8::internal::kZeroHashSeed);
+  if (element_count != -1) {
+    id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));
+  }
   return id << 1;
 }
 

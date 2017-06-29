@@ -1148,6 +1148,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             int inlined_probes = kInlinedDictionaryProbes,
                             LookupMode mode = kFindExisting);
 
+  Node* ComputeIntegerHash(Node* key);
   Node* ComputeIntegerHash(Node* key, Node* seed);
 
   template <typename Dictionary>

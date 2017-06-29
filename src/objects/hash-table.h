@@ -435,8 +435,7 @@ class OrderedHashTable : public FixedArray {
     // This special cases for Smi, so that we avoid the HandleScope
     // creation below.
     if (key->IsSmi()) {
-      uint32_t hash =
-          ComputeIntegerHash(Smi::cast(key)->value(), kZeroHashSeed);
+      uint32_t hash = ComputeIntegerHash(Smi::cast(key)->value());
       return HashToEntry(hash & Smi::kMaxValue);
     }
     HandleScope scope(isolate);

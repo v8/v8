@@ -2180,8 +2180,7 @@ Object* GetSimpleHash(Object* object) {
   // The object is either a Smi, a HeapNumber, a name, an odd-ball, a real JS
   // object, or a Harmony proxy.
   if (object->IsSmi()) {
-    uint32_t hash =
-        ComputeIntegerHash(Smi::cast(object)->value(), kZeroHashSeed);
+    uint32_t hash = ComputeIntegerHash(Smi::cast(object)->value());
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object->IsHeapNumber()) {

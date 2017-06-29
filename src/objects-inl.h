@@ -6015,13 +6015,13 @@ bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
 }
 
 uint32_t UnseededNumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeIntegerHash(key, 0);
+  return ComputeIntegerHash(key);
 }
 
 uint32_t UnseededNumberDictionaryShape::HashForObject(Isolate* isolate,
                                                       Object* other) {
   DCHECK(other->IsNumber());
-  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), 0);
+  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()));
 }
 
 Map* UnseededNumberDictionaryShape::GetMap(Isolate* isolate) {

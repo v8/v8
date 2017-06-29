@@ -442,6 +442,9 @@ inline uint32_t ComputeIntegerHash(uint32_t key, uint32_t seed) {
   return hash & 0x3fffffff;
 }
 
+inline uint32_t ComputeIntegerHash(uint32_t key) {
+  return ComputeIntegerHash(key, kZeroHashSeed);
+}
 
 inline uint32_t ComputeLongHash(uint64_t key) {
   uint64_t hash = key;
@@ -457,8 +460,7 @@ inline uint32_t ComputeLongHash(uint64_t key) {
 
 inline uint32_t ComputePointerHash(void* ptr) {
   return ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)),
-      v8::internal::kZeroHashSeed);
+      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
 
