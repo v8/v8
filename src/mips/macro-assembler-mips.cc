@@ -1861,11 +1861,9 @@ void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
     neg_s(fd, fs);  // In delay slot.
     bind(&is_nan);
     mfc1(scratch1, fs);
-    And(scratch2, scratch1, Operand(~kBinary32SignMask));
-    And(scratch1, scratch1, Operand(kBinary32SignMask));
-    Xor(scratch1, scratch1, Operand(kBinary32SignMask));
-    Or(scratch2, scratch2, scratch1);
-    mtc1(scratch2, fd);
+    li(scratch2, kBinary32SignMask);
+    Xor(scratch1, scratch1, scratch2);
+    mtc1(scratch1, fd);
     bind(&done);
   }
 }
@@ -1887,11 +1885,9 @@ void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     neg_d(fd, fs);  // In delay slot.
     bind(&is_nan);
     Mfhc1(scratch1, fs);
-    And(scratch2, scratch1, Operand(~HeapNumber::kSignMask));
-    And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
-    Xor(scratch1, scratch1, Operand(HeapNumber::kSignMask));
-    Or(scratch2, scratch2, scratch1);
-    Mthc1(scratch2, fd);
+    li(scratch2, HeapNumber::kSignMask);
+    Xor(scratch1, scratch1, scratch2);
+    Mthc1(scratch1, fd);
     bind(&done);
   }
 }
