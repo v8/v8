@@ -612,7 +612,8 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     CompilationInfo info(comp_name, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
-        &info, &jsgraph, desc, &source_position_table_, nullptr, false));
+        &info, &jsgraph, desc, &source_position_table_, nullptr,
+        ModuleOrigin::kAsmJsOrigin));
     if (job->ExecuteJob() != CompilationJob::SUCCEEDED ||
         job->FinalizeJob() != CompilationJob::SUCCEEDED)
       return Handle<Code>::null();
