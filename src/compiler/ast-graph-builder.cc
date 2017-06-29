@@ -2416,11 +2416,6 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
   return NewNode(javascript()->ToBoolean(hints), input);
 }
 
-Node* AstGraphBuilder::BuildToObject(Node* input) {
-  Node* object = NewNode(javascript()->ToObject(), input);
-  return object;
-}
-
 Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
                                           LiteralProperty* property,
                                           int slot_number) {

@@ -269,7 +269,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* input);
-  Node* BuildToObject(Node* input);
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.

@@ -1329,13 +1329,6 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     return Replace(receiver);
   }
 
-  // TODO(bmeurer/mstarzinger): Add support for lowering inside try blocks.
-  if (receiver_type->Maybe(Type::NullOrUndefined()) &&
-      NodeProperties::IsExceptionalCall(node)) {
-    // ToObject throws for null or undefined inputs.
-    return NoChange();
-  }
-
   // Check whether {receiver} is a spec object.
   Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), receiver);
   Node* branch =
@@ -1357,6 +1350,18 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     rfalse = efalse = if_false = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
         receiver, context, frame_state, efalse, if_false);
+  }
+
+  // Update potential {IfException} uses of {node} to point to the above
+  // ToObject stub call node instead. Note that the stub can only throw on
+  // receivers that can be null or undefined.
+  Node* on_exception = nullptr;
+  if (receiver_type->Maybe(Type::NullOrUndefined()) &&
+      NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, if_false);
+    NodeProperties::ReplaceEffectInput(on_exception, efalse);
+    if_false = graph()->NewNode(common()->IfSuccess(), if_false);
+    Revisit(on_exception);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -2359,7 +2364,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
         receiver, context, frame_state, effect, if_false0);
 
-    // Update potential {IfException} uses of {node} to point to the ahove
+    // Update potential {IfException} uses of {node} to point to the above
     // ForInFilter stub call node instead.
     Node* if_exception = nullptr;
     if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
