@@ -4161,6 +4161,22 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
   native_context()->set_regexp_prototype_map(*prototype_map);
 }
 
+#ifdef V8_INTL_SUPPORT
+
+void Genesis::InitializeGlobal_harmony_number_format_to_parts() {
+  if (!FLAG_harmony_number_format_to_parts) return;
+  Handle<JSObject> number_format_prototype(JSObject::cast(
+      native_context()->intl_number_format_function()->prototype()));
+  Handle<String> name = factory()->InternalizeUtf8String("formatToParts");
+  InstallFunction(number_format_prototype,
+                  SimpleCreateFunction(
+                      isolate(), name,
+                      Builtins::kNumberFormatPrototypeFormatToParts, 0, false),
+                  name);
+}
+
+#endif  // V8_INTL_SUPPORT
+
 Handle<JSFunction> Genesis::CreateArrayBuffer(Handle<String> name,
                                               Builtins::Name call_byteLength,
                                               BuiltinFunctionId byteLength_id,

@@ -165,6 +165,7 @@
       'test-hashmap.cc',
       'test-heap-profiler.cc',
       'test-identity-map.cc',
+      'test-intl.cc',
       'test-inobject-slack-tracking.cc',
       'test-list.cc',
       'test-liveedit.cc',

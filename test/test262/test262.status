@@ -316,7 +316,7 @@
   'language/expressions/async-arrow-function/dflt-params-duplicates': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5244
-  'intl402/NumberFormat/prototype/formatToParts/*': [SKIP],
+  'intl402/NumberFormat/prototype/formatToParts/*': ['--harmony-number-format-to-parts'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327
   'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],

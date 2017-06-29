@@ -2795,8 +2795,8 @@ Handle<RegExpMatchInfo> Factory::NewRegExpMatchInfo() {
 
 Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {
   if (Name::Equals(name, undefined_string())) return undefined_value();
-  if (Name::Equals(name, nan_string())) return nan_value();
-  if (Name::Equals(name, infinity_string())) return infinity_value();
+  if (Name::Equals(name, NaN_string())) return nan_value();
+  if (Name::Equals(name, Infinity_string())) return infinity_value();
   return Handle<Object>::null();
 }
 

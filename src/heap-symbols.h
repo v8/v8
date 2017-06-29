@@ -46,9 +46,11 @@
   V(constructor_string, "constructor")                             \
   V(construct_string, "construct")                                 \
   V(create_string, "create")                                       \
+  V(currency_string, "currency")                                   \
   V(Date_string, "Date")                                           \
   V(dayperiod_string, "dayperiod")                                 \
   V(day_string, "day")                                             \
+  V(decimal_string, "decimal")                                     \
   V(default_string, "default")                                     \
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
@@ -73,6 +75,7 @@
   V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
   V(flags_string, "flags")                                         \
+  V(fraction_string, "fraction")                                   \
   V(function_string, "function")                                   \
   V(Function_string, "Function")                                   \
   V(Generator_string, "Generator")                                 \
@@ -82,6 +85,7 @@
   V(get_string, "get")                                             \
   V(get_space_string, "get ")                                      \
   V(global_string, "global")                                       \
+  V(group_string, "group")                                         \
   V(groups_string, "groups")                                       \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
@@ -89,7 +93,9 @@
   V(illegal_access_string, "illegal access")                       \
   V(illegal_argument_string, "illegal argument")                   \
   V(index_string, "index")                                         \
-  V(infinity_string, "Infinity")                                   \
+  V(infinity_string, "infinity")                                   \
+  V(Infinity_string, "Infinity")                                   \
+  V(integer_string, "integer")                                     \
   V(input_string, "input")                                         \
   V(isExtensible_string, "isExtensible")                           \
   V(isView_string, "isView")                                       \
@@ -103,15 +109,17 @@
   V(literal_string, "literal")                                     \
   V(Map_string, "Map")                                             \
   V(message_string, "message")                                     \
-  V(minus_infinity_string, "-Infinity")                            \
+  V(minus_Infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
+  V(minusSign_string, "minusSign")                                 \
   V(minute_string, "minute")                                       \
   V(Module_string, "Module")                                       \
   V(month_string, "month")                                         \
   V(multiline_string, "multiline")                                 \
   V(name_string, "name")                                           \
   V(native_string, "native")                                       \
-  V(nan_string, "NaN")                                             \
+  V(nan_string, "nan")                                             \
+  V(NaN_string, "NaN")                                             \
   V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
   V(NFC_string, "NFC")                                             \
@@ -128,6 +136,8 @@
   V(ok, "ok")                                                      \
   V(one_string, "1")                                               \
   V(ownKeys_string, "ownKeys")                                     \
+  V(percentSign_string, "percentSign")                             \
+  V(plusSign_string, "plusSign")                                   \
   V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
   V(Promise_string, "Promise")                                     \

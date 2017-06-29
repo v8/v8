@@ -53,12 +53,12 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
                          bool* is_typed_array) {
   switch (member) {
     case wasm::AsmJsParser::StandardMember::kInfinity: {
-      Handle<Name> name = isolate->factory()->infinity_string();
+      Handle<Name> name = isolate->factory()->Infinity_string();
       Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNumber() && std::isinf(value->Number());
     }
     case wasm::AsmJsParser::StandardMember::kNaN: {
-      Handle<Name> name = isolate->factory()->nan_string();
+      Handle<Name> name = isolate->factory()->NaN_string();
       Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNaN();
     }

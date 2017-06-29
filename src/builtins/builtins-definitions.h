@@ -1054,16 +1054,18 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, 1, kValue)
 
 #ifdef V8_INTL_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \
-                                                             \
-  TFS(StringToLowerCaseIntl, kString)                        \
-  /* ES #sec-string.prototype.tolowercase */                 \
-  TFJ(StringPrototypeToLowerCaseIntl, 0)                     \
-  /* ES #sec-string.prototype.touppercase */                 \
-  CPP(StringPrototypeToUpperCaseIntl)                        \
-  /* ES #sec-string.prototype.normalize */                   \
-  CPP(StringPrototypeNormalizeIntl)
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)   \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)    \
+                                                               \
+  TFS(StringToLowerCaseIntl, kString)                          \
+  /* ES #sec-string.prototype.tolowercase */                   \
+  TFJ(StringPrototypeToLowerCaseIntl, 0)                       \
+  /* ES #sec-string.prototype.touppercase */                   \
+  CPP(StringPrototypeToUpperCaseIntl)                          \
+  /* ES #sec-string.prototype.normalize */                     \
+  CPP(StringPrototypeNormalizeIntl)                            \
+  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */ \
+  CPP(NumberFormatPrototypeFormatToParts)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG) \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \

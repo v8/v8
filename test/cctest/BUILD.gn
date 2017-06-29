@@ -148,6 +148,7 @@ v8_executable("cctest") {
     "test-heap-profiler.cc",
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
+    "test-intl.cc",
     "test-list.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
@@ -349,6 +350,12 @@ v8_executable("cctest") {
     defines += [ "BUILDING_V8_SHARED" ]
   } else {
     deps += [ "../..:v8" ]
+  }
+
+  if (v8_enable_i18n_support) {
+    defines += [ "V8_INTL_SUPPORT" ]
+  } else {
+    sources -= [ "test-intl.cc" ]
   }
 
   cflags = []
