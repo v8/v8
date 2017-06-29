@@ -103,12 +103,7 @@ namespace {
 
 class MockPlatform : public v8::Platform {
  public:
-  explicit MockPlatform(v8::TracingController* tracing_controller)
-      : time_(0.0),
-        time_step_(0.0),
-        idle_task_(nullptr),
-        sem_(0),
-        tracing_controller_(tracing_controller) {}
+  MockPlatform() : time_(0.0), time_step_(0.0), idle_task_(nullptr), sem_(0) {}
   ~MockPlatform() override {
     base::LockGuard<base::Mutex> lock(&mutex_);
     EXPECT_TRUE(foreground_tasks_.empty());
@@ -146,10 +141,6 @@ class MockPlatform : public v8::Platform {
   double MonotonicallyIncreasingTime() override {
     time_ += time_step_;
     return time_;
-  }
-
-  v8::TracingController* GetTracingController() override {
-    return tracing_controller_;
   }
 
   void RunIdleTask(double deadline_in_seconds, double time_step) {
@@ -278,8 +269,6 @@ class MockPlatform : public v8::Platform {
 
   base::Semaphore sem_;
 
-  v8::TracingController* tracing_controller_;
-
   DISALLOW_COPY_AND_ASSIGN(MockPlatform);
 };
 
@@ -288,12 +277,12 @@ const char test_script[] = "(x) { x*x; }";
 }  // namespace
 
 TEST_F(CompilerDispatcherTest, Construct) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 }
 
 TEST_F(CompilerDispatcherTest, IsEnqueued) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -311,7 +300,7 @@ TEST_F(CompilerDispatcherTest, IsEnqueued) {
 }
 
 TEST_F(CompilerDispatcherTest, FinishNow) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -330,7 +319,7 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
 }
 
 TEST_F(CompilerDispatcherTest, FinishAllNow) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   constexpr int num_funcs = 2;
@@ -360,7 +349,7 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
 }
 
 TEST_F(CompilerDispatcherTest, IdleTask) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -381,7 +370,7 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
 }
 
 TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -420,7 +409,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
 }
 
 TEST_F(CompilerDispatcherTest, IdleTaskException) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
 
   std::string func_name("f" STR(__LINE__));
@@ -447,7 +436,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
 }
 
 TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -491,7 +480,7 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
 }
 
 TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -531,7 +520,7 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
 }
 
 TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
@@ -560,7 +549,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
 }
 
 TEST_F(CompilerDispatcherTest, FinishNowException) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
 
   std::string func_name("f" STR(__LINE__));
@@ -588,7 +577,7 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
 }
 
 TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -631,7 +620,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
 }
 
 TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
@@ -713,7 +702,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
 }
 
 TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -792,7 +781,7 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
 }
 
 TEST_F(CompilerDispatcherTest, MemoryPressure) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -840,7 +829,7 @@ class PressureNotificationTask : public CancelableTask {
 }  // namespace
 
 TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -873,7 +862,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueJob) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   const char script[] = TEST_SCRIPT();
   Handle<JSFunction> f =
@@ -892,7 +881,7 @@ TEST_F(CompilerDispatcherTest, EnqueueJob) {
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   ASSERT_TRUE(dispatcher.jobs_.empty());
   ASSERT_TRUE(dispatcher.shared_to_job_id_.empty());
@@ -917,7 +906,7 @@ TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
@@ -939,7 +928,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueParsed) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char source[] = TEST_SCRIPT();
@@ -966,7 +955,7 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char source[] = TEST_SCRIPT();
@@ -995,7 +984,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
 }
 
 TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char source[] = TEST_SCRIPT();
@@ -1057,7 +1046,7 @@ class MockNativeFunctionExtension : public Extension {
 }  // namespace
 
 TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   Local<v8::Context> context = v8::Context::New(isolate());
 
@@ -1156,7 +1145,7 @@ TEST_F(CompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char source[] = TEST_SCRIPT();
@@ -1197,7 +1186,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
 }
 
 TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
-  MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
+  MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();

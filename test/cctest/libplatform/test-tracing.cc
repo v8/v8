@@ -4,7 +4,6 @@
 #include <limits>
 
 #include "include/libplatform/v8-tracing.h"
-#include "src/libplatform/default-platform.h"
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
 
@@ -136,8 +135,7 @@ TEST(TestJSONTraceWriter) {
   // Create a scope for the tracing controller to terminate the trace writer.
   {
     TracingController tracing_controller;
-    static_cast<v8::platform::DefaultPlatform*>(default_platform)
-        ->SetTracingController(&tracing_controller);
+    platform::SetTracingController(default_platform, &tracing_controller);
     TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
 
     TraceBuffer* ring_buffer =
@@ -180,8 +178,7 @@ TEST(TestTracingController) {
   i::V8::SetPlatformForTesting(default_platform);
 
   TracingController tracing_controller;
-  static_cast<v8::platform::DefaultPlatform*>(default_platform)
-      ->SetTracingController(&tracing_controller);
+  platform::SetTracingController(default_platform, &tracing_controller);
 
   MockTraceWriter* writer = new MockTraceWriter();
   TraceBuffer* ring_buffer =
@@ -247,8 +244,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   // Create a scope for the tracing controller to terminate the trace writer.
   {
     TracingController tracing_controller;
-    static_cast<v8::platform::DefaultPlatform*>(default_platform)
-        ->SetTracingController(&tracing_controller);
+    platform::SetTracingController(default_platform, &tracing_controller);
     TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
 
     TraceBuffer* ring_buffer =
@@ -343,7 +339,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
 
 namespace {
 
-class TraceStateObserverImpl : public TracingController::TraceStateObserver {
+class TraceStateObserverImpl : public Platform::TraceStateObserver {
  public:
   void OnTraceEnabled() override { ++enabled_count; }
   void OnTraceDisabled() override { ++disabled_count; }
@@ -360,8 +356,7 @@ TEST(TracingObservers) {
   i::V8::SetPlatformForTesting(default_platform);
 
   v8::platform::tracing::TracingController tracing_controller;
-  static_cast<v8::platform::DefaultPlatform*>(default_platform)
-      ->SetTracingController(&tracing_controller);
+  v8::platform::SetTracingController(default_platform, &tracing_controller);
   MockTraceWriter* writer = new MockTraceWriter();
   v8::platform::tracing::TraceBuffer* ring_buffer =
       v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
@@ -372,7 +367,7 @@ TEST(TracingObservers) {
   trace_config->AddIncludedCategory("v8");
 
   TraceStateObserverImpl observer;
-  tracing_controller.AddTraceStateObserver(&observer);
+  default_platform->AddTraceStateObserver(&observer);
 
   CHECK_EQ(0, observer.enabled_count);
   CHECK_EQ(0, observer.disabled_count);
@@ -383,12 +378,12 @@ TEST(TracingObservers) {
   CHECK_EQ(0, observer.disabled_count);
 
   TraceStateObserverImpl observer2;
-  tracing_controller.AddTraceStateObserver(&observer2);
+  default_platform->AddTraceStateObserver(&observer2);
 
   CHECK_EQ(1, observer2.enabled_count);
   CHECK_EQ(0, observer2.disabled_count);
 
-  tracing_controller.RemoveTraceStateObserver(&observer2);
+  default_platform->RemoveTraceStateObserver(&observer2);
 
   CHECK_EQ(1, observer2.enabled_count);
   CHECK_EQ(0, observer2.disabled_count);
@@ -400,7 +395,7 @@ TEST(TracingObservers) {
   CHECK_EQ(1, observer2.enabled_count);
   CHECK_EQ(0, observer2.disabled_count);
 
-  tracing_controller.RemoveTraceStateObserver(&observer);
+  default_platform->RemoveTraceStateObserver(&observer);
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(1, observer.disabled_count);

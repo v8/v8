@@ -17,14 +17,13 @@ namespace internal {
 class CpuProfiler;
 class Isolate;
 
-class TracingCpuProfilerImpl final
-    : public TracingCpuProfiler,
-      private v8::TracingController::TraceStateObserver {
+class TracingCpuProfilerImpl final : public TracingCpuProfiler,
+                                     private v8::Platform::TraceStateObserver {
  public:
   explicit TracingCpuProfilerImpl(Isolate*);
   ~TracingCpuProfilerImpl();
 
-  // v8::TracingController::TraceStateObserver
+  // v8::Platform::TraceStateObserver
   void OnTraceEnabled() final;
   void OnTraceDisabled() final;
 

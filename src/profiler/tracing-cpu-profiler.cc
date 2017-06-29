@@ -25,13 +25,12 @@ TracingCpuProfilerImpl::TracingCpuProfilerImpl(Isolate* isolate)
   TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
   TRACE_EVENT_WARMUP_CATEGORY(
       TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"));
-  V8::GetCurrentPlatform()->GetTracingController()->AddTraceStateObserver(this);
+  V8::GetCurrentPlatform()->AddTraceStateObserver(this);
 }
 
 TracingCpuProfilerImpl::~TracingCpuProfilerImpl() {
   StopProfiling();
-  V8::GetCurrentPlatform()->GetTracingController()->RemoveTraceStateObserver(
-      this);
+  V8::GetCurrentPlatform()->RemoveTraceStateObserver(this);
 }
 
 void TracingCpuProfilerImpl::OnTraceEnabled() {

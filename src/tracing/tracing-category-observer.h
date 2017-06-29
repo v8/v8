@@ -10,7 +10,7 @@
 namespace v8 {
 namespace tracing {
 
-class TracingCategoryObserver : public TracingController::TraceStateObserver {
+class TracingCategoryObserver : public Platform::TraceStateObserver {
  public:
   enum Mode {
     ENABLED_BY_NATIVE = 1 << 0,
@@ -21,7 +21,7 @@ class TracingCategoryObserver : public TracingController::TraceStateObserver {
   static void SetUp();
   static void TearDown();
 
-  // v8::TracingController::TraceStateObserver
+  // v8::Platform::TraceStateObserver
   void OnTraceEnabled() final;
   void OnTraceDisabled() final;
 

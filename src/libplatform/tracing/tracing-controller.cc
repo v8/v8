@@ -40,7 +40,7 @@ v8::base::AtomicWord g_category_index = g_num_builtin_categories;
 
 TracingController::TracingController() {}
 
-TracingController::~TracingController() { StopTracing(); }
+TracingController::~TracingController() {}
 
 void TracingController::Initialize(TraceBuffer* trace_buffer) {
   trace_buffer_.reset(trace_buffer);
@@ -111,10 +111,6 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 }
 
 void TracingController::StopTracing() {
-  if (mode_ == DISABLED) {
-    return;
-  }
-  DCHECK(trace_buffer_);
   mode_ = DISABLED;
   UpdateCategoryGroupEnabledFlags();
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
