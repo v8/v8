@@ -2675,9 +2675,6 @@ group("v8_clusterfuzz") {
 group("v8_archive") {
   deps = [
     ":d8",
-    ":v8_hello_world",
-    ":v8_parser_shell",
-    ":v8_sample_process",
   ]
 }
 
