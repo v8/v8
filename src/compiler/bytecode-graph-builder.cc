@@ -57,7 +57,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
   Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine,
-                   bool owner_has_exception,
                    const BytecodeLivenessState* liveness);
 
   // Control dependency tracked by this environment.
@@ -406,7 +405,7 @@ Node* BytecodeGraphBuilder::Environment::GetStateValuesFromCache(
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BailoutId bailout_id, OutputFrameStateCombine combine,
-    bool owner_has_exception, const BytecodeLivenessState* liveness) {
+    const BytecodeLivenessState* liveness) {
   if (parameter_count() == register_count()) {
     // Re-use the state-value cache if the number of local registers happens
     // to match the parameter count.
@@ -562,7 +561,7 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
             bytecode_iterator().current_offset());
 
     Node* frame_state_before = environment()->Checkpoint(
-        bailout_id, OutputFrameStateCombine::Ignore(), false, liveness_before);
+        bailout_id, OutputFrameStateCombine::Ignore(), liveness_before);
     NodeProperties::ReplaceFrameStateInput(node, frame_state_before);
 #ifdef DEBUG
   } else {
@@ -590,14 +589,13 @@ void BytecodeGraphBuilder::PrepareFrameState(Node* node,
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node)->opcode());
     BailoutId bailout_id(bytecode_iterator().current_offset());
-    bool has_exception = NodeProperties::IsExceptionalCall(node);
 
     const BytecodeLivenessState* liveness_after =
         bytecode_analysis()->GetOutLivenessFor(
             bytecode_iterator().current_offset());
 
-    Node* frame_state_after = environment()->Checkpoint(
-        bailout_id, combine, has_exception, liveness_after);
+    Node* frame_state_after =
+        environment()->Checkpoint(bailout_id, combine, liveness_after);
     NodeProperties::ReplaceFrameStateInput(node, frame_state_after);
   }
 }
