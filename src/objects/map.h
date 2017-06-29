@@ -320,9 +320,6 @@ class Map : public HeapObject {
   inline void set_is_access_check_needed(bool access_check_needed);
   inline bool is_access_check_needed();
 
-  // Returns true if map has a non-empty stub code cache.
-  inline bool has_code_cache();
-
   // [prototype]: implicit prototype object.
   DECL_ACCESSORS(prototype, Object)
   // TODO(jkummerow): make set_prototype private.

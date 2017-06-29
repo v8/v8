@@ -3614,13 +3614,6 @@ bool Map::is_stable() {
 }
 
 
-bool Map::has_code_cache() {
-  // Code caches are always fixed arrays. The empty fixed array is used as a
-  // sentinel for an absent code cache.
-  return code_cache()->length() != 0;
-}
-
-
 bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {

@@ -462,8 +462,8 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
     }
   }
 
-  if (map_obj->has_code_cache()) {
-    FixedArray* code_cache = map_obj->code_cache();
+  FixedArray* code_cache = map_obj->code_cache();
+  if (code_cache->length() > 0) {
     if (code_cache->IsCodeCacheHashTable()) {
       RecordHashTableHelper(map_obj, CodeCacheHashTable::cast(code_cache),
                             MAP_CODE_CACHE_SUB_TYPE);
