@@ -191,61 +191,24 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // 'with' statement or 'catch' block). Global var declarations
   // also need special treatment.
 
-  if (descriptor_->mode == VAR && var_init_scope->is_script_scope()) {
-    // Global variable declarations must be compiled in a specific
-    // way. When the script containing the global variable declaration
-    // is entered, the global variable must be declared, so that if it
-    // doesn't exist (on the global object itself, see ES5 errata) it
-    // gets created with an initial undefined value. This is handled
-    // by the declarations part of the function representing the
-    // top-level global code; see Runtime::DeclareGlobalVariable. If
-    // it already exists (in the object or in a prototype), it is
-    // *not* touched until the variable declaration statement is
-    // executed.
-    //
-    // Executing the variable declaration statement will always
-    // guarantee to give the global object an own property.
-    // This way, global variable declarations can shadow
-    // properties in the prototype chain, but only after the variable
-    // declaration statement has been executed. This is important in
-    // browsers where the global object (window) has lots of
-    // properties defined in prototype objects.
-
-    ZoneList<Expression*>* arguments =
-        new (zone()) ZoneList<Expression*>(3, zone());
-    arguments->Add(
-        factory()->NewStringLiteral(name, descriptor_->declaration_pos),
-        zone());
-    arguments->Add(factory()->NewNumberLiteral(var_init_scope->language_mode(),
-                                               kNoSourcePosition),
-                   zone());
-    arguments->Add(value, zone());
-
-    CallRuntime* initialize = factory()->NewCallRuntime(
-        Runtime::kInitializeVarGlobal, arguments, value->position());
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(initialize, initialize->position()),
-        zone());
+  // For 'let' and 'const' declared variables the initialization always
+  // assigns to the declared variable.
+  // But for var declarations we need to do a new lookup.
+  if (descriptor_->mode == VAR) {
+    proxy = var_init_scope->NewUnresolved(factory(), name);
   } else {
-    // For 'let' and 'const' declared variables the initialization always
-    // assigns to the declared variable.
-    // But for var declarations we need to do a new lookup.
-    if (descriptor_->mode == VAR) {
-      proxy = var_init_scope->NewUnresolved(factory(), name);
-    } else {
-      DCHECK_NOT_NULL(proxy);
-      DCHECK_NOT_NULL(proxy->var());
-    }
-    // Add break location for destructured sub-pattern.
-    int pos = value_beg_position_;
-    if (pos == kNoSourcePosition) {
-      pos = IsSubPattern() ? pattern->position() : value->position();
-    }
-    Assignment* assignment =
-        factory()->NewAssignment(Token::INIT, proxy, value, pos);
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, pos), zone());
+    DCHECK_NOT_NULL(proxy);
+    DCHECK_NOT_NULL(proxy->var());
   }
+  // Add break location for destructured sub-pattern.
+  int pos = value_beg_position_;
+  if (pos == kNoSourcePosition) {
+    pos = IsSubPattern() ? pattern->position() : value->position();
+  }
+  Assignment* assignment =
+      factory()->NewAssignment(Token::INIT, proxy, value, pos);
+  block_->statements()->Add(factory()->NewExpressionStatement(assignment, pos),
+                            zone());
 }
 
 
