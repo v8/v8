@@ -3213,15 +3213,16 @@ int Map::instance_size() {
 
 
 int Map::inobject_properties_or_constructor_function_index() {
-  return READ_BYTE_FIELD(this,
-                         kInObjectPropertiesOrConstructorFunctionIndexOffset);
+  return RELAXED_READ_BYTE_FIELD(
+      this, kInObjectPropertiesOrConstructorFunctionIndexOffset);
 }
 
 
 void Map::set_inobject_properties_or_constructor_function_index(int value) {
   DCHECK(0 <= value && value < 256);
-  WRITE_BYTE_FIELD(this, kInObjectPropertiesOrConstructorFunctionIndexOffset,
-                   static_cast<byte>(value));
+  RELAXED_WRITE_BYTE_FIELD(this,
+                           kInObjectPropertiesOrConstructorFunctionIndexOffset,
+                           static_cast<byte>(value));
 }
 
 

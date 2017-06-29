@@ -11914,6 +11914,7 @@ static void ShrinkInstanceSize(Map* map, void* data) {
   int old_visitor_id = Heap::GetStaticVisitorIdForMap(map);
 #endif
   int slack = *reinterpret_cast<int*>(data);
+  DCHECK_GE(slack, 0);
   map->SetInObjectProperties(map->GetInObjectProperties() - slack);
   map->set_unused_property_fields(map->unused_property_fields() - slack);
   map->set_instance_size(map->instance_size() - slack * kPointerSize);
