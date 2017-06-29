@@ -2457,8 +2457,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxS)             \
   V(I32x4Eq)               \
   V(I32x4Ne)               \
+  V(I32x4GtS)              \
+  V(I32x4GeS)              \
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
+  V(I32x4GtU)              \
+  V(I32x4GeU)              \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
   V(I16x8AddHoriz)         \
@@ -2469,10 +2473,14 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MaxS)             \
   V(I16x8Eq)               \
   V(I16x8Ne)               \
+  V(I16x8GtS)              \
+  V(I16x8GeS)              \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
+  V(I16x8GtU)              \
+  V(I16x8GeU)              \
   V(I8x16Add)              \
   V(I8x16AddSaturateS)     \
   V(I8x16Sub)              \
@@ -2481,15 +2489,23 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MaxS)             \
   V(I8x16Eq)               \
   V(I8x16Ne)               \
+  V(I8x16GtS)              \
+  V(I8x16GeS)              \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
   V(I8x16MaxU)             \
+  V(I8x16GtU)              \
+  V(I8x16GeU)              \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) V(S128Not)
+#define SIMD_UNOP_LIST(V) \
+  V(I32x4Neg)             \
+  V(I16x8Neg)             \
+  V(I8x16Neg)             \
+  V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
