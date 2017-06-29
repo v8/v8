@@ -6,21 +6,10 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/heap.h"
-#include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/string.h"
-
-// This file provides base classes and auxiliary methods for defining
-// static object visitors used during GC.
-// Visiting HeapObject body with a normal ObjectVisitor requires performing
-// two switches on object's instance type to determine object size and layout
-// and one or more virtual method calls on visitor itself.
-// Static visitor is different: it provides a dispatch table which contains
-// pointers to specialized visit functions. Each map has the visitor_id
-// field which contains an index of specialized visitor to use.
 
 namespace v8 {
 namespace internal {
@@ -120,122 +109,6 @@ class VisitorDispatchTable {
  private:
   base::AtomicWord callbacks_[kVisitorIdCount];
 };
-
-
-template <typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
-class FlexibleBodyVisitor : public AllStatic {
- public:
-  INLINE(static ReturnType Visit(Map* map, HeapObject* object)) {
-    int object_size = BodyDescriptor::SizeOf(map, object);
-    BodyDescriptor::template IterateBody<StaticVisitor>(object, object_size);
-    return static_cast<ReturnType>(object_size);
-  }
-};
-
-
-template <typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
-class FixedBodyVisitor : public AllStatic {
- public:
-  INLINE(static ReturnType Visit(Map* map, HeapObject* object)) {
-    BodyDescriptor::template IterateBody<StaticVisitor>(object);
-    return static_cast<ReturnType>(BodyDescriptor::kSize);
-  }
-};
-
-// Base class for visitors used to transitively mark the entire heap.
-// IterateBody returns nothing.
-// Certain types of objects might not be handled by this base class and
-// no visitor function is registered by the generic initialization. A
-// specialized visitor function needs to be provided by the inheriting
-// class itself for those cases.
-//
-// This class is intended to be used in the following way:
-//
-//   class SomeVisitor : public StaticMarkingVisitor<SomeVisitor> {
-//     ...
-//   }
-//
-// This is an example of Curiously recurring template pattern.
-template <typename StaticVisitor>
-class StaticMarkingVisitor : public StaticVisitorBase {
- public:
-  static void Initialize();
-
-  INLINE(static void IterateBody(Map* map, HeapObject* obj)) {
-    table_.GetVisitor(map)(map, obj);
-  }
-
-  INLINE(static void VisitWeakCell(Map* map, HeapObject* object));
-  INLINE(static void VisitTransitionArray(Map* map, HeapObject* object));
-  INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
-                                    Address entry_address));
-  INLINE(static void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitCell(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitDebugTarget(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitCodeTarget(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitExternalReference(RelocInfo* rinfo)) {}
-  INLINE(static void VisitInternalReference(RelocInfo* rinfo)) {}
-  INLINE(static void VisitRuntimeEntry(RelocInfo* rinfo)) {}
-  // Skip the weak next code link in a code object.
-  INLINE(static void VisitNextCodeLink(Heap* heap, Object** slot)) {}
-
- protected:
-  INLINE(static void VisitMap(Map* map, HeapObject* object));
-  INLINE(static void VisitCode(Map* map, HeapObject* object));
-  INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
-  INLINE(static void VisitSharedFunctionInfo(Map* map, HeapObject* object));
-  INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
-  INLINE(static void VisitJSFunction(Map* map, HeapObject* object));
-  INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
-
-  // Mark pointers in a Map treating some elements of the descriptor array weak.
-  static void MarkMapContents(Heap* heap, Map* map);
-
-  class DataObjectVisitor {
-   public:
-    template <int size>
-    static inline void VisitSpecialized(Map* map, HeapObject* object) {}
-
-    INLINE(static void Visit(Map* map, HeapObject* object)) {}
-  };
-
-  typedef FlexibleBodyVisitor<StaticVisitor, FixedArray::BodyDescriptor, void>
-      FixedArrayVisitor;
-
-  typedef FlexibleBodyVisitor<StaticVisitor, JSObject::FastBodyDescriptor, void>
-      JSObjectFastVisitor;
-  typedef FlexibleBodyVisitor<StaticVisitor, JSObject::BodyDescriptor, void>
-      JSObjectVisitor;
-
-  class JSApiObjectVisitor : AllStatic {
-   public:
-    INLINE(static void Visit(Map* map, HeapObject* object)) {
-      TracePossibleWrapper(object);
-      JSObjectVisitor::Visit(map, object);
-    }
-
-   private:
-    INLINE(static void TracePossibleWrapper(HeapObject* object)) {
-      if (object->GetHeap()->local_embedder_heap_tracer()->InUse()) {
-        DCHECK(object->IsJSObject());
-        object->GetHeap()->TracePossibleWrapper(JSObject::cast(object));
-      }
-    }
-  };
-
-  typedef FlexibleBodyVisitor<StaticVisitor, StructBodyDescriptor, void>
-      StructObjectVisitor;
-
-  typedef void (*Callback)(Map* map, HeapObject* object);
-
-  static VisitorDispatchTable<Callback> table_;
-};
-
-
-template <typename StaticVisitor>
-VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
-    StaticMarkingVisitor<StaticVisitor>::table_;
 
 #define TYPED_VISITOR_ID_LIST(V) \
   V(AllocationSite)              \

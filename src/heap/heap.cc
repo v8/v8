@@ -5739,9 +5739,7 @@ V8_DECLARE_ONCE(initialize_gc_once);
 
 static void InitializeGCOnce() {
   Scavenger::Initialize();
-  MarkCompactCollector::Initialize();
 }
-
 
 bool Heap::SetUp() {
 #ifdef DEBUG

@@ -541,8 +541,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kClearMarkbits,
   };
 
-  static void Initialize();
-
   MarkingState marking_state(HeapObject* object) const override {
     return MarkingState::Internal(object);
   }

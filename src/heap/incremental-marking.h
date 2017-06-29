@@ -53,8 +53,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     bool paused_;
   };
 
-  static void Initialize();
-
   explicit IncrementalMarking(Heap* heap);
 
   MarkingState marking_state(HeapObject* object) const {

@@ -4810,10 +4810,6 @@ void MarkCompactCollector::StartSweepSpaces() {
   heap_->lo_space()->FreeUnmarkedObjects();
 }
 
-void MarkCompactCollector::Initialize() {
-  IncrementalMarking::Initialize();
-}
-
 void MarkCompactCollector::RecordCodeEntrySlot(HeapObject* host, Address slot,
                                                Code* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
