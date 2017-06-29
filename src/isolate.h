@@ -1208,12 +1208,6 @@ class Isolate {
     return compiler_dispatcher_;
   }
 
-  // Clear all optimized code stored in native contexts.
-  void ClearOSROptimizedCode();
-
-  // Ensure that a particular optimized code is evicted.
-  void EvictOSROptimizedCode(Code* code, const char* reason);
-
   bool IsInAnyContext(Object* object, uint32_t index);
 
   void SetHostImportModuleDynamicallyCallback(

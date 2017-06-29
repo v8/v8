@@ -1270,9 +1270,6 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         OptimizingCompileDispatcher::BlockingBehavior::kBlock);
   }
 
-  // The native context has a list of OSR'd optimized code. Clear it.
-  isolate_->ClearOSROptimizedCode();
-
   // Make sure we abort incremental marking.
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       GarbageCollectionReason::kDebugger);

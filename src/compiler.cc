@@ -646,23 +646,20 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
       &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
-  Code* code = nullptr;
   if (osr_ast_id.IsNone()) {
     if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
       FeedbackVector* feedback_vector = function->feedback_vector();
       feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
           function->shared(), "GetCodeFromOptimizedCodeCache");
-      code = feedback_vector->optimized_code();
+      Code* code = feedback_vector->optimized_code();
+
+      if (code != nullptr) {
+        // Caching of optimized code enabled and optimized code found.
+        DCHECK(!code->marked_for_deoptimization());
+        DCHECK(function->shared()->is_compiled());
+        return Handle<Code>(code);
+      }
     }
-  } else {
-    code = function->context()->native_context()->SearchOSROptimizedCodeCache(
-        function->shared(), osr_ast_id);
-  }
-  if (code != nullptr) {
-    // Caching of optimized code enabled and optimized code found.
-    DCHECK(!code->marked_for_deoptimization());
-    DCHECK(function->shared()->is_compiled());
-    return Handle<Code>(code);
   }
   return MaybeHandle<Code>();
 }
@@ -699,9 +696,6 @@ void InsertCodeIntoOptimizedCodeCache(CompilationInfo* info) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), function->GetIsolate());
     FeedbackVector::SetOptimizedCode(vector, code);
-  } else {
-    Context::AddToOSROptimizedCodeCache(native_context, shared, code,
-                                        info->osr_ast_id());
   }
 }
 

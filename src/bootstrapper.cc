@@ -1239,8 +1239,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   Isolate* isolate = global_object->GetIsolate();
   Factory* factory = isolate->factory();
 
-  native_context()->set_osr_code_table(*factory->empty_fixed_array());
-
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
   native_context()->set_script_context_table(*script_context_table);

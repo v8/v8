@@ -3745,57 +3745,6 @@ TEST(Regress169928) {
 }
 
 
-#ifdef DEBUG
-TEST(Regress513507) {
-  FLAG_allow_natives_syntax = true;
-  FLAG_gc_global = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext env;
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Prepare function whose optimized code map we can use.
-  Handle<SharedFunctionInfo> shared;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function f() { return 1 }"
-               "f(); %OptimizeFunctionOnNextCall(f); f();");
-
-    Handle<JSFunction> f = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
-    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
-    CompileRun("f = null");
-  }
-
-  // Prepare optimized code that we can use.
-  Handle<Code> code;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function g() { return 2 }"
-               "g(); %OptimizeFunctionOnNextCall(g); g();");
-
-    Handle<JSFunction> g = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
-    code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
-    if (!code->is_optimized_code()) return;
-  }
-
-  Handle<Context> context(isolate->context());
-
-  // Add the new code several times to the optimized code map and also set an
-  // allocation timeout so that expanding the code map will trigger a GC.
-  heap->set_allocation_timeout(5);
-  FLAG_gc_interval = 1000;
-  for (int i = 0; i < 10; ++i) {
-    BailoutId id = BailoutId(i + 1);
-    Context::AddToOSROptimizedCodeCache(context, shared, code, id);
-  }
-}
-#endif  // DEBUG
-
 TEST(Regress513496) {
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();

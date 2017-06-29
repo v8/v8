@@ -3029,26 +3029,6 @@ bool Isolate::IsArrayOrObjectPrototype(Object* object) {
   return false;
 }
 
-void Isolate::ClearOSROptimizedCode() {
-  DisallowHeapAllocation no_gc;
-  Object* context = heap()->native_contexts_list();
-  while (!context->IsUndefined(this)) {
-    Context* current_context = Context::cast(context);
-    current_context->ClearOSROptimizedCodeCache();
-    context = current_context->next_context_link();
-  }
-}
-
-void Isolate::EvictOSROptimizedCode(Code* code, const char* reason) {
-  DisallowHeapAllocation no_gc;
-  Object* context = heap()->native_contexts_list();
-  while (!context->IsUndefined(this)) {
-    Context* current_context = Context::cast(context);
-    current_context->EvictFromOSROptimizedCodeCache(code, reason);
-    context = current_context->next_context_link();
-  }
-}
-
 bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
   DisallowHeapAllocation no_gc;
   Object* context = heap()->native_contexts_list();

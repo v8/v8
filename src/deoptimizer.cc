@@ -351,13 +351,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 #endif
     // It is finally time to die, code object.
 
-    // Remove the code from the osr optimized code cache.
-    DeoptimizationInputData* deopt_data =
-        DeoptimizationInputData::cast(codes[i]->deoptimization_data());
-    if (deopt_data->OsrAstId()->value() != BailoutId::None().ToInt()) {
-      isolate->EvictOSROptimizedCode(codes[i], "deoptimized code");
-    }
-
     // Do platform-specific patching to force any activations to lazy deopt.
     PatchCodeForDeoptimization(isolate, codes[i]);
 
