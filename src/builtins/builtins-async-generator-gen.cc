@@ -250,12 +250,9 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
   Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
   CSA_ASSERT(this, WordNotEqual(request, UndefinedConstant()));
 
-  NodeGenerator1 closure_context = [&](Node* native_context) -> Node* {
-    Node* const context =
-        CreatePromiseContext(native_context, AwaitContext::kLength);
+  ContextInitializer init_closure_context = [&](Node* context) {
     StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
                                       generator);
-    return context;
   };
 
   Node* outer_promise =
@@ -265,8 +262,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
   const int reject_index = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
 
   Node* promise =
-      Await(context, generator, value, outer_promise, closure_context,
-            resolve_index, reject_index, is_catchable);
+      Await(context, generator, value, outer_promise, AwaitContext::kLength,
+            init_closure_context, resolve_index, reject_index, is_catchable);
 
   CSA_SLOW_ASSERT(this, IsGeneratorNotSuspendedForAwait(generator));
   StoreObjectField(generator, JSAsyncGeneratorObject::kAwaitedPromiseOffset,

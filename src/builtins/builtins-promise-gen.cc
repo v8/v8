@@ -205,11 +205,10 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
   return var_result.value();
 }
 
-Node* PromiseBuiltinsAssembler::CreatePromiseContext(Node* native_context,
-                                                     int slots) {
+void PromiseBuiltinsAssembler::InitializeFunctionContext(Node* native_context,
+                                                         Node* context,
+                                                         int slots) {
   DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
-
-  Node* const context = AllocateInNewSpace(FixedArray::SizeFor(slots));
   StoreMapNoWriteBarrier(context, Heap::kFunctionContextMapRootIndex);
   StoreObjectFieldNoWriteBarrier(context, FixedArray::kLengthOffset,
                                  SmiConstant(slots));
@@ -223,6 +222,14 @@ Node* PromiseBuiltinsAssembler::CreatePromiseContext(Node* native_context,
                                     TheHoleConstant());
   StoreContextElementNoWriteBarrier(context, Context::NATIVE_CONTEXT_INDEX,
                                     native_context);
+}
+
+Node* PromiseBuiltinsAssembler::CreatePromiseContext(Node* native_context,
+                                                     int slots) {
+  DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
+
+  Node* const context = AllocateInNewSpace(FixedArray::SizeFor(slots));
+  InitializeFunctionContext(native_context, context, slots);
   return context;
 }
 

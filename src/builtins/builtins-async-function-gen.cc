@@ -104,12 +104,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   CSA_SLOW_ASSERT(this, HasInstanceType(generator, JS_GENERATOR_OBJECT_TYPE));
   CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
 
-  NodeGenerator1 create_closure_context = [&](Node* native_context) -> Node* {
-    Node* const context =
-        CreatePromiseContext(native_context, AwaitContext::kLength);
+  ContextInitializer init_closure_context = [&](Node* context) {
     StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
                                       generator);
-    return context;
   };
 
   // TODO(jgruber): AsyncBuiltinsAssembler::Await currently does not reuse
@@ -120,8 +117,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   // InternalPerformPromiseThen.
 
   Node* const result = Await(
-      context, generator, awaited, outer_promise, create_closure_context,
-      Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
+      context, generator, awaited, outer_promise, AwaitContext::kLength,
+      init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
       Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, is_predicted_as_caught);
 
   Return(result);
