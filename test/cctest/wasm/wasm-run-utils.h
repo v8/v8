@@ -215,7 +215,7 @@ class TestingModule : public ModuleEnv {
     uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
     Handle<Code> code = CompileWasmToJSWrapper(
         isolate_, jsfunc, sig, index, Handle<String>::null(),
-        Handle<String>::null(), module->get_origin());
+        Handle<String>::null(), module->origin());
     instance->function_code[index] = code;
     return index;
   }

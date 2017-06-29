@@ -2830,7 +2830,7 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
 
 Node* WasmGraphBuilder::CurrentMemoryPages() {
   // CurrentMemoryPages can not be called from asm.js.
-  DCHECK_EQ(wasm::kWasmOrigin, module_->module->get_origin());
+  DCHECK_EQ(wasm::kWasmOrigin, module_->module->origin());
   SetNeedsStackCheck();
   Node* call = BuildCallToRuntime(Runtime::kWasmMemorySize, nullptr, 0);
   Node* result = BuildChangeSmiToInt32(call);
@@ -4010,7 +4010,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
 
     job_.reset(Pipeline::NewWasmCompilationJob(
         info_.get(), jsgraph_, descriptor, source_positions,
-        &protected_instructions, module_env_->module->get_origin()));
+        &protected_instructions, module_env_->module->origin()));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     if (is_sync_)

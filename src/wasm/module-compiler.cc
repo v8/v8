@@ -1302,7 +1302,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         Handle<Code> import_wrapper = UnwrapOrCompileImportWrapper(
             isolate_, index, module_->functions[import.index].sig,
             Handle<JSReceiver>::cast(value), module_name, import_name,
-            module_->get_origin(), &imported_wasm_instances);
+            module_->origin(), &imported_wasm_instances);
         if (import_wrapper.is_null()) {
           ReportLinkError("imported function does not match the expected type",
                           index, module_name, import_name);

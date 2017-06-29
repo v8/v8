@@ -187,7 +187,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);
 
-  ModuleOrigin get_origin() const { return origin_; }
+  ModuleOrigin origin() const { return origin_; }
   void set_origin(ModuleOrigin new_value) { origin_ = new_value; }
   bool is_wasm() const { return origin_ == kWasmOrigin; }
   bool is_asm_js() const { return origin_ == kAsmJsOrigin; }
