@@ -2708,10 +2708,6 @@ if (is_component_build) {
       "src/v8dll-main.cc",
     ]
 
-    deps = [
-      ":v8_dump_build_config",
-    ]
-
     public_deps = [
       ":v8_base",
       ":v8_maybe_snapshot",
@@ -2729,10 +2725,6 @@ if (is_component_build) {
       "src/v8dll-main.cc",
     ]
 
-    deps = [
-      ":v8_dump_build_config",
-    ]
-
     public_deps = [
       ":v8_base",
       ":v8_maybe_snapshot",
@@ -2748,10 +2740,6 @@ if (is_component_build) {
   }
 } else {
   group("v8") {
-    deps = [
-      ":v8_dump_build_config",
-    ]
-
     public_deps = [
       ":v8_base",
       ":v8_maybe_snapshot",
@@ -2762,10 +2750,6 @@ if (is_component_build) {
 
   group("v8_for_testing") {
     testonly = true
-
-    deps = [
-      ":v8_dump_build_config",
-    ]
 
     public_deps = [
       ":v8_base",

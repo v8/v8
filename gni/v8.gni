@@ -156,6 +156,9 @@ template("v8_executable") {
         configs -= [ v8_path_prefix + ":v8_gcov_coverage_cflags" ]
       }
     }
+    deps += [
+      v8_path_prefix + ":v8_dump_build_config",
+    ]
   }
 }
 
