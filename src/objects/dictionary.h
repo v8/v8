@@ -167,7 +167,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
 class NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
-  DECLARE_CAST(NameDictionary)
+  DECL_CAST(NameDictionary)
 
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
@@ -196,7 +196,7 @@ class GlobalDictionaryShape : public NameDictionaryShape {
 class GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
-  DECLARE_CAST(GlobalDictionary)
+  DECL_CAST(GlobalDictionary)
 
   inline Object* ValueAt(int entry);
   inline PropertyCell* CellAt(int entry);
@@ -253,7 +253,7 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class SeededNumberDictionary
     : public Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape> {
  public:
-  DECLARE_CAST(SeededNumberDictionary)
+  DECL_CAST(SeededNumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
@@ -301,7 +301,7 @@ class UnseededNumberDictionary
     : public Dictionary<UnseededNumberDictionary,
                         UnseededNumberDictionaryShape> {
  public:
-  DECLARE_CAST(UnseededNumberDictionary)
+  DECL_CAST(UnseededNumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(

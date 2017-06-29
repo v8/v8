@@ -69,7 +69,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
-  DECLARE_CAST(StringTable)
+  DECL_CAST(StringTable)
 
  private:
   template <bool seq_one_byte>
@@ -95,7 +95,7 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
                                Handle<String> name);
   bool Has(Handle<String> name);
 
-  DECLARE_CAST(StringSet)
+  DECL_CAST(StringSet)
 };
 
 }  // namespace internal

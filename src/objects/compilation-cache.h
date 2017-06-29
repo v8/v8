@@ -97,7 +97,7 @@ class CompilationCacheTable
   void Age();
   static const int kHashGenerations = 10;
 
-  DECLARE_CAST(CompilationCacheTable)
+  DECL_CAST(CompilationCacheTable)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);

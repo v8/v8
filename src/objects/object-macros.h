@@ -25,7 +25,7 @@
   inline void set_##name(type* value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#define DECLARE_CAST(type)                   \
+#define DECL_CAST(type)                      \
   INLINE(static type* cast(Object* object)); \
   INLINE(static const type* cast(const Object* object));
 
@@ -258,9 +258,9 @@
                       static_cast<base::Atomic8>(value));
 
 #ifdef VERIFY_HEAP
-#define DECLARE_VERIFIER(Name) void Name##Verify();
+#define DECL_VERIFIER(Name) void Name##Verify();
 #else
-#define DECLARE_VERIFIER(Name)
+#define DECL_VERIFIER(Name)
 #endif
 
 #define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)       \

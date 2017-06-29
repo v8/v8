@@ -966,9 +966,9 @@ class ZoneForwardList;
 template <class C> inline bool Is(Object* obj);
 
 #ifdef OBJECT_PRINT
-#define DECLARE_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
+#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
 #else
-#define DECLARE_PRINTER(Name)
+#define DECL_PRINTER(Name)
 #endif
 
 #define OBJECT_TYPE_LIST(V) \
@@ -1172,10 +1172,9 @@ class Object {
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
-#define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
-  INLINE(bool Is##Name() const);
-  STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
-#undef DECLARE_STRUCT_PREDICATE
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) INLINE(bool Is##Name() const);
+  STRUCT_LIST(DECL_STRUCT_PREDICATE)
+#undef DECL_STRUCT_PREDICATE
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   INLINE(MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object));
@@ -1483,7 +1482,7 @@ class Object {
   // and length.
   bool IterationHasObservableEffects();
 
-  DECLARE_VERIFIER(Object)
+  DECL_VERIFIER(Object)
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
   static void VerifyPointer(Object* p);
@@ -1499,7 +1498,7 @@ class Object {
 
   void ShortPrint(std::ostream& os);  // NOLINT
 
-  DECLARE_CAST(Object)
+  DECL_CAST(Object)
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
@@ -1607,11 +1606,11 @@ class Smi: public Object {
     return result;
   }
 
-  DECLARE_CAST(Smi)
+  DECL_CAST(Smi)
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
-  DECLARE_VERIFIER(Smi)
+  DECL_VERIFIER(Smi)
 
   static constexpr Smi* const kZero = nullptr;
   static const int kMinValue =
@@ -1721,10 +1720,9 @@ class HeapObject: public Object {
 
   INLINE(bool IsNullOrUndefined(Isolate* isolate) const);
 
-#define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
-  INLINE(bool Is##Name() const);
-  STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
-#undef DECLARE_STRUCT_PREDICATE
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) INLINE(bool Is##Name() const);
+  STRUCT_LIST(DECL_STRUCT_PREDICATE)
+#undef DECL_STRUCT_PREDICATE
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address) {
@@ -1787,7 +1785,7 @@ class HeapObject: public Object {
                                  Handle<Name> name,
                                  Handle<Code> code);
 
-  DECLARE_CAST(HeapObject)
+  DECL_CAST(HeapObject)
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowHeapAllocation
@@ -1802,8 +1800,8 @@ class HeapObject: public Object {
 #ifdef OBJECT_PRINT
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
-  DECLARE_PRINTER(HeapObject)
-  DECLARE_VERIFIER(HeapObject)
+  DECL_PRINTER(HeapObject)
+  DECL_VERIFIER(HeapObject)
 #ifdef VERIFY_HEAP
   inline void VerifyObjectField(int offset);
   inline void VerifySmiField(int offset);
@@ -1846,13 +1844,13 @@ class HeapNumber: public HeapObject {
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
 
-  DECLARE_CAST(HeapNumber)
+  DECL_CAST(HeapNumber)
 
   // Dispatched behavior.
   bool HeapNumberBooleanValue();
 
   V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);  // NOLINT
-  DECLARE_VERIFIER(HeapNumber)
+  DECL_VERIFIER(HeapNumber)
 
   inline int get_exponent();
   inline int get_sign();
@@ -1929,7 +1927,7 @@ class JSReceiver: public HeapObject {
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
-  DECLARE_CAST(JSReceiver)
+  DECL_CAST(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   MUST_USE_RESULT static MaybeHandle<Object> ToPrimitive(
@@ -2499,12 +2497,12 @@ class JSObject: public JSReceiver {
 
   static bool IsExtensible(Handle<JSObject> object);
 
-  DECLARE_CAST(JSObject)
+  DECL_CAST(JSObject)
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
-  DECLARE_PRINTER(JSObject)
-  DECLARE_VERIFIER(JSObject)
+  DECL_PRINTER(JSObject)
+  DECL_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   bool PrintProperties(std::ostream& os);  // NOLINT
   void PrintElements(std::ostream& os);    // NOLINT
@@ -2716,7 +2714,7 @@ class FixedArrayBase: public HeapObject {
   inline int synchronized_length() const;
   inline void synchronized_set_length(int value);
 
-  DECLARE_CAST(FixedArrayBase)
+  DECL_CAST(FixedArrayBase)
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -2792,7 +2790,7 @@ class FixedArray: public FixedArrayBase {
   // Garbage collection support.
   inline Object** RawFieldOfElementAt(int index);
 
-  DECLARE_CAST(FixedArray)
+  DECL_CAST(FixedArray)
 
   // Maximal allowed size, in bytes, of a single FixedArray.
   // Prevents overflowing size computations, as well as extreme memory
@@ -2806,8 +2804,8 @@ class FixedArray: public FixedArrayBase {
       (kMaxRegularHeapObjectSize - kHeaderSize) / kPointerSize;
 
   // Dispatched behavior.
-  DECLARE_PRINTER(FixedArray)
-  DECLARE_VERIFIER(FixedArray)
+  DECL_PRINTER(FixedArray)
+  DECL_VERIFIER(FixedArray)
 #ifdef DEBUG
   // Checks if two FixedArrays have identical contents.
   bool IsEqualTo(FixedArray* other);
@@ -2859,7 +2857,7 @@ class FixedDoubleArray: public FixedArrayBase {
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECLARE_CAST(FixedDoubleArray)
+  DECL_CAST(FixedDoubleArray)
 
   // Maximal allowed size, in bytes, of a single FixedDoubleArray.
   // Prevents overflowing size computations, as well as extreme memory
@@ -2869,8 +2867,8 @@ class FixedDoubleArray: public FixedArrayBase {
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
 
   // Dispatched behavior.
-  DECLARE_PRINTER(FixedDoubleArray)
-  DECLARE_VERIFIER(FixedDoubleArray)
+  DECL_PRINTER(FixedDoubleArray)
+  DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
   // No weak fields.
@@ -2925,7 +2923,7 @@ class WeakFixedArray : public FixedArray {
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
-  DECLARE_CAST(WeakFixedArray)
+  DECL_CAST(WeakFixedArray)
 
  private:
   static const int kLastUsedIndexIndex = 0;
@@ -2990,7 +2988,7 @@ class ArrayList : public FixedArray {
   // number returned by Length() is stored in the first entry.
   Handle<FixedArray> Elements() const;
   bool IsFull();
-  DECLARE_CAST(ArrayList)
+  DECL_CAST(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(Handle<ArrayList> array, int length);
@@ -3063,7 +3061,7 @@ class HandlerTable : public FixedArray {
   static int LengthForRange(int entries) { return entries * kRangeEntrySize; }
   static int LengthForReturn(int entries) { return entries * kReturnEntrySize; }
 
-  DECLARE_CAST(HandlerTable)
+  DECL_CAST(HandlerTable)
 
 #ifdef ENABLE_DISASSEMBLER
   void HandlerTableRangePrint(std::ostream& os);   // NOLINT
@@ -3130,12 +3128,12 @@ class ByteArray: public FixedArrayBase {
   // Returns a pointer to the ByteArray object for a given data start address.
   static inline ByteArray* FromDataStartAddress(Address address);
 
-  DECLARE_CAST(ByteArray)
+  DECL_CAST(ByteArray)
 
   // Dispatched behavior.
   inline int ByteArraySize();
-  DECLARE_PRINTER(ByteArray)
-  DECLARE_VERIFIER(ByteArray)
+  DECL_PRINTER(ByteArray)
+  DECL_VERIFIER(ByteArray)
 
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
@@ -3174,7 +3172,7 @@ class PodArray : public ByteArray {
             sizeof(T));
   }
   int length() { return ByteArray::length() / sizeof(T); }
-  DECLARE_CAST(PodArray<T>)
+  DECL_CAST(PodArray<T>)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PodArray<T>);
@@ -3183,16 +3181,16 @@ class PodArray : public ByteArray {
 // BytecodeArray represents a sequence of interpreter bytecodes.
 class BytecodeArray : public FixedArrayBase {
  public:
-#define DECLARE_BYTECODE_AGE_ENUM(X) k##X##BytecodeAge,
+#define DECL_BYTECODE_AGE_ENUM(X) k##X##BytecodeAge,
   enum Age {
     kNoAgeBytecodeAge = 0,
-    CODE_AGE_LIST(DECLARE_BYTECODE_AGE_ENUM) kAfterLastBytecodeAge,
+    CODE_AGE_LIST(DECL_BYTECODE_AGE_ENUM) kAfterLastBytecodeAge,
     kFirstBytecodeAge = kNoAgeBytecodeAge,
     kLastBytecodeAge = kAfterLastBytecodeAge - 1,
     kBytecodeAgeCount = kAfterLastBytecodeAge - kFirstBytecodeAge - 1,
     kIsOldBytecodeAge = kSexagenarianBytecodeAge
   };
-#undef DECLARE_BYTECODE_AGE_ENUM
+#undef DECL_BYTECODE_AGE_ENUM
 
   static int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
@@ -3240,7 +3238,7 @@ class BytecodeArray : public FixedArrayBase {
 
   inline ByteArray* SourcePositionTable();
 
-  DECLARE_CAST(BytecodeArray)
+  DECL_CAST(BytecodeArray)
 
   // Dispatched behavior.
   inline int BytecodeArraySize();
@@ -3254,8 +3252,8 @@ class BytecodeArray : public FixedArrayBase {
   int SourcePosition(int offset);
   int SourceStatementPosition(int offset);
 
-  DECLARE_PRINTER(BytecodeArray)
-  DECLARE_VERIFIER(BytecodeArray)
+  DECL_PRINTER(BytecodeArray)
+  DECL_VERIFIER(BytecodeArray)
 
   void Disassemble(std::ostream& os);
 
@@ -3317,8 +3315,8 @@ class FreeSpace: public HeapObject {
   inline static FreeSpace* cast(HeapObject* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(FreeSpace)
-  DECLARE_VERIFIER(FreeSpace)
+  DECL_PRINTER(FreeSpace)
+  DECL_VERIFIER(FreeSpace)
 
   // Layout description.
   // Size is smi tagged when it is stored.
@@ -3355,7 +3353,7 @@ class FixedTypedArrayBase: public FixedArrayBase {
   DECL_ACCESSORS(external_pointer, void)
 
   // Dispatched behavior.
-  DECLARE_CAST(FixedTypedArrayBase)
+  DECL_CAST(FixedTypedArrayBase)
 
   static const int kBasePointerOffset = FixedArrayBase::kHeaderSize;
   static const int kExternalPointerOffset = kBasePointerOffset + kPointerSize;
@@ -3404,7 +3402,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
   typedef typename Traits::ElementType ElementType;
   static const InstanceType kInstanceType = Traits::kInstanceType;
 
-  DECLARE_CAST(FixedTypedArray<Traits>)
+  DECL_CAST(FixedTypedArray<Traits>)
 
   inline ElementType get_scalar(int index);
   static inline Handle<Object> get(FixedTypedArray* array, int index);
@@ -3418,8 +3416,8 @@ class FixedTypedArray: public FixedTypedArrayBase {
   // and undefined.
   inline void SetValue(uint32_t index, Object* value);
 
-  DECLARE_PRINTER(FixedTypedArray)
-  DECLARE_VERIFIER(FixedTypedArray)
+  DECL_PRINTER(FixedTypedArray)
+  DECL_VERIFIER(FixedTypedArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
@@ -3471,33 +3469,33 @@ class DeoptimizationInputData: public FixedArray {
   static const int kDeoptEntrySize = 4;
 
   // Simple element accessors.
-#define DECLARE_ELEMENT_ACCESSORS(name, type) \
-  inline type* name();                        \
+#define DECL_ELEMENT_ACCESSORS(name, type) \
+  inline type* name();                     \
   inline void Set##name(type* value);
 
-  DECLARE_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
-  DECLARE_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-  DECLARE_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
-  DECLARE_ELEMENT_ACCESSORS(OsrAstId, Smi)
-  DECLARE_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-  DECLARE_ELEMENT_ACCESSORS(OptimizationId, Smi)
-  DECLARE_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
-  DECLARE_ELEMENT_ACCESSORS(WeakCellCache, Object)
-  DECLARE_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
+  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+  DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
+  DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+  DECL_ELEMENT_ACCESSORS(OsrAstId, Smi)
+  DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
+  DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
+  DECL_ELEMENT_ACCESSORS(WeakCellCache, Object)
+  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
-#undef DECLARE_ELEMENT_ACCESSORS
+#undef DECL_ELEMENT_ACCESSORS
 
-  // Accessors for elements of the ith deoptimization entry.
-#define DECLARE_ENTRY_ACCESSORS(name, type) \
-  inline type* name(int i);                 \
+// Accessors for elements of the ith deoptimization entry.
+#define DECL_ENTRY_ACCESSORS(name, type) \
+  inline type* name(int i);              \
   inline void Set##name(int i, type* value);
 
-  DECLARE_ENTRY_ACCESSORS(AstIdRaw, Smi)
-  DECLARE_ENTRY_ACCESSORS(TranslationIndex, Smi)
-  DECLARE_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
-  DECLARE_ENTRY_ACCESSORS(Pc, Smi)
+  DECL_ENTRY_ACCESSORS(AstIdRaw, Smi)
+  DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
+  DECL_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+  DECL_ENTRY_ACCESSORS(Pc, Smi)
 
-#undef DECLARE_ENTRY_ACCESSORS
+#undef DECL_ENTRY_ACCESSORS
 
   inline BailoutId AstId(int i);
 
@@ -3516,7 +3514,7 @@ class DeoptimizationInputData: public FixedArray {
                                              int deopt_entry_count,
                                              PretenureFlag pretenure);
 
-  DECLARE_CAST(DeoptimizationInputData)
+  DECL_CAST(DeoptimizationInputData)
 
 #ifdef ENABLE_DISASSEMBLER
   void DeoptimizationInputDataPrint(std::ostream& os);  // NOLINT
@@ -3539,7 +3537,7 @@ class TemplateList : public FixedArray {
   inline void set(int index, Object* value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);
-  DECLARE_CAST(TemplateList)
+  DECL_CAST(TemplateList)
  private:
   static const int kLengthIndex = 0;
   static const int kFirstElementIndex = kLengthIndex + 1;
@@ -3912,34 +3910,33 @@ class Code: public HeapObject {
   // the layout of the code object into account.
   inline int ExecutableSize();
 
-  DECLARE_CAST(Code)
+  DECL_CAST(Code)
 
   // Dispatched behavior.
   inline int CodeSize();
 
-  DECLARE_PRINTER(Code)
-  DECLARE_VERIFIER(Code)
+  DECL_PRINTER(Code)
+  DECL_VERIFIER(Code)
 
   void ClearInlineCaches();
 
   BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
   uint32_t TranslateAstIdToPcOffset(BailoutId ast_id);
 
-#define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
+#define DECL_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
     kToBeExecutedOnceCodeAge = -3,
     kNotExecutedCodeAge = -2,
     kExecutedOnceCodeAge = -1,
     kNoAgeCodeAge = 0,
-    CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
-    kAfterLastCodeAge,
+    CODE_AGE_LIST(DECL_CODE_AGE_ENUM) kAfterLastCodeAge,
     kFirstCodeAge = kToBeExecutedOnceCodeAge,
     kLastCodeAge = kAfterLastCodeAge - 1,
     kCodeAgeCount = kAfterLastCodeAge - kFirstCodeAge - 1,
     kIsOldCodeAge = kSexagenarianCodeAge,
     kPreAgedCodeAge = kIsOldCodeAge - 1
   };
-#undef DECLARE_CODE_AGE_ENUM
+#undef DECL_CODE_AGE_ENUM
 
   // Code aging.  Indicates how many full GCs this code has survived without
   // being entered through the prologue.  Used to determine when to flush code
@@ -4165,7 +4162,7 @@ class AbstractCode : public HeapObject {
   // the layout of the code object into account.
   inline int ExecutableSize();
 
-  DECLARE_CAST(AbstractCode)
+  DECL_CAST(AbstractCode)
   inline Code* GetCode();
   inline BytecodeArray* GetBytecodeArray();
 
@@ -4266,7 +4263,7 @@ class DependentCode: public FixedArray {
   inline void set_object_at(int i, Object* object);
   inline void clear_at(int i);
   inline void copy(int from, int to);
-  DECLARE_CAST(DependentCode)
+  DECL_CAST(DependentCode)
 
   static const char* DependencyGroupName(DependencyGroup group);
   static void SetMarkedForDeoptimization(Code* code, DependencyGroup group);
@@ -4300,7 +4297,7 @@ class PrototypeInfo;
 class Struct: public HeapObject {
  public:
   inline void InitializeBody(int object_size);
-  DECLARE_CAST(Struct)
+  DECL_CAST(Struct)
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
@@ -4320,9 +4317,9 @@ class PromiseResolveThenableJobInfo : public Struct {
   static const int kContextOffset = kRejectOffset + kPointerSize;
   static const int kSize = kContextOffset + kPointerSize;
 
-  DECLARE_CAST(PromiseResolveThenableJobInfo)
-  DECLARE_PRINTER(PromiseResolveThenableJobInfo)
-  DECLARE_VERIFIER(PromiseResolveThenableJobInfo)
+  DECL_CAST(PromiseResolveThenableJobInfo)
+  DECL_PRINTER(PromiseResolveThenableJobInfo)
+  DECL_VERIFIER(PromiseResolveThenableJobInfo)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobInfo);
@@ -4356,9 +4353,9 @@ class PromiseReactionJobInfo : public Struct {
   static const int kContextOffset = kDeferredOnRejectOffset + kPointerSize;
   static const int kSize = kContextOffset + kPointerSize;
 
-  DECLARE_CAST(PromiseReactionJobInfo)
-  DECLARE_PRINTER(PromiseReactionJobInfo)
-  DECLARE_VERIFIER(PromiseReactionJobInfo)
+  DECL_CAST(PromiseReactionJobInfo)
+  DECL_PRINTER(PromiseReactionJobInfo)
+  DECL_VERIFIER(PromiseReactionJobInfo)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobInfo);
@@ -4378,9 +4375,9 @@ class AsyncGeneratorRequest : public Struct {
   static const int kPromiseOffset = kValueOffset + kPointerSize;
   static const int kSize = kPromiseOffset + kPointerSize;
 
-  DECLARE_CAST(AsyncGeneratorRequest)
-  DECLARE_PRINTER(AsyncGeneratorRequest)
-  DECLARE_VERIFIER(AsyncGeneratorRequest)
+  DECL_CAST(AsyncGeneratorRequest)
+  DECL_PRINTER(AsyncGeneratorRequest)
+  DECL_VERIFIER(AsyncGeneratorRequest)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsyncGeneratorRequest);
@@ -4421,11 +4418,11 @@ class PrototypeInfo : public Struct {
 
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
 
-  DECLARE_CAST(PrototypeInfo)
+  DECL_CAST(PrototypeInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(PrototypeInfo)
-  DECLARE_VERIFIER(PrototypeInfo)
+  DECL_PRINTER(PrototypeInfo)
+  DECL_VERIFIER(PrototypeInfo)
 
   static const int kWeakCellOffset = HeapObject::kHeaderSize;
   static const int kPrototypeUsersOffset = kWeakCellOffset + kPointerSize;
@@ -4449,11 +4446,11 @@ class Tuple2 : public Struct {
   DECL_ACCESSORS(value1, Object)
   DECL_ACCESSORS(value2, Object)
 
-  DECLARE_CAST(Tuple2)
+  DECL_CAST(Tuple2)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Tuple2)
-  DECLARE_VERIFIER(Tuple2)
+  DECL_PRINTER(Tuple2)
+  DECL_VERIFIER(Tuple2)
 
   static const int kValue1Offset = HeapObject::kHeaderSize;
   static const int kValue2Offset = kValue1Offset + kPointerSize;
@@ -4467,11 +4464,11 @@ class Tuple3 : public Tuple2 {
  public:
   DECL_ACCESSORS(value3, Object)
 
-  DECLARE_CAST(Tuple3)
+  DECL_CAST(Tuple3)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Tuple3)
-  DECLARE_VERIFIER(Tuple3)
+  DECL_PRINTER(Tuple3)
+  DECL_VERIFIER(Tuple3)
 
   static const int kValue3Offset = Tuple2::kSize;
   static const int kSize = kValue3Offset + kPointerSize;
@@ -4492,11 +4489,11 @@ class ContextExtension : public Struct {
   // [extension]: Extension object.
   DECL_ACCESSORS(extension, Object)
 
-  DECLARE_CAST(ContextExtension)
+  DECL_CAST(ContextExtension)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ContextExtension)
-  DECLARE_VERIFIER(ContextExtension)
+  DECL_PRINTER(ContextExtension)
+  DECL_VERIFIER(ContextExtension)
 
   static const int kScopeInfoOffset = HeapObject::kHeaderSize;
   static const int kExtensionOffset = kScopeInfoOffset + kPointerSize;
@@ -4659,11 +4656,10 @@ class ContextExtension : public Struct {
 enum BuiltinFunctionId {
   kInvalidBuiltinFunctionId = -1,
   kArrayCode,
-#define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
-  k##name,
-  FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
-      ATOMIC_FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
-#undef DECLARE_FUNCTION_ID
+#define DECL_FUNCTION_ID(ignored1, ignore2, name) k##name,
+  FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)
+      ATOMIC_FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)
+#undef DECL_FUNCTION_ID
   // Fake id for a special case of Math.pow. Note, it continues the
   // list of math functions.
   kMathPowHalf,
@@ -4738,10 +4734,10 @@ class JSGeneratorObject: public JSObject {
   // [register_file]: Saved interpreter register file.
   DECL_ACCESSORS(register_file, FixedArray)
 
-  DECLARE_CAST(JSGeneratorObject)
+  DECL_CAST(JSGeneratorObject)
 
   // Dispatched behavior.
-  DECLARE_VERIFIER(JSGeneratorObject)
+  DECL_VERIFIER(JSGeneratorObject)
 
   // Magic sentinel values for the continuation.
   static const int kGeneratorExecuting = -2;
@@ -4763,10 +4759,10 @@ class JSGeneratorObject: public JSObject {
 
 class JSAsyncGeneratorObject : public JSGeneratorObject {
  public:
-  DECLARE_CAST(JSAsyncGeneratorObject)
+  DECL_CAST(JSAsyncGeneratorObject)
 
   // Dispatched behavior.
-  DECLARE_VERIFIER(JSAsyncGeneratorObject)
+  DECL_VERIFIER(JSAsyncGeneratorObject)
 
   // [queue]
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
@@ -4799,9 +4795,9 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
 // the declared variable (foo).  A module can have at most one namespace object.
 class JSModuleNamespace : public JSObject {
  public:
-  DECLARE_CAST(JSModuleNamespace)
-  DECLARE_PRINTER(JSModuleNamespace)
-  DECLARE_VERIFIER(JSModuleNamespace)
+  DECL_CAST(JSModuleNamespace)
+  DECL_PRINTER(JSModuleNamespace)
+  DECL_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.
   DECL_ACCESSORS(module, Module)
@@ -4830,9 +4826,9 @@ class JSModuleNamespace : public JSObject {
 // This is still very much in flux.
 class Module : public Struct {
  public:
-  DECLARE_CAST(Module)
-  DECLARE_VERIFIER(Module)
-  DECLARE_PRINTER(Module)
+  DECL_CAST(Module)
+  DECL_VERIFIER(Module)
+  DECL_PRINTER(Module)
 
   // The code representing this Module, or an abstraction thereof.
   // This is either a SharedFunctionInfo or a JSFunction or a ModuleInfo
@@ -5002,11 +4998,11 @@ class JSBoundFunction : public JSObject {
   static MaybeHandle<Context> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
-  DECLARE_CAST(JSBoundFunction)
+  DECL_CAST(JSBoundFunction)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSBoundFunction)
-  DECLARE_VERIFIER(JSBoundFunction)
+  DECL_PRINTER(JSBoundFunction)
+  DECL_VERIFIER(JSBoundFunction)
 
   // The bound function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
@@ -5171,7 +5167,7 @@ class JSFunction: public JSObject {
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
 
-  DECLARE_CAST(JSFunction)
+  DECL_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
   static void CalculateInstanceSizeForDerivedClass(
@@ -5192,8 +5188,8 @@ class JSFunction: public JSObject {
   typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSFunction)
-  DECLARE_VERIFIER(JSFunction)
+  DECL_PRINTER(JSFunction)
+  DECL_VERIFIER(JSFunction)
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.
@@ -5249,15 +5245,15 @@ class JSGlobalProxy : public JSObject {
   // [hash]: The hash code property (undefined if not initialized yet).
   DECL_ACCESSORS(hash, Object)
 
-  DECLARE_CAST(JSGlobalProxy)
+  DECL_CAST(JSGlobalProxy)
 
   inline bool IsDetachedFrom(JSGlobalObject* global) const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSGlobalProxy)
-  DECLARE_VERIFIER(JSGlobalProxy)
+  DECL_PRINTER(JSGlobalProxy)
+  DECL_VERIFIER(JSGlobalProxy)
 
   // Layout description.
   static const int kNativeContextOffset = JSObject::kHeaderSize;
@@ -5286,13 +5282,13 @@ class JSGlobalObject : public JSObject {
       Handle<JSGlobalObject> global, Handle<Name> name,
       PropertyCellType cell_type, int* entry_out = nullptr);
 
-  DECLARE_CAST(JSGlobalObject)
+  DECL_CAST(JSGlobalObject)
 
   inline bool IsDetached();
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSGlobalObject)
-  DECLARE_VERIFIER(JSGlobalObject)
+  DECL_PRINTER(JSGlobalObject)
+  DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
   static const int kNativeContextOffset = JSObject::kHeaderSize;
@@ -5311,11 +5307,11 @@ class JSValue: public JSObject {
   // [value]: the object being wrapped.
   DECL_ACCESSORS(value, Object)
 
-  DECLARE_CAST(JSValue)
+  DECL_CAST(JSValue)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSValue)
-  DECLARE_VERIFIER(JSValue)
+  DECL_PRINTER(JSValue)
+  DECL_VERIFIER(JSValue)
 
   // Layout description.
   static const int kValueOffset = JSObject::kHeaderSize;
@@ -5356,7 +5352,7 @@ class JSDate: public JSObject {
   // moment when chached fields were cached.
   DECL_ACCESSORS(cache_stamp, Object)
 
-  DECLARE_CAST(JSDate)
+  DECL_CAST(JSDate)
 
   // Returns the time value (UTC) identifying the current time.
   static double CurrentTimeValue(Isolate* isolate);
@@ -5370,8 +5366,8 @@ class JSDate: public JSObject {
   void SetValue(Object* value, bool is_value_nan);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSDate)
-  DECLARE_VERIFIER(JSDate)
+  DECL_PRINTER(JSDate)
+  DECL_VERIFIER(JSDate)
 
   // The order is important. It must be kept in sync with date macros
   // in macros.py.
@@ -5468,11 +5464,11 @@ class JSMessageObject: public JSObject {
   inline int error_level() const;
   inline void set_error_level(int level);
 
-  DECLARE_CAST(JSMessageObject)
+  DECL_CAST(JSMessageObject)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSMessageObject)
-  DECLARE_VERIFIER(JSMessageObject)
+  DECL_PRINTER(JSMessageObject)
+  DECL_VERIFIER(JSMessageObject)
 
   // Layout description.
   static const int kTypeOffset = JSObject::kHeaderSize;
@@ -5497,9 +5493,9 @@ class JSPromise;
 // JS
 class JSPromiseCapability : public JSObject {
  public:
-  DECLARE_CAST(JSPromiseCapability)
+  DECL_CAST(JSPromiseCapability)
 
-  DECLARE_VERIFIER(JSPromiseCapability)
+  DECL_VERIFIER(JSPromiseCapability)
 
   DECL_ACCESSORS(promise, Object)
   DECL_ACCESSORS(resolve, Object)
@@ -5556,11 +5552,11 @@ class JSPromise : public JSObject {
 
   static const char* Status(int status);
 
-  DECLARE_CAST(JSPromise)
+  DECL_CAST(JSPromise)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSPromise)
-  DECLARE_VERIFIER(JSPromise)
+  DECL_PRINTER(JSPromise)
+  DECL_VERIFIER(JSPromise)
 
   // Layout description.
   static const int kStatusOffset = JSObject::kHeaderSize;
@@ -5664,11 +5660,11 @@ class JSRegExp: public JSObject {
     }
   }
 
-  DECLARE_CAST(JSRegExp)
+  DECL_CAST(JSRegExp)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSRegExp)
-  DECLARE_VERIFIER(JSRegExp)
+  DECL_PRINTER(JSRegExp)
+  DECL_VERIFIER(JSRegExp)
 
   static const int kDataOffset = JSObject::kHeaderSize;
   static const int kSourceOffset = kDataOffset + kPointerSize;
@@ -5752,7 +5748,7 @@ class TypeFeedbackInfo : public Tuple3 {
   inline void set_inlined_type_change_checksum(int checksum);
   inline bool matches_inlined_type_change_checksum(int checksum);
 
-  DECLARE_CAST(TypeFeedbackInfo)
+  DECL_CAST(TypeFeedbackInfo)
 
   static const int kStorage1Offset = kValue1Offset;
   static const int kStorage2Offset = kValue2Offset;
@@ -5870,10 +5866,10 @@ class AllocationSite: public Struct {
   static bool DigestTransitionFeedback(Handle<AllocationSite> site,
                                        ElementsKind to_kind);
 
-  DECLARE_PRINTER(AllocationSite)
-  DECLARE_VERIFIER(AllocationSite)
+  DECL_PRINTER(AllocationSite)
+  DECL_VERIFIER(AllocationSite)
 
-  DECLARE_CAST(AllocationSite)
+  DECL_CAST(AllocationSite)
   static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
@@ -5920,10 +5916,10 @@ class AllocationMemento: public Struct {
   inline AllocationSite* GetAllocationSite();
   inline Address GetAllocationSiteUnchecked();
 
-  DECLARE_PRINTER(AllocationMemento)
-  DECLARE_VERIFIER(AllocationMemento)
+  DECL_PRINTER(AllocationMemento)
+  DECL_VERIFIER(AllocationMemento)
 
-  DECLARE_CAST(AllocationMemento)
+  DECL_CAST(AllocationMemento)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationMemento);
@@ -5989,10 +5985,10 @@ class Oddball: public HeapObject {
   // ES6 section 7.1.3 ToNumber for Boolean, Null, Undefined.
   MUST_USE_RESULT static inline Handle<Object> ToNumber(Handle<Oddball> input);
 
-  DECLARE_CAST(Oddball)
+  DECL_CAST(Oddball)
 
   // Dispatched behavior.
-  DECLARE_VERIFIER(Oddball)
+  DECL_VERIFIER(Oddball)
 
   // Initialize the fields.
   static void Initialize(Isolate* isolate, Handle<Oddball> oddball,
@@ -6040,7 +6036,7 @@ class Cell: public HeapObject {
   // [value]: value of the cell.
   DECL_ACCESSORS(value, Object)
 
-  DECLARE_CAST(Cell)
+  DECL_CAST(Cell)
 
   static inline Cell* FromValueAddress(Address value) {
     Object* result = FromAddress(value - kValueOffset);
@@ -6052,8 +6048,8 @@ class Cell: public HeapObject {
   }
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Cell)
-  DECLARE_VERIFIER(Cell)
+  DECL_PRINTER(Cell)
+  DECL_VERIFIER(Cell)
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
@@ -6105,11 +6101,11 @@ class PropertyCell : public HeapObject {
   static void SetValueWithInvalidation(Handle<PropertyCell> cell,
                                        Handle<Object> new_value);
 
-  DECLARE_CAST(PropertyCell)
+  DECL_CAST(PropertyCell)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(PropertyCell)
-  DECLARE_VERIFIER(PropertyCell)
+  DECL_PRINTER(PropertyCell)
+  DECL_VERIFIER(PropertyCell)
 
   // Layout description.
   static const int kDetailsOffset = HeapObject::kHeaderSize;
@@ -6145,10 +6141,10 @@ class WeakCell : public HeapObject {
 
   inline bool next_cleared();
 
-  DECLARE_CAST(WeakCell)
+  DECL_CAST(WeakCell)
 
-  DECLARE_PRINTER(WeakCell)
-  DECLARE_VERIFIER(WeakCell)
+  DECL_PRINTER(WeakCell)
+  DECL_VERIFIER(WeakCell)
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
@@ -6178,7 +6174,7 @@ class JSProxy: public JSReceiver {
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
-  DECLARE_CAST(JSProxy)
+  DECL_CAST(JSProxy)
 
   INLINE(bool IsRevoked() const);
   static void Revoke(Handle<JSProxy> proxy);
@@ -6241,8 +6237,8 @@ class JSProxy: public JSReceiver {
       LookupIterator* it);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSProxy)
-  DECLARE_VERIFIER(JSProxy)
+  DECL_PRINTER(JSProxy)
+  DECL_VERIFIER(JSProxy)
 
   static const int kMaxIterationLimit = 100 * 1024;
 
@@ -6289,14 +6285,14 @@ class JSCollection : public JSObject {
 // objects/hash-table.h) into the same file.
 class JSSet : public JSCollection {
  public:
-  DECLARE_CAST(JSSet)
+  DECL_CAST(JSSet)
 
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
   static void Clear(Handle<JSSet> set);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSSet)
-  DECLARE_VERIFIER(JSSet)
+  DECL_PRINTER(JSSet)
+  DECL_VERIFIER(JSSet)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSet);
@@ -6308,14 +6304,14 @@ class JSSet : public JSCollection {
 // objects/hash-table.h) into the same file.
 class JSMap : public JSCollection {
  public:
-  DECLARE_CAST(JSMap)
+  DECL_CAST(JSMap)
 
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
   static void Clear(Handle<JSMap> map);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSMap)
-  DECLARE_VERIFIER(JSMap)
+  DECL_PRINTER(JSMap)
+  DECL_VERIFIER(JSMap)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
@@ -6323,10 +6319,10 @@ class JSMap : public JSCollection {
 
 class JSArrayIterator : public JSObject {
  public:
-  DECLARE_PRINTER(JSArrayIterator)
-  DECLARE_VERIFIER(JSArrayIterator)
+  DECL_PRINTER(JSArrayIterator)
+  DECL_VERIFIER(JSArrayIterator)
 
-  DECLARE_CAST(JSArrayIterator)
+  DECL_CAST(JSArrayIterator)
 
   // [object]: the [[IteratedObject]] inobject property.
   DECL_ACCESSORS(object, Object)
@@ -6358,9 +6354,9 @@ class JSArrayIterator : public JSObject {
 // (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator : public JSObject {
  public:
-  DECLARE_CAST(JSAsyncFromSyncIterator)
-  DECLARE_PRINTER(JSAsyncFromSyncIterator)
-  DECLARE_VERIFIER(JSAsyncFromSyncIterator)
+  DECL_CAST(JSAsyncFromSyncIterator)
+  DECL_PRINTER(JSAsyncFromSyncIterator)
+  DECL_VERIFIER(JSAsyncFromSyncIterator)
 
   // Async-from-Sync Iterator instances are ordinary objects that inherit
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
@@ -6380,10 +6376,10 @@ class JSAsyncFromSyncIterator : public JSObject {
 class JSStringIterator : public JSObject {
  public:
   // Dispatched behavior.
-  DECLARE_PRINTER(JSStringIterator)
-  DECLARE_VERIFIER(JSStringIterator)
+  DECL_PRINTER(JSStringIterator)
+  DECL_VERIFIER(JSStringIterator)
 
-  DECLARE_CAST(JSStringIterator)
+  DECL_CAST(JSStringIterator)
 
   // [string]: the [[IteratedString]] inobject property.
   DECL_ACCESSORS(string, String)
@@ -6403,7 +6399,7 @@ class JSStringIterator : public JSObject {
 // Base class for both JSWeakMap and JSWeakSet
 class JSWeakCollection: public JSObject {
  public:
-  DECLARE_CAST(JSWeakCollection)
+  DECL_CAST(JSWeakCollection)
 
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
@@ -6445,11 +6441,11 @@ class JSWeakCollection: public JSObject {
 // The JSWeakMap describes EcmaScript Harmony weak maps
 class JSWeakMap: public JSWeakCollection {
  public:
-  DECLARE_CAST(JSWeakMap)
+  DECL_CAST(JSWeakMap)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSWeakMap)
-  DECLARE_VERIFIER(JSWeakMap)
+  DECL_PRINTER(JSWeakMap)
+  DECL_VERIFIER(JSWeakMap)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
@@ -6459,11 +6455,11 @@ class JSWeakMap: public JSWeakCollection {
 // The JSWeakSet describes EcmaScript Harmony weak sets
 class JSWeakSet: public JSWeakCollection {
  public:
-  DECLARE_CAST(JSWeakSet)
+  DECL_CAST(JSWeakSet)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSWeakSet)
-  DECLARE_VERIFIER(JSWeakSet)
+  DECL_PRINTER(JSWeakSet)
+  DECL_VERIFIER(JSWeakSet)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakSet);
@@ -6517,7 +6513,7 @@ class JSArrayBuffer: public JSObject {
   inline bool is_wasm_buffer();
   inline void set_is_wasm_buffer(bool value);
 
-  DECLARE_CAST(JSArrayBuffer)
+  DECL_CAST(JSArrayBuffer)
 
   void Neuter();
 
@@ -6543,8 +6539,8 @@ class JSArrayBuffer: public JSObject {
       SharedFlag shared = SharedFlag::kNotShared) WARN_UNUSED_RESULT;
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSArrayBuffer)
-  DECLARE_VERIFIER(JSArrayBuffer)
+  DECL_PRINTER(JSArrayBuffer)
+  DECL_VERIFIER(JSArrayBuffer)
 
   static const int kByteLengthOffset = JSObject::kHeaderSize;
   // The rest of the fields are not JSObjects, so they are not iterated over in
@@ -6593,9 +6589,9 @@ class JSArrayBufferView: public JSObject {
   // [byte_length]: length of typed array in bytes.
   DECL_ACCESSORS(byte_length, Object)
 
-  DECLARE_CAST(JSArrayBufferView)
+  DECL_CAST(JSArrayBufferView)
 
-  DECLARE_VERIFIER(JSArrayBufferView)
+  DECL_VERIFIER(JSArrayBufferView)
 
   inline bool WasNeutered() const;
 
@@ -6625,7 +6621,7 @@ class JSTypedArray: public JSArrayBufferView {
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
-  DECLARE_CAST(JSTypedArray)
+  DECL_CAST(JSTypedArray)
 
   ExternalArrayType type();
   V8_EXPORT_PRIVATE size_t element_size();
@@ -6647,8 +6643,8 @@ class JSTypedArray: public JSArrayBufferView {
                                                  const char* method_name);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSTypedArray)
-  DECLARE_VERIFIER(JSTypedArray)
+  DECL_PRINTER(JSTypedArray)
+  DECL_VERIFIER(JSTypedArray)
 
   static const int kLengthOffset = kViewSize + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
@@ -6669,11 +6665,11 @@ class JSTypedArray: public JSArrayBufferView {
 
 class JSDataView: public JSArrayBufferView {
  public:
-  DECLARE_CAST(JSDataView)
+  DECL_CAST(JSDataView)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSDataView)
-  DECLARE_VERIFIER(JSDataView)
+  DECL_PRINTER(JSDataView)
+  DECL_VERIFIER(JSDataView)
 
   static const int kSize = kViewSize;
 
@@ -6692,11 +6688,11 @@ class Foreign: public HeapObject {
   inline Address foreign_address();
   inline void set_foreign_address(Address value);
 
-  DECLARE_CAST(Foreign)
+  DECL_CAST(Foreign)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Foreign)
-  DECLARE_VERIFIER(Foreign)
+  DECL_PRINTER(Foreign)
+  DECL_VERIFIER(Foreign)
 
   // Layout description.
 
@@ -6769,11 +6765,11 @@ class JSArray: public JSObject {
   // to Proxies and objects with a hidden prototype.
   inline bool HasArrayPrototype(Isolate* isolate);
 
-  DECLARE_CAST(JSArray)
+  DECL_CAST(JSArray)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSArray)
-  DECLARE_VERIFIER(JSArray)
+  DECL_PRINTER(JSArray)
+  DECL_VERIFIER(JSArray)
 
   // Number of element slots to pre-allocate for an empty array.
   static const int kPreallocatedArrayElements = 4;
@@ -6846,7 +6842,7 @@ class AccessorInfo: public Struct {
   Address redirected_getter() const;
 
   // Dispatched behavior.
-  DECLARE_PRINTER(AccessorInfo)
+  DECL_PRINTER(AccessorInfo)
 
   inline bool all_can_read();
   inline void set_all_can_read(bool value);
@@ -6872,10 +6868,10 @@ class AccessorInfo: public Struct {
                                       Handle<Map> map);
   inline bool IsCompatibleReceiver(Object* receiver);
 
-  DECLARE_CAST(AccessorInfo)
+  DECL_CAST(AccessorInfo)
 
   // Dispatched behavior.
-  DECLARE_VERIFIER(AccessorInfo)
+  DECL_VERIFIER(AccessorInfo)
 
   // Append all descriptors to the array that are not already there.
   // Return number added.
@@ -6919,7 +6915,7 @@ class AccessorPair: public Struct {
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
 
-  DECLARE_CAST(AccessorPair)
+  DECL_CAST(AccessorPair)
 
   static Handle<AccessorPair> Copy(Handle<AccessorPair> pair);
 
@@ -6939,8 +6935,8 @@ class AccessorPair: public Struct {
   inline bool ContainsAccessor();
 
   // Dispatched behavior.
-  DECLARE_PRINTER(AccessorPair)
-  DECLARE_VERIFIER(AccessorPair)
+  DECL_PRINTER(AccessorPair)
+  DECL_VERIFIER(AccessorPair)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
@@ -6965,11 +6961,11 @@ class AccessCheckInfo: public Struct {
   DECL_ACCESSORS(indexed_interceptor, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECLARE_CAST(AccessCheckInfo)
+  DECL_CAST(AccessCheckInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(AccessCheckInfo)
-  DECLARE_VERIFIER(AccessCheckInfo)
+  DECL_PRINTER(AccessCheckInfo)
+  DECL_VERIFIER(AccessCheckInfo)
 
   static AccessCheckInfo* Get(Isolate* isolate, Handle<JSObject> receiver);
 
@@ -7002,11 +6998,11 @@ class InterceptorInfo: public Struct {
   inline int flags() const;
   inline void set_flags(int flags);
 
-  DECLARE_CAST(InterceptorInfo)
+  DECL_CAST(InterceptorInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(InterceptorInfo)
-  DECLARE_VERIFIER(InterceptorInfo)
+  DECL_PRINTER(InterceptorInfo)
+  DECL_VERIFIER(InterceptorInfo)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
@@ -7032,7 +7028,7 @@ class CallHandlerInfo : public Tuple2 {
   DECL_ACCESSORS(callback, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECLARE_CAST(CallHandlerInfo)
+  DECL_CAST(CallHandlerInfo)
 
   static const int kCallbackOffset = kValue1Offset;
   static const int kDataOffset = kValue2Offset;
@@ -7050,9 +7046,9 @@ class TemplateInfo: public Struct {
   DECL_ACCESSORS(property_list, Object)
   DECL_ACCESSORS(property_accessors, Object)
 
-  DECLARE_VERIFIER(TemplateInfo)
+  DECL_VERIFIER(TemplateInfo)
 
-  DECLARE_CAST(TemplateInfo)
+  DECL_CAST(TemplateInfo)
 
   static const int kTagOffset = HeapObject::kHeaderSize;
   static const int kSerialNumberOffset = kTagOffset + kPointerSize;
@@ -7107,11 +7103,11 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   DECL_ACCESSORS(cached_property_name, Object)
 
-  DECLARE_CAST(FunctionTemplateInfo)
+  DECL_CAST(FunctionTemplateInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(FunctionTemplateInfo)
-  DECLARE_VERIFIER(FunctionTemplateInfo)
+  DECL_PRINTER(FunctionTemplateInfo)
+  DECL_VERIFIER(FunctionTemplateInfo)
 
   static const int kInvalidSerialNumber = 0;
 
@@ -7174,11 +7170,11 @@ class ObjectTemplateInfo: public TemplateInfo {
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
 
-  DECLARE_CAST(ObjectTemplateInfo)
+  DECL_CAST(ObjectTemplateInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(ObjectTemplateInfo)
-  DECLARE_VERIFIER(ObjectTemplateInfo)
+  DECL_PRINTER(ObjectTemplateInfo)
+  DECL_VERIFIER(ObjectTemplateInfo)
 
   static const int kConstructorOffset = TemplateInfo::kHeaderSize;
   // LSB is for immutable_proto, higher bits for embedder_field_count
@@ -7209,11 +7205,11 @@ class StackFrameInfo : public Struct {
   DECL_INT_ACCESSORS(flag)
   DECL_INT_ACCESSORS(id)
 
-  DECLARE_CAST(StackFrameInfo)
+  DECL_CAST(StackFrameInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(StackFrameInfo)
-  DECLARE_VERIFIER(StackFrameInfo)
+  DECL_PRINTER(StackFrameInfo)
+  DECL_VERIFIER(StackFrameInfo)
 
   static const int kLineNumberIndex = Struct::kHeaderSize;
   static const int kColumnNumberIndex = kLineNumberIndex + kPointerSize;
@@ -7241,7 +7237,7 @@ class SourcePositionTableWithFrameCache : public Tuple2 {
   DECL_ACCESSORS(source_position_table, ByteArray)
   DECL_ACCESSORS(stack_frame_cache, UnseededNumberDictionary)
 
-  DECLARE_CAST(SourcePositionTableWithFrameCache)
+  DECL_CAST(SourcePositionTableWithFrameCache)
 
   static const int kSourcePositionTableIndex = Struct::kHeaderSize;
   static const int kStackFrameCacheIndex =

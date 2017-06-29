@@ -374,8 +374,8 @@ class SharedFunctionInfo : public HeapObject {
   void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(SharedFunctionInfo)
-  DECLARE_VERIFIER(SharedFunctionInfo)
+  DECL_PRINTER(SharedFunctionInfo)
+  DECL_VERIFIER(SharedFunctionInfo)
 
   void ResetForNewContext(int new_ic_age);
 
@@ -410,7 +410,7 @@ class SharedFunctionInfo : public HeapObject {
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
   };
 
-  DECLARE_CAST(SharedFunctionInfo)
+  DECL_CAST(SharedFunctionInfo)
 
   // Constants.
   static const int kDontAdaptArgumentsSentinel = -1;

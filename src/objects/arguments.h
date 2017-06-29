@@ -24,8 +24,8 @@ class JSArgumentsObject : public JSObject {
 
   DECL_ACCESSORS(length, Object)
 
-  DECLARE_VERIFIER(JSArgumentsObject)
-  DECLARE_CAST(JSArgumentsObject)
+  DECL_VERIFIER(JSArgumentsObject)
+  DECL_CAST(JSArgumentsObject)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObject);
@@ -43,8 +43,8 @@ class JSSloppyArgumentsObject : public JSArgumentsObject {
 
   DECL_ACCESSORS(callee, Object)
 
-  DECLARE_VERIFIER(JSSloppyArgumentsObject)
-  DECLARE_CAST(JSSloppyArgumentsObject)
+  DECL_VERIFIER(JSSloppyArgumentsObject)
+  DECL_CAST(JSSloppyArgumentsObject)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
@@ -57,7 +57,7 @@ class JSStrictArgumentsObject : public JSArgumentsObject {
   // Offsets of object fields.
   static const int kSize = JSArgumentsObject::kHeaderSize;
 
-  DECLARE_CAST(JSStrictArgumentsObject)
+  DECL_CAST(JSStrictArgumentsObject)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);
@@ -98,7 +98,7 @@ class SloppyArgumentsElements : public FixedArray {
   inline Object* get_mapped_entry(uint32_t entry);
   inline void set_mapped_entry(uint32_t entry, Object* object);
 
-  DECLARE_CAST(SloppyArgumentsElements)
+  DECL_CAST(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP
   void SloppyArgumentsElementsVerify(JSSloppyArgumentsObject* holder);
 #endif
@@ -120,11 +120,11 @@ class AliasedArgumentsEntry : public Struct {
   inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int count);
 
-  DECLARE_CAST(AliasedArgumentsEntry)
+  DECL_CAST(AliasedArgumentsEntry)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(AliasedArgumentsEntry)
-  DECLARE_VERIFIER(AliasedArgumentsEntry)
+  DECL_PRINTER(AliasedArgumentsEntry)
+  DECL_VERIFIER(AliasedArgumentsEntry)
 
   static const int kAliasedContextSlot = HeapObject::kHeaderSize;
   static const int kSize = kAliasedContextSlot + kPointerSize;

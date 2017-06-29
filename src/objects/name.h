@@ -47,9 +47,9 @@ class Name : public HeapObject {
   MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(
       Handle<Name> name, Handle<String> prefix);
 
-  DECLARE_CAST(Name)
+  DECL_CAST(Name)
 
-  DECLARE_PRINTER(Name)
+  DECL_PRINTER(Name)
 #if V8_TRACE_MAPS
   void NameShortPrint();
   int NameShortPrint(Vector<char> str);
@@ -148,11 +148,11 @@ class Symbol : public Name {
   // Symbol.keyFor on such a symbol simply needs to return the attached name.
   DECL_BOOLEAN_ACCESSORS(is_public)
 
-  DECLARE_CAST(Symbol)
+  DECL_CAST(Symbol)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Symbol)
-  DECLARE_VERIFIER(Symbol)
+  DECL_PRINTER(Symbol)
+  DECL_VERIFIER(Symbol)
 
   // Layout description.
   static const int kNameOffset = Name::kSize;

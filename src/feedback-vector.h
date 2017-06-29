@@ -177,7 +177,7 @@ class FeedbackVectorSpecBase {
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(FeedbackVectorSpec)
+  DECL_PRINTER(FeedbackVectorSpec)
 
  private:
   inline FeedbackSlot AddSlot(FeedbackSlotKind kind);
@@ -275,7 +275,7 @@ class FeedbackMetadata : public FixedArray {
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(FeedbackMetadata)
+  DECL_PRINTER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackSlotKind kind);
   bool HasTypeProfileSlot() const;
@@ -387,7 +387,7 @@ class FeedbackVector : public FixedArray {
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(FeedbackVector)
+  DECL_PRINTER(FeedbackVector)
 
   // Clears the vector slots.
   void ClearSlots(JSFunction* host_function);

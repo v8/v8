@@ -314,7 +314,7 @@ class String : public Name {
   enum TrimMode { kTrim, kTrimLeft, kTrimRight };
   static Handle<String> Trim(Handle<String> string, TrimMode mode);
 
-  DECLARE_CAST(String)
+  DECL_CAST(String)
 
   void PrintOn(FILE* out);
 
@@ -327,8 +327,8 @@ class String : public Name {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   char* ToAsciiArray();
 #endif
-  DECLARE_PRINTER(String)
-  DECLARE_VERIFIER(String)
+  DECL_PRINTER(String)
+  DECL_VERIFIER(String)
 
   inline bool IsFlat();
 
@@ -458,7 +458,7 @@ class String : public Name {
 // The SeqString abstract class captures sequential string values.
 class SeqString : public String {
  public:
-  DECLARE_CAST(SeqString)
+  DECL_CAST(SeqString)
 
   // Layout description.
   static const int kHeaderSize = String::kSize;
@@ -488,7 +488,7 @@ class SeqOneByteString : public SeqString {
 
   inline uint8_t* GetChars();
 
-  DECLARE_CAST(SeqOneByteString)
+  DECL_CAST(SeqOneByteString)
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an OneByteString
@@ -530,7 +530,7 @@ class SeqTwoByteString : public SeqString {
   // For regexp code.
   const uint16_t* SeqTwoByteStringGetData(unsigned start);
 
-  DECLARE_CAST(SeqTwoByteString)
+  DECL_CAST(SeqTwoByteString)
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
@@ -584,7 +584,7 @@ class ConsString : public String {
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t ConsStringGet(int index);
 
-  DECLARE_CAST(ConsString)
+  DECL_CAST(ConsString)
 
   // Layout description.
   static const int kFirstOffset = POINTER_SIZE_ALIGN(String::kSize);
@@ -599,7 +599,7 @@ class ConsString : public String {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  DECLARE_VERIFIER(ConsString)
+  DECL_VERIFIER(ConsString)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConsString);
@@ -621,8 +621,8 @@ class ThinString : public String {
 
   V8_EXPORT_PRIVATE uint16_t ThinStringGet(int index);
 
-  DECLARE_CAST(ThinString)
-  DECLARE_VERIFIER(ThinString)
+  DECL_CAST(ThinString)
+  DECL_VERIFIER(ThinString)
 
   // Layout description.
   static const int kActualOffset = String::kSize;
@@ -659,7 +659,7 @@ class SlicedString : public String {
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t SlicedStringGet(int index);
 
-  DECLARE_CAST(SlicedString)
+  DECL_CAST(SlicedString)
 
   // Layout description.
   static const int kParentOffset = POINTER_SIZE_ALIGN(String::kSize);
@@ -675,7 +675,7 @@ class SlicedString : public String {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  DECLARE_VERIFIER(SlicedString)
+  DECL_VERIFIER(SlicedString)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SlicedString);
@@ -692,7 +692,7 @@ class SlicedString : public String {
 // API.  Therefore, ExternalStrings should not be used internally.
 class ExternalString : public String {
  public:
-  DECLARE_CAST(ExternalString)
+  DECL_CAST(ExternalString)
 
   // Layout description.
   static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
@@ -732,7 +732,7 @@ class ExternalOneByteString : public ExternalString {
   // Dispatched behavior.
   inline uint16_t ExternalOneByteStringGet(int index);
 
-  DECLARE_CAST(ExternalOneByteString)
+  DECL_CAST(ExternalOneByteString)
 
   class BodyDescriptor;
   // No weak fields.
@@ -768,7 +768,7 @@ class ExternalTwoByteString : public ExternalString {
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
 
-  DECLARE_CAST(ExternalTwoByteString)
+  DECL_CAST(ExternalTwoByteString)
 
   class BodyDescriptor;
   // No weak fields.

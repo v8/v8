@@ -493,7 +493,7 @@ class Map : public HeapObject {
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties();
 
-  DECLARE_CAST(Map)
+  DECL_CAST(Map)
 
   // Code cache operations.
 
@@ -554,8 +554,8 @@ class Map : public HeapObject {
   static Handle<WeakCell> WeakCellForMap(Handle<Map> map);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Map)
-  DECLARE_VERIFIER(Map)
+  DECL_PRINTER(Map)
+  DECL_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP
   void DictionaryMapVerify();
@@ -791,11 +791,11 @@ class NormalizedMapCache : public FixedArray {
 
   void Clear();
 
-  DECLARE_CAST(NormalizedMapCache)
+  DECL_CAST(NormalizedMapCache)
 
   static inline bool IsNormalizedMapCache(const HeapObject* obj);
 
-  DECLARE_VERIFIER(NormalizedMapCache)
+  DECL_VERIFIER(NormalizedMapCache)
  private:
   static const int kEntries = 64;
 

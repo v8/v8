@@ -96,7 +96,7 @@ class CodeCacheHashTable
 
   Code* Lookup(Name* name, Code::Flags flags);
 
-  DECLARE_CAST(CodeCacheHashTable)
+  DECL_CAST(CodeCacheHashTable)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCacheHashTable);

@@ -106,7 +106,7 @@ class Script : public Struct {
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
 
-  DECLARE_CAST(Script)
+  DECL_CAST(Script)
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.
@@ -179,8 +179,8 @@ class Script : public Struct {
   bool HasPreparsedScopeData() const;
 
   // Dispatched behavior.
-  DECLARE_PRINTER(Script)
-  DECLARE_VERIFIER(Script)
+  DECL_PRINTER(Script)
+  DECL_VERIFIER(Script)
 
   static const int kSourceOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kSourceOffset + kPointerSize;

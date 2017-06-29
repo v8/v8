@@ -84,11 +84,11 @@ class DebugInfo : public Struct {
   bool ClearCoverageInfo();
   DECL_ACCESSORS(coverage_info, Object)
 
-  DECLARE_CAST(DebugInfo)
+  DECL_CAST(DebugInfo)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(DebugInfo)
-  DECLARE_VERIFIER(DebugInfo)
+  DECL_PRINTER(DebugInfo)
+  DECL_VERIFIER(DebugInfo)
 
   static const int kSharedFunctionInfoOffset = Struct::kHeaderSize;
   static const int kDebuggerHintsOffset =
@@ -134,7 +134,7 @@ class BreakPointInfo : public Tuple2 {
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
-  DECLARE_CAST(BreakPointInfo)
+  DECL_CAST(BreakPointInfo)
 
   static const int kSourcePositionOffset = kValue1Offset;
   static const int kBreakPointObjectsOffset = kValue2Offset;
@@ -160,7 +160,7 @@ class CoverageInfo : public FixedArray {
     return slot_count * kSlotIndexCount + kFirstSlotIndex;
   }
 
-  DECLARE_CAST(CoverageInfo)
+  DECL_CAST(CoverageInfo)
 
  private:
   static int FirstIndexForSlot(int slot_index) {

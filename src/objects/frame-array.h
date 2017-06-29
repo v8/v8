@@ -29,11 +29,11 @@ class Handle;
 // Container object for data collected during simple stack trace captures.
 class FrameArray : public FixedArray {
  public:
-#define DECLARE_FRAME_ARRAY_ACCESSORS(name, type) \
-  inline type* name(int frame_ix) const;          \
+#define DECL_FRAME_ARRAY_ACCESSORS(name, type) \
+  inline type* name(int frame_ix) const;       \
   inline void Set##name(int frame_ix, type* value);
-  FRAME_ARRAY_FIELD_LIST(DECLARE_FRAME_ARRAY_ACCESSORS)
-#undef DECLARE_FRAME_ARRAY_ACCESSORS
+  FRAME_ARRAY_FIELD_LIST(DECL_FRAME_ARRAY_ACCESSORS)
+#undef DECL_FRAME_ARRAY_ACCESSORS
 
   inline bool IsWasmFrame(int frame_ix) const;
   inline bool IsWasmInterpretedFrame(int frame_ix) const;
@@ -62,7 +62,7 @@ class FrameArray : public FixedArray {
       int wasm_function_index, Handle<AbstractCode> code, int offset,
       int flags);
 
-  DECLARE_CAST(FrameArray)
+  DECL_CAST(FrameArray)
 
  private:
   // The underlying fixed array embodies a captured stack trace. Frame i
