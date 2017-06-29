@@ -23,9 +23,6 @@ import sys
 
 EXECUTABLE_FILES = [
   'd8',
-  'v8_hello_world',
-  'v8_parser_shell',
-  'v8_sample_process',
 ]
 
 SUPPLEMENTARY_FILES = [
@@ -36,6 +33,7 @@ SUPPLEMENTARY_FILES = [
 ]
 
 LIBRARY_FILES = {
+  'android': ['*.a', '*.so'],
   'linux': ['*.a', '*.so'],
   'mac': ['*.a', '*.so'],
   'win': ['*.lib', '*.dll'],
@@ -52,12 +50,27 @@ def main(argv):
   parser.add_argument('-o', '--json-output', required=True,
                       help='Path to an output file. The files will '
                            'be stored in json list with absolute paths.')
+  parser.add_argument('-t', '--type',
+                      choices=['all', 'exe', 'lib'], default='all',
+                      help='Specifies the archive type.')
   args = parser.parse_args()
 
   if not os.path.isdir(args.dir):
     parser.error('%s is not an existing directory.' % args.dir)
 
   args.dir = os.path.abspath(args.dir)
+
+  # Skip libraries for exe archive type.
+  if args.type == 'exe':
+    library_files = []
+  else:
+    library_files = LIBRARY_FILES[args.platform]
+
+  # Skip executables for lib archive type.
+  if args.type == 'lib':
+    executable_files = []
+  else:
+    executable_files = EXECUTABLE_FILES
 
   list_of_files = []
   def add_files_from_globs(globs):
@@ -66,18 +79,17 @@ def main(argv):
   # Add toplevel executables, supplementary files and libraries.
   extended_executable_files = [
     f + '.exe' if args.platform == 'win' else f
-    for f in EXECUTABLE_FILES]
+    for f in executable_files]
   add_files_from_globs(
       os.path.join(args.dir, f)
       for f in extended_executable_files +
                SUPPLEMENTARY_FILES +
-               LIBRARY_FILES[args.platform]
+               library_files
   )
 
   # Add libraries recursively from obj directory.
   for root, _, __ in os.walk(os.path.join(args.dir, 'obj'), followlinks=True):
-    add_files_from_globs(
-        os.path.join(root, g) for g in LIBRARY_FILES[args.platform])
+    add_files_from_globs(os.path.join(root, g) for g in library_files)
 
   with open(args.json_output, 'w') as f:
     json.dump(list_of_files, f)
