@@ -1179,7 +1179,7 @@ class MarkCompactMarkingVisitor
   // we flush the code.
   static void VisitRegExpAndFlushCode(Map* map, HeapObject* object) {
     Heap* heap = map->GetHeap();
-    if (FLAG_flush_regexp_code) {
+    if (!FLAG_flush_regexp_code) {
       JSObjectVisitor::Visit(map, object);
       return;
     }
