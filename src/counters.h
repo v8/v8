@@ -644,8 +644,6 @@ class RuntimeCallTimer final {
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
   V(Message_GetStartColumn)                                \
-  V(Module_FinishDynamicImportSuccess)                     \
-  V(Module_FinishDynamicImportFailure)                     \
   V(Module_Evaluate)                                       \
   V(Module_InstantiateModule)                              \
   V(NumberObject_New)                                      \

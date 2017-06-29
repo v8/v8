@@ -1167,28 +1167,12 @@ class V8_EXPORT Module {
    * TODO(neis): Be more precise or say nothing.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
-};
-
-/**
- * This is an unfinished experimental feature, and is only exposed
- * here for internal testing purposes. DO NOT USE.
- *
- * A compiled JavaScript module.
- */
-class V8_EXPORT DynamicImportResult {
- public:
-  /**
-   * Resolves the promise with the namespace object of the given
-   * module.
-   */
-  V8_WARN_UNUSED_RESULT Maybe<bool> FinishDynamicImportSuccess(
-      Local<Context> context, Local<Module> module);
 
   /**
-   * Rejects the promise with the given exception.
+   * Returns the namespace object of this module. The module must have
+   * been successfully instantiated before and must not be errored.
    */
-  V8_WARN_UNUSED_RESULT Maybe<bool> FinishDynamicImportFailure(
-      Local<Context> context, Local<Value> exception);
+  Local<Value> GetModuleNamespace();
 };
 
 /**
@@ -6158,21 +6142,23 @@ typedef void (*DeprecatedCallCompletedCallback)();
 /**
  * HostImportDynamicallyCallback is called when we require the
  * embedder to load a module. This is used as part of the dynamic
- * import syntax. The behavior of this callback is not specified in
- * EcmaScript.
+ * import syntax.
  *
  * The referrer is the name of the file which calls the dynamic
  * import. The referrer can be used to resolve the module location.
  *
  * The specifier is the name of the module that should be imported.
  *
- * The DynamicImportResult object is used to signal success or failure
- * by calling it's respective methods.
+ * The embedder must compile, instantiate, evaluate the Module, and
+ * obtain it's namespace object.
  *
+ * The Promise returned from this function is forwarded to userland
+ * JavaScript. The embedder must resolve this promise with the module
+ * namespace object. In case of an exception, the embedder must reject
+ * this promise with the exception.
  */
-typedef void (*HostImportModuleDynamicallyCallback)(
-    Isolate* isolate, Local<String> referrer, Local<String> specifier,
-    Local<DynamicImportResult> result);
+typedef Local<Promise> (*HostImportModuleDynamicallyCallback)(
+    Local<Context> context, Local<String> referrer, Local<String> specifier);
 
 /**
  * PromiseHook with type kInit is called when a new promise is

@@ -773,27 +773,31 @@ namespace {
 struct DynamicImportData {
   DynamicImportData(Isolate* isolate_, Local<String> referrer_,
                     Local<String> specifier_,
-                    Local<DynamicImportResult> result_)
+                    Local<Promise::Resolver> resolver_)
       : isolate(isolate_) {
     referrer.Reset(isolate, referrer_);
     specifier.Reset(isolate, specifier_);
-    result.Reset(isolate, result_);
+    resolver.Reset(isolate, resolver_);
   }
 
   Isolate* isolate;
   Global<String> referrer;
   Global<String> specifier;
-  Global<DynamicImportResult> result;
+  Global<Promise::Resolver> resolver;
 };
 
 }  // namespace
-void Shell::HostImportModuleDynamically(Isolate* isolate,
-                                        Local<String> referrer,
-                                        Local<String> specifier,
-                                        Local<DynamicImportResult> result) {
+
+Local<Promise> Shell::HostImportModuleDynamically(Local<Context> context,
+                                                  Local<String> referrer,
+                                                  Local<String> specifier) {
+  Isolate* isolate = context->GetIsolate();
+  Local<Promise::Resolver> resolver =
+      Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
-      new DynamicImportData(isolate, referrer, specifier, result);
+      new DynamicImportData(isolate, referrer, specifier, resolver);
   isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
+  return resolver->GetPromise();
 }
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {
@@ -804,7 +808,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   Local<String> referrer(import_data_->referrer.Get(isolate));
   Local<String> specifier(import_data_->specifier.Get(isolate));
-  Local<DynamicImportResult> result(import_data_->result.Get(isolate));
+  Local<Promise::Resolver> resolver(import_data_->resolver.Get(isolate));
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
@@ -828,8 +832,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     root_module = module_it->second.Get(isolate);
   } else if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
-    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception())
-              .FromJust());
+    resolver->Reject(realm, try_catch.Exception()).ToChecked();
     return;
   }
 
@@ -843,13 +846,13 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Value> module;
   if (!maybe_result.ToLocal(&module)) {
     DCHECK(try_catch.HasCaught());
-    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception())
-              .FromJust());
+    resolver->Reject(realm, try_catch.Exception()).ToChecked();
     return;
   }
 
   DCHECK(!try_catch.HasCaught());
-  CHECK(result->FinishDynamicImportSuccess(realm, root_module).FromJust());
+  Local<Value> module_namespace = root_module->GetModuleNamespace();
+  resolver->Resolve(realm, module_namespace).ToChecked();
 }
 
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {

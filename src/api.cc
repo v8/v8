@@ -2085,42 +2085,6 @@ Local<UnboundScript> Script::GetUnboundScript() {
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
 }
 
-Maybe<bool> DynamicImportResult::FinishDynamicImportSuccess(
-    Local<Context> context, Local<Module> module) {
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Module, FinishDynamicImportSuccess,
-           Nothing<bool>(), i::HandleScope);
-  auto promise = Utils::OpenHandle(this);
-  i::Handle<i::Module> module_obj = Utils::OpenHandle(*module);
-  i::Handle<i::JSModuleNamespace> module_namespace =
-      i::Module::GetModuleNamespace(module_obj);
-  i::Handle<i::Object> argv[] = {promise, module_namespace};
-  has_pending_exception =
-      i::Execution::Call(isolate, isolate->promise_resolve(),
-                         isolate->factory()->undefined_value(), arraysize(argv),
-                         argv)
-          .is_null();
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(true);
-}
-
-Maybe<bool> DynamicImportResult::FinishDynamicImportFailure(
-    Local<Context> context, Local<Value> exception) {
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Module, FinishDynamicImportFailure,
-           Nothing<bool>(), i::HandleScope);
-  auto promise = Utils::OpenHandle(this);
-  // We pass true to trigger the debugger's on exception handler.
-  i::Handle<i::Object> argv[] = {promise, Utils::OpenHandle(*exception),
-                                 isolate->factory()->ToBoolean(true)};
-  has_pending_exception =
-      i::Execution::Call(isolate, isolate->promise_internal_reject(),
-                         isolate->factory()->undefined_value(), arraysize(argv),
-                         argv)
-          .is_null();
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(true);
-}
 
 Module::Status Module::GetStatus() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
@@ -2178,6 +2142,18 @@ Location Module::GetModuleRequestLocation(int i) const {
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
   return v8::Location(info.line, info.column);
+}
+
+Local<Value> Module::GetModuleNamespace() {
+  Utils::ApiCheck(
+      GetStatus() != kErrored && GetStatus() >= kInstantiated,
+      "v8::Module::GetModuleNamespace",
+      "GetModuleNamespace should be used on a successfully instantiated"
+      "module. The current module has not been instantiated or has errored");
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Handle<i::JSModuleNamespace> module_namespace =
+      i::Module::GetModuleNamespace(self);
+  return ToApiHandle<Value>(module_namespace);
 }
 
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }

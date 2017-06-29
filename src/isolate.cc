@@ -3323,24 +3323,55 @@ void Isolate::DebugStateUpdated() {
   promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
 }
 
-void Isolate::RunHostImportModuleDynamicallyCallback(
-    Handle<String> source_url, Handle<String> specifier,
-    Handle<JSPromise> promise) {
-  auto result = v8::Utils::PromiseToDynamicImportResult(promise);
+namespace {
+
+MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
+                                          v8::Local<v8::Context> api_context,
+                                          Handle<Object> exception) {
+  v8::MaybeLocal<v8::Promise::Resolver> maybe_resolver =
+      v8::Promise::Resolver::New(api_context);
+  v8::Local<v8::Promise::Resolver> resolver;
+  // TODO(gsathya): Add test that checks this failure
+  if (!maybe_resolver.ToLocal(&resolver)) {
+    return MaybeHandle<JSPromise>();
+  }
+
+  if (resolver->Reject(api_context, v8::Utils::ToLocal(exception))
+          .IsNothing()) {
+    return MaybeHandle<JSPromise>();
+  }
+
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+  return v8::Utils::OpenHandle(*promise);
+}
+
+}  // namespace
+
+MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
+    Handle<String> source_url, Handle<Object> specifier) {
+  v8::Local<v8::Context> api_context =
+      v8::Utils::ToLocal(handle(context(), this));
+
   if (host_import_module_dynamically_callback_ == nullptr) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
-    CHECK(result
-              ->FinishDynamicImportFailure(
-                  v8::Utils::ToLocal(handle(context(), this)),
-                  v8::Utils::ToLocal(exception))
-              .FromJust());
-    return;
+    return NewRejectedPromise(this, api_context, exception);
   }
 
-  host_import_module_dynamically_callback_(
-      reinterpret_cast<v8::Isolate*>(this), v8::Utils::ToLocal(source_url),
-      v8::Utils::ToLocal(specifier), result);
+  Handle<String> specifier_str;
+  MaybeHandle<String> maybe_specifier = Object::ToString(this, specifier);
+  if (!maybe_specifier.ToHandle(&specifier_str)) {
+    Handle<Object> exception(pending_exception(), this);
+    clear_pending_exception();
+
+    return NewRejectedPromise(this, api_context, exception);
+  }
+  DCHECK(!has_pending_exception());
+
+  v8::Local<v8::Promise> promise = host_import_module_dynamically_callback_(
+      api_context, v8::Utils::ToLocal(source_url),
+      v8::Utils::ToLocal(specifier_str));
+  return v8::Utils::OpenHandle(*promise);
 }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
