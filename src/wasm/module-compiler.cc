@@ -1121,7 +1121,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     if (retval.is_null()) {
       DCHECK(isolate_->has_pending_exception());
-      isolate_->OptionalRescheduleException(false);
       // It's unfortunate that the new instance is already linked in the
       // chain. However, we need to set up everything before executing the
       // start function, such that stack trace information can be generated

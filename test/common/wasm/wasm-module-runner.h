@@ -27,6 +27,9 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 
+// Call an exported wasm function by name. Returns -1 if the export does not
+// exist or throws an error. Errors are cleared from the isolate before
+// returning.
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[]);

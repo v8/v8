@@ -134,6 +134,8 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 
   // The result should be a number.
   if (retval.is_null()) {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
     thrower->RuntimeError("Calling exported wasm function failed.");
     return -1;
   }

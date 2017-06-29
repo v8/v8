@@ -808,11 +808,9 @@ MaybeHandle<WasmInstanceObject> wasm::SyncCompileAndInstantiate(
   DCHECK_EQ(thrower->error(), module.is_null());
   if (module.is_null()) return {};
 
-  MaybeHandle<WasmInstanceObject> instance = wasm::SyncInstantiate(
-      isolate, thrower, module.ToHandleChecked(), Handle<JSReceiver>::null(),
-      Handle<JSArrayBuffer>::null());
-  DCHECK_EQ(thrower->error(), instance.is_null());
-  return instance;
+  return wasm::SyncInstantiate(isolate, thrower, module.ToHandleChecked(),
+                               Handle<JSReceiver>::null(),
+                               Handle<JSArrayBuffer>::null());
 }
 
 namespace {
