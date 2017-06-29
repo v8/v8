@@ -2248,6 +2248,26 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Fall through when we need to inform the incremental marker.
 }
 
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+                                                     Zone* zone) {
+  UNIMPLEMENTED_S390();
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    PredictableCodeSizeScope predictable(masm,
+#if V8_TARGET_ARCH_S390X
+                                         40);
+#elif V8_HOST_ARCH_S390
+                                         36);
+#else
+                                         32);
+#endif
+    ProfileEntryHookStub stub(masm->isolate());
+    __ CleanseP(r14);
+    __ Push(r14, ip);
+    __ CallStub(&stub);  // BRASL
+    __ Pop(r14, ip);
+  }
+}
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     PredictableCodeSizeScope predictable(masm,
