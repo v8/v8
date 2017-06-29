@@ -1534,76 +1534,54 @@ void MacroAssembler::MultiPopReversedFPU(RegList regs) {
 void MacroAssembler::AddPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
                              Register right_low, Register right_high) {
-  Label no_overflow;
   Register kScratchReg = s3;
-  Register kScratchReg2 = s4;
-  // Add lower word
-  Addu(dst_low, left_low, right_low);
+  if (left_low.is(right_low)) {
+    // Special case for left = right and the sum potentially overwriting both
+    // left and right.
+    Slt(kScratchReg, left_low, zero_reg);
+    Addu(dst_low, left_low, right_low);
+  } else {
+    Addu(dst_low, left_low, right_low);
+    // If the sum overwrites right, left remains unchanged, otherwise right
+    // remains unchanged.
+    Sltu(kScratchReg, dst_low, (dst_low.is(right_low)) ? left_low : right_low);
+  }
   Addu(dst_high, left_high, right_high);
-  // Check for lower word unsigned overflow
-  Sltu(kScratchReg, dst_low, left_low);
-  Sltu(kScratchReg2, dst_low, right_low);
-  Or(kScratchReg, kScratchReg2, kScratchReg);
-  Branch(&no_overflow, eq, kScratchReg, Operand(zero_reg));
-  // Increment higher word if there was overflow
-  Addu(dst_high, dst_high, 0x1);
-  bind(&no_overflow);
+  Addu(dst_high, dst_high, kScratchReg);
 }
 
 void MacroAssembler::SubPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
                              Register right_low, Register right_high) {
-  Label no_overflow;
   Register kScratchReg = s3;
-  // Subtract lower word
+  Sltu(kScratchReg, left_low, right_low);
   Subu(dst_low, left_low, right_low);
   Subu(dst_high, left_high, right_high);
-  // Check for lower word unsigned underflow
-  Sltu(kScratchReg, left_low, right_low);
-  Branch(&no_overflow, eq, kScratchReg, Operand(zero_reg));
-  // Decrement higher word if there was underflow
-  Subu(dst_high, dst_high, 0x1);
-  bind(&no_overflow);
+  Subu(dst_high, dst_high, kScratchReg);
 }
 
 void MacroAssembler::ShlPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register shift) {
-  Label less_than_32;
-  Label zero_shift;
-  Label word_shift;
   Label done;
   Register kScratchReg = s3;
+  Register kScratchReg2 = s4;
   And(shift, shift, 0x3F);
-  li(kScratchReg, 0x20);
-  Branch(&less_than_32, lt, shift, Operand(kScratchReg));
-
-  Branch(&word_shift, eq, shift, Operand(kScratchReg));
-  // Shift more than 32
-  Subu(kScratchReg, shift, kScratchReg);
-  mov(dst_low, zero_reg);
-  sllv(dst_high, src_low, kScratchReg);
-  Branch(&done);
-  // Word shift
-  bind(&word_shift);
-  mov(dst_low, zero_reg);
-  mov(dst_high, src_low);
-  Branch(&done);
-
-  bind(&less_than_32);
-  // Check if zero shift
-  Branch(&zero_shift, eq, shift, Operand(zero_reg));
-  // Shift less than 32
-  Subu(kScratchReg, kScratchReg, shift);
-  sllv(dst_high, src_high, shift);
   sllv(dst_low, src_low, shift);
-  srlv(kScratchReg, src_low, kScratchReg);
+  Nor(kScratchReg2, zero_reg, shift);
+  srl(kScratchReg, src_low, 1);
+  srlv(kScratchReg, kScratchReg, kScratchReg2);
+  sllv(dst_high, src_high, shift);
   Or(dst_high, dst_high, kScratchReg);
-  Branch(&done);
-  // Zero shift
-  bind(&zero_shift);
-  mov(dst_low, src_low);
-  mov(dst_high, src_high);
+  And(kScratchReg, shift, 32);
+  if (IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r6)) {
+    Branch(&done, eq, kScratchReg, Operand(zero_reg));
+    mov(dst_high, dst_low);
+    mov(dst_low, zero_reg);
+  } else {
+    movn(dst_high, dst_low, kScratchReg);
+    movn(dst_low, zero_reg, kScratchReg);
+  }
   bind(&done);
 }
 
@@ -1612,67 +1590,52 @@ void MacroAssembler::ShlPair(Register dst_low, Register dst_high,
                              uint32_t shift) {
   Register kScratchReg = s3;
   shift = shift & 0x3F;
-  if (shift < 32) {
-    if (shift == 0) {
-      mov(dst_low, src_low);
-      mov(dst_high, src_high);
+  if (shift == 0) {
+    mov(dst_low, src_low);
+    mov(dst_high, src_high);
+  } else if (shift < 32) {
+    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+      srl(dst_high, src_low, 32 - shift);
+      Ins(dst_high, src_high, shift, 32 - shift);
+      sll(dst_low, src_low, shift);
     } else {
       sll(dst_high, src_high, shift);
       sll(dst_low, src_low, shift);
-      shift = 32 - shift;
-      srl(kScratchReg, src_low, shift);
+      srl(kScratchReg, src_low, 32 - shift);
       Or(dst_high, dst_high, kScratchReg);
     }
+  } else if (shift == 32) {
+    mov(dst_low, zero_reg);
+    mov(dst_high, src_low);
   } else {
-    if (shift == 32) {
-      mov(dst_low, zero_reg);
-      mov(dst_high, src_low);
-    } else {
-      shift = shift - 32;
-      mov(dst_low, zero_reg);
-      sll(dst_high, src_low, shift);
-    }
+    shift = shift - 32;
+    mov(dst_low, zero_reg);
+    sll(dst_high, src_low, shift);
   }
 }
 
 void MacroAssembler::ShrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register shift) {
-  Label less_than_32;
-  Label zero_shift;
-  Label word_shift;
   Label done;
   Register kScratchReg = s3;
+  Register kScratchReg2 = s4;
   And(shift, shift, 0x3F);
-  li(kScratchReg, 0x20);
-  Branch(&less_than_32, lt, shift, Operand(kScratchReg));
-
-  Branch(&word_shift, eq, shift, Operand(kScratchReg));
-  // Shift more than 32
-  Subu(kScratchReg, shift, kScratchReg);
-  mov(dst_high, zero_reg);
-  srlv(dst_low, src_high, kScratchReg);
-  Branch(&done);
-  // Word shift
-  bind(&word_shift);
-  mov(dst_high, zero_reg);
-  mov(dst_low, src_high);
-  Branch(&done);
-
-  bind(&less_than_32);
-  // Check if zero shift
-  Branch(&zero_shift, eq, shift, Operand(zero_reg));
-  // Shift less than 32
-  Subu(kScratchReg, kScratchReg, shift);
   srlv(dst_high, src_high, shift);
+  Nor(kScratchReg2, zero_reg, shift);
+  sll(kScratchReg, src_high, 1);
+  sllv(kScratchReg, kScratchReg, kScratchReg2);
   srlv(dst_low, src_low, shift);
-  sllv(kScratchReg, src_high, kScratchReg);
   Or(dst_low, dst_low, kScratchReg);
-  Branch(&done);
-  // Zero shift
-  bind(&zero_shift);
-  mov(dst_low, src_low);
-  mov(dst_high, src_high);
+  And(kScratchReg, shift, 32);
+  if (IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r6)) {
+    Branch(&done, eq, kScratchReg, Operand(zero_reg));
+    mov(dst_low, dst_high);
+    mov(dst_high, zero_reg);
+  } else {
+    movn(dst_low, dst_high, kScratchReg);
+    movn(dst_high, zero_reg, kScratchReg);
+  }
   bind(&done);
 }
 
@@ -1681,10 +1644,14 @@ void MacroAssembler::ShrPair(Register dst_low, Register dst_high,
                              uint32_t shift) {
   Register kScratchReg = s3;
   shift = shift & 0x3F;
-  if (shift < 32) {
-    if (shift == 0) {
-      mov(dst_low, src_low);
-      mov(dst_high, src_high);
+  if (shift == 0) {
+    mov(dst_low, src_low);
+    mov(dst_high, src_high);
+  } else if (shift < 32) {
+    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+      srl(dst_low, src_low, shift);
+      Ins(dst_low, src_high, 32 - shift, shift);
+      srl(dst_high, src_high, shift);
     } else {
       srl(dst_high, src_high, shift);
       srl(dst_low, src_low, shift);
@@ -1692,61 +1659,33 @@ void MacroAssembler::ShrPair(Register dst_low, Register dst_high,
       sll(kScratchReg, src_high, shift);
       Or(dst_low, dst_low, kScratchReg);
     }
+  } else if (shift == 32) {
+    mov(dst_high, zero_reg);
+    mov(dst_low, src_high);
   } else {
-    if (shift == 32) {
-      mov(dst_high, zero_reg);
-      mov(dst_low, src_high);
-    } else {
-      shift = shift - 32;
-      mov(dst_high, zero_reg);
-      srl(dst_low, src_high, shift);
-    }
+    shift = shift - 32;
+    mov(dst_high, zero_reg);
+    srl(dst_low, src_high, shift);
   }
 }
 
 void MacroAssembler::SarPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register shift) {
-  Label less_than_32;
-  Label zero_shift;
-  Label word_shift;
   Label done;
   Register kScratchReg = s3;
   Register kScratchReg2 = s4;
   And(shift, shift, 0x3F);
-  li(kScratchReg, 0x20);
-  Branch(&less_than_32, lt, shift, Operand(kScratchReg));
-
-  Branch(&word_shift, eq, shift, Operand(kScratchReg));
-
-  // Shift more than 32
-  li(kScratchReg2, 0x1F);
-  Subu(kScratchReg, shift, kScratchReg);
-  srav(dst_high, src_high, kScratchReg2);
-  srav(dst_low, src_high, kScratchReg);
-  Branch(&done);
-  // Word shift
-  bind(&word_shift);
-  li(kScratchReg2, 0x1F);
-  srav(dst_high, src_high, kScratchReg2);
-  mov(dst_low, src_high);
-  Branch(&done);
-
-  bind(&less_than_32);
-  // Check if zero shift
-  Branch(&zero_shift, eq, shift, Operand(zero_reg));
-
-  // Shift less than 32
-  Subu(kScratchReg, kScratchReg, shift);
   srav(dst_high, src_high, shift);
+  Nor(kScratchReg2, zero_reg, shift);
+  sll(kScratchReg, src_high, 1);
+  sllv(kScratchReg, kScratchReg, kScratchReg2);
   srlv(dst_low, src_low, shift);
-  sllv(kScratchReg, src_high, kScratchReg);
   Or(dst_low, dst_low, kScratchReg);
-  Branch(&done);
-  // Zero shift
-  bind(&zero_shift);
-  mov(dst_low, src_low);
-  mov(dst_high, src_high);
+  And(kScratchReg, shift, 32);
+  Branch(&done, eq, kScratchReg, Operand(zero_reg));
+  mov(dst_low, dst_high);
+  sra(dst_high, dst_high, 31);
   bind(&done);
 }
 
@@ -1755,10 +1694,14 @@ void MacroAssembler::SarPair(Register dst_low, Register dst_high,
                              uint32_t shift) {
   Register kScratchReg = s3;
   shift = shift & 0x3F;
-  if (shift < 32) {
-    if (shift == 0) {
-      mov(dst_low, src_low);
-      mov(dst_high, src_high);
+  if (shift == 0) {
+    mov(dst_low, src_low);
+    mov(dst_high, src_high);
+  } else if (shift < 32) {
+    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+      srl(dst_low, src_low, shift);
+      Ins(dst_low, src_high, 32 - shift, shift);
+      sra(dst_high, src_high, shift);
     } else {
       sra(dst_high, src_high, shift);
       srl(dst_low, src_low, shift);
@@ -1766,15 +1709,13 @@ void MacroAssembler::SarPair(Register dst_low, Register dst_high,
       sll(kScratchReg, src_high, shift);
       Or(dst_low, dst_low, kScratchReg);
     }
+  } else if (shift == 32) {
+    sra(dst_high, src_high, 31);
+    mov(dst_low, src_high);
   } else {
-    if (shift == 32) {
-      sra(dst_high, src_high, 31);
-      mov(dst_low, src_high);
-    } else {
-      shift = shift - 32;
-      sra(dst_high, src_high, 31);
-      sra(dst_low, src_high, shift);
-    }
+    shift = shift - 32;
+    sra(dst_high, src_high, 31);
+    sra(dst_low, src_high, shift);
   }
 }
 
