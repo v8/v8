@@ -4397,28 +4397,89 @@ void Simulator::DecodeTypeMsaI8() {
   }
 }
 
-void Simulator::DecodeTypeMsaI5() {
-  DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsaI5Mask;
+template <typename T>
+T Simulator::MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5) {
+  T res;
+  uint32_t ui5 = i5 & 0x1Fu;
+  uint64_t ws_u64 = static_cast<uint64_t>(ws);
+  uint64_t ui5_u64 = static_cast<uint64_t>(ui5);
 
   switch (opcode) {
     case ADDVI:
+      res = static_cast<T>(ws + ui5);
+      break;
     case SUBVI:
+      res = static_cast<T>(ws - ui5);
+      break;
     case MAXI_S:
-    case MAXI_U:
+      res = static_cast<T>(Max(ws, static_cast<T>(i5)));
+      break;
     case MINI_S:
+      res = static_cast<T>(Min(ws, static_cast<T>(i5)));
+      break;
+    case MAXI_U:
+      res = static_cast<T>(Max(ws_u64, ui5_u64));
+      break;
     case MINI_U:
+      res = static_cast<T>(Min(ws_u64, ui5_u64));
+      break;
     case CEQI:
+      res = static_cast<T>(!Compare(ws, static_cast<T>(i5)) ? -1ull : 0ull);
+      break;
     case CLTI_S:
+      res = static_cast<T>((Compare(ws, static_cast<T>(i5)) == -1) ? -1ull
+                                                                   : 0ull);
+      break;
     case CLTI_U:
+      res = static_cast<T>((Compare(ws_u64, ui5_u64) == -1) ? -1ull : 0ull);
+      break;
     case CLEI_S:
+      res =
+          static_cast<T>((Compare(ws, static_cast<T>(i5)) != 1) ? -1ull : 0ull);
+      break;
     case CLEI_U:
-      UNIMPLEMENTED();
+      res = static_cast<T>((Compare(ws_u64, ui5_u64) != 1) ? -1ull : 0ull);
       break;
     default:
       UNREACHABLE();
   }
+  return res;
+}
+
+void Simulator::DecodeTypeMsaI5() {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
+  uint32_t opcode = instr_.InstructionBits() & kMsaI5Mask;
+  msa_reg_t ws, wd;
+
+  // sign extend 5bit value to int32_t
+  int32_t i5 = static_cast<int32_t>(instr_.MsaImm5Value() << 27) >> 27;
+
+#define MSA_I5_DF(elem, num_of_lanes)                      \
+  get_msa_register(instr_.WsValue(), ws.elem);             \
+  for (int i = 0; i < num_of_lanes; i++) {                 \
+    wd.elem[i] = MsaI5InstrHelper(opcode, ws.elem[i], i5); \
+  }                                                        \
+  set_msa_register(instr_.WdValue(), wd.elem);             \
+  TraceMSARegWr(wd.elem)
+
+  switch (DecodeMsaDataFormat()) {
+    case MSA_BYTE:
+      MSA_I5_DF(b, kMSALanesByte);
+      break;
+    case MSA_HALF:
+      MSA_I5_DF(h, kMSALanesHalf);
+      break;
+    case MSA_WORD:
+      MSA_I5_DF(w, kMSALanesWord);
+      break;
+    case MSA_DWORD:
+      MSA_I5_DF(d, kMSALanesDword);
+      break;
+    default:
+      UNREACHABLE();
+  }
+#undef MSA_I5_DF
 }
 
 void Simulator::DecodeTypeMsaI10() {

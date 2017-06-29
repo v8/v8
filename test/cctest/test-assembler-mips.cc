@@ -6134,4 +6134,441 @@ TEST(MSA_shf) {
   }
 }
 
+struct TestCaseMsaI5 {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint32_t i5;
+};
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
+                InstFunc GenerateI5InstructionFunc,
+                OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+  int32_t i5 =
+      i5_sign_ext ? static_cast<int32_t>(input->i5 << 27) >> 27 : input->i5;
+
+  __ li(t0, static_cast<uint32_t>(input->ws_lo & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((input->ws_lo >> 32) & 0xffffffff));
+  __ insert_w(w0, 0, t0);
+  __ insert_w(w0, 1, t1);
+  __ li(t0, static_cast<uint32_t>(input->ws_hi & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((input->ws_hi >> 32) & 0xffffffff));
+  __ insert_w(w0, 2, t0);
+  __ insert_w(w0, 3, t1);
+
+  GenerateI5InstructionFunc(assm, i5);
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input->ws_lo, input->i5), res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input->ws_hi, input->i5), res.d[1]);
+}
+
+TEST(MSA_addvi_subvi) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI5 tc[] = {
+      //             ws_lo,              ws_hi,         i5
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x0000001f},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0000000f},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x00000005},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x00000010},
+      {0xffab807f807fffcd, 0x7f23ff80ff567f80, 0x0000000f},
+      {0x80ffefff7f12807f, 0x807f80ff7fdeff78, 0x00000010}};
+
+#define ADDVI_DF(lanes, mask)                               \
+  uint64_t res = 0;                                         \
+  for (int i = 0; i < lanes / 2; ++i) {                     \
+    int shift = (kMSARegSize / lanes) * i;                  \
+    res |= ((((ws >> shift) & mask) + i5) & mask) << shift; \
+  }                                                         \
+  return res
+
+#define SUBVI_DF(lanes, mask)                               \
+  uint64_t res = 0;                                         \
+  for (int i = 0; i < lanes / 2; ++i) {                     \
+    int shift = (kMSARegSize / lanes) * i;                  \
+    res |= ((((ws >> shift) & mask) - i5) & mask) << shift; \
+  }                                                         \
+  return res
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI5); ++i) {
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_b(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesByte, UINT8_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_h(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesHalf, UINT16_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_w(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesWord, UINT32_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_d(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesDword, UINT64_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_b(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesByte, UINT8_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_h(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesHalf, UINT16_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_w(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesWord, UINT32_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_d(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesDword, UINT64_MAX); });
+  }
+#undef ADDVI_DF
+#undef SUBVI_DF
+}
+
+TEST(MSA_maxi_mini) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI5 tc[] = {
+      // ws_lo, ws_hi, i5
+      {0x7f80ff3480ff7f00, 0x8d7fff80ff7f6780, 0x0000001f},
+      {0x7f80ff3480ff7f00, 0x8d7fff80ff7f6780, 0x0000000f},
+      {0x7f80ff3480ff7f00, 0x8d7fff80ff7f6780, 0x00000010},
+      {0x80007fff91daffff, 0x7fff8000ffff5678, 0x0000001f},
+      {0x80007fff91daffff, 0x7fff8000ffff5678, 0x0000000f},
+      {0x80007fff91daffff, 0x7fff8000ffff5678, 0x00000010},
+      {0x7fffffff80000000, 0x12345678ffffffff, 0x0000001f},
+      {0x7fffffff80000000, 0x12345678ffffffff, 0x0000000f},
+      {0x7fffffff80000000, 0x12345678ffffffff, 0x00000010},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x0000001f},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0000000f},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x00000010},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x00000015},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x00000009},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x00000003}};
+
+#define MAXI_MINI_S_DF(lanes, mask, func)                                     \
+  [](uint64_t ws, uint32_t ui5) {                                             \
+    uint64_t res = 0;                                                         \
+    int64_t i5 = ArithmeticShiftRight(static_cast<int64_t>(ui5) << 59, 59);   \
+    int elem_size = kMSARegSize / lanes;                                      \
+    for (int i = 0; i < lanes / 2; ++i) {                                     \
+      int shift = elem_size * i;                                              \
+      int64_t elem =                                                          \
+          static_cast<int64_t>(((ws >> shift) & mask) << (64 - elem_size)) >> \
+          (64 - elem_size);                                                   \
+      res |= static_cast<uint64_t>(func(elem, i5) & mask) << shift;           \
+    }                                                                         \
+    return res;                                                               \
+  }
+
+#define MAXI_MINI_U_DF(lanes, mask, func)                              \
+  [](uint64_t ws, uint32_t ui5) {                                      \
+    uint64_t res = 0;                                                  \
+    int elem_size = kMSARegSize / lanes;                               \
+    for (int i = 0; i < lanes / 2; ++i) {                              \
+      int shift = elem_size * i;                                       \
+      uint64_t elem = (ws >> shift) & mask;                            \
+      res |= (func(elem, static_cast<uint64_t>(ui5)) & mask) << shift; \
+    }                                                                  \
+    return res;                                                        \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI5); ++i) {
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_b(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesByte, UINT8_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_h(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesHalf, UINT16_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_w(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesWord, UINT32_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_d(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesDword, UINT64_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_b(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesByte, UINT8_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_h(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesHalf, UINT16_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_w(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesWord, UINT32_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_d(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesDword, UINT64_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_b(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesByte, UINT8_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_h(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesHalf, UINT16_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_w(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesWord, UINT32_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_d(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesDword, UINT64_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_b(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesByte, UINT8_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_h(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesHalf, UINT16_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_w(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesWord, UINT32_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_d(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesDword, UINT64_MAX, Min));
+  }
+#undef MAXI_MINI_S_DF
+#undef MAXI_MINI_U_DF
+}
+
+TEST(MSA_ceqi_clti_clei) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI5 tc[] = {
+      {0xff69751bb9a7d9c3, 0xf7a594aec8ff8a9c, 0x0000001f},
+      {0xe669ffffb9a7d9c3, 0xf7a594aeffff8a9c, 0x0000001f},
+      {0xffffffffb9a7d9c3, 0xf7a594aeffffffff, 0x0000001f},
+      {0x2b0b5362c4e812df, 0x3a0d80d68b3f0bc8, 0x0000000b},
+      {0x2b66000bc4e812df, 0x3a0d000b8b3f8bc8, 0x0000000b},
+      {0x0000000bc4e812df, 0x3a0d80d60000000b, 0x0000000b},
+      {0xf38062e13e38f8b0, 0x8041ffdef2bfe636, 0x00000010},
+      {0xf35880003e38f8b0, 0x4f41ffdef2bf8000, 0x00000010},
+      {0xf35862e180000000, 0x80000000f2bfe636, 0x00000010},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x00000015},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x00000009},
+      {0xf30062e13e38f800, 0x4f00ffdef2bf0036, 0x00000000}};
+
+#define CEQI_CLTI_CLEI_S_DF(lanes, mask, func)                                \
+  [](uint64_t ws, uint32_t ui5) {                                             \
+    uint64_t res = 0;                                                         \
+    int elem_size = kMSARegSize / lanes;                                      \
+    int64_t i5 = ArithmeticShiftRight(static_cast<int64_t>(ui5) << 59, 59);   \
+    for (int i = 0; i < lanes / 2; ++i) {                                     \
+      int shift = elem_size * i;                                              \
+      int64_t elem =                                                          \
+          static_cast<int64_t>(((ws >> shift) & mask) << (64 - elem_size)) >> \
+          (64 - elem_size);                                                   \
+      res |= static_cast<uint64_t>((func)&mask) << shift;                     \
+    }                                                                         \
+    return res;                                                               \
+  }
+
+#define CEQI_CLTI_CLEI_U_DF(lanes, mask, func) \
+  [](uint64_t ws, uint64_t ui5) {              \
+    uint64_t res = 0;                          \
+    int elem_size = kMSARegSize / lanes;       \
+    for (int i = 0; i < lanes / 2; ++i) {      \
+      int shift = elem_size * i;               \
+      uint64_t elem = (ws >> shift) & mask;    \
+      res |= ((func)&mask) << shift;           \
+    }                                          \
+    return res;                                \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI5); ++i) {
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_b(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesByte, UINT8_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_h(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesHalf, UINT16_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_w(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesWord, UINT32_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_d(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesDword, UINT64_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, i5) == -1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, i5) == -1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, i5) == -1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, i5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, i5) != 1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, i5) != 1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, i5) != 1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, i5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+  }
+#undef CEQI_CLTI_CLEI_S_DF
+#undef CEQI_CLTI_CLEI_U_DF
+}
+
 #undef __
