@@ -1037,93 +1037,94 @@ void MarkCompactCollector::Finish() {
 // and continue with marking.  This process repeats until all reachable
 // objects have been marked.
 
-class MarkCompactMarkingVisitor
-    : public StaticMarkingVisitor<MarkCompactMarkingVisitor> {
+class MarkCompactMarkingVisitor final
+    : public MarkingVisitor<MarkCompactMarkingVisitor> {
  public:
-  static void Initialize();
+  explicit MarkCompactMarkingVisitor(MarkCompactCollector* collector)
+      : MarkingVisitor<MarkCompactMarkingVisitor>(collector->heap(),
+                                                  collector) {}
 
-  INLINE(static void VisitPointer(Heap* heap, HeapObject* object, Object** p)) {
-    MarkObjectByPointer(heap->mark_compact_collector(), object, p);
+  inline void VisitPointer(HeapObject* host, Object** p) final {
+    MarkObjectByPointer(host, p);
   }
 
-  INLINE(static void VisitPointers(Heap* heap, HeapObject* object,
-                                   Object** start, Object** end)) {
+  inline void VisitPointers(HeapObject* host, Object** start,
+                            Object** end) final {
     // Mark all objects pointed to in [start, end).
     const int kMinRangeForMarkingRecursion = 64;
     if (end - start >= kMinRangeForMarkingRecursion) {
-      if (VisitUnmarkedObjects(heap, object, start, end)) return;
+      if (VisitUnmarkedObjects(host, start, end)) return;
       // We are close to a stack overflow, so just mark the objects.
     }
-    MarkCompactCollector* collector = heap->mark_compact_collector();
     for (Object** p = start; p < end; p++) {
-      MarkObjectByPointer(collector, object, p);
+      MarkObjectByPointer(host, p);
     }
   }
 
   // Marks the object black and pushes it on the marking stack.
-  INLINE(static void MarkObject(Heap* heap, HeapObject* object)) {
-    heap->mark_compact_collector()->MarkObject(object);
+  V8_INLINE void MarkObject(HeapObject* object) {
+    collector_->MarkObject(object);
   }
 
-  // Marks the object black without pushing it on the marking stack.
-  // Returns true if object needed marking and false otherwise.
-  INLINE(static bool MarkObjectWithoutPush(Heap* heap, HeapObject* object)) {
+  // Marks the object black without pushing it on the marking stack. Returns
+  // true if object needed marking and false otherwise.
+  V8_INLINE bool MarkObjectWithoutPush(HeapObject* object) {
     return ObjectMarking::WhiteToBlack(object, MarkingState::Internal(object));
   }
 
-  // Mark object pointed to by p.
-  INLINE(static void MarkObjectByPointer(MarkCompactCollector* collector,
-                                         HeapObject* object, Object** p)) {
+  V8_INLINE void MarkObjectByPointer(HeapObject* host, Object** p) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* target_object = HeapObject::cast(*p);
-    collector->RecordSlot(object, p, target_object);
-    collector->MarkObject(target_object);
+    collector_->RecordSlot(host, p, target_object);
+    collector_->MarkObject(target_object);
   }
 
-
-  // Visit an unmarked object.
-  INLINE(static void VisitUnmarkedObject(MarkCompactCollector* collector,
-                                         HeapObject* obj)) {
-#ifdef DEBUG
-    DCHECK(collector->heap()->Contains(obj));
-#endif
-    if (ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj))) {
-      Map* map = obj->map();
-      Heap* heap = obj->GetHeap();
-      ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
-      // Mark the map pointer and the body.
-      heap->mark_compact_collector()->MarkObject(map);
-      IterateBody(map, obj);
+  V8_INLINE int VisitJSRegExp(Map* map, JSRegExp* re) {
+    if (!FLAG_flush_regexp_code) {
+      return VisitJSObject(map, re);
     }
+    // Flush code or set age on both one byte and two byte code.
+    UpdateRegExpCodeAgeAndFlush(re, true);
+    UpdateRegExpCodeAgeAndFlush(re, false);
+    // Visit the fields of the RegExp, including the updated FixedArray.
+    return VisitJSObject(map, re);
   }
+
+ protected:
+  static const int kRegExpCodeThreshold = 5;
 
   // Visit all unmarked objects pointed to by [start, end).
   // Returns false if the operation fails (lack of stack space).
-  INLINE(static bool VisitUnmarkedObjects(Heap* heap, HeapObject* object,
-                                          Object** start, Object** end)) {
+  V8_INLINE bool VisitUnmarkedObjects(HeapObject* host, Object** start,
+                                      Object** end) {
     // Return false is we are close to the stack limit.
-    StackLimitCheck check(heap->isolate());
+    StackLimitCheck check(heap_->isolate());
     if (check.HasOverflowed()) return false;
 
-    MarkCompactCollector* collector = heap->mark_compact_collector();
     // Visit the unmarked objects.
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
       if (!o->IsHeapObject()) continue;
-      collector->RecordSlot(object, p, o);
+      collector_->RecordSlot(host, p, o);
       HeapObject* obj = HeapObject::cast(o);
-      VisitUnmarkedObject(collector, obj);
+      VisitUnmarkedObject(obj);
     }
     return true;
   }
 
- private:
-  // Code flushing support.
+  // Visit an unmarked object.
+  V8_INLINE void VisitUnmarkedObject(HeapObject* obj) {
+    DCHECK(heap_->Contains(obj));
+    if (ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj))) {
+      Map* map = obj->map();
+      ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
+      // Mark the map pointer and the body.
+      collector_->MarkObject(map);
+      Visit(map, obj);
+    }
+  }
 
-  static const int kRegExpCodeThreshold = 5;
-
-  static void UpdateRegExpCodeAgeAndFlush(Heap* heap, JSRegExp* re,
-                                          bool is_one_byte) {
+  V8_INLINE void UpdateRegExpCodeAgeAndFlush(JSRegExp* re, bool is_one_byte) {
     // Make sure that the fixed array is in fact initialized on the RegExp.
     // We could potentially trigger a GC when initializing the RegExp.
     if (HeapObject::cast(re->data())->map()->instance_type() !=
@@ -1147,12 +1148,12 @@ class MarkCompactMarkingVisitor
       if (ObjectMarking::IsBlackOrGrey(data, MarkingState::Internal(data))) {
         Object** slot =
             data->data_start() + JSRegExp::saved_code_index(is_one_byte);
-        heap->mark_compact_collector()->RecordSlot(data, slot, code);
+        collector_->RecordSlot(data, slot, code);
       }
 
       // Set a number in the 0-255 range to guarantee no smi overflow.
       re->SetDataAt(JSRegExp::code_index(is_one_byte),
-                    Smi::FromInt(heap->ms_count() & 0xff));
+                    Smi::FromInt(heap_->ms_count() & 0xff));
     } else if (code->IsSmi()) {
       int value = Smi::cast(code)->value();
       // The regexp has not been compiled yet or there was a compilation error.
@@ -1162,7 +1163,7 @@ class MarkCompactMarkingVisitor
       }
 
       // Check if we should flush now.
-      if (value == ((heap->ms_count() - kRegExpCodeThreshold) & 0xff)) {
+      if (value == ((heap_->ms_count() - kRegExpCodeThreshold) & 0xff)) {
         re->SetDataAt(JSRegExp::code_index(is_one_byte),
                       Smi::FromInt(JSRegExp::kUninitializedValue));
         re->SetDataAt(JSRegExp::saved_code_index(is_one_byte),
@@ -1170,34 +1171,7 @@ class MarkCompactMarkingVisitor
       }
     }
   }
-
-
-  // Works by setting the current sweep_generation (as a smi) in the
-  // code object place in the data array of the RegExp and keeps a copy
-  // around that can be reinstated if we reuse the RegExp before flushing.
-  // If we did not use the code for kRegExpCodeThreshold mark sweep GCs
-  // we flush the code.
-  static void VisitRegExpAndFlushCode(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    if (!FLAG_flush_regexp_code) {
-      JSObjectVisitor::Visit(map, object);
-      return;
-    }
-    JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
-    // Flush code or set age on both one byte and two byte code.
-    UpdateRegExpCodeAgeAndFlush(heap, re, true);
-    UpdateRegExpCodeAgeAndFlush(heap, re, false);
-    // Visit the fields of the RegExp, including the updated FixedArray.
-    JSObjectVisitor::Visit(map, object);
-  }
 };
-
-
-void MarkCompactMarkingVisitor::Initialize() {
-  StaticMarkingVisitor<MarkCompactMarkingVisitor>::Initialize();
-
-  table_.Register(kVisitJSRegExp, &VisitRegExpAndFlushCode);
-}
 
 void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
   for (Page* p : sweep_to_iterate_pages_) {
@@ -1216,7 +1190,7 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
                                                  public RootVisitor {
  public:
   explicit RootMarkingVisitor(Heap* heap)
-      : collector_(heap->mark_compact_collector()) {}
+      : collector_(heap->mark_compact_collector()), visitor_(collector_) {}
 
   void VisitPointer(HeapObject* host, Object** p) override {
     MarkObjectByPointer(p);
@@ -1249,7 +1223,7 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
       Map* map = object->map();
       // Mark the map pointer and body, and push them on the marking stack.
       collector_->MarkObject(map);
-      MarkCompactMarkingVisitor::IterateBody(map, object);
+      visitor_.Visit(map, object);
       // Mark all the objects reachable from the map and body.  May leave
       // overflowed objects in the heap.
       collector_->EmptyMarkingWorklist();
@@ -1257,6 +1231,7 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
   }
 
   MarkCompactCollector* collector_;
+  MarkCompactMarkingVisitor visitor_;
 };
 
 class InternalizedStringTableCleaner : public ObjectVisitor {
@@ -2038,6 +2013,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingWorklist() {
   HeapObject* object;
+  MarkCompactMarkingVisitor visitor(this);
   while ((object = marking_worklist()->Pop()) != nullptr) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
@@ -2047,7 +2023,7 @@ void MarkCompactCollector::EmptyMarkingWorklist() {
 
     Map* map = object->map();
     MarkObject(map);
-    MarkCompactMarkingVisitor::IterateBody(map, object);
+    visitor.Visit(map, object);
   }
   DCHECK(marking_worklist()->IsEmpty());
 }
@@ -3180,6 +3156,7 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 
 
 void MarkCompactCollector::ProcessWeakCollections() {
+  MarkCompactMarkingVisitor visitor(this);
   Object* weak_collection_obj = heap()->encountered_weak_collections();
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
@@ -3197,8 +3174,7 @@ void MarkCompactCollector::ProcessWeakCollections() {
           RecordSlot(table, key_slot, *key_slot);
           Object** value_slot =
               table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
-          MarkCompactMarkingVisitor::MarkObjectByPointer(this, table,
-                                                         value_slot);
+          visitor.MarkObjectByPointer(table, value_slot);
         }
       }
     }
@@ -4835,7 +4811,6 @@ void MarkCompactCollector::StartSweepSpaces() {
 }
 
 void MarkCompactCollector::Initialize() {
-  MarkCompactMarkingVisitor::Initialize();
   IncrementalMarking::Initialize();
 }
 

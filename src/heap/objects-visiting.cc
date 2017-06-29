@@ -11,7 +11,6 @@
 namespace v8 {
 namespace internal {
 
-
 // We don't record weak slots during marking or scavenges. Instead we do it
 // once when we complete mark-compact cycle.  Note that write barrier has no
 // effect if we are already in the middle of compacting mark-sweep cycle and we
