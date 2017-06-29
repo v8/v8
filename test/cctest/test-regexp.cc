@@ -1596,6 +1596,7 @@ TEST(LatinCanonicalize) {
   }
   for (uc32 c = 128; c < (1 << 21); c++)
     CHECK_GE(canonicalize(c), 128);
+#ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::ToUppercase> to_upper;
   // Canonicalization is only defined for the Basic Multilingual Plane.
   for (uc32 c = 0; c < (1 << 16); c++) {
@@ -1610,6 +1611,7 @@ TEST(LatinCanonicalize) {
       u = c;
     CHECK_EQ(u, canonicalize(c));
   }
+#endif
 }
 
 

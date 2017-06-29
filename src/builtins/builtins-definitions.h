@@ -917,14 +917,6 @@ namespace internal {
   CPP(StringPrototypeStartsWith)                                               \
   /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0)                                              \
-  /* ES #sec-string.prototype.tolocalelowercase */                             \
-  CPP(StringPrototypeToLocaleLowerCase)                                        \
-  /* ES #sec-string.prototype.tolocaleuppercase */                             \
-  CPP(StringPrototypeToLocaleUpperCase)                                        \
-  /* (obsolete) Unibrow version */                                             \
-  CPP(StringPrototypeToLowerCase)                                              \
-  /* (obsolete) Unibrow version */                                             \
-  CPP(StringPrototypeToUpperCase)                                              \
   CPP(StringPrototypeTrim)                                                     \
   CPP(StringPrototypeTrimLeft)                                                 \
   CPP(StringPrototypeTrimRight)                                                \
@@ -1077,7 +1069,15 @@ namespace internal {
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \
                                                              \
   /* no-op fallback version */                               \
-  CPP(StringPrototypeNormalize)
+  CPP(StringPrototypeNormalize)                              \
+  /* same as toLowercase; fallback version */                \
+  CPP(StringPrototypeToLocaleLowerCase)                      \
+  /* same as toUppercase; fallback version */                \
+  CPP(StringPrototypeToLocaleUpperCase)                      \
+  /* (obsolete) Unibrow version */                           \
+  CPP(StringPrototypeToLowerCase)                            \
+  /* (obsolete) Unibrow version */                           \
+  CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 
 // The exception thrown in the following builtins are caught

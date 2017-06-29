@@ -606,8 +606,10 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeSubstr:
     case Builtins::kStringPrototypeSubstring:
     case Builtins::kStringPrototypeToString:
+#ifndef V8_INTL_SUPPORT
     case Builtins::kStringPrototypeToLowerCase:
     case Builtins::kStringPrototypeToUpperCase:
+#endif
     case Builtins::kStringPrototypeTrim:
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:

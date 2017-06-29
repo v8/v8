@@ -1171,8 +1171,7 @@ bool LineTerminator::Is(uchar c) {
   return c == 0xA || c == 0xD || c == 0x2028 || c == 0x2029;
 }
 
-// TODO(jshin): Once icu_case_mapping flag is removed, enclose case-mapping
-// related tables with #ifndef V8_INTL_SUPPORT.
+#ifndef V8_INTL_SUPPORT
 static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT
   {{105, 775}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kToLowercaseTable0Size = 488;  // NOLINT
@@ -1782,6 +1781,7 @@ int ToUppercase::Convert(uchar c,
     default: return 0;
   }
 }
+#endif  // !V8_INTL_SUPPORT
 
 static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] = {  // NOLINT
   {{kSentinel}} }; // NOLINT
@@ -3289,9 +3289,6 @@ int UnicodeData::GetByteCount() {
          + kWhiteSpaceTable0Size * sizeof(int32_t)      // NOLINT
          + kWhiteSpaceTable1Size * sizeof(int32_t)      // NOLINT
          + kWhiteSpaceTable7Size * sizeof(int32_t)      // NOLINT
-#else
-  return
-#endif                                                  // !V8_INTL_SUPPORT
          +
          kToLowercaseMultiStrings0Size *
              sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
@@ -3316,6 +3313,9 @@ int UnicodeData::GetByteCount() {
          +
          kToUppercaseMultiStrings7Size *
              sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
+#else
+  return
+#endif  // !V8_INTL_SUPPORT
          +
          kEcma262CanonicalizeMultiStrings0Size *
              sizeof(MultiCharacterSpecialCase<1>)  // NOLINT

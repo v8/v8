@@ -1855,6 +1855,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeTrimLeft, 0, false);
     SimpleInstallFunction(prototype, "trimRight",
                           Builtins::kStringPrototypeTrimRight, 0, false);
+#ifdef V8_INTL_SUPPORT
+    SimpleInstallFunction(prototype, "toLowerCase",
+                          Builtins::kStringPrototypeToLowerCaseIntl, 0, true);
+    SimpleInstallFunction(prototype, "toUpperCase",
+                          Builtins::kStringPrototypeToUpperCaseIntl, 0, false);
+#else
     SimpleInstallFunction(prototype, "toLocaleLowerCase",
                           Builtins::kStringPrototypeToLocaleLowerCase, 0,
                           false);
@@ -1865,6 +1871,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeToLowerCase, 0, false);
     SimpleInstallFunction(prototype, "toUpperCase",
                           Builtins::kStringPrototypeToUpperCase, 0, false);
+#endif
     SimpleInstallFunction(prototype, "valueOf",
                           Builtins::kStringPrototypeValueOf, 0, true);
 
@@ -4154,59 +4161,6 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
   Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
   native_context()->set_regexp_prototype_map(*prototype_map);
 }
-
-#ifdef V8_INTL_SUPPORT
-namespace {
-
-void SetFunction(Handle<JSObject> target, Handle<JSFunction> function,
-                 Handle<Name> name, PropertyAttributes attributes = DONT_ENUM) {
-  JSObject::SetOwnPropertyIgnoreAttributes(target, name, function, attributes)
-      .ToHandleChecked();
-}
-
-}  // namespace
-
-void Genesis::InitializeGlobal_icu_case_mapping() {
-  if (!FLAG_icu_case_mapping) return;
-
-  Handle<JSReceiver> exports_container(
-      JSReceiver::cast(native_context()->exports_container()));
-
-  Handle<JSObject> string_prototype(
-      JSObject::cast(native_context()->string_function()->prototype()));
-
-  {
-    Handle<String> name = factory()->InternalizeUtf8String("toLowerCase");
-    Handle<JSFunction> to_lower_case = SimpleCreateFunction(
-        isolate(), name, Builtins::kStringPrototypeToLowerCaseIntl, 0, true);
-    SetFunction(string_prototype, to_lower_case, name);
-    to_lower_case->shared()->set_builtin_function_id(kStringToLowerCaseIntl);
-  }
-  {
-    Handle<String> name = factory()->InternalizeUtf8String("toUpperCase");
-    Handle<JSFunction> to_upper_case = SimpleCreateFunction(
-        isolate(), name, Builtins::kStringPrototypeToUpperCaseIntl, 0, false);
-    SetFunction(string_prototype, to_upper_case, name);
-    to_upper_case->shared()->set_builtin_function_id(kStringToUpperCaseIntl);
-  }
-
-  Handle<JSFunction> to_locale_lower_case = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          exports_container,
-          factory()->InternalizeUtf8String("ToLocaleLowerCaseIntl"))
-          .ToHandleChecked());
-  SetFunction(string_prototype, to_locale_lower_case,
-              factory()->InternalizeUtf8String("toLocaleLowerCase"));
-
-  Handle<JSFunction> to_locale_upper_case = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          exports_container,
-          factory()->InternalizeUtf8String("ToLocaleUpperCaseIntl"))
-          .ToHandleChecked());
-  SetFunction(string_prototype, to_locale_upper_case,
-              factory()->InternalizeUtf8String("toLocaleUpperCase"));
-}
-#endif
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(Handle<String> name,
                                               Builtins::Name call_byteLength,

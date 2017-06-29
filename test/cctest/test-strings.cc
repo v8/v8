@@ -1496,7 +1496,7 @@ static uint16_t ConvertLatin1(uint16_t c) {
   return result[0];
 }
 
-
+#ifndef V8_INTL_SUPPORT
 static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
   uint16_t expect = ConvertLatin1<unibrow::Ecma262UnCanonicalize, true>(c);
   if (expect > unibrow::Latin1::kMaxChar) expect = 0;
@@ -1536,7 +1536,7 @@ TEST(Latin1IgnoreCase) {
     CHECK_EQ(Min(upper, lower), test);
   }
 }
-
+#endif
 
 class DummyResource: public v8::String::ExternalStringResource {
  public:

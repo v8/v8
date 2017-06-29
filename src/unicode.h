@@ -197,6 +197,7 @@ struct V8_EXPORT_PRIVATE WhiteSpace {
 struct V8_EXPORT_PRIVATE LineTerminator {
   static bool Is(uchar c);
 };
+#ifndef V8_INTL_SUPPORT
 struct ToLowercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = true;
@@ -213,6 +214,7 @@ struct ToUppercase {
                      uchar* result,
                      bool* allow_caching_ptr);
 };
+#endif
 struct Ecma262Canonicalize {
   static const int kMaxWidth = 1;
   static int Convert(uchar c,

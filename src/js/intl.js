@@ -1991,7 +1991,7 @@ DEFINE_METHOD(
 
 var StringPrototypeMethods = {};
 DEFINE_METHODS_LEN(
-  StringPrototypeMethods,
+  GlobalString.prototype,
   {
     toLocaleLowerCase(locales) {
       CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
@@ -2092,10 +2092,5 @@ DEFINE_METHOD(
         this, locales, options, 'time', 'time', 'dateformattime');
   }
 );
-
-utils.Export(function(to) {
-  to.ToLocaleLowerCaseIntl = StringPrototypeMethods.toLocaleLowerCase;
-  to.ToLocaleUpperCaseIntl = StringPrototypeMethods.toLocaleUpperCase;
-});
 
 })

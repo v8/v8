@@ -368,6 +368,7 @@ BUILTIN(StringPrototypeTrimRight) {
   return *String::Trim(string, String::kTrimRight);
 }
 
+#ifndef V8_INTL_SUPPORT
 namespace {
 
 inline bool ToUpperOverflows(uc32 character) {
@@ -559,6 +560,7 @@ BUILTIN(StringPrototypeToUpperCase) {
   return ConvertCase(string, isolate,
                      isolate->runtime_state()->to_upper_mapping());
 }
+#endif  // !V8_INTL_SUPPORT
 
 }  // namespace internal
 }  // namespace v8
