@@ -332,11 +332,11 @@ void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
 
 Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
                                   InstanceType type, int instance_size,
-                                  MaybeHandle<JSObject> maybe_prototype,
+                                  MaybeHandle<Object> maybe_prototype,
                                   Builtins::Name call) {
   Factory* factory = isolate->factory();
   Handle<Code> call_code(isolate->builtins()->builtin(call));
-  Handle<JSObject> prototype;
+  Handle<Object> prototype;
   Handle<JSFunction> result =
       maybe_prototype.ToHandle(&prototype)
           ? factory->NewFunction(name, call_code, prototype, type,
@@ -348,7 +348,7 @@ Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
 
 Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
                                    InstanceType type, int instance_size,
-                                   MaybeHandle<JSObject> maybe_prototype,
+                                   MaybeHandle<Object> maybe_prototype,
                                    Builtins::Name call,
                                    PropertyAttributes attributes) {
   Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
@@ -361,7 +361,7 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
 
 Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
                                    InstanceType type, int instance_size,
-                                   MaybeHandle<JSObject> maybe_prototype,
+                                   MaybeHandle<Object> maybe_prototype,
                                    Builtins::Name call) {
   Factory* const factory = target->GetIsolate()->factory();
   PropertyAttributes attributes = DONT_ENUM;
@@ -3122,19 +3122,35 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k M a p
-    Handle<JSFunction> js_weak_map_fun = InstallFunction(
-        global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
+    Handle<JSFunction> js_weak_map_fun =
+        InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                        factory->the_hole_value(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_weak_map_fun,
                                      Context::JS_WEAK_MAP_FUN_INDEX);
+    // Setup %WeakMapPrototype%.
+    Handle<JSObject> prototype(JSObject::cast(js_weak_map_fun->prototype()),
+                               isolate);
+
+    JSObject::AddProperty(
+        prototype, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("WeakMap"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // -- W e a k S e t
-    Handle<JSFunction> js_weak_set_fun = InstallFunction(
-        global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
+    Handle<JSFunction> js_weak_set_fun =
+        InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+                        factory->the_hole_value(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_weak_set_fun,
                                      Context::JS_WEAK_SET_FUN_INDEX);
+    // Setup %WeakSetPrototype%.
+    Handle<JSObject> prototype(JSObject::cast(js_weak_set_fun->prototype()),
+                               isolate);
+
+    JSObject::AddProperty(
+        prototype, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("WeakSet"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // -- P r o x y
