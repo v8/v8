@@ -238,6 +238,9 @@ class IncrementalMarkingMarkingVisitor
       int start_offset =
           Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
       if (start_offset < object_size) {
+#ifdef CONCURRENT_MARKING
+        heap->incremental_marking()->marking_worklist()->PushBailout(object);
+#else
         if (ObjectMarking::IsGrey<IncrementalMarking::kAtomicity>(
                 object, heap->incremental_marking()->marking_state(object))) {
           heap->incremental_marking()->marking_worklist()->Push(object);
@@ -246,6 +249,7 @@ class IncrementalMarkingMarkingVisitor
               object, heap->incremental_marking()->marking_state(object)));
           heap->mark_compact_collector()->PushBlack(object);
         }
+#endif
         int end_offset =
             Min(object_size, start_offset + kProgressBarScanningChunk);
         int already_scanned_offset = start_offset;
