@@ -109,11 +109,7 @@ class V8_EXPORT_PRIVATE Bitmap {
 
   int CellsCount() { return CellsForLength(kLength); }
 
-  static int SizeFor(int cells_count) {
-    return sizeof(MarkBit::CellType) * cells_count;
-  }
-
-  INLINE(static uint32_t IndexToCell(uint32_t index)) {
+  V8_INLINE static uint32_t IndexToCell(uint32_t index) {
     return index >> kBitsPerCellLog2;
   }
 
@@ -121,21 +117,20 @@ class V8_EXPORT_PRIVATE Bitmap {
     return index & kBitIndexMask;
   }
 
-  INLINE(static uint32_t CellToIndex(uint32_t index)) {
-    return index << kBitsPerCellLog2;
+  // Retrieves the cell containing the provided markbit index.
+  V8_INLINE static uint32_t CellAlignIndex(uint32_t index) {
+    return index & ~kBitIndexMask;
   }
 
-  INLINE(static uint32_t CellAlignIndex(uint32_t index)) {
-    return (index + kBitIndexMask) & ~kBitIndexMask;
+  V8_INLINE static bool IsCellAligned(uint32_t index) {
+    return (index & kBitIndexMask) == 0;
   }
 
-  INLINE(MarkBit::CellType* cells()) {
+  V8_INLINE MarkBit::CellType* cells() {
     return reinterpret_cast<MarkBit::CellType*>(this);
   }
 
-  INLINE(Address address()) { return reinterpret_cast<Address>(this); }
-
-  INLINE(static Bitmap* FromAddress(Address addr)) {
+  V8_INLINE static Bitmap* FromAddress(Address addr) {
     return reinterpret_cast<Bitmap*>(addr);
   }
 
