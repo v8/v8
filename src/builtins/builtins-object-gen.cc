@@ -90,10 +90,18 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
 
     BIND(&if_notunique_name);
     {
-      // If the string was not found in the string table, then no object can
-      // have a property with that name, so return |false|.
+      Label not_in_string_table(this);
       TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
-                           &var_unique, &return_false, &call_runtime);
+                           &var_unique, &not_in_string_table, &call_runtime);
+
+      BIND(&not_in_string_table);
+      {
+        // If the string was not found in the string table, then no regular
+        // object can have a property with that name, so return |false|.
+        // "Special API objects" with interceptors must take the slow path.
+        Branch(IsSpecialReceiverInstanceType(instance_type), &call_runtime,
+               &return_false);
+      }
     }
   }
   BIND(&to_primitive);

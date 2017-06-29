@@ -20944,13 +20944,16 @@ void HasOwnPropertyNamedPropertyQuery2(
   }
 }
 
-
 void HasOwnPropertyAccessorGetter(
     Local<String> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_str("yes"));
 }
 
+void HasOwnPropertyAccessorNameGetter(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_str("yes"));
+}
 
 TEST(HasOwnProperty) {
   LocalContext env;
@@ -21031,6 +21034,18 @@ TEST(HasOwnProperty) {
     Local<Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
     CHECK(!instance->HasOwnProperty(env.local(), v8_str("foo")).FromJust());
     CHECK(instance->HasOwnProperty(env.local(), v8_str("bar")).FromJust());
+  }
+  {  // Check that non-internalized keys are handled correctly.
+    Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+    templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
+        HasOwnPropertyAccessorNameGetter));
+    Local<Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
+    env->Global()->Set(env.local(), v8_str("obj"), instance).FromJust();
+    const char* src =
+        "var dyn_string = 'this string ';"
+        "dyn_string += 'does not exist elsewhere';"
+        "({}).hasOwnProperty.call(obj, dyn_string)";
+    CHECK(CompileRun(src)->BooleanValue(env.local()).FromJust());
   }
 }
 
