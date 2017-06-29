@@ -784,6 +784,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
         graph()->NewNode(common()->Branch(BranchHint::kFalse), equal, control);
     Node* call_holey;
     Node* call_packed;
+    Node* success_holey;
+    Node* success_packed;
     Node* context = NodeProperties::GetContextInput(node);
     Node* frame_state = NodeProperties::GetFrameStateInput(node);
     Node* if_equal = graph()->NewNode(common()->IfTrue(), branch);
@@ -805,7 +807,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
                         effect,
                         if_equal};
 
-      call_holey =
+      success_holey = call_holey =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
     }
     Node* if_not_equal = graph()->NewNode(common()->IfFalse(), branch);
@@ -828,10 +830,34 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
                         effect,
                         if_not_equal};
 
-      call_packed =
+      success_packed = call_packed =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
     }
-    Node* merge = graph()->NewNode(common()->Merge(2), call_holey, call_packed);
+
+    // Update potential {IfException} uses of {node} to point to the above two
+    // stub call nodes instead, by introducing a merge of two exception cases.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      Node* exception_holey =
+          graph()->NewNode(common()->IfException(), call_holey, call_holey);
+      Node* exception_packed =
+          graph()->NewNode(common()->IfException(), call_packed, call_packed);
+      Node* exception_merge = graph()->NewNode(
+          common()->Merge(2), exception_holey, exception_packed);
+      Node* exception_effect =
+          graph()->NewNode(common()->EffectPhi(2), exception_holey,
+                           exception_packed, exception_merge);
+      Node* exception_value =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           exception_holey, exception_packed, exception_merge);
+      ReplaceWithValue(on_exception, exception_value, exception_effect,
+                       exception_merge);
+      success_holey = graph()->NewNode(common()->IfSuccess(), call_holey);
+      success_packed = graph()->NewNode(common()->IfSuccess(), call_packed);
+    }
+
+    Node* merge =
+        graph()->NewNode(common()->Merge(2), success_holey, success_packed);
     Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), call_holey,
                                         call_packed, merge);
     Node* phi =
@@ -860,9 +886,6 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
-
-  // TODO(mstarzinger): Array constructor can throw. Hook up exceptional edges.
-  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
 
   // TODO(bmeurer): Optimize the subclassing case.
   if (target != new_target) return NoChange();
