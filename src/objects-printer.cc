@@ -404,7 +404,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
     os << "\n    " << raw_index << ": param(" << i
        << ")= " << Brief(mapped_entry);
     if (mapped_entry->IsTheHole(isolate)) {
-      os << " in the arguements_store[" << i << "]";
+      os << " in the arguments_store[" << i << "]";
     } else {
       os << " in the context";
     }
