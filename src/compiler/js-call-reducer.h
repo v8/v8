@@ -43,6 +43,10 @@ class JSCallReducer final : public AdvancedReducer {
 
   Reduction Reduce(Node* node) final;
 
+  // Processes the waitlist gathered while the reducer was running,
+  // and does a final attempt to reduce the nodes in the waitlist.
+  void Finalize() final;
+
  private:
   Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
@@ -86,6 +90,7 @@ class JSCallReducer final : public AdvancedReducer {
   Flags const flags_;
   Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;
+  std::set<Node*> waitlist_;
 };
 
 }  // namespace compiler

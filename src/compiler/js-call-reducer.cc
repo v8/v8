@@ -40,6 +40,23 @@ Reduction JSCallReducer::Reduce(Node* node) {
   return NoChange();
 }
 
+void JSCallReducer::Finalize() {
+  // TODO(turbofan): This is not the best solution; ideally we would be able
+  // to teach the GraphReducer about arbitrary dependencies between different
+  // nodes, even if they don't show up in the use list of the other node.
+  std::set<Node*> const waitlist = std::move(waitlist_);
+  for (Node* node : waitlist) {
+    if (!node->IsDead()) {
+      Reduction const reduction = Reduce(node);
+      if (reduction.Changed()) {
+        Node* replacement = reduction.replacement();
+        if (replacement != node) {
+          Replace(node, replacement);
+        }
+      }
+    }
+  }
+}
 
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
@@ -686,6 +703,23 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   return Changed(node);
 }
 
+namespace {
+
+// Check whether elements aren't mutated; we play it extremely safe here by
+// explicitly checking that {node} is only used by {LoadField} or {LoadElement}.
+bool IsSafeArgumentsElements(Node* node) {
+  for (Edge const edge : node->use_edges()) {
+    if (!NodeProperties::IsValueEdge(edge)) continue;
+    if (edge.from()->opcode() != IrOpcode::kLoadField &&
+        edge.from()->opcode() != IrOpcode::kLoadElement) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
 Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Node* node, int arity, CallFrequency const& frequency) {
   DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
@@ -704,19 +738,63 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Check if {arguments_list} is an arguments object, and {node} is the only
   // value user of {arguments_list} (except for value uses in frame states).
   Node* arguments_list = NodeProperties::GetValueInput(node, arity);
-  if (arguments_list->opcode() != IrOpcode::kJSCreateArguments)
+  if (arguments_list->opcode() != IrOpcode::kJSCreateArguments) {
     return NoChange();
+  }
   for (Edge edge : arguments_list->use_edges()) {
-    Node* const user = edge.from();
-    if (user == node) continue;
-    // Ignore uses as frame state's locals or parameters.
-    if (user->opcode() == IrOpcode::kStateValues) continue;
-    // Ignore uses as frame state's accumulator.
-    if (user->opcode() == IrOpcode::kFrameState &&
-        user->InputAt(2) == arguments_list) {
-      continue;
-    }
     if (!NodeProperties::IsValueEdge(edge)) continue;
+    Node* const user = edge.from();
+    switch (user->opcode()) {
+      case IrOpcode::kCheckMaps:
+      case IrOpcode::kFrameState:
+      case IrOpcode::kStateValues:
+      case IrOpcode::kReferenceEqual:
+      case IrOpcode::kReturn:
+        // Ignore safe uses that definitely don't mess with the arguments.
+        continue;
+      case IrOpcode::kLoadField: {
+        DCHECK_EQ(arguments_list, user->InputAt(0));
+        FieldAccess const& access = FieldAccessOf(user->op());
+        if (access.offset == JSArray::kLengthOffset) {
+          // Ignore uses for arguments#length.
+          STATIC_ASSERT(JSArray::kLengthOffset ==
+                        JSArgumentsObject::kLengthOffset);
+          continue;
+        } else if (access.offset == JSObject::kElementsOffset) {
+          // Ignore safe uses for arguments#elements.
+          if (IsSafeArgumentsElements(user)) continue;
+        }
+        break;
+      }
+      case IrOpcode::kJSCallWithArrayLike:
+        // Ignore uses as argumentsList input to calls with array like.
+        if (user->InputAt(2) == arguments_list) continue;
+        break;
+      case IrOpcode::kJSConstructWithArrayLike:
+        // Ignore uses as argumentsList input to calls with array like.
+        if (user->InputAt(1) == arguments_list) continue;
+        break;
+      case IrOpcode::kJSCallWithSpread: {
+        // Ignore uses as spread input to calls with spread.
+        SpreadWithArityParameter p = SpreadWithArityParameterOf(user->op());
+        int const arity = static_cast<int>(p.arity() - 1);
+        if (user->InputAt(arity) == arguments_list) continue;
+        break;
+      }
+      case IrOpcode::kJSConstructWithSpread: {
+        // Ignore uses as spread input to construct with spread.
+        SpreadWithArityParameter p = SpreadWithArityParameterOf(user->op());
+        int const arity = static_cast<int>(p.arity() - 2);
+        if (user->InputAt(arity) == arguments_list) continue;
+        break;
+      }
+      default:
+        break;
+    }
+    // We cannot currently reduce the {node} to something better than what
+    // it already is, but we might be able to do something about the {node}
+    // later, so put it on the waitlist and try again during finalization.
+    waitlist_.insert(node);
     return NoChange();
   }
 
