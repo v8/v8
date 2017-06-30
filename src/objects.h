@@ -2158,20 +2158,21 @@ class JSObject: public JSReceiver {
   ElementsAccessor* GetElementsAccessor();
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS or
   // HOLEY_SMI_ELEMENTS ElementsKind.
-  inline bool HasFastSmiElements();
+  inline bool HasSmiElements();
   // Returns true if an object has elements of PACKED_ELEMENTS or
   // HOLEY_ELEMENTS ElementsKind.
-  inline bool HasFastObjectElements();
+  inline bool HasObjectElements();
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS,
   // HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS, or HOLEY_ELEMENTS.
-  inline bool HasFastSmiOrObjectElements();
+  inline bool HasSmiOrObjectElements();
   // Returns true if an object has any of the "fast" elements kinds.
   inline bool HasFastElements();
   // Returns true if an object has elements of PACKED_DOUBLE_ELEMENTS or
   // HOLEY_DOUBLE_ELEMENTS ElementsKind.
-  inline bool HasFastDoubleElements();
-  // Returns true if an object has elements of HOLEY_*_ELEMENTS ElementsKind.
-  inline bool HasFastHoleyElements();
+  inline bool HasDoubleElements();
+  // Returns true if an object has elements of HOLEY_SMI_ELEMENTS,
+  // HOLEY_DOUBLE_ELEMENTS, or HOLEY_ELEMENTS ElementsKind.
+  inline bool HasHoleyElements();
   inline bool HasSloppyArgumentsElements();
   inline bool HasStringWrapperElements();
   inline bool HasDictionaryElements();

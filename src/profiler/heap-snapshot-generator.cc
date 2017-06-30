@@ -1620,7 +1620,7 @@ void V8HeapExplorer::ExtractAccessorPairProperty(JSObject* js_obj, int entry,
 
 void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
   Isolate* isolate = js_obj->GetIsolate();
-  if (js_obj->HasFastObjectElements()) {
+  if (js_obj->HasObjectElements()) {
     FixedArray* elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray() ?
         Smi::cast(JSArray::cast(js_obj)->length())->value() :

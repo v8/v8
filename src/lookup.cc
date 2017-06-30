@@ -216,7 +216,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     }
 
     // Copy the backing store if it is copy-on-write.
-    if (IsFastSmiOrObjectElementsKind(to)) {
+    if (IsSmiOrObjectElementsKind(to)) {
       JSObject::EnsureWritableFastElements(holder);
     }
     return;

@@ -1277,7 +1277,7 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
 }
 
 void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
-  DCHECK(object->HasFastSmiOrObjectElements() ||
+  DCHECK(object->HasSmiOrObjectElements() ||
          object->HasFastStringWrapperElements());
   FixedArray* raw_elems = FixedArray::cast(object->elements());
   Heap* heap = object->GetHeap();
@@ -2387,7 +2387,7 @@ bool Object::IterationHasObservableEffects() {
   // For FastHoley kinds, an element access on a hole would cause a lookup on
   // the prototype. This could have different results if the prototype has been
   // changed.
-  if (IsFastHoleyElementsKind(array_kind) &&
+  if (IsHoleyElementsKind(array_kind) &&
       isolate->IsFastArrayConstructorPrototypeChainIntact()) {
     return false;
   }
@@ -5865,8 +5865,7 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     }
   }
 
-  DCHECK(object->HasFastSmiOrObjectElements() ||
-         object->HasFastDoubleElements() ||
+  DCHECK(object->HasSmiOrObjectElements() || object->HasDoubleElements() ||
          object->HasFastArgumentsElements() ||
          object->HasFastStringWrapperElements());
 
@@ -7260,7 +7259,7 @@ bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             ElementsKind kind,
                                             Object* object) {
   Isolate* isolate = elements->GetIsolate();
-  if (IsFastObjectElementsKind(kind) || kind == FAST_STRING_WRAPPER_ELEMENTS) {
+  if (IsObjectElementsKind(kind) || kind == FAST_STRING_WRAPPER_ELEMENTS) {
     int length = IsJSArray()
         ? Smi::cast(JSArray::cast(this)->length())->value()
         : elements->length();
@@ -15332,7 +15331,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
 }
 
 bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
-  return IsFastSmiElementsKind(from) &&
+  return IsSmiElementsKind(from) &&
          IsMoreGeneralElementsKindTransition(from, to);
 }
 
@@ -15382,7 +15381,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
                                       ElementsKind to_kind) {
   ElementsKind from_kind = object->GetElementsKind();
 
-  if (IsFastHoleyElementsKind(from_kind)) {
+  if (IsHoleyElementsKind(from_kind)) {
     to_kind = GetHoleyElementsKind(to_kind);
   }
 
@@ -15395,8 +15394,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 
   UpdateAllocationSite(object, to_kind);
   if (object->elements() == object->GetHeap()->empty_fixed_array() ||
-      IsFastDoubleElementsKind(from_kind) ==
-          IsFastDoubleElementsKind(to_kind)) {
+      IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
     // No change is needed to the elements() buffer, the transition
     // only requires a map change.
     Handle<Map> new_map = GetElementsTransitionMap(object, to_kind);
@@ -15406,10 +15404,8 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
       PrintElementsTransition(stdout, object, from_kind, elms, to_kind, elms);
     }
   } else {
-    DCHECK((IsFastSmiElementsKind(from_kind) &&
-            IsFastDoubleElementsKind(to_kind)) ||
-           (IsFastDoubleElementsKind(from_kind) &&
-            IsFastObjectElementsKind(to_kind)));
+    DCHECK((IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
+           (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
     uint32_t c = static_cast<uint32_t>(object->elements()->length());
     ElementsAccessor::ForKind(to_kind)->GrowCapacityAndConvert(object, c);
   }
@@ -15425,8 +15421,7 @@ bool Map::IsValidElementsTransition(ElementsKind from_kind,
   }
 
   // Transitions from HOLEY -> PACKED are not allowed.
-  return !IsFastHoleyElementsKind(from_kind) ||
-      IsFastHoleyElementsKind(to_kind);
+  return !IsHoleyElementsKind(from_kind) || IsHoleyElementsKind(to_kind);
 }
 
 
@@ -15456,9 +15451,8 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
   return false;
 }
 
-
 template <typename BackingStore>
-static int FastHoleyElementsUsage(JSObject* object, BackingStore* store) {
+static int HoleyElementsUsage(JSObject* object, BackingStore* store) {
   Isolate* isolate = store->GetIsolate();
   int limit = object->IsJSArray()
                   ? Smi::cast(JSArray::cast(object)->length())->value()
@@ -15469,7 +15463,6 @@ static int FastHoleyElementsUsage(JSObject* object, BackingStore* store) {
   }
   return used;
 }
-
 
 int JSObject::GetFastElementsUsage() {
   FixedArrayBase* store = elements();
@@ -15485,10 +15478,10 @@ int JSObject::GetFastElementsUsage() {
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
-      return FastHoleyElementsUsage(this, FixedArray::cast(store));
+      return HoleyElementsUsage(this, FixedArray::cast(store));
     case HOLEY_DOUBLE_ELEMENTS:
       if (elements()->length() == 0) return 0;
-      return FastHoleyElementsUsage(this, FixedDoubleArray::cast(store));
+      return HoleyElementsUsage(this, FixedDoubleArray::cast(store));
 
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
@@ -16474,11 +16467,10 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     // Typed arrays cannot have holes or undefined elements.
     return handle(Smi::FromInt(
         FixedArrayBase::cast(object->elements())->length()), isolate);
-  } else if (!object->HasFastDoubleElements()) {
+  } else if (!object->HasDoubleElements()) {
     EnsureWritableFastElements(object);
   }
-  DCHECK(object->HasFastSmiOrObjectElements() ||
-         object->HasFastDoubleElements());
+  DCHECK(object->HasSmiOrObjectElements() || object->HasDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.

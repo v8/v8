@@ -117,8 +117,7 @@ inline bool IsTransitionElementsKind(ElementsKind kind) {
          kind == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
-
-inline bool IsFastDoubleElementsKind(ElementsKind kind) {
+inline bool IsDoubleElementsKind(ElementsKind kind) {
   return kind == PACKED_DOUBLE_ELEMENTS || kind == HOLEY_DOUBLE_ELEMENTS;
 }
 
@@ -129,38 +128,33 @@ inline bool IsFixedFloatElementsKind(ElementsKind kind) {
 
 
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
-  return IsFastDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
+  return IsDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
-
-inline bool IsFastSmiOrObjectElementsKind(ElementsKind kind) {
+inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {
   return kind == PACKED_SMI_ELEMENTS || kind == HOLEY_SMI_ELEMENTS ||
          kind == PACKED_ELEMENTS || kind == HOLEY_ELEMENTS;
 }
 
-
-inline bool IsFastSmiElementsKind(ElementsKind kind) {
+inline bool IsSmiElementsKind(ElementsKind kind) {
   return kind == PACKED_SMI_ELEMENTS || kind == HOLEY_SMI_ELEMENTS;
 }
 
 inline bool IsFastNumberElementsKind(ElementsKind kind) {
-  return IsFastSmiElementsKind(kind) || IsFastDoubleElementsKind(kind);
+  return IsSmiElementsKind(kind) || IsDoubleElementsKind(kind);
 }
 
-
-inline bool IsFastObjectElementsKind(ElementsKind kind) {
+inline bool IsObjectElementsKind(ElementsKind kind) {
   return kind == PACKED_ELEMENTS || kind == HOLEY_ELEMENTS;
 }
 
-
-inline bool IsFastHoleyElementsKind(ElementsKind kind) {
+inline bool IsHoleyElementsKind(ElementsKind kind) {
   return kind == HOLEY_SMI_ELEMENTS || kind == HOLEY_DOUBLE_ELEMENTS ||
          kind == HOLEY_ELEMENTS;
 }
 
 inline bool IsHoleyOrDictionaryElementsKind(ElementsKind kind) {
-  return IsFastHoleyElementsKind(kind) ||
-      kind == DICTIONARY_ELEMENTS;
+  return IsHoleyElementsKind(kind) || kind == DICTIONARY_ELEMENTS;
 }
 
 
@@ -199,7 +193,7 @@ inline ElementsKind GetHoleyElementsKind(ElementsKind packed_kind) {
 
 
 inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
-  DCHECK(IsFastSmiElementsKind(from_kind));
+  DCHECK(IsSmiElementsKind(from_kind));
   return (from_kind == PACKED_SMI_ELEMENTS) ? PACKED_ELEMENTS : HOLEY_ELEMENTS;
 }
 
@@ -207,8 +201,7 @@ inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
 inline bool IsSimpleMapChangeTransition(ElementsKind from_kind,
                                         ElementsKind to_kind) {
   return (GetHoleyElementsKind(from_kind) == to_kind) ||
-      (IsFastSmiElementsKind(from_kind) &&
-       IsFastObjectElementsKind(to_kind));
+         (IsSmiElementsKind(from_kind) && IsObjectElementsKind(to_kind));
 }
 
 

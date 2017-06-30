@@ -1172,7 +1172,7 @@ bool AllocationSite::SitePointsToLiteral() {
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
 bool AllocationSite::ShouldTrack(ElementsKind boilerplate_elements_kind) {
-  return IsFastSmiElementsKind(boilerplate_elements_kind);
+  return IsSmiElementsKind(boilerplate_elements_kind);
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
@@ -1269,8 +1269,8 @@ Address AllocationMemento::GetAllocationSiteUnchecked() {
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   JSObject::ValidateElements(object);
   ElementsKind elements_kind = object->map()->elements_kind();
-  if (!IsFastObjectElementsKind(elements_kind)) {
-    if (IsFastHoleyElementsKind(elements_kind)) {
+  if (!IsObjectElementsKind(elements_kind)) {
+    if (IsHoleyElementsKind(elements_kind)) {
       TransitionElementsKind(object, HOLEY_ELEMENTS);
     } else {
       TransitionElementsKind(object, PACKED_ELEMENTS);
@@ -1288,7 +1288,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   {
     DisallowHeapAllocation no_allocation;
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
-    bool is_holey = IsFastHoleyElementsKind(current_kind);
+    bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
     Object* the_hole = object->GetHeap()->the_hole_value();
     for (uint32_t i = 0; i < count; ++i) {
@@ -1298,7 +1298,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
         target_kind = GetHoleyElementsKind(target_kind);
       } else if (!current->IsSmi()) {
         if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
-          if (IsFastSmiElementsKind(target_kind)) {
+          if (IsSmiElementsKind(target_kind)) {
             if (is_holey) {
               target_kind = HOLEY_DOUBLE_ELEMENTS;
             } else {
@@ -3485,21 +3485,18 @@ ElementsKind Map::elements_kind() {
   return Map::ElementsKindBits::decode(bit_field2());
 }
 
-
-bool Map::has_fast_smi_elements() {
-  return IsFastSmiElementsKind(elements_kind());
-}
+bool Map::has_fast_smi_elements() { return IsSmiElementsKind(elements_kind()); }
 
 bool Map::has_fast_object_elements() {
-  return IsFastObjectElementsKind(elements_kind());
+  return IsObjectElementsKind(elements_kind());
 }
 
 bool Map::has_fast_smi_or_object_elements() {
-  return IsFastSmiOrObjectElementsKind(elements_kind());
+  return IsSmiOrObjectElementsKind(elements_kind());
 }
 
 bool Map::has_fast_double_elements() {
-  return IsFastDoubleElementsKind(elements_kind());
+  return IsDoubleElementsKind(elements_kind());
 }
 
 bool Map::has_fast_elements() { return IsFastElementsKind(elements_kind()); }
@@ -5482,10 +5479,10 @@ ElementsKind JSObject::GetElementsKind() {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
     Map* map = fixed_array->map();
-    if (IsFastSmiOrObjectElementsKind(kind)) {
+    if (IsSmiOrObjectElementsKind(kind)) {
       DCHECK(map == GetHeap()->fixed_array_map() ||
              map == GetHeap()->fixed_cow_array_map());
-    } else if (IsFastDoubleElementsKind(kind)) {
+    } else if (IsDoubleElementsKind(kind)) {
       DCHECK(fixed_array->IsFixedDoubleArray() ||
              fixed_array == GetHeap()->empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
@@ -5501,29 +5498,22 @@ ElementsKind JSObject::GetElementsKind() {
   return kind;
 }
 
-
-bool JSObject::HasFastObjectElements() {
-  return IsFastObjectElementsKind(GetElementsKind());
+bool JSObject::HasObjectElements() {
+  return IsObjectElementsKind(GetElementsKind());
 }
 
+bool JSObject::HasSmiElements() { return IsSmiElementsKind(GetElementsKind()); }
 
-bool JSObject::HasFastSmiElements() {
-  return IsFastSmiElementsKind(GetElementsKind());
+bool JSObject::HasSmiOrObjectElements() {
+  return IsSmiOrObjectElementsKind(GetElementsKind());
 }
 
-
-bool JSObject::HasFastSmiOrObjectElements() {
-  return IsFastSmiOrObjectElementsKind(GetElementsKind());
+bool JSObject::HasDoubleElements() {
+  return IsDoubleElementsKind(GetElementsKind());
 }
 
-
-bool JSObject::HasFastDoubleElements() {
-  return IsFastDoubleElementsKind(GetElementsKind());
-}
-
-
-bool JSObject::HasFastHoleyElements() {
-  return IsFastHoleyElementsKind(GetElementsKind());
+bool JSObject::HasHoleyElements() {
+  return IsHoleyElementsKind(GetElementsKind());
 }
 
 
@@ -6194,10 +6184,10 @@ void JSArray::SetContent(Handle<JSArray> array,
                            ALLOW_COPIED_DOUBLE_ELEMENTS);
 
   DCHECK((storage->map() == array->GetHeap()->fixed_double_array_map() &&
-          IsFastDoubleElementsKind(array->GetElementsKind())) ||
+          IsDoubleElementsKind(array->GetElementsKind())) ||
          ((storage->map() != array->GetHeap()->fixed_double_array_map()) &&
-          (IsFastObjectElementsKind(array->GetElementsKind()) ||
-           (IsFastSmiElementsKind(array->GetElementsKind()) &&
+          (IsObjectElementsKind(array->GetElementsKind()) ||
+           (IsSmiElementsKind(array->GetElementsKind()) &&
             Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
   array->set_elements(*storage);
   array->set_length(Smi::FromInt(storage->length()));

@@ -395,7 +395,7 @@ void JSObject::JSObjectVerify() {
               HasFastStringWrapperElements()),
              (elements()->map() == GetHeap()->fixed_array_map() ||
               elements()->map() == GetHeap()->fixed_cow_array_map()));
-    CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+    CHECK(map()->has_fast_object_elements() == HasObjectElements());
   }
 }
 

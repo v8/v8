@@ -231,7 +231,7 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
 
   ElementsKind to_kind = can_use_type_feedback ? site->GetElementsKind()
                                                : initial_map->elements_kind();
-  if (holey && !IsFastHoleyElementsKind(to_kind)) {
+  if (holey && !IsHoleyElementsKind(to_kind)) {
     to_kind = GetHoleyElementsKind(to_kind);
     // Update the allocation site info to reflect the advice alteration.
     if (!site.is_null()) site->SetElementsKind(to_kind);

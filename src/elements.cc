@@ -140,11 +140,11 @@ void CopyObjectToObjectElements(FixedArrayBase* from_base,
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
   FixedArray* to = FixedArray::cast(to_base);
-  DCHECK(IsFastSmiOrObjectElementsKind(from_kind));
-  DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
+  DCHECK(IsSmiOrObjectElementsKind(from_kind));
+  DCHECK(IsSmiOrObjectElementsKind(to_kind));
 
   WriteBarrierMode write_barrier_mode =
-      (IsFastObjectElementsKind(from_kind) && IsFastObjectElementsKind(to_kind))
+      (IsObjectElementsKind(from_kind) && IsObjectElementsKind(to_kind))
           ? UPDATE_WRITE_BARRIER
           : SKIP_WRITE_BARRIER;
   for (int i = 0; i < copy_size; i++) {
@@ -175,16 +175,15 @@ static void CopyDictionaryToObjectElements(
     }
   }
   DCHECK(to_base != from_base);
-  DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
+  DCHECK(IsSmiOrObjectElementsKind(to_kind));
   if (copy_size == 0) return;
   FixedArray* to = FixedArray::cast(to_base);
   uint32_t to_length = to->length();
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
   }
-  WriteBarrierMode write_barrier_mode = IsFastObjectElementsKind(to_kind)
-                                            ? UPDATE_WRITE_BARRIER
-                                            : SKIP_WRITE_BARRIER;
+  WriteBarrierMode write_barrier_mode =
+      IsObjectElementsKind(to_kind) ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
   Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(isolate, i + from_start);
@@ -750,7 +749,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     if (old_length < length) {
       ElementsKind kind = array->GetElementsKind();
-      if (!IsFastHoleyElementsKind(kind)) {
+      if (!IsHoleyElementsKind(kind)) {
         kind = GetHoleyElementsKind(kind);
         JSObject::TransitionElementsKind(array, kind);
       }
@@ -762,7 +761,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (length == 0) {
       array->initialize_elements();
     } else if (length <= capacity) {
-      if (IsFastSmiOrObjectElementsKind(kind())) {
+      if (IsSmiOrObjectElementsKind(kind())) {
         JSObject::EnsureWritableFastElements(array);
         if (array->elements() != *backing_store) {
           backing_store = handle(array->elements(), isolate);
@@ -839,7 +838,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       uint32_t dst_index, int copy_size) {
     Isolate* isolate = object->GetIsolate();
     Handle<FixedArrayBase> new_elements;
-    if (IsFastDoubleElementsKind(kind())) {
+    if (IsDoubleElementsKind(kind())) {
       new_elements = isolate->factory()->NewFixedDoubleArray(capacity);
     } else {
       new_elements = isolate->factory()->NewUninitializedFixedArray(capacity);
@@ -861,7 +860,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     Handle<Map> from_map = handle(object->map());
     ElementsKind from_kind = from_map->elements_kind();
     ElementsKind to_kind = to_map->elements_kind();
-    if (IsFastHoleyElementsKind(from_kind)) {
+    if (IsHoleyElementsKind(from_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
     if (from_kind != to_kind) {
@@ -872,16 +871,14 @@ class ElementsAccessorBase : public ElementsAccessor {
 
       Handle<FixedArrayBase> from_elements(object->elements());
       if (object->elements() == object->GetHeap()->empty_fixed_array() ||
-          IsFastDoubleElementsKind(from_kind) ==
-              IsFastDoubleElementsKind(to_kind)) {
+          IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
         // No change is needed to the elements() buffer, the transition
         // only requires a map change.
         JSObject::MigrateToMap(object, to_map);
       } else {
-        DCHECK((IsFastSmiElementsKind(from_kind) &&
-                IsFastDoubleElementsKind(to_kind)) ||
-               (IsFastDoubleElementsKind(from_kind) &&
-                IsFastObjectElementsKind(to_kind)));
+        DCHECK(
+            (IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
+            (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
         uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
         Handle<FixedArrayBase> elements = ConvertElementsWithCapacity(
             object, from_elements, from_kind, capacity);
@@ -898,7 +895,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
                                          uint32_t capacity) {
     ElementsKind from_kind = object->GetElementsKind();
-    if (IsFastSmiOrObjectElementsKind(from_kind)) {
+    if (IsSmiOrObjectElementsKind(from_kind)) {
       // Array optimizations rely on the prototype lookups of Array objects
       // always returning undefined. If there is a store to the initial
       // prototype object, make sure all of these optimizations are invalidated.
@@ -907,8 +904,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     Handle<FixedArrayBase> old_elements(object->elements());
     // This method should only be called if there's a reason to update the
     // elements.
-    DCHECK(IsFastDoubleElementsKind(from_kind) !=
-               IsFastDoubleElementsKind(kind()) ||
+    DCHECK(IsDoubleElementsKind(from_kind) != IsDoubleElementsKind(kind()) ||
            IsDictionaryElementsKind(from_kind) ||
            static_cast<uint32_t>(old_elements->length()) < capacity);
     Subclass::BasicGrowCapacityAndConvertImpl(object, old_elements, from_kind,
@@ -1816,7 +1812,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     // Ensure that notifications fire if the array or object prototypes are
     // normalizing.
-    if (IsFastSmiOrObjectElementsKind(kind)) {
+    if (IsSmiOrObjectElementsKind(kind)) {
       isolate->UpdateArrayProtectorOnNormalizeElements(object);
     }
 
@@ -1868,7 +1864,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,
                            Handle<FixedArrayBase> store) {
-    DCHECK(obj->HasFastSmiOrObjectElements() || obj->HasFastDoubleElements() ||
+    DCHECK(obj->HasSmiOrObjectElements() || obj->HasDoubleElements() ||
            obj->HasFastArgumentsElements() ||
            obj->HasFastStringWrapperElements());
     Handle<BackingStore> backing_store = Handle<BackingStore>::cast(store);
@@ -1955,8 +1951,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     ElementsKind from_kind = object->GetElementsKind();
     ElementsKind to_kind = Subclass::kind();
     if (IsDictionaryElementsKind(from_kind) ||
-        IsFastDoubleElementsKind(from_kind) !=
-            IsFastDoubleElementsKind(to_kind) ||
+        IsDoubleElementsKind(from_kind) != IsDoubleElementsKind(to_kind) ||
         Subclass::GetCapacityImpl(*object, object->elements()) !=
             new_capacity) {
       Subclass::GrowCapacityAndConvertImpl(object, new_capacity);
@@ -1964,8 +1959,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       if (IsFastElementsKind(from_kind) && from_kind != to_kind) {
         JSObject::TransitionElementsKind(object, to_kind);
       }
-      if (IsFastSmiOrObjectElementsKind(from_kind)) {
-        DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
+      if (IsSmiOrObjectElementsKind(from_kind)) {
+        DCHECK(IsSmiOrObjectElementsKind(to_kind));
         JSObject::EnsureWritableFastElements(object);
       }
     }
@@ -1977,7 +1972,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (IsFastPackedElementsKind(kind)) {
       JSObject::TransitionElementsKind(obj, GetHoleyElementsKind(kind));
     }
-    if (IsFastSmiOrObjectElementsKind(KindTraits::Kind)) {
+    if (IsSmiOrObjectElementsKind(KindTraits::Kind)) {
       JSObject::EnsureWritableFastElements(obj);
     }
     DeleteCommon(obj, entry, handle(obj->elements()));
@@ -2021,9 +2016,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     HandleScope scope(isolate);
     Handle<FixedArrayBase> elements(holder->elements(), isolate);
     Map* map = elements->map();
-    if (IsFastSmiOrObjectElementsKind(KindTraits::Kind)) {
+    if (IsSmiOrObjectElementsKind(KindTraits::Kind)) {
       DCHECK_NE(map, heap->fixed_double_array_map());
-    } else if (IsFastDoubleElementsKind(KindTraits::Kind)) {
+    } else if (IsDoubleElementsKind(KindTraits::Kind)) {
       DCHECK_NE(map, heap->fixed_cow_array_map());
       if (map == heap->fixed_array_map()) DCHECK_EQ(0, length);
     } else {
@@ -2033,10 +2028,10 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 #if ENABLE_SLOW_DCHECKS
     DisallowHeapAllocation no_gc;
     Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
-    if (IsFastSmiElementsKind(KindTraits::Kind)) {
+    if (IsSmiElementsKind(KindTraits::Kind)) {
       for (int i = 0; i < length; i++) {
         DCHECK(BackingStore::get(*backing_store, i, isolate)->IsSmi() ||
-               (IsFastHoleyElementsKind(KindTraits::Kind) &&
+               (IsHoleyElementsKind(KindTraits::Kind) &&
                 backing_store->is_the_hole(isolate, i)));
       }
     } else if (KindTraits::Kind == PACKED_ELEMENTS ||
@@ -2045,7 +2040,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         DCHECK(!backing_store->is_the_hole(isolate, i));
       }
     } else {
-      DCHECK(IsFastHoleyElementsKind(KindTraits::Kind));
+      DCHECK(IsHoleyElementsKind(KindTraits::Kind));
     }
 #endif
 #endif
@@ -2098,7 +2093,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     ElementsKind kind = KindTraits::Kind;
     if (new_length <= static_cast<uint32_t>(receiver->elements()->length()) &&
-        IsFastSmiOrObjectElementsKind(kind)) {
+        IsSmiOrObjectElementsKind(kind)) {
       HandleScope scope(isolate);
       JSObject::EnsureWritableFastElements(receiver);
     }
@@ -2177,7 +2172,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       DCHECK_LE(hole_start, backing_store->length());
       DCHECK_LE(hole_end, backing_store->length());
     } else if (len != 0) {
-      if (IsFastDoubleElementsKind(KindTraits::Kind)) {
+      if (IsDoubleElementsKind(KindTraits::Kind)) {
         MemMove(dst_elms->data_start() + dst_index,
                 dst_elms->data_start() + src_index, len * kDoubleSize);
       } else {
@@ -2216,24 +2211,24 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       if (value == undefined) {
         // Only PACKED_ELEMENTS, HOLEY_ELEMENTS, HOLEY_SMI_ELEMENTS, and
         // HOLEY_DOUBLE_ELEMENTS can have `undefined` as a value.
-        if (!IsFastObjectElementsKind(Subclass::kind()) &&
-            !IsFastHoleyElementsKind(Subclass::kind())) {
+        if (!IsObjectElementsKind(Subclass::kind()) &&
+            !IsHoleyElementsKind(Subclass::kind())) {
           return Just(false);
         }
 
         // Search for `undefined` or The Hole in PACKED_ELEMENTS,
         // HOLEY_ELEMENTS or HOLEY_SMI_ELEMENTS
-        if (IsFastSmiOrObjectElementsKind(Subclass::kind())) {
+        if (IsSmiOrObjectElementsKind(Subclass::kind())) {
           auto elements = FixedArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
             Object* element_k = elements->get(k);
 
-            if (IsFastHoleyElementsKind(Subclass::kind()) &&
+            if (IsHoleyElementsKind(Subclass::kind()) &&
                 element_k == the_hole) {
               return Just(true);
             }
-            if (IsFastObjectElementsKind(Subclass::kind()) &&
+            if (IsObjectElementsKind(Subclass::kind()) &&
                 element_k == undefined) {
               return Just(true);
             }
@@ -2245,14 +2240,14 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
-            if (IsFastHoleyElementsKind(Subclass::kind()) &&
+            if (IsHoleyElementsKind(Subclass::kind()) &&
                 elements->is_the_hole(k)) {
               return Just(true);
             }
           }
           return Just(false);
         }
-      } else if (!IsFastObjectElementsKind(Subclass::kind())) {
+      } else if (!IsObjectElementsKind(Subclass::kind())) {
         // Search for non-number, non-Undefined value, with either
         // PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS, HOLEY_SMI_ELEMENTS or
         // HOLEY_DOUBLE_ELEMENTS. Guaranteed to return false, since these
@@ -2261,13 +2256,12 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       } else {
         // Search for non-number, non-Undefined value with either
         // PACKED_ELEMENTS or HOLEY_ELEMENTS.
-        DCHECK(IsFastObjectElementsKind(Subclass::kind()));
+        DCHECK(IsObjectElementsKind(Subclass::kind()));
         auto elements = FixedArray::cast(receiver->elements());
 
         for (uint32_t k = start_from; k < length; ++k) {
           Object* element_k = elements->get(k);
-          if (IsFastHoleyElementsKind(Subclass::kind()) &&
-              element_k == the_hole) {
+          if (IsHoleyElementsKind(Subclass::kind()) && element_k == the_hole) {
             continue;
           }
 
@@ -2278,14 +2272,14 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     } else {
       if (!value->IsNaN()) {
         double search_value = value->Number();
-        if (IsFastDoubleElementsKind(Subclass::kind())) {
+        if (IsDoubleElementsKind(Subclass::kind())) {
           // Search for non-NaN Number in PACKED_DOUBLE_ELEMENTS or
           // HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
           // similar operation for result.
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
-            if (IsFastHoleyElementsKind(Subclass::kind()) &&
+            if (IsHoleyElementsKind(Subclass::kind()) &&
                 elements->is_the_hole(k)) {
               continue;
             }
@@ -2309,16 +2303,16 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       } else {
         // Search for NaN --- NaN cannot be represented with Smi elements, so
         // abort if ElementsKind is PACKED_SMI_ELEMENTS or HOLEY_SMI_ELEMENTS
-        if (IsFastSmiElementsKind(Subclass::kind())) return Just(false);
+        if (IsSmiElementsKind(Subclass::kind())) return Just(false);
 
-        if (IsFastDoubleElementsKind(Subclass::kind())) {
+        if (IsDoubleElementsKind(Subclass::kind())) {
           // Search for NaN in PACKED_DOUBLE_ELEMENTS or
           // HOLEY_DOUBLE_ELEMENTS --- Skip The Hole and trust
           // std::isnan(elementK) for result
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
-            if (IsFastHoleyElementsKind(Subclass::kind()) &&
+            if (IsHoleyElementsKind(Subclass::kind()) &&
                 elements->is_the_hole(k)) {
               continue;
             }
@@ -2329,7 +2323,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           // Search for NaN in PACKED_ELEMENTS, HOLEY_ELEMENTS,
           // PACKED_SMI_ELEMENTS or HOLEY_SMI_ELEMENTS. Return true if
           // elementK->IsHeapNumber() && std::isnan(elementK->Number())
-          DCHECK(IsFastSmiOrObjectElementsKind(Subclass::kind()));
+          DCHECK(IsSmiOrObjectElementsKind(Subclass::kind()));
           auto elements = FixedArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
@@ -2407,7 +2401,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                       Where remove_position) {
     Isolate* isolate = receiver->GetIsolate();
     ElementsKind kind = KindTraits::Kind;
-    if (IsFastSmiOrObjectElementsKind(kind)) {
+    if (IsSmiOrObjectElementsKind(kind)) {
       HandleScope scope(isolate);
       JSObject::EnsureWritableFastElements(receiver);
     }
@@ -2532,7 +2526,7 @@ class FastSmiOrObjectElementsAccessor
       case PACKED_DOUBLE_ELEMENTS:
       case HOLEY_DOUBLE_ELEMENTS: {
         AllowHeapAllocation allow_allocation;
-        DCHECK(IsFastObjectElementsKind(to_kind));
+        DCHECK(IsObjectElementsKind(to_kind));
         CopyDoubleToObjectElements(from, from_start, to, to_start, copy_size);
         break;
       }
@@ -2570,7 +2564,7 @@ class FastSmiOrObjectElementsAccessor
     length = std::min(static_cast<uint32_t>(elements_base->length()), length);
 
     // Only FAST_{,HOLEY_}ELEMENTS can store non-numbers.
-    if (!value->IsNumber() && !IsFastObjectElementsKind(Subclass::kind())) {
+    if (!value->IsNumber() && !IsObjectElementsKind(Subclass::kind())) {
       return Just<int64_t>(-1);
     }
     // NaN can never be found by strict equality.
@@ -4187,7 +4181,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
       ElementsKind elements_kind = array->GetElementsKind();
       JSArray::Initialize(array, length, length);
 
-      if (!IsFastHoleyElementsKind(elements_kind)) {
+      if (!IsHoleyElementsKind(elements_kind)) {
         elements_kind = GetHoleyElementsKind(elements_kind);
         JSObject::TransitionElementsKind(array, elements_kind);
       }
@@ -4211,7 +4205,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
   // Allocate an appropriately typed elements array.
   ElementsKind elements_kind = array->GetElementsKind();
   Handle<FixedArrayBase> elms;
-  if (IsFastDoubleElementsKind(elements_kind)) {
+  if (IsDoubleElementsKind(elements_kind)) {
     elms = Handle<FixedArrayBase>::cast(
         factory->NewFixedDoubleArray(number_of_elements));
   } else {
@@ -4292,8 +4286,8 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
     for (uint32_t i = 0; i < concat_size; i++) {
       Object* arg = (*args)[i];
       ElementsKind arg_kind = JSArray::cast(arg)->GetElementsKind();
-      has_raw_doubles = has_raw_doubles || IsFastDoubleElementsKind(arg_kind);
-      is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
+      has_raw_doubles = has_raw_doubles || IsDoubleElementsKind(arg_kind);
+      is_holey = is_holey || IsHoleyElementsKind(arg_kind);
       result_elements_kind =
           GetMoreGeneralElementsKind(result_elements_kind, arg_kind);
     }
@@ -4306,7 +4300,7 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
   // elements array needs to be initialized to contain proper holes, since
   // boxing doubles may cause incremental marking.
   bool requires_double_boxing =
-      has_raw_doubles && !IsFastDoubleElementsKind(result_elements_kind);
+      has_raw_doubles && !IsDoubleElementsKind(result_elements_kind);
   ArrayStorageAllocationMode mode = requires_double_boxing
                                         ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
                                         : DONT_INITIALIZE_ARRAY_ELEMENTS;

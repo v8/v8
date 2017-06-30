@@ -393,11 +393,11 @@ struct ArrayBoilerplate {
     Handle<FixedArrayBase> constant_elements_values(
         elements->constant_values());
     Handle<FixedArrayBase> copied_elements_values;
-    if (IsFastDoubleElementsKind(constant_elements_kind)) {
+    if (IsDoubleElementsKind(constant_elements_kind)) {
       copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
           Handle<FixedDoubleArray>::cast(constant_elements_values));
     } else {
-      DCHECK(IsFastSmiOrObjectElementsKind(constant_elements_kind));
+      DCHECK(IsSmiOrObjectElementsKind(constant_elements_kind));
       const bool is_cow = (constant_elements_values->map() ==
                            isolate->heap()->fixed_cow_array_map());
       if (is_cow) {

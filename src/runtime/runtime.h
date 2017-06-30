@@ -596,11 +596,11 @@ namespace internal {
   F(TraceTailCall, 0, 1)                      \
   F(HaveSameMap, 2, 1)                        \
   F(InNewSpace, 1, 1)                         \
-  F(HasFastSmiElements, 1, 1)                 \
-  F(HasFastObjectElements, 1, 1)              \
-  F(HasFastSmiOrObjectElements, 1, 1)         \
-  F(HasFastDoubleElements, 1, 1)              \
-  F(HasFastHoleyElements, 1, 1)               \
+  F(HasSmiElements, 1, 1)                     \
+  F(HasObjectElements, 1, 1)                  \
+  F(HasSmiOrObjectElements, 1, 1)             \
+  F(HasDoubleElements, 1, 1)                  \
+  F(HasHoleyElements, 1, 1)                   \
   F(HasDictionaryElements, 1, 1)              \
   F(HasSloppyArgumentsElements, 1, 1)         \
   F(HasFixedTypedArrayElements, 1, 1)         \

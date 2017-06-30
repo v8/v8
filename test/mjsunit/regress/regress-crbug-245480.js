@@ -28,7 +28,7 @@
 // Flags: --allow-natives-syntax --expose-gc --noalways-opt
 
 function isHoley(obj) {
-  if (%HasFastHoleyElements(obj)) return true;
+  if (%HasHoleyElements(obj)) return true;
   return false;
 }
 

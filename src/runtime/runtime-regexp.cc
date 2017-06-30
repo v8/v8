@@ -872,7 +872,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
       isolate->factory()->NewJSArray(PACKED_ELEMENTS, part_count, part_count,
                                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
-  DCHECK(result->HasFastObjectElements());
+  DCHECK(result->HasObjectElements());
 
   Handle<FixedArray> elements(FixedArray::cast(result->elements()));
 
@@ -890,7 +890,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   }
 
   if (limit == 0xffffffffu) {
-    if (result->HasFastObjectElements()) {
+    if (result->HasObjectElements()) {
       RegExpResultsCache::Enter(isolate, subject, pattern, elements,
                                 isolate->factory()->empty_fixed_array(),
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
@@ -1197,7 +1197,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   // Ensured in Runtime_RegExpExecMultiple.
-  DCHECK(result_array->HasFastObjectElements());
+  DCHECK(result_array->HasObjectElements());
   Handle<FixedArray> result_elements(
       FixedArray::cast(result_array->elements()));
   if (result_elements->length() < 16) {
@@ -1436,7 +1436,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
-  CHECK(result_array->HasFastObjectElements());
+  CHECK(result_array->HasObjectElements());
 
   subject = String::Flatten(subject);
   CHECK(regexp->GetFlags() & JSRegExp::kGlobal);

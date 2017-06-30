@@ -560,7 +560,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
   // existed (as only indices which were enumerable own properties at this point
   // should be serialized).
   const bool should_serialize_densely =
-      array->HasFastElements() && !array->HasFastHoleyElements();
+      array->HasFastElements() && !array->HasHoleyElements();
 
   if (should_serialize_densely) {
     DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));

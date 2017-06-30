@@ -3728,7 +3728,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
       AllocationResult allocation;
       if (elements->map() == fixed_cow_array_map()) {
         allocation = FixedArray::cast(elements);
-      } else if (source->HasFastDoubleElements()) {
+      } else if (source->HasDoubleElements()) {
         allocation = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
       } else {
         allocation = CopyFixedArray(FixedArray::cast(elements));

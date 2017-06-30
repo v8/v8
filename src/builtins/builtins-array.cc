@@ -124,7 +124,7 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   int args_length = args->length();
   if (first_added_arg >= args_length) return true;
 
-  if (IsFastObjectElementsKind(origin_kind)) return true;
+  if (IsObjectElementsKind(origin_kind)) return true;
   ElementsKind target_kind = origin_kind;
   {
     DisallowHeapAllocation no_gc;

@@ -17,8 +17,8 @@ var kTests = {
       var o = {};
 
       var array = [r, s, p];
-      assertTrue(%HasFastObjectElements(array));
-      assertFalse(%HasFastHoleyElements(array));
+      assertTrue(%HasObjectElements(array));
+      assertFalse(%HasHoleyElements(array));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(array.indexOf(p), 2);
@@ -32,8 +32,8 @@ var kTests = {
       var o = {};
 
       var array = [r, , p];
-      assertTrue(%HasFastObjectElements(array));
-      assertTrue(%HasFastHoleyElements(array));
+      assertTrue(%HasObjectElements(array));
+      assertTrue(%HasHoleyElements(array));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(array.indexOf(p), 2);
@@ -43,8 +43,8 @@ var kTests = {
 
     PACKED_SMI_ELEMENTS() {
       var array = [0, 88, 9999, 1, -5, 7];
-      assertTrue(%HasFastSmiElements(array));
-      assertFalse(%HasFastHoleyElements(array));
+      assertTrue(%HasSmiElements(array));
+      assertFalse(%HasHoleyElements(array));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(array.indexOf(9999), 2);
@@ -57,8 +57,8 @@ var kTests = {
 
     HOLEY_SMI_ELEMENTS() {
       var array = [49, , , 72, , , 67, -48];
-      assertTrue(%HasFastSmiElements(array));
-      assertTrue(%HasFastHoleyElements(array));
+      assertTrue(%HasSmiElements(array));
+      assertTrue(%HasHoleyElements(array));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(array.indexOf(72), 3);
@@ -73,8 +73,8 @@ var kTests = {
     PACKED_DOUBLE_ELEMENTS() {
       var array = [7.00000001, -13000.89412, 73451.4124,
                    5824.48, 6.0000495, 48.3488, 44.0, 76.35, NaN, 78.4];
-      assertTrue(%HasFastDoubleElements(array));
-      assertFalse(%HasFastHoleyElements(array));
+      assertTrue(%HasDoubleElements(array));
+      assertFalse(%HasHoleyElements(array));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(array.indexOf(7.00000001), 0);
@@ -90,8 +90,8 @@ var kTests = {
     HOLEY_DOUBLE_ELEMENTS() {
       var array = [7.00000001, -13000.89412, ,
                    5824.48, , 48.3488, , NaN, , 78.4];
-      assertTrue(%HasFastDoubleElements(array));
-      assertTrue(%HasFastHoleyElements(array));
+      assertTrue(%HasDoubleElements(array));
+      assertTrue(%HasHoleyElements(array));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(array.indexOf(7.00000001), 0);
@@ -130,9 +130,9 @@ var kTests = {
       var o = {};
 
       var object = { 0: r, 1: s, 2: p, length: 3 };
-      assertTrue(%HasFastObjectElements(object));
+      assertTrue(%HasObjectElements(object));
       // TODO(caitp): JSObjects always seem to start with HOLEY_ELEMENTS
-      // assertFalse(%HasFastHoleyElements(object));
+      // assertFalse(%HasHoleyElements(object));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(Array.prototype.indexOf.call(object, p), 2);
@@ -146,8 +146,8 @@ var kTests = {
       var o = {};
 
       var object = { 0: r, 2: p, length: 3 };
-      assertTrue(%HasFastObjectElements(object));
-      assertTrue(%HasFastHoleyElements(object));
+      assertTrue(%HasObjectElements(object));
+      assertTrue(%HasHoleyElements(object));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(Array.prototype.indexOf.call(object, p), 2);
@@ -158,8 +158,8 @@ var kTests = {
     PACKED_SMI_ELEMENTS() {
       var object = { 0: 0, 1: 88, 2: 9999, 3: 1, 4: -5, 5: 7, length: 6 };
       // TODO(caitp): JSObjects always seem to start with HOLEY_ELEMENTS
-      // assertTrue(%HasFastSmiElements(object));
-      // assertFalse(%HasFastHoleyElements(object));
+      // assertTrue(%HasSmiElements(object));
+      // assertFalse(%HasHoleyElements(object));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(Array.prototype.indexOf.call(object, 9999), 2);
@@ -173,8 +173,8 @@ var kTests = {
     HOLEY_SMI_ELEMENTS() {
       var object = { 0: 49, 3: 72, 6: 67, 7: -48, length: 8 };
       // TODO(caitp): JSObjects always seem to start with HOLEY_ELEMENTS
-      // assertTrue(%HasFastSmiElements(object));
-      // assertTrue(%HasFastHoleyElements(object));
+      // assertTrue(%HasSmiElements(object));
+      // assertTrue(%HasHoleyElements(object));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(Array.prototype.indexOf.call(object, 72), 3);
@@ -191,8 +191,8 @@ var kTests = {
                    3: 5824.48, 4: 6.0000495, 5: 48.3488, 6: 44.0, 7: 76.35,
                    8: NaN, 9: 78.4, length: 10 };
       // TODO(caitp): JSObjects always seem to start with HOLEY_ELEMENTS
-      // assertTrue(%HasFastDoubleElements(object));
-      // assertFalse(%HasFastHoleyElements(object));
+      // assertTrue(%HasDoubleElements(object));
+      // assertFalse(%HasHoleyElements(object));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(Array.prototype.indexOf.call(object, 7.00000001), 0);
@@ -209,8 +209,8 @@ var kTests = {
       var object = { 0: 7.00000001, 1: -13000.89412, 3: 5824.48, 5: 48.3488,
                     7: NaN, 9: 78.4, length: 10 };
       // TODO(caitp): JSObjects always seem to start with HOLEY_ELEMENTS
-      // assertTrue(%HasFastDoubleElements(object));
-      // assertTrue(%HasFastHoleyElements(object));
+      // assertTrue(%HasDoubleElements(object));
+      // assertTrue(%HasHoleyElements(object));
 
       for (var i = 0; i < kIterCount; ++i) {
         assertEquals(Array.prototype.indexOf.call(object, 7.00000001), 0);

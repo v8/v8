@@ -519,8 +519,7 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
     this_kind = GetHoleyElementsKind(this_kind);
   }
   if (this_kind == that_kind) return Just(this_kind);
-  if (IsFastDoubleElementsKind(that_kind) ==
-      IsFastDoubleElementsKind(this_kind)) {
+  if (IsDoubleElementsKind(that_kind) == IsDoubleElementsKind(this_kind)) {
     if (IsMoreGeneralElementsKindTransition(that_kind, this_kind)) {
       return Just(this_kind);
     }
@@ -572,7 +571,7 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
       // elements, a smi in the range [0, FixedArray::kMaxLength]
       // in case of other fast elements, and [0, kMaxUInt32] in
       // case of other arrays.
-      if (IsFastDoubleElementsKind(map->elements_kind())) {
+      if (IsDoubleElementsKind(map->elements_kind())) {
         field_type = type_cache_.kFixedDoubleArrayLengthType;
         field_representation = MachineRepresentation::kTaggedSigned;
       } else if (IsFastElementsKind(map->elements_kind())) {

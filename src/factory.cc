@@ -1936,7 +1936,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
   HandleScope inner_scope(isolate());
   Handle<FixedArrayBase> elms;
   ElementsKind elements_kind = array->GetElementsKind();
-  if (IsFastDoubleElementsKind(elements_kind)) {
+  if (IsDoubleElementsKind(elements_kind)) {
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       elms = NewFixedDoubleArray(capacity);
     } else {
@@ -1944,7 +1944,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
       elms = NewFixedDoubleArrayWithHoles(capacity);
     }
   } else {
-    DCHECK(IsFastSmiOrObjectElementsKind(elements_kind));
+    DCHECK(IsSmiOrObjectElementsKind(elements_kind));
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       elms = NewUninitializedFixedArray(capacity);
     } else {

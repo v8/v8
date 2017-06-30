@@ -1034,7 +1034,7 @@ TEST(JSArray) {
   JSArray::SetLength(array, 0);
   CHECK_EQ(Smi::kZero, array->length());
   // Must be in fast mode.
-  CHECK(array->HasFastSmiOrObjectElements());
+  CHECK(array->HasSmiOrObjectElements());
 
   // array[length] = name.
   JSReceiver::SetElement(isolate, array, 0, name, SLOPPY).Check();
@@ -3716,7 +3716,7 @@ TEST(Regress169928) {
       factory->NewJSArrayWithElements(array_data, PACKED_SMI_ELEMENTS);
 
   CHECK_EQ(Smi::FromInt(2), array->length());
-  CHECK(array->HasFastSmiOrObjectElements());
+  CHECK(array->HasSmiOrObjectElements());
 
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
@@ -5346,12 +5346,12 @@ TEST(Regress1878) {
       "for (var i = 0; i < 1000; i++) {"
       "  var ai = new InternalArray(10000);"
       "  if (%HaveSameMap(ai, a)) throw Error();"
-      "  if (!%HasFastObjectElements(ai)) throw Error();"
+      "  if (!%HasObjectElements(ai)) throw Error();"
       "}"
       "for (var i = 0; i < 1000; i++) {"
       "  var ai = new InternalArray(10000);"
       "  if (%HaveSameMap(ai, a)) throw Error();"
-      "  if (!%HasFastObjectElements(ai)) throw Error();"
+      "  if (!%HasObjectElements(ai)) throw Error();"
       "}");
 
   CHECK(!try_catch.HasCaught());

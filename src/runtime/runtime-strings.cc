@@ -290,7 +290,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   JSObject::EnsureCanContainHeapObjectElements(array);
 
   int special_length = special->length();
-  if (!array->HasFastObjectElements()) {
+  if (!array->HasObjectElements()) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -349,7 +349,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  CHECK(array->HasFastObjectElements());
+  CHECK(array->HasObjectElements());
   CHECK(array_length >= 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
@@ -488,7 +488,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
   // (increasing order) and strings.
-  CHECK(elements_array->HasFastSmiOrObjectElements());
+  CHECK(elements_array->HasSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
   CHECK(array_length > 0);

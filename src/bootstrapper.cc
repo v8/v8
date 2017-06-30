@@ -3258,7 +3258,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               isolate->initial_object_prototype());
 
     DCHECK(!map->is_dictionary_map());
-    DCHECK(IsFastObjectElementsKind(map->elements_kind()));
+    DCHECK(IsObjectElementsKind(map->elements_kind()));
   }
 
   {  // --- fast and slow aliased arguments map
@@ -3318,7 +3318,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_strict_arguments_map(*map);
 
     DCHECK(!map->is_dictionary_map());
-    DCHECK(IsFastObjectElementsKind(map->elements_kind()));
+    DCHECK(IsObjectElementsKind(map->elements_kind()));
   }
 
   {  // --- context extension
@@ -4404,7 +4404,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     Object* length = proto->length();
     CHECK(length->IsSmi());
     CHECK(Smi::cast(length)->value() == 0);
-    CHECK(proto->HasFastSmiOrObjectElements());
+    CHECK(proto->HasSmiOrObjectElements());
     // This is necessary to enable fast checks for absence of elements
     // on Array.prototype and below.
     proto->set_elements(heap()->empty_fixed_array());

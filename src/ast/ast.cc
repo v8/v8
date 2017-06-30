@@ -763,12 +763,12 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
   if (is_simple() && depth() == 1 && array_index > 0 &&
-      IsFastSmiOrObjectElementsKind(kind)) {
+      IsSmiOrObjectElementsKind(kind)) {
     fixed_array->set_map(isolate->heap()->fixed_cow_array_map());
   }
 
   Handle<FixedArrayBase> elements = fixed_array;
-  if (IsFastDoubleElementsKind(kind)) {
+  if (IsDoubleElementsKind(kind)) {
     ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
     elements = isolate->factory()->NewFixedDoubleArray(constants_length);
     // We are copying from non-fast-double to fast-double.

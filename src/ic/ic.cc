@@ -2029,14 +2029,14 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
   switch (store_mode) {
     case STORE_TRANSITION_TO_OBJECT:
     case STORE_AND_GROW_TRANSITION_TO_OBJECT: {
-      ElementsKind kind = IsFastHoleyElementsKind(map->elements_kind())
+      ElementsKind kind = IsHoleyElementsKind(map->elements_kind())
                               ? HOLEY_ELEMENTS
                               : PACKED_ELEMENTS;
       return Map::TransitionElementsTo(map, kind);
     }
     case STORE_TRANSITION_TO_DOUBLE:
     case STORE_AND_GROW_TRANSITION_TO_DOUBLE: {
-      ElementsKind kind = IsFastHoleyElementsKind(map->elements_kind())
+      ElementsKind kind = IsHoleyElementsKind(map->elements_kind())
                               ? HOLEY_DOUBLE_ELEMENTS
                               : PACKED_DOUBLE_ELEMENTS;
       return Map::TransitionElementsTo(map, kind);
@@ -2173,14 +2173,14 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
                       !receiver->WouldConvertToSlowElements(index);
   if (allow_growth) {
     // Handle growing array in stub if necessary.
-    if (receiver->HasFastSmiElements()) {
+    if (receiver->HasSmiElements()) {
       if (value->IsHeapNumber()) {
         return STORE_AND_GROW_TRANSITION_TO_DOUBLE;
       }
       if (value->IsHeapObject()) {
         return STORE_AND_GROW_TRANSITION_TO_OBJECT;
       }
-    } else if (receiver->HasFastDoubleElements()) {
+    } else if (receiver->HasDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
         return STORE_AND_GROW_TRANSITION_TO_OBJECT;
       }
@@ -2188,13 +2188,13 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
     return STORE_AND_GROW_NO_TRANSITION;
   } else {
     // Handle only in-bounds elements accesses.
-    if (receiver->HasFastSmiElements()) {
+    if (receiver->HasSmiElements()) {
       if (value->IsHeapNumber()) {
         return STORE_TRANSITION_TO_DOUBLE;
       } else if (value->IsHeapObject()) {
         return STORE_TRANSITION_TO_OBJECT;
       }
-    } else if (receiver->HasFastDoubleElements()) {
+    } else if (receiver->HasDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
         return STORE_TRANSITION_TO_OBJECT;
       }

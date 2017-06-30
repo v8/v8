@@ -165,7 +165,7 @@ bool CanInlineJSArrayIteration(Handle<Map> receiver_map) {
 
   // If the receiver map has packed elements, no need to check the prototype.
   // This requires a MapCheck where this is used.
-  if (!IsFastHoleyElementsKind(receiver_map->elements_kind())) return true;
+  if (!IsHoleyElementsKind(receiver_map->elements_kind())) return true;
 
   Handle<JSArray> receiver_prototype(JSArray::cast(receiver_map->prototype()),
                                      isolate);
@@ -254,7 +254,7 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
           // on the prototype chain.
           map_index += static_cast<int>(receiver_map->elements_kind());
           object_map = jsgraph()->Constant(receiver_map);
-          if (IsFastHoleyElementsKind(receiver_map->elements_kind())) {
+          if (IsHoleyElementsKind(receiver_map->elements_kind())) {
             Handle<JSObject> initial_array_prototype(
                 native_context()->initial_array_prototype(), isolate());
             dependencies()->AssumePrototypeMapsStable(receiver_map,
@@ -344,7 +344,7 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
   ElementsKind elements_kind = JSArrayIterator::ElementsKindForInstanceType(
       iterator_map->instance_type());
 
-  if (IsFastHoleyElementsKind(elements_kind)) {
+  if (IsHoleyElementsKind(elements_kind)) {
     if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
       return NoChange();
     } else {
@@ -882,7 +882,7 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
           receiver, efalse, if_false);
 
       // Ensure that we aren't popping from a copy-on-write backing store.
-      if (IsFastSmiOrObjectElementsKind(receiver_map->elements_kind())) {
+      if (IsSmiOrObjectElementsKind(receiver_map->elements_kind())) {
         elements = efalse =
             graph()->NewNode(simplified()->EnsureWritableFastElements(),
                              receiver, elements, efalse, if_false);
@@ -919,7 +919,7 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 
     // Convert the hole to undefined. Do this last, so that we can optimize
     // conversion operator via some smart strength reduction in many cases.
-    if (IsFastHoleyElementsKind(receiver_map->elements_kind())) {
+    if (IsHoleyElementsKind(receiver_map->elements_kind())) {
       value =
           graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
     }
@@ -976,10 +976,10 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
     // currently don't have a proper way to deal with this; the proper solution
     // here is to learn on deopt, i.e. disable Array.prototype.push inlining
     // for this function.
-    if (IsFastSmiElementsKind(receiver_map->elements_kind())) {
+    if (IsSmiElementsKind(receiver_map->elements_kind())) {
       value = effect =
           graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
-    } else if (IsFastDoubleElementsKind(receiver_map->elements_kind())) {
+    } else if (IsDoubleElementsKind(receiver_map->elements_kind())) {
       value = effect =
           graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
       // Make sure we do not store signaling NaNs into double arrays.
@@ -1002,7 +1002,7 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
     // don't necessarily learn from it. See the comment on the value type check
     // above.
     GrowFastElementsFlags flags = GrowFastElementsFlag::kArrayObject;
-    if (IsFastDoubleElementsKind(receiver_map->elements_kind())) {
+    if (IsDoubleElementsKind(receiver_map->elements_kind())) {
       flags |= GrowFastElementsFlag::kDoubleElements;
     }
     elements = effect =
@@ -1087,7 +1087,7 @@ Reduction JSBuiltinReducer::ReduceArrayShift(Node* node) {
             elements, jsgraph()->ZeroConstant(), etrue1, if_true1);
 
         // Ensure that we aren't shifting a copy-on-write backing store.
-        if (IsFastSmiOrObjectElementsKind(receiver_map->elements_kind())) {
+        if (IsSmiOrObjectElementsKind(receiver_map->elements_kind())) {
           elements = etrue1 =
               graph()->NewNode(simplified()->EnsureWritableFastElements(),
                                receiver, elements, etrue1, if_true1);
@@ -1187,7 +1187,7 @@ Reduction JSBuiltinReducer::ReduceArrayShift(Node* node) {
 
     // Convert the hole to undefined. Do this last, so that we can optimize
     // conversion operator via some smart strength reduction in many cases.
-    if (IsFastHoleyElementsKind(receiver_map->elements_kind())) {
+    if (IsHoleyElementsKind(receiver_map->elements_kind())) {
       value =
           graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
     }

@@ -7297,7 +7297,7 @@ MaybeLocal<Object> Array::CloneElementAt(Local<Context> context,
                                          uint32_t index) {
   PREPARE_FOR_EXECUTION(context, Array, CloneElementAt, Object);
   auto self = Utils::OpenHandle(this);
-  if (!self->HasFastObjectElements()) return Local<Object>();
+  if (!self->HasObjectElements()) return Local<Object>();
   i::FixedArray* elms = i::FixedArray::cast(self->elements());
   i::Object* paragon = elms->get(index);
   if (!paragon->IsJSObject()) return Local<Object>();

@@ -302,25 +302,25 @@ runTest(TestDictionaryElements);
 
 function TestLiteralElementsKind() {
   let o = {0:0, 1:1, 2:2};
-  assertTrue(%HasFastObjectElements(o));
-  assertTrue(%HasFastHoleyElements(o));
+  assertTrue(%HasObjectElements(o));
+  assertTrue(%HasHoleyElements(o));
   o = {0:0, 2:2};
-  assertTrue(%HasFastObjectElements(o));
-  assertTrue(%HasFastHoleyElements(o));
+  assertTrue(%HasObjectElements(o));
+  assertTrue(%HasHoleyElements(o));
 
   o = {0:0.1, 1:1, 2:2};
-  assertTrue(%HasFastObjectElements(o));
-  assertTrue(%HasFastHoleyElements(o));
+  assertTrue(%HasObjectElements(o));
+  assertTrue(%HasHoleyElements(o));
   o = {0:0.1, 2:2};
-  assertTrue(%HasFastObjectElements(o));
-  assertTrue(%HasFastHoleyElements(o));
+  assertTrue(%HasObjectElements(o));
+  assertTrue(%HasHoleyElements(o));
 
   o = {0:0.1, 1:1, 2:true};
-  assertTrue(%HasFastObjectElements(o));
-  assertTrue(%HasFastHoleyElements(o));
+  assertTrue(%HasObjectElements(o));
+  assertTrue(%HasHoleyElements(o));
   o = {0:0.1, 2:true};
-  assertTrue(%HasFastObjectElements(o));
-  assertTrue(%HasFastHoleyElements(o));
+  assertTrue(%HasObjectElements(o));
+  assertTrue(%HasHoleyElements(o));
 
   assertTrue(%HasDictionaryElements({0xFFFFFF:true}));
 }

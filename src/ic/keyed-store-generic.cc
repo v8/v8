@@ -161,8 +161,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   // Found a supported transition target map, perform the transition!
   BIND(&perform_transition);
   {
-    if (IsFastDoubleElementsKind(from_kind) !=
-        IsFastDoubleElementsKind(to_kind)) {
+    if (IsDoubleElementsKind(from_kind) != IsDoubleElementsKind(to_kind)) {
       Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
                            capacity, INTPTR_PARAMETERS, bailout);

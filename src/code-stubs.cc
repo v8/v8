@@ -951,7 +951,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
-        IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
+        IsDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
     int max_fast_elements =
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /

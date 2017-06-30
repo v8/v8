@@ -98,15 +98,14 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       // become PACKED_DOUBLE_ELEMENTS.
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver_obj);
       ElementsKind elements_kind = js_object->GetElementsKind();
-      if (IsFastDoubleElementsKind(elements_kind)) {
+      if (IsDoubleElementsKind(elements_kind)) {
         if (Smi::cast(*key_obj)->value() >= js_object->elements()->length()) {
-          elements_kind = IsFastHoleyElementsKind(elements_kind)
-                              ? HOLEY_ELEMENTS
-                              : PACKED_ELEMENTS;
+          elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
+                                                             : PACKED_ELEMENTS;
           JSObject::TransitionElementsKind(js_object, elements_kind);
         }
       } else {
-        DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
+        DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||
                !IsFastElementsKind(elements_kind));
       }
     }

@@ -298,7 +298,7 @@ FieldAccess AccessBuilder::ForJSArrayLength(ElementsKind elements_kind) {
                         type_cache.kJSArrayLengthType,
                         MachineType::TaggedSigned(),
                         kFullWriteBarrier};
-  if (IsFastDoubleElementsKind(elements_kind)) {
+  if (IsDoubleElementsKind(elements_kind)) {
     access.type = type_cache.kFixedDoubleArrayLengthType;
     access.write_barrier_kind = kNoWriteBarrier;
   } else if (IsFastElementsKind(elements_kind)) {
@@ -711,7 +711,7 @@ FieldAccess AccessBuilder::ForJSArrayIteratorIndex(InstanceType instance_type,
                         MachineType::AnyTagged(),
                         kFullWriteBarrier};
   if (instance_type == JS_ARRAY_TYPE) {
-    if (IsFastDoubleElementsKind(elements_kind)) {
+    if (IsDoubleElementsKind(elements_kind)) {
       access.type = TypeCache::Get().kFixedDoubleArrayLengthType;
       access.machine_type = MachineType::TaggedSigned();
       access.write_barrier_kind = kNoWriteBarrier;

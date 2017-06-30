@@ -517,7 +517,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   ElementsKind kind = receiver_map->elements_kind();
   // TODO(danno): Handle holey Smi and Object fast elements kinds and double
   // packed.
-  if (!IsFastPackedElementsKind(kind) || IsFastDoubleElementsKind(kind)) {
+  if (!IsFastPackedElementsKind(kind) || IsDoubleElementsKind(kind)) {
     return NoChange();
   }
 

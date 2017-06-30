@@ -2070,7 +2070,7 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Don't try to store to a copy-on-write backing store.
     if (access_mode == AccessMode::kStore &&
-        IsFastSmiOrObjectElementsKind(elements_kind) &&
+        IsSmiOrObjectElementsKind(elements_kind) &&
         store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
       effect = graph()->NewNode(
           simplified()->CheckMaps(
@@ -2111,10 +2111,10 @@ JSNativeContextSpecialization::BuildElementAccess(
     // Compute the element access.
     Type* element_type = Type::NonInternal();
     MachineType element_machine_type = MachineType::AnyTagged();
-    if (IsFastDoubleElementsKind(elements_kind)) {
+    if (IsDoubleElementsKind(elements_kind)) {
       element_type = Type::Number();
       element_machine_type = MachineType::Float64();
-    } else if (IsFastSmiElementsKind(elements_kind)) {
+    } else if (IsSmiElementsKind(elements_kind)) {
       element_type = Type::SignedSmall();
       element_machine_type = MachineType::TaggedSigned();
     }
@@ -2165,10 +2165,10 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
-      if (IsFastSmiElementsKind(elements_kind)) {
+      if (IsSmiElementsKind(elements_kind)) {
         value = effect =
             graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
-      } else if (IsFastDoubleElementsKind(elements_kind)) {
+      } else if (IsDoubleElementsKind(elements_kind)) {
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
                                           effect, control);
         // Make sure we do not store signalling NaNs into double arrays.
@@ -2176,7 +2176,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
 
       // Ensure that copy-on-write backing store is writable.
-      if (IsFastSmiOrObjectElementsKind(elements_kind) &&
+      if (IsSmiOrObjectElementsKind(elements_kind) &&
           store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
         elements = effect =
             graph()->NewNode(simplified()->EnsureWritableFastElements(),
@@ -2193,7 +2193,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
           flags |= GrowFastElementsFlag::kHoleyElements;
         }
-        if (IsFastDoubleElementsKind(elements_kind)) {
+        if (IsDoubleElementsKind(elements_kind)) {
           flags |= GrowFastElementsFlag::kDoubleElements;
         }
         elements = effect = graph()->NewNode(
