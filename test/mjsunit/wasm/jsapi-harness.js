@@ -15,9 +15,7 @@ const known_failures = {
   "'WebAssembly.Table.prototype.set' method":
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
   "'WebAssembly.Instance.prototype.exports' accessor property":
-    'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
-  "'WebAssembly.Memory.prototype.grow' method":
-    'https://bugs.chromium.org/p/v8/issues/detail?id=6546'
+    'https://bugs.chromium.org/p/v8/issues/detail?id=5507'
 };
 
 let failures = [];
@@ -63,7 +61,6 @@ function promise_test(func, description) {
 }
 
 let assert_equals = assertEquals;
-let assert_not_equals = assertNotEquals;
 let assert_true = assertEquals.bind(null, true);
 let assert_false = assertEquals.bind(null, false);
 
