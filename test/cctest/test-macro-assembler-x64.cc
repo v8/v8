@@ -2829,10 +2829,10 @@ void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
   __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);
   __ Move(xmm2, y);
   __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
-  __ Movupd(xmm0, Operand(rsp, 0));
+  __ movupd(xmm0, Operand(rsp, 0));
 
   __ Abspd(xmm0);
-  __ Movupd(Operand(rsp, 0), xmm0);
+  __ movupd(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
   __ Move(xmm1, fabs(x));
@@ -2853,10 +2853,10 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
   __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);
   __ Move(xmm2, y);
   __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
-  __ Movupd(xmm0, Operand(rsp, 0));
+  __ movupd(xmm0, Operand(rsp, 0));
 
   __ Negpd(xmm0);
-  __ Movupd(Operand(rsp, 0), xmm0);
+  __ movupd(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
   __ Move(xmm1, -x);
