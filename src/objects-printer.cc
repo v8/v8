@@ -46,6 +46,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
     os << map()->instance_type();
   }
   os << "]";
+  if (GetHeap()->InOldSpace(this)) os << " in OldSpace";
 }
 
 

@@ -30,8 +30,8 @@ void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
 }
 
 Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<FeedbackVector> vector,
-                                      Handle<FixedArray> compile_time_value);
+                                      Handle<FixedArray> compile_time_value,
+                                      PretenureFlag pretenure_flag);
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
 
@@ -207,6 +207,25 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   return copy;
 }
 
+class DeprecationUpdateContext {
+ public:
+  explicit DeprecationUpdateContext(Isolate* isolate) { isolate_ = isolate; }
+  Isolate* isolate() { return isolate_; }
+  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
+  inline void ExitScope(Handle<AllocationSite> scope_site,
+                        Handle<JSObject> object) {}
+  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
+  Handle<AllocationSite> current() {
+    UNREACHABLE();
+    return Handle<AllocationSite>();
+  }
+
+  static const bool kCopying = false;
+
+ private:
+  Isolate* isolate_;
+};
+
 // AllocationSiteCreationContext aids in the creation of AllocationSites to
 // accompany object literals.
 class AllocationSiteCreationContext : public AllocationSiteContext {
@@ -259,6 +278,15 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
 };
 
 MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
+                               DeprecationUpdateContext* site_context) {
+  JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context, kNoHints);
+  MaybeHandle<JSObject> result = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
+  return result;
+}
+
+MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
                                AllocationSiteCreationContext* site_context) {
   JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context, kNoHints);
   MaybeHandle<JSObject> result = v.StructureWalk(object);
@@ -279,8 +307,8 @@ MaybeHandle<JSObject> DeepCopy(Handle<JSObject> object,
 
 struct ObjectBoilerplate {
   static Handle<JSObject> Create(Isolate* isolate,
-                                 Handle<FeedbackVector> vector,
-                                 Handle<HeapObject> description, int flags) {
+                                 Handle<HeapObject> description, int flags,
+                                 PretenureFlag pretenure_flag) {
     Handle<Context> native_context = isolate->native_context();
     Handle<BoilerplateDescription> boilerplate_description =
         Handle<BoilerplateDescription>::cast(description);
@@ -302,9 +330,6 @@ struct ObjectBoilerplate {
             : isolate->factory()->ObjectLiteralMapFromCache(
                   native_context, number_of_properties);
 
-    PretenureFlag pretenure_flag =
-        isolate->heap()->InNewSpace(*vector) ? NOT_TENURED : TENURED;
-
     Handle<JSObject> boilerplate =
         map->is_dictionary_map()
             ? isolate->factory()->NewSlowJSObjectFromMap(
@@ -324,7 +349,8 @@ struct ObjectBoilerplate {
         // The value contains the CompileTimeValue with the boilerplate
         // properties of a simple object or array literal.
         Handle<FixedArray> compile_time_value = Handle<FixedArray>::cast(value);
-        value = InnerCreateBoilerplate(isolate, vector, compile_time_value);
+        value =
+            InnerCreateBoilerplate(isolate, compile_time_value, pretenure_flag);
       }
       uint32_t element_index = 0;
       if (key->ToArrayIndex(&element_index)) {
@@ -356,8 +382,8 @@ struct ObjectBoilerplate {
 
 struct ArrayBoilerplate {
   static Handle<JSObject> Create(Isolate* isolate,
-                                 Handle<FeedbackVector> vector,
-                                 Handle<HeapObject> description, int flags) {
+                                 Handle<HeapObject> description, int flags,
+                                 PretenureFlag pretenure_flag) {
     Handle<ConstantElementsPair> elements =
         Handle<ConstantElementsPair>::cast(description);
     // Create the JSArray.
@@ -397,16 +423,14 @@ struct ArrayBoilerplate {
                 // array literal.
                 Handle<FixedArray> compile_time_value(
                     FixedArray::cast(fixed_array_values->get(i)));
-                Handle<Object> result =
-                    InnerCreateBoilerplate(isolate, vector, compile_time_value);
+                Handle<Object> result = InnerCreateBoilerplate(
+                    isolate, compile_time_value, pretenure_flag);
                 fixed_array_values_copy->set(i, *result);
               }
             });
       }
     }
 
-    PretenureFlag pretenure_flag =
-        isolate->heap()->InNewSpace(*vector) ? NOT_TENURED : TENURED;
     return isolate->factory()->NewJSArrayWithElements(
         copied_elements_values, constant_elements_kind,
         copied_elements_values->length(), pretenure_flag);
@@ -414,15 +438,15 @@ struct ArrayBoilerplate {
 };
 
 Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<FeedbackVector> vector,
-                                      Handle<FixedArray> compile_time_value) {
+                                      Handle<FixedArray> compile_time_value,
+                                      PretenureFlag pretenure_flag) {
   Handle<HeapObject> elements =
       CompileTimeValue::GetElements(compile_time_value);
   int flags = CompileTimeValue::GetLiteralTypeFlags(compile_time_value);
   if (flags == CompileTimeValue::kArrayLiteralFlag) {
-    return ArrayBoilerplate::Create(isolate, vector, elements, flags);
+    return ArrayBoilerplate::Create(isolate, elements, flags, pretenure_flag);
   }
-  return ObjectBoilerplate::Create(isolate, vector, elements, flags);
+  return ObjectBoilerplate::Create(isolate, elements, flags, pretenure_flag);
 }
 
 template <typename Boilerplate>
@@ -453,9 +477,22 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
         Handle<JSObject>(JSObject::cast(site->transition_info()), isolate);
   } else {
     // Instantiate a JSArray or JSObject literal from the given {description}.
-    boilerplate = Boilerplate::Create(isolate, vector, description, flags);
-    // TODO(cbruni): enable pre-initialized state for boilerplates after
-    // investigating regressions.
+    if (IsUninitializedLiteralSite(literal_site)) {
+      PreInitializeLiteralSite(vector, literals_slot);
+      boilerplate =
+          Boilerplate::Create(isolate, description, flags, NOT_TENURED);
+      if (copy_hints == kNoHints) {
+        DeprecationUpdateContext update_context(isolate);
+        RETURN_ON_EXCEPTION(isolate, DeepWalk(boilerplate, &update_context),
+                            JSObject);
+      }
+      return boilerplate;
+    } else {
+      PretenureFlag pretenure_flag =
+          isolate->heap()->InNewSpace(*vector) ? NOT_TENURED : TENURED;
+      boilerplate =
+          Boilerplate::Create(isolate, description, flags, pretenure_flag);
+    }
     // Install AllocationSite objects.
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();

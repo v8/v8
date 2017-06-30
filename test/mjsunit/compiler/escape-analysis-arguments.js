@@ -113,11 +113,15 @@
     assertEquals(3, l.y.z)
   }
 
-  f(); f(); f();
+  f();
+  f();
+  f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  f();
 })();
 
 
