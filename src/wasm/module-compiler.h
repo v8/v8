@@ -286,7 +286,8 @@ class AsyncCompileJob {
   ~AsyncCompileJob();
 
  private:
-  class CompileTask;
+  class ForegroundCompileTask;
+  class BackgroundCompileTask;
   class CompileStep;
 
   // States of the AsyncCompileJob.

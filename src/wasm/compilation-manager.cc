@@ -19,10 +19,13 @@ void CompilationManager::StartAsyncCompileJob(
   job->Start();
 }
 
-void CompilationManager::RemoveJob(AsyncCompileJob* job) {
-  size_t num_removed = jobs_.erase(job);
-  USE(num_removed);
-  DCHECK_EQ(1, num_removed);
+std::shared_ptr<AsyncCompileJob> CompilationManager::RemoveJob(
+    AsyncCompileJob* job) {
+  auto item = jobs_.find(job);
+  DCHECK(item != jobs_.end());
+  std::shared_ptr<AsyncCompileJob> result = item->second;
+  jobs_.erase(item);
+  return result;
 }
 
 void CompilationManager::TearDown() { jobs_.clear(); }
