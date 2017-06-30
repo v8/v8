@@ -13144,6 +13144,11 @@ bool SharedFunctionInfo::HasCoverageInfo() const {
   return has_coverage_info;
 }
 
+CoverageInfo* SharedFunctionInfo::GetCoverageInfo() const {
+  DCHECK(HasCoverageInfo());
+  return CoverageInfo::cast(GetDebugInfo()->coverage_info());
+}
+
 DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
   DCHECK(HasDebugInfo());
   return DebugInfo::cast(debug_info());

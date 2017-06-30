@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+class CoverageInfo;
+class DebugInfo;
+
 class PreParsedScopeData : public Struct {
  public:
   DECL_ACCESSORS(scope_data, PodArray<uint32_t>)
@@ -198,6 +201,7 @@ class SharedFunctionInfo : public HeapObject {
   // Coverage infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
   bool HasCoverageInfo() const;
+  CoverageInfo* GetCoverageInfo() const;
 
   // A function has debug code if the compiled code has debug break slots.
   inline bool HasDebugCode() const;

@@ -1992,9 +1992,16 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
 
   DCHECK(FLAG_block_coverage);
 
-  DebugInfo* debug_info = function->shared()->GetDebugInfo();
-  CoverageInfo* coverage_info = CoverageInfo::cast(debug_info->coverage_info());
-  coverage_info->IncrementBlockCount(coverage_array_slot_index);
+  // It's quite possible that a function contains IncBlockCounter bytecodes, but
+  // no coverage info exists. This happens e.g. by selecting the best-effort
+  // coverage collection mode, which triggers deletion of all coverage infos in
+  // order to avoid memory leaks.
+
+  SharedFunctionInfo* shared = function->shared();
+  if (shared->HasCoverageInfo()) {
+    CoverageInfo* coverage_info = shared->GetCoverageInfo();
+    coverage_info->IncrementBlockCount(coverage_array_slot_index);
+  }
 
   return isolate->heap()->undefined_value();
 }

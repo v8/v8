@@ -324,6 +324,10 @@ Coverage* Coverage::Collect(Isolate* isolate,
 void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
   switch (mode) {
     case debug::Coverage::kBestEffort:
+      // Note that DevTools switches back to best-effort coverage once the
+      // recording is stopped. Since we delete coverage infos at that point, any
+      // following coverage recording (without reloads) will be at function
+      // granularity.
       if (FLAG_block_coverage) isolate->debug()->RemoveAllCoverageInfos();
       isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
       break;
