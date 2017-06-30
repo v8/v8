@@ -17,19 +17,14 @@ namespace internal {
 namespace compiler {
 
 size_t hash_value(OutputFrameStateCombine const& sc) {
-  return base::hash_combine(sc.kind_, sc.parameter_);
+  return base::hash_value(sc.parameter_);
 }
 
 
 std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
-  switch (sc.kind_) {
-    case OutputFrameStateCombine::kPushOutput:
-      if (sc.parameter_ == 0) return os << "Ignore";
-      return os << "Push(" << sc.parameter_ << ")";
-    case OutputFrameStateCombine::kPokeAt:
-      return os << "PokeAt(" << sc.parameter_ << ")";
-  }
-  UNREACHABLE();
+  if (sc.parameter_ == OutputFrameStateCombine::kInvalidIndex)
+    return os << "Ignore";
+  return os << "PokeAt(" << sc.parameter_ << ")";
 }
 
 

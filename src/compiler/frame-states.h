@@ -22,42 +22,26 @@ class Node;
 // the output of a node to obtain a framestate for lazy bailout.
 class OutputFrameStateCombine {
  public:
-  enum Kind {
-    kPushOutput,  // Push the output on the expression stack.
-    kPokeAt       // Poke at the given environment location,
-                  // counting from the top of the stack.
-  };
+  static const size_t kInvalidIndex = SIZE_MAX;
 
   static OutputFrameStateCombine Ignore() {
-    return OutputFrameStateCombine(kPushOutput, 0);
-  }
-  static OutputFrameStateCombine Push(size_t count = 1) {
-    return OutputFrameStateCombine(kPushOutput, count);
+    return OutputFrameStateCombine(kInvalidIndex);
   }
   static OutputFrameStateCombine PokeAt(size_t index) {
-    return OutputFrameStateCombine(kPokeAt, index);
+    return OutputFrameStateCombine(index);
   }
 
-  Kind kind() const { return kind_; }
-  size_t GetPushCount() const {
-    DCHECK_EQ(kPushOutput, kind());
-    return parameter_;
-  }
   size_t GetOffsetToPokeAt() const {
-    DCHECK_EQ(kPokeAt, kind());
+    DCHECK_NE(parameter_, kInvalidIndex);
     return parameter_;
   }
 
-  bool IsOutputIgnored() const {
-    return kind_ == kPushOutput && parameter_ == 0;
-  }
+  bool IsOutputIgnored() const { return parameter_ == kInvalidIndex; }
 
-  size_t ConsumedOutputCount() const {
-    return kind_ == kPushOutput ? GetPushCount() : 1;
-  }
+  size_t ConsumedOutputCount() const { return IsOutputIgnored() ? 0 : 1; }
 
   bool operator==(OutputFrameStateCombine const& other) const {
-    return kind_ == other.kind_ && parameter_ == other.parameter_;
+    return parameter_ == other.parameter_;
   }
   bool operator!=(OutputFrameStateCombine const& other) const {
     return !(*this == other);
@@ -68,10 +52,8 @@ class OutputFrameStateCombine {
                                   OutputFrameStateCombine const&);
 
  private:
-  OutputFrameStateCombine(Kind kind, size_t parameter)
-      : kind_(kind), parameter_(parameter) {}
+  explicit OutputFrameStateCombine(size_t parameter) : parameter_(parameter) {}
 
-  Kind const kind_;
   size_t const parameter_;
 };
 

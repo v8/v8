@@ -1013,18 +1013,9 @@ FrameStateDescriptor::FrameStateDescriptor(
       shared_info_(shared_info),
       outer_state_(outer_state) {}
 
-
-size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
-  size_t size = 1 + parameters_count() + locals_count() + stack_count() +
-                (HasContext() ? 1 : 0);
-  switch (combine.kind()) {
-    case OutputFrameStateCombine::kPushOutput:
-      size += combine.GetPushCount();
-      break;
-    case OutputFrameStateCombine::kPokeAt:
-      break;
-  }
-  return size;
+size_t FrameStateDescriptor::GetSize() const {
+  return 1 + parameters_count() + locals_count() + stack_count() +
+         (HasContext() ? 1 : 0);
 }
 
 

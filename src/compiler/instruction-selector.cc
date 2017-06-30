@@ -597,8 +597,7 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
   StateValueList* values_descriptor = descriptor->GetStateValueDescriptors();
 
   DCHECK_EQ(values_descriptor->size(), 0u);
-  values_descriptor->ReserveSize(
-      descriptor->GetSize(OutputFrameStateCombine::Ignore()));
+  values_descriptor->ReserveSize(descriptor->GetSize());
 
   entries += AddOperandToStateValueDescriptor(
       values_descriptor, inputs, g, deduplicator, function,

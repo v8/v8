@@ -736,12 +736,11 @@ void CodeGenerator::TranslateFrameStateDescriptorOperands(
   for (StateValueList::iterator it = values->begin(); it != values->end();
        ++it, ++index) {
     StateValueDescriptor* value_desc = (*it).desc;
-    if (combine.kind() == OutputFrameStateCombine::kPokeAt) {
+    if (!combine.IsOutputIgnored()) {
       // The result of the call should be placed at position
       // [index_from_top] in the stack (overwriting whatever was
       // previously there).
-      size_t index_from_top =
-          desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
+      size_t index_from_top = desc->GetSize() - 1 - combine.GetOffsetToPokeAt();
       if (index >= index_from_top &&
           index < index_from_top + iter->instruction()->OutputCount()) {
         DCHECK_NOT_NULL(translation);
@@ -756,17 +755,7 @@ void CodeGenerator::TranslateFrameStateDescriptorOperands(
     }
     TranslateStateValueDescriptor(value_desc, (*it).nested, translation, iter);
   }
-  DCHECK_EQ(desc->GetSize(OutputFrameStateCombine::Ignore()), index);
-
-  if (combine.kind() == OutputFrameStateCombine::kPushOutput) {
-    DCHECK(combine.GetPushCount() <= iter->instruction()->OutputCount());
-    for (size_t output = 0; output < combine.GetPushCount(); output++) {
-      // Materialize the result of the call instruction in this slot.
-      AddTranslationForOperand(translation, iter->instruction(),
-                               iter->instruction()->OutputAt(output),
-                               MachineType::AnyTagged());
-    }
-  }
+  DCHECK_EQ(desc->GetSize(), index);
 }
 
 

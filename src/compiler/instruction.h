@@ -1300,8 +1300,7 @@ class FrameStateDescriptor : public ZoneObject {
            type_ == FrameStateType::kBuiltinContinuation;
   }
 
-  size_t GetSize(OutputFrameStateCombine combine =
-                     OutputFrameStateCombine::Ignore()) const;
+  size_t GetSize() const;
   size_t GetTotalSize() const;
   size_t GetFrameCount() const;
   size_t GetJSFrameCount() const;
