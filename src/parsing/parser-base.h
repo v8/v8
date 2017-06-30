@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-class PreParsedScopeData;
-
 enum FunctionNameValidity {
   kFunctionNameIsStrictReserved,
   kSkipFunctionNameCheck,
@@ -246,7 +244,6 @@ class ParserBase {
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              RuntimeCallStats* runtime_call_stats,
-             PreParsedScopeData* preparsed_scope_data,
              bool parsing_on_main_thread = true)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -259,7 +256,6 @@ class ParserBase {
         parsing_on_main_thread_(parsing_on_main_thread),
         parsing_module_(false),
         stack_limit_(stack_limit),
-        preparsed_scope_data_(preparsed_scope_data),
         zone_(zone),
         classifier_(nullptr),
         scanner_(scanner),
@@ -314,6 +310,10 @@ class ParserBase {
 
   void ResetFunctionLiteralId() { function_literal_id_ = 0; }
 
+  // The Zone where the parsing outputs are stored.
+  Zone* main_zone() const { return ast_value_factory()->zone(); }
+
+  // The current Zone, which might be the main zone or a temporary Zone.
   Zone* zone() const { return zone_; }
 
  protected:
@@ -1555,7 +1555,6 @@ class ParserBase {
   bool parsing_on_main_thread_;
   bool parsing_module_;
   uintptr_t stack_limit_;
-  PreParsedScopeData* preparsed_scope_data_;
 
   // Parser base's private field members.
 
@@ -4305,6 +4304,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool should_be_used_once_hint = false;
   bool has_braces = true;
+  ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
   {
     FunctionState function_state(&function_state_, &scope_,
                                  formal_parameters.scope);
@@ -4325,9 +4325,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
         LazyParsingResult result = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
-            formal_parameters.scope, &dummy_num_parameters, false, false,
-            CHECK_OK);
+            formal_parameters.scope, &dummy_num_parameters,
+            &produced_preparsed_scope_data, false, false, CHECK_OK);
         DCHECK_NE(result, kLazyParsingAborted);
+        DCHECK_NULL(produced_preparsed_scope_data);
         USE(result);
         formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
                                                       false);
@@ -4413,7 +4414,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position(), has_braces,
-      function_literal_id);
+      function_literal_id, produced_preparsed_scope_data);
 
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());

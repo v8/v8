@@ -7,6 +7,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/parsing/preparsed-scope-data.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -35,27 +36,6 @@ TEST(PreParserScopeAnalysis) {
   i::HandleScope scope(isolate);
   LocalContext env;
 
-  /* Test the following cases:
-     1)
-     (function outer() {
-        function test() { ... }
-     })();
-     (Laziness boundary at "test".)
-
-     2)
-     (function outer() {
-        function inner() { function test() { ... } }
-     })();
-     (Laziness boundary at "test".)
-
-     3)
-     (function outer() {
-        function inner() { () => { ... } }
-     })();
-
-     Inner arrow functions are never lazy, so the corresponding case is missing.
-  */
-
   struct {
     const char* code;
     bool strict_outer;
@@ -64,35 +44,23 @@ TEST(PreParserScopeAnalysis) {
     std::vector<unsigned> location;  // "Directions" to the relevant scope.
   } outers[] = {
       // Normal case (test function at the laziness boundary):
-      {"(function outer() { function test(%s) { %s } })();",
+      {"(function outer() { function test(%s) { %s \n"
+       "function skippable() { } } })();",
        false,
        false,
        false,
        {0, 0}},
 
-      {"(function outer() { let test2 = function test(%s) { %s } })();",
-       false,
-       false,
-       false,
-       {0, 0}},
-
-      // Test function deeper:
-      {"(function outer() { function inner() { "
-       "function test(%s) { %s } } })();",
-       false,
-       false,
-       false,
-       {0, 0}},
-
-      {"(function outer() { function inner() { "
-       "let test2 = function test(%s) { %s } } })();",
+      {"(function outer() { let test2 = function test(%s) { %s \n"
+       "function skippable() { } } })();",
        false,
        false,
        false,
        {0, 0}},
 
       // Arrow functions (they can never be at the laziness boundary):
-      {"(function outer() { function inner() { (%s) => { %s } } })();",
+      {"(function outer() { function inner() { (%s) => { %s } \n"
+       "function skippable() { } } })();",
        false,
        false,
        true,
@@ -100,57 +68,50 @@ TEST(PreParserScopeAnalysis) {
 
       // Repeat the above mentioned cases w/ outer function declaring itself
       // strict:
-      {"(function outer() { 'use strict'; function test(%s) { %s } })();",
+      {"(function outer() { 'use strict'; function test(%s) { %s \n"
+       "function skippable() { } } })();",
        true,
        false,
        false,
        {0, 0}},
+
       {"(function outer() { 'use strict'; function inner() { "
-       "function test(%s) { %s } } })();",
-       true,
-       false,
-       false,
-       {0, 0}},
-      {"(function outer() { 'use strict'; function inner() { "
-       "(%s) => { %s } } })();",
+       "(%s) => { %s } \nfunction skippable() { } } })();",
        true,
        false,
        true,
        {0, 0}},
 
       // ... and with the test function declaring itself strict:
-      {"(function outer() { function test(%s) { 'use strict'; %s } })();",
+      {"(function outer() { function test(%s) { 'use strict'; %s \n"
+       "function skippable() { } } })();",
        false,
        true,
        false,
        {0, 0}},
+
       {"(function outer() { function inner() { "
-       "function test(%s) { 'use strict'; %s } } })();",
-       false,
-       true,
-       false,
-       {0, 0}},
-      {"(function outer() { function inner() { "
-       "(%s) => { 'use strict'; %s } } })();",
+       "(%s) => { 'use strict'; %s } \nfunction skippable() { } } })();",
        false,
        true,
        true,
        {0, 0}},
 
-      // Methods containing skippable functions. Cannot test at the laziness
-      // boundary, since there's no way to force eager parsing of a method.
-      {"class MyClass { constructor() { function test(%s) { %s } } }",
+      // Methods containing skippable functions.
+      {"class MyClass { constructor(%s) { %s \n"
+       "function skippable() { } } }",
        true,
        true,
        false,
-       {0, 0, 0}},
+       {0, 0}},
 
-      {"class MyClass { mymethod() { function test(%s) { %s } } }",
+      {"class MyClass { test(%s) { %s \n"
+       "function skippable() { } } }",
        true,
        true,
        false,
        // The default constructor is scope 0 inside the class.
-       {0, 1, 0}},
+       {0, 1}},
 
       // FIXME(marja): Generators and async functions
   };
@@ -691,6 +652,18 @@ TEST(PreParserScopeAnalysis) {
       // parsing.
       CHECK(i::parsing::ParseProgram(&lazy_info, isolate));
 
+      // Retrieve the scope data we produced.
+      i::Scope* scope_with_data = i::ScopeTestHelper::FindScope(
+          lazy_info.literal()->scope(), outers[outer_ix].location);
+      i::ProducedPreParsedScopeData* produced_data =
+          scope_with_data->AsDeclarationScope()
+              ->produced_preparsed_scope_data();
+      i::MaybeHandle<i::PreParsedScopeData> maybe_produced_data_on_heap =
+          produced_data->Serialize(isolate);
+      DCHECK(!maybe_produced_data_on_heap.is_null());
+      i::Handle<i::PreParsedScopeData> produced_data_on_heap =
+          maybe_produced_data_on_heap.ToHandleChecked();
+
       // Then parse eagerly and check against the scope data.
       script = factory->NewScript(source);
 
@@ -720,7 +693,15 @@ TEST(PreParserScopeAnalysis) {
       CHECK_NULL(unallocated_scope->sibling());
       CHECK(unallocated_scope->is_function_scope());
 
-      lazy_info.preparsed_scope_data()->RestoreData(
+      // Mark all inner functions as "skipped", so that we don't try to restore
+      // data for them. No test should contain eager functions, because we
+      // cannot properly decide whether we have or don't have data for them.
+      i::ScopeTestHelper::MarkInnerFunctionsAsSkipped(unallocated_scope);
+      i::ConsumedPreParsedScopeData* consumed_preparsed_scope_data =
+          lazy_info.consumed_preparsed_scope_data();
+      consumed_preparsed_scope_data->SetData(produced_data_on_heap);
+      consumed_preparsed_scope_data->SkipFunctionDataForTesting();
+      consumed_preparsed_scope_data->RestoreScopeAllocationData(
           unallocated_scope->AsDeclarationScope());
       i::ScopeTestHelper::AllocateWithoutVariableResolution(unallocated_scope);
 

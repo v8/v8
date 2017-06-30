@@ -327,10 +327,10 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PREPARSED_SCOPE_DATA_TYPE:
     case PADDING_TYPE_1:
     case PADDING_TYPE_2:
     case PADDING_TYPE_3:
-    case PADDING_TYPE_4:
       UNREACHABLE();
   }
   UNREACHABLE();

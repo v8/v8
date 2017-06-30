@@ -14,6 +14,10 @@
 namespace v8 {
 namespace internal {
 
+CAST_ACCESSOR(PreParsedScopeData)
+ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint32_t>, kScopeDataOffset)
+ACCESSORS(PreParsedScopeData, child_data, FixedArray, kChildDataOffset)
+
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -29,6 +33,8 @@ ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_identifier, Object,
           kFunctionIdentifierOffset)
+ACCESSORS(SharedFunctionInfo, preparsed_scope_data, Object,
+          kPreParsedScopeDataOffset)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type,
                     is_named_expression,
@@ -383,6 +389,10 @@ bool SharedFunctionInfo::IsUserJavaScript() {
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {
   return IsUserJavaScript() && !HasAsmWasmData();
+}
+
+bool SharedFunctionInfo::HasPreParsedScopeData() const {
+  return preparsed_scope_data()->IsPreParsedScopeData();
 }
 
 }  // namespace internal

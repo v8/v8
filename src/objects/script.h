@@ -88,8 +88,6 @@ class Script : public Struct {
   // This must only be called if the type of this script is TYPE_WASM.
   DECL_ACCESSORS(wasm_compiled_module, Object)
 
-  DECL_ACCESSORS(preparsed_scope_data, PodArray<uint32_t>)
-
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
   inline CompilationType compilation_type();
@@ -176,8 +174,6 @@ class Script : public Struct {
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
-  bool HasPreparsedScopeData() const;
-
   // Dispatched behavior.
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
@@ -199,9 +195,7 @@ class Script : public Struct {
   static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;
   static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
   static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
-  static const int kPreParsedScopeDataOffset =
-      kSourceMappingUrlOffset + kPointerSize;
-  static const int kSize = kPreParsedScopeDataOffset + kPointerSize;
+  static const int kSize = kSourceMappingUrlOffset + kPointerSize;
 
  private:
   // Bit positions in the flags field.

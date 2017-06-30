@@ -22,6 +22,8 @@ namespace internal {
 // interface as AstNodeFactory, so ParserBase doesn't need to care which one is
 // used.
 
+class ProducedPreParsedScopeData;
+
 class PreParserIdentifier {
  public:
   PreParserIdentifier() : type_(kUnknownIdentifier) {}
@@ -691,7 +693,9 @@ class PreParserFactory {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
-      bool has_braces, int function_literal_id) {
+      bool has_braces, int function_literal_id,
+      ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr) {
+    DCHECK_NULL(produced_preparsed_scope_data);
     return PreParserExpression::Default();
   }
 
@@ -904,14 +908,14 @@ class PreParser : public ParserBase<PreParser> {
             AstValueFactory* ast_value_factory,
             PendingCompilationErrorHandler* pending_error_handler,
             RuntimeCallStats* runtime_call_stats,
-            PreParsedScopeData* preparsed_scope_data = nullptr,
             bool parsing_on_main_thread = true)
       : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
                               ast_value_factory, runtime_call_stats,
-                              preparsed_scope_data, parsing_on_main_thread),
+                              parsing_on_main_thread),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
-        pending_error_handler_(pending_error_handler) {}
+        pending_error_handler_(pending_error_handler),
+        produced_preparsed_scope_data_(nullptr) {}
 
   static bool IsPreParser() { return true; }
 
@@ -931,13 +935,21 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseFunction(const AstRawString* function_name,
-                                  FunctionKind kind,
-                                  FunctionLiteral::FunctionType function_type,
-                                  DeclarationScope* function_scope,
-                                  bool parsing_module,
-                                  bool track_unresolved_variables,
-                                  bool may_abort, int* use_counts);
+  PreParseResult PreParseFunction(
+      const AstRawString* function_name, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type,
+      DeclarationScope* function_scope, bool parsing_module,
+      bool track_unresolved_variables, bool may_abort, int* use_counts,
+      ProducedPreParsedScopeData** produced_preparser_scope_data);
+
+  ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
+    return produced_preparsed_scope_data_;
+  }
+
+  void set_produced_preparsed_scope_data(
+      ProducedPreParsedScopeData* produced_preparsed_scope_data) {
+    produced_preparsed_scope_data_ = produced_preparsed_scope_data;
+  }
 
  private:
   // These types form an algebra over syntactic categories that is just
@@ -959,6 +971,7 @@ class PreParser : public ParserBase<PreParser> {
   SkipFunction(const AstRawString* name, FunctionKind kind,
                FunctionLiteral::FunctionType function_type,
                DeclarationScope* function_scope, int* num_parameters,
+               ProducedPreParsedScopeData** produced_preparsed_scope_data,
                bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
   }
@@ -1735,6 +1748,8 @@ class PreParser : public ParserBase<PreParser> {
   bool track_unresolved_variables_;
   PreParserLogger log_;
   PendingCompilationErrorHandler* pending_error_handler_;
+
+  ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,

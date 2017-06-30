@@ -314,6 +314,7 @@ void DeclarationScope::SetDefaults() {
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
   is_skipped_function_ = false;
+  produced_preparsed_scope_data_ = nullptr;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -665,9 +666,8 @@ void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate,
 
   if (scope->must_use_preparsed_scope_data_) {
     DCHECK(FLAG_experimental_preparser_scope_analysis);
-    DCHECK_NOT_NULL(info->preparsed_scope_data());
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
-    info->preparsed_scope_data()->RestoreData(scope);
+    info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
   }
 
   scope->AllocateVariables(info, isolate, mode);
@@ -1514,15 +1514,30 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   was_lazily_parsed_ = !aborted;
 }
 
-void DeclarationScope::AnalyzePartially(
-    AstNodeFactory* ast_node_factory,
-    PreParsedScopeData* preparsed_scope_data) {
+void Scope::SavePreParsedScopeData() {
+  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  if (ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(this)) {
+    AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
+  }
+
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    scope->SavePreParsedScopeData();
+  }
+}
+
+void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
+  if (produced_preparsed_scope_data_ != nullptr) {
+    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    produced_preparsed_scope_data_->SaveScopeAllocationData(this);
+  }
+}
+
+void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
-  bool need_preparsed_scope_data = FLAG_experimental_preparser_scope_analysis &&
-                                   preparsed_scope_data->Producing();
 
-  if (!outer_scope_->is_script_scope() || need_preparsed_scope_data) {
+  if (!outer_scope_->is_script_scope() ||
+      FLAG_experimental_preparser_scope_analysis) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
@@ -1545,12 +1560,11 @@ void DeclarationScope::AnalyzePartially(
       function_ = ast_node_factory->CopyVariable(function_);
     }
 
-    if (need_preparsed_scope_data) {
-      // Store the information needed for allocating the locals of this scope
-      // and its inner scopes.
-      preparsed_scope_data->SaveData(this);
+    if (FLAG_experimental_preparser_scope_analysis) {
+      SavePreParsedScopeData();
     }
   }
+
 #ifdef DEBUG
   if (FLAG_print_scopes) {
     PrintF("Inner function scope:\n");

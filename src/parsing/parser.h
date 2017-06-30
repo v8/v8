@@ -23,6 +23,7 @@ class ScriptCompiler;
 
 namespace internal {
 
+class ConsumedPreParsedScopeData;
 class ParseInfo;
 class ScriptData;
 class ParserTarget;
@@ -288,7 +289,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       reusable_preparser_ =
           new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
                         &pending_error_handler_, runtime_call_stats_,
-                        preparsed_scope_data_, parsing_on_main_thread_);
+                        parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
       SET_ALLOW(tailcalls);
@@ -555,12 +556,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
-  LazyParsingResult SkipFunction(const AstRawString* function_name,
-                                 FunctionKind kind,
-                                 FunctionLiteral::FunctionType function_type,
-                                 DeclarationScope* function_scope,
-                                 int* num_parameters, bool is_inner_function,
-                                 bool may_abort, bool* ok);
+  LazyParsingResult SkipFunction(
+      const AstRawString* function_name, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type,
+      DeclarationScope* function_scope, int* num_parameters,
+      ProducedPreParsedScopeData** produced_preparsed_scope_data,
+      bool is_inner_function, bool may_abort, bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -1173,6 +1174,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ParserLogger* log_;
+  ConsumedPreParsedScopeData* consumed_preparsed_scope_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal
   // encountered is a dynamic function, see CreateDynamicFunction(). This field

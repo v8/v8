@@ -1130,8 +1130,6 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_eval_from_position(0);
   script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   script->set_flags(0);
-  script->set_preparsed_scope_data(
-      PodArray<uint32_t>::cast(heap->empty_byte_array()));
 
   heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
   return script;
@@ -1665,6 +1663,14 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
   Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
   array->set_map_no_write_barrier(*module_info_map());
   return Handle<ModuleInfo>::cast(array);
+}
+
+Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
+  Handle<PreParsedScopeData> result =
+      Handle<PreParsedScopeData>::cast(NewStruct(PREPARSED_SCOPE_DATA_TYPE));
+  result->set_scope_data(PodArray<uint32_t>::cast(*empty_byte_array()));
+  result->set_child_data(*empty_fixed_array());
+  return result;
 }
 
 Handle<JSObject> Factory::NewExternal(void* value) {
@@ -2430,7 +2436,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
   Handle<SharedFunctionInfo> result =
       NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
   SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-  SharedFunctionInfo::SetScript(result, script);
+  SharedFunctionInfo::SetScript(result, script, false);
   return result;
 }
 
@@ -2509,6 +2515,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   // All compiler hints default to false or 0.
   share->set_compiler_hints(0);
   share->set_opt_count_and_bailout_reason(0);
+
+  share->set_preparsed_scope_data(*null_value());
 
   // Link into the list.
   Handle<Object> new_noscript_list =

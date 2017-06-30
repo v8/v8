@@ -25,6 +25,7 @@ class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;
 struct SourceRange;
+class PreParsedScopeData;
 
 enum FunctionMode {
   // With prototype.
@@ -640,6 +641,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<ModuleInfoEntry> NewModuleInfoEntry();
   Handle<ModuleInfo> NewModuleInfo();
+
+  Handle<PreParsedScopeData> NewPreParsedScopeData();
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);

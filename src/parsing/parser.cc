@@ -483,8 +483,7 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->ast_value_factory(),
-                         info->runtime_call_stats(),
-                         info->preparsed_scope_data(), true),
+                         info->runtime_call_stats(), true),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -494,6 +493,7 @@ Parser::Parser(ParseInfo* info)
       total_preparse_skipped_(0),
       temp_zoned_(false),
       log_(nullptr),
+      consumed_preparsed_scope_data_(info->consumed_preparsed_scope_data()),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -2661,6 +2661,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_length = -1;
   bool has_duplicate_parameters = false;
   int function_literal_id = GetNextFunctionLiteralId();
+  ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
 
   Expect(Token::LPAREN, CHECK_OK);
 
@@ -2728,7 +2729,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       bookmark.Set();
       LazyParsingResult result = SkipFunction(
           function_name, kind, function_type, scope, &num_parameters,
-          is_lazy_inner_function, is_lazy_top_level_function, CHECK_OK);
+          &produced_preparsed_scope_data, is_lazy_inner_function,
+          is_lazy_top_level_function, CHECK_OK);
 
       if (result == kLazyParsingAborted) {
         DCHECK(is_lazy_top_level_function);
@@ -2747,8 +2749,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
 
     if (should_preparse) {
-      scope->AnalyzePartially(&previous_zone_ast_node_factory,
-                              preparsed_scope_data_);
+      scope->AnalyzePartially(&previous_zone_ast_node_factory);
     } else {
       body = ParseFunction(function_name, pos, kind, function_type, scope,
                            &num_parameters, &function_length,
@@ -2803,7 +2804,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, expected_property_count, num_parameters,
       function_length, duplicate_parameters, function_type, eager_compile_hint,
-      pos, true, function_literal_id);
+      pos, true, function_literal_id, produced_preparsed_scope_data);
   if (should_use_parse_task) {
     literals_to_stitch_.emplace_back(function_literal);
   }
@@ -2822,6 +2823,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* num_parameters,
+    ProducedPreParsedScopeData** produced_preparsed_scope_data,
     bool is_inner_function, bool may_abort, bool* ok) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
@@ -2859,26 +2861,30 @@ Parser::LazyParsingResult Parser::SkipFunction(
   }
 
   // FIXME(marja): There are 3 ways to skip functions now. Unify them.
-  if (preparsed_scope_data_->Consuming()) {
+  DCHECK_NOT_NULL(consumed_preparsed_scope_data_);
+  if (consumed_preparsed_scope_data_->HasData()) {
     DCHECK(FLAG_experimental_preparser_scope_analysis);
-    const PreParseData::FunctionData& data =
-        preparsed_scope_data_->FindSkippableFunction(
-            function_scope->start_position());
-    if (data.is_valid()) {
-      function_scope->set_is_skipped_function(true);
-      function_scope->outer_scope()->SetMustUsePreParsedScopeData();
+    int end_position;
+    LanguageMode language_mode;
+    int num_inner_functions;
+    bool uses_super_property;
+    *produced_preparsed_scope_data =
+        consumed_preparsed_scope_data_->GetDataForSkippableFunction(
+            main_zone(), function_scope->start_position(), &end_position,
+            num_parameters, &num_inner_functions, &uses_super_property,
+            &language_mode);
 
-      function_scope->set_end_position(data.end);
-      scanner()->SeekForward(data.end - 1);
-      Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
-      *num_parameters = data.num_parameters;
-      SetLanguageMode(function_scope, data.language_mode);
-      if (data.uses_super_property) {
-        function_scope->RecordSuperPropertyUsage();
-      }
-      SkipFunctionLiterals(data.num_inner_functions);
-      return kLazyParsingComplete;
+    function_scope->outer_scope()->SetMustUsePreParsedScopeData();
+    function_scope->set_is_skipped_function(true);
+    function_scope->set_end_position(end_position);
+    scanner()->SeekForward(end_position - 1);
+    Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
+    SetLanguageMode(function_scope, language_mode);
+    if (uses_super_property) {
+      function_scope->RecordSuperPropertyUsage();
     }
+    SkipFunctionLiterals(num_inner_functions);
+    return kLazyParsingComplete;
   }
 
   // With no cached data, we partially parse the function, without building an
@@ -2891,7 +2897,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
 
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_name, kind, function_type, function_scope, parsing_module_,
-      is_inner_function, may_abort, use_counts_);
+      is_inner_function, may_abort, use_counts_, produced_preparsed_scope_data);
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;

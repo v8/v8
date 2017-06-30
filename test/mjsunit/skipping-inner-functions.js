@@ -136,3 +136,70 @@ TestSkippedFunctionInsideLoopInitializer();
   lazy(9)(8, 7);
   assertEquals(34, result);
 })();
+
+function TestSkippingDeeperLazyFunctions() {
+  let result = 0;
+  function inner_lazy(ctxt_alloc_param) {
+    let ctxt_alloc_var = 13;
+    function skip_me() {
+      result = ctxt_alloc_param + ctxt_alloc_var;
+    }
+    return skip_me;
+  }
+  let f = inner_lazy(12);
+  f();
+  assertEquals(25, result);
+}
+
+TestSkippingDeeperLazyFunctions();
+
+function TestEagerFunctionsBetweenLazyFunctions() {
+  let result = 0;
+  // We produce one data set for TestEagerFunctionsBetweenLazyFunctions and
+  // another one for inner. The variable data for eager belongs to the former
+  // data set.
+  let ctxt_allocated1 = 3;
+  (function eager() {
+    let ctxt_allocated2 = 4;
+    function inner() {
+      result = ctxt_allocated1 + ctxt_allocated2;
+    }
+    return inner;
+  })()();
+  assertEquals(7, result);
+}
+
+TestEagerFunctionsBetweenLazyFunctions();
+
+function TestEagerNotIifeFunctionsBetweenLazyFunctions() {
+  let result = 0;
+  // We produce one data set for TestEagerFunctionsBetweenLazyFunctions and
+  // another one for inner. The variable data for eager belongs to the former
+  // data set.
+  let ctxt_allocated1 = 3;
+  (function eager_not_iife() {
+    let ctxt_allocated2 = 4;
+    function inner() {
+      result = ctxt_allocated1 + ctxt_allocated2;
+    }
+    return inner;
+  }); // Function not called; not an iife.
+  // This is just a regression test. We cannot test that the context allocation
+  // was done correctly (since there's no way to call eager_not_iife), but code
+  // like this used to trigger some DCHECKs.
+}
+
+TestEagerNotIifeFunctionsBetweenLazyFunctions();
+
+// Regression test for functions inside a lazy arrow function. (Only top-level
+// arrow functions are lazy, so this cannot be wrapped in a function.)
+result = 0;
+let f1 = (ctxt_alloc_param) => {
+  let ctxt_alloc_var = 10;
+  function inner() {
+    result = ctxt_alloc_param + ctxt_alloc_var;
+  }
+  return inner;
+}
+f1(9)();
+assertEquals(19, result);

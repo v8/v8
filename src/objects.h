@@ -152,6 +152,7 @@
 //       - PrototypeInfo
 //       - Module
 //       - ModuleInfoEntry
+//       - PreParsedScopeData
 //     - WeakCell
 //
 // Formats of Object*:
@@ -358,6 +359,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_TYPE)                                                               \
   V(MODULE_INFO_ENTRY_TYPE)                                                    \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                                              \
+  V(PREPARSED_SCOPE_DATA_TYPE)                                                 \
   V(FIXED_ARRAY_TYPE)                                                          \
   V(TRANSITION_ARRAY_TYPE)                                                     \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
@@ -371,7 +373,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PADDING_TYPE_1)                                                            \
   V(PADDING_TYPE_2)                                                            \
   V(PADDING_TYPE_3)                                                            \
-  V(PADDING_TYPE_4)                                                            \
                                                                                \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
@@ -533,7 +534,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
   V(MODULE, Module, module)                                                  \
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
-  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request)
+  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
+  V(PREPARSED_SCOPE_DATA, PreParsedScopeData, preparsed_scope_data)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -702,6 +704,7 @@ enum InstanceType {
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
+  PREPARSED_SCOPE_DATA_TYPE,
   FIXED_ARRAY_TYPE,
   TRANSITION_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -716,7 +719,6 @@ enum InstanceType {
   PADDING_TYPE_1,
   PADDING_TYPE_2,
   PADDING_TYPE_3,
-  PADDING_TYPE_4,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are

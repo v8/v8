@@ -1119,6 +1119,11 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - length = " << length();
   os << "\n - feedback_metadata = ";
   feedback_metadata()->FeedbackMetadataPrint(os);
+  if (HasPreParsedScopeData()) {
+    os << "\n - preparsed scope data = " << preparsed_scope_data();
+  } else {
+    os << "\n - no preparsed scope data";
+  }
   os << "\n";
 }
 
@@ -1539,6 +1544,12 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PreParsedScopeData");
+  os << "\n - scope_data: " << Brief(scope_data());
+  os << "\n - child_data: " << Brief(child_data());
+  os << "\n";
+}
 
 #endif  // OBJECT_PRINT
 

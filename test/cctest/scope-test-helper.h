@@ -28,7 +28,12 @@ class ScopeTestHelper {
                   baseline->AsDeclarationScope()->function_kind() ==
                       scope->AsDeclarationScope()->function_kind());
 
-    if (!PreParsedScopeData::ScopeNeedsData(baseline)) {
+    if (!ProducedPreParsedScopeData::ScopeNeedsData(baseline)) {
+      return;
+    }
+
+    if (scope->is_declaration_scope() &&
+        scope->AsDeclarationScope()->is_skipped_function()) {
       return;
     }
 
@@ -92,6 +97,17 @@ class ScopeTestHelper {
       }
     }
     return scope;
+  }
+
+  static void MarkInnerFunctionsAsSkipped(Scope* scope) {
+    for (Scope* inner = scope->inner_scope(); inner != nullptr;
+         inner = inner->sibling()) {
+      if (inner->scope_type() == ScopeType::FUNCTION_SCOPE &&
+          !inner->AsDeclarationScope()->is_arrow_scope()) {
+        inner->AsDeclarationScope()->set_is_skipped_function(true);
+      }
+      MarkInnerFunctionsAsSkipped(inner);
+    }
   }
 };
 }  // namespace internal

@@ -928,6 +928,7 @@ DEFINE_BOOL(trace_maps, false, "trace map creation")
 // preparser.cc
 DEFINE_BOOL(use_parse_tasks, false, "use parse tasks")
 DEFINE_BOOL(trace_parse_tasks, false, "trace parse task creation")
+DEFINE_NEG_IMPLICATION(use_parse_tasks, experimental_preparser_scope_analysis)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")

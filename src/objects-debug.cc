@@ -739,6 +739,10 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
     CHECK(kind() == scope_info()->function_kind());
     CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
   }
+
+  CHECK(preparsed_scope_data()->IsNull(isolate) ||
+        preparsed_scope_data()->IsPreParsedScopeData());
+  VerifyObjectField(kPreParsedScopeDataOffset);
 }
 
 
@@ -1423,6 +1427,13 @@ void StackFrameInfo::StackFrameInfoVerify() {
   VerifyPointer(script_name_or_source_url());
   VerifyPointer(function_name());
 }
+
+void PreParsedScopeData::PreParsedScopeDataVerify() {
+  CHECK(IsPreParsedScopeData());
+  CHECK(scope_data()->IsByteArray());
+  CHECK(child_data()->IsFixedArray());
+}
+
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

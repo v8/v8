@@ -119,7 +119,9 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
   ScriptData** cached_data() const { return cached_data_; }
   void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
 
-  PreParsedScopeData* preparsed_scope_data() { return &preparsed_scope_data_; }
+  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
+    return &consumed_preparsed_scope_data_;
+  }
 
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
@@ -303,7 +305,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.
-  PreParsedScopeData preparsed_scope_data_;
+  ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;

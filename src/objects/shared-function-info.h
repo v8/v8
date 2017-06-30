@@ -14,6 +14,23 @@
 namespace v8 {
 namespace internal {
 
+class PreParsedScopeData : public Struct {
+ public:
+  DECL_ACCESSORS(scope_data, PodArray<uint32_t>)
+  DECL_ACCESSORS(child_data, FixedArray)
+
+  static const int kScopeDataOffset = Struct::kHeaderSize;
+  static const int kChildDataOffset = kScopeDataOffset + kPointerSize;
+  static const int kSize = kChildDataOffset + kPointerSize;
+
+  DECL_CAST(PreParsedScopeData)
+  DECL_PRINTER(PreParsedScopeData)
+  DECL_VERIFIER(PreParsedScopeData)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PreParsedScopeData);
+};
+
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject {
@@ -45,8 +62,9 @@ class SharedFunctionInfo : public HeapObject {
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
-  V8_EXPORT_PRIVATE static void SetScript(Handle<SharedFunctionInfo> shared,
-                                          Handle<Object> script_object);
+  V8_EXPORT_PRIVATE static void SetScript(
+      Handle<SharedFunctionInfo> shared, Handle<Object> script_object,
+      bool reset_preparsed_scope_data = true);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -186,6 +204,11 @@ class SharedFunctionInfo : public HeapObject {
 
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
+
+  // PreParsedScopeData or null.
+  DECL_ACCESSORS(preparsed_scope_data, Object)
+
+  inline bool HasPreParsedScopeData() const;
 
   // Bit field containing various information collected for debugging.
   // This field is either stored on the kDebugInfo slot or inside the
@@ -436,6 +459,7 @@ class SharedFunctionInfo : public HeapObject {
   V(kDebugInfoOffset, kPointerSize)              \
   V(kFunctionIdentifierOffset, kPointerSize)     \
   V(kFeedbackMetadataOffset, kPointerSize)       \
+  V(kPreParsedScopeDataOffset, kPointerSize)     \
   V(kEndOfPointerFieldsOffset, 0)                \
   /* Raw data fields. */                         \
   V(kFunctionLiteralIdOffset, kInt32Size)        \

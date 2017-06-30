@@ -1008,10 +1008,13 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     CompilationInfo info(&compile_zone, &parse_info, isolate, function);
     if (FLAG_experimental_preparser_scope_analysis) {
       Handle<SharedFunctionInfo> shared(function->shared());
-      Handle<Script> script(Script::cast(function->shared()->script()));
-      if (script->HasPreparsedScopeData()) {
-        parse_info.preparsed_scope_data()->Deserialize(
-            script->preparsed_scope_data());
+      if (shared->HasPreParsedScopeData()) {
+        Handle<PreParsedScopeData> data(
+            PreParsedScopeData::cast(shared->preparsed_scope_data()));
+        parse_info.consumed_preparsed_scope_data()->SetData(data);
+        // After we've compiled the function, we don't need data about its
+        // skippable functions any more.
+        shared->set_preparsed_scope_data(isolate->heap()->null_value());
       }
     }
     ConcurrencyMode inner_function_mode = FLAG_compiler_dispatcher_eager_inner
@@ -1112,11 +1115,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     if (!script.is_null()) {
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-      if (FLAG_experimental_preparser_scope_analysis) {
-        Handle<PodArray<uint32_t>> data =
-            parse_info->preparsed_scope_data()->Serialize(isolate);
-        script->set_preparsed_scope_data(*data);
-      }
     }
   }
 
