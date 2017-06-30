@@ -1767,7 +1767,7 @@ void Heap::Scavenge() {
   // Used for updating survived_since_last_expansion_ at function end.
   size_t survived_watermark = PromotedSpaceSizeOfObjects();
 
-  scavenge_collector_->SelectScavengingVisitorsTable();
+  scavenge_collector_->UpdateConstraints();
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -5732,13 +5732,6 @@ void Heap::DisableInlineAllocation() {
   }
 }
 
-
-V8_DECLARE_ONCE(initialize_gc_once);
-
-static void InitializeGCOnce() {
-  Scavenger::Initialize();
-}
-
 bool Heap::SetUp() {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
@@ -5755,8 +5748,6 @@ bool Heap::SetUp() {
   if (!configured_) {
     if (!ConfigureHeapDefault()) return false;
   }
-
-  base::CallOnce(&initialize_gc_once, &InitializeGCOnce);
 
   // Set up memory allocator.
   memory_allocator_ = new MemoryAllocator(isolate_);

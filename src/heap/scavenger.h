@@ -11,15 +11,13 @@
 namespace v8 {
 namespace internal {
 
-typedef void (*ScavengingCallback)(Map* map, HeapObject** slot,
-                                   HeapObject* object);
-
 class Scavenger {
  public:
-  explicit Scavenger(Heap* heap) : heap_(heap) {}
+  explicit Scavenger(Heap* heap)
+      : heap_(heap), is_logging_(false), is_incremental_marking_(false) {}
 
-  // Initializes static visitor dispatch tables.
-  static void Initialize();
+  V8_INLINE void EvacuateObject(HeapObject** slot, Map* map,
+                                HeapObject* source);
 
   // Callback function passed to Heap::Iterate etc.  Copies an object if
   // necessary, the object might be promoted to an old space.  The caller must
@@ -32,16 +30,43 @@ class Scavenger {
   // Slow part of {ScavengeObject} above.
   static inline void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
-  // Chooses an appropriate static visitor table depending on the current state
-  // of the heap (i.e. incremental marking, logging and profiling).
-  void SelectScavengingVisitorsTable();
+  void UpdateConstraints();
 
   Isolate* isolate();
   Heap* heap() { return heap_; }
 
  private:
+  // White list for objects that for sure only contain data.
+  V8_INLINE static bool ContainsOnlyData(VisitorId visitor_id);
+
+  void RecordCopiedObject(HeapObject* obj);
+
+  V8_INLINE HeapObject* MigrateObject(HeapObject* source, HeapObject* target,
+                                      int size);
+
+  V8_INLINE bool SemiSpaceCopyObject(Map* map, HeapObject** slot,
+                                     HeapObject* object, int object_size);
+
+  V8_INLINE bool PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
+                               int object_size);
+
+  V8_INLINE void EvacuateObjectDefault(Map* map, HeapObject** slot,
+                                       HeapObject* object, int object_size);
+
+  // Special cases.
+
+  V8_INLINE void EvacuateJSFunction(Map* map, HeapObject** slot,
+                                    JSFunction* object, int object_size);
+
+  V8_INLINE void EvacuateThinString(Map* map, HeapObject** slot,
+                                    ThinString* object, int object_size);
+
+  V8_INLINE void EvacuateShortcutCandidate(Map* map, HeapObject** slot,
+                                           ConsString* object, int object_size);
+
   Heap* heap_;
-  VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
+  bool is_logging_;
+  bool is_incremental_marking_;
 };
 
 // Helper class for turning the scavenger into an object visitor that is also
