@@ -863,13 +863,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         }
         break;
       default:
-        if (use->op()->EffectInputCount() == 0 &&
-            uses->op()->EffectInputCount() > 0 &&
-            !IrOpcode::IsJsOpcode(use->opcode())) {
-          V8_Fatal(__FILE__, __LINE__,
-                   "Encountered unaccounted use by #%d (%s)\n", use->id(),
-                   use->op()->mnemonic());
-        }
+        DCHECK(use->op()->EffectInputCount() > 0 ||
+               uses->op()->EffectInputCount() == 0 ||
+               IrOpcode::IsJsOpcode(use->opcode()));
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
