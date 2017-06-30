@@ -290,6 +290,20 @@ Reduction JSTypeHintLowering::ReduceCallOperation(const Operator* op,
   return Reduction();
 }
 
+Reduction JSTypeHintLowering::ReduceConstructOperation(
+    const Operator* op, Node* const* args, int arg_count, Node* effect,
+    Node* control, FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSConstruct, op->opcode());
+  DCHECK(!slot.IsInvalid());
+  CallICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForConstruct)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
 Reduction JSTypeHintLowering::ReduceLoadNamedOperation(
     const Operator* op, Node* obj, Node* effect, Node* control,
     FeedbackSlot slot) const {

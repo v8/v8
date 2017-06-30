@@ -18,6 +18,8 @@ class B extends A {
 
 test = new B(0);
 test = new B(0);
+assertThrowsEquals(() => {new B(1)}, ReferenceError());
+assertThrowsEquals(() => {new B(1)}, ReferenceError());
 %OptimizeFunctionOnNextCall(B);
 test = new B(0);
 assertOptimized(B);

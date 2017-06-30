@@ -1029,18 +1029,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (nexus.IsUninitialized()) {
     if (flags() & kBailoutOnUninitialized) {
       // Introduce a SOFT deopt if the call {node} wasn't executed so far.
-      Node* frame_state = NodeProperties::FindFrameStateBefore(node);
-      Node* deoptimize = graph()->NewNode(
-          common()->Deoptimize(
-              DeoptimizeKind::kSoft,
-              DeoptimizeReason::kInsufficientTypeFeedbackForCall),
-          frame_state, effect, control);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      Revisit(graph()->end());
-      node->TrimInputCount(0);
-      NodeProperties::ChangeOp(node, common()->Dead());
-      return Changed(node);
+      return ReduceSoftDeoptimize(
+          node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
     }
     return NoChange();
   }
@@ -1161,8 +1151,18 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     return NoChange();
   }
 
+  // Extract feedback from the {node} using the CallICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  if (nexus.IsUninitialized()) {
+    if (flags() & kBailoutOnUninitialized) {
+      // Introduce a SOFT deopt if the construct {node} wasn't executed so far.
+      return ReduceSoftDeoptimize(
+          node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
+    }
+    return NoChange();
+  }
+
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // The feedback is an AllocationSite, which means we have called the
@@ -1243,6 +1243,22 @@ Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   ReplaceWithValue(node, receiver);
   return Replace(receiver);
+}
+
+Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
+                                              DeoptimizeReason reason) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kSoft, reason),
+                       frame_state, effect, control);
+  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
+  node->TrimInputCount(0);
+  NodeProperties::ChangeOp(node, common()->Dead());
+  return Changed(node);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

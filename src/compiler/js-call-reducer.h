@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/deoptimize-reason.h"
 
 namespace v8 {
 namespace internal {
@@ -73,6 +74,8 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
+
+  Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

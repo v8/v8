@@ -124,14 +124,11 @@ class BytecodeGraphBuilder {
                              int arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t reg_count);
-  Node* ProcessConstructArguments(const Operator* call_new_op, Node* callee,
-                                  Node* new_target,
-                                  interpreter::Register receiver,
-                                  size_t reg_count);
-  Node* ProcessConstructWithSpreadArguments(const Operator* op, Node* callee,
-                                            Node* new_target,
-                                            interpreter::Register receiver,
-                                            size_t reg_count);
+  Node* const* GetConstructArgumentsFromRegister(
+      Node* target, Node* new_target, interpreter::Register first_arg,
+      int arg_count);
+  Node* ProcessConstructArguments(const Operator* op, Node* const* args,
+                                  int arg_count);
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
                                     interpreter::Register receiver,
                                     size_t reg_count);
@@ -190,6 +187,8 @@ class BytecodeGraphBuilder {
   Node* TryBuildSimplifiedToPrimitiveToString(Node* input, FeedbackSlot slot);
   Node* TryBuildSimplifiedCall(const Operator* op, Node* const* args,
                                int arg_count, FeedbackSlot slot);
+  Node* TryBuildSimplifiedConstruct(const Operator* op, Node* const* args,
+                                    int arg_count, FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadNamed(const Operator* op, Node* receiver,
                                     FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadKeyed(const Operator* op, Node* receiver,
