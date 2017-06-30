@@ -54,6 +54,11 @@ var assertSame;
 // and the properties of non-Array objects).
 var assertEquals;
 
+// Expected and found values are not identical primitive values or functions
+// or similarly structured objects (checking internal properties
+// of, e.g., Number and Date objects, the elements of arrays
+// and the properties of non-Array objects).
+var assertNotEquals;
 
 // The difference between expected and found value is within certain tolerance.
 var assertEqualsDelta;
@@ -342,6 +347,12 @@ var failWithMessage;
   assertEquals = function assertEquals(expected, found, name_opt) {
     if (!deepEquals(found, expected)) {
       fail(PrettyPrint(expected), found, name_opt);
+    }
+  };
+
+  assertNotEquals = function assertNotEquals(expected, found, name_opt) {
+    if (deepEquals(found, expected)) {
+      fail("not equals to " + PrettyPrint(expected), found, name_opt);
     }
   };
 
