@@ -4604,10 +4604,7 @@ void MacroAssembler::Allocate(int object_size,
   Daddu(result_end, result, Operand(object_size));
   Branch(gc_required, Ugreater, result_end, Operand(alloc_limit));
 
-  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
-    // The top pointer is not updated for allocation folding dominators.
-    Sd(result_end, MemOperand(top_address));
-  }
+  Sd(result_end, MemOperand(top_address));
 
   // Tag object.
   Daddu(result, result, Operand(kHeapObjectTag));
@@ -4689,88 +4686,9 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
   }
 
-  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
-    // The top pointer is not updated for allocation folding dominators.
-    Sd(result_end, MemOperand(top_address));
-  }
-
-  // Tag object if.
-  Daddu(result, result, Operand(kHeapObjectTag));
-}
-
-void MacroAssembler::FastAllocate(int object_size, Register result,
-                                  Register scratch1, Register scratch2,
-                                  AllocationFlags flags) {
-  DCHECK(object_size <= kMaxRegularHeapObjectSize);
-  DCHECK(!AreAliased(result, scratch1, scratch2, at));
-
-  // Make object size into bytes.
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    object_size *= kPointerSize;
-  }
-  DCHECK(0 == (object_size & kObjectAlignmentMask));
-
-  ExternalReference allocation_top =
-      AllocationUtils::GetAllocationTopReference(isolate(), flags);
-
-  Register top_address = scratch1;
-  Register result_end = scratch2;
-  li(top_address, Operand(allocation_top));
-  Ld(result, MemOperand(top_address));
-
-  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
-  // the same alignment on MIPS64.
-  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
-
-  if (emit_debug_code()) {
-    And(at, result, Operand(kDoubleAlignmentMask));
-    Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
-  }
-
-  // Calculate new top and write it back.
-  Daddu(result_end, result, Operand(object_size));
   Sd(result_end, MemOperand(top_address));
 
-  Daddu(result, result, Operand(kHeapObjectTag));
-}
-
-void MacroAssembler::FastAllocate(Register object_size, Register result,
-                                  Register result_end, Register scratch,
-                                  AllocationFlags flags) {
-  // |object_size| and |result_end| may overlap, other registers must not.
-  DCHECK(!AreAliased(object_size, result, scratch, at));
-  DCHECK(!AreAliased(result_end, result, scratch, at));
-
-  ExternalReference allocation_top =
-      AllocationUtils::GetAllocationTopReference(isolate(), flags);
-
-  // Set up allocation top address and object size registers.
-  Register top_address = scratch;
-  li(top_address, Operand(allocation_top));
-  Ld(result, MemOperand(top_address));
-
-  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
-  // the same alignment on MIPS64.
-  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
-
-  if (emit_debug_code()) {
-    And(at, result, Operand(kDoubleAlignmentMask));
-    Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
-  }
-
-  // Calculate new top and write it back
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    Dlsa(result_end, result, object_size, kPointerSizeLog2);
-  } else {
-    Daddu(result_end, result, Operand(object_size));
-  }
-
-  // Update allocation top. result temporarily holds the new top.
-  if (emit_debug_code()) {
-    And(at, result_end, Operand(kObjectAlignmentMask));
-    Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
-  }
-
+  // Tag object if.
   Daddu(result, result, Operand(kHeapObjectTag));
 }
 
