@@ -1501,7 +1501,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(proto, "entries", Builtins::kArrayPrototypeEntries, 0,
                           true, kArrayEntries);
     SimpleInstallFunction(proto, factory->iterator_symbol(), "values",
-                          Builtins::kArrayPrototypeValues, 0, false, DONT_ENUM,
+                          Builtins::kArrayPrototypeValues, 0, true, DONT_ENUM,
                           kArrayValues);
     SimpleInstallFunction(proto, "forEach", Builtins::kArrayForEach, 1, false);
     SimpleInstallFunction(proto, "filter", Builtins::kArrayFilter, 1, false);
@@ -2819,20 +2819,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         kTypedArrayLength);
 
     // Install "keys", "values" and "entries" methods on the {prototype}.
-    Handle<JSFunction> entries =
-        SimpleInstallFunction(prototype, factory->entries_string(),
-                              Builtins::kTypedArrayPrototypeEntries, 0, true);
-    entries->shared()->set_builtin_function_id(kTypedArrayEntries);
+    SimpleInstallFunction(prototype, "entries",
+                          Builtins::kTypedArrayPrototypeEntries, 0, true,
+                          kTypedArrayEntries);
 
-    Handle<JSFunction> keys =
-        SimpleInstallFunction(prototype, factory->keys_string(),
-                              Builtins::kTypedArrayPrototypeKeys, 0, true);
-    keys->shared()->set_builtin_function_id(kTypedArrayKeys);
+    SimpleInstallFunction(prototype, "keys", Builtins::kTypedArrayPrototypeKeys,
+                          0, true, kTypedArrayKeys);
 
-    Handle<JSFunction> values =
-        SimpleInstallFunction(prototype, factory->values_string(),
-                              Builtins::kTypedArrayPrototypeValues, 0, true);
-    values->shared()->set_builtin_function_id(kTypedArrayValues);
+    Handle<JSFunction> values = SimpleInstallFunction(
+        prototype, "values", Builtins::kTypedArrayPrototypeValues, 0, true,
+        kTypedArrayValues);
     JSObject::AddProperty(prototype, factory->iterator_symbol(), values,
                           DONT_ENUM);
 
