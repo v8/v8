@@ -1101,19 +1101,9 @@ namespace internal {
   V(ResolveNativePromise)                            \
   V(ResolvePromise)
 
-// The exception thrown in the following builtins are caught
-// internally and should not trigger the catch prediction heuristic.
+// The exception thrown in the following builtins are caught internally and will
+// not be propagated further or re-thrown
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
-
-// The exception thrown in the following builtins are not caught
-// internally and should trigger the catch prediction heuristic.
-#define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) \
-  V(ArrayForEachLoopLazyDeoptContinuation)            \
-  V(MapConstructor)                                   \
-  V(SetConstructor)                                   \
-  V(GeneratorPrototypeNext)                           \
-  V(GeneratorPrototypeReturn)                         \
-  V(GeneratorPrototypeThrow)
 
 #define IGNORE_BUILTIN(...)
 

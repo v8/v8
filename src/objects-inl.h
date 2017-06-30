@@ -3899,23 +3899,9 @@ inline void Code::set_is_exception_caught(bool value) {
 }
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
-  // An exception is uncaught if both is_promise_rejection and
-  // is_exception_caught bits are set.
-  if (is_promise_rejection() && is_exception_caught()) {
-    return HandlerTable::UNCAUGHT;
-  }
-
-  if (is_promise_rejection()) {
-    return HandlerTable::PROMISE;
-  }
-
-  // This the exception throw in PromiseHandle which doesn't
-  // cause a promise rejection.
-  if (is_exception_caught()) {
-    return HandlerTable::CAUGHT;
-  }
-
-  UNREACHABLE();
+  if (is_promise_rejection()) return HandlerTable::PROMISE;
+  if (is_exception_caught()) return HandlerTable::CAUGHT;
+  return HandlerTable::UNCAUGHT;
 }
 
 

@@ -6667,9 +6667,7 @@ TEST(BuiltinsExceptionPrediction) {
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     Code* builtin = builtins->builtin(static_cast<i::Builtins::Name>(i));
 
-    if (i::HandlerTable::cast(builtin->handler_table())->length() == 0)
-      continue;
-
+    if (builtin->kind() != Code::BUILTIN) continue;
     if (whitelist.find(i) != whitelist.end()) continue;
 
     auto prediction = builtin->GetBuiltinCatchPrediction();
