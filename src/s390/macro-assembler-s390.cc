@@ -951,8 +951,13 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   // Drop the execution stack down to the frame pointer and restore
   // the caller frame pointer, return address and constant pool pointer.
   LoadP(r14, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  lay(r1, MemOperand(
-              fp, StandardFrameConstants::kCallerSPOffset + stack_adjustment));
+  if (is_int20(StandardFrameConstants::kCallerSPOffset + stack_adjustment)) {
+    lay(r1, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+                               stack_adjustment));
+  } else {
+    AddP(r1, fp,
+         Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
+  }
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   LoadRR(sp, r1);
   int frame_ends = pc_offset();
