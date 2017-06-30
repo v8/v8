@@ -129,13 +129,15 @@ bool ModuleCompiler::FetchAndExecuteCompilationUnit(
   DisallowHandleDereference no_deref;
   DisallowCodeDependencyChange no_dependency_change;
 
-  std::unique_ptr<compiler::WasmCompilationUnit> unit;
-  {
-    base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
-    if (compilation_units_.empty()) return false;
-    unit = std::move(compilation_units_.back());
-    compilation_units_.pop_back();
+  // - 1 because AtomicIncrement returns the value after the atomic increment.
+  // Bail out fast if there's no work to do.
+  size_t index = next_unit_.Increment(1) - 1;
+  if (index >= compilation_units_.size()) {
+    return false;
   }
+
+  std::unique_ptr<compiler::WasmCompilationUnit> unit =
+      std::move(compilation_units_.at(index));
   unit->ExecuteCompilation();
   {
     base::LockGuard<base::Mutex> guard(&result_mutex_);
@@ -149,23 +151,20 @@ bool ModuleCompiler::FetchAndExecuteCompilationUnit(
   return true;
 }
 
-size_t ModuleCompiler::InitializeCompilationUnits(
+size_t ModuleCompiler::InitializeParallelCompilation(
     const std::vector<WasmFunction>& functions, ModuleBytesEnv& module_env) {
   uint32_t start = module_env.module_env.module->num_imported_functions +
                    FLAG_skip_compiling_wasm_funcs;
   uint32_t num_funcs = static_cast<uint32_t>(functions.size());
   uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
-  CompilationUnitBuilder builder(this);
+  compilation_units_.reserve(funcs_to_compile);
   for (uint32_t i = start; i < num_funcs; ++i) {
     const WasmFunction* func = &functions[i];
-    uint32_t buffer_offset = func->code.offset();
-    Vector<const uint8_t> bytes(
-        module_env.wire_bytes.start() + func->code.offset(),
-        func->code.end_offset() - func->code.offset());
-    WasmName name = module_env.wire_bytes.GetName(func);
-    builder.AddUnit(&module_env.module_env, func, buffer_offset, bytes, name);
+    constexpr bool is_sync = true;
+    compilation_units_.push_back(std::unique_ptr<compiler::WasmCompilationUnit>(
+        new compiler::WasmCompilationUnit(isolate_, &module_env, func,
+                                          centry_stub_, !is_sync)));
   }
-  builder.Commit();
   return funcs_to_compile;
 }
 
@@ -192,7 +191,7 @@ size_t ModuleCompiler::FinishCompilationUnits(
     results[func_index] = result;
     ++finished;
   }
-  if (!compilation_units_.empty()) RestartCompilationTasks();
+  RestartCompilationTasks();
   return finished;
 }
 
@@ -242,14 +241,16 @@ void ModuleCompiler::CompileInParallel(ModuleBytesEnv* module_env,
 
   // 1) The main thread allocates a compilation unit for each wasm function
   //    and stores them in the vector {compilation_units}.
-  InitializeCompilationUnits(module->functions, *module_env);
+  InitializeParallelCompilation(module->functions, *module_env);
+
   executed_units_.EnableThrottling();
 
   // 2) The main thread spawns {CompilationTask} instances which run on
   //    the background threads.
   RestartCompilationTasks();
 
-  while (!compilation_units_.empty()) {
+  size_t finished_functions = 0;
+  while (finished_functions < compilation_units_.size()) {
     // 3.a) The background threads and the main thread pick one compilation
     //      unit at a time and execute the parallel phase of the compilation
     //      unit. After finishing the execution of the parallel phase, the
@@ -262,14 +263,12 @@ void ModuleCompiler::CompileInParallel(ModuleBytesEnv* module_env,
     //      dequeues it and finishes the compilation unit. Compilation units
     //      are finished concurrently to the background threads to save
     //      memory.
-    FinishCompilationUnits(results, thrower);
+    finished_functions += FinishCompilationUnits(results, thrower);
   }
   // 4) After the parallel phase of all compilation units has started, the
   //    main thread waits for all {CompilationTask} instances to finish - which
   //    happens once they all realize there's no next work item to process.
   background_task_manager_.CancelAndWait();
-  // Finish all compilation units which have been executed while we waited.
-  FinishCompilationUnits(results, thrower);
 }
 
 void ModuleCompiler::CompileSequentially(ModuleBytesEnv* module_env,
@@ -2143,8 +2142,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                         ->NumberOfAvailableBackgroundThreads())));
     job_->module_bytes_env_.reset(new ModuleBytesEnv(
         module, job_->temp_instance_.get(), job_->wire_bytes_));
-
-    job_->outstanding_units_ = job_->compiler_->InitializeCompilationUnits(
+    job_->outstanding_units_ = job_->compiler_->InitializeParallelCompilation(
         module->functions, *job_->module_bytes_env_);
 
     job_->DoAsync<ExecuteAndFinishCompilationUnits>(num_background_tasks);

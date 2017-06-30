@@ -39,44 +39,6 @@ class ModuleCompiler {
     void RunInternal() override;
   };
 
-  // The CompilationUnitBuilder builds compilation units and stores them in an
-  // internal buffer. The buffer is moved into the working queue of the
-  // ModuleCompiler when {Commit} is called.
-  class CompilationUnitBuilder {
-   public:
-    explicit CompilationUnitBuilder(ModuleCompiler* compiler)
-        : compiler_(compiler) {}
-
-    ~CompilationUnitBuilder() { DCHECK(units_.empty()); }
-
-    void AddUnit(ModuleEnv* module_env, const WasmFunction* function,
-                 uint32_t buffer_offset, Vector<const uint8_t> bytes,
-                 WasmName name) {
-      constexpr bool is_sync = true;
-      units_.emplace_back(new compiler::WasmCompilationUnit(
-          compiler_->isolate_, module_env,
-          wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                             bytes.end()},
-          name, function->func_index, compiler_->centry_stub_, is_sync));
-    }
-
-    void Commit() {
-      {
-        base::LockGuard<base::Mutex> guard(
-            &compiler_->compilation_units_mutex_);
-        compiler_->compilation_units_.insert(
-            compiler_->compilation_units_.end(),
-            std::make_move_iterator(units_.begin()),
-            std::make_move_iterator(units_.end()));
-      }
-      units_.clear();
-    }
-
-   private:
-    ModuleCompiler* compiler_;
-    std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> units_;
-  };
-
   class CodeGenerationSchedule {
    public:
     explicit CodeGenerationSchedule(
@@ -127,8 +89,8 @@ class ModuleCompiler {
     return executed_units_.ShouldIncreaseWorkload();
   }
 
-  size_t InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
-                                    ModuleBytesEnv& module_env);
+  size_t InitializeParallelCompilation(
+      const std::vector<WasmFunction>& functions, ModuleBytesEnv& module_env);
 
   void ReopenHandlesInDeferredScope();
 
@@ -172,9 +134,9 @@ class ModuleCompiler {
   bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
-  base::Mutex compilation_units_mutex_;
   CodeGenerationSchedule executed_units_;
   base::Mutex result_mutex_;
+  base::AtomicNumber<size_t> next_unit_;
   const size_t num_background_tasks_;
   // This flag should only be set while holding result_mutex_.
   bool finisher_is_running_ = false;
