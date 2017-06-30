@@ -423,7 +423,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           a.Store(AccessBuilder::ForMap(), jsarray_map);
           a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
-          a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), rest_length);
+          a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS),
+                  rest_length);
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {
@@ -541,7 +542,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       a.Store(AccessBuilder::ForMap(), jsarray_map);
       a.Store(AccessBuilder::ForJSObjectProperties(), properties);
       a.Store(AccessBuilder::ForJSObjectElements(), elements);
-      a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS),
+      a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS),
               jsgraph()->Constant(length));
       RelaxControls(node);
       a.FinishAndChange(node);
@@ -578,8 +579,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     DCHECK(js_function->shared()->HasBytecodeArray());
     int size = js_function->shared()->bytecode_array()->register_count();
-    Node* elements = effect = AllocateElements(
-        effect, control, FAST_HOLEY_ELEMENTS, size, NOT_TENURED);
+    Node* elements = effect =
+        AllocateElements(effect, control, HOLEY_ELEMENTS, size, NOT_TENURED);
 
     AllocationBuilder a(jsgraph(), effect, control);
     a.Allocate(initial_map->instance_size());
@@ -967,9 +968,9 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
 
   AllocationBuilder aa(jsgraph(), effect, graph()->start());
   aa.AllocateArray(2, factory()->fixed_array_map());
-  aa.Store(AccessBuilder::ForFixedArrayElement(FAST_ELEMENTS),
+  aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
            jsgraph()->Constant(0), key);
-  aa.Store(AccessBuilder::ForFixedArrayElement(FAST_ELEMENTS),
+  aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
            jsgraph()->Constant(1), value);
   Node* elements = aa.Finish();
 
@@ -978,7 +979,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   a.Store(AccessBuilder::ForMap(), array_map);
   a.Store(AccessBuilder::ForJSObjectProperties(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
-  a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), length);
+  a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS), length);
   STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
   a.FinishAndChange(node);
   return Changed(node);

@@ -2701,7 +2701,7 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
           ChangeInt32ToSmi(__ Int32Add(index, __ Int32Constant(1)));
 
       // Update the "length" property of the {object}.
-      __ StoreField(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), object,
+      __ StoreField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS), object,
                     object_length);
     }
     __ Goto(&done, done_grow.PhiAt(0));

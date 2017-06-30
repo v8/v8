@@ -394,7 +394,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
   uint32_t i = 0;
   if (replacer_function_.is_null()) {
     switch (object->GetElementsKind()) {
-      case FAST_SMI_ELEMENTS: {
+      case PACKED_SMI_ELEMENTS: {
         Handle<FixedArray> elements(FixedArray::cast(object->elements()),
                                     isolate_);
         StackLimitCheck interrupt_check(isolate_);
@@ -410,7 +410,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         }
         break;
       }
-      case FAST_DOUBLE_ELEMENTS: {
+      case PACKED_DOUBLE_ELEMENTS: {
         // Empty array is FixedArray but not FixedDoubleArray.
         if (length == 0) break;
         Handle<FixedDoubleArray> elements(
@@ -428,11 +428,11 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         }
         break;
       }
-      case FAST_ELEMENTS: {
+      case PACKED_ELEMENTS: {
         Handle<Object> old_length(object->length(), isolate_);
         while (i < length) {
           if (object->length() != *old_length ||
-              object->GetElementsKind() != FAST_ELEMENTS) {
+              object->GetElementsKind() != PACKED_ELEMENTS) {
             // Fall back to slow path.
             break;
           }

@@ -35,7 +35,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
   Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
-  ElementsKind kind = FAST_ELEMENTS;
+  ElementsKind kind = PACKED_ELEMENTS;
   int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
   Label if_newspace(this), if_oldspace(this);
   Branch(UintPtrOrSmiLessThan(length, IntPtrOrSmiConstant(max_elements, mode),
@@ -68,7 +68,7 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
 
   Label runtime(this, Label::kDeferred);
   Node* elements = LoadElements(object);
-  elements = TryGrowElementsCapacity(object, elements, FAST_DOUBLE_ELEMENTS,
+  elements = TryGrowElementsCapacity(object, elements, PACKED_DOUBLE_ELEMENTS,
                                      key, &runtime);
   Return(elements);
 
@@ -84,7 +84,7 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   Label runtime(this, Label::kDeferred);
   Node* elements = LoadElements(object);
   elements =
-      TryGrowElementsCapacity(object, elements, FAST_ELEMENTS, key, &runtime);
+      TryGrowElementsCapacity(object, elements, PACKED_ELEMENTS, key, &runtime);
   Return(elements);
 
   BIND(&runtime);
@@ -96,7 +96,7 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
   Node* length = SmiToWord(Parameter(Descriptor::kLength));
 
   // Check if we can allocate in new space.
-  ElementsKind kind = FAST_ELEMENTS;
+  ElementsKind kind = PACKED_ELEMENTS;
   int max_elements = FixedArray::GetMaxLengthForNewSpaceAllocation(kind);
   Label if_newspace(this), if_oldspace(this, Label::kDeferred);
   Branch(IntPtrLessThan(length, IntPtrConstant(max_elements)), &if_newspace,

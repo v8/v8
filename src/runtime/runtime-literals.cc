@@ -143,8 +143,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
   // Deep copy own elements.
   switch (copy->GetElementsKind()) {
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
       if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
 #ifdef DEBUG
@@ -195,10 +195,10 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       UNREACHABLE();
       break;
 
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_SMI_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS:
     case NO_ELEMENTS:
       // No contained objects, nothing to do.
       break;

@@ -2130,8 +2130,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         element_access.type =
             Type::Union(element_type, Type::Hole(), graph()->zone());
       }
-      if (elements_kind == FAST_HOLEY_ELEMENTS ||
-          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+      if (elements_kind == HOLEY_ELEMENTS ||
+          elements_kind == HOLEY_SMI_ELEMENTS) {
         element_access.machine_type = MachineType::AnyTagged();
       }
       // Perform the actual backing store access.
@@ -2140,8 +2140,8 @@ JSNativeContextSpecialization::BuildElementAccess(
                            index, effect, control);
       // Handle loading from holey backing stores correctly, by either mapping
       // the hole to undefined if possible, or deoptimizing otherwise.
-      if (elements_kind == FAST_HOLEY_ELEMENTS ||
-          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+      if (elements_kind == HOLEY_ELEMENTS ||
+          elements_kind == HOLEY_SMI_ELEMENTS) {
         // Check if we are allowed to turn the hole into undefined.
         if (CanTreatHoleAsUndefined(receiver_maps)) {
           // Turn the hole into undefined.
@@ -2152,7 +2152,7 @@ JSNativeContextSpecialization::BuildElementAccess(
           value = effect = graph()->NewNode(simplified()->CheckNotTaggedHole(),
                                             value, effect, control);
         }
-      } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+      } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.
         CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
         // Check if we are allowed to return the hole directly.

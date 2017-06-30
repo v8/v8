@@ -651,19 +651,19 @@ class Map : public HeapObject {
 
   // Derived values from bit field 2
   static const int8_t kMaximumBitField2FastElementValue =
-      static_cast<int8_t>((FAST_ELEMENTS + 1)
+      static_cast<int8_t>((PACKED_ELEMENTS + 1)
                           << Map::ElementsKindBits::kShift) -
       1;
   static const int8_t kMaximumBitField2FastSmiElementValue =
-      static_cast<int8_t>((FAST_SMI_ELEMENTS + 1)
+      static_cast<int8_t>((PACKED_SMI_ELEMENTS + 1)
                           << Map::ElementsKindBits::kShift) -
       1;
   static const int8_t kMaximumBitField2FastHoleyElementValue =
-      static_cast<int8_t>((FAST_HOLEY_ELEMENTS + 1)
+      static_cast<int8_t>((HOLEY_ELEMENTS + 1)
                           << Map::ElementsKindBits::kShift) -
       1;
   static const int8_t kMaximumBitField2FastHoleySmiElementValue =
-      static_cast<int8_t>((FAST_HOLEY_SMI_ELEMENTS + 1)
+      static_cast<int8_t>((HOLEY_SMI_ELEMENTS + 1)
                           << Map::ElementsKindBits::kShift) -
       1;
 

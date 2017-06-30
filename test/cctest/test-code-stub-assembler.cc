@@ -1246,10 +1246,10 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSArray> object = factory->NewJSArray(0, FAST_SMI_ELEMENTS);
+    Handle<JSArray> object = factory->NewJSArray(0, PACKED_SMI_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 1, smi0);
-    CHECK_EQ(FAST_SMI_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(PACKED_SMI_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1259,10 +1259,10 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSArray> object = factory->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
+    Handle<JSArray> object = factory->NewJSArray(0, HOLEY_SMI_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 13, smi0);
-    CHECK_EQ(FAST_HOLEY_SMI_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(HOLEY_SMI_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_NOT_FOUND(object, 1);
@@ -1272,10 +1272,10 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSArray> object = factory->NewJSArray(0, FAST_ELEMENTS);
+    Handle<JSArray> object = factory->NewJSArray(0, PACKED_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 1, smi0);
-    CHECK_EQ(FAST_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(PACKED_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1285,10 +1285,10 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSArray> object = factory->NewJSArray(0, FAST_HOLEY_ELEMENTS);
+    Handle<JSArray> object = factory->NewJSArray(0, HOLEY_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 13, smi0);
-    CHECK_EQ(FAST_HOLEY_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_NOT_FOUND(object, 1);
@@ -1854,63 +1854,63 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
 TEST(BuildAppendJSArrayFastElement) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4), Smi::FromInt(5),
-      Smi::FromInt(6), 6, 6);
+      isolate, PACKED_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      Smi::FromInt(5), Smi::FromInt(6), 6, 6);
 }
 
 TEST(BuildAppendJSArrayFastElementGrow) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4), Smi::FromInt(5),
-      Smi::FromInt(6), 2, 6);
+      isolate, PACKED_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      Smi::FromInt(5), Smi::FromInt(6), 2, 6);
 }
 
 TEST(BuildAppendJSArrayFastSmiElement) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       Smi::FromInt(5), Smi::FromInt(6), 6, 6);
 }
 
 TEST(BuildAppendJSArrayFastSmiElementGrow) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       Smi::FromInt(5), Smi::FromInt(6), 2, 6);
 }
 
 TEST(BuildAppendJSArrayFastSmiElementObject) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
 }
 
 TEST(BuildAppendJSArrayFastSmiElementObjectGrow) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       isolate->heap()->undefined_value(), Smi::FromInt(6), 2, 4);
 }
 
 TEST(BuildAppendJSArrayFastDoubleElements) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       Smi::FromInt(5), Smi::FromInt(6), 6, 6);
 }
 
 TEST(BuildAppendJSArrayFastDoubleElementsGrow) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       Smi::FromInt(5), Smi::FromInt(6), 2, 6);
 }
 
 TEST(BuildAppendJSArrayFastDoubleElementsObject) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
-      isolate, FAST_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate, PACKED_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
       isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
 }
 
@@ -2008,10 +2008,11 @@ TEST(AllocatePromiseReactionJobInfo) {
   PromiseBuiltinsAssembler p(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
+  Node* const tasks =
+      m.AllocateFixedArray(PACKED_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred_promise =
-      m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
+      m.AllocateFixedArray(PACKED_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(deferred_promise, 0, m.UndefinedConstant());
   Node* const info = m.AllocatePromiseReactionJobInfo(
       m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
@@ -2188,7 +2189,7 @@ TEST(CreatePromiseResolvingFunctions) {
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
   Node* const kSize = m.IntPtrConstant(2);
-  Node* const arr = m.AllocateFixedArray(FAST_ELEMENTS, kSize);
+  Node* const arr = m.AllocateFixedArray(PACKED_ELEMENTS, kSize);
   m.StoreFixedArrayElement(arr, 0, resolve);
   m.StoreFixedArrayElement(arr, 1, reject);
   m.Return(arr);

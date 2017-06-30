@@ -157,15 +157,15 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     Node* array = nullptr;
     Node* elements = nullptr;
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(FAST_ELEMENTS, native_context);
+    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     Node* array_length = SmiTag(object_enum_length);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        FAST_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
+        PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
     StoreMapNoWriteBarrier(elements, Heap::kFixedArrayMapRootIndex);
     StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
                                    array_length);
-    CopyFixedArrayElements(FAST_ELEMENTS, object_enum_cache, elements,
+    CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_cache, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
   }
@@ -191,9 +191,9 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   {
     // Wrap the elements into a proper JSArray and return that.
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(FAST_ELEMENTS, native_context);
+    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     Node* array = AllocateUninitializedJSArrayWithoutElements(
-        FAST_ELEMENTS, array_map, var_length.value(), nullptr);
+        PACKED_ELEMENTS, array_map, var_length.value(), nullptr);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
                                    var_elements.value());
     Return(array);
@@ -578,8 +578,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
   Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
-  Node* register_file = AllocateFixedArray(FAST_HOLEY_ELEMENTS, size);
-  FillFixedArrayWithValue(FAST_HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
+  Node* register_file = AllocateFixedArray(HOLEY_ELEMENTS, size);
+  FillFixedArrayWithValue(HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
                           size, Heap::kUndefinedValueRootIndex);
 
   Node* const result = AllocateJSObjectFromMap(maybe_map);

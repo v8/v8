@@ -132,9 +132,9 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
       Object* arg = (*args)[i];
       if (arg->IsHeapObject()) {
         if (arg->IsHeapNumber()) {
-          target_kind = FAST_DOUBLE_ELEMENTS;
+          target_kind = PACKED_DOUBLE_ELEMENTS;
         } else {
-          target_kind = FAST_ELEMENTS;
+          target_kind = PACKED_ELEMENTS;
           break;
         }
       }
@@ -497,7 +497,7 @@ class ArrayConcatVisitor {
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map = JSObject::GetElementsTransitionMap(
-        array, fast_elements() ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
+        array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_length(*length);
     array->set_elements(*storage_fixed_array());
     array->synchronized_set_map(*map);
@@ -582,10 +582,10 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_SMI_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
       DCHECK(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
@@ -597,8 +597,8 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
       DCHECK(static_cast<int32_t>(FixedDoubleArray::kMaxLength) >= 0);
@@ -657,10 +657,10 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
   Isolate* isolate = object->GetIsolate();
   ElementsKind kind = object->GetElementsKind();
   switch (kind) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       FixedArray* elements = FixedArray::cast(object->elements());
       uint32_t length = static_cast<uint32_t>(elements->length());
@@ -672,8 +672,8 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       }
       break;
     }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
       if (object->elements()->IsFixedArray()) {
         DCHECK(object->elements()->length() == 0);
         break;
@@ -822,10 +822,10 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
   Handle<JSObject> array = Handle<JSObject>::cast(receiver);
 
   switch (array->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(array->elements()));
@@ -850,8 +850,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       });
       break;
     }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
       // Empty array is FixedArray but not FixedDoubleArray.
       if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
@@ -963,7 +963,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   // that mutate other arguments (but will otherwise be precise).
   // The number of elements is precise if there are no inherited elements.
 
-  ElementsKind kind = FAST_SMI_ELEMENTS;
+  ElementsKind kind = PACKED_SMI_ELEMENTS;
 
   uint32_t estimate_result_length = 0;
   uint32_t estimate_nof = 0;
@@ -983,7 +983,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     } else {
       if (obj->IsHeapObject()) {
         kind = GetMoreGeneralElementsKind(
-            kind, obj->IsNumber() ? FAST_DOUBLE_ELEMENTS : FAST_ELEMENTS);
+            kind, obj->IsNumber() ? PACKED_DOUBLE_ELEMENTS : PACKED_ELEMENTS);
       }
       length_estimate = 1;
       element_estimate = 1;
@@ -1008,7 +1008,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
                    (estimate_nof * 2) >= estimate_result_length &&
                    isolate->IsIsConcatSpreadableLookupChainIntact();
 
-  if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
+  if (fast_case && kind == PACKED_DOUBLE_ELEMENTS) {
     Handle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
     int j = 0;
@@ -1029,8 +1029,8 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
           JSArray* array = JSArray::cast(*obj);
           uint32_t length = static_cast<uint32_t>(array->length()->Number());
           switch (array->GetElementsKind()) {
-            case FAST_HOLEY_DOUBLE_ELEMENTS:
-            case FAST_DOUBLE_ELEMENTS: {
+            case HOLEY_DOUBLE_ELEMENTS:
+            case PACKED_DOUBLE_ELEMENTS: {
               // Empty array is FixedArray but not FixedDoubleArray.
               if (length == 0) break;
               FixedDoubleArray* elements =
@@ -1051,8 +1051,8 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
               }
               break;
             }
-            case FAST_HOLEY_SMI_ELEMENTS:
-            case FAST_SMI_ELEMENTS: {
+            case HOLEY_SMI_ELEMENTS:
+            case PACKED_SMI_ELEMENTS: {
               Object* the_hole = isolate->heap()->the_hole_value();
               FixedArray* elements(FixedArray::cast(array->elements()));
               for (uint32_t i = 0; i < length; i++) {
@@ -1067,8 +1067,8 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
               }
               break;
             }
-            case FAST_HOLEY_ELEMENTS:
-            case FAST_ELEMENTS:
+            case HOLEY_ELEMENTS:
+            case PACKED_ELEMENTS:
             case DICTIONARY_ELEMENTS:
             case NO_ELEMENTS:
               DCHECK_EQ(0u, length);

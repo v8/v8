@@ -63,13 +63,13 @@ enum Where { AT_START, AT_END };
 // identical.  Note that the order must match that of the ElementsKind enum for
 // the |accessor_array[]| below to work.
 #define ELEMENTS_LIST(V)                                                      \
-  V(FastPackedSmiElementsAccessor, FAST_SMI_ELEMENTS, FixedArray)             \
-  V(FastHoleySmiElementsAccessor, FAST_HOLEY_SMI_ELEMENTS, FixedArray)        \
-  V(FastPackedObjectElementsAccessor, FAST_ELEMENTS, FixedArray)              \
-  V(FastHoleyObjectElementsAccessor, FAST_HOLEY_ELEMENTS, FixedArray)         \
-  V(FastPackedDoubleElementsAccessor, FAST_DOUBLE_ELEMENTS, FixedDoubleArray) \
-  V(FastHoleyDoubleElementsAccessor, FAST_HOLEY_DOUBLE_ELEMENTS,              \
+  V(FastPackedSmiElementsAccessor, PACKED_SMI_ELEMENTS, FixedArray)           \
+  V(FastHoleySmiElementsAccessor, HOLEY_SMI_ELEMENTS, FixedArray)             \
+  V(FastPackedObjectElementsAccessor, PACKED_ELEMENTS, FixedArray)            \
+  V(FastHoleyObjectElementsAccessor, HOLEY_ELEMENTS, FixedArray)              \
+  V(FastPackedDoubleElementsAccessor, PACKED_DOUBLE_ELEMENTS,                 \
     FixedDoubleArray)                                                         \
+  V(FastHoleyDoubleElementsAccessor, HOLEY_DOUBLE_ELEMENTS, FixedDoubleArray) \
   V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, SeededNumberDictionary)  \
   V(FastSloppyArgumentsElementsAccessor, FAST_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
@@ -1192,8 +1192,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
 
     // Copy over the passed-in property keys.
-    CopyObjectToObjectElements(*keys, FAST_ELEMENTS, 0, *combined_keys,
-                               FAST_ELEMENTS, nof_indices, nof_property_keys);
+    CopyObjectToObjectElements(*keys, PACKED_ELEMENTS, 0, *combined_keys,
+                               PACKED_ELEMENTS, nof_indices, nof_property_keys);
 
     // For holey elements and arguments we might have to shrink the collected
     // keys since the estimates might be off.
@@ -2037,8 +2037,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                (IsFastHoleyElementsKind(KindTraits::Kind) &&
                 backing_store->is_the_hole(isolate, i)));
       }
-    } else if (KindTraits::Kind == FAST_ELEMENTS ||
-               KindTraits::Kind == FAST_DOUBLE_ELEMENTS) {
+    } else if (KindTraits::Kind == PACKED_ELEMENTS ||
+               KindTraits::Kind == PACKED_DOUBLE_ELEMENTS) {
       for (int i = 0; i < length; i++) {
         DCHECK(!backing_store->is_the_hole(isolate, i));
       }
@@ -2212,15 +2212,15 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     if (!value->IsNumber()) {
       if (value == undefined) {
-        // Only FAST_ELEMENTS, FAST_HOLEY_ELEMENTS, FAST_HOLEY_SMI_ELEMENTS, and
-        // FAST_HOLEY_DOUBLE_ELEMENTS can have `undefined` as a value.
+        // Only PACKED_ELEMENTS, HOLEY_ELEMENTS, HOLEY_SMI_ELEMENTS, and
+        // HOLEY_DOUBLE_ELEMENTS can have `undefined` as a value.
         if (!IsFastObjectElementsKind(Subclass::kind()) &&
             !IsFastHoleyElementsKind(Subclass::kind())) {
           return Just(false);
         }
 
-        // Search for `undefined` or The Hole in FAST_ELEMENTS,
-        // FAST_HOLEY_ELEMENTS or FAST_HOLEY_SMI_ELEMENTS
+        // Search for `undefined` or The Hole in PACKED_ELEMENTS,
+        // HOLEY_ELEMENTS or HOLEY_SMI_ELEMENTS
         if (IsFastSmiOrObjectElementsKind(Subclass::kind())) {
           auto elements = FixedArray::cast(receiver->elements());
 
@@ -2238,8 +2238,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           }
           return Just(false);
         } else {
-          // Seach for The Hole in FAST_HOLEY_DOUBLE_ELEMENTS
-          DCHECK_EQ(Subclass::kind(), FAST_HOLEY_DOUBLE_ELEMENTS);
+          // Seach for The Hole in HOLEY_DOUBLE_ELEMENTS
+          DCHECK_EQ(Subclass::kind(), HOLEY_DOUBLE_ELEMENTS);
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
@@ -2252,13 +2252,13 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         }
       } else if (!IsFastObjectElementsKind(Subclass::kind())) {
         // Search for non-number, non-Undefined value, with either
-        // FAST_SMI_ELEMENTS, FAST_DOUBLE_ELEMENTS, FAST_HOLEY_SMI_ELEMENTS or
-        // FAST_HOLEY_DOUBLE_ELEMENTS. Guaranteed to return false, since these
+        // PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS, HOLEY_SMI_ELEMENTS or
+        // HOLEY_DOUBLE_ELEMENTS. Guaranteed to return false, since these
         // elements kinds can only contain Number values or undefined.
         return Just(false);
       } else {
         // Search for non-number, non-Undefined value with either
-        // FAST_ELEMENTS or FAST_HOLEY_ELEMENTS.
+        // PACKED_ELEMENTS or HOLEY_ELEMENTS.
         DCHECK(IsFastObjectElementsKind(Subclass::kind()));
         auto elements = FixedArray::cast(receiver->elements());
 
@@ -2277,8 +2277,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       if (!value->IsNaN()) {
         double search_value = value->Number();
         if (IsFastDoubleElementsKind(Subclass::kind())) {
-          // Search for non-NaN Number in FAST_DOUBLE_ELEMENTS or
-          // FAST_HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
+          // Search for non-NaN Number in PACKED_DOUBLE_ELEMENTS or
+          // HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
           // similar operation for result.
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
@@ -2291,8 +2291,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           }
           return Just(false);
         } else {
-          // Search for non-NaN Number in FAST_ELEMENTS, FAST_HOLEY_ELEMENTS,
-          // FAST_SMI_ELEMENTS or FAST_HOLEY_SMI_ELEMENTS --- Skip non-Numbers,
+          // Search for non-NaN Number in PACKED_ELEMENTS, HOLEY_ELEMENTS,
+          // PACKED_SMI_ELEMENTS or HOLEY_SMI_ELEMENTS --- Skip non-Numbers,
           // and trust UCOMISD or similar operation for result
           auto elements = FixedArray::cast(receiver->elements());
 
@@ -2306,12 +2306,12 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         }
       } else {
         // Search for NaN --- NaN cannot be represented with Smi elements, so
-        // abort if ElementsKind is FAST_SMI_ELEMENTS or FAST_HOLEY_SMI_ELEMENTS
+        // abort if ElementsKind is PACKED_SMI_ELEMENTS or HOLEY_SMI_ELEMENTS
         if (IsFastSmiElementsKind(Subclass::kind())) return Just(false);
 
         if (IsFastDoubleElementsKind(Subclass::kind())) {
-          // Search for NaN in FAST_DOUBLE_ELEMENTS or
-          // FAST_HOLEY_DOUBLE_ELEMENTS --- Skip The Hole and trust
+          // Search for NaN in PACKED_DOUBLE_ELEMENTS or
+          // HOLEY_DOUBLE_ELEMENTS --- Skip The Hole and trust
           // std::isnan(elementK) for result
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
@@ -2324,8 +2324,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           }
           return Just(false);
         } else {
-          // Search for NaN in FAST_ELEMENTS, FAST_HOLEY_ELEMENTS,
-          // FAST_SMI_ELEMENTS or FAST_HOLEY_SMI_ELEMENTS. Return true if
+          // Search for NaN in PACKED_ELEMENTS, HOLEY_ELEMENTS,
+          // PACKED_SMI_ELEMENTS or HOLEY_SMI_ELEMENTS. Return true if
           // elementK->IsHeapNumber() && std::isnan(elementK->Number())
           DCHECK(IsFastSmiOrObjectElementsKind(Subclass::kind()));
           auto elements = FixedArray::cast(receiver->elements());
@@ -2520,15 +2520,15 @@ class FastSmiOrObjectElementsAccessor
     DisallowHeapAllocation no_gc;
     ElementsKind to_kind = KindTraits::Kind;
     switch (from_kind) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
+      case PACKED_SMI_ELEMENTS:
+      case HOLEY_SMI_ELEMENTS:
+      case PACKED_ELEMENTS:
+      case HOLEY_ELEMENTS:
         CopyObjectToObjectElements(from, from_kind, from_start, to, to_kind,
                                    to_start, copy_size);
         break;
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS: {
+      case PACKED_DOUBLE_ELEMENTS:
+      case HOLEY_DOUBLE_ELEMENTS: {
         AllowHeapAllocation allow_allocation;
         DCHECK(IsFastObjectElementsKind(to_kind));
         CopyDoubleToObjectElements(from, from_start, to, to_start, copy_size);
@@ -2582,52 +2582,47 @@ class FastSmiOrObjectElementsAccessor
   }
 };
 
-
 class FastPackedSmiElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
-        FastPackedSmiElementsAccessor,
-        ElementsKindTraits<FAST_SMI_ELEMENTS> > {
+          FastPackedSmiElementsAccessor,
+          ElementsKindTraits<PACKED_SMI_ELEMENTS>> {
  public:
   explicit FastPackedSmiElementsAccessor(const char* name)
       : FastSmiOrObjectElementsAccessor<
-          FastPackedSmiElementsAccessor,
-          ElementsKindTraits<FAST_SMI_ELEMENTS> >(name) {}
+            FastPackedSmiElementsAccessor,
+            ElementsKindTraits<PACKED_SMI_ELEMENTS>>(name) {}
 };
-
 
 class FastHoleySmiElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
-        FastHoleySmiElementsAccessor,
-        ElementsKindTraits<FAST_HOLEY_SMI_ELEMENTS> > {
+          FastHoleySmiElementsAccessor,
+          ElementsKindTraits<HOLEY_SMI_ELEMENTS>> {
  public:
   explicit FastHoleySmiElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<
-          FastHoleySmiElementsAccessor,
-          ElementsKindTraits<FAST_HOLEY_SMI_ELEMENTS> >(name) {}
+      : FastSmiOrObjectElementsAccessor<FastHoleySmiElementsAccessor,
+                                        ElementsKindTraits<HOLEY_SMI_ELEMENTS>>(
+            name) {}
 };
-
 
 class FastPackedObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
-        FastPackedObjectElementsAccessor,
-        ElementsKindTraits<FAST_ELEMENTS> > {
+          FastPackedObjectElementsAccessor,
+          ElementsKindTraits<PACKED_ELEMENTS>> {
  public:
   explicit FastPackedObjectElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<
-          FastPackedObjectElementsAccessor,
-          ElementsKindTraits<FAST_ELEMENTS> >(name) {}
+      : FastSmiOrObjectElementsAccessor<FastPackedObjectElementsAccessor,
+                                        ElementsKindTraits<PACKED_ELEMENTS>>(
+            name) {}
 };
-
 
 class FastHoleyObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
-        FastHoleyObjectElementsAccessor,
-        ElementsKindTraits<FAST_HOLEY_ELEMENTS> > {
+          FastHoleyObjectElementsAccessor, ElementsKindTraits<HOLEY_ELEMENTS>> {
  public:
   explicit FastHoleyObjectElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<
-          FastHoleyObjectElementsAccessor,
-          ElementsKindTraits<FAST_HOLEY_ELEMENTS> >(name) {}
+      : FastSmiOrObjectElementsAccessor<FastHoleyObjectElementsAccessor,
+                                        ElementsKindTraits<HOLEY_ELEMENTS>>(
+            name) {}
 };
 
 template <typename Subclass, typename KindTraits>
@@ -2664,19 +2659,19 @@ class FastDoubleElementsAccessor
                                int copy_size) {
     DisallowHeapAllocation no_allocation;
     switch (from_kind) {
-      case FAST_SMI_ELEMENTS:
+      case PACKED_SMI_ELEMENTS:
         CopyPackedSmiToDoubleElements(from, from_start, to, to_start,
                                       packed_size, copy_size);
         break;
-      case FAST_HOLEY_SMI_ELEMENTS:
+      case HOLEY_SMI_ELEMENTS:
         CopySmiToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case PACKED_DOUBLE_ELEMENTS:
+      case HOLEY_DOUBLE_ELEMENTS:
         CopyDoubleToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
+      case PACKED_ELEMENTS:
+      case HOLEY_ELEMENTS:
         CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
       case DICTIONARY_ELEMENTS:
@@ -2732,28 +2727,26 @@ class FastDoubleElementsAccessor
   }
 };
 
-
 class FastPackedDoubleElementsAccessor
     : public FastDoubleElementsAccessor<
-        FastPackedDoubleElementsAccessor,
-        ElementsKindTraits<FAST_DOUBLE_ELEMENTS> > {
+          FastPackedDoubleElementsAccessor,
+          ElementsKindTraits<PACKED_DOUBLE_ELEMENTS>> {
  public:
   explicit FastPackedDoubleElementsAccessor(const char* name)
-      : FastDoubleElementsAccessor<
-          FastPackedDoubleElementsAccessor,
-          ElementsKindTraits<FAST_DOUBLE_ELEMENTS> >(name) {}
+      : FastDoubleElementsAccessor<FastPackedDoubleElementsAccessor,
+                                   ElementsKindTraits<PACKED_DOUBLE_ELEMENTS>>(
+            name) {}
 };
-
 
 class FastHoleyDoubleElementsAccessor
     : public FastDoubleElementsAccessor<
-        FastHoleyDoubleElementsAccessor,
-        ElementsKindTraits<FAST_HOLEY_DOUBLE_ELEMENTS> > {
+          FastHoleyDoubleElementsAccessor,
+          ElementsKindTraits<HOLEY_DOUBLE_ELEMENTS>> {
  public:
   explicit FastHoleyDoubleElementsAccessor(const char* name)
-      : FastDoubleElementsAccessor<
-          FastHoleyDoubleElementsAccessor,
-          ElementsKindTraits<FAST_HOLEY_DOUBLE_ELEMENTS> >(name) {}
+      : FastDoubleElementsAccessor<FastHoleyDoubleElementsAccessor,
+                                   ElementsKindTraits<HOLEY_DOUBLE_ELEMENTS>>(
+            name) {}
 };
 
 
@@ -3228,7 +3221,7 @@ class TypedElementsAccessor
     Object* undefined = isolate->heap()->undefined_value();
 
     // Fastpath for packed Smi kind.
-    if (kind == FAST_SMI_ELEMENTS) {
+    if (kind == PACKED_SMI_ELEMENTS) {
       FixedArray* source_store = FixedArray::cast(source->elements());
 
       for (uint32_t i = 0; i < length; i++) {
@@ -3238,7 +3231,7 @@ class TypedElementsAccessor
         dest->set(i, dest->from(int_value));
       }
       return true;
-    } else if (kind == FAST_HOLEY_SMI_ELEMENTS) {
+    } else if (kind == HOLEY_SMI_ELEMENTS) {
       FixedArray* source_store = FixedArray::cast(source->elements());
       for (uint32_t i = 0; i < length; i++) {
         if (source_store->is_the_hole(isolate, i)) {
@@ -3251,7 +3244,7 @@ class TypedElementsAccessor
         }
       }
       return true;
-    } else if (kind == FAST_DOUBLE_ELEMENTS) {
+    } else if (kind == PACKED_DOUBLE_ELEMENTS) {
       // Fastpath for packed double kind. We avoid boxing and then immediately
       // unboxing the double here by using get_scalar.
       FixedDoubleArray* source_store =
@@ -3264,7 +3257,7 @@ class TypedElementsAccessor
         dest->set(i, dest->from(elem));
       }
       return true;
-    } else if (kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+    } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
       FixedDoubleArray* source_store =
           FixedDoubleArray::cast(source->elements());
       for (uint32_t i = 0; i < length; i++) {
@@ -3809,8 +3802,8 @@ class FastSloppyArgumentsElementsAccessor
                                     uint32_t end) {
     Isolate* isolate = receiver->GetIsolate();
     uint32_t result_len = end < start ? 0u : end - start;
-    Handle<JSArray> result_array = isolate->factory()->NewJSArray(
-        FAST_HOLEY_ELEMENTS, result_len, result_len);
+    Handle<JSArray> result_array =
+        isolate->factory()->NewJSArray(HOLEY_ELEMENTS, result_len, result_len);
     DisallowHeapAllocation no_gc;
     FixedArray* elements = FixedArray::cast(result_array->elements());
     FixedArray* parameters = FixedArray::cast(receiver->elements());
@@ -3898,12 +3891,12 @@ class FastSloppyArgumentsElementsAccessor
                                int copy_size) {
     DCHECK(!to->IsDictionary());
     if (from_kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS) {
-      CopyDictionaryToObjectElements(from, from_start, to, FAST_HOLEY_ELEMENTS,
+      CopyDictionaryToObjectElements(from, from_start, to, HOLEY_ELEMENTS,
                                      to_start, copy_size);
     } else {
       DCHECK_EQ(FAST_SLOPPY_ARGUMENTS_ELEMENTS, from_kind);
-      CopyObjectToObjectElements(from, FAST_HOLEY_ELEMENTS, from_start, to,
-                                 FAST_HOLEY_ELEMENTS, to_start, copy_size);
+      CopyObjectToObjectElements(from, HOLEY_ELEMENTS, from_start, to,
+                                 HOLEY_ELEMENTS, to_start, copy_size);
     }
   }
 
@@ -4074,12 +4067,12 @@ class StringWrapperElementsAccessor
                                int copy_size) {
     DCHECK(!to->IsDictionary());
     if (from_kind == SLOW_STRING_WRAPPER_ELEMENTS) {
-      CopyDictionaryToObjectElements(from, from_start, to, FAST_HOLEY_ELEMENTS,
+      CopyDictionaryToObjectElements(from, from_start, to, HOLEY_ELEMENTS,
                                      to_start, copy_size);
     } else {
       DCHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, from_kind);
-      CopyObjectToObjectElements(from, FAST_HOLEY_ELEMENTS, from_start, to,
-                                 FAST_HOLEY_ELEMENTS, to_start, copy_size);
+      CopyObjectToObjectElements(from, HOLEY_ELEMENTS, from_start, to,
+                                 HOLEY_ELEMENTS, to_start, copy_size);
     }
   }
 
@@ -4226,16 +4219,16 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
 
   // Fill in the content
   switch (elements_kind) {
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_SMI_ELEMENTS: {
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_SMI_ELEMENTS: {
       Handle<FixedArray> smi_elms = Handle<FixedArray>::cast(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {
         smi_elms->set(entry, (*args)[entry], SKIP_WRITE_BARRIER);
       }
       break;
     }
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case HOLEY_ELEMENTS:
+    case PACKED_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
       Handle<FixedArray> object_elms = Handle<FixedArray>::cast(elms);
@@ -4244,8 +4237,8 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
       }
       break;
     }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> double_elms =
           Handle<FixedDoubleArray>::cast(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {

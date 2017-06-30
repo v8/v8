@@ -1696,14 +1696,14 @@ static void TestReconfigureElementsKind_GeneralizeField(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
 
-  Expectations expectations(isolate, FAST_SMI_ELEMENTS);
+  Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
-  initial_map->set_elements_kind(FAST_SMI_ELEMENTS);
+  initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;
-  map = expectations.AsElementsKind(map, FAST_ELEMENTS);
+  map = expectations.AsElementsKind(map, PACKED_ELEMENTS);
   for (int i = 0; i < kPropCount; i++) {
     map = expectations.AddDataField(map, NONE, from.constness,
                                     from.representation, from.type);
@@ -1715,7 +1715,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
   // Create another branch in transition tree (property at index |kDiffProp|
   // has different representatio/field type), initialize expectations.
   const int kDiffProp = kPropCount / 2;
-  Expectations expectations2(isolate, FAST_SMI_ELEMENTS);
+  Expectations expectations2(isolate, PACKED_SMI_ELEMENTS);
 
   Handle<Map> map2 = initial_map;
   for (int i = 0; i < kPropCount; i++) {
@@ -1739,7 +1739,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
-  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, FAST_ELEMENTS);
+  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, PACKED_ELEMENTS);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1790,14 +1790,14 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
     bool expected_field_type_dependency = true) {
   Isolate* isolate = CcTest::i_isolate();
 
-  Expectations expectations(isolate, FAST_SMI_ELEMENTS);
+  Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
-  initial_map->set_elements_kind(FAST_SMI_ELEMENTS);
+  initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;
-  map = expectations.AsElementsKind(map, FAST_ELEMENTS);
+  map = expectations.AsElementsKind(map, PACKED_ELEMENTS);
   for (int i = 0; i < kPropCount; i++) {
     map = expectations.AddDataField(map, NONE, from.constness,
                                     from.representation, from.type);
@@ -1809,7 +1809,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   // Create another branch in transition tree (property at index |kDiffProp|
   // has different attributes), initialize expectations.
   const int kDiffProp = kPropCount / 2;
-  Expectations expectations2(isolate, FAST_SMI_ELEMENTS);
+  Expectations expectations2(isolate, PACKED_SMI_ELEMENTS);
 
   Handle<Map> map2 = initial_map;
   for (int i = 0; i < kPropCount; i++) {
@@ -1833,7 +1833,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
-  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, FAST_ELEMENTS);
+  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, PACKED_ELEMENTS);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());

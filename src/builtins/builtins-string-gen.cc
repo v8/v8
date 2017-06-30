@@ -1420,7 +1420,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     Label next(this);
     GotoIfNot(SmiEqual(limit_number, smi_zero), &next);
 
-    const ElementsKind kind = FAST_ELEMENTS;
+    const ElementsKind kind = PACKED_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
     Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
 
@@ -1439,7 +1439,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     Label next(this);
     GotoIfNot(IsUndefined(separator), &next);
 
-    const ElementsKind kind = FAST_ELEMENTS;
+    const ElementsKind kind = PACKED_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
     Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
 

@@ -2058,13 +2058,13 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ bind(&create_array);
     __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
     __ DecodeField<Map::ElementsKindBits>(ecx);
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(FAST_ELEMENTS == 2);
-    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    __ cmp(ecx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+    STATIC_ASSERT(PACKED_ELEMENTS == 2);
+    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+    __ cmp(ecx, Immediate(HOLEY_SMI_ELEMENTS));
     __ j(equal, &create_holey_array, Label::kNear);
-    __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ cmp(ecx, Immediate(HOLEY_ELEMENTS));
     __ j(equal, &create_holey_array, Label::kNear);
     __ j(above, &create_runtime);
     __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
@@ -2665,12 +2665,12 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   Label no_protector_check;
   __ mov(scratch, FieldOperand(spread_map, Map::kBitField2Offset));
   __ DecodeField<Map::ElementsKindBits>(scratch);
-  __ cmp(scratch, Immediate(FAST_HOLEY_ELEMENTS));
+  __ cmp(scratch, Immediate(HOLEY_ELEMENTS));
   __ j(above, &runtime_call);
   // For non-FastHoley kinds, we can skip the protector check.
-  __ cmp(scratch, Immediate(FAST_SMI_ELEMENTS));
+  __ cmp(scratch, Immediate(PACKED_SMI_ELEMENTS));
   __ j(equal, &no_protector_check);
-  __ cmp(scratch, Immediate(FAST_ELEMENTS));
+  __ cmp(scratch, Immediate(PACKED_ELEMENTS));
   __ j(equal, &no_protector_check);
   // Check the ArrayProtector cell.
   __ LoadRoot(scratch, Heap::kArrayProtectorRootIndex);

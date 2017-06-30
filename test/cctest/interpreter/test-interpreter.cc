@@ -2152,7 +2152,7 @@ TEST(InterpreterTestIn) {
                               isolate->heap()->HashSeed());
   // Allocate an array
   Handle<i::JSArray> array =
-      factory->NewJSArray(0, i::ElementsKind::FAST_SMI_ELEMENTS);
+      factory->NewJSArray(0, i::ElementsKind::PACKED_SMI_ELEMENTS);
   // Check for these properties on the array object
   const char* properties[] = {"length", "fuzzle", "x", "0"};
   for (size_t i = 0; i < arraysize(properties); i++) {

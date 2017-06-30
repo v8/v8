@@ -262,7 +262,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 
   // FixedArray backing store -> Smi or object elements.
   {
-    Node* offset = ElementOffsetFromIndex(intptr_index, FAST_ELEMENTS,
+    Node* offset = ElementOffsetFromIndex(intptr_index, PACKED_ELEMENTS,
                                           INTPTR_PARAMETERS, kHeaderSize);
     // Check if we're about to overwrite the hole. We can safely do that
     // only if there can be no setters on the prototype chain.
@@ -287,7 +287,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       // If we're about to introduce holes, ensure holey elements.
       if (update_length == kBumpLengthWithGap) {
         TryChangeToHoleyMapMulti(receiver, receiver_map, elements_kind, context,
-                                 FAST_SMI_ELEMENTS, FAST_ELEMENTS, slow);
+                                 PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, slow);
       }
       StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                           value);
@@ -299,14 +299,14 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Check if we already have object elements; just do the store if so.
     {
       Label must_transition(this);
-      STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-      STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+      STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+      STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
       GotoIf(Int32LessThanOrEqual(elements_kind,
-                                  Int32Constant(FAST_HOLEY_SMI_ELEMENTS)),
+                                  Int32Constant(HOLEY_SMI_ELEMENTS)),
              &must_transition);
       if (update_length == kBumpLengthWithGap) {
         TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
-                            FAST_ELEMENTS, slow);
+                            PACKED_ELEMENTS, slow);
       }
       Store(elements, offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
@@ -325,14 +325,15 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         // If we're adding holes at the end, always transition to a holey
         // elements kind, otherwise try to remain packed.
         ElementsKind target_kind = update_length == kBumpLengthWithGap
-                                       ? FAST_HOLEY_DOUBLE_ELEMENTS
-                                       : FAST_DOUBLE_ELEMENTS;
+                                       ? HOLEY_DOUBLE_ELEMENTS
+                                       : PACKED_DOUBLE_ELEMENTS;
         TryRewriteElements(receiver, receiver_map, elements, native_context,
-                           FAST_SMI_ELEMENTS, target_kind, slow);
+                           PACKED_SMI_ELEMENTS, target_kind, slow);
         // Reload migrated elements.
         Node* double_elements = LoadElements(receiver);
-        Node* double_offset = ElementOffsetFromIndex(
-            intptr_index, FAST_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+        Node* double_offset =
+            ElementOffsetFromIndex(intptr_index, PACKED_DOUBLE_ELEMENTS,
+                                   INTPTR_PARAMETERS, kHeaderSize);
         // Make sure we do not store signalling NaNs into double arrays.
         Node* double_value = Float64SilenceNaN(LoadHeapNumberValue(value));
         StoreNoWriteBarrier(MachineRepresentation::kFloat64, double_elements,
@@ -346,10 +347,10 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         // If we're adding holes at the end, always transition to a holey
         // elements kind, otherwise try to remain packed.
         ElementsKind target_kind = update_length == kBumpLengthWithGap
-                                       ? FAST_HOLEY_ELEMENTS
-                                       : FAST_ELEMENTS;
+                                       ? HOLEY_ELEMENTS
+                                       : PACKED_ELEMENTS;
         TryRewriteElements(receiver, receiver_map, elements, native_context,
-                           FAST_SMI_ELEMENTS, target_kind, slow);
+                           PACKED_SMI_ELEMENTS, target_kind, slow);
         // The elements backing store didn't change, no reload necessary.
         CSA_ASSERT(this, WordEqual(elements, LoadElements(receiver)));
         Store(elements, offset, value);
@@ -365,7 +366,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
          &check_cow_elements);
   // FixedDoubleArray backing store -> double elements.
   {
-    Node* offset = ElementOffsetFromIndex(intptr_index, FAST_DOUBLE_ELEMENTS,
+    Node* offset = ElementOffsetFromIndex(intptr_index, PACKED_DOUBLE_ELEMENTS,
                                           INTPTR_PARAMETERS, kHeaderSize);
     // Check if we're about to overwrite the hole. We can safely do that
     // only if there can be no setters on the prototype chain.
@@ -395,7 +396,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       // If we're about to introduce holes, ensure holey elements.
       if (update_length == kBumpLengthWithGap) {
         TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
-                            FAST_DOUBLE_ELEMENTS, slow);
+                            PACKED_DOUBLE_ELEMENTS, slow);
       }
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, elements, offset,
                           double_value);
@@ -408,14 +409,14 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Node* native_context = LoadNativeContext(context);
       ElementsKind target_kind = update_length == kBumpLengthWithGap
-                                     ? FAST_HOLEY_ELEMENTS
-                                     : FAST_ELEMENTS;
+                                     ? HOLEY_ELEMENTS
+                                     : PACKED_ELEMENTS;
       TryRewriteElements(receiver, receiver_map, elements, native_context,
-                         FAST_DOUBLE_ELEMENTS, target_kind, slow);
+                         PACKED_DOUBLE_ELEMENTS, target_kind, slow);
       // Reload migrated elements.
       Node* fast_elements = LoadElements(receiver);
       Node* fast_offset = ElementOffsetFromIndex(
-          intptr_index, FAST_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+          intptr_index, PACKED_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
       Store(fast_elements, fast_offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
     }
@@ -487,7 +488,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     Goto(slow);
   }
 
-  // Any ElementsKind > LAST_FAST_ELEMENTS_KIND jumps here for further dispatch.
+  // Any ElementsKind > LAST_FAST_ELEMENTS_KIND jumps here for further
+  // dispatch.
   BIND(&if_nonfast);
   {
     STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);

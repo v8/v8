@@ -500,7 +500,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
           register_count, INT32_ELEMENTS, SMI_PARAMETERS, 0);
 
       Node* const to_offset = ElementOffsetFromIndex(
-          IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), FAST_ELEMENTS,
+          IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), PACKED_ELEMENTS,
           INTPTR_PARAMETERS, RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
       VARIABLE(var_to_offset, MachineType::PointerRepresentation(), to_offset);
 
@@ -1813,7 +1813,7 @@ class GrowableFixedArray {
   Node* ToJSArray(Node* const context) {
     CodeStubAssembler* a = assembler_;
 
-    const ElementsKind kind = FAST_ELEMENTS;
+    const ElementsKind kind = PACKED_ELEMENTS;
 
     Node* const native_context = a->LoadNativeContext(context);
     Node* const array_map = a->LoadJSArrayElementsMap(kind, native_context);
@@ -1850,7 +1850,7 @@ class GrowableFixedArray {
   void Initialize() {
     CodeStubAssembler* a = assembler_;
 
-    const ElementsKind kind = FAST_ELEMENTS;
+    const ElementsKind kind = PACKED_ELEMENTS;
 
     static const int kInitialArraySize = 8;
     Node* const capacity = a->IntPtrConstant(kInitialArraySize);
@@ -1886,7 +1886,7 @@ class GrowableFixedArray {
     CSA_ASSERT(a, a->IntPtrGreaterThan(new_capacity, a->IntPtrConstant(0)));
     CSA_ASSERT(a, a->IntPtrGreaterThanOrEqual(new_capacity, element_count));
 
-    const ElementsKind kind = FAST_ELEMENTS;
+    const ElementsKind kind = PACKED_ELEMENTS;
     const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
     const CodeStubAssembler::ParameterMode mode =
         CodeStubAssembler::INTPTR_PARAMETERS;
@@ -2231,7 +2231,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
   Node* const int_zero = IntPtrConstant(0);
   Node* const int_limit = SmiUntag(limit);
 
-  const ElementsKind kind = FAST_ELEMENTS;
+  const ElementsKind kind = PACKED_ELEMENTS;
   const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
   Node* const allocation_site = nullptr;
@@ -2590,7 +2590,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
   // Allocate {result_array}.
   Node* result_array;
   {
-    ElementsKind kind = FAST_ELEMENTS;
+    ElementsKind kind = PACKED_ELEMENTS;
     Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
     Node* const capacity = IntPtrConstant(16);
     Node* const length = smi_zero;

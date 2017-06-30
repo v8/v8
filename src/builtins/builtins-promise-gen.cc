@@ -359,7 +359,7 @@ void PromiseBuiltinsAssembler::AppendPromiseCallback(int offset, Node* promise,
   Node* delta = IntPtrOrSmiConstant(1, mode);
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
 
-  const ElementsKind kind = FAST_ELEMENTS;
+  const ElementsKind kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
   const CodeStubAssembler::AllocationFlags flags =
       CodeStubAssembler::kAllowLargeObjectAllocation;
@@ -519,34 +519,34 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
         // Create new FixedArrays to store callbacks, and migrate
         // existing callbacks.
         Node* const deferred_promise_arr =
-            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+            AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
         StoreFixedArrayElement(deferred_promise_arr, 0,
                                existing_deferred_promise);
         StoreFixedArrayElement(deferred_promise_arr, 1, deferred_promise);
 
         Node* const deferred_on_resolve_arr =
-            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+            AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
         StoreFixedArrayElement(
             deferred_on_resolve_arr, 0,
             LoadObjectField(promise, JSPromise::kDeferredOnResolveOffset));
         StoreFixedArrayElement(deferred_on_resolve_arr, 1, deferred_on_resolve);
 
         Node* const deferred_on_reject_arr =
-            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+            AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
         StoreFixedArrayElement(
             deferred_on_reject_arr, 0,
             LoadObjectField(promise, JSPromise::kDeferredOnRejectOffset));
         StoreFixedArrayElement(deferred_on_reject_arr, 1, deferred_on_reject);
 
         Node* const fulfill_reactions =
-            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+            AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
         StoreFixedArrayElement(
             fulfill_reactions, 0,
             LoadObjectField(promise, JSPromise::kFulfillReactionsOffset));
         StoreFixedArrayElement(fulfill_reactions, 1, var_on_resolve.value());
 
         Node* const reject_reactions =
-            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+            AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
         StoreFixedArrayElement(
             reject_reactions, 0,
             LoadObjectField(promise, JSPromise::kRejectReactionsOffset));
@@ -1845,8 +1845,8 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
   Node* const native_context = LoadNativeContext(context);
   Node* const array_map = LoadContextElement(
-      native_context, Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX);
-  Node* const values_array = AllocateJSArray(FAST_ELEMENTS, array_map,
+      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
+  Node* const values_array = AllocateJSArray(PACKED_ELEMENTS, array_map,
                                              IntPtrConstant(0), SmiConstant(0));
   Node* const remaining_elements = AllocateSmiCell(1);
 
@@ -2097,7 +2097,7 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   {
     VARIABLE(var_elements, MachineRepresentation::kTagged,
              LoadElements(values_array));
-    PossiblyGrowElementsCapacity(SMI_PARAMETERS, FAST_ELEMENTS, values_array,
+    PossiblyGrowElementsCapacity(SMI_PARAMETERS, PACKED_ELEMENTS, values_array,
                                  index, &var_elements, SmiConstant(1),
                                  &runtime_set_element);
     StoreFixedArrayElement(var_elements.value(), index, value,

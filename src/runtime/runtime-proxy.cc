@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, arguments_length, arguments_length);
+      PACKED_ELEMENTS, arguments_length, arguments_length);
   ElementsAccessor* accessor = arg_array->GetElementsAccessor();
   {
     DisallowHeapAllocation no_gc;
@@ -108,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, arguments_length, arguments_length);
+      PACKED_ELEMENTS, arguments_length, arguments_length);
   ElementsAccessor* accessor = arg_array->GetElementsAccessor();
   {
     DisallowHeapAllocation no_gc;

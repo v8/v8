@@ -700,9 +700,9 @@ Representation Object::OptimalRepresentation() {
 
 
 ElementsKind Object::OptimalElementsKind() {
-  if (IsSmi()) return FAST_SMI_ELEMENTS;
-  if (IsNumber()) return FAST_DOUBLE_ELEMENTS;
-  return FAST_ELEMENTS;
+  if (IsSmi()) return PACKED_SMI_ELEMENTS;
+  if (IsNumber()) return PACKED_DOUBLE_ELEMENTS;
+  return PACKED_ELEMENTS;
 }
 
 
@@ -1271,9 +1271,9 @@ void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   ElementsKind elements_kind = object->map()->elements_kind();
   if (!IsFastObjectElementsKind(elements_kind)) {
     if (IsFastHoleyElementsKind(elements_kind)) {
-      TransitionElementsKind(object, FAST_HOLEY_ELEMENTS);
+      TransitionElementsKind(object, HOLEY_ELEMENTS);
     } else {
-      TransitionElementsKind(object, FAST_ELEMENTS);
+      TransitionElementsKind(object, PACKED_ELEMENTS);
     }
   }
 }
@@ -1289,7 +1289,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     DisallowHeapAllocation no_allocation;
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
     bool is_holey = IsFastHoleyElementsKind(current_kind);
-    if (current_kind == FAST_HOLEY_ELEMENTS) return;
+    if (current_kind == HOLEY_ELEMENTS) return;
     Object* the_hole = object->GetHeap()->the_hole_value();
     for (uint32_t i = 0; i < count; ++i) {
       Object* current = *objects++;
@@ -1300,16 +1300,16 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
         if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
           if (IsFastSmiElementsKind(target_kind)) {
             if (is_holey) {
-              target_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
+              target_kind = HOLEY_DOUBLE_ELEMENTS;
             } else {
-              target_kind = FAST_DOUBLE_ELEMENTS;
+              target_kind = PACKED_DOUBLE_ELEMENTS;
             }
           }
         } else if (is_holey) {
-          target_kind = FAST_HOLEY_ELEMENTS;
+          target_kind = HOLEY_ELEMENTS;
           break;
         } else {
-          target_kind = FAST_ELEMENTS;
+          target_kind = PACKED_ELEMENTS;
         }
       }
     }
@@ -1338,18 +1338,18 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   }
 
   DCHECK(mode == ALLOW_COPIED_DOUBLE_ELEMENTS);
-  if (object->GetElementsKind() == FAST_HOLEY_SMI_ELEMENTS) {
-    TransitionElementsKind(object, FAST_HOLEY_DOUBLE_ELEMENTS);
-  } else if (object->GetElementsKind() == FAST_SMI_ELEMENTS) {
+  if (object->GetElementsKind() == HOLEY_SMI_ELEMENTS) {
+    TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
+  } else if (object->GetElementsKind() == PACKED_SMI_ELEMENTS) {
     Handle<FixedDoubleArray> double_array =
         Handle<FixedDoubleArray>::cast(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
-        TransitionElementsKind(object, FAST_HOLEY_DOUBLE_ELEMENTS);
+        TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
         return;
       }
     }
-    TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
+    TransitionElementsKind(object, PACKED_DOUBLE_ELEMENTS);
   }
 }
 
@@ -6362,7 +6362,7 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, uint32_t index,
     entry_storage->set(1, *value, SKIP_WRITE_BARRIER);
   }
   return isolate->factory()->NewJSArrayWithElements(entry_storage,
-                                                    FAST_ELEMENTS, 2);
+                                                    PACKED_ELEMENTS, 2);
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
@@ -6374,7 +6374,7 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
     entry_storage->set(1, *value, SKIP_WRITE_BARRIER);
   }
   return isolate->factory()->NewJSArrayWithElements(entry_storage,
-                                                    FAST_ELEMENTS, 2);
+                                                    PACKED_ELEMENTS, 2);
 }
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)

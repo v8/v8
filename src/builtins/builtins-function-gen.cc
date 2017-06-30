@@ -104,7 +104,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Label arguments_done(this, &argument_array);
   GotoIf(Uint32LessThanOrEqual(argc, Int32Constant(1)), &empty_arguments);
   Node* elements_length = ChangeUint32ToWord(Int32Sub(argc, Int32Constant(1)));
-  Node* elements = AllocateFixedArray(FAST_ELEMENTS, elements_length);
+  Node* elements = AllocateFixedArray(PACKED_ELEMENTS, elements_length);
   VARIABLE(index, MachineType::PointerRepresentation());
   index.Bind(IntPtrConstant(0));
   VariableList foreach_vars({&index}, zone());

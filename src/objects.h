@@ -873,7 +873,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(DICTIONARY_ELEMENTS_SUB_TYPE)                \
   V(DICTIONARY_PROPERTIES_SUB_TYPE)              \
   V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)        \
-  V(FAST_ELEMENTS_SUB_TYPE)                      \
+  V(PACKED_ELEMENTS_SUB_TYPE)                    \
   V(FAST_PROPERTIES_SUB_TYPE)                    \
   V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
   V(HANDLER_TABLE_SUB_TYPE)                      \
@@ -2156,20 +2156,21 @@ class JSObject: public JSReceiver {
                                        Handle<FixedArrayBase> elements);
   inline ElementsKind GetElementsKind();
   ElementsAccessor* GetElementsAccessor();
-  // Returns true if an object has elements of FAST_SMI_ELEMENTS ElementsKind.
+  // Returns true if an object has elements of PACKED_SMI_ELEMENTS or
+  // HOLEY_SMI_ELEMENTS ElementsKind.
   inline bool HasFastSmiElements();
-  // Returns true if an object has elements of FAST_ELEMENTS ElementsKind.
+  // Returns true if an object has elements of PACKED_ELEMENTS or
+  // HOLEY_ELEMENTS ElementsKind.
   inline bool HasFastObjectElements();
-  // Returns true if an object has elements of FAST_ELEMENTS or
-  // FAST_SMI_ONLY_ELEMENTS.
+  // Returns true if an object has elements of PACKED_SMI_ELEMENTS,
+  // HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS, or HOLEY_ELEMENTS.
   inline bool HasFastSmiOrObjectElements();
-  // Returns true if an object has any of the fast elements kinds.
+  // Returns true if an object has any of the "fast" elements kinds.
   inline bool HasFastElements();
-  // Returns true if an object has elements of FAST_DOUBLE_ELEMENTS
-  // ElementsKind.
+  // Returns true if an object has elements of PACKED_DOUBLE_ELEMENTS or
+  // HOLEY_DOUBLE_ELEMENTS ElementsKind.
   inline bool HasFastDoubleElements();
-  // Returns true if an object has elements of FAST_HOLEY_*_ELEMENTS
-  // ElementsKind.
+  // Returns true if an object has elements of HOLEY_*_ELEMENTS ElementsKind.
   inline bool HasFastHoleyElements();
   inline bool HasSloppyArgumentsElements();
   inline bool HasStringWrapperElements();

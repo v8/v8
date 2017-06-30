@@ -68,7 +68,7 @@ class JSStrictArgumentsObject : public JSArgumentsObject {
 // +---+-----------------------+
 // | 0 | Context* context      |
 // +---------------------------+
-// | 1 | FixedArray* arguments +----+ FAST_HOLEY_ELEMENTS
+// | 1 | FixedArray* arguments +----+ HOLEY_ELEMENTS
 // +---------------------------+    v-----+-----------+
 // | 2 | Object* param_1_map   |    |  0  | the_hole  |
 // |...| ...                   |    | ... | ...       |
@@ -83,7 +83,7 @@ class JSStrictArgumentsObject : public JSArgumentsObject {
 // object.
 // The arguments backing store kind depends on the ElementsKind of the outer
 // JSArgumentsObject:
-// - FAST_SLOPPY_ARGUMENTS_ELEMENTS: FAST_HOLEY_ELEMENTS
+// - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
 class SloppyArgumentsElements : public FixedArray {
  public:

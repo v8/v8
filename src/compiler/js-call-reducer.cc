@@ -527,7 +527,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   Node* k = jsgraph()->ZeroConstant();
 
   Node* original_length = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS)),
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
 
   Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
@@ -573,7 +573,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
   Node* length = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS)),
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
   k = effect =
       graph()->NewNode(simplified()->CheckBounds(), k, length, effect, control);

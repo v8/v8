@@ -80,7 +80,7 @@ function base_getter_test(create_func) {
   assertUnoptimized(foo);
   // Smi and Double elements transition the KeyedLoadIC to Generic state
   // here, because they miss twice with the same map when loading the hole.
-  // For FAST_HOLEY_ELEMENTS, however, the IC knows how to convert the hole
+  // For HOLEY_ELEMENTS, however, the IC knows how to convert the hole
   // to undefined if the prototype is the original array prototype, so it
   // stays monomorphic for now...
   foo(a);

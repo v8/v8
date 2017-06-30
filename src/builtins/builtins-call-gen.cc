@@ -172,13 +172,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
                                                     JSArray::kLengthOffset));
 
     // Holey arrays and double backing stores need special treatment.
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(FAST_ELEMENTS == 2);
-    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
-    STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
-    STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == FAST_HOLEY_DOUBLE_ELEMENTS);
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+    STATIC_ASSERT(PACKED_ELEMENTS == 2);
+    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
+    STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
+    STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == HOLEY_DOUBLE_ELEMENTS);
 
     Node* kind = LoadMapElementsKind(arguments_list_map);
 
@@ -257,7 +257,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
       // produce holey double arrays.
       CallOrConstructDoubleVarargs(target, new_target, elements, length,
                                    args_count, context,
-                                   Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS));
+                                   Int32Constant(HOLEY_DOUBLE_ELEMENTS));
     }
   }
 }
@@ -270,7 +270,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     Node* args_count, Node* context, Node* kind) {
   Label if_holey_double(this), if_packed_double(this), if_done(this);
 
-  const ElementsKind new_kind = FAST_ELEMENTS;
+  const ElementsKind new_kind = PACKED_ELEMENTS;
   const ParameterMode mode = INTPTR_PARAMETERS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
   Node* intptr_length = ChangeInt32ToIntPtr(length);
@@ -279,13 +279,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   Node* new_elements =
       AllocateFixedArray(new_kind, intptr_length, mode,
                          CodeStubAssembler::kAllowLargeObjectAllocation);
-  Branch(Word32Equal(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+  Branch(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          &if_holey_double, &if_packed_double);
 
   BIND(&if_holey_double);
   {
     // Fill the FixedArray with pointers to HeapObjects.
-    CopyFixedArrayElements(FAST_HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
+    CopyFixedArrayElements(HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
                            new_elements, intptr_length, intptr_length,
                            barrier_mode);
     Goto(&if_done);
@@ -293,7 +293,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
 
   BIND(&if_packed_double);
   {
-    CopyFixedArrayElements(FAST_DOUBLE_ELEMENTS, elements, new_kind,
+    CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
                            new_elements, intptr_length, intptr_length,
                            barrier_mode);
     Goto(&if_done);
@@ -349,13 +349,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   Node* kind = LoadMapElementsKind(spread_map);
 
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
-  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
-  STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == FAST_HOLEY_DOUBLE_ELEMENTS);
+  STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(PACKED_ELEMENTS == 2);
+  STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+  STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
+  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
+  STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == HOLEY_DOUBLE_ELEMENTS);
 
   GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
          &if_runtime);
@@ -395,8 +395,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     CSA_ASSERT(this, Int32LessThanOrEqual(
                          kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)));
 
-    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
-           &if_double, &if_not_double);
+    Branch(Int32GreaterThan(kind, Int32Constant(HOLEY_ELEMENTS)), &if_double,
+           &if_not_double);
 
     BIND(&if_not_double);
     {

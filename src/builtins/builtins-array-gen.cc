@@ -118,28 +118,28 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       BIND(&fast);
       {
         kind = EnsureArrayPushable(a(), &runtime);
-        GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
+        GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
                &object_push_pre);
 
-        BuildAppendJSArray(FAST_SMI_ELEMENTS, a(), k_value, &runtime);
+        BuildAppendJSArray(PACKED_SMI_ELEMENTS, a(), k_value, &runtime);
         Goto(&after_work);
       }
 
       BIND(&object_push_pre);
       {
-        Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS),
-               &double_push, &object_push);
+        Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &double_push,
+               &object_push);
       }
 
       BIND(&object_push);
       {
-        BuildAppendJSArray(FAST_ELEMENTS, a(), k_value, &runtime);
+        BuildAppendJSArray(PACKED_ELEMENTS, a(), k_value, &runtime);
         Goto(&after_work);
       }
 
       BIND(&double_push);
       {
-        BuildAppendJSArray(FAST_DOUBLE_ELEMENTS, a(), k_value, &runtime);
+        BuildAppendJSArray(PACKED_DOUBLE_ELEMENTS, a(), k_value, &runtime);
         Goto(&after_work);
       }
 
@@ -213,29 +213,29 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     {
       kind = EnsureArrayPushable(a(), &runtime);
       elements = LoadElements(a());
-      GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
+      GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
              &object_push_pre);
-      TryStoreArrayElement(FAST_SMI_ELEMENTS, mode, &runtime, elements, k,
+      TryStoreArrayElement(PACKED_SMI_ELEMENTS, mode, &runtime, elements, k,
                            mappedValue);
       Goto(&finished);
     }
 
     BIND(&object_push_pre);
     {
-      Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS), &double_push,
+      Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &double_push,
              &object_push);
     }
 
     BIND(&object_push);
     {
-      TryStoreArrayElement(FAST_ELEMENTS, mode, &runtime, elements, k,
+      TryStoreArrayElement(PACKED_ELEMENTS, mode, &runtime, elements, k,
                            mappedValue);
       Goto(&finished);
     }
 
     BIND(&double_push);
     {
-      TryStoreArrayElement(FAST_DOUBLE_ELEMENTS, mode, &runtime, elements, k,
+      TryStoreArrayElement(PACKED_DOUBLE_ELEMENTS, mode, &runtime, elements, k,
                            mappedValue);
       Goto(&finished);
     }
@@ -660,13 +660,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
           // Fast case: load the element directly from the elements FixedArray
           // and call the callback if the element is not the hole.
-          DCHECK(kind == FAST_ELEMENTS || kind == FAST_DOUBLE_ELEMENTS);
-          int base_size = kind == FAST_ELEMENTS
+          DCHECK(kind == PACKED_ELEMENTS || kind == PACKED_DOUBLE_ELEMENTS);
+          int base_size = kind == PACKED_ELEMENTS
                               ? FixedArray::kHeaderSize
                               : (FixedArray::kHeaderSize - kHeapObjectTag);
           Node* offset = ElementOffsetFromIndex(index, kind, mode, base_size);
           Node* value = nullptr;
-          if (kind == FAST_ELEMENTS) {
+          if (kind == PACKED_ELEMENTS) {
             value = LoadObjectField(elements, offset);
             GotoIf(WordEqual(value, TheHoleConstant()), &hole_element);
           } else {
@@ -708,13 +708,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Node* o_map = LoadMap(o());
     Node* bit_field2 = LoadMapBitField2(o_map);
     Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
-    Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS),
+    Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS),
            &maybe_double_elements, &fast_elements);
 
     ParameterMode mode = OptimalParameterMode();
     BIND(&fast_elements);
     {
-      VisitAllFastElementsOneKind(FAST_ELEMENTS, processor, slow, mode,
+      VisitAllFastElementsOneKind(PACKED_ELEMENTS, processor, slow, mode,
                                   direction);
 
       action(this);
@@ -724,12 +724,12 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     }
 
     BIND(&maybe_double_elements);
-    Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_DOUBLE_ELEMENTS), slow,
+    Branch(IsElementsKindGreaterThan(kind, HOLEY_DOUBLE_ELEMENTS), slow,
            &fast_double_elements);
 
     BIND(&fast_double_elements);
     {
-      VisitAllFastElementsOneKind(FAST_DOUBLE_ELEMENTS, processor, slow, mode,
+      VisitAllFastElementsOneKind(PACKED_DOUBLE_ELEMENTS, processor, slow, mode,
                                   direction);
 
       action(this);
@@ -767,7 +767,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     const ElementsKind elements_kind =
         GetHoleyElementsKind(GetInitialFastElementsKind());
     Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
-    a_.Bind(AllocateJSArray(FAST_SMI_ELEMENTS, array_map, len, len, nullptr,
+    a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, len, nullptr,
                             CodeStubAssembler::SMI_PARAMETERS));
 
     Goto(&done);
@@ -865,8 +865,8 @@ TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
         &return_undefined);
 
     int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
-    Node* offset = ElementOffsetFromIndex(
-        new_length, FAST_HOLEY_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, header_size);
+    Node* offset = ElementOffsetFromIndex(new_length, HOLEY_DOUBLE_ELEMENTS,
+                                          INTPTR_PARAMETERS, header_size);
     if (Is64()) {
       Node* double_hole = Int64Constant(kHoleNanInt64);
       StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
@@ -932,10 +932,10 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   {
     arg_index.Bind(IntPtrConstant(0));
     kind = EnsureArrayPushable(receiver, &runtime);
-    GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
+    GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
            &object_push_pre);
 
-    Node* new_length = BuildAppendJSArray(FAST_SMI_ELEMENTS, receiver, args,
+    Node* new_length = BuildAppendJSArray(PACKED_SMI_ELEMENTS, receiver, args,
                                           arg_index, &smi_transition);
     args.PopAndReturn(new_length);
   }
@@ -968,21 +968,21 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
 
   BIND(&object_push_pre);
   {
-    Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS), &double_push,
+    Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &double_push,
            &object_push);
   }
 
   BIND(&object_push);
   {
-    Node* new_length = BuildAppendJSArray(FAST_ELEMENTS, receiver, args,
+    Node* new_length = BuildAppendJSArray(PACKED_ELEMENTS, receiver, args,
                                           arg_index, &default_label);
     args.PopAndReturn(new_length);
   }
 
   BIND(&double_push);
   {
-    Node* new_length = BuildAppendJSArray(FAST_DOUBLE_ELEMENTS, receiver, args,
-                                          arg_index, &double_transition);
+    Node* new_length = BuildAppendJSArray(PACKED_DOUBLE_ELEMENTS, receiver,
+                                          args, arg_index, &double_transition);
     args.PopAndReturn(new_length);
   }
 
@@ -1095,9 +1095,9 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
                                    SmiTag(new_length));
 
     Node* elements_kind = LoadMapElementsKind(LoadMap(receiver));
-    GotoIf(Int32LessThanOrEqual(elements_kind,
-                                Int32Constant(FAST_HOLEY_SMI_ELEMENTS)),
-           &fast_elements_untagged);
+    GotoIf(
+        Int32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_SMI_ELEMENTS)),
+        &fast_elements_untagged);
     GotoIf(Int32LessThanOrEqual(elements_kind,
                                 Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
            &fast_elements_tagged);
@@ -1110,14 +1110,14 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
         ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
     Node* start = IntPtrAdd(
         BitcastTaggedToWord(elements),
-        ElementOffsetFromIndex(IntPtrConstant(0), FAST_HOLEY_DOUBLE_ELEMENTS,
+        ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_DOUBLE_ELEMENTS,
                                INTPTR_PARAMETERS, header_size));
     CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                    MachineType::Pointer(), MachineType::UintPtr(), memmove,
                    start, IntPtrAdd(start, IntPtrConstant(kDoubleSize)),
                    IntPtrMul(new_length, IntPtrConstant(kDoubleSize)));
-    Node* offset = ElementOffsetFromIndex(
-        new_length, FAST_HOLEY_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, header_size);
+    Node* offset = ElementOffsetFromIndex(new_length, HOLEY_DOUBLE_ELEMENTS,
+                                          INTPTR_PARAMETERS, header_size);
     if (Is64()) {
       Node* double_hole = Int64Constant(kHoleNanInt64);
       StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
@@ -1157,7 +1157,7 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
           ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
       Node* start = IntPtrAdd(
           BitcastTaggedToWord(elements),
-          ElementOffsetFromIndex(IntPtrConstant(0), FAST_HOLEY_SMI_ELEMENTS,
+          ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_SMI_ELEMENTS,
                                  INTPTR_PARAMETERS, header_size));
       CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                      MachineType::Pointer(), MachineType::UintPtr(), memmove,
@@ -1732,16 +1732,15 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   Node* elements_kind = LoadMapElementsKind(LoadMap(array));
   Node* elements = LoadElements(array);
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  GotoIf(
-      Uint32LessThanOrEqual(elements_kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
-      &if_smiorobjects);
-  GotoIf(Word32Equal(elements_kind, Int32Constant(FAST_DOUBLE_ELEMENTS)),
+  STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(PACKED_ELEMENTS == 2);
+  STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+  GotoIf(Uint32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_ELEMENTS)),
+         &if_smiorobjects);
+  GotoIf(Word32Equal(elements_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
          &if_packed_doubles);
-  GotoIf(Word32Equal(elements_kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+  GotoIf(Word32Equal(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          &if_holey_doubles);
   Goto(&return_not_found);
 
@@ -2443,13 +2442,13 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                             Int32Constant(LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)),
            &allocate_iterator_result);
 
-    Node* elements = AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+    Node* elements = AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
     StoreFixedArrayElement(elements, 0, index, SKIP_WRITE_BARRIER);
     StoreFixedArrayElement(elements, 1, var_value.value(), SKIP_WRITE_BARRIER);
 
     Node* entry = Allocate(JSArray::kSize);
     Node* map = LoadContextElement(LoadNativeContext(context),
-                                   Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX);
+                                   Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
     StoreMapNoWriteBarrier(entry, map);
     StoreObjectFieldRoot(entry, JSArray::kPropertiesOffset,

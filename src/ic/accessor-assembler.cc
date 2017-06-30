@@ -34,8 +34,7 @@ Node* AccessorAssembler::TryMonomorphicCase(Node* slot, Node* vector,
   // Adding |header_size| with a separate IntPtrAdd rather than passing it
   // into ElementOffsetFromIndex() allows it to be folded into a single
   // [base, index, offset] indirect memory access on x64.
-  Node* offset =
-      ElementOffsetFromIndex(slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS);
+  Node* offset = ElementOffsetFromIndex(slot, HOLEY_ELEMENTS, SMI_PARAMETERS);
   Node* feedback = Load(MachineType::AnyTagged(), vector,
                         IntPtrAdd(offset, IntPtrConstant(header_size)));
 
@@ -1062,7 +1061,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   // capacity even for a map that think it doesn't have any unused fields.
   // Perform a bounds check to see if we actually have to grow the array.
   Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
-  Node* size = ElementOffsetFromIndex(length, FAST_ELEMENTS, mode,
+  Node* size = ElementOffsetFromIndex(length, PACKED_ELEMENTS, mode,
                                       FixedArray::kHeaderSize);
   GotoIf(UintPtrLessThan(offset, size), &done);
 
@@ -1070,7 +1069,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
 
   // Grow properties array.
-  ElementsKind kind = FAST_ELEMENTS;
+  ElementsKind kind = PACKED_ELEMENTS;
   DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
          FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
   // The size of a new properties backing store is guaranteed to be small
@@ -1195,20 +1194,20 @@ void AccessorAssembler::EmitElementLoad(
   EmitFastElementsBoundsCheck(object, elements, intptr_index,
                               is_jsarray_condition, out_of_bounds);
   int32_t kinds[] = {// Handled by if_fast_packed.
-                     FAST_SMI_ELEMENTS, FAST_ELEMENTS,
+                     PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
                      // Handled by if_fast_holey.
-                     FAST_HOLEY_SMI_ELEMENTS, FAST_HOLEY_ELEMENTS,
+                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
                      // Handled by if_fast_double.
-                     FAST_DOUBLE_ELEMENTS,
+                     PACKED_DOUBLE_ELEMENTS,
                      // Handled by if_fast_holey_double.
-                     FAST_HOLEY_DOUBLE_ELEMENTS};
+                     HOLEY_DOUBLE_ELEMENTS};
   Label* labels[] = {// FAST_{SMI,}_ELEMENTS
                      &if_fast_packed, &if_fast_packed,
                      // FAST_HOLEY_{SMI,}_ELEMENTS
                      &if_fast_holey, &if_fast_holey,
-                     // FAST_DOUBLE_ELEMENTS
+                     // PACKED_DOUBLE_ELEMENTS
                      &if_fast_double,
-                     // FAST_HOLEY_DOUBLE_ELEMENTS
+                     // HOLEY_DOUBLE_ELEMENTS
                      &if_fast_holey_double};
   Switch(elements_kind, unimplemented_elements_kind, kinds, labels,
          arraysize(kinds));

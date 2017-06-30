@@ -52,7 +52,7 @@ Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
   STATIC_ASSERT(kCapacity <= CollectionType::kMaxCapacity);
 
   // Allocate the table and add the proper map.
-  const ElementsKind elements_kind = FAST_HOLEY_ELEMENTS;
+  const ElementsKind elements_kind = HOLEY_ELEMENTS;
   Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
   Node* const table = AllocateFixedArray(elements_kind, length_intptr);
   CSA_ASSERT(this,

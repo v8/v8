@@ -1265,7 +1265,7 @@ Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
                                                ParameterMode parameter_mode) {
   int32_t header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
+  Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
   return Load(MachineType::AnyTagged(), object, offset);
 }
@@ -1345,7 +1345,7 @@ Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     header_size += kPointerSize / 2;
   }
 #endif
-  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
+  Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
   if (Is64()) {
     return Load(MachineType::Int32(), object, offset);
@@ -1362,7 +1362,7 @@ Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
   CSA_ASSERT(this, IsFixedDoubleArray(object));
   int32_t header_size =
       FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_DOUBLE_ELEMENTS,
+  Node* offset = ElementOffsetFromIndex(index_node, HOLEY_DOUBLE_ELEMENTS,
                                         parameter_mode, header_size);
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
@@ -1532,7 +1532,7 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
          barrier_mode == UPDATE_WRITE_BARRIER);
   int header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
+  Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
@@ -1547,7 +1547,7 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
   CSA_ASSERT(this, IsFixedDoubleArray(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   Node* offset =
-      ElementOffsetFromIndex(index_node, FAST_DOUBLE_ELEMENTS, parameter_mode,
+      ElementOffsetFromIndex(index_node, PACKED_DOUBLE_ELEMENTS, parameter_mode,
                              FixedArray::kHeaderSize - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kFloat64;
   return StoreNoWriteBarrier(rep, object, offset, value);
@@ -2073,7 +2073,7 @@ Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
 
   Node* const zero = IntPtrConstant(0);
   Node* const length_intptr = SmiUntag(length);
-  const ElementsKind elements_kind = FAST_ELEMENTS;
+  const ElementsKind elements_kind = PACKED_ELEMENTS;
 
   Node* const elements = AllocateFixedArray(elements_kind, length_intptr);
   StoreObjectField(result, JSArray::kElementsOffset, elements);
@@ -2147,7 +2147,7 @@ Node* CodeStubAssembler::CopyNameDictionary(Node* dictionary,
          large_object_fallback);
   Node* properties = AllocateNameDictionaryWithCapacity(capacity);
   Node* length = SmiUntag(LoadFixedArrayBaseLength(dictionary));
-  CopyFixedArrayElements(FAST_ELEMENTS, dictionary, properties, length,
+  CopyFixedArrayElements(PACKED_ELEMENTS, dictionary, properties, length,
                          SKIP_WRITE_BARRIER, INTPTR_PARAMETERS);
   return properties;
 }
@@ -3337,8 +3337,8 @@ Node* CodeStubAssembler::IsFixedArray(Node* object) {
 // after Array.p.shift, it is replaced by the empty array constant. If it is
 // later filled with a double element, we try to grow it but pass in a double
 // elements kind. Usually this would cause a size mismatch (since the source
-// fixed array has FAST_HOLEY_ELEMENTS and destination has
-// FAST_HOLEY_DOUBLE_ELEMENTS), but we don't have to worry about it when the
+// fixed array has HOLEY_ELEMENTS and destination has
+// HOLEY_DOUBLE_ELEMENTS), but we don't have to worry about it when the
 // source array is empty.
 // TODO(jgruber): It might we worth creating an empty_double_array constant to
 // simplify this case.
@@ -5794,10 +5794,10 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   // clang-format off
   int32_t values[] = {
       // Handled by {if_isobjectorsmi}.
-      FAST_SMI_ELEMENTS, FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
-          FAST_HOLEY_ELEMENTS,
+      PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS,
+          HOLEY_ELEMENTS,
       // Handled by {if_isdouble}.
-      FAST_DOUBLE_ELEMENTS, FAST_HOLEY_DOUBLE_ELEMENTS,
+      PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
       // Handled by {if_isdictionary}.
       DICTIONARY_ELEMENTS,
       // Handled by {if_isfaststringwrapper}.
@@ -9176,7 +9176,7 @@ CodeStubArguments::CodeStubArguments(
       arguments_(nullptr),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
   Node* offset = assembler_->ElementOffsetFromIndex(
-      argc_, FAST_ELEMENTS, param_mode,
+      argc_, PACKED_ELEMENTS, param_mode,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
   arguments_ = assembler_->IntPtrAdd(fp_, offset);
 }
@@ -9192,8 +9192,8 @@ Node* CodeStubArguments::AtIndexPtr(
   typedef compiler::Node Node;
   Node* negated_index = assembler_->IntPtrOrSmiSub(
       assembler_->IntPtrOrSmiConstant(0, mode), index, mode);
-  Node* offset =
-      assembler_->ElementOffsetFromIndex(negated_index, FAST_ELEMENTS, mode, 0);
+  Node* offset = assembler_->ElementOffsetFromIndex(negated_index,
+                                                    PACKED_ELEMENTS, mode, 0);
   return assembler_->IntPtrAdd(arguments_, offset);
 }
 
@@ -9245,10 +9245,10 @@ void CodeStubArguments::ForEach(
   }
   Node* start = assembler_->IntPtrSub(
       arguments_,
-      assembler_->ElementOffsetFromIndex(first, FAST_ELEMENTS, mode));
+      assembler_->ElementOffsetFromIndex(first, PACKED_ELEMENTS, mode));
   Node* end = assembler_->IntPtrSub(
       arguments_,
-      assembler_->ElementOffsetFromIndex(last, FAST_ELEMENTS, mode));
+      assembler_->ElementOffsetFromIndex(last, PACKED_ELEMENTS, mode));
   assembler_->BuildFastLoop(vars, start, end,
                             [this, &body](Node* current) {
                               Node* arg = assembler_->Load(
@@ -9278,9 +9278,9 @@ Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {
 Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
   CSA_ASSERT(this, IsFastElementsKind(elements_kind));
 
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == (FAST_ELEMENTS | 1));
-  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == (FAST_DOUBLE_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == (PACKED_SMI_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_ELEMENTS == (PACKED_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == (PACKED_DOUBLE_ELEMENTS | 1));
   return IsSetWord32(elements_kind, 1);
 }
 

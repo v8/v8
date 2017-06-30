@@ -557,7 +557,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
-      FAST_HOLEY_SMI_ELEMENTS);
+      HOLEY_SMI_ELEMENTS);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
 
@@ -690,7 +690,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   Handle<Map> map =
-      isolate->factory()->NewMap(type, instance_size, FAST_HOLEY_SMI_ELEMENTS);
+      isolate->factory()->NewMap(type, instance_size, HOLEY_SMI_ELEMENTS);
   JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.

@@ -81,7 +81,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   DCHECK_IMPLIES(empty, parameter_map_count == nullptr);
   Node* size =
       empty ? IntPtrConstant(base_size)
-            : ElementOffsetFromIndex(element_count, FAST_ELEMENTS, mode,
+            : ElementOffsetFromIndex(element_count, PACKED_ELEMENTS, mode,
                                      base_size + FixedArray::kHeaderSize);
   Node* result = Allocate(size);
   Comment("Initialize arguments object");
@@ -102,7 +102,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   Node* parameter_map = nullptr;
   if (parameter_map_count != nullptr) {
     Node* parameter_map_offset = ElementOffsetFromIndex(
-        arguments_count, FAST_ELEMENTS, mode, FixedArray::kHeaderSize);
+        arguments_count, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize);
     parameter_map = InnerAllocate(arguments, parameter_map_offset);
     StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset,
                                    parameter_map);
@@ -169,7 +169,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   Node* rest_count =
       IntPtrOrSmiSub(argument_count, formal_parameter_count, mode);
   Node* const native_context = LoadNativeContext(context);
-  Node* const array_map = LoadJSArrayElementsMap(FAST_ELEMENTS, native_context);
+  Node* const array_map =
+      LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   GotoIf(IntPtrOrSmiLessThanOrEqual(rest_count, zero, mode),
          &no_rest_parameters);
 
@@ -318,10 +319,10 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
 
     Comment("Fill in non-mapped parameters");
     Node* argument_offset =
-        ElementOffsetFromIndex(argument_count, FAST_ELEMENTS, mode,
+        ElementOffsetFromIndex(argument_count, PACKED_ELEMENTS, mode,
                                FixedArray::kHeaderSize - kHeapObjectTag);
     Node* mapped_offset =
-        ElementOffsetFromIndex(mapped_count, FAST_ELEMENTS, mode,
+        ElementOffsetFromIndex(mapped_count, PACKED_ELEMENTS, mode,
                                FixedArray::kHeaderSize - kHeapObjectTag);
     CodeStubArguments arguments(this, argument_count, frame_ptr, mode);
     VARIABLE(current_argument, MachineType::PointerRepresentation());
@@ -359,7 +360,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         BitcastTaggedToWord(map_array),
         IntPtrConstant(kParameterMapHeaderSize - FixedArray::kHeaderSize));
     Node* zero_offset = ElementOffsetFromIndex(
-        zero, FAST_ELEMENTS, mode, FixedArray::kHeaderSize - kHeapObjectTag);
+        zero, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize - kHeapObjectTag);
     BuildFastLoop(var_list2, mapped_offset, zero_offset,
                   [this, the_hole, elements, adjusted_map_array, &context_index,
                    mode](Node* offset) {

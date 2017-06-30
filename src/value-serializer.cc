@@ -568,16 +568,16 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     WriteVarint<uint32_t>(length);
     uint32_t i = 0;
 
-    // Fast paths. Note that FAST_ELEMENTS in particular can bail due to the
+    // Fast paths. Note that PACKED_ELEMENTS in particular can bail due to the
     // structure of the elements changing.
     switch (array->GetElementsKind()) {
-      case FAST_SMI_ELEMENTS: {
+      case PACKED_SMI_ELEMENTS: {
         Handle<FixedArray> elements(FixedArray::cast(array->elements()),
                                     isolate_);
         for (; i < length; i++) WriteSmi(Smi::cast(elements->get(i)));
         break;
       }
-      case FAST_DOUBLE_ELEMENTS: {
+      case PACKED_DOUBLE_ELEMENTS: {
         // Elements are empty_fixed_array, not a FixedDoubleArray, if the array
         // is empty. No elements to encode in this case anyhow.
         if (length == 0) break;
@@ -589,11 +589,11 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
         }
         break;
       }
-      case FAST_ELEMENTS: {
+      case PACKED_ELEMENTS: {
         Handle<Object> old_length(array->length(), isolate_);
         for (; i < length; i++) {
           if (array->length() != *old_length ||
-              array->GetElementsKind() != FAST_ELEMENTS) {
+              array->GetElementsKind() != PACKED_ELEMENTS) {
             // Fall back to slow path.
             break;
           }
@@ -1364,7 +1364,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   uint32_t id = next_id_++;
   HandleScope scope(isolate_);
   Handle<JSArray> array = isolate_->factory()->NewJSArray(
-      FAST_HOLEY_ELEMENTS, length, length, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+      HOLEY_ELEMENTS, length, length, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
       pretenure_);
   AddObjectWithID(id, array);
 

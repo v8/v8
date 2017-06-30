@@ -22730,19 +22730,19 @@ THREADED_TEST(JSONParseArray) {
   HandleScope scope(context->GetIsolate());
 
   TestJSONParseArray(context.local(), "[0, 1, 2]", "[0,1,2]",
-                     i::FAST_SMI_ELEMENTS);
+                     i::PACKED_SMI_ELEMENTS);
   TestJSONParseArray(context.local(), "[0, 1.2, 2]", "[0,1.2,2]",
-                     i::FAST_DOUBLE_ELEMENTS);
+                     i::PACKED_DOUBLE_ELEMENTS);
   TestJSONParseArray(context.local(), "[0.2, 1, 2]", "[0.2,1,2]",
-                     i::FAST_DOUBLE_ELEMENTS);
+                     i::PACKED_DOUBLE_ELEMENTS);
   TestJSONParseArray(context.local(), "[0, \"a\", 2]", "[0,\"a\",2]",
-                     i::FAST_ELEMENTS);
+                     i::PACKED_ELEMENTS);
   TestJSONParseArray(context.local(), "[\"a\", 1, 2]", "[\"a\",1,2]",
-                     i::FAST_ELEMENTS);
+                     i::PACKED_ELEMENTS);
   TestJSONParseArray(context.local(), "[\"a\", 1.2, 2]", "[\"a\",1.2,2]",
-                     i::FAST_ELEMENTS);
+                     i::PACKED_ELEMENTS);
   TestJSONParseArray(context.local(), "[0, 1.2, \"a\"]", "[0,1.2,\"a\"]",
-                     i::FAST_ELEMENTS);
+                     i::PACKED_ELEMENTS);
 }
 
 THREADED_TEST(JSONStringifyObject) {

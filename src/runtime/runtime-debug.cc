@@ -1960,12 +1960,12 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
     }
 
     Handle<JSArray> script_obj =
-        factory->NewJSArrayWithElements(ranges_array, FAST_ELEMENTS);
+        factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
     Handle<JSObject> wrapper = Script::GetWrapper(script_data.script);
     JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
     scripts_array->set(i, *script_obj);
   }
-  return *factory->NewJSArrayWithElements(scripts_array, FAST_ELEMENTS);
+  return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);
 }
 
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {

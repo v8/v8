@@ -416,11 +416,11 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
             elements, index, etrue1, if_true1);
 
         // Convert hole to undefined if needed.
-        if (elements_kind == FAST_HOLEY_ELEMENTS ||
-            elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+        if (elements_kind == HOLEY_ELEMENTS ||
+            elements_kind == HOLEY_SMI_ELEMENTS) {
           value = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
                                    value);
-        } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+        } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
           // TODO(bmeurer): avoid deopt if not all uses of value are truncated.
           CheckFloat64HoleMode mode = CheckFloat64HoleMode::kAllowReturnHole;
           value = etrue1 = graph()->NewNode(
@@ -847,7 +847,7 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
   // once we got the hole NaN mess sorted out in TurboFan/V8.
   if (GetMapWitness(node).ToHandle(&receiver_map) &&
       CanInlineArrayResizeOperation(receiver_map) &&
-      receiver_map->elements_kind() != FAST_HOLEY_DOUBLE_ELEMENTS) {
+      receiver_map->elements_kind() != HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
@@ -1039,7 +1039,7 @@ Reduction JSBuiltinReducer::ReduceArrayShift(Node* node) {
   Handle<Map> receiver_map;
   if (GetMapWitness(node).ToHandle(&receiver_map) &&
       CanInlineArrayResizeOperation(receiver_map) &&
-      receiver_map->elements_kind() != FAST_HOLEY_DOUBLE_ELEMENTS) {
+      receiver_map->elements_kind() != HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());

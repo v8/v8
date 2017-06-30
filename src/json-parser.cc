@@ -515,14 +515,14 @@ class ElementKindLattice {
   ElementsKind GetElementsKind() const {
     switch (value_) {
       case SMI_ELEMENTS:
-        return FAST_SMI_ELEMENTS;
+        return PACKED_SMI_ELEMENTS;
       case NUMBER_ELEMENTS:
-        return FAST_DOUBLE_ELEMENTS;
+        return PACKED_DOUBLE_ELEMENTS;
       case OBJECT_ELEMENTS:
-        return FAST_ELEMENTS;
+        return PACKED_ELEMENTS;
       default:
         UNREACHABLE();
-        return FAST_ELEMENTS;
+        return PACKED_ELEMENTS;
     }
   }
 
@@ -559,15 +559,15 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
   const ElementsKind kind = lattice.GetElementsKind();
 
   switch (kind) {
-    case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS: {
+    case PACKED_ELEMENTS:
+    case PACKED_SMI_ELEMENTS: {
       Handle<FixedArray> elems =
           factory()->NewFixedArray(elements.length(), pretenure_);
       for (int i = 0; i < elements.length(); i++) elems->set(i, *elements[i]);
       json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);
       break;
     }
-    case FAST_DOUBLE_ELEMENTS: {
+    case PACKED_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> elems = Handle<FixedDoubleArray>::cast(
           factory()->NewFixedDoubleArray(elements.length(), pretenure_));
       for (int i = 0; i < elements.length(); i++) {

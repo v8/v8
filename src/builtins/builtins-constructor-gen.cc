@@ -61,7 +61,7 @@ Node* ConstructorBuiltinsAssembler::CopyFixedArrayBase(Node* fixed_array) {
          &if_fixed_array);
   BIND(&if_fixed_double_array);
   {
-    ElementsKind kind = FAST_DOUBLE_ELEMENTS;
+    ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
     Node* copy = AllocateFixedArray(kind, capacity);
     CopyFixedArrayElements(kind, fixed_array, kind, copy, capacity, capacity,
                            SKIP_WRITE_BARRIER);
@@ -71,7 +71,7 @@ Node* ConstructorBuiltinsAssembler::CopyFixedArrayBase(Node* fixed_array) {
 
   BIND(&if_fixed_array);
   {
-    ElementsKind kind = FAST_ELEMENTS;
+    ElementsKind kind = PACKED_ELEMENTS;
     Node* copy = AllocateFixedArray(kind, capacity);
     CopyFixedArrayElements(kind, fixed_array, kind, copy, capacity, capacity,
                            UPDATE_WRITE_BARRIER);
@@ -307,7 +307,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   ParameterMode mode = INTPTR_PARAMETERS;
   Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
   Node* length = IntPtrAdd(slots, min_context_slots);
-  Node* size = GetFixedArrayAllocationSize(length, FAST_ELEMENTS, mode);
+  Node* size = GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
 
   // Create a new closure from the given function info in new space
   Node* function_context = AllocateInNewSpace(size);
@@ -343,7 +343,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   // Initialize the rest of the slots to undefined.
   Node* undefined = UndefinedConstant();
   BuildFastFixedArrayForEach(
-      function_context, FAST_ELEMENTS, min_context_slots, length,
+      function_context, PACKED_ELEMENTS, min_context_slots, length,
       [this, undefined](Node* context, Node* offset) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, context, offset,
                             undefined);
@@ -475,7 +475,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     if (FLAG_debug_code) CSA_CHECK(this, IsFixedDoubleArrayMap(elements_map));
     Node* array =
         NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
-                             allocation_site, capacity, FAST_DOUBLE_ELEMENTS);
+                             allocation_site, capacity, PACKED_DOUBLE_ELEMENTS);
     result.Bind(array);
     Goto(&return_result);
   }
@@ -485,7 +485,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     Comment("fast elements path");
     Node* array =
         NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
-                             allocation_site, capacity, FAST_ELEMENTS);
+                             allocation_site, capacity, PACKED_ELEMENTS);
     result.Bind(array);
     Goto(&return_result);
   }
@@ -515,7 +515,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
   BIND(&allocate_without_elements);
   {
     Node* array = AllocateUninitializedJSArrayWithoutElements(
-        FAST_ELEMENTS, boilerplate_map, length.value(), allocation_site);
+        PACKED_ELEMENTS, boilerplate_map, length.value(), allocation_site);
     StoreObjectField(array, JSObject::kElementsOffset, elements.value());
     result.Bind(array);
     Goto(&return_result);

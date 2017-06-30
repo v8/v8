@@ -2230,12 +2230,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
   // esp[4] - last argument
   Label normal_sequence;
   if (mode == DONT_OVERRIDE) {
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(FAST_ELEMENTS == 2);
-    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
-    STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+    STATIC_ASSERT(PACKED_ELEMENTS == 2);
+    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
+    STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
 
     // is the low bit set? If so, we are holey and that is good.
     __ test_b(edx, Immediate(1));
@@ -2321,7 +2321,7 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayNArgumentsConstructorStub stub(isolate);
   stub.GetCode();
 
-  ElementsKind kinds[2] = {FAST_ELEMENTS, FAST_HOLEY_ELEMENTS};
+  ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
@@ -2475,20 +2475,20 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     Label done;
-    __ cmp(ecx, Immediate(FAST_ELEMENTS));
+    __ cmp(ecx, Immediate(PACKED_ELEMENTS));
     __ j(equal, &done);
-    __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ cmp(ecx, Immediate(HOLEY_ELEMENTS));
     __ Assert(equal, kInvalidElementsKindForInternalArrayOrInternalPackedArray);
     __ bind(&done);
   }
 
   Label fast_elements_case;
-  __ cmp(ecx, Immediate(FAST_ELEMENTS));
+  __ cmp(ecx, Immediate(PACKED_ELEMENTS));
   __ j(equal, &fast_elements_case);
-  GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+  GenerateCase(masm, HOLEY_ELEMENTS);
 
   __ bind(&fast_elements_case);
-  GenerateCase(masm, FAST_ELEMENTS);
+  GenerateCase(masm, PACKED_ELEMENTS);
 }
 
 void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
@@ -2546,7 +2546,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ bind(&done_allocate);
 
     // Setup the rest parameter array in rax.
-    __ LoadGlobalFunction(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, ecx);
+    __ LoadGlobalFunction(Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX, ecx);
     __ mov(FieldOperand(eax, JSArray::kMapOffset), ecx);
     __ mov(ecx, isolate()->factory()->empty_fixed_array());
     __ mov(FieldOperand(eax, JSArray::kPropertiesOffset), ecx);
@@ -2609,7 +2609,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Setup the rest parameter array in edi.
     __ lea(edi,
            Operand(edx, eax, times_half_pointer_size, FixedArray::kHeaderSize));
-    __ LoadGlobalFunction(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, ecx);
+    __ LoadGlobalFunction(Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX, ecx);
     __ mov(FieldOperand(edi, JSArray::kMapOffset), ecx);
     __ mov(FieldOperand(edi, JSArray::kPropertiesOffset),
            isolate()->factory()->empty_fixed_array());

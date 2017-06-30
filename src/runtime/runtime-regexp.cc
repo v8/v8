@@ -869,7 +869,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   int part_count = indices->length();
 
   Handle<JSArray> result =
-      isolate->factory()->NewJSArray(FAST_ELEMENTS, part_count, part_count,
+      isolate->factory()->NewJSArray(PACKED_ELEMENTS, part_count, part_count,
                                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   DCHECK(result->HasFastObjectElements());

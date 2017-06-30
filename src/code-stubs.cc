@@ -854,10 +854,11 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
   if (FLAG_minimal) return;
-  StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS, STANDARD_STORE)
+  StoreFastElementStub(isolate, false, HOLEY_ELEMENTS, STANDARD_STORE)
       .GetCode();
-  StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS,
-                       STORE_AND_GROW_NO_TRANSITION).GetCode();
+  StoreFastElementStub(isolate, false, HOLEY_ELEMENTS,
+                       STORE_AND_GROW_NO_TRANSITION)
+      .GetCode();
   for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
     ElementsKind kind = static_cast<ElementsKind>(i);
     StoreFastElementStub(isolate, true, kind, STANDARD_STORE).GetCode();

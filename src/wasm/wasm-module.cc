@@ -562,7 +562,7 @@ Handle<JSArray> wasm::GetImports(Isolate* isolate,
   // Create the result array.
   WasmModule* module = compiled_module->module();
   int num_imports = static_cast<int>(module->import_table.size());
-  Handle<JSArray> array_object = factory->NewJSArray(FAST_ELEMENTS, 0, 0);
+  Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_imports);
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_imports));
@@ -631,7 +631,7 @@ Handle<JSArray> wasm::GetExports(Isolate* isolate,
   // Create the result array.
   WasmModule* module = compiled_module->module();
   int num_exports = static_cast<int>(module->export_table.size());
-  Handle<JSArray> array_object = factory->NewJSArray(FAST_ELEMENTS, 0, 0);
+  Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_exports);
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_exports));
@@ -730,7 +730,7 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
   }
 
   int num_custom_sections = static_cast<int>(matching_sections.size());
-  Handle<JSArray> array_object = factory->NewJSArray(FAST_ELEMENTS, 0, 0);
+  Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_custom_sections);
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_custom_sections));
