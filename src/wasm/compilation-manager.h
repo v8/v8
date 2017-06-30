@@ -26,9 +26,8 @@ class CompilationManager {
                             std::unique_ptr<byte[]> bytes_copy, size_t length,
                             Handle<Context> context, Handle<JSPromise> promise);
 
-  // Removes {job} from the list of active compile jobs. It will be deleted when
-  // the returned shared pointer expires.
-  std::shared_ptr<AsyncCompileJob> RemoveJob(AsyncCompileJob* job);
+  // Removes {job} from the list of active compile jobs. This will delete {job}.
+  void RemoveJob(AsyncCompileJob* job);
 
   void TearDown();
 

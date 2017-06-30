@@ -1916,15 +1916,13 @@ void AsyncCompileJob::ReopenHandlesInDeferredScope() {
 }
 
 void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
-  std::shared_ptr<AsyncCompileJob> job =
-      isolate_->wasm_compilation_manager()->RemoveJob(this);
   RejectPromise(isolate_, context_, thrower, module_promise_);
+  isolate_->wasm_compilation_manager()->RemoveJob(this);
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
-  std::shared_ptr<AsyncCompileJob> job =
-      isolate_->wasm_compilation_manager()->RemoveJob(this);
   ResolvePromise(isolate_, context_, module_promise_, result);
+  isolate_->wasm_compilation_manager()->RemoveJob(this);
 }
 
 // A closure to run a compilation step (either as foreground or background
@@ -1956,34 +1954,30 @@ class AsyncCompileJob::CompileStep {
   const size_t num_background_tasks_;
 };
 
-class AsyncCompileJob::ForegroundCompileTask : NON_EXPORTED_BASE(public Task) {
+class AsyncCompileJob::CompileTask : public CancelableTask {
  public:
-  explicit ForegroundCompileTask(AsyncCompileJob* job) : job_(job) {}
-  void Run() override { job_->step_->Run(on_foreground_); }
-
- private:
-  static constexpr bool on_foreground_ = true;
-  AsyncCompileJob* job_;
-};
-
-class AsyncCompileJob::BackgroundCompileTask : public CancelableTask {
- public:
-  explicit BackgroundCompileTask(AsyncCompileJob* job)
-      : CancelableTask(&job->background_task_manager_), job_(job) {}
+  CompileTask(AsyncCompileJob* job, bool on_foreground)
+      // We only manage the background tasks with the {CancelableTaskManager} of
+      // the {AsyncCompileJob}. Foreground tasks are managed by the system's
+      // {CancelableTaskManager}. Background tasks cannot spawn tasks managed by
+      // their own task manager.
+      : CancelableTask(on_foreground ? job->isolate_->cancelable_task_manager()
+                                     : &job->background_task_manager_),
+        job_(job),
+        on_foreground_(on_foreground) {}
 
   void RunInternal() override { job_->step_->Run(on_foreground_); }
 
  private:
-  static constexpr bool on_foreground_ = false;
   AsyncCompileJob* job_;
+  bool on_foreground_;
 };
 
 void AsyncCompileJob::StartForegroundTask() {
   DCHECK_EQ(0, num_pending_foreground_tasks_++);
 
   V8::GetCurrentPlatform()->CallOnForegroundThread(
-      reinterpret_cast<v8::Isolate*>(isolate_),
-      new ForegroundCompileTask(this));
+      reinterpret_cast<v8::Isolate*>(isolate_), new CompileTask(this, true));
 }
 
 template <typename State, typename... Args>
@@ -1995,7 +1989,7 @@ void AsyncCompileJob::DoSync(Args&&... args) {
 
 void AsyncCompileJob::StartBackgroundTask() {
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new BackgroundCompileTask(this), v8::Platform::kShortRunningTask);
+      new CompileTask(this, false), v8::Platform::kShortRunningTask);
 }
 
 template <typename State, typename... Args>
