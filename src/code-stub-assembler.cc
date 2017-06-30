@@ -6625,7 +6625,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
   Label grow_case(this), no_grow_case(this), done(this);
 
   Node* condition;
-  if (IsHoleyElementsKind(kind)) {
+  if (IsHoleyOrDictionaryElementsKind(kind)) {
     condition = UintPtrGreaterThanOrEqual(key, length);
   } else {
     condition = WordEqual(key, length);

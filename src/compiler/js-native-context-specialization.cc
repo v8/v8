@@ -1076,7 +1076,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           // store is either holey, or we have a potentially growing store,
           // then we need to check that all prototypes have stable maps with
           // fast elements (and we need to guard against changes to that below).
-          if (IsHoleyElementsKind(receiver_map->elements_kind()) ||
+          if (IsHoleyOrDictionaryElementsKind(receiver_map->elements_kind()) ||
               IsGrowStoreMode(store_mode)) {
             // Make sure all prototypes are stable and have fast elements.
             for (Handle<Map> map = receiver_map;;) {
@@ -2126,7 +2126,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (access_mode == AccessMode::kLoad) {
       // Compute the real element access type, which includes the hole in case
       // of holey backing stores.
-      if (IsHoleyElementsKind(elements_kind)) {
+      if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
         element_access.type =
             Type::Union(element_type, Type::Hole(), graph()->zone());
       }
@@ -2190,7 +2190,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         if (receiver_is_jsarray) {
           flags |= GrowFastElementsFlag::kArrayObject;
         }
-        if (IsHoleyElementsKind(elements_kind)) {
+        if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
           flags |= GrowFastElementsFlag::kHoleyElements;
         }
         if (IsFastDoubleElementsKind(elements_kind)) {

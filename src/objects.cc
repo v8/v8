@@ -5002,7 +5002,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
 
   DCHECK(!map->IsUndefined(isolate));
   // Check if we can go back in the elements kind transition chain.
-  if (IsHoleyElementsKind(from_kind) &&
+  if (IsHoleyOrDictionaryElementsKind(from_kind) &&
       to_kind == GetPackedElementsKind(from_kind) &&
       map->GetBackPointer()->IsMap() &&
       Map::cast(map->GetBackPointer())->elements_kind() == to_kind) {
@@ -15211,7 +15211,8 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   }
 
   ElementsKind to = value->OptimalElementsKind();
-  if (IsHoleyElementsKind(kind) || !object->IsJSArray() || index > old_length) {
+  if (IsHoleyOrDictionaryElementsKind(kind) || !object->IsJSArray() ||
+      index > old_length) {
     to = GetHoleyElementsKind(to);
     kind = GetHoleyElementsKind(kind);
   }
@@ -15280,7 +15281,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         handle(JSArray::cast(site->transition_info()));
     ElementsKind kind = transition_info->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
-    if (IsHoleyElementsKind(kind)) {
+    if (IsHoleyOrDictionaryElementsKind(kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
     if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
@@ -15310,7 +15311,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
   } else {
     ElementsKind kind = site->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
-    if (IsHoleyElementsKind(kind)) {
+    if (IsHoleyOrDictionaryElementsKind(kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
     if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {

@@ -761,7 +761,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
         AllocationSite::ShouldTrack(elements_kind) ? DISABLE_ALLOCATION_SITES
                                                    : DONT_OVERRIDE;
 
-    if (IsHoleyElementsKind(elements_kind)) {
+    if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
       ArraySingleArgumentConstructorStub stub(isolate(), elements_kind,
                                               override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(

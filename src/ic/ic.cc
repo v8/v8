@@ -1398,7 +1398,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map) {
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
-  // TODO(jkummerow): Use IsHoleyElementsKind(elements_kind).
+  // TODO(jkummerow): Use IsHoleyOrDictionaryElementsKind(elements_kind).
   bool convert_hole_to_undefined =
       is_js_array && elements_kind == HOLEY_ELEMENTS &&
       *receiver_map == isolate()->get_initial_js_array_map(elements_kind);

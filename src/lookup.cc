@@ -208,7 +208,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   if (IsElement()) {
     ElementsKind kind = holder->GetElementsKind();
     ElementsKind to = value->OptimalElementsKind();
-    if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
+    if (IsHoleyOrDictionaryElementsKind(kind)) to = GetHoleyElementsKind(to);
     to = GetMoreGeneralElementsKind(kind, to);
 
     if (kind != to) {

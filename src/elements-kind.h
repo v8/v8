@@ -101,18 +101,15 @@ inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
          kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
 }
 
-
 inline bool IsTerminalElementsKind(ElementsKind kind) {
   return kind == TERMINAL_FAST_ELEMENTS_KIND ||
          IsFixedTypedArrayElementsKind(kind);
 }
 
-
 inline bool IsFastElementsKind(ElementsKind kind) {
   STATIC_ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= HOLEY_DOUBLE_ELEMENTS;
 }
-
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
   return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind) ||
@@ -161,8 +158,7 @@ inline bool IsFastHoleyElementsKind(ElementsKind kind) {
          kind == HOLEY_ELEMENTS;
 }
 
-
-inline bool IsHoleyElementsKind(ElementsKind kind) {
+inline bool IsHoleyOrDictionaryElementsKind(ElementsKind kind) {
   return IsFastHoleyElementsKind(kind) ||
       kind == DICTIONARY_ELEMENTS;
 }

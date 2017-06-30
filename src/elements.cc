@@ -585,7 +585,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   static void TryTransitionResultArrayToPacked(Handle<JSArray> array) {
-    if (!IsHoleyElementsKind(kind())) return;
+    if (!IsHoleyOrDictionaryElementsKind(kind())) return;
     Handle<FixedArrayBase> backing_store(array->elements());
     int length = Smi::cast(array->length())->value();
     if (!Subclass::IsPackedImpl(*array, *backing_store, 0, length)) {
@@ -921,7 +921,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     Handle<FixedArrayBase> elements =
         ConvertElementsWithCapacity(object, old_elements, from_kind, capacity);
 
-    if (IsHoleyElementsKind(from_kind)) to_kind = GetHoleyElementsKind(to_kind);
+    if (IsHoleyOrDictionaryElementsKind(from_kind))
+      to_kind = GetHoleyElementsKind(to_kind);
     Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
     JSObject::SetMapAndElements(object, new_map, elements);
 
@@ -1158,7 +1159,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     // store size as a last emergency measure if we cannot allocate the big
     // array.
     if (!raw_array.ToHandle(&combined_keys)) {
-      if (IsHoleyElementsKind(kind())) {
+      if (IsHoleyOrDictionaryElementsKind(kind())) {
         // If we overestimate the result list size we might end up in the
         // large-object space which doesn't free memory on shrinking the list.
         // Hence we try to estimate the final size for holey backing stores more
@@ -1197,7 +1198,8 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // For holey elements and arguments we might have to shrink the collected
     // keys since the estimates might be off.
-    if (IsHoleyElementsKind(kind()) || IsSloppyArgumentsElementsKind(kind())) {
+    if (IsHoleyOrDictionaryElementsKind(kind()) ||
+        IsSloppyArgumentsElementsKind(kind())) {
       // Shrink combined_keys to the final size.
       int final_size = nof_indices + nof_property_keys;
       DCHECK_LE(final_size, combined_keys->length());
@@ -1287,7 +1289,7 @@ class ElementsAccessorBase : public ElementsAccessor {
                                        FixedArrayBase* backing_store,
                                        uint32_t index, PropertyFilter filter) {
     uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
-    if (IsHoleyElementsKind(kind())) {
+    if (IsHoleyOrDictionaryElementsKind(kind())) {
       return index < length &&
                      !BackingStore::cast(backing_store)
                           ->is_the_hole(isolate, index)
@@ -1826,7 +1828,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     int j = 0;
     int max_number_key = -1;
     for (int i = 0; j < capacity; i++) {
-      if (IsHoleyElementsKind(kind)) {
+      if (IsHoleyOrDictionaryElementsKind(kind)) {
         if (BackingStore::cast(*store)->is_the_hole(isolate, i)) continue;
       }
       max_number_key = i;
@@ -2423,7 +2425,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     Subclass::SetLengthImpl(isolate, receiver, new_length, backing_store);
 
-    if (IsHoleyElementsKind(kind) && result->IsTheHole(isolate)) {
+    if (IsHoleyOrDictionaryElementsKind(kind) && result->IsTheHole(isolate)) {
       return isolate->factory()->undefined_value();
     }
     return result;
