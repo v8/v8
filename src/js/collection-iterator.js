@@ -15,7 +15,6 @@ var GlobalMap = global.Map;
 var GlobalSet = global.Set;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MapIterator = utils.ImportNow("MapIterator");
-var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var SetIterator = utils.ImportNow("SetIterator");
 
 // -------------------------------------------------------------------
@@ -76,14 +75,10 @@ DEFINE_METHODS(
 // -------------------------------------------------------------------
 
 %SetCode(SetIterator, SetIteratorConstructor);
-%FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
 
 var SetIteratorNext = SetIterator.prototype.next;
-
-%AddNamedProperty(SetIterator.prototype, toStringTagSymbol,
-    "Set Iterator", READ_ONLY | DONT_ENUM);
-
 var SetValues = GlobalSet.prototype.values;
+
 %AddNamedProperty(GlobalSet.prototype, "keys", SetValues, DONT_ENUM);
 %AddNamedProperty(GlobalSet.prototype, iteratorSymbol, SetValues, DONT_ENUM);
 
@@ -156,15 +151,10 @@ DEFINE_METHODS(
 // -------------------------------------------------------------------
 
 %SetCode(MapIterator, MapIteratorConstructor);
-%FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
 
 var MapIteratorNext = MapIterator.prototype.next;
-
-%AddNamedProperty(MapIterator.prototype, toStringTagSymbol,
-    "Map Iterator", READ_ONLY | DONT_ENUM);
-
-
 var MapEntries = GlobalMap.prototype.entries;
+
 %AddNamedProperty(GlobalMap.prototype, iteratorSymbol, MapEntries, DONT_ENUM);
 
 // -------------------------------------------------------------------

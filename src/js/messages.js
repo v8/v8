@@ -19,12 +19,6 @@ var Script = utils.ImportNow("Script");
 // Script
 
 /**
- * Set up the Script function and constructor.
- */
-%FunctionSetInstanceClassName(Script, 'Script');
-
-
-/**
  * Get information on a specific source position.
  * Returns an object with the following following properties:
  *   script     : script object for the source

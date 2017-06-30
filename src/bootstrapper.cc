@@ -3693,30 +3693,53 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   }
 
   {  // -- S e t I t e r a t o r
-    Handle<JSObject> set_iterator_prototype =
-        isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
-    JSObject::ForceSetPrototype(set_iterator_prototype, iterator_prototype);
-    Handle<JSFunction> set_iterator_function = InstallFunction(
-        container, "SetIterator", JS_SET_ITERATOR_TYPE, JSSetIterator::kSize,
-        set_iterator_prototype, Builtins::kIllegal);
+    Handle<String> name = factory->InternalizeUtf8String("Set Iterator");
+
+    // Setup %SetIteratorPrototype%.
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    JSObject::ForceSetPrototype(prototype, iterator_prototype);
+
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        prototype, factory->to_string_tag_symbol(), name,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    // Setup SetIterator constructor.
+    Handle<JSFunction> set_iterator_function =
+        InstallFunction(container, "SetIterator", JS_SET_ITERATOR_TYPE,
+                        JSSetIterator::kSize, prototype, Builtins::kIllegal);
+    set_iterator_function->shared()->set_instance_class_name(*name);
     native_context->set_set_iterator_map(set_iterator_function->initial_map());
   }
 
   {  // -- M a p I t e r a t o r
-    Handle<JSObject> map_iterator_prototype =
-        isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
-    JSObject::ForceSetPrototype(map_iterator_prototype, iterator_prototype);
-    Handle<JSFunction> map_iterator_function = InstallFunction(
-        container, "MapIterator", JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize,
-        map_iterator_prototype, Builtins::kIllegal);
+    Handle<String> name = factory->InternalizeUtf8String("Map Iterator");
+
+    // Setup %MapIteratorPrototype%.
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    JSObject::ForceSetPrototype(prototype, iterator_prototype);
+
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        prototype, factory->to_string_tag_symbol(), name,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    // Setup MapIterator constructor.
+    Handle<JSFunction> map_iterator_function =
+        InstallFunction(container, "MapIterator", JS_MAP_ITERATOR_TYPE,
+                        JSMapIterator::kSize, prototype, Builtins::kIllegal);
+    map_iterator_function->shared()->set_instance_class_name(*name);
     native_context->set_map_iterator_map(map_iterator_function->initial_map());
   }
 
   {  // -- S c r i p t
-    // Builtin functions for Script.
+    Handle<String> name = factory->InternalizeUtf8String("Script");
     Handle<JSFunction> script_fun = InstallFunction(
-        container, "Script", JS_VALUE_TYPE, JSValue::kSize,
-        factory->the_hole_value(), Builtins::kUnsupportedThrower);
+        container, name, JS_VALUE_TYPE, JSValue::kSize,
+        factory->the_hole_value(), Builtins::kUnsupportedThrower, DONT_ENUM);
+    script_fun->shared()->set_instance_class_name(*name);
     native_context->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());

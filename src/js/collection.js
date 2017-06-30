@@ -18,7 +18,6 @@ var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var MathRandom = global.Math.random;
 var MapIterator;
 var SetIterator;
-var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MapIterator = from.MapIterator;

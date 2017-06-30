@@ -88,17 +88,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   return fun->native_context()->debug_context_id();
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionSetInstanceClassName) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_CHECKED(String, name, 1);
-  fun->shared()->set_instance_class_name(name);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

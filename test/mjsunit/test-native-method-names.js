@@ -86,7 +86,12 @@ function CheckGetter(object, name) {
   assertTrue(Set.prototype[Symbol.iterator] === Set.prototype.values);
   CheckMethod(Set.prototype, "values", 0);
 
-  CheckMethod((new Set())[Symbol.iterator]().__proto__, "next", 0);
+  var SetIteratorPrototype = (new Set())[Symbol.iterator]().__proto__;
+  CheckMethod(SetIteratorPrototype, "next", 0);
+  assertEquals("Set Iterator", SetIteratorPrototype[Symbol.toStringTag]);
+  assertEquals(
+      undefined,
+      Object.getOwnPropertyDescriptor(SetIteratorPrototype, "constructor"));
 
   CheckMethod(Map.prototype, "set", 2);
   CheckMethod(Map.prototype, "delete", 1);
@@ -95,7 +100,12 @@ function CheckGetter(object, name) {
   CheckMethod(Map.prototype, "values", 0);
   assertTrue(Map.prototype[Symbol.iterator] === Map.prototype.entries);
 
-  CheckMethod((new Map())[Symbol.iterator]().__proto__, "next", 0);
+  var MapIteratorPrototype = (new Map())[Symbol.iterator]().__proto__;
+  CheckMethod(MapIteratorPrototype, "next", 0);
+  assertEquals("Map Iterator", MapIteratorPrototype[Symbol.toStringTag]);
+  assertEquals(
+      undefined,
+      Object.getOwnPropertyDescriptor(MapIteratorPrototype, "constructor"));
 
   assertEquals(0, WeakSet.length);
   CheckMethod(WeakSet.prototype, "add", 1);
