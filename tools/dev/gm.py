@@ -20,13 +20,14 @@ All arguments are optional. Most combinations should work, e.g.:
 
 from __future__ import print_function
 import errno
+import multiprocessing
 import os
 import pty
 import subprocess
 import sys
 
 BUILD_OPTS_DEFAULT = ""
-BUILD_OPTS_GOMA = "-j1000 -l50"
+BUILD_OPTS_GOMA = "-j1000 -l%d" % (multiprocessing.cpu_count() + 2)
 BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
 BUILD_TARGETS_ALL = ["all"]
 
@@ -97,7 +98,6 @@ GOMADIR = DetectGoma()
 IS_GOMA_MACHINE = GOMADIR is not None
 
 USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
-BUILD_OPTS = BUILD_OPTS_GOMA if IS_GOMA_MACHINE else BUILD_OPTS_DEFAULT
 
 RELEASE_ARGS_TEMPLATE = """\
 is_component_build = false
@@ -149,6 +149,9 @@ def PrintHelpAndExit():
 def _Call(cmd, silent=False):
   if not silent: print("# %s" % cmd)
   return subprocess.call(cmd, shell=True)
+
+def _CallWithOutputNoTerminal(cmd):
+  return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
 
 def _CallWithOutput(cmd):
   print("# %s" % cmd)
@@ -225,6 +228,11 @@ class Config(object):
     arch_specific = self.GetTargetCpu() + self.GetV8TargetCpu()
     return template % arch_specific
 
+  def WantsGoma(self):
+    output = _CallWithOutputNoTerminal(
+        "gn args --short --list=use_goma %s" % (GetPath(self.arch, self.mode)))
+    return "true" in output
+
   def Build(self):
     path = GetPath(self.arch, self.mode)
     args_gn = os.path.join(path, "args.gn")
@@ -236,13 +244,14 @@ class Config(object):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
     targets = " ".join(self.targets)
+    build_opts = BUILD_OPTS_GOMA if self.WantsGoma() else BUILD_OPTS_DEFAULT
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
     if "linux" not in sys.platform:
-      return _Call("ninja -C %s %s %s" % (path, BUILD_OPTS, targets))
+      return _Call("ninja -C %s %s %s" % (path, build_opts, targets))
 
     return_code, output = _CallWithOutput("ninja -C %s %s %s" %
-                                          (path, BUILD_OPTS, targets))
+                                          (path, build_opts, targets))
     if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
       _Notify("V8 build requires your attention",
               "Detected mksnapshot failure, re-running in GDB...")
