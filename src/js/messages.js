@@ -22,8 +22,6 @@ var Script = utils.ImportNow("Script");
  * Set up the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%AddNamedProperty(Script.prototype, 'constructor', Script,
-                  DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 
 /**
