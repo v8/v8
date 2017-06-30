@@ -1547,9 +1547,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Print a message to stdout and abort execution.
   void Abort(BailoutReason msg);
 
-  // Verify restrictions about code generated in stubs.
-  void set_generating_stub(bool value) { generating_stub_ = value; }
-  bool generating_stub() { return generating_stub_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1880,7 +1877,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void LoadRegPlusOffsetToAt(const MemOperand& src);
   int32_t LoadRegPlusUpperOffsetPartToAt(const MemOperand& src);
 
-  bool generating_stub_;
   bool has_frame_;
   bool has_double_zero_reg_set_;
   Isolate* isolate_;

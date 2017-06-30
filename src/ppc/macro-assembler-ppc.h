@@ -1017,9 +1017,6 @@ class MacroAssembler : public Assembler {
   // Print a message to stdout and abort execution.
   void Abort(BailoutReason reason);
 
-  // Verify restrictions about code generated in stubs.
-  void set_generating_stub(bool value) { generating_stub_ = value; }
-  bool generating_stub() { return generating_stub_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1479,7 +1476,6 @@ class MacroAssembler : public Assembler {
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
-  bool generating_stub_;
   bool has_frame_;
   Isolate* isolate_;
   // This handle will be patched with the code object on installation.

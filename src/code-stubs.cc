@@ -137,7 +137,6 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
     isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
-    masm.set_generating_stub(true);
     // TODO(yangguo): remove this once we can serialize IC stubs.
     masm.enable_serializer();
     NoCurrentFrameScope scope(&masm);

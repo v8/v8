@@ -1838,8 +1838,6 @@ class MacroAssembler : public Assembler {
 
   // ---- Code generation helpers ----
 
-  void set_generating_stub(bool value) { generating_stub_ = value; }
-  bool generating_stub() const { return generating_stub_; }
 #if DEBUG
   void set_allow_macro_instructions(bool value) {
     allow_macro_instructions_ = value;
@@ -2504,7 +2502,6 @@ class MacroAssembler : public Assembler {
                                Label* on_successful_conversion = NULL,
                                Label* on_failed_conversion = NULL);
 
-  bool generating_stub_;
 #if DEBUG
   // Tell whether any of the macro instruction can be used. When false the
   // MacroAssembler will assert if a method which can emit a variable number

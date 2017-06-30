@@ -23,7 +23,6 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : Assembler(isolate, buffer, size),
-      generating_stub_(false),
       has_frame_(false),
       isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {

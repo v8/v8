@@ -28,7 +28,6 @@ MacroAssembler::MacroAssembler(Isolate* isolate, byte* buffer,
                                unsigned buffer_size,
                                CodeObjectRequired create_code_object)
     : Assembler(isolate, buffer, buffer_size),
-      generating_stub_(false),
 #if DEBUG
       allow_macro_instructions_(true),
 #endif
