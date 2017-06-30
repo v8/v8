@@ -1374,10 +1374,13 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       // tables on the unoptimized code objects.
       List<FrameSummary> summaries;
       frame->Summarize(&summaries);
-      for (const FrameSummary& summary : summaries) {
+      for (int i = summaries.length() - 1; i >= 0; i--) {
+        const FrameSummary& summary = summaries[i];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
-          return code->GetCode()->GetBuiltinCatchPrediction();
+          prediction = code->GetCode()->GetBuiltinCatchPrediction();
+          if (prediction == HandlerTable::UNCAUGHT) continue;
+          return prediction;
         }
 
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
