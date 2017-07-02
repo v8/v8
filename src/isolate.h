@@ -1001,6 +1001,14 @@ class Isolate {
     return code_coverage_mode() == debug::Coverage::kBlockCount;
   }
 
+  bool is_block_binary_code_coverage() const {
+    return code_coverage_mode() == debug::Coverage::kBlockBinary;
+  }
+
+  bool is_block_code_coverage() const {
+    return is_block_count_code_coverage() || is_block_binary_code_coverage();
+  }
+
   void SetCodeCoverageList(Object* value);
 
   double time_millis_since_init() {

@@ -288,7 +288,9 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount) {
   v8::debug::Coverage::Mode count_mode =
       v8::internal::FLAG_block_coverage ? v8::debug::Coverage::kBlockCount
                                         : v8::debug::Coverage::kPreciseCount;
-  v8::debug::Coverage::Mode binary_mode = v8::debug::Coverage::kPreciseBinary;
+  v8::debug::Coverage::Mode binary_mode =
+      v8::internal::FLAG_block_coverage ? v8::debug::Coverage::kBlockBinary
+                                        : v8::debug::Coverage::kPreciseBinary;
   v8::debug::Coverage::SelectMode(m_isolate,
                                   callCountValue ? count_mode : binary_mode);
   return Response::OK();

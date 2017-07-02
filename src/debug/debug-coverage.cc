@@ -302,6 +302,15 @@ void FilterEmptyRanges(CoverageFunction* function) {
   }
 }
 
+void ClampToBinary(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next()) {
+    CoverageBlock& block = iter.GetBlock();
+    if (block.count > 0) block.count = 1;
+  }
+}
+
 void ResetAllBlockCounts(SharedFunctionInfo* shared) {
   DCHECK(FLAG_block_coverage);
   DCHECK(shared->HasCoverageInfo());
@@ -349,6 +358,9 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
   // Filter out ranges of zero length.
   FilterEmptyRanges(function);
 
+  // If in binary mode, only report counts of 0/1.
+  if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
+
   // Reset all counters on the DebugInfo to zero.
   ResetAllBlockCounts(info);
 }
@@ -357,7 +369,8 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
 Coverage* Coverage::CollectPrecise(Isolate* isolate) {
   DCHECK(!isolate->is_best_effort_code_coverage());
   Coverage* result = Collect(isolate, isolate->code_coverage_mode());
-  if (isolate->is_precise_binary_code_coverage()) {
+  if (isolate->is_precise_binary_code_coverage() ||
+      isolate->is_block_binary_code_coverage()) {
     // We do not have to hold onto feedback vectors for invocations we already
     // reported. So we can reset the list.
     isolate->SetCodeCoverageList(*ArrayList::New(isolate, 0));
@@ -376,6 +389,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
   const bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
 
   switch (isolate->code_coverage_mode()) {
+    case v8::debug::Coverage::kBlockBinary:
     case v8::debug::Coverage::kBlockCount:
     case v8::debug::Coverage::kPreciseBinary:
     case v8::debug::Coverage::kPreciseCount: {
@@ -449,6 +463,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
           case v8::debug::Coverage::kBlockCount:
           case v8::debug::Coverage::kPreciseCount:
             break;
+          case v8::debug::Coverage::kBlockBinary:
           case v8::debug::Coverage::kPreciseBinary:
             count = info->has_reported_binary_coverage() ? 0 : 1;
             info->set_has_reported_binary_coverage(true);
@@ -490,6 +505,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       if (FLAG_block_coverage) isolate->debug()->RemoveAllCoverageInfos();
       isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
       break;
+    case debug::Coverage::kBlockBinary:
     case debug::Coverage::kBlockCount:
     case debug::Coverage::kPreciseBinary:
     case debug::Coverage::kPreciseCount: {

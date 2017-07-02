@@ -104,6 +104,30 @@ InspectorTest.runTestSuite([
       .then(ClearAndGC)
       .then(next);
   },
+  function testPreciseCountCoverageIncremental(next)
+  {
+    Protocol.Runtime.enable()
+      .then(Protocol.Profiler.enable)
+      .then(() => Protocol.Profiler.startPreciseCoverage({callCount: true}))
+      .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: arguments.callee.name, persistScript: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
+      .then(InspectorTest.logMessage)
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(() => Protocol.Runtime.evaluate({ expression: "is_optimized(fib)" }))
+      .then(message => InspectorTest.logMessage(message))
+      .then(() => Protocol.Runtime.evaluate({ expression: "fib(20)" }))
+      .then(message => InspectorTest.logMessage(message))
+      .then(() => Protocol.Runtime.evaluate({ expression: "is_optimized(fib)" }))
+      .then(message => InspectorTest.logMessage(message))
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(Protocol.Profiler.disable)
+      .then(Protocol.Runtime.disable)
+      .then(ClearAndGC)
+      .then(next);
+  },
   function testPreciseCoverageFail(next)
   {
     Protocol.Runtime.enable()

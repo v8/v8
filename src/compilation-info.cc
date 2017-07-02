@@ -69,7 +69,7 @@ CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
     MarkAsSourcePositionsEnabled();
   }
 
-  if (FLAG_block_coverage && isolate->is_block_count_code_coverage() &&
+  if (FLAG_block_coverage && isolate->is_block_code_coverage() &&
       parse_info->script()->IsUserJavaScript()) {
     MarkAsBlockCoverageEnabled();
   }
