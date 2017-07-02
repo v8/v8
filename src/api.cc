@@ -2376,14 +2376,9 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
                         Function);
   TRACE_EVENT0("v8", "V8.ScriptCompiler");
   i::Handle<i::String> source_string;
-  int parameters_end_pos = i::kNoSourcePosition;
   auto factory = isolate->factory();
   if (arguments_count) {
-    if (i::FLAG_harmony_function_tostring) {
-      source_string = factory->NewStringFromStaticChars("(function anonymous(");
-    } else {
-      source_string = factory->NewStringFromStaticChars("(function(");
-    }
+    source_string = factory->NewStringFromStaticChars("(function(");
     for (size_t i = 0; i < arguments_count; ++i) {
       IsIdentifierHelper helper;
       if (!helper.Check(*Utils::OpenHandle(*arguments[i]))) {
@@ -2402,25 +2397,12 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
       RETURN_ON_FAILED_EXECUTION(Function);
     }
     i::Handle<i::String> brackets;
-    if (i::FLAG_harmony_function_tostring) {
-      // Append linefeed and signal that text beyond the linefeed is not part of
-      // the formal parameters.
-      brackets = factory->NewStringFromStaticChars("\n) {\n");
-      parameters_end_pos = source_string->length() + 1;
-    } else {
-      brackets = factory->NewStringFromStaticChars("){");
-    }
+    brackets = factory->NewStringFromStaticChars("){");
     has_pending_exception = !factory->NewConsString(source_string, brackets)
                                  .ToHandle(&source_string);
     RETURN_ON_FAILED_EXECUTION(Function);
   } else {
-    if (i::FLAG_harmony_function_tostring) {
-      source_string =
-          factory->NewStringFromStaticChars("(function anonymous(\n) {\n");
-      parameters_end_pos = source_string->length() - 4;
-    } else {
-      source_string = factory->NewStringFromStaticChars("(function(){");
-    }
+    source_string = factory->NewStringFromStaticChars("(function(){");
   }
 
   int scope_position = source_string->length();
@@ -2470,7 +2452,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   has_pending_exception =
       !i::Compiler::GetFunctionFromEval(
            source_string, outer_info, context, i::SLOPPY,
-           i::ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos,
+           i::ONLY_SINGLE_FUNCTION_LITERAL, i::kNoSourcePosition,
            eval_scope_position, eval_position, line_offset,
            column_offset - scope_position, name_obj, source->resource_options)
            .ToHandle(&fun);
