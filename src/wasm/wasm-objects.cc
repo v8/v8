@@ -1597,3 +1597,6 @@ bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
     return false;
   return true;
 }
+
+DEFINE_OPTIONAL_ARR_ACCESSORS(WasmDebugInfo, locals_names, kLocalsNames,
+                              FixedArray)

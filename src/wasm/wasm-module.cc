@@ -742,6 +742,33 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
   return array_object;
 }
 
+Handle<FixedArray> wasm::DecodeLocalNames(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+  Handle<SeqOneByteString> wire_bytes(compiled_module->module_bytes(), isolate);
+  LocalNames decoded_locals;
+  {
+    DisallowHeapAllocation no_gc;
+    wasm::DecodeLocalNames(wire_bytes->GetChars(),
+                           wire_bytes->GetChars() + wire_bytes->length(),
+                           &decoded_locals);
+  }
+  Handle<FixedArray> locals_names =
+      isolate->factory()->NewFixedArray(decoded_locals.max_function_index + 1);
+  for (LocalNamesPerFunction& func : decoded_locals.names) {
+    Handle<FixedArray> func_locals_names =
+        isolate->factory()->NewFixedArray(func.max_local_index + 1);
+    locals_names->set(func.function_index, *func_locals_names);
+    for (LocalName& name : func.names) {
+      Handle<String> name_str =
+          WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+              isolate, compiled_module, name.name)
+              .ToHandleChecked();
+      func_locals_names->set(name.local_index, *name_str);
+    }
+  }
+  return locals_names;
+}
+
 bool wasm::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
   ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),

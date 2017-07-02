@@ -550,8 +550,12 @@ class WasmDebugInfo : public FixedArray {
     kInstance,
     kInterpreterHandle,
     kInterpretedFunctions,
+    // FixedArray of FixedArray of <undefined|String>.
+    kLocalsNames,
     kFieldCount
   };
+
+  DECLARE_OPTIONAL_ACCESSORS(locals_names, FixedArray);
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 

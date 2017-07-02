@@ -51,6 +51,7 @@ typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
 typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
+
 struct AsmJsOffsetEntry {
   int byte_offset;
   int source_position_call;
@@ -58,6 +59,24 @@ struct AsmJsOffsetEntry {
 };
 typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
+
+struct LocalName {
+  int local_index;
+  WireBytesRef name;
+  LocalName(int local_index, WireBytesRef name)
+      : local_index(local_index), name(name) {}
+};
+struct LocalNamesPerFunction {
+  int function_index;
+  int max_local_index = -1;
+  std::vector<LocalName> names;
+  explicit LocalNamesPerFunction(int function_index)
+      : function_index(function_index) {}
+};
+struct LocalNames {
+  int max_function_index = -1;
+  std::vector<LocalNamesPerFunction> names;
+};
 
 // Decodes the bytes of a wasm module between {module_start} and {module_end}.
 V8_EXPORT_PRIVATE ModuleResult SyncDecodeWasmModule(Isolate* isolate,
@@ -107,6 +126,13 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 // is not complete.
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
                                       const byte* module_end);
+
+// Decode the local names assignment from the name section.
+// Stores the result in the given {LocalNames} structure. The result will be
+// empty if no name section is present. On encountering an error in the name
+// section, returns all information decoded up to the first error.
+void DecodeLocalNames(const byte* module_start, const byte* module_end,
+                      LocalNames* result);
 
 }  // namespace wasm
 }  // namespace internal

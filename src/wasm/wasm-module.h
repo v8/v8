@@ -412,6 +412,11 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
     Isolate* isolate, Handle<WasmModuleObject> module, Handle<String> name,
     ErrorThrower* thrower);
 
+// Decode local variable names from the names section. Return FixedArray of
+// FixedArray of <undefined|String>. The outer fixed array is indexed by the
+// function index, the inner one by the local index.
+Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
+
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.
 // Returns nullptr on failing to get owning instance.

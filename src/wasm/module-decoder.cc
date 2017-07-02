@@ -1404,6 +1404,60 @@ std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
   return result;
 }
 
+void DecodeLocalNames(const byte* module_start, const byte* module_end,
+                      LocalNames* result) {
+  DCHECK_NOT_NULL(result);
+  DCHECK(result->names.empty());
+
+  static constexpr int kModuleHeaderSize = 8;
+  Decoder decoder(module_start, module_end);
+  decoder.consume_bytes(kModuleHeaderSize, "module header");
+
+  WasmSectionIterator section_iter(decoder);
+
+  while (decoder.ok() && section_iter.more() &&
+         section_iter.section_code() != kNameSectionCode) {
+    section_iter.advance(true);
+  }
+  if (!section_iter.more()) return;
+
+  // Reset the decoder to not read beyond the name section end.
+  decoder.Reset(section_iter.payload(), decoder.pc_offset());
+
+  while (decoder.ok() && decoder.more()) {
+    uint8_t name_type = decoder.consume_u8("name type");
+    if (name_type & 0x80) break;  // no varuint7
+
+    uint32_t name_payload_len = decoder.consume_u32v("name payload length");
+    if (!decoder.checkAvailable(name_payload_len)) break;
+
+    if (name_type != NameSectionType::kLocal) {
+      decoder.consume_bytes(name_payload_len, "name subsection payload");
+      continue;
+    }
+
+    uint32_t local_names_count = decoder.consume_u32v("local names count");
+    for (uint32_t i = 0; i < local_names_count; ++i) {
+      uint32_t func_index = decoder.consume_u32v("function index");
+      if (func_index > kMaxInt) continue;
+      result->names.emplace_back(static_cast<int>(func_index));
+      LocalNamesPerFunction& func_names = result->names.back();
+      result->max_function_index =
+          std::max(result->max_function_index, func_names.function_index);
+      uint32_t num_names = decoder.consume_u32v("namings count");
+      for (uint32_t k = 0; k < num_names; ++k) {
+        uint32_t local_index = decoder.consume_u32v("local index");
+        WireBytesRef name = wasm::consume_string(decoder, true, "local name");
+        if (!decoder.ok()) break;
+        if (local_index > kMaxInt) continue;
+        func_names.max_local_index =
+            std::max(func_names.max_local_index, static_cast<int>(local_index));
+        func_names.names.emplace_back(static_cast<int>(local_index), name);
+      }
+    }
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
