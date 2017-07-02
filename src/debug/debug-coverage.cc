@@ -66,39 +66,6 @@ bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
   return a.start < b.start;
 }
 
-bool HaveSameSourceRange(const CoverageBlock& lhs, const CoverageBlock& rhs) {
-  return lhs.start == rhs.start && lhs.end == rhs.end;
-}
-
-void MergeDuplicateSingletons(std::vector<CoverageBlock>& blocks) {
-  int from = 1;
-  int to = 1;
-  while (from < static_cast<int>(blocks.size())) {
-    CoverageBlock& prev_block = blocks[to - 1];
-    CoverageBlock& this_block = blocks[from];
-
-    // Identical ranges should only occur through singleton ranges. Consider the
-    // ranges for `for (.) break;`: continuation ranges for both the `break` and
-    // `for` statements begin after the trailing semicolon.
-    // Such ranges are merged and keep the maximal execution count.
-    if (HaveSameSourceRange(prev_block, this_block)) {
-      DCHECK_EQ(kNoSourcePosition, this_block.end);  // Singleton range.
-      prev_block.count = std::max(prev_block.count, this_block.count);
-      from++;  // Do not advance {to} cursor.
-      continue;
-    }
-
-    DCHECK(!HaveSameSourceRange(prev_block, this_block));
-
-    // Copy if necessary.
-    if (from != to) blocks[to] = blocks[from];
-
-    from++;
-    to++;
-  }
-  blocks.resize(to);
-}
-
 std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
                                               SharedFunctionInfo* shared) {
   DCHECK(FLAG_block_coverage);
@@ -122,13 +89,217 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
   // Sort according to the block nesting structure.
   std::sort(result.begin(), result.end(), CompareCoverageBlock);
 
-  // Remove duplicate singleton ranges, keeping the max count.
-  MergeDuplicateSingletons(result);
-
-  // TODO(jgruber): Merge consecutive ranges with identical counts, remove empty
-  // ranges.
-
   return result;
+}
+
+// A utility class to simplify logic for performing passes over block coverage
+// ranges. Provides access to the implicit tree structure of ranges (i.e. access
+// to parent and sibling blocks), and supports efficient in-place editing and
+// deletion. The underlying backing store is the array of CoverageBlocks stored
+// on the CoverageFunction.
+class CoverageBlockIterator final {
+ public:
+  explicit CoverageBlockIterator(CoverageFunction* function)
+      : function_(function),
+        ended_(false),
+        delete_current_(false),
+        read_index_(-1),
+        write_index_(-1) {
+    DCHECK(std::is_sorted(function_->blocks.begin(), function_->blocks.end(),
+                          CompareCoverageBlock));
+  }
+
+  ~CoverageBlockIterator() {
+    Finalize();
+    DCHECK(std::is_sorted(function_->blocks.begin(), function_->blocks.end(),
+                          CompareCoverageBlock));
+  }
+
+  bool HasNext() const {
+    return read_index_ + 1 < static_cast<int>(function_->blocks.size());
+  }
+
+  bool Next() {
+    if (!HasNext()) {
+      if (!ended_) MaybeWriteCurrent();
+      ended_ = true;
+      return false;
+    }
+
+    // If a block has been deleted, subsequent iteration moves trailing blocks
+    // to their updated position within the array.
+    MaybeWriteCurrent();
+
+    if (read_index_ == -1) {
+      // Initialize the nesting stack with the function range.
+      nesting_stack_.emplace_back(function_->start, function_->end,
+                                  function_->count);
+    } else if (!delete_current_) {
+      nesting_stack_.emplace_back(GetBlock());
+    }
+
+    delete_current_ = false;
+    read_index_++;
+
+    DCHECK(IsActive());
+
+    CoverageBlock& block = GetBlock();
+    while (nesting_stack_.size() > 1 &&
+           nesting_stack_.back().end <= block.start) {
+      nesting_stack_.pop_back();
+    }
+
+    DCHECK_IMPLIES(block.start >= function_->end,
+                   block.end == kNoSourcePosition);
+    DCHECK_NE(block.start, kNoSourcePosition);
+    DCHECK_LE(block.end, GetParent().end);
+
+    return true;
+  }
+
+  CoverageBlock& GetBlock() {
+    DCHECK(IsActive());
+    return function_->blocks[read_index_];
+  }
+
+  CoverageBlock& GetNextBlock() {
+    DCHECK(IsActive());
+    DCHECK(HasNext());
+    return function_->blocks[read_index_ + 1];
+  }
+
+  CoverageBlock& GetParent() {
+    DCHECK(IsActive());
+    return nesting_stack_.back();
+  }
+
+  bool HasSiblingOrChild() {
+    DCHECK(IsActive());
+    return HasNext() && GetNextBlock().start < GetParent().end;
+  }
+
+  CoverageBlock& GetSiblingOrChild() {
+    DCHECK(HasSiblingOrChild());
+    DCHECK(IsActive());
+    return GetNextBlock();
+  }
+
+  void DeleteBlock() {
+    DCHECK(!delete_current_);
+    DCHECK(IsActive());
+    delete_current_ = true;
+  }
+
+ private:
+  void MaybeWriteCurrent() {
+    if (delete_current_) return;
+    if (read_index_ >= 0 && write_index_ != read_index_) {
+      function_->blocks[write_index_] = function_->blocks[read_index_];
+    }
+    write_index_++;
+  }
+
+  void Finalize() {
+    while (Next()) {
+      // Just iterate to the end.
+    }
+    function_->blocks.resize(write_index_);
+  }
+
+  bool IsActive() const { return read_index_ >= 0 && !ended_; }
+
+  CoverageFunction* function_;
+  std::vector<CoverageBlock> nesting_stack_;
+  bool ended_;
+  bool delete_current_;
+  int read_index_;
+  int write_index_;
+};
+
+bool HaveSameSourceRange(const CoverageBlock& lhs, const CoverageBlock& rhs) {
+  return lhs.start == rhs.start && lhs.end == rhs.end;
+}
+
+void MergeDuplicateSingletons(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next() && iter.HasNext()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& next_block = iter.GetNextBlock();
+
+    // Identical ranges should only occur through singleton ranges. Consider the
+    // ranges for `for (.) break;`: continuation ranges for both the `break` and
+    // `for` statements begin after the trailing semicolon.
+    // Such ranges are merged and keep the maximal execution count.
+    if (!HaveSameSourceRange(block, next_block)) continue;
+
+    DCHECK_EQ(kNoSourcePosition, block.end);  // Singleton range.
+    next_block.count = std::max(block.count, next_block.count);
+    iter.DeleteBlock();
+  }
+}
+
+// Rewrite position singletons (produced by unconditional control flow
+// like return statements, and by continuation counters) into source
+// ranges that end at the next sibling range or the end of the parent
+// range, whichever comes first.
+void RewritePositionSingletonsToRanges(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& parent = iter.GetParent();
+
+    if (block.start >= function->end) {
+      DCHECK_EQ(block.end, kNoSourcePosition);
+      iter.DeleteBlock();
+    } else if (block.end == kNoSourcePosition) {
+      // The current block ends at the next sibling block (if it exists) or the
+      // end of the parent block otherwise.
+      block.end = iter.HasSiblingOrChild() ? iter.GetSiblingOrChild().start
+                                           : parent.end;
+    }
+  }
+}
+
+void MergeNestedAndConsecutiveRanges(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& parent = iter.GetParent();
+
+    if (parent.count == block.count) {
+      iter.DeleteBlock();
+    } else if (iter.HasSiblingOrChild()) {
+      CoverageBlock& sibling = iter.GetSiblingOrChild();
+      if (sibling.start == block.end && sibling.count == block.count) {
+        // Best-effort: this pass may miss mergeable siblings in the presence of
+        // child blocks.
+        sibling.start = block.start;
+        iter.DeleteBlock();
+      }
+    }
+  }
+}
+
+void FilterUncoveredRanges(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& parent = iter.GetParent();
+    if (block.count == 0 && parent.count == 0) iter.DeleteBlock();
+  }
+}
+
+void FilterEmptyRanges(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next()) {
+    CoverageBlock& block = iter.GetBlock();
+    if (block.start == block.end) iter.DeleteBlock();
+  }
 }
 
 void ResetAllBlockCounts(SharedFunctionInfo* shared) {
@@ -143,51 +314,43 @@ void ResetAllBlockCounts(SharedFunctionInfo* shared) {
   }
 }
 
-// Rewrite position singletons (produced by unconditional control flow
-// like return statements, and by continuation counters) into source
-// ranges that end at the next sibling range or the end of the parent
-// range, whichever comes first.
-void RewritePositionSingletonsToRanges(CoverageFunction* function) {
-  std::vector<SourceRange> nesting_stack;
-  nesting_stack.emplace_back(function->start, function->end);
-
-  const int blocks_count = static_cast<int>(function->blocks.size());
-  for (int i = 0; i < blocks_count; i++) {
-    CoverageBlock& block = function->blocks[i];
-
-    if (block.start >= function->end) {
-      // Continuation singletons past the end of the source file.
-      DCHECK_EQ(block.end, kNoSourcePosition);
-      nesting_stack.resize(1);
-      break;
-    }
-
-    while (nesting_stack.back().end <= block.start) {
-      nesting_stack.pop_back();
-    }
-
-    const SourceRange& parent_range = nesting_stack.back();
-
-    DCHECK_NE(block.start, kNoSourcePosition);
-    DCHECK_LE(block.end, parent_range.end);
-
-    if (block.end == kNoSourcePosition) {
-      // The current block ends at the next sibling block (if it exists) or the
-      // end of the parent block otherwise.
-      if (i < blocks_count - 1 &&
-          function->blocks[i + 1].start < parent_range.end) {
-        block.end = function->blocks[i + 1].start;
-      } else {
-        block.end = parent_range.end;
-      }
-    }
-
-    if (i < blocks_count - 1) {
-      nesting_stack.emplace_back(block.start, block.end);
-    }
+bool IsBlockMode(debug::Coverage::Mode mode) {
+  switch (mode) {
+    case debug::Coverage::kBlockCount:
+      return true;
+    default:
+      return false;
   }
+}
 
-  DCHECK_EQ(1, nesting_stack.size());
+void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
+                          SharedFunctionInfo* info,
+                          debug::Coverage::Mode mode) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK(IsBlockMode(mode));
+
+  function->has_block_coverage = true;
+  function->blocks = GetSortedBlockData(isolate, info);
+
+  // Remove duplicate singleton ranges, keeping the max count.
+  MergeDuplicateSingletons(function);
+
+  // Rewrite all singletons (created e.g. by continuations and unconditional
+  // control flow) to ranges.
+  RewritePositionSingletonsToRanges(function);
+
+  // Merge nested and consecutive ranges with identical counts.
+  MergeNestedAndConsecutiveRanges(function);
+
+  // Filter out ranges with count == 0 unless the immediate parent range has
+  // a count != 0.
+  FilterUncoveredRanges(function);
+
+  // Filter out ranges of zero length.
+  FilterEmptyRanges(function);
+
+  // Reset all counters on the DebugInfo to zero.
+  ResetAllBlockCounts(info);
 }
 }  // anonymous namespace
 
@@ -303,14 +466,10 @@ Coverage* Coverage::Collect(Isolate* isolate,
         nesting.push_back(functions->size());
         functions->emplace_back(start, end, count, name);
 
-        if (FLAG_block_coverage && info->HasCoverageInfo()) {
+        if (FLAG_block_coverage && IsBlockMode(collectionMode) &&
+            info->HasCoverageInfo()) {
           CoverageFunction* function = &functions->back();
-          function->has_block_coverage = true;
-          function->blocks = GetSortedBlockData(isolate, info);
-          RewritePositionSingletonsToRanges(function);
-          // TODO(jgruber): Filter empty block ranges with empty parent ranges.
-          // We should probably unify handling of function & block ranges.
-          if (reset_count) ResetAllBlockCounts(info);
+          CollectBlockCoverage(isolate, function, info, collectionMode);
         }
       }
     }
