@@ -586,11 +586,7 @@ class ScriptTest(unittest.TestCase):
       Cmd("git log -1 --format=%B rev3", "Title\n\nBUG=321\nLOG=true\n"),
       Cmd("git log -1 --format=%an rev3", "author3@chromium.org"),
       Cmd("git log -1 --format=%s rev4", "Title text 4"),
-      Cmd("git log -1 --format=%B rev4",
-       ("Title\n\nBUG=456\nLOG=Y\n\n"
-        "Review URL: https://codereview.chromium.org/9876543210\n")),
-      URL("https://codereview.chromium.org/9876543210/description",
-          "Title\n\nBUG=456\nLOG=N\n\n"),
+      Cmd("git log -1 --format=%B rev4", "Title\n\nBUG=456\nLOG=N"),
       Cmd("git log -1 --format=%an rev4", "author4@chromium.org"),
     ])
 
