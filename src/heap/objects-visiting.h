@@ -82,34 +82,6 @@ class StaticVisitorBase : public AllStatic {
   static inline VisitorId GetVisitorId(Map* map);
 };
 
-
-template <typename Callback>
-class VisitorDispatchTable {
- public:
-  void CopyFrom(VisitorDispatchTable* other) {
-    // We are not using memcpy to guarantee that during update
-    // every element of callbacks_ array will remain correct
-    // pointer (memcpy might be implemented as a byte copying loop).
-    for (int i = 0; i < kVisitorIdCount; i++) {
-      base::Relaxed_Store(&callbacks_[i], other->callbacks_[i]);
-    }
-  }
-
-  inline Callback GetVisitor(Map* map);
-
-  inline Callback GetVisitorById(VisitorId id) {
-    return reinterpret_cast<Callback>(callbacks_[id]);
-  }
-
-  void Register(VisitorId id, Callback callback) {
-    DCHECK(id < kVisitorIdCount);  // id is unsigned.
-    callbacks_[id] = reinterpret_cast<base::AtomicWord>(callback);
-  }
-
- private:
-  base::AtomicWord callbacks_[kVisitorIdCount];
-};
-
 #define TYPED_VISITOR_ID_LIST(V) \
   V(AllocationSite)              \
   V(ByteArray)                   \

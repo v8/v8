@@ -216,11 +216,6 @@ VisitorId StaticVisitorBase::GetVisitorId(int instance_type, int instance_size,
   }
 }
 
-template <typename Callback>
-Callback VisitorDispatchTable<Callback>::GetVisitor(Map* map) {
-  return reinterpret_cast<Callback>(callbacks_[map->visitor_id()]);
-}
-
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject* object) {
   return Visit(object->map(), object);
