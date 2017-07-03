@@ -7,6 +7,7 @@
 
 #include "include/libplatform/v8-tracing.h"
 
+#include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
 
 namespace v8 {
@@ -40,7 +41,7 @@ v8::base::AtomicWord g_category_index = g_num_builtin_categories;
 
 TracingController::TracingController() {}
 
-TracingController::~TracingController() {}
+TracingController::~TracingController() { StopTracing(); }
 
 void TracingController::Initialize(TraceBuffer* trace_buffer) {
   trace_buffer_.reset(trace_buffer);
@@ -111,6 +112,10 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 }
 
 void TracingController::StopTracing() {
+  if (mode_ == DISABLED) {
+    return;
+  }
+  DCHECK(trace_buffer_);
   mode_ = DISABLED;
   UpdateCategoryGroupEnabledFlags();
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
@@ -140,7 +145,9 @@ void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
     enabled_flag |= ENABLED_FOR_RECORDING;
   }
 
-  g_category_group_enabled[category_index] = enabled_flag;
+  base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(
+                          g_category_group_enabled + category_index),
+                      enabled_flag);
 }
 
 void TracingController::UpdateCategoryGroupEnabledFlags() {

@@ -229,6 +229,10 @@ class PredictablePlatform : public Platform {
     return synthetic_time_in_sec_ += 0.00001;
   }
 
+  v8::TracingController* GetTracingController() override {
+    return platform_->GetTracingController();
+  }
+
   Platform* platform() const { return platform_.get(); }
 
  private:
@@ -3107,13 +3111,7 @@ int Shell::Main(int argc, char* argv[]) {
           ? v8::platform::InProcessStackDumping::kDisabled
           : v8::platform::InProcessStackDumping::kEnabled;
 
-  g_platform = v8::platform::CreateDefaultPlatform(
-      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping);
-  if (i::FLAG_verify_predictable) {
-    g_platform = new PredictablePlatform(std::unique_ptr<Platform>(g_platform));
-  }
-
-  platform::tracing::TracingController* tracing_controller;
+  platform::tracing::TracingController* tracing_controller = nullptr;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     trace_file.open("v8_trace.json");
     tracing_controller = new platform::tracing::TracingController();
@@ -3122,7 +3120,13 @@ int Shell::Main(int argc, char* argv[]) {
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing_controller->Initialize(trace_buffer);
-    platform::SetTracingController(g_platform, tracing_controller);
+  }
+
+  g_platform = v8::platform::CreateDefaultPlatform(
+      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
+      tracing_controller);
+  if (i::FLAG_verify_predictable) {
+    g_platform = new PredictablePlatform(std::unique_ptr<Platform>(g_platform));
   }
 
   v8::V8::InitializePlatform(g_platform);
