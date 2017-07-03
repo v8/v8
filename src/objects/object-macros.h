@@ -248,7 +248,7 @@
 
 #define RELAXED_READ_BYTE_FIELD(p, offset) \
   static_cast<byte>(base::Relaxed_Load(    \
-      reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset))))
+      reinterpret_cast<const base::Atomic8*>(FIELD_ADDR_CONST(p, offset))))
 
 #define WRITE_BYTE_FIELD(p, offset, value) \
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)

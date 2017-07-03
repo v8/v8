@@ -1193,7 +1193,7 @@ class Object {
   INLINE(bool IsNaN() const);
   INLINE(bool IsMinusZero() const);
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
-  inline bool ToUint32(uint32_t* value);
+  inline bool ToUint32(uint32_t* value) const;
 
   inline Representation OptimalRepresentation();
 
@@ -1472,12 +1472,12 @@ class Object {
 
   // Tries to convert an object to an array length. Returns true and sets the
   // output parameter if it succeeds.
-  inline bool ToArrayLength(uint32_t* index);
+  inline bool ToArrayLength(uint32_t* index) const;
 
   // Tries to convert an object to an array index. Returns true and sets the
   // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
   // allow kMaxUInt32.
-  inline bool ToArrayIndex(uint32_t* index);
+  inline bool ToArrayIndex(uint32_t* index) const;
 
   // Returns true if the result of iterating over the object is the same
   // (including observable effects) as simply accessing the properties between 0
@@ -1521,7 +1521,7 @@ class Object {
   friend class StringStream;
 
   // Return the map of the root of object's prototype chain.
-  Map* GetPrototypeChainRootMap(Isolate* isolate);
+  Map* GetPrototypeChainRootMap(Isolate* isolate) const;
 
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.
@@ -1636,8 +1636,7 @@ class MapWord BASE_EMBEDDED {
   static inline MapWord FromMap(const Map* map);
 
   // View this map word as a map pointer.
-  inline Map* ToMap();
-
+  inline Map* ToMap() const;
 
   // Scavenge collection: the map word of live objects in the from space
   // contains a forwarding address (a heap object pointer in the to space).
@@ -1688,7 +1687,7 @@ class HeapObject: public Object {
   inline void set_map_no_write_barrier(Map* value);
 
   // Get the map using acquire load.
-  inline Map* synchronized_map();
+  inline Map* synchronized_map() const;
   inline MapWord synchronized_map_word() const;
 
   // Set the map using release store
@@ -1733,8 +1732,9 @@ class HeapObject: public Object {
   }
 
   // Returns the address of this HeapObject.
-  inline Address address() {
-    return reinterpret_cast<Address>(this) - kHeapObjectTag;
+  inline Address address() const {
+    return reinterpret_cast<Address>(const_cast<HeapObject*>(this)) -
+           kHeapObjectTag;
   }
 
   // Iterates over pointers contained in the object (including the Map).
@@ -1767,12 +1767,12 @@ class HeapObject: public Object {
   bool IsValidSlot(int offset);
 
   // Returns the heap object's size in bytes
-  inline int Size();
+  inline int Size() const;
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  inline int SizeFromMap(Map* map);
+  inline int SizeFromMap(Map* map) const;
 
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
@@ -1813,7 +1813,7 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Object* p);
 #endif
 
-  inline AllocationAlignment RequiredAlignment();
+  inline AllocationAlignment RequiredAlignment() const;
 
   // Layout description.
   // First field in a heap object is map.
@@ -2403,8 +2403,8 @@ class JSObject: public JSReceiver {
   static inline int GetHeaderSize(InstanceType instance_type);
   inline int GetHeaderSize();
 
-  static inline int GetEmbedderFieldCount(Map* map);
-  inline int GetEmbedderFieldCount();
+  static inline int GetEmbedderFieldCount(const Map* map);
+  inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object* value);
@@ -3381,20 +3381,20 @@ class FixedTypedArrayBase: public FixedArrayBase {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  inline int size();
+  inline int size() const;
 
   static inline int TypedArraySize(InstanceType type, int length);
-  inline int TypedArraySize(InstanceType type);
+  inline int TypedArraySize(InstanceType type) const;
 
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
 
-  inline int DataSize();
+  inline int DataSize() const;
 
  private:
   static inline int ElementSize(InstanceType type);
 
-  inline int DataSize(InstanceType type);
+  inline int DataSize(InstanceType type) const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
 };
@@ -3622,7 +3622,7 @@ class Code: public HeapObject {
   // SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
 
-  inline ByteArray* SourcePositionTable();
+  inline ByteArray* SourcePositionTable() const;
 
   // [trap_handler_index]: An index into the trap handler's master list of code
   // objects.
@@ -3633,10 +3633,10 @@ class Code: public HeapObject {
   //   FUNCTION           => type feedback information.
   //   STUB and ICs       => major/minor key as Smi.
   DECL_ACCESSORS(raw_type_feedback_info, Object)
-  inline Object* type_feedback_info();
+  inline Object* type_feedback_info() const;
   inline void set_type_feedback_info(
       Object* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline uint32_t stub_key();
+  inline uint32_t stub_key() const;
   inline void set_stub_key(uint32_t key);
 
   // [next_code_link]: Link for lists of optimized or deoptimized code.
@@ -3654,76 +3654,76 @@ class Code: public HeapObject {
   inline void set_constant_pool_offset(int offset);
 
   // Unchecked accessors to be used during GC.
-  inline ByteArray* unchecked_relocation_info();
+  inline ByteArray* unchecked_relocation_info() const;
 
-  inline int relocation_size();
+  inline int relocation_size() const;
 
   // [flags]: Various code flags.
-  inline Flags flags();
+  inline Flags flags() const;
   inline void set_flags(Flags flags);
 
   // [flags]: Access to specific code flags.
-  inline Kind kind();
-  inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
+  inline Kind kind() const;
+  inline ExtraICState extra_ic_state() const;  // Only valid for IC stubs.
 
   // Testers for IC stub kinds.
-  inline bool is_inline_cache_stub();
-  inline bool is_debug_stub();
-  inline bool is_handler();
-  inline bool is_stub();
-  inline bool is_compare_ic_stub();
-  inline bool is_optimized_code();
-  inline bool is_wasm_code();
+  inline bool is_inline_cache_stub() const;
+  inline bool is_debug_stub() const;
+  inline bool is_handler() const;
+  inline bool is_stub() const;
+  inline bool is_compare_ic_stub() const;
+  inline bool is_optimized_code() const;
+  inline bool is_wasm_code() const;
 
-  inline bool IsCodeStubOrIC();
+  inline bool IsCodeStubOrIC() const;
 
   inline void set_raw_kind_specific_flags1(int value);
   inline void set_raw_kind_specific_flags2(int value);
 
   // Testers for interpreter builtins.
-  inline bool is_interpreter_trampoline_builtin();
+  inline bool is_interpreter_trampoline_builtin() const;
 
   // Tells whether the code checks the optimization marker in the function's
   // feedback vector.
-  inline bool checks_optimization_marker();
+  inline bool checks_optimization_marker() const;
 
   // [is_crankshafted]: For kind STUB or ICs, tells whether or not a code
   // object was generated by either the hydrogen or the TurboFan optimizing
   // compiler (but it may not be an optimized function).
-  inline bool is_crankshafted();
-  inline bool is_hydrogen_stub();  // Crankshafted, but not a function.
+  inline bool is_crankshafted() const;
+  inline bool is_hydrogen_stub() const;  // Crankshafted, but not a function.
   inline void set_is_crankshafted(bool value);
 
   // [has_tagged_params]: For compiled code or builtins: Tells whether the
   // outgoing parameters of this code are tagged pointers. True for other kinds.
-  inline bool has_tagged_params();
+  inline bool has_tagged_params() const;
   inline void set_has_tagged_params(bool value);
 
   // [is_turbofanned]: For kind STUB or OPTIMIZED_FUNCTION, tells whether the
   // code object was generated by the TurboFan optimizing compiler.
-  inline bool is_turbofanned();
+  inline bool is_turbofanned() const;
   inline void set_is_turbofanned(bool value);
 
   // [can_have_weak_objects]: For kind OPTIMIZED_FUNCTION, tells whether the
   // embedded objects in code should be treated weakly.
-  inline bool can_have_weak_objects();
+  inline bool can_have_weak_objects() const;
   inline void set_can_have_weak_objects(bool value);
 
   // [is_construct_stub]: For kind BUILTIN, tells whether the code object
   // represents a hand-written construct stub
   // (e.g., NumberConstructor_ConstructStub).
-  inline bool is_construct_stub();
+  inline bool is_construct_stub() const;
   inline void set_is_construct_stub(bool value);
 
   // [has_debug_break_slots]: For FUNCTION kind, tells if it has
   // been compiled with debug break slots.
-  inline bool has_debug_break_slots();
+  inline bool has_debug_break_slots() const;
   inline void set_has_debug_break_slots(bool value);
 
   // [has_reloc_info_for_serialization]: For FUNCTION kind, tells if its
   // reloc info includes runtime and external references to support
   // serialization/deserialization.
-  inline bool has_reloc_info_for_serialization();
+  inline bool has_reloc_info_for_serialization() const;
   inline void set_has_reloc_info_for_serialization(bool value);
 
   // [allow_osr_at_loop_nesting_level]: For FUNCTION kind, tells for
@@ -3731,42 +3731,42 @@ class Code: public HeapObject {
   // level of loop nesting we are willing to do on-stack replacement
   // for.
   inline void set_allow_osr_at_loop_nesting_level(int level);
-  inline int allow_osr_at_loop_nesting_level();
+  inline int allow_osr_at_loop_nesting_level() const;
 
   // [builtin_index]: For builtins, tells which builtin index the code object
   // has. Note that builtins can have a code kind other than BUILTIN. The
   // builtin index is a non-negative integer for builtins, and -1 otherwise.
-  inline int builtin_index();
+  inline int builtin_index() const;
   inline void set_builtin_index(int id);
 
   // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
   // reserved in the code prologue.
-  inline unsigned stack_slots();
+  inline unsigned stack_slots() const;
   inline void set_stack_slots(unsigned slots);
 
   // [safepoint_table_start]: For kind OPTIMIZED_FUNCTION, the offset in
   // the instruction stream where the safepoint table starts.
-  inline unsigned safepoint_table_offset();
+  inline unsigned safepoint_table_offset() const;
   inline void set_safepoint_table_offset(unsigned offset);
 
   // [back_edge_table_start]: For kind FUNCTION, the offset in the
   // instruction stream where the back edge table starts.
-  inline unsigned back_edge_table_offset();
+  inline unsigned back_edge_table_offset() const;
   inline void set_back_edge_table_offset(unsigned offset);
 
-  inline bool back_edges_patched_for_osr();
+  inline bool back_edges_patched_for_osr() const;
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline uint16_t to_boolean_state();
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
-  inline bool marked_for_deoptimization();
+  inline bool marked_for_deoptimization() const;
   inline void set_marked_for_deoptimization(bool flag);
 
   // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
   // the code was already deoptimized.
-  inline bool deopt_already_counted();
+  inline bool deopt_already_counted() const;
   inline void set_deopt_already_counted(bool flag);
 
   // [is_promise_rejection]: For kind BUILTIN tells whether the
@@ -3832,21 +3832,21 @@ class Code: public HeapObject {
   static inline Object* GetObjectFromCodeEntry(Address code_entry);
 
   // Returns the address of the first instruction.
-  inline byte* instruction_start();
+  inline byte* instruction_start() const;
 
   // Returns the address right after the last instruction.
-  inline byte* instruction_end();
+  inline byte* instruction_end() const;
 
   // Returns the size of the instructions, padding, relocation and unwinding
   // information.
-  inline int body_size();
+  inline int body_size() const;
 
   // Returns the size of code and its metadata. This includes the size of code
   // relocation information, deoptimization data and handler table.
-  inline int SizeIncludingMetadata();
+  inline int SizeIncludingMetadata() const;
 
   // Returns the address of the first relocation info (read backwards!).
-  inline byte* relocation_start();
+  inline byte* relocation_start() const;
 
   // [has_unwinding_info]: Whether this code object has unwinding information.
   // If it doesn't, unwinding_information_start() will point to invalid data.
@@ -3886,13 +3886,13 @@ class Code: public HeapObject {
   inline void set_unwinding_info_size(int value);
 
   // Returns the address of the unwinding information, if any.
-  inline byte* unwinding_info_start();
+  inline byte* unwinding_info_start() const;
 
   // Returns the address right after the end of the unwinding information.
-  inline byte* unwinding_info_end();
+  inline byte* unwinding_info_end() const;
 
   // Code entry point.
-  inline byte* entry();
+  inline byte* entry() const;
 
   // Returns true if pc is inside this object's instructions.
   inline bool contains(byte* pc);
@@ -3912,12 +3912,12 @@ class Code: public HeapObject {
 
   // Calculate the size of the code object to report for log events. This takes
   // the layout of the code object into account.
-  inline int ExecutableSize();
+  inline int ExecutableSize() const;
 
   DECL_CAST(Code)
 
   // Dispatched behavior.
-  inline int CodeSize();
+  inline int CodeSize() const;
 
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
@@ -4111,8 +4111,8 @@ class Code: public HeapObject {
   // Code aging -- platform-specific
   static void PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Age age);
 
-  bool is_promise_rejection();
-  bool is_exception_caught();
+  bool is_promise_rejection() const;
+  bool is_exception_caught() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };

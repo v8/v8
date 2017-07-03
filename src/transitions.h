@@ -51,7 +51,7 @@ class TransitionArray: public FixedArray {
     return MaybeHandle<Map>();
   }
 
-  static Map* SearchSpecial(Map* map, Symbol* name);
+  static Map* SearchSpecial(const Map* map, Symbol* name);
 
   static Handle<Map> FindTransitionToField(Handle<Map> map, Handle<Name> name);
 

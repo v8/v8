@@ -3088,8 +3088,7 @@ Heap::RootListIndex Heap::RootIndexForEmptyFixedTypedArray(
   }
 }
 
-
-FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
+FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(const Map* map) {
   return FixedTypedArrayBase::cast(
       roots_[RootIndexForEmptyFixedTypedArray(map->elements_kind())]);
 }

@@ -1115,7 +1115,7 @@ class Heap {
   RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
 
   RootListIndex RootIndexForEmptyFixedTypedArray(ElementsKind kind);
-  FixedTypedArrayBase* EmptyFixedTypedArrayForMap(Map* map);
+  FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
 
   void RegisterStrongRoots(Object** start, Object** end);
   void UnregisterStrongRoots(Object** start);

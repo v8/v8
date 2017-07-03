@@ -68,13 +68,13 @@ class BaseShape {
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
  public:
   // Returns the number of elements in the hash table.
-  inline int NumberOfElements();
+  inline int NumberOfElements() const;
 
   // Returns the number of deleted elements in the hash table.
-  inline int NumberOfDeletedElements();
+  inline int NumberOfDeletedElements() const;
 
   // Returns the capacity of the hash table.
-  inline int Capacity();
+  inline int Capacity() const;
 
   // ElementAdded should be called whenever an element is added to a
   // hash table.
@@ -678,7 +678,9 @@ class SmallOrderedHashTable : public HeapObject {
     return ((padding_offset + kPointerSize - 1) / kPointerSize) * kPointerSize;
   }
 
-  int GetDataTableStartOffset() { return GetDataTableStartOffset(Capacity()); }
+  int GetDataTableStartOffset() const {
+    return GetDataTableStartOffset(Capacity());
+  }
 
   static int Size(int capacity) {
     int data_table_start = GetDataTableStartOffset(capacity);
@@ -686,39 +688,45 @@ class SmallOrderedHashTable : public HeapObject {
     return data_table_start + data_table_size;
   }
 
-  int Size() { return Size(Capacity()); }
+  int Size() const { return Size(Capacity()); }
 
   void SetFirstEntry(int bucket, byte value) {
     set(kBucketsStartOffset + bucket, value);
   }
 
-  int GetFirstEntry(int bucket) { return get(kBucketsStartOffset + bucket); }
+  int GetFirstEntry(int bucket) const {
+    return get(kBucketsStartOffset + bucket);
+  }
 
   void SetNextEntry(int entry, int next_entry) {
     set(GetChainTableOffset() + entry, next_entry);
   }
 
-  int GetNextEntry(int entry) { return get(GetChainTableOffset() + entry); }
+  int GetNextEntry(int entry) const {
+    return get(GetChainTableOffset() + entry);
+  }
 
   Object* GetDataEntry(int entry, int relative_index) {
     int entry_offset = GetDataEntryOffset(entry, relative_index);
     return READ_FIELD(this, entry_offset);
   }
 
-  Object* KeyAt(int entry) {
+  Object* KeyAt(int entry) const {
     int entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
     return READ_FIELD(this, entry_offset);
   }
 
-  int HashToBucket(int hash) { return hash & (NumberOfBuckets() - 1); }
+  int HashToBucket(int hash) const { return hash & (NumberOfBuckets() - 1); }
 
-  int HashToFirstEntry(int hash) {
+  int HashToFirstEntry(int hash) const {
     int bucket = HashToBucket(hash);
     int entry = GetFirstEntry(bucket);
     return entry;
   }
 
-  int GetChainTableOffset() { return kBucketsStartOffset + NumberOfBuckets(); }
+  int GetChainTableOffset() const {
+    return kBucketsStartOffset + NumberOfBuckets();
+  }
 
   void SetNumberOfBuckets(int num) { set(kNumberOfBucketsOffset, num); }
 
@@ -728,11 +736,13 @@ class SmallOrderedHashTable : public HeapObject {
     set(kNumberOfDeletedElementsOffset, num);
   }
 
-  int NumberOfElements() { return get(kNumberOfElementsOffset); }
+  int NumberOfElements() const { return get(kNumberOfElementsOffset); }
 
-  int NumberOfDeletedElements() { return get(kNumberOfDeletedElementsOffset); }
+  int NumberOfDeletedElements() const {
+    return get(kNumberOfDeletedElementsOffset);
+  }
 
-  int NumberOfBuckets() { return get(kNumberOfBucketsOffset); }
+  int NumberOfBuckets() const { return get(kNumberOfBucketsOffset); }
 
   static const byte kNotFound = 0xFF;
   static const int kMinCapacity = 4;
@@ -768,7 +778,7 @@ class SmallOrderedHashTable : public HeapObject {
  protected:
   // This is used for accessing the non |DataTable| part of the
   // structure.
-  byte get(int index) {
+  byte get(int index) const {
     return READ_BYTE_FIELD(this, kHeaderSize + (index * kOneByteSize));
   }
 
@@ -776,7 +786,7 @@ class SmallOrderedHashTable : public HeapObject {
     WRITE_BYTE_FIELD(this, kHeaderSize + (index * kOneByteSize), value);
   }
 
-  int GetDataEntryOffset(int entry, int relative_index) {
+  int GetDataEntryOffset(int entry, int relative_index) const {
     int datatable_start = GetDataTableStartOffset();
     int offset_in_datatable = entry * Derived::kEntrySize * kPointerSize;
     int offset_in_entry = relative_index * kPointerSize;
@@ -784,9 +794,11 @@ class SmallOrderedHashTable : public HeapObject {
   }
 
   // Returns the number elements that can fit into the allocated buffer.
-  int Capacity() { return NumberOfBuckets() * kLoadFactor; }
+  int Capacity() const { return NumberOfBuckets() * kLoadFactor; }
 
-  int UsedCapacity() { return NumberOfElements() + NumberOfDeletedElements(); }
+  int UsedCapacity() const {
+    return NumberOfElements() + NumberOfDeletedElements();
+  }
 };
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {

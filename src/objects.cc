@@ -2144,7 +2144,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   return Just(true);
 }
 
-Map* Object::GetPrototypeChainRootMap(Isolate* isolate) {
+Map* Object::GetPrototypeChainRootMap(Isolate* isolate) const {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
     Context* native_context = isolate->context()->native_context();
@@ -2153,14 +2153,14 @@ Map* Object::GetPrototypeChainRootMap(Isolate* isolate) {
 
   // The object is either a number, a string, a symbol, a boolean, a real JS
   // object, or a Harmony proxy.
-  HeapObject* heap_object = HeapObject::cast(this);
+  const HeapObject* heap_object = HeapObject::cast(this);
   return heap_object->map()->GetPrototypeChainRootMap(isolate);
 }
 
-Map* Map::GetPrototypeChainRootMap(Isolate* isolate) {
+Map* Map::GetPrototypeChainRootMap(Isolate* isolate) const {
   DisallowHeapAllocation no_alloc;
   if (IsJSReceiverMap()) {
-    return this;
+    return const_cast<Map*>(this);
   }
   int constructor_function_index = GetConstructorFunctionIndex();
   if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
@@ -3458,11 +3458,13 @@ Handle<Context> JSReceiver::GetCreationContext() {
              : Handle<Context>::null();
 }
 
+// static
 Handle<Object> Map::WrapFieldType(Handle<FieldType> type) {
   if (type->IsClass()) return Map::WeakCellForMap(type->AsClass());
   return type;
 }
 
+// static
 FieldType* Map::UnwrapFieldType(Object* wrapped_type) {
   Object* value = wrapped_type;
   if (value->IsWeakCell()) {
@@ -3550,7 +3552,7 @@ const char* Representation::Mnemonic() const {
   }
 }
 
-bool Map::TransitionRemovesTaggedField(Map* target) {
+bool Map::TransitionRemovesTaggedField(Map* target) const {
   int inobject = NumberOfFields();
   int target_inobject = target->NumberOfFields();
   for (int i = target_inobject; i < inobject; i++) {
@@ -3560,7 +3562,7 @@ bool Map::TransitionRemovesTaggedField(Map* target) {
   return false;
 }
 
-bool Map::TransitionChangesTaggedFieldToUntaggedField(Map* target) {
+bool Map::TransitionChangesTaggedFieldToUntaggedField(Map* target) const {
   int inobject = NumberOfFields();
   int target_inobject = target->NumberOfFields();
   int limit = Min(inobject, target_inobject);
@@ -3573,12 +3575,12 @@ bool Map::TransitionChangesTaggedFieldToUntaggedField(Map* target) {
   return false;
 }
 
-bool Map::TransitionRequiresSynchronizationWithGC(Map* target) {
+bool Map::TransitionRequiresSynchronizationWithGC(Map* target) const {
   return TransitionRemovesTaggedField(target) ||
          TransitionChangesTaggedFieldToUntaggedField(target);
 }
 
-bool Map::InstancesNeedRewriting(Map* target) {
+bool Map::InstancesNeedRewriting(Map* target) const {
   int target_number_of_fields = target->NumberOfFields();
   int target_inobject = target->GetInObjectProperties();
   int target_unused = target->unused_property_fields();
@@ -3591,7 +3593,7 @@ bool Map::InstancesNeedRewriting(Map* target) {
 
 bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
                                  int target_inobject, int target_unused,
-                                 int* old_number_of_fields) {
+                                 int* old_number_of_fields) const {
   // If fields were added (or removed), rewrite the instance.
   *old_number_of_fields = NumberOfFields();
   DCHECK(target_number_of_fields >= *old_number_of_fields);
@@ -4051,7 +4053,7 @@ void JSObject::ForceSetPrototype(Handle<JSObject> object,
   JSObject::MigrateToMap(object, new_map);
 }
 
-int Map::NumberOfFields() {
+int Map::NumberOfFields() const {
   DescriptorArray* descriptors = instance_descriptors();
   int result = 0;
   for (int i = 0; i < NumberOfOwnDescriptors(); i++) {
@@ -4175,9 +4177,8 @@ void Map::ReplaceDescriptors(DescriptorArray* new_descriptors,
   set_owns_descriptors(false);
 }
 
-
-Map* Map::FindRootMap() {
-  Map* result = this;
+Map* Map::FindRootMap() const {
+  const Map* result = this;
   Isolate* isolate = GetIsolate();
   while (true) {
     Object* back = result->GetBackPointer();
@@ -4187,26 +4188,25 @@ Map* Map::FindRootMap() {
       DCHECK(result->owns_descriptors());
       DCHECK_EQ(result->NumberOfOwnDescriptors(),
                 result->instance_descriptors()->number_of_descriptors());
-      return result;
+      return const_cast<Map*>(result);
     }
     result = Map::cast(back);
   }
 }
 
-
-Map* Map::FindFieldOwner(int descriptor) {
+Map* Map::FindFieldOwner(int descriptor) const {
   DisallowHeapAllocation no_allocation;
   DCHECK_EQ(kField, instance_descriptors()->GetDetails(descriptor).location());
-  Map* result = this;
+  const Map* result = this;
   Isolate* isolate = GetIsolate();
   while (true) {
     Object* back = result->GetBackPointer();
     if (back->IsUndefined(isolate)) break;
-    Map* parent = Map::cast(back);
+    const Map* parent = Map::cast(back);
     if (parent->NumberOfOwnDescriptors() <= descriptor) break;
     result = parent;
   }
-  return result;
+  return const_cast<Map*>(result);
 }
 
 void Map::UpdateFieldType(int descriptor, Handle<Name> name,
@@ -5112,8 +5112,7 @@ Map* Map::LookupElementsTransitionMap(ElementsKind to_kind) {
   return nullptr;
 }
 
-
-bool Map::IsMapInArrayPrototypeChain() {
+bool Map::IsMapInArrayPrototypeChain() const {
   Isolate* isolate = GetIsolate();
   if (isolate->initial_array_prototype()->map() == this) {
     return true;
@@ -8278,7 +8277,7 @@ bool JSObject::HasEnumerableElements() {
   UNREACHABLE();
 }
 
-int Map::NumberOfEnumerableProperties() {
+int Map::NumberOfEnumerableProperties() const {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   int limit = NumberOfOwnDescriptors();
@@ -8291,8 +8290,7 @@ int Map::NumberOfEnumerableProperties() {
   return result;
 }
 
-
-int Map::NextFreePropertyIndex() {
+int Map::NextFreePropertyIndex() const {
   int free_index = 0;
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DescriptorArray* descs = instance_descriptors();
@@ -8306,8 +8304,7 @@ int Map::NextFreePropertyIndex() {
   return free_index;
 }
 
-
-bool Map::OnlyHasSimpleProperties() {
+bool Map::OnlyHasSimpleProperties() const {
   // Wrapped string elements aren't explicitly stored in the elements backing
   // store, but are loaded indirectly from the underlying string.
   return !IsStringWrapperElementsKind(elements_kind()) &&
@@ -11976,7 +11973,7 @@ int Map::Hash() {
 
 namespace {
 
-bool CheckEquivalent(Map* first, Map* second) {
+bool CheckEquivalent(const Map* first, const Map* second) {
   return first->GetConstructor() == second->GetConstructor() &&
          first->prototype() == second->prototype() &&
          first->instance_type() == second->instance_type() &&
@@ -11988,8 +11985,7 @@ bool CheckEquivalent(Map* first, Map* second) {
 
 }  // namespace
 
-
-bool Map::EquivalentToForTransition(Map* other) {
+bool Map::EquivalentToForTransition(const Map* other) const {
   if (!CheckEquivalent(this, other)) return false;
   if (instance_type() == JS_FUNCTION_TYPE) {
     // JSFunctions require more checks to ensure that sloppy function is
@@ -12001,9 +11997,8 @@ bool Map::EquivalentToForTransition(Map* other) {
   return true;
 }
 
-
-bool Map::EquivalentToForNormalization(Map* other,
-                                       PropertyNormalizationMode mode) {
+bool Map::EquivalentToForNormalization(const Map* other,
+                                       PropertyNormalizationMode mode) const {
   int properties =
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other->GetInObjectProperties();
   return CheckEquivalent(this, other) && bit_field2() == other->bit_field2() &&
