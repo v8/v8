@@ -264,9 +264,16 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
+    RecordInnerScopeEvalCall();
+  }
+
+  void RecordInnerScopeEvalCall() {
     inner_scope_calls_eval_ = true;
     for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
+      if (scope->inner_scope_calls_eval_) {
+        return;
+      }
       scope->inner_scope_calls_eval_ = true;
     }
   }

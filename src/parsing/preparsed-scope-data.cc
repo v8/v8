@@ -16,6 +16,10 @@ namespace internal {
 
 namespace {
 
+class ScopeCallsEvalField : public BitField<bool, 0, 1> {};
+class InnerScopeCallsEvalField
+    : public BitField<bool, ScopeCallsEvalField::kNext, 1> {};
+
 class VariableIsUsedField : public BitField16<bool, 0, 1> {};
 class VariableMaybeAssignedField
     : public BitField16<bool, VariableIsUsedField::kNext, 1> {};
@@ -58,7 +62,7 @@ class UsesSuperField : public BitField<bool, LanguageField::kNext, 1> {};
   scope positions
   ------------------------------------
   | scope type << only in debug      |
-  | inner_scope_calls_eval_          |
+  | eval                             |
   | ----------------------           |
   | | data for variables |           |
   | | ...                |           |
@@ -289,7 +293,11 @@ void ProducedPreParsedScopeData::SaveDataForScope(Scope* scope) {
 #ifdef DEBUG
   backing_store_.push_back(scope->scope_type());
 #endif
-  backing_store_.push_back(scope->inner_scope_calls_eval());
+
+  uint32_t eval =
+      ScopeCallsEvalField::encode(scope->calls_eval()) |
+      InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval());
+  backing_store_.push_back(eval);
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -369,7 +377,7 @@ ConsumedPreParsedScopeData::GetDataForSkippableFunction(
 
   // The skippable function *must* be the next function in the data. Use the
   // start position as a sanity check.
-  CHECK_GE(scope_data->length(), index_ + 5);
+  CHECK_GE(scope_data->length(), index_ + SkippableFunctionDataOffsets::kSize);
   int start_position_from_data =
       scope_data->get(index_ + SkippableFunctionDataOffsets::kStartPosition);
   CHECK_EQ(start_position, start_position_from_data);
@@ -454,8 +462,12 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope,
   DCHECK_GE(scope_data->length(), index_ + 2);
   DCHECK_EQ(scope_data->get(index_++), scope->scope_type());
 
-  if (scope_data->get(index_++)) {
+  uint32_t eval = scope_data->get(index_++);
+  if (ScopeCallsEvalField::decode(eval)) {
     scope->RecordEvalCall();
+  }
+  if (InnerScopeCallsEvalField::decode(eval)) {
+    scope->RecordInnerScopeEvalCall();
   }
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
