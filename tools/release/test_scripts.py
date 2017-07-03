@@ -861,7 +861,7 @@ Performance and stability improvements on all platforms."""
           "\"Version 3.22.5 (based on push_hash)\""
           " origin/candidates", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5", ""),
+      Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
       Cmd("git branch -D %s" % TEST_CONFIG["CANDIDATESBRANCH"], ""),
@@ -905,7 +905,9 @@ Performance and stability improvements on all platforms."""
 
 Log text 1 (issue 321).
 
-Performance and stability improvements on all platforms."""
+Performance and stability improvements on all platforms.
+
+TBR=reviewer@chromium.org"""
 
     def ResetChangeLog():
       last_change_log = """1999-04-05: Version 3.22.4
@@ -969,12 +971,14 @@ Performance and stability improvements on all platforms."""
           cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
+      Cmd("git cl upload --send-mail --email \"author@chromium.org\" "
+          "-f --bypass-hooks", ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
           "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5", ""),
+      Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch", "* master\n  work-branch\n"),
       Cmd("git branch -D work-branch", ""),
@@ -1288,7 +1292,7 @@ LOG=N
           "\" refs/remotes/origin/candidates",
           "hsh_to_tag"),
       Cmd("git tag 3.22.5.1 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5.1", ""),
+      Cmd("git push origin refs/tags/3.22.5.1:refs/tags/3.22.5.1", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])

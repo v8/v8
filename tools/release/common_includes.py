@@ -395,7 +395,7 @@ class GitInterface(VCInterface):
                     "git updater is lagging behind?")
 
     self.step.Git("tag %s %s" % (tag, commit))
-    self.step.Git("push origin %s" % tag)
+    self.step.Git("push origin refs/tags/%s:refs/tags/%s" % (tag, tag))
 
   def CLLand(self):
     self.step.GitCLLand()
