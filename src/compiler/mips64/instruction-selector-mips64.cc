@@ -1494,84 +1494,28 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
-  Mips64OperandGenerator g(this);
-  if (kArchVariant == kMips64r2) {  // Select Madd.S(z, x, y).
-    Float32BinopMatcher m(node);
-    if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
-      // For Add.S(Mul.S(x, y), z):
-      Float32BinopMatcher mleft(m.left().node());
-      Emit(kMips64MaddS, g.DefineAsRegister(node),
-           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()));
-      return;
-    }
-    if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
-      // For Add.S(x, Mul.S(y, z)):
-      Float32BinopMatcher mright(m.right().node());
-      Emit(kMips64MaddS, g.DefineAsRegister(node),
-           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()));
-      return;
-    }
-  }
+  // Optimization with Madd.S(z, x, y) is intentionally removed.
+  // See explanation for madd_s in assembler-mips64.cc.
   VisitRRR(this, kMips64AddS, node);
 }
 
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
-  Mips64OperandGenerator g(this);
-  if (kArchVariant == kMips64r2) {  // Select Madd.S(z, x, y).
-    Float64BinopMatcher m(node);
-    if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
-      // For Add.D(Mul.D(x, y), z):
-      Float64BinopMatcher mleft(m.left().node());
-      Emit(kMips64MaddD, g.DefineAsRegister(node),
-           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()));
-      return;
-    }
-    if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-      // For Add.D(x, Mul.D(y, z)):
-      Float64BinopMatcher mright(m.right().node());
-      Emit(kMips64MaddD, g.DefineAsRegister(node),
-           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()));
-      return;
-    }
-  }
+  // Optimization with Madd.D(z, x, y) is intentionally removed.
+  // See explanation for madd_d in assembler-mips64.cc.
   VisitRRR(this, kMips64AddD, node);
 }
 
 
 void InstructionSelector::VisitFloat32Sub(Node* node) {
-  Mips64OperandGenerator g(this);
-  if (kArchVariant == kMips64r2) {  // Select Madd.S(z, x, y).
-    Float32BinopMatcher m(node);
-    if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
-      // For Sub.S(Mul.S(x,y), z) select Msub.S(z, x, y).
-      Float32BinopMatcher mleft(m.left().node());
-      Emit(kMips64MsubS, g.DefineAsRegister(node),
-           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()));
-      return;
-    }
-  }
+  // Optimization with Msub.S(z, x, y) is intentionally removed.
+  // See explanation for madd_s in assembler-mips64.cc.
   VisitRRR(this, kMips64SubS, node);
 }
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
-  Mips64OperandGenerator g(this);
-  if (kArchVariant == kMips64r2) {  // Select Madd.S(z, x, y).
-    Float64BinopMatcher m(node);
-    if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
-      // For Sub.D(Mul.S(x,y), z) select Msub.D(z, x, y).
-      Float64BinopMatcher mleft(m.left().node());
-      Emit(kMips64MsubD, g.DefineAsRegister(node),
-           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()));
-      return;
-    }
-  }
+  // Optimization with Msub.D(z, x, y) is intentionally removed.
+  // See explanation for madd_d in assembler-mips64.cc.
   VisitRRR(this, kMips64SubD, node);
 }
 

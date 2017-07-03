@@ -2877,26 +2877,30 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 
 void Assembler::madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
                        FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_S);
+  // On Loongson 3A (MIPS64R2), MADD.S instruction is actually fused MADD.S and
+  // this causes failure in some of the tests. Since this optimization is rarely
+  // used, and not used at all on MIPS64R6, this isntruction is removed.
+  UNREACHABLE();
 }
 
 void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
+  // On Loongson 3A (MIPS64R2), MADD.D instruction is actually fused MADD.D and
+  // this causes failure in some of the tests. Since this optimization is rarely
+  // used, and not used at all on MIPS64R6, this isntruction is removed.
+  UNREACHABLE();
 }
 
 void Assembler::msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
                        FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1X, fr, ft, fs, fd, MSUB_S);
+  // See explanation for instruction madd_s.
+  UNREACHABLE();
 }
 
 void Assembler::msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
                        FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1X, fr, ft, fs, fd, MSUB_D);
+  // See explanation for instruction madd_d.
+  UNREACHABLE();
 }
 
 void Assembler::maddf_s(FPURegister fd, FPURegister fs, FPURegister ft) {

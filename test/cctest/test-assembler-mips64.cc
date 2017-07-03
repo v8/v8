@@ -316,7 +316,7 @@ TEST(MIPS3) {
   if (kArchVariant == kMips64r2) {
     __ Ldc1(f4, MemOperand(a0, offsetof(T, h)));
     __ Ldc1(f6, MemOperand(a0, offsetof(T, i)));
-    __ madd_d(f14, f6, f4, f6);
+    __ Madd_d(f14, f6, f4, f6, f8);
     __ Sdc1(f14, MemOperand(a0, offsetof(T, h)));
   }
 
@@ -6165,9 +6165,9 @@ void helper_madd_msub_maddf_msubf(F func) {
 TEST(madd_msub_s) {
   if (kArchVariant == kMips64r6) return;
   helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
-    __ madd_s(f10, f4, f6, f8);
+    __ Madd_s(f10, f4, f6, f8, f12);
     __ Swc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
-    __ msub_s(f16, f4, f6, f8);
+    __ Msub_s(f16, f4, f6, f8, f12);
     __ Swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
   });
 }
@@ -6175,9 +6175,9 @@ TEST(madd_msub_s) {
 TEST(madd_msub_d) {
   if (kArchVariant == kMips64r6) return;
   helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
-    __ madd_d(f10, f4, f6, f8);
+    __ Madd_d(f10, f4, f6, f8, f12);
     __ Sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
-    __ msub_d(f16, f4, f6, f8);
+    __ Msub_d(f16, f4, f6, f8, f12);
     __ Sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
   });
 }

@@ -2613,46 +2613,30 @@ void MacroAssembler::Trunc_ul_s(FPURegister fd, Register rs,
 
 void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
                             FPURegister ft, FPURegister scratch) {
-  if (kArchVariant == kMips64r2) {
-    madd_s(fd, fr, fs, ft);
-  } else {
-    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
-    mul_s(scratch, fs, ft);
-    add_s(fd, fr, scratch);
-  }
+  DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+  mul_s(scratch, fs, ft);
+  add_s(fd, fr, scratch);
 }
 
 void MacroAssembler::Madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft, FPURegister scratch) {
-  if (kArchVariant == kMips64r2) {
-    madd_d(fd, fr, fs, ft);
-  } else {
-    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
-    mul_d(scratch, fs, ft);
-    add_d(fd, fr, scratch);
-  }
+  DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+  mul_d(scratch, fs, ft);
+  add_d(fd, fr, scratch);
 }
 
 void MacroAssembler::Msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
                             FPURegister ft, FPURegister scratch) {
-  if (kArchVariant == kMips64r2) {
-    msub_s(fd, fr, fs, ft);
-  } else {
-    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
-    mul_s(scratch, fs, ft);
-    sub_s(fd, scratch, fr);
-  }
+  DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+  mul_s(scratch, fs, ft);
+  sub_s(fd, scratch, fr);
 }
 
 void MacroAssembler::Msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
                             FPURegister ft, FPURegister scratch) {
-  if (kArchVariant == kMips64r2) {
-    msub_d(fd, fr, fs, ft);
-  } else {
-    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
-    mul_d(scratch, fs, ft);
-    sub_d(fd, scratch, fr);
-  }
+  DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+  mul_d(scratch, fs, ft);
+  sub_d(fd, scratch, fr);
 }
 
 void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
