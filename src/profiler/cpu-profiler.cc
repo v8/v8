@@ -300,6 +300,7 @@ void CpuProfiler::CollectSample() {
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, record_samples)) {
+    TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     StartProcessorIfNotStarted();
   }
 }
