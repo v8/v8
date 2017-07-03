@@ -340,8 +340,8 @@ Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
   Handle<JSFunction> result =
       maybe_prototype.ToHandle(&prototype)
           ? factory->NewFunction(name, call_code, prototype, type,
-                                 instance_size, true)
-          : factory->NewFunctionWithoutPrototype(name, call_code, true);
+                                 instance_size, STRICT)
+          : factory->NewFunctionWithoutPrototype(name, call_code, STRICT);
   result->shared()->set_native(true);
   return result;
 }
@@ -630,7 +630,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
       factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("ThrowTypeError"));
   Handle<Code> code(isolate()->builtins()->builtin(builtin_name));
   Handle<JSFunction> function =
-      factory()->NewFunctionWithoutPrototype(name, code, true);
+      factory()->NewFunctionWithoutPrototype(name, code, STRICT);
   function->shared()->DontAdaptArguments();
 
   // %ThrowTypeError% must not have a name property.

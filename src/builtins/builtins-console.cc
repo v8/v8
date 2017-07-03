@@ -84,7 +84,7 @@ void InstallContextFunction(Handle<JSObject> target, const char* name,
       Name::ToFunctionName(factory->InternalizeUtf8String(name))
           .ToHandleChecked();
   Handle<JSFunction> fun =
-      factory->NewFunctionWithoutPrototype(name_string, call_code, false);
+      factory->NewFunctionWithoutPrototype(name_string, call_code, SLOPPY);
   fun->shared()->set_native(true);
   fun->shared()->DontAdaptArguments();
   fun->shared()->set_length(1);

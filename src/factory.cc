@@ -1488,37 +1488,34 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name) {
   return result;
 }
 
-
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
-                                                        Handle<Code> code,
-                                                        bool is_strict) {
-  Handle<Map> map = is_strict
+Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
+    Handle<String> name, Handle<Code> code, LanguageMode language_mode) {
+  Handle<Map> map = is_strict(language_mode)
                         ? isolate()->strict_function_without_prototype_map()
                         : isolate()->sloppy_function_without_prototype_map();
   Handle<JSFunction> result = NewFunction(map, name, code);
-  result->shared()->set_language_mode(is_strict ? STRICT : SLOPPY);
+  result->shared()->set_language_mode(language_mode);
   return result;
 }
-
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
-                                        bool is_strict) {
-  Handle<Map> map = is_strict ? isolate()->strict_function_map()
-                              : isolate()->sloppy_function_map();
+                                        LanguageMode language_mode) {
+  Handle<Map> map = is_strict(language_mode) ? isolate()->strict_function_map()
+                                             : isolate()->sloppy_function_map();
   Handle<JSFunction> result = NewFunction(map, name, code);
   result->set_prototype_or_initial_map(*prototype);
-  result->shared()->set_language_mode(is_strict ? STRICT : SLOPPY);
+  result->shared()->set_language_mode(language_mode);
   return result;
 }
-
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
                                         InstanceType type, int instance_size,
-                                        bool is_strict) {
+                                        LanguageMode language_mode) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, code, prototype, is_strict);
+  Handle<JSFunction> function =
+      NewFunction(name, code, prototype, language_mode);
 
   ElementsKind elements_kind =
       type == JS_ARRAY_TYPE ? PACKED_SMI_ELEMENTS : HOLEY_SMI_ELEMENTS;
