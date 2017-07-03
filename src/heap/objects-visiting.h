@@ -14,74 +14,6 @@
 namespace v8 {
 namespace internal {
 
-#define VISITOR_ID_LIST(V) \
-  V(AllocationSite)        \
-  V(ByteArray)             \
-  V(BytecodeArray)         \
-  V(Cell)                  \
-  V(Code)                  \
-  V(ConsString)            \
-  V(DataObject)            \
-  V(FixedArray)            \
-  V(FixedDoubleArray)      \
-  V(FixedFloat64Array)     \
-  V(FixedTypedArrayBase)   \
-  V(FreeSpace)             \
-  V(JSApiObject)           \
-  V(JSArrayBuffer)         \
-  V(JSFunction)            \
-  V(JSObject)              \
-  V(JSObjectFast)          \
-  V(JSRegExp)              \
-  V(JSWeakCollection)      \
-  V(Map)                   \
-  V(NativeContext)         \
-  V(Oddball)               \
-  V(PropertyCell)          \
-  V(SeqOneByteString)      \
-  V(SeqTwoByteString)      \
-  V(SharedFunctionInfo)    \
-  V(ShortcutCandidate)     \
-  V(SlicedString)          \
-  V(SmallOrderedHashMap)   \
-  V(SmallOrderedHashSet)   \
-  V(Struct)                \
-  V(Symbol)                \
-  V(ThinString)            \
-  V(TransitionArray)       \
-  V(WeakCell)
-
-// For data objects, JS objects and structs along with generic visitor which
-// can visit object of any size we provide visitors specialized by
-// object size in words.
-// Ids of specialized visitors are declared in a linear order (without
-// holes) starting from the id of visitor specialized for 2 words objects
-// (base visitor id) and ending with the id of generic visitor.
-// Method GetVisitorIdForSize depends on this ordering to calculate visitor
-// id of specialized visitor from given instance size, base visitor id and
-// generic visitor's id.
-enum VisitorId {
-#define VISITOR_ID_ENUM_DECL(id) kVisit##id,
-  VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-#undef VISITOR_ID_ENUM_DECL
-      kVisitorIdCount
-};
-
-// Base class for all static visitors.
-class StaticVisitorBase : public AllStatic {
- public:
-  // Visitor ID should fit in one byte.
-  STATIC_ASSERT(kVisitorIdCount <= 256);
-
-  // Determine which specialized visitor should be used for given instance type
-  // and instance type.
-  static inline VisitorId GetVisitorId(int instance_type, int instance_size,
-                                       bool has_unboxed_fields);
-
-  // Determine which specialized visitor should be used for given map.
-  static inline VisitorId GetVisitorId(Map* map);
-};
-
 #define TYPED_VISITOR_ID_LIST(V) \
   V(AllocationSite)              \
   V(ByteArray)                   \
@@ -112,10 +44,9 @@ class StaticVisitorBase : public AllStatic {
   V(TransitionArray)             \
   V(WeakCell)
 
-// The base class for visitors that need to dispatch on object type. It is
-// similar to StaticVisitor except it uses virtual dispatch instead of static
-// dispatch table. The default behavior of all visit functions is to iterate
-// body of the given object using the BodyDescriptor of the object.
+// The base class for visitors that need to dispatch on object type. The default
+// behavior of all visit functions is to iterate body of the given object using
+// the BodyDescriptor of the object.
 //
 // The visit functions return the size of the object cast to ResultType.
 //
@@ -124,8 +55,6 @@ class StaticVisitorBase : public AllStatic {
 //   class SomeVisitor : public HeapVisitor<ResultType, SomeVisitor> {
 //     ...
 //   }
-//
-// TODO(ulan): replace static visitors with the HeapVisitor.
 template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
  public:

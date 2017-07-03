@@ -4273,11 +4273,11 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
       CHECK(layout_descriptor()->IsConsistentWithMap(this));
-      CHECK(visitor_id() == Heap::GetStaticVisitorIdForMap(this));
+      CHECK(visitor_id() == Map::GetVisitorId(this));
     }
 #else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
-    DCHECK(visitor_id() == Heap::GetStaticVisitorIdForMap(this));
+    DCHECK(visitor_id() == Map::GetVisitorId(this));
 #endif
   }
 }
@@ -4299,7 +4299,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 #else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
 #endif
-    set_visitor_id(Heap::GetStaticVisitorIdForMap(this));
+    set_visitor_id(Map::GetVisitorId(this));
   }
 }
 

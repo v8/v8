@@ -728,10 +728,6 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
-  // Determines a static visitor id based on the given {map} that can then be
-  // stored on the map to facilitate fast dispatch for {StaticVisitorBase}.
-  static int GetStaticVisitorIdForMap(Map* map);
-
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
   void NotifyDeserializationComplete();

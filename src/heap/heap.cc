@@ -2187,29 +2187,28 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
-  reinterpret_cast<Map*>(result)->set_map_after_allocation(
-      reinterpret_cast<Map*>(root(kMetaMapRootIndex)), SKIP_WRITE_BARRIER);
-  reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
-  reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
+  Map* map = reinterpret_cast<Map*>(result);
+  map->set_map_after_allocation(reinterpret_cast<Map*>(root(kMetaMapRootIndex)),
+                                SKIP_WRITE_BARRIER);
+  map->set_instance_type(instance_type);
+  map->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
-  reinterpret_cast<Map*>(result)->set_visitor_id(
-      StaticVisitorBase::GetVisitorId(instance_type, instance_size, false));
   if (FLAG_unbox_double_fields) {
-    reinterpret_cast<Map*>(result)
-        ->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+    map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
   }
-  reinterpret_cast<Map*>(result)->clear_unused();
-  reinterpret_cast<Map*>(result)
-      ->set_inobject_properties_or_constructor_function_index(0);
-  reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
-  reinterpret_cast<Map*>(result)->set_bit_field(0);
-  reinterpret_cast<Map*>(result)->set_bit_field2(0);
+  // GetVisitorId requires a properly initialized LayoutDescriptor.
+  map->set_visitor_id(Map::GetVisitorId(map));
+  map->clear_unused();
+  map->set_inobject_properties_or_constructor_function_index(0);
+  map->set_unused_property_fields(0);
+  map->set_bit_field(0);
+  map->set_bit_field2(0);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true) |
                    Map::ConstructionCounter::encode(Map::kNoSlackTracking);
-  reinterpret_cast<Map*>(result)->set_bit_field3(bit_field3);
-  reinterpret_cast<Map*>(result)->set_weak_cell_cache(Smi::kZero);
-  return result;
+  map->set_bit_field3(bit_field3);
+  map->set_weak_cell_cache(Smi::kZero);
+  return map;
 }
 
 
@@ -2241,7 +2240,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   }
   // Must be called only after |instance_type|, |instance_size| and
   // |layout_descriptor| are set.
-  map->set_visitor_id(Heap::GetStaticVisitorIdForMap(map));
+  map->set_visitor_id(Map::GetVisitorId(map));
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
@@ -6690,12 +6689,6 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
 #undef COMPARE_AND_RETURN_NAME
   }
   return false;
-}
-
-
-// static
-int Heap::GetStaticVisitorIdForMap(Map* map) {
-  return StaticVisitorBase::GetVisitorId(map);
 }
 
 const char* AllocationSpaceName(AllocationSpace space) {

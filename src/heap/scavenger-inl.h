@@ -6,11 +6,15 @@
 #define V8_HEAP_SCAVENGER_INL_H_
 
 #include "src/heap/scavenger.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
 
-bool Scavenger::ContainsOnlyData(VisitorId visitor_id) {
+namespace {
+
+// White list for objects that for sure only contain data.
+bool ContainsOnlyData(VisitorId visitor_id) {
   switch (visitor_id) {
     case kVisitSeqOneByteString:
       return true;
@@ -27,6 +31,8 @@ bool Scavenger::ContainsOnlyData(VisitorId visitor_id) {
   }
   return false;
 }
+
+}  // namespace
 
 // Helper function used by CopyObject to copy a source object to an
 // allocated target object and update the forwarding pointer in the source

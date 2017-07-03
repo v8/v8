@@ -15,6 +15,59 @@
 namespace v8 {
 namespace internal {
 
+#define VISITOR_ID_LIST(V) \
+  V(AllocationSite)        \
+  V(ByteArray)             \
+  V(BytecodeArray)         \
+  V(Cell)                  \
+  V(Code)                  \
+  V(ConsString)            \
+  V(DataObject)            \
+  V(FixedArray)            \
+  V(FixedDoubleArray)      \
+  V(FixedFloat64Array)     \
+  V(FixedTypedArrayBase)   \
+  V(FreeSpace)             \
+  V(JSApiObject)           \
+  V(JSArrayBuffer)         \
+  V(JSFunction)            \
+  V(JSObject)              \
+  V(JSObjectFast)          \
+  V(JSRegExp)              \
+  V(JSWeakCollection)      \
+  V(Map)                   \
+  V(NativeContext)         \
+  V(Oddball)               \
+  V(PropertyCell)          \
+  V(SeqOneByteString)      \
+  V(SeqTwoByteString)      \
+  V(SharedFunctionInfo)    \
+  V(ShortcutCandidate)     \
+  V(SlicedString)          \
+  V(SmallOrderedHashMap)   \
+  V(SmallOrderedHashSet)   \
+  V(Struct)                \
+  V(Symbol)                \
+  V(ThinString)            \
+  V(TransitionArray)       \
+  V(WeakCell)
+
+// For data objects, JS objects and structs along with generic visitor which
+// can visit object of any size we provide visitors specialized by
+// object size in words.
+// Ids of specialized visitors are declared in a linear order (without
+// holes) starting from the id of visitor specialized for 2 words objects
+// (base visitor id) and ending with the id of generic visitor.
+// Method GetVisitorIdForSize depends on this ordering to calculate visitor
+// id of specialized visitor from given instance size, base visitor id and
+// generic visitor's id.
+enum VisitorId {
+#define VISITOR_ID_ENUM_DECL(id) kVisit##id,
+  VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+#undef VISITOR_ID_ENUM_DECL
+      kVisitorIdCount
+};
+
 typedef std::vector<Handle<Map>> MapHandles;
 
 // All heap objects have a Map that describes their structure.
@@ -693,6 +746,8 @@ class Map : public HeapObject {
   // This includes adding transitions to the leaf map or changing
   // the descriptor array.
   inline void NotifyLeafMapLayoutChange();
+
+  static VisitorId GetVisitorId(Map* map);
 
  private:
   // Returns the map that this (root) map transitions to if its elements_kind

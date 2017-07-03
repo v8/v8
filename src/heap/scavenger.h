@@ -32,9 +32,6 @@ class Scavenger {
   inline Heap* heap() { return heap_; }
 
  private:
-  // White list for objects that for sure only contain data.
-  V8_INLINE static bool ContainsOnlyData(VisitorId visitor_id);
-
   V8_INLINE HeapObject* MigrateObject(HeapObject* source, HeapObject* target,
                                       int size);
 
