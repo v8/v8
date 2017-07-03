@@ -203,7 +203,7 @@ void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
       return;
     }
 
-    Scavenger::ScavengeObjectSlow(slot, first);
+    EvacuateObject(slot, first_word.ToMap(), first);
     object->set_map_word(MapWord::FromForwardingAddress(*slot));
     return;
   }
@@ -213,6 +213,8 @@ void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
 
 void Scavenger::EvacuateObject(HeapObject** slot, Map* map,
                                HeapObject* source) {
+  SLOW_DCHECK(heap_->InFromSpace(source));
+  SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
   int size = source->SizeFromMap(map);
   switch (static_cast<VisitorId>(map->visitor_id())) {
     case kVisitThinString:
@@ -254,16 +256,7 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
-}
-
-void Scavenger::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
-  SLOW_DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
-  MapWord first_word = object->map_word();
-  SLOW_DCHECK(!first_word.IsForwardingAddress());
-  Map* map = first_word.ToMap();
-  Scavenger* scavenger = map->GetHeap()->scavenge_collector_;
-  scavenger->EvacuateObject(p, map, object);
+  EvacuateObject(p, first_word.ToMap(), object);
 }
 
 SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
@@ -295,8 +288,8 @@ void ScavengeVisitor::VisitPointers(HeapObject* host, Object** start,
   for (Object** p = start; p < end; p++) {
     Object* object = *p;
     if (!heap_->InNewSpace(object)) continue;
-    Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),
-                              reinterpret_cast<HeapObject*>(object));
+    scavenger_->ScavengeObject(reinterpret_cast<HeapObject**>(p),
+                               reinterpret_cast<HeapObject*>(object));
   }
 }
 

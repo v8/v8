@@ -134,7 +134,6 @@ Heap::Heap()
       maximum_size_scavenges_(0),
       last_idle_notification_time_(0.0),
       last_gc_time_(0.0),
-      scavenge_collector_(nullptr),
       mark_compact_collector_(nullptr),
       minor_mark_compact_collector_(nullptr),
       memory_allocator_(nullptr),
@@ -1742,6 +1741,13 @@ void Heap::EvacuateYoungGeneration() {
   SetGCState(NOT_IN_GC);
 }
 
+static bool IsLogging(Isolate* isolate) {
+  return FLAG_verify_predictable || isolate->logger()->is_logging() ||
+         isolate->is_profiling() ||
+         (isolate->heap_profiler() != nullptr &&
+          isolate->heap_profiler()->is_tracking_object_moves());
+}
+
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
@@ -1766,8 +1772,6 @@ void Heap::Scavenge() {
 
   // Used for updating survived_since_last_expansion_ at function end.
   size_t survived_watermark = PromotedSpaceSizeOfObjects();
-
-  scavenge_collector_->UpdateConstraints();
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -1794,7 +1798,9 @@ void Heap::Scavenge() {
   Address new_space_front = new_space_->ToSpaceStart();
   promotion_queue_.Initialize();
 
-  RootScavengeVisitor root_scavenge_visitor(this);
+  Scavenger scavenger(this, IsLogging(isolate()),
+                      incremental_marking()->IsMarking());
+  RootScavengeVisitor root_scavenge_visitor(this, &scavenger);
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
       &JSObject::IsUnmodifiedApiObject);
@@ -1809,19 +1815,19 @@ void Heap::Scavenge() {
     // Copy objects reachable from the old generation.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
     RememberedSet<OLD_TO_NEW>::Iterate(
-        this, SYNCHRONIZED, [this](Address addr) {
-          return Scavenger::CheckAndScavengeObject(this, addr);
+        this, SYNCHRONIZED, [this, &scavenger](Address addr) {
+          return scavenger.CheckAndScavengeObject(this, addr);
         });
 
     RememberedSet<OLD_TO_NEW>::IterateTyped(
         this, SYNCHRONIZED,
-        [this](SlotType type, Address host_addr, Address addr) {
+        [this, &scavenger](SlotType type, Address host_addr, Address addr) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              isolate(), type, addr, [this](Object** addr) {
+              isolate(), type, addr, [this, &scavenger](Object** addr) {
                 // We expect that objects referenced by code are long living.
                 // If we do not force promotion, then we need to clear
                 // old_to_new slots in dead code objects after mark-compact.
-                return Scavenger::CheckAndScavengeObject(
+                return scavenger.CheckAndScavengeObject(
                     this, reinterpret_cast<Address>(addr));
               });
         });
@@ -1834,7 +1840,7 @@ void Heap::Scavenge() {
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
-    new_space_front = DoScavenge(new_space_front);
+    new_space_front = DoScavenge(&scavenger, new_space_front);
   }
 
   isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
@@ -1842,7 +1848,7 @@ void Heap::Scavenge() {
 
   isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
       &root_scavenge_visitor);
-  new_space_front = DoScavenge(new_space_front);
+  new_space_front = DoScavenge(&scavenger, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -2050,8 +2056,8 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
 
-Address Heap::DoScavenge(Address new_space_front) {
-  ScavengeVisitor scavenge_visitor(this);
+Address Heap::DoScavenge(Scavenger* scavenger, Address new_space_front) {
+  ScavengeVisitor scavenge_visitor(this, scavenger);
   do {
     SemiSpace::AssertValidRange(new_space_front, new_space_->top());
     // The addresses new_space_front and new_space_.top() define a
@@ -2081,7 +2087,8 @@ Address Heap::DoScavenge(Address new_space_front) {
         // to new space.
         DCHECK(!target->IsMap());
 
-        IterateAndScavengePromotedObject(target, static_cast<int>(size));
+        IterateAndScavengePromotedObject(scavenger, target,
+                                         static_cast<int>(size));
       }
     }
 
@@ -5051,8 +5058,9 @@ void Heap::ZapFromSpace() {
 
 class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  public:
-  IterateAndScavengePromotedObjectsVisitor(Heap* heap, bool record_slots)
-      : heap_(heap), record_slots_(record_slots) {}
+  IterateAndScavengePromotedObjectsVisitor(Heap* heap, Scavenger* scavenger,
+                                           bool record_slots)
+      : heap_(heap), scavenger_(scavenger), record_slots_(record_slots) {}
 
   inline void VisitPointers(HeapObject* host, Object** start,
                             Object** end) override {
@@ -5065,8 +5073,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (target->IsHeapObject()) {
         if (heap_->InFromSpace(target)) {
-          Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(slot),
-                                    HeapObject::cast(target));
+          scavenger_->ScavengeObject(reinterpret_cast<HeapObject**>(slot),
+                                     HeapObject::cast(target));
           target = *slot;
           if (heap_->InNewSpace(target)) {
             SLOW_DCHECK(heap_->InToSpace(target));
@@ -5097,11 +5105,13 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   }
 
  private:
-  Heap* heap_;
+  Heap* const heap_;
+  Scavenger* const scavenger_;
   bool record_slots_;
 };
 
-void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size) {
+void Heap::IterateAndScavengePromotedObject(Scavenger* scavenger,
+                                            HeapObject* target, int size) {
   // We are not collecting slots on new space objects during mutation
   // thus we have to scan for pointers to evacuation candidates when we
   // promote objects. But we should not record any slots in non-black
@@ -5114,7 +5124,8 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size) {
         ObjectMarking::IsBlack(target, MarkingState::Internal(target));
   }
 
-  IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
+  IterateAndScavengePromotedObjectsVisitor visitor(this, scavenger,
+                                                   record_slots);
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
     // this links are recorded during processing of weak lists.
@@ -5800,7 +5811,6 @@ bool Heap::SetUp() {
   }
 
   tracer_ = new GCTracer(this);
-  scavenge_collector_ = new Scavenger(this);
   mark_compact_collector_ = new MarkCompactCollector(this);
   incremental_marking_->set_marking_worklist(
       mark_compact_collector_->marking_worklist());
@@ -5948,9 +5958,6 @@ void Heap::TearDown() {
   new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
   delete idle_scavenge_observer_;
   idle_scavenge_observer_ = nullptr;
-
-  delete scavenge_collector_;
-  scavenge_collector_ = nullptr;
 
   if (mark_compact_collector_ != nullptr) {
     mark_compact_collector_->TearDown();

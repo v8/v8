@@ -1186,7 +1186,8 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, VisitMode mode);
 
   // Iterate pointers of promoted objects.
-  void IterateAndScavengePromotedObject(HeapObject* target, int size);
+  void IterateAndScavengePromotedObject(Scavenger* scavenger,
+                                        HeapObject* target, int size);
 
   // ===========================================================================
   // Store buffer API. =========================================================
@@ -1839,7 +1840,7 @@ class Heap {
   void Scavenge();
   void EvacuateYoungGeneration();
 
-  Address DoScavenge(Address new_space_front);
+  Address DoScavenge(Scavenger* scavenger, Address new_space_front);
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
@@ -2304,8 +2305,6 @@ class Heap {
 
   // Last time a garbage collection happened.
   double last_gc_time_;
-
-  Scavenger* scavenge_collector_;
 
   MarkCompactCollector* mark_compact_collector_;
   MinorMarkCompactCollector* minor_mark_compact_collector_;
