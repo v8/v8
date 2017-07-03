@@ -767,7 +767,7 @@ class UploadStep(Step):
       reviewer = self.ReadLine()
     self.GitUpload(reviewer, self._options.author, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc, use_gerrit=not self._options.rietveld)
+                   cc=self._options.cc)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -813,15 +813,13 @@ class ScriptsBase(object):
   def MakeOptions(self, args=None):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
-                        help="The author email used for rietveld.")
+                        help="The author email used for code review.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
     parser.add_argument("--json-output",
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
-    parser.add_argument("--rietveld", default=False, action="store_true",
-                        help="Whether to use rietveld instead of gerrit.")
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
