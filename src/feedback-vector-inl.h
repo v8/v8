@@ -139,6 +139,14 @@ bool FeedbackVector::has_optimization_marker() const {
   return optimization_marker() != OptimizationMarker::kNone;
 }
 
+int FeedbackVector::profiler_ticks() const {
+  return Smi::cast(get(kProfilerTicksIndex))->value();
+}
+
+void FeedbackVector::set_profiler_ticks(int ticks) {
+  set(kProfilerTicksIndex, Smi::FromInt(ticks));
+}
+
 // Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackSlot FeedbackVector::ToSlot(int index) {

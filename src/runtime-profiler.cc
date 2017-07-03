@@ -227,7 +227,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
               function->HasOptimizedCode())) {
     // Attempt OSR if we are still running unoptimized code even though the
     // the function has long been marked or even already been optimized.
-    int ticks = shared->profiler_ticks();
+    int ticks = function->feedback_vector()->profiler_ticks();
     int64_t allowance =
         kOSRCodeSizeAllowanceBase +
         static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTick;
@@ -251,9 +251,9 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
     if (shared->deopt_count() >= FLAG_max_deopt_count) {
       // If optimization was disabled due to many deoptimizations,
       // then check if the function is hot and try to reenable optimization.
-      int ticks = shared->profiler_ticks();
+      int ticks = function->feedback_vector()->profiler_ticks();
       if (ticks >= kProfilerTicksBeforeReenablingOptimization) {
-        shared->set_profiler_ticks(0);
+        function->feedback_vector()->set_profiler_ticks(0);
         shared->TryReenableOptimization();
       }
     }
@@ -261,7 +261,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
   }
   if (frame->is_optimized()) return;
 
-  int ticks = shared->profiler_ticks();
+  int ticks = function->feedback_vector()->profiler_ticks();
 
   if (ticks >= kProfilerTicksBeforeOptimization) {
     int typeinfo, generic, total, type_percentage, generic_percentage;
@@ -315,14 +315,14 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
   }
 
   SharedFunctionInfo* shared = function->shared();
-  int ticks = shared->profiler_ticks();
+  int ticks = function->feedback_vector()->profiler_ticks();
 
   if (shared->optimization_disabled()) {
     if (shared->deopt_count() >= FLAG_max_deopt_count) {
       // If optimization was disabled due to many deoptimizations,
       // then check if the function is hot and try to reenable optimization.
       if (ticks >= kProfilerTicksBeforeReenablingOptimization) {
-        shared->set_profiler_ticks(0);
+        function->feedback_vector()->set_profiler_ticks(0);
         shared->TryReenableOptimization();
       }
     }
@@ -341,7 +341,7 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
 bool RuntimeProfiler::MaybeOSRIgnition(JSFunction* function,
                                        JavaScriptFrame* frame) {
   SharedFunctionInfo* shared = function->shared();
-  int ticks = shared->profiler_ticks();
+  int ticks = function->feedback_vector()->profiler_ticks();
 
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
@@ -366,7 +366,7 @@ bool RuntimeProfiler::MaybeOSRIgnition(JSFunction* function,
 OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
     JSFunction* function, JavaScriptFrame* frame) {
   SharedFunctionInfo* shared = function->shared();
-  int ticks = shared->profiler_ticks();
+  int ticks = function->feedback_vector()->profiler_ticks();
 
   if (shared->bytecode_array()->Size() > kMaxSizeOptIgnition) {
     return OptimizationReason::kDoNotOptimize;
@@ -444,8 +444,12 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
        frame_count++ < frame_count_limit && !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();
-    JSFunction* function = frame->function();
+    if (frame->is_optimized()) {
+      continue;
+    }
 
+    JSFunction* function = frame->function();
+    DCHECK(function->shared()->is_compiled());
     if (function->shared()->IsInterpreted()) {
       MaybeOptimizeIgnition(function, frame);
     } else {
@@ -454,10 +458,9 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
     // and update the tests to assume the increment has already happened.
-    SharedFunctionInfo* shared = function->shared();
-    int ticks = shared->profiler_ticks();
+    int ticks = function->feedback_vector()->profiler_ticks();
     if (ticks < Smi::kMaxValue) {
-      shared->set_profiler_ticks(ticks + 1);
+      function->feedback_vector()->set_profiler_ticks(ticks + 1);
     }
   }
   any_ic_changed_ = false;
