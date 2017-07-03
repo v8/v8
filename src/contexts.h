@@ -303,7 +303,6 @@ enum ContextLookupFlags {
   V(PROXY_CALLABLE_MAP_INDEX, Map, proxy_callable_map)                         \
   V(PROXY_CONSTRUCTOR_MAP_INDEX, Map, proxy_constructor_map)                   \
   V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
-  V(PROXY_FUNCTION_MAP_INDEX, Map, proxy_function_map)                         \
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN, SharedFunctionInfo,          \
     promise_get_capabilities_executor_shared_fun)                              \
@@ -354,6 +353,8 @@ enum ContextLookupFlags {
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map)                       \
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     strict_function_without_prototype_map)                                     \
+  V(STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
+    strict_function_with_readonly_prototype_map)                               \
   V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map)                 \
   V(ASYNC_GENERATOR_FUNCTION_MAP_INDEX, Map, async_generator_function_map)     \
   V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \

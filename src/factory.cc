@@ -1456,27 +1456,41 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   return function;
 }
 
-
-Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
-                                        Handle<String> name,
-                                        MaybeHandle<Code> code) {
+Handle<JSFunction> Factory::NewFunction(Handle<Map> map, Handle<String> name,
+                                        MaybeHandle<Code> maybe_code) {
   Handle<Context> context(isolate()->native_context());
   Handle<SharedFunctionInfo> info =
-      NewSharedFunctionInfo(name, code, map->is_constructor());
+      NewSharedFunctionInfo(name, maybe_code, map->is_constructor());
   // Proper language mode in shared function info will be set outside.
   DCHECK(is_sloppy(info->language_mode()));
   DCHECK(!map->IsUndefined(isolate()));
-  DCHECK(
-      map.is_identical_to(isolate()->sloppy_function_map()) ||
-      map.is_identical_to(isolate()->sloppy_function_without_prototype_map()) ||
-      map.is_identical_to(
-          isolate()->sloppy_function_with_readonly_prototype_map()) ||
-      map.is_identical_to(isolate()->strict_function_map()) ||
-      map.is_identical_to(isolate()->strict_function_without_prototype_map()) ||
-      // TODO(titzer): wasm_function_map() could be undefined here. ugly.
-      (*map == context->get(Context::WASM_FUNCTION_MAP_INDEX)) ||
-      (*map == context->get(Context::NATIVE_FUNCTION_MAP_INDEX)) ||
-      map.is_identical_to(isolate()->proxy_function_map()));
+#ifdef DEBUG
+  if (isolate()->bootstrapper()->IsActive()) {
+    Handle<Code> code;
+    bool has_code = maybe_code.ToHandle(&code);
+    DCHECK(
+        // During bootstrapping some of these maps could be not created yet.
+        (*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
+        (*map ==
+         context->get(Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
+        (*map ==
+         context->get(
+             Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
+        // Check if it's a creation of an empty or Proxy function during
+        // bootstrapping.
+        (has_code && (code->builtin_index() == Builtins::kEmptyFunction ||
+                      code->builtin_index() == Builtins::kProxyConstructor)));
+  } else {
+    DCHECK(
+        (*map == *isolate()->sloppy_function_map()) ||
+        (*map == *isolate()->sloppy_function_without_prototype_map()) ||
+        (*map == *isolate()->sloppy_function_with_readonly_prototype_map()) ||
+        (*map == *isolate()->strict_function_map()) ||
+        (*map == *isolate()->strict_function_without_prototype_map()) ||
+        (*map == *isolate()->wasm_function_map()) ||
+        (*map == *isolate()->native_function_map()));
+  }
+#endif
   return NewFunction(map, info, context);
 }
 
@@ -1528,10 +1542,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
       prototype = NewFunctionPrototype(function);
     }
   }
-
-  JSFunction::SetInitialMap(function, initial_map,
-                            Handle<JSReceiver>::cast(prototype));
-
+  JSFunction::SetInitialMap(function, initial_map, prototype);
   return function;
 }
 
@@ -1540,7 +1551,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Code> code,
                                         InstanceType type,
                                         int instance_size) {
-  return NewFunction(name, code, the_hole_value(), type, instance_size);
+  DCHECK(isolate()->bootstrapper()->IsActive());
+  return NewFunction(name, code, the_hole_value(), type, instance_size, STRICT);
 }
 
 

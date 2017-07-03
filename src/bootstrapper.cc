@@ -130,7 +130,9 @@ class Genesis BASE_EMBEDDED {
   Handle<JSFunction> GetStrictArgumentsPoisonFunction();
   Handle<JSFunction> GetThrowTypeErrorIntrinsic(Builtins::Name builtin_name);
 
+  void CreateSloppyModeFunctionMaps(Handle<JSFunction> empty);
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
+  void CreateObjectFunction(Handle<JSFunction> empty);
   void CreateIteratorMaps(Handle<JSFunction> empty);
   void CreateAsyncIteratorMaps(Handle<JSFunction> empty);
   void CreateAsyncFunctionMaps(Handle<JSFunction> empty);
@@ -384,24 +386,25 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
   return fun;
 }
 
-Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                         Handle<Name> property_name,
-                                         Handle<String> function_name,
-                                         Builtins::Name call, int len,
-                                         bool adapt,
-                                         PropertyAttributes attrs = DONT_ENUM) {
+Handle<JSFunction> SimpleInstallFunction(
+    Handle<JSObject> base, Handle<Name> property_name,
+    Handle<String> function_name, Builtins::Name call, int len, bool adapt,
+    PropertyAttributes attrs = DONT_ENUM,
+    BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
   Handle<JSFunction> fun =
       SimpleCreateFunction(base->GetIsolate(), function_name, call, len, adapt);
+  if (id != kInvalidBuiltinFunctionId) {
+    fun->shared()->set_builtin_function_id(id);
+  }
   InstallFunction(base, fun, property_name, attrs);
   return fun;
 }
 
-Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                         Handle<String> name,
-                                         Builtins::Name call, int len,
-                                         bool adapt,
-                                         PropertyAttributes attrs = DONT_ENUM) {
-  return SimpleInstallFunction(base, name, name, call, len, adapt, attrs);
+Handle<JSFunction> SimpleInstallFunction(
+    Handle<JSObject> base, Handle<String> name, Builtins::Name call, int len,
+    bool adapt, PropertyAttributes attrs = DONT_ENUM,
+    BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
+  return SimpleInstallFunction(base, name, name, call, len, adapt, attrs, id);
 }
 
 Handle<JSFunction> SimpleInstallFunction(
@@ -410,31 +413,25 @@ Handle<JSFunction> SimpleInstallFunction(
     PropertyAttributes attrs = DONT_ENUM,
     BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
   Factory* const factory = base->GetIsolate()->factory();
-  Handle<JSFunction> fun = SimpleInstallFunction(
-      base, property_name, factory->InternalizeUtf8String(function_name), call,
-      len, adapt, attrs);
-  if (id != kInvalidBuiltinFunctionId) {
-    fun->shared()->set_builtin_function_id(id);
-  }
-  return fun;
+  return SimpleInstallFunction(base, property_name,
+                               factory->InternalizeUtf8String(function_name),
+                               call, len, adapt, attrs, id);
 }
 
-Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                         const char* name, Builtins::Name call,
-                                         int len, bool adapt,
-                                         PropertyAttributes attrs = DONT_ENUM) {
+Handle<JSFunction> SimpleInstallFunction(
+    Handle<JSObject> base, const char* name, Builtins::Name call, int len,
+    bool adapt, PropertyAttributes attrs = DONT_ENUM,
+    BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
   Factory* const factory = base->GetIsolate()->factory();
   return SimpleInstallFunction(base, factory->InternalizeUtf8String(name), call,
-                               len, adapt, attrs);
+                               len, adapt, attrs, id);
 }
 
 Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
                                          const char* name, Builtins::Name call,
                                          int len, bool adapt,
                                          BuiltinFunctionId id) {
-  Handle<JSFunction> fun = SimpleInstallFunction(base, name, call, len, adapt);
-  fun->shared()->set_builtin_function_id(id);
-  return fun;
+  return SimpleInstallFunction(base, name, call, len, adapt, DONT_ENUM, id);
 }
 
 void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
@@ -511,92 +508,20 @@ void InstallSpeciesGetter(Handle<JSFunction> constructor) {
 }  // namespace
 
 Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
-  // Allocate the map for function instances. Maps are allocated first and their
-  // prototypes patched later, once empty function is created.
-
-  // Functions with this map will not have a 'prototype' property, and
-  // can not be used as constructors.
-  Handle<Map> function_without_prototype_map =
-      factory()->CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
-  native_context()->set_sloppy_function_without_prototype_map(
-      *function_without_prototype_map);
-
-  // Allocate the function map. This map is temporary, used only for processing
-  // of builtins.
-  // Later the map is replaced with writable prototype map, allocated below.
-  Handle<Map> function_map =
-      factory()->CreateSloppyFunctionMap(FUNCTION_WITH_READONLY_PROTOTYPE);
-  native_context()->set_sloppy_function_map(*function_map);
-  native_context()->set_sloppy_function_with_readonly_prototype_map(
-      *function_map);
-
-  // The final map for functions. Writeable prototype.
-  // This map is installed in MakeFunctionInstancePrototypeWritable.
-  sloppy_function_map_writable_prototype_ =
-      factory()->CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
   Factory* factory = isolate->factory();
 
-  Handle<String> object_name = factory->Object_string();
-
-  Handle<JSObject> object_function_prototype;
-
-  {  // --- O b j e c t ---
-    Handle<JSFunction> object_fun = factory->NewFunction(object_name);
-    int unused = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
-    int instance_size = JSObject::kHeaderSize + kPointerSize * unused;
-    Handle<Map> object_function_map =
-        factory->NewMap(JS_OBJECT_TYPE, instance_size);
-    object_function_map->SetInObjectProperties(unused);
-    JSFunction::SetInitialMap(object_fun, object_function_map,
-                              isolate->factory()->null_value());
-    object_function_map->set_unused_property_fields(unused);
-
-    native_context()->set_object_function(*object_fun);
-
-    // Allocate a new prototype for the object function.
-    object_function_prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-    Handle<Map> map = Map::Copy(handle(object_function_prototype->map()),
-                                "EmptyObjectPrototype");
-    map->set_is_prototype_map(true);
-    // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
-    map->set_immutable_proto(true);
-    object_function_prototype->set_map(*map);
-
-    native_context()->set_initial_object_prototype(*object_function_prototype);
-    JSFunction::SetPrototype(object_fun, object_function_prototype);
-
-    JSObject::AddProperty(object_function_prototype,
-                          factory->constructor_string(), object_fun, DONT_ENUM);
-
-    {
-      // Set up slow map for Object.create(null) instances without in-object
-      // properties.
-      Handle<Map> map(object_fun->initial_map(), isolate);
-      map = Map::CopyInitialMapNormalized(map);
-      Map::SetPrototype(map, isolate->factory()->null_value());
-      native_context()->set_slow_object_with_null_prototype_map(*map);
-
-      // Set up slow map for literals with too many properties.
-      map = Map::Copy(map, "slow_object_with_object_prototype_map");
-      Map::SetPrototype(map, object_function_prototype);
-      native_context()->set_slow_object_with_object_prototype_map(*map);
-    }
-  }
-
-  // Allocate the empty function as the prototype for function - ES6 19.2.3
-  Handle<Code> code(isolate->builtins()->EmptyFunction());
-  Handle<JSFunction> empty_function =
-      factory->NewFunctionWithoutPrototype(factory->empty_string(), code);
-
-  // Allocate the function map first and then patch the prototype later
+  // Allocate the function map first and then patch the prototype later.
   Handle<Map> empty_function_map =
       factory->CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
-  DCHECK(!empty_function_map->is_dictionary_map());
-  Map::SetPrototype(empty_function_map, object_function_prototype);
   empty_function_map->set_is_prototype_map(true);
+  DCHECK(!empty_function_map->is_dictionary_map());
 
-  empty_function->set_map(*empty_function_map);
+  // Allocate the empty function as the prototype for function according to
+  // ES#sec-properties-of-the-function-prototype-object
+  Handle<Code> code(isolate->builtins()->EmptyFunction());
+  Handle<JSFunction> empty_function =
+      factory->NewFunction(empty_function_map, factory->empty_string(), code);
+  empty_function->shared()->set_language_mode(STRICT);
 
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticChars("() {}");
@@ -610,18 +535,36 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   empty_function->shared()->DontAdaptArguments();
   SharedFunctionInfo::SetScript(handle(empty_function->shared()), script);
 
-  // Set prototypes for the function maps.
-  Handle<Map> sloppy_function_map(native_context()->sloppy_function_map(),
-                                  isolate);
-  Handle<Map> sloppy_function_without_prototype_map(
-      native_context()->sloppy_function_without_prototype_map(), isolate);
-  Map::SetPrototype(sloppy_function_map, empty_function);
-  Map::SetPrototype(sloppy_function_without_prototype_map, empty_function);
-  Map::SetPrototype(sloppy_function_map_writable_prototype_, empty_function);
-
   return empty_function;
 }
 
+void Genesis::CreateSloppyModeFunctionMaps(Handle<JSFunction> empty) {
+  Factory* factory = isolate_->factory();
+
+  // Functions with this map will not have a 'prototype' property, and
+  // can not be used as constructors.
+  Handle<Map> function_without_prototype_map =
+      factory->CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
+  Map::SetPrototype(function_without_prototype_map, empty);
+  native_context()->set_sloppy_function_without_prototype_map(
+      *function_without_prototype_map);
+
+  // Allocate the function map. This map is temporary, used only for processing
+  // of builtins.
+  // Later the map is replaced with writable prototype map, allocated below.
+  Handle<Map> function_map =
+      factory->CreateSloppyFunctionMap(FUNCTION_WITH_READONLY_PROTOTYPE);
+  Map::SetPrototype(function_map, empty);
+  native_context()->set_sloppy_function_map(*function_map);
+  native_context()->set_sloppy_function_with_readonly_prototype_map(
+      *function_map);
+
+  // The final map for functions. Writeable prototype.
+  // This map is installed in MakeFunctionInstancePrototypeWritable.
+  sloppy_function_map_writable_prototype_ =
+      factory->CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
+  Map::SetPrototype(sloppy_function_map_writable_prototype_, empty);
+}
 
 // Creates the %ThrowTypeError% function.
 Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
@@ -701,6 +644,61 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // Now that the strict mode function map is available, set up the
   // restricted "arguments" and "caller" getters.
   AddRestrictedFunctionProperties(empty);
+}
+
+void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
+  Factory* factory = isolate_->factory();
+
+  // --- O b j e c t ---
+  int unused = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
+  int instance_size = JSObject::kHeaderSize + kPointerSize * unused;
+
+  Handle<JSFunction> object_fun =
+      CreateFunction(isolate_, factory->Object_string(), JS_OBJECT_TYPE,
+                     instance_size, factory->null_value(), Builtins::kIllegal);
+  native_context()->set_object_function(*object_fun);
+
+  {
+    // Finish setting up Object function's initial map.
+    Map* initial_map = object_fun->initial_map();
+    initial_map->SetInObjectProperties(unused);
+    initial_map->set_unused_property_fields(unused);
+    initial_map->set_elements_kind(HOLEY_ELEMENTS);
+  }
+
+  // Allocate a new prototype for the object function.
+  Handle<JSObject> object_function_prototype =
+      factory->NewFunctionPrototype(object_fun);
+
+  Handle<Map> map = Map::Copy(handle(object_function_prototype->map()),
+                              "EmptyObjectPrototype");
+  map->set_is_prototype_map(true);
+  // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
+  map->set_immutable_proto(true);
+  object_function_prototype->set_map(*map);
+
+  // Complete setting up empty function.
+  {
+    Handle<Map> empty_function_map(empty_function->map(), isolate_);
+    Map::SetPrototype(empty_function_map, object_function_prototype);
+  }
+
+  native_context()->set_initial_object_prototype(*object_function_prototype);
+  JSFunction::SetPrototype(object_fun, object_function_prototype);
+
+  {
+    // Set up slow map for Object.create(null) instances without in-object
+    // properties.
+    Handle<Map> map(object_fun->initial_map(), isolate_);
+    map = Map::CopyInitialMapNormalized(map);
+    Map::SetPrototype(map, factory->null_value());
+    native_context()->set_slow_object_with_null_prototype_map(*map);
+
+    // Set up slow map for literals with too many properties.
+    map = Map::Copy(map, "slow_object_with_object_prototype_map");
+    Map::SetPrototype(map, object_function_prototype);
+    native_context()->set_slow_object_with_object_prototype_map(*map);
+  }
 }
 
 void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
@@ -902,14 +900,9 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
 }
 
 void Genesis::CreateJSProxyMaps() {
-  // Allocate the different maps for all Proxy types.
+  // Allocate maps for all Proxy types.
   // Next to the default proxy, we need maps indicating callable and
   // constructable proxies.
-  Handle<Map> proxy_function_map =
-      Map::Copy(isolate()->sloppy_function_without_prototype_map(), "Proxy");
-  proxy_function_map->set_is_constructor(true);
-  native_context()->set_proxy_function_map(*proxy_function_map);
-
   Handle<Map> proxy_map =
       factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize, PACKED_ELEMENTS);
   proxy_map->set_dictionary_map(true);
@@ -1044,8 +1037,9 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<Code> code = isolate()->builtins()->Illegal();
     Handle<JSObject> prototype =
         factory()->NewFunctionPrototype(isolate()->object_function());
-    js_global_object_function = factory()->NewFunction(
-        name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
+    js_global_object_function =
+        factory()->NewFunction(name, code, prototype, JS_GLOBAL_OBJECT_TYPE,
+                               JSGlobalObject::kSize, STRICT);
 #ifdef DEBUG
     LookupIterator it(prototype, factory()->constructor_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -1371,19 +1365,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kFunctionPrototypeToString, 0, false);
 
     // Install the @@hasInstance function.
-    Handle<JSFunction> has_instance = InstallFunction(
-        prototype, factory->has_instance_symbol(), JS_OBJECT_TYPE,
-        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-        Builtins::kFunctionPrototypeHasInstance,
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
-    has_instance->shared()->set_builtin_function_id(kFunctionHasInstance);
+    Handle<JSFunction> has_instance = SimpleInstallFunction(
+        prototype, factory->has_instance_symbol(), "[Symbol.hasInstance]",
+        Builtins::kFunctionPrototypeHasInstance, 1, true,
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY),
+        kFunctionHasInstance);
     native_context()->set_function_has_instance(*has_instance);
-
-    // Set the expected parameters for @@hasInstance to 1; required by builtin.
-    has_instance->shared()->set_internal_formal_parameter_count(1);
-
-    // Set the length for the function to satisfy ECMA-262.
-    has_instance->shared()->set_length(1);
 
     // Install the "constructor" property on the %FunctionPrototype%.
     JSObject::AddProperty(prototype, factory->constructor_string(),
@@ -1526,17 +1513,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->ArrayIterator_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    Handle<JSFunction> next = InstallFunction(
-        array_iterator_prototype, "next", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kArrayIteratorPrototypeNext);
-    next->shared()->set_builtin_function_id(kArrayIteratorNext);
-
-    // Set the expected parameters for %ArrayIteratorPrototype%.next to 0 (not
-    // including the receiver), as required by the builtin.
-    next->shared()->set_internal_formal_parameter_count(0);
-
-    // Set the length for the function to satisfy ECMA-262.
-    next->shared()->set_length(0);
+    SimpleInstallFunction(array_iterator_prototype, "next",
+                          Builtins::kArrayIteratorPrototypeNext, 0, true,
+                          kArrayIteratorNext);
 
     Handle<JSFunction> array_iterator_function = CreateFunction(
         isolate, factory->ArrayIterator_string(),
@@ -1867,12 +1846,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "valueOf",
                           Builtins::kStringPrototypeValueOf, 0, true);
 
-    Handle<JSFunction> iterator = SimpleCreateFunction(
-        isolate, factory->NewStringFromAsciiChecked("[Symbol.iterator]"),
-        Builtins::kStringPrototypeIterator, 0, true);
-    iterator->shared()->set_builtin_function_id(kStringIterator);
-    JSObject::AddProperty(prototype, factory->iterator_symbol(), iterator,
-                          static_cast<PropertyAttributes>(DONT_ENUM));
+    SimpleInstallFunction(prototype, factory->iterator_symbol(),
+                          "[Symbol.iterator]",
+                          Builtins::kStringPrototypeIterator, 0, true,
+                          DONT_ENUM, kStringIterator);
   }
 
   {  // --- S t r i n g I t e r a t o r ---
@@ -1888,18 +1865,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewStringFromAsciiChecked("String Iterator"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    Handle<JSFunction> next =
-        InstallFunction(string_iterator_prototype, "next", JS_OBJECT_TYPE,
-                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-                        Builtins::kStringIteratorPrototypeNext);
-    next->shared()->set_builtin_function_id(kStringIteratorNext);
-
-    // Set the expected parameters for %StringIteratorPrototype%.next to 0 (not
-    // including the receiver), as required by the builtin.
-    next->shared()->set_internal_formal_parameter_count(0);
-
-    // Set the length for the function to satisfy ECMA-262.
-    next->shared()->set_length(0);
+    SimpleInstallFunction(string_iterator_prototype, "next",
+                          Builtins::kStringIteratorPrototypeNext, 0, true,
+                          kStringIteratorNext);
 
     Handle<JSFunction> string_iterator_function = CreateFunction(
         isolate, factory->NewStringFromAsciiChecked("StringIterator"),
@@ -2426,12 +2394,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {  // Internal: RegExpInternalMatch
       Handle<JSFunction> function =
-          factory->NewFunction(isolate->factory()->empty_string(),
-                               isolate->builtins()->RegExpInternalMatch(),
-                               JS_OBJECT_TYPE, JSObject::kHeaderSize);
-      function->shared()->set_internal_formal_parameter_count(2);
-      function->shared()->set_length(2);
-      function->shared()->set_native(true);
+          SimpleCreateFunction(isolate, isolate->factory()->empty_string(),
+                               Builtins::kRegExpInternalMatch, 2, true);
       native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
     }
 
@@ -2598,7 +2562,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- C o n s o l e
     Handle<String> name = factory->InternalizeUtf8String("console");
-    Handle<JSFunction> cons = factory->NewFunction(name);
+    Handle<JSFunction> cons = factory->NewFunction(
+        isolate->strict_function_map(), name, MaybeHandle<Code>());
     Handle<JSObject> empty = factory->NewJSObject(isolate->object_function());
     JSFunction::SetPrototype(cons, empty);
     Handle<JSObject> console = factory->NewJSObject(cons, TENURED);
@@ -3124,16 +3089,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- P r o x y
     CreateJSProxyMaps();
 
+    Handle<Map> proxy_function_map =
+        Map::Copy(isolate->sloppy_function_without_prototype_map(), "Proxy");
+    proxy_function_map->set_is_constructor(true);
+
     Handle<String> name = factory->Proxy_string();
     Handle<Code> code(isolate->builtins()->ProxyConstructor());
-
     Handle<JSFunction> proxy_function =
-        factory->NewFunction(isolate->proxy_function_map(),
-                             factory->Proxy_string(), MaybeHandle<Code>(code));
+        factory->NewFunction(proxy_function_map, name, code);
 
-    JSFunction::SetInitialMap(
-        proxy_function, Handle<Map>(native_context()->proxy_map(), isolate),
-        factory->null_value());
+    JSFunction::SetInitialMap(proxy_function, isolate->proxy_map(),
+                              factory->null_value());
 
     proxy_function->shared()->SetConstructStub(
         *isolate->builtins()->ProxyConstructor_ConstructStub());
@@ -3227,8 +3193,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->Arguments_string();
     Handle<Code> code = isolate->builtins()->Illegal();
-    Handle<JSFunction> function = factory->NewFunctionWithoutPrototype(
-        arguments_string, code);
+    Handle<JSFunction> function =
+        factory->NewFunctionWithoutPrototype(arguments_string, code, STRICT);
     function->shared()->set_instance_class_name(*arguments_string);
 
     Handle<Map> map = factory->NewMap(
@@ -3323,34 +3289,28 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- context extension
     // Create a function for the context extension objects.
-    Handle<Code> code = isolate->builtins()->Illegal();
-    Handle<JSFunction> context_extension_fun = factory->NewFunction(
-        factory->empty_string(), code, JS_CONTEXT_EXTENSION_OBJECT_TYPE,
-        JSObject::kHeaderSize);
-
-    Handle<String> name = factory->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("context_extension"));
+    Handle<JSFunction> context_extension_fun = CreateFunction(
+        isolate, factory->empty_string(), JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+        JSObject::kHeaderSize, factory->the_hole_value(), Builtins::kIllegal);
+    Handle<String> name = factory->InternalizeUtf8String("context_extension");
     context_extension_fun->shared()->set_instance_class_name(*name);
     native_context()->set_context_extension_function(*context_extension_fun);
   }
 
-
   {
     // Set up the call-as-function delegate.
-    Handle<Code> code = isolate->builtins()->HandleApiCallAsFunction();
-    Handle<JSFunction> delegate = factory->NewFunction(
-        factory->empty_string(), code, JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    Handle<JSFunction> delegate =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kHandleApiCallAsFunction, 0, false);
     native_context()->set_call_as_function_delegate(*delegate);
-    delegate->shared()->DontAdaptArguments();
   }
 
   {
     // Set up the call-as-constructor delegate.
-    Handle<Code> code = isolate->builtins()->HandleApiCallAsConstructor();
-    Handle<JSFunction> delegate = factory->NewFunction(
-        factory->empty_string(), code, JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    Handle<JSFunction> delegate =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kHandleApiCallAsConstructor, 0, false);
     native_context()->set_call_as_constructor_delegate(*delegate);
-    delegate->shared()->DontAdaptArguments();
   }
 }  // NOLINT(readability/fn_size)
 
@@ -4291,12 +4251,11 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     // Builtin function for OpaqueReference -- a JSValue-based object,
     // that keeps its field isolated from JavaScript code. It may store
     // objects, that JavaScript code may not access.
-    Handle<JSFunction> opaque_reference_fun = factory()->NewFunction(
-        factory()->empty_string(), isolate()->builtins()->Illegal(),
-        isolate()->initial_object_prototype(), JS_VALUE_TYPE, JSValue::kSize);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    JSFunction::SetPrototype(opaque_reference_fun, prototype);
+    Handle<JSFunction> opaque_reference_fun =
+        CreateFunction(isolate(), factory()->empty_string(), JS_VALUE_TYPE,
+                       JSValue::kSize, prototype, Builtins::kIllegal);
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
@@ -5161,7 +5120,9 @@ Genesis::Genesis(
     // We get here if there was no context snapshot.
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
+    CreateSloppyModeFunctionMaps(empty_function);
     CreateStrictModeFunctionMaps(empty_function);
+    CreateObjectFunction(empty_function);
     CreateIteratorMaps(empty_function);
     CreateAsyncIteratorMaps(empty_function);
     CreateAsyncFunctionMaps(empty_function);
