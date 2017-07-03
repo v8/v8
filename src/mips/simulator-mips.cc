@@ -4101,7 +4101,12 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       // Interpret sa field as 5-bit lsb of insert.
       uint16_t lsb = sa();
       uint16_t size = msb - lsb + 1;
-      uint32_t mask = (1 << size) - 1;
+      uint32_t mask;
+      if (size < 32) {
+        mask = (1 << size) - 1;
+      } else {
+        mask = std::numeric_limits<uint32_t>::max();
+      }
       alu_out = (rt_u() & ~(mask << lsb)) | ((rs_u() & mask) << lsb);
       // Ins instr leaves result in Rt, rather than Rd.
       SetResult(rt_reg(), alu_out);
@@ -4113,7 +4118,12 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       // Interpret sa field as 5-bit lsb of extract.
       uint16_t lsb = sa();
       uint16_t size = msb + 1;
-      uint32_t mask = (1 << size) - 1;
+      uint32_t mask;
+      if (size < 32) {
+        mask = (1 << size) - 1;
+      } else {
+        mask = std::numeric_limits<uint32_t>::max();
+      }
       alu_out = (rs_u() & (mask << lsb)) >> lsb;
       SetResult(rt_reg(), alu_out);
       break;

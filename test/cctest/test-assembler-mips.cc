@@ -6134,6 +6134,59 @@ TEST(MSA_shf) {
   }
 }
 
+uint32_t run_Ins(uint32_t imm, uint32_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, imm);
+  __ li(t0, source);
+  __ Ins(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Ins) {
+  CcTest::InitializeVM();
+
+  // Test Ins macro-instruction.
+
+  struct TestCaseIns {
+    uint32_t imm;
+    uint32_t source;
+    uint16_t pos;
+    uint16_t size;
+    uint32_t expected_res;
+  };
+
+  // We load imm to v0 and source to t0 and then call
+  // Ins(v0, t0, pos, size) to test cases listed below.
+  struct TestCaseIns tc[] = {
+      // imm, source, pos, size, expected_res
+      {0x55555555, 0xabcdef01, 31, 1, 0xd5555555},
+      {0x55555555, 0xabcdef02, 30, 2, 0x95555555},
+      {0x01234567, 0xfabcdeff, 0, 32, 0xfabcdeff},
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseIns);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res,
+             run_Ins(tc[i].imm, tc[i].source, tc[i].pos, tc[i].size));
+  }
+}
+
 struct TestCaseMsaI5 {
   uint64_t ws_lo;
   uint64_t ws_hi;
