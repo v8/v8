@@ -107,6 +107,13 @@ assertPromiseResult(last_promise, _ => {
             "the bug, please remove the test from the known failures list.")
     }
     if (unexpected) {
+      print("\n");
+      print("   #############################################################");
+      print("   #                                                           #");
+      print("   # Unexpected outcome. Did you forget to run 'gclient sync'? #");
+      print("   #                                                           #");
+      print("   #############################################################");
+      print("\n");
       assertUnreachable("Unexpected outcome");
     }
   }
