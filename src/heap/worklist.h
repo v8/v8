@@ -25,10 +25,34 @@ class HeapObject;
 //
 // Work stealing is best effort, i.e., there is no way to inform other tasks
 // of the need of items.
+template <int SEGMENT_SIZE>
 class Worklist {
  public:
+  class View {
+   public:
+    View(Worklist<SEGMENT_SIZE>* worklist, int task_id)
+        : worklist_(worklist), task_id_(task_id) {}
+
+    // Pushes an object onto the worklist.
+    bool Push(HeapObject* object) { return worklist_->Push(task_id_, object); }
+
+    // Pops an object from the worklist.
+    bool Pop(HeapObject** object) { return worklist_->Pop(task_id_, object); }
+
+    // Returns true if the local portion of the worklist is empty.
+    bool IsLocalEmpty() { return worklist_->IsLocalEmpty(task_id_); }
+
+    // Returns true if the worklist is empty. Can only be used from the main
+    // thread without concurrent access.
+    bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
+
+   private:
+    Worklist<SEGMENT_SIZE>* worklist_;
+    int task_id_;
+  };
+
   static const int kMaxNumTasks = 8;
-  static const int kSegmentCapacity = 64;
+  static const int kSegmentCapacity = SEGMENT_SIZE;
 
   Worklist() {
     for (int i = 0; i < kMaxNumTasks; i++) {
@@ -141,16 +165,17 @@ class Worklist {
   }
 
  private:
-  FRIEND_TEST(Worklist, SegmentCreate);
-  FRIEND_TEST(Worklist, SegmentPush);
-  FRIEND_TEST(Worklist, SegmentPushPop);
-  FRIEND_TEST(Worklist, SegmentIsEmpty);
-  FRIEND_TEST(Worklist, SegmentIsFull);
-  FRIEND_TEST(Worklist, SegmentClear);
-  FRIEND_TEST(Worklist, SegmentFullPushFails);
-  FRIEND_TEST(Worklist, SegmentEmptyPopFails);
-  FRIEND_TEST(Worklist, SegmentUpdateNull);
-  FRIEND_TEST(Worklist, SegmentUpdate);
+  using TestWorklist = Worklist<64>;
+  FRIEND_TEST(TestWorklist, SegmentCreate);
+  FRIEND_TEST(TestWorklist, SegmentPush);
+  FRIEND_TEST(TestWorklist, SegmentPushPop);
+  FRIEND_TEST(TestWorklist, SegmentIsEmpty);
+  FRIEND_TEST(TestWorklist, SegmentIsFull);
+  FRIEND_TEST(TestWorklist, SegmentClear);
+  FRIEND_TEST(TestWorklist, SegmentFullPushFails);
+  FRIEND_TEST(TestWorklist, SegmentEmptyPopFails);
+  FRIEND_TEST(TestWorklist, SegmentUpdateNull);
+  FRIEND_TEST(TestWorklist, SegmentUpdate);
 
   class Segment {
    public:
@@ -225,29 +250,6 @@ class Worklist {
   Segment* private_pop_segment_[kMaxNumTasks];
   Segment* private_push_segment_[kMaxNumTasks];
   std::vector<Segment*> global_pool_;
-};
-
-class WorklistView {
- public:
-  WorklistView(Worklist* worklist, int task_id)
-      : worklist_(worklist), task_id_(task_id) {}
-
-  // Pushes an object onto the worklist.
-  bool Push(HeapObject* object) { return worklist_->Push(task_id_, object); }
-
-  // Pops an object from the worklist.
-  bool Pop(HeapObject** object) { return worklist_->Pop(task_id_, object); }
-
-  // Returns true if the local portion of the worklist is empty.
-  bool IsLocalEmpty() { return worklist_->IsLocalEmpty(task_id_); }
-
-  // Returns true if the worklist is empty. Can only be used from the main
-  // thread without concurrent access.
-  bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
-
- private:
-  Worklist* worklist_;
-  int task_id_;
 };
 
 }  // namespace internal

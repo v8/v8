@@ -2182,8 +2182,9 @@ void MarkCompactCollector::RecordObjectStats() {
 class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
  public:
-  YoungGenerationMarkingVisitor(Heap* heap, Worklist* global_worklist,
-                                int task_id)
+  YoungGenerationMarkingVisitor(
+      Heap* heap, MinorMarkCompactCollector::MarkingWorklist* global_worklist,
+      int task_id)
       : heap_(heap), worklist_(global_worklist, task_id) {}
 
   V8_INLINE void VisitPointers(HeapObject* host, Object** start,
@@ -2218,7 +2219,7 @@ class YoungGenerationMarkingVisitor final
   }
 
   Heap* heap_;
-  MinorMarkCompactCollector::MarkingWorklist worklist_;
+  MinorMarkCompactCollector::MarkingWorklist::View worklist_;
 };
 
 class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
@@ -2272,9 +2273,9 @@ class MarkingItem : public ItemParallelJob::Item {
 
 class YoungGenerationMarkingTask : public ItemParallelJob::Task {
  public:
-  YoungGenerationMarkingTask(Isolate* isolate,
-                             MinorMarkCompactCollector* collector,
-                             Worklist* global_worklist, int task_id)
+  YoungGenerationMarkingTask(
+      Isolate* isolate, MinorMarkCompactCollector* collector,
+      MinorMarkCompactCollector::MarkingWorklist* global_worklist, int task_id)
       : ItemParallelJob::Task(isolate),
         collector_(collector),
         marking_worklist_(global_worklist, task_id),
@@ -2347,7 +2348,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   MinorMarkCompactCollector* collector_;
-  MinorMarkCompactCollector::MarkingWorklist marking_worklist_;
+  MinorMarkCompactCollector::MarkingWorklist::View marking_worklist_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
@@ -2511,12 +2512,13 @@ class MinorMarkCompactCollector::RootMarkingVisitorSeedOnly
 
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
-      worklist_(new Worklist()),
+      worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
       main_marking_visitor_(
           new YoungGenerationMarkingVisitor(heap, worklist_, kMainMarker)),
       page_parallel_job_semaphore_(0) {
-  static_assert(kNumMarkers <= Worklist::kMaxNumTasks,
-                "more marker tasks than marking deque can handle");
+  static_assert(
+      kNumMarkers <= MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks,
+      "more marker tasks than marking deque can handle");
 }
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() {
@@ -2617,7 +2619,7 @@ void MinorMarkCompactCollector::ProcessMarkingWorklist() {
 }
 
 void MinorMarkCompactCollector::EmptyMarkingWorklist() {
-  MarkingWorklist marking_worklist(worklist(), kMainMarker);
+  MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
   HeapObject* object = nullptr;
   while (marking_worklist.Pop(&object)) {
     DCHECK(!object->IsFiller());

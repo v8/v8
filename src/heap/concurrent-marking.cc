@@ -48,7 +48,8 @@ class ConcurrentMarkingVisitor final
  public:
   using BaseClass = HeapVisitor<int, ConcurrentMarkingVisitor>;
 
-  explicit ConcurrentMarkingVisitor(Worklist* shared, Worklist* bailout,
+  explicit ConcurrentMarkingVisitor(ConcurrentMarking::MarkingWorklist* shared,
+                                    ConcurrentMarking::MarkingWorklist* bailout,
                                     int task_id)
       : shared_(shared, task_id), bailout_(bailout, task_id) {}
 
@@ -246,8 +247,8 @@ class ConcurrentMarkingVisitor final
     return MarkingState::Internal(object);
   }
 
-  WorklistView shared_;
-  WorklistView bailout_;
+  ConcurrentMarking::MarkingWorklist::View shared_;
+  ConcurrentMarking::MarkingWorklist::View bailout_;
   SlotSnapshot slot_snapshot_;
 };
 
@@ -275,8 +276,8 @@ class ConcurrentMarking::Task : public CancelableTask {
   DISALLOW_COPY_AND_ASSIGN(Task);
 };
 
-ConcurrentMarking::ConcurrentMarking(Heap* heap, Worklist* shared,
-                                     Worklist* bailout)
+ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
+                                     MarkingWorklist* bailout)
     : heap_(heap),
       pending_task_semaphore_(0),
       shared_(shared),

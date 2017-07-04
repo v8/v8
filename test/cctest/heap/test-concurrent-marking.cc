@@ -19,8 +19,9 @@ TEST(ConcurrentMarking) {
   if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  Worklist shared, bailout;
-  for (int i = 0; i <= Worklist::kSegmentCapacity; i++) {
+  ConcurrentMarking::MarkingWorklist shared, bailout;
+  for (int i = 0; i <= ConcurrentMarking::MarkingWorklist::kSegmentCapacity;
+       i++) {
     shared.Push(0, heap->undefined_value());
   }
   HeapObject* object;

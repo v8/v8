@@ -15,11 +15,15 @@ namespace internal {
 
 class Heap;
 class Isolate;
+template <int SEGMENT_SIZE>
 class Worklist;
 
 class ConcurrentMarking {
  public:
-  ConcurrentMarking(Heap* heap, Worklist* shared_, Worklist* bailout_);
+  using MarkingWorklist = Worklist<64 /* segment size */>;
+
+  ConcurrentMarking(Heap* heap, MarkingWorklist* shared_,
+                    MarkingWorklist* bailout_);
 
   void StartTask();
   void WaitForTaskToComplete();
@@ -31,8 +35,8 @@ class ConcurrentMarking {
   void Run(int task_id);
   Heap* heap_;
   base::Semaphore pending_task_semaphore_;
-  Worklist* shared_;
-  Worklist* bailout_;
+  MarkingWorklist* shared_;
+  MarkingWorklist* bailout_;
   bool is_task_pending_;
 };
 
