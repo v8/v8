@@ -184,13 +184,20 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
+RUNTIME_FUNCTION(Runtime_NewArray) {
+  HandleScope scope(isolate);
+  DCHECK_LE(3, args.length());
+  int const argc = args.length() - 3;
+  // TODO(bmeurer): Remove this Arguments nonsense.
+  Arguments argv(argc, args.arguments() - 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
+  // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
+  Handle<AllocationSite> site = type_info->IsAllocationSite()
+                                    ? Handle<AllocationSite>::cast(type_info)
+                                    : Handle<AllocationSite>::null();
 
-namespace {
-
-Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
-                               Handle<JSReceiver> new_target,
-                               Handle<AllocationSite> site,
-                               Arguments* caller_args) {
   Factory* factory = isolate->factory();
 
   // If called through new, new.target can be:
@@ -204,8 +211,8 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
   bool holey = false;
   bool can_use_type_feedback = !site.is_null();
   bool can_inline_array_constructor = true;
-  if (caller_args->length() == 1) {
-    Handle<Object> argument_one = caller_args->at<Object>(0);
+  if (argv.length() == 1) {
+    Handle<Object> argument_one = argv.at<Object>(0);
     if (argument_one->IsSmi()) {
       int value = Handle<Smi>::cast(argument_one)->value();
       if (value < 0 ||
@@ -257,8 +264,8 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
   factory->NewJSArrayStorage(array, 0, 0, DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   ElementsKind old_kind = array->GetElementsKind();
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, ArrayConstructInitializeElements(array, caller_args));
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              ArrayConstructInitializeElements(array, &argv));
   if (!site.is_null() &&
       (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
        !can_inline_array_constructor)) {
@@ -269,24 +276,6 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
   }
 
   return *array;
-}
-
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_NewArray) {
-  HandleScope scope(isolate);
-  DCHECK_LE(3, args.length());
-  int const argc = args.length() - 3;
-  // TODO(bmeurer): Remove this Arguments nonsense.
-  Arguments argv(argc, args.arguments() - 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
-  // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
-  Handle<AllocationSite> site = type_info->IsAllocationSite()
-                                    ? Handle<AllocationSite>::cast(type_info)
-                                    : Handle<AllocationSite>::null();
-  return ArrayConstructorCommon(isolate, constructor, new_target, site, &argv);
 }
 
 RUNTIME_FUNCTION(Runtime_NormalizeElements) {
