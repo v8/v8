@@ -706,6 +706,8 @@
         'compiler/bytecode-liveness-map.cc',
         'compiler/bytecode-liveness-map.h',
         'compiler/c-linkage.cc',
+        'compiler/check-elimination.cc',
+        'compiler/check-elimination.h',
         'compiler/checkpoint-elimination.cc',
         'compiler/checkpoint-elimination.h',
         'compiler/code-generator-impl.h',
