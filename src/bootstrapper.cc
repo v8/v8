@@ -1170,6 +1170,7 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
           SimpleInstallFunction(prototype, factory->toString_string(),
                                 Builtins::kErrorPrototypeToString, 0, true);
       isolate->native_context()->set_error_to_string(*to_string_fun);
+      isolate->native_context()->set_initial_error_prototype(*prototype);
     } else {
       DCHECK(isolate->native_context()->error_to_string()->IsJSFunction());
 
