@@ -313,7 +313,10 @@
       "path": ["Array"],
       "main": "run.js",
       "resources": [
-        "filter.js", "map.js"
+        "filter.js", "map.js", "every.js", "some.js", "reduce.js", "reduce-right.js"
+      ],
+      "flags": [
+        "--allow-natives-syntax"
       ],
       "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
       "tests": [
@@ -322,11 +325,33 @@
         {"name": "SmiFilter"},
         {"name": "FastFilter"},
         {"name": "ObjectFilter"},
+        {"name": "OptFastFilter"},
         {"name": "NaiveMapReplacement"},
         {"name": "DoubleMap"},
         {"name": "SmiMap"},
         {"name": "FastMap"},
-        {"name": "ObjectMap"}
+        {"name": "ObjectMap"},
+	{"name": "OptFastMap"},
+        {"name": "DoubleEvery"},
+        {"name": "SmiEvery"},
+        {"name": "FastEvery"},
+        {"name": "ObjectEvery"},
+	{"name": "OptFastEvery"},
+        {"name": "DoubleSome"},
+        {"name": "SmiSome"},
+        {"name": "FastSome"},
+        {"name": "ObjectSome"},
+	{"name": "OptFastSome"},
+        {"name": "DoubleReduce"},
+        {"name": "SmiReduce"},
+        {"name": "FastReduce"},
+        {"name": "ObjectReduce"},
+	{"name": "OptFastReduce"},
+        {"name": "DoubleReduceRight"},
+        {"name": "SmiReduceRight"},
+        {"name": "FastReduceRight"},
+        {"name": "ObjectReduceRight"},
+	{"name": "OptFastReduceRight"}
       ]
     },
     {

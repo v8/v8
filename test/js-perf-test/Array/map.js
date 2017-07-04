@@ -14,9 +14,12 @@ benchy('DoubleMap', DoubleMap, DoubleMapSetup);
 benchy('SmiMap', SmiMap, SmiMapSetup);
 benchy('FastMap', FastMap, FastMapSetup);
 benchy('ObjectMap', GenericMap, ObjectMapSetup);
+benchy('OptFastMap', OptFastMap, FastMapSetup);
 
 var array;
-var func;
+// Initialize func variable to ensure the first test doesn't benefit from
+// global object property tracking.
+var func = 0;
 var this_arg;
 var result;
 var array_size = 100;
@@ -32,6 +35,22 @@ function SmiMap() {
 function FastMap() {
   result = array.map(func, this_arg);
 }
+
+// Make sure we inline the callback, pick up all possible TurboFan
+// optimizations.
+function RunOptFastMap(multiple) {
+  // Use of variable multiple in the callback function forces
+  // context creation without escape analysis.
+  //
+  // Also, the arrow function requires inlining based on
+  // SharedFunctionInfo.
+  result = array.map((v, i, a) =>  v + ' ' + multiple);
+}
+
+// Don't optimize because I want to optimize RunOptFastMap with a parameter
+// to be used in the callback.
+%NeverOptimizeFunction(OptFastMap);
+function OptFastMap() { RunOptFastMap(3); }
 
 function NaiveMap() {
   let index = -1
