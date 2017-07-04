@@ -1079,20 +1079,7 @@ class MarkCompactMarkingVisitor final
     collector_->MarkObject(target_object);
   }
 
-  V8_INLINE int VisitJSRegExp(Map* map, JSRegExp* re) {
-    if (!FLAG_flush_regexp_code) {
-      return VisitJSObject(map, re);
-    }
-    // Flush code or set age on both one byte and two byte code.
-    UpdateRegExpCodeAgeAndFlush(re, true);
-    UpdateRegExpCodeAgeAndFlush(re, false);
-    // Visit the fields of the RegExp, including the updated FixedArray.
-    return VisitJSObject(map, re);
-  }
-
  protected:
-  static const int kRegExpCodeThreshold = 5;
-
   // Visit all unmarked objects pointed to by [start, end).
   // Returns false if the operation fails (lack of stack space).
   V8_INLINE bool VisitUnmarkedObjects(HeapObject* host, Object** start,
@@ -1121,54 +1108,6 @@ class MarkCompactMarkingVisitor final
       // Mark the map pointer and the body.
       collector_->MarkObject(map);
       Visit(map, obj);
-    }
-  }
-
-  V8_INLINE void UpdateRegExpCodeAgeAndFlush(JSRegExp* re, bool is_one_byte) {
-    // Make sure that the fixed array is in fact initialized on the RegExp.
-    // We could potentially trigger a GC when initializing the RegExp.
-    if (HeapObject::cast(re->data())->map()->instance_type() !=
-        FIXED_ARRAY_TYPE)
-      return;
-
-    // Make sure this is a RegExp that actually contains code.
-    if (re->TypeTag() != JSRegExp::IRREGEXP) return;
-
-    Object* code = re->DataAt(JSRegExp::code_index(is_one_byte));
-    if (!code->IsSmi() &&
-        HeapObject::cast(code)->map()->instance_type() == CODE_TYPE) {
-      // Save a copy that can be reinstated if we need the code again.
-      re->SetDataAt(JSRegExp::saved_code_index(is_one_byte), code);
-
-      // Saving a copy might create a pointer into compaction candidate
-      // that was not observed by marker.  This might happen if JSRegExp data
-      // was marked through the compilation cache before marker reached JSRegExp
-      // object.
-      FixedArray* data = FixedArray::cast(re->data());
-      if (ObjectMarking::IsBlackOrGrey(data, MarkingState::Internal(data))) {
-        Object** slot =
-            data->data_start() + JSRegExp::saved_code_index(is_one_byte);
-        collector_->RecordSlot(data, slot, code);
-      }
-
-      // Set a number in the 0-255 range to guarantee no smi overflow.
-      re->SetDataAt(JSRegExp::code_index(is_one_byte),
-                    Smi::FromInt(heap_->ms_count() & 0xff));
-    } else if (code->IsSmi()) {
-      int value = Smi::cast(code)->value();
-      // The regexp has not been compiled yet or there was a compilation error.
-      if (value == JSRegExp::kUninitializedValue ||
-          value == JSRegExp::kCompilationErrorValue) {
-        return;
-      }
-
-      // Check if we should flush now.
-      if (value == ((heap_->ms_count() - kRegExpCodeThreshold) & 0xff)) {
-        re->SetDataAt(JSRegExp::code_index(is_one_byte),
-                      Smi::FromInt(JSRegExp::kUninitializedValue));
-        re->SetDataAt(JSRegExp::saved_code_index(is_one_byte),
-                      Smi::FromInt(JSRegExp::kUninitializedValue));
-      }
     }
   }
 };
