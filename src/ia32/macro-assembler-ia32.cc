@@ -2088,6 +2088,25 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
+void MacroAssembler::Pxor(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpxor(dst, dst, src);
+  } else {
+    pxor(dst, src);
+  }
+}
+
+void MacroAssembler::Pshuflw(XMMRegister dst, const Operand& src,
+                             uint8_t shuffle) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpshuflw(dst, src, shuffle);
+  } else {
+    pshuflw(dst, src, shuffle);
+  }
+}
+
 void MacroAssembler::Pshufd(XMMRegister dst, const Operand& src,
                             uint8_t shuffle) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -2096,6 +2115,48 @@ void MacroAssembler::Pshufd(XMMRegister dst, const Operand& src,
   } else {
     pshufd(dst, src, shuffle);
   }
+}
+
+void MacroAssembler::Pshufb(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpshufb(dst, dst, src);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSSE3)) {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    pshufb(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+void MacroAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpextrb(dst, src, imm8);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pextrb(dst, src, imm8);
+    return;
+  }
+  UNREACHABLE();
+}
+
+void MacroAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpextrw(dst, src, imm8);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pextrw(dst, src, imm8);
+    return;
+  }
+  UNREACHABLE();
 }
 
 void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {

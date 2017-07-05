@@ -723,12 +723,24 @@ class MacroAssembler: public Assembler {
 
 #undef AVX_OP2_WITH_TYPE
 
+  void Pxor(XMMRegister dst, XMMRegister src) { Pxor(dst, Operand(src)); }
+  void Pxor(XMMRegister dst, const Operand& src);
+
+  void Pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    Pshuflw(dst, Operand(src), shuffle);
+  }
+  void Pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
   void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshufd(dst, Operand(src), shuffle);
   }
   void Pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
 
   // Non-SSE2 instructions.
+  void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
+  void Pshufb(XMMRegister dst, const Operand& src);
+
+  void Pextrb(Register dst, XMMRegister src, int8_t imm8);
+  void Pextrw(Register dst, XMMRegister src, int8_t imm8);
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
               bool is_64_bits = false) {

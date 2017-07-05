@@ -100,11 +100,19 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4Splat:
     case kIA32I32x4ExtractLane:
     case kSSEI32x4ReplaceLane:
-    case kSSEI32x4Add:
-    case kSSEI32x4Sub:
     case kAVXI32x4ReplaceLane:
+    case kSSEI32x4Add:
     case kAVXI32x4Add:
+    case kSSEI32x4Sub:
     case kAVXI32x4Sub:
+    case kIA32I16x8Splat:
+    case kIA32I16x8ExtractLane:
+    case kSSEI16x8ReplaceLane:
+    case kAVXI16x8ReplaceLane:
+    case kIA32I8x16Splat:
+    case kIA32I8x16ExtractLane:
+    case kSSEI8x16ReplaceLane:
+    case kAVXI8x16ReplaceLane:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;

@@ -1907,18 +1907,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       break;
     }
-    case kSSEI32x4Add: {
-      __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kSSEI32x4Sub: {
-      __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
     case kAVXI32x4ReplaceLane: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpinsrd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kSSEI32x4Add: {
+      __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
     case kAVXI32x4Add: {
@@ -1927,10 +1923,61 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
+    case kSSEI32x4Sub: {
+      __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
     case kAVXI32x4Sub: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpsubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
+      break;
+    }
+    case kIA32I16x8Splat: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Movd(dst, i.InputOperand(0));
+      __ Pshuflw(dst, dst, 0x0);
+      __ Pshufd(dst, dst, 0x0);
+      break;
+    }
+    case kIA32I16x8ExtractLane: {
+      Register dst = i.OutputRegister();
+      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ movsx_w(dst, dst);
+      break;
+    }
+    case kSSEI16x8ReplaceLane: {
+      __ pinsrw(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kAVXI16x8ReplaceLane: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpinsrw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kIA32I8x16Splat: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Movd(dst, i.InputOperand(0));
+      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ Pshufb(dst, kScratchDoubleReg);
+      break;
+    }
+    case kIA32I8x16ExtractLane: {
+      Register dst = i.OutputRegister();
+      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ movsx_b(dst, dst);
+      break;
+    }
+    case kSSEI8x16ReplaceLane: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pinsrb(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kAVXI8x16ReplaceLane: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpinsrb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(2), i.InputInt8(1));
       break;
     }
     case kCheckedLoadInt8:
