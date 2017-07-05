@@ -7426,4 +7426,219 @@ TEST(MSA_ceqi_clti_clei) {
 #undef CEQI_CLTI_CLEI_U_DF
 }
 
+struct TestCaseMsa2R {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t exp_res_lo;
+  uint64_t exp_res_hi;
+};
+
+template <typename Func>
+void run_msa_2r(struct TestCaseMsa2R* input, Func Generate2RInstructionFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+  __ li(t0, input->ws_lo);
+  __ li(t1, input->ws_hi);
+  __ insert_d(w0, 0, t0);
+  __ insert_d(w0, 1, t1);
+
+  Generate2RInstructionFunc(assm);
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(input->exp_res_lo, res.d[0]);
+  CHECK_EQ(input->exp_res_hi, res.d[1]);
+}
+
+TEST(MSA_pcnt) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2R tc_b[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0808080808080808, 0x0808080808080808},
+                                 {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c,
+                                  0x0204050405050504, 0x0704030503070304},
+                                 {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8,
+                                  0x0404040303040207, 0x0403010504060403},
+                                 {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636,
+                                  0x0603030405030503, 0x0502080605070504}};
+
+  struct TestCaseMsa2R tc_h[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0010001000100010, 0x0010001000100010},
+                                 {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c,
+                                  0x00060009000a0009, 0x000b0008000a0007},
+                                 {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8,
+                                  0x0008000700070009, 0x00070006000a0007},
+                                 {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636,
+                                  0x0009000700080008, 0x0007000e000c0009}};
+
+  struct TestCaseMsa2R tc_w[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0000002000000020, 0x0000002000000020},
+                                 {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c,
+                                  0x0000000f00000013, 0x0000001300000011},
+                                 {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8,
+                                  0x0000000f00000010, 0x0000000d00000011},
+                                 {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636,
+                                  0x0000001000000010, 0x0000001500000015}};
+
+  struct TestCaseMsa2R tc_d[] = {
+      // ws_lo, ws_hi, exp_res_lo, exp_res_hi
+      {0x0000000000000000, 0x0000000000000000, 0, 0},
+      {0xffffffffffffffff, 0xffffffffffffffff, 0x40, 0x40},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x22, 0x24},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x1f, 0x1e},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x20, 0x2a}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ pcnt_b(w2, w0); });
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ pcnt_h(w2, w0); });
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ pcnt_w(w2, w0); });
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ pcnt_d(w2, w0); });
+  }
+}
+
+TEST(MSA_nlzc) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2R tc_b[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000,
+                                  0x0808080808080808, 0x0808080808080808},
+                                 {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+                                 {0x1169350b07030100, 0x7f011402381f0a6c,
+                                  0x0301020405060708, 0x0107030602030401},
+                                 {0x010806003478121f, 0x03013016073f7b08,
+                                  0x0704050802010303, 0x0607020305020104},
+                                 {0x0168321100083803, 0x07113f03013f1676,
+                                  0x0701020308040206, 0x0503020607020301}};
+
+  struct TestCaseMsa2R tc_h[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000,
+                                  0x0010001000100010, 0x0010001000100010},
+                                 {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+                                 {0x00010007000a003c, 0x37a5001e00010002,
+                                  0x000f000d000c000a, 0x0002000b000f000e},
+                                 {0x0026066200780edf, 0x003d0003000f00c8,
+                                  0x000a000500090004, 0x000a000e000c0008},
+                                 {0x335807e100480030, 0x01410fde12bf5636,
+                                  0x000200050009000a, 0x0007000400030001}};
+
+  struct TestCaseMsa2R tc_w[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000,
+                                  0x0000002000000020, 0x0000002000000020},
+                                 {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+                                 {0x00000005000007c3, 0x000014ae00006a9c,
+                                  0x0000001d00000015, 0x0000001300000011},
+                                 {0x00009362000112df, 0x000380d6003f8bc8,
+                                  0x000000100000000f, 0x0000000e0000000a},
+                                 {0x135862e17e38f8b0, 0x0061ffde03bfe636,
+                                  0x0000000300000001, 0x0000000900000006}};
+
+  struct TestCaseMsa2R tc_d[] = {
+      // ws_lo, ws_hi, exp_res_lo, exp_res_hi
+      {0x0000000000000000, 0x0000000000000000, 0x40, 0x40},
+      {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+      {0x000000000000014e, 0x00000000000176da, 0x37, 0x2f},
+      {0x00000062c4e812df, 0x000065d68b3f8bc8, 0x19, 0x11},
+      {0x00000000e338f8b0, 0x0754534acab32654, 0x20, 0x5}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nlzc_b(w2, w0); });
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nlzc_h(w2, w0); });
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nlzc_w(w2, w0); });
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nlzc_d(w2, w0); });
+  }
+}
+
+TEST(MSA_nloc) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2R tc_b[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0808080808080808, 0x0808080808080808},
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xEE96CAF4F8FCFEFF, 0x80FEEBFDC7E0F593,
+                                  0x0301020405060708, 0x0107030602030401},
+                                 {0xFEF7F9FFCB87EDE0, 0xFCFECFE9F8C084F7,
+                                  0x0704050802010303, 0x0607020305020104},
+                                 {0xFE97CDEEFFF7C7FC, 0xF8EEC0FCFEC0E989,
+                                  0x0701020308040206, 0x0503020607020301}};
+
+  struct TestCaseMsa2R tc_h[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0010001000100010, 0x0010001000100010},
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xFFFEFFF8FFF5FFC3, 0xC85AFFE1FFFEFFFD,
+                                  0x000f000d000c000a, 0x0002000b000f000e},
+                                 {0xFFD9F99DFF87F120, 0xFFC2FFFCFFF0FF37,
+                                  0x000a000500090004, 0x000a000e000c0008},
+                                 {0xCCA7F81EFFB7FFCF, 0xFEBEF021ED40A9C9,
+                                  0x000200050009000a, 0x0007000400030001}};
+
+  struct TestCaseMsa2R tc_w[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0000002000000020, 0x0000002000000020},
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xFFFFFFFAFFFFF83C, 0xFFFFEB51FFFF9563,
+                                  0x0000001d00000015, 0x0000001300000011},
+                                 {0xFFFF6C9DFFFEED20, 0xFFFC7F29FFC07437,
+                                  0x000000100000000f, 0x0000000e0000000a},
+                                 {0xECA79D1E81C7074F, 0xFF9E0021FC4019C9,
+                                  0x0000000300000001, 0x0000000900000006}};
+
+  struct TestCaseMsa2R tc_d[] = {
+      // ws_lo, ws_hi, exp_res_lo, exp_res_hi
+      {0xffffffffffffffff, 0xffffffffffffffff, 0x40, 0x40},
+      {0x0000000000000000, 0x0000000000000000, 0, 0},
+      {0xFFFFFFFFFFFFFEB1, 0xFFFFFFFFFFFE8925, 0x37, 0x2f},
+      {0xFFFFFF9D3B17ED20, 0xFFFF9A2974C07437, 0x19, 0x11},
+      {0xFFFFFFFF1CC7074F, 0xF8ABACB5354CD9AB, 0x20, 0x5}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nloc_b(w2, w0); });
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nloc_h(w2, w0); });
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nloc_w(w2, w0); });
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nloc_d(w2, w0); });
+  }
+}
+
 #undef __
