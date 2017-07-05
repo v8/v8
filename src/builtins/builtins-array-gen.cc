@@ -121,7 +121,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
         GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
                &object_push_pre);
 
-        BuildAppendJSArray(PACKED_SMI_ELEMENTS, a(), k_value, &runtime);
+        BuildAppendJSArray(HOLEY_SMI_ELEMENTS, a(), k_value, &runtime);
         Goto(&after_work);
       }
 
@@ -133,13 +133,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
       BIND(&object_push);
       {
-        BuildAppendJSArray(PACKED_ELEMENTS, a(), k_value, &runtime);
+        BuildAppendJSArray(HOLEY_ELEMENTS, a(), k_value, &runtime);
         Goto(&after_work);
       }
 
       BIND(&double_push);
       {
-        BuildAppendJSArray(PACKED_DOUBLE_ELEMENTS, a(), k_value, &runtime);
+        BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, a(), k_value, &runtime);
         Goto(&after_work);
       }
 
@@ -180,70 +180,101 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Node* SpecCompliantMapProcessor(Node* k_value, Node* k) {
     //  i. Let kValue be ? Get(O, Pk). Performed by the caller of
     //  SpecCompliantMapProcessor.
-    // ii. Let mappedValue be ? Call(callbackfn, T, kValue, k, O).
-    Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
-                               callbackfn(), this_arg(), k_value, k, o());
+    // ii. Let mapped_value be ? Call(callbackfn, T, kValue, k, O).
+    Node* mapped_value = CallJS(CodeFactory::Call(isolate()), context(),
+                                callbackfn(), this_arg(), k_value, k, o());
 
-    // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
-    CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mappedValue);
+    // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
+    CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mapped_value);
     return a();
   }
 
   Node* FastMapProcessor(Node* k_value, Node* k) {
     //  i. Let kValue be ? Get(O, Pk). Performed by the caller of
     //  FastMapProcessor.
-    // ii. Let mappedValue be ? Call(callbackfn, T, kValue, k, O).
-    Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
-                               callbackfn(), this_arg(), k_value, k, o());
+    // ii. Let mapped_value be ? Call(callbackfn, T, kValue, k, O).
+    Node* mapped_value = CallJS(CodeFactory::Call(isolate()), context(),
+                                callbackfn(), this_arg(), k_value, k, o());
 
-    Label finished(this);
-    Node* kind = nullptr;
-    Node* elements = nullptr;
-
-    // If a() is a JSArray, we can have a fast path.
     // mode is SMI_PARAMETERS because k has tagged representation.
     ParameterMode mode = SMI_PARAMETERS;
-    Label fast(this);
-    Label runtime(this);
-    Label object_push_pre(this), object_push(this), double_push(this);
-    BranchIfFastJSArray(a(), context(), FastJSArrayAccessMode::ANY_ACCESS,
-                        &fast, &runtime);
+    Label runtime(this), finished(this);
+    Label transition_pre(this), transition_smi_fast(this),
+        transition_smi_double(this);
+    Label array_not_smi(this), array_fast(this), array_double(this);
 
-    BIND(&fast);
+    Node* kind = LoadMapElementsKind(LoadMap(a()));
+    Node* elements = LoadElements(a());
+    GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS), &array_not_smi);
+    TryStoreArrayElement(HOLEY_SMI_ELEMENTS, mode, &transition_pre, elements, k,
+                         mapped_value);
+    Goto(&finished);
+
+    BIND(&transition_pre);
     {
-      kind = EnsureArrayPushable(a(), &runtime);
+      // array is smi. Value is either tagged or a heap number.
+      CSA_ASSERT(this, TaggedIsNotSmi(mapped_value));
+      GotoIf(IsHeapNumberMap(LoadMap(mapped_value)), &transition_smi_double);
+      Goto(&transition_smi_fast);
+    }
+
+    BIND(&array_not_smi);
+    {
+      Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &array_double,
+             &array_fast);
+    }
+
+    BIND(&transition_smi_fast);
+    {
+      // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
+      Node* const native_context = LoadNativeContext(context());
+      Node* const fast_map = LoadContextElement(
+          native_context, Context::JS_ARRAY_HOLEY_ELEMENTS_MAP_INDEX);
+
+      // Since this transition is only a map change, just do it right here.
+      // Since a() doesn't have an allocation site, it's safe to do the
+      // map store directly, otherwise I'd call TransitionElementsKind().
+      StoreMap(a(), fast_map);
+      Goto(&array_fast);
+    }
+
+    BIND(&array_fast);
+    {
+      TryStoreArrayElement(HOLEY_ELEMENTS, mode, &runtime, elements, k,
+                           mapped_value);
+      Goto(&finished);
+    }
+
+    BIND(&transition_smi_double);
+    {
+      // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
+      Node* const native_context = LoadNativeContext(context());
+      Node* const double_map = LoadContextElement(
+          native_context, Context::JS_ARRAY_HOLEY_DOUBLE_ELEMENTS_MAP_INDEX);
+      CallStub(CodeFactory::TransitionElementsKind(
+                   isolate(), HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS, true),
+               context(), a(), double_map);
+      Goto(&array_double);
+    }
+
+    BIND(&array_double);
+    {
+      // TODO(mvstanton): If we use a variable for elements and bind it
+      // appropriately, we can avoid an extra load of elements by binding the
+      // value only after a transition from smi to double.
       elements = LoadElements(a());
-      GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
-             &object_push_pre);
-      TryStoreArrayElement(PACKED_SMI_ELEMENTS, mode, &runtime, elements, k,
-                           mappedValue);
-      Goto(&finished);
-    }
-
-    BIND(&object_push_pre);
-    {
-      Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &double_push,
-             &object_push);
-    }
-
-    BIND(&object_push);
-    {
-      TryStoreArrayElement(PACKED_ELEMENTS, mode, &runtime, elements, k,
-                           mappedValue);
-      Goto(&finished);
-    }
-
-    BIND(&double_push);
-    {
-      TryStoreArrayElement(PACKED_DOUBLE_ELEMENTS, mode, &runtime, elements, k,
-                           mappedValue);
+      // If the mapped_value isn't a number, this will bail out to the runtime
+      // to make the transition.
+      TryStoreArrayElement(HOLEY_DOUBLE_ELEMENTS, mode, &runtime, elements, k,
+                           mapped_value);
       Goto(&finished);
     }
 
     BIND(&runtime);
     {
-      // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
-      CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mappedValue);
+      // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
+      CallRuntime(Runtime::kCreateDataProperty, context(), a(), k,
+                  mapped_value);
       Goto(&finished);
     }
 
@@ -253,12 +284,12 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
   // See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
   Node* TypedArrayMapProcessor(Node* k_value, Node* k) {
-    // 8. c. Let mappedValue be ? Call(callbackfn, T, « kValue, k, O »).
-    Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
-                               callbackfn(), this_arg(), k_value, k, o());
+    // 8. c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
+    Node* mapped_value = CallJS(CodeFactory::Call(isolate()), context(),
+                                callbackfn(), this_arg(), k_value, k, o());
     Label fast(this), slow(this), done(this), detached(this, Label::kDeferred);
 
-    // 8. d. Perform ? Set(A, Pk, mappedValue, true).
+    // 8. d. Perform ? Set(A, Pk, mapped_value, true).
     // Since we know that A is a TypedArray, this always ends up in
     // #sec-integer-indexed-exotic-objects-set-p-v-receiver and then
     // tc39.github.io/ecma262/#sec-integerindexedelementset .
@@ -266,14 +297,14 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     BIND(&fast);
     // #sec-integerindexedelementset 3. Let numValue be ? ToNumber(value).
-    Node* num_value = ToNumber(context(), mappedValue);
+    Node* num_value = ToNumber(context(), mapped_value);
     // The only way how this can bailout is because of a detached buffer.
     EmitElementStore(a(), k, num_value, false, source_elements_kind_,
                      KeyedAccessStoreMode::STANDARD_STORE, &detached);
     Goto(&done);
 
     BIND(&slow);
-    CallRuntime(Runtime::kSetProperty, context(), a(), k, mappedValue,
+    CallRuntime(Runtime::kSetProperty, context(), a(), k, mapped_value,
                 SmiConstant(STRICT));
     Goto(&done);
 
@@ -764,6 +795,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     GotoIf(SmiAbove(len, SmiConstant(JSArray::kInitialMaxFastElementArray)),
            &runtime);
 
+    // We need to be conservative and start with holey because the builtins
+    // that create output arrays aren't gauranteed to be called for every
+    // element in the input array (maybe the callback deletes an element).
     const ElementsKind elements_kind =
         GetHoleyElementsKind(GetInitialFastElementsKind());
     Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);

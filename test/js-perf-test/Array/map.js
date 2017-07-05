@@ -11,6 +11,8 @@ function benchy(name, test, testSetup) {
 
 benchy('NaiveMapReplacement', NaiveMap, NaiveMapSetup);
 benchy('DoubleMap', DoubleMap, DoubleMapSetup);
+benchy('SmallSmiToDoubleMap', SmiMap, SmiToDoubleMapSetup);
+benchy('SmallSmiToFastMap', SmiMap, SmiToFastMapSetup);
 benchy('SmiMap', SmiMap, SmiMapSetup);
 benchy('FastMap', FastMap, FastMapSetup);
 benchy('ObjectMap', GenericMap, ObjectMapSetup);
@@ -84,6 +86,18 @@ function SmiMapSetup() {
   array = new Array();
   for (var i = 0; i < array_size; i++) array[i] = i;
   func = (value, index, object) => { return value; };
+}
+
+function SmiToDoubleMapSetup() {
+  array = new Array();
+  for (var i = 0; i < 1; i++) array[i] = i;
+  func = (value, index, object) => { return value + 0.5; };
+}
+
+function SmiToFastMapSetup() {
+  array = new Array();
+  for (var i = 0; i < 1; i++) array[i] = i;
+  func = (value, index, object) => { return "hi" + value; };
 }
 
 function DoubleMapSetup() {

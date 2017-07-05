@@ -440,6 +440,23 @@ TF_STUB(StringLengthStub, CodeStubAssembler) {
   Return(result);
 }
 
+TF_STUB(TransitionElementsKindStub, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* new_map = Parameter(Descriptor::kMap);
+
+  Label bailout(this);
+  TransitionElementsKind(object, new_map, stub->from_kind(), stub->to_kind(),
+                         stub->is_jsarray(), &bailout);
+  Return(object);
+
+  BIND(&bailout);
+  {
+    Comment("Call runtime");
+    TailCallRuntime(Runtime::kTransitionElementsKind, context, object, new_map);
+  }
+}
+
 // TODO(ishell): move to builtins.
 TF_STUB(NumberToStringStub, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);

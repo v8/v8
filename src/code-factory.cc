@@ -448,5 +448,13 @@ Callable CodeFactory::FunctionPrototypeBind(Isolate* isolate) {
                   BuiltinDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::TransitionElementsKind(Isolate* isolate,
+                                             ElementsKind from, ElementsKind to,
+                                             bool is_jsarray) {
+  TransitionElementsKindStub stub(isolate, from, to, is_jsarray);
+  return make_callable(stub);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -73,6 +73,7 @@ class Node;
   V(GetProperty)                              \
   V(StoreFastElement)                         \
   V(StoreInterceptor)                         \
+  V(TransitionElementsKind)                   \
   V(LoadIndexedInterceptor)                   \
   V(GrowArrayElements)
 
@@ -567,6 +568,37 @@ class StoreInterceptorStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
+};
+
+class TransitionElementsKindStub : public TurboFanCodeStub {
+ public:
+  TransitionElementsKindStub(Isolate* isolate, ElementsKind from_kind,
+                             ElementsKind to_kind, bool is_jsarray)
+      : TurboFanCodeStub(isolate) {
+    set_sub_minor_key(FromKindBits::encode(from_kind) |
+                      ToKindBits::encode(to_kind) |
+                      IsJSArrayBits::encode(is_jsarray));
+  }
+
+  void set_sub_minor_key(uint32_t key) { minor_key_ = key; }
+
+  uint32_t sub_minor_key() const { return minor_key_; }
+
+  ElementsKind from_kind() const {
+    return FromKindBits::decode(sub_minor_key());
+  }
+
+  ElementsKind to_kind() const { return ToKindBits::decode(sub_minor_key()); }
+
+  bool is_jsarray() const { return IsJSArrayBits::decode(sub_minor_key()); }
+
+ private:
+  class ToKindBits : public BitField<ElementsKind, 0, 8> {};
+  class FromKindBits : public BitField<ElementsKind, ToKindBits::kNext, 8> {};
+  class IsJSArrayBits : public BitField<bool, FromKindBits::kNext, 1> {};
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TransitionElementsKind);
+  DEFINE_TURBOFAN_CODE_STUB(TransitionElementsKind, TurboFanCodeStub);
 };
 
 class LoadIndexedInterceptorStub : public TurboFanCodeStub {
