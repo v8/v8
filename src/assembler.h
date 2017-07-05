@@ -40,6 +40,7 @@
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
 #include "src/deoptimize-reason.h"
+#include "src/double.h"
 #include "src/globals.h"
 #include "src/label.h"
 #include "src/log.h"
@@ -1150,8 +1151,10 @@ class ConstantPoolEntry {
       : position_(position),
         merged_index_(sharing_ok ? SHARING_ALLOWED : SHARING_PROHIBITED),
         value_(value) {}
-  ConstantPoolEntry(int position, double value)
-      : position_(position), merged_index_(SHARING_ALLOWED), value64_(value) {}
+  ConstantPoolEntry(int position, Double value)
+      : position_(position),
+        merged_index_(SHARING_ALLOWED),
+        value64_(value.AsUint64()) {}
 
   int position() const { return position_; }
   bool sharing_ok() const { return merged_index_ != SHARING_PROHIBITED; }
@@ -1174,7 +1177,7 @@ class ConstantPoolEntry {
     merged_index_ = offset;
   }
   intptr_t value() const { return value_; }
-  uint64_t value64() const { return bit_cast<uint64_t>(value64_); }
+  uint64_t value64() const { return value64_; }
 
   enum Type { INTPTR, DOUBLE, NUMBER_OF_TYPES };
 
@@ -1189,7 +1192,7 @@ class ConstantPoolEntry {
   int merged_index_;
   union {
     intptr_t value_;
-    double value64_;
+    uint64_t value64_;
   };
   enum { SHARING_PROHIBITED = -2, SHARING_ALLOWED = -1 };
 };
@@ -1211,7 +1214,7 @@ class ConstantPoolBuilder BASE_EMBEDDED {
 
   // Add double constant to the embedded constant pool
   ConstantPoolEntry::Access AddEntry(int position, double value) {
-    ConstantPoolEntry entry(position, value);
+    ConstantPoolEntry entry(position, Double(value));
     return AddEntry(entry, ConstantPoolEntry::DOUBLE);
   }
 

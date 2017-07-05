@@ -543,8 +543,7 @@ class MacroAssembler: public Assembler {
                               const Register fpscr_flags,
                               const Condition cond = al);
 
-  void Vmov(const DwVfpRegister dst,
-            const double imm,
+  void Vmov(const DwVfpRegister dst, Double imm,
             const Register scratch = no_reg);
 
   void VmovHigh(Register dst, DwVfpRegister src);

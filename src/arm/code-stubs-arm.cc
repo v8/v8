@@ -12,6 +12,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/counters.h"
+#include "src/double.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
@@ -708,7 +709,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ mov(exponent, scratch);
   }
   __ vmov(double_scratch, double_base);  // Back up base.
-  __ vmov(double_result, 1.0, scratch2);
+  __ vmov(double_result, Double(1.0), scratch2);
 
   // Get absolute value of exponent.
   __ cmp(scratch, Operand::Zero());
@@ -723,7 +724,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   __ cmp(exponent, Operand::Zero());
   __ b(ge, &done);
-  __ vmov(double_scratch, 1.0, scratch);
+  __ vmov(double_scratch, Double(1.0), scratch);
   __ vdiv(double_result, double_scratch, double_result);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
@@ -980,7 +981,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Save callee-saved vfp registers.
   __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
   // Set up the reserved register for 0.0.
-  __ vmov(kDoubleRegZero, 0.0);
+  __ vmov(kDoubleRegZero, Double(0.0));
 
   // Get address of argv, see stm above.
   // r0: code entry

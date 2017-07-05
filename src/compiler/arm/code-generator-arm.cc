@@ -11,6 +11,7 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/double.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {
@@ -159,7 +160,7 @@ class OutOfLineLoadDouble final : public OutOfLineCode {
 
   void Generate() final {
     // Compute sqrt(-1.0), which results in a quiet double-precision NaN.
-    __ vmov(result_, -1.0);
+    __ vmov(result_, Double(-1.0));
     __ vsqrt(result_, result_);
   }
 
@@ -2983,7 +2984,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DwVfpRegister dst = destination->IsFPRegister()
                               ? g.ToDoubleRegister(destination)
                               : kScratchDoubleReg;
-      __ vmov(dst, src.ToFloat64(), kScratchReg);
+      __ vmov(dst, Double(src.ToFloat64AsInt()), kScratchReg);
       if (destination->IsDoubleStackSlot()) {
         __ vstr(dst, g.ToMemOperand(destination));
       }

@@ -32,6 +32,7 @@
 #include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/double.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
@@ -610,14 +611,14 @@ TEST(Vfp) {
     COMPARE(vsqrt(s2, s3, ne),
             "1eb11ae1       vsqrtne.f32 s2, s3");
 
-    COMPARE(vmov(d0, 1.0),
+    COMPARE(vmov(d0, Double(1.0)),
             "eeb70b00       vmov.f64 d0, #1");
-    COMPARE(vmov(d2, -13.0),
+    COMPARE(vmov(d2, Double(-13.0)),
             "eeba2b0a       vmov.f64 d2, #-13");
 
-    COMPARE(vmov(s1, -1.0),
+    COMPARE(vmov(s1, -1.0f),
             "eeff0a00       vmov.f32 s1, #-1");
-    COMPARE(vmov(s3, 13.0),
+    COMPARE(vmov(s3, 13.0f),
             "eef21a0a       vmov.f32 s3, #13");
 
     COMPARE(vmov(d0, VmovIndexLo, r0),
@@ -776,7 +777,7 @@ TEST(Vfp) {
       COMPARE(vsqrt(d16, d17),
               "eef10be1       vsqrt.f64 d16, d17");
 
-      COMPARE(vmov(d30, 16.0),
+      COMPARE(vmov(d30, Double(16.0)),
               "eef3eb00       vmov.f64 d30, #16");
 
       COMPARE(vmov(d31, VmovIndexLo, r7),

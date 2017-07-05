@@ -1083,6 +1083,7 @@ class V8_EXPORT_PRIVATE Constant final {
     return bit_cast<double>(value_);
   }
 
+  // TODO(ahaas) Use the Double class instead of uint64_t.
   uint64_t ToFloat64AsInt() const {
     if (type() == kInt32) return ToInt32();
     DCHECK_EQ(kFloat64, type());

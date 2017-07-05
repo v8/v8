@@ -31,6 +31,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
+#include "src/double.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -274,16 +275,16 @@ TEST(4) {
     __ vstr(s1, r4, offsetof(T, y));
 
     // Move a literal into a register that can be encoded in the instruction.
-    __ vmov(d4, 1.0);
+    __ vmov(d4, Double(1.0));
     __ vstr(d4, r4, offsetof(T, e));
 
     // Move a literal into a register that requires 64 bits to encode.
     // 0x3ff0000010000000 = 1.000000059604644775390625
-    __ vmov(d4, 1.000000059604644775390625);
+    __ vmov(d4, Double(1.000000059604644775390625));
     __ vstr(d4, r4, offsetof(T, d));
 
     // Convert from floating point to integer.
-    __ vmov(d4, 2.0);
+    __ vmov(d4, Double(2.0));
     __ vcvt_s32_f64(s1, d4);
     __ vstr(s1, r4, offsetof(T, i));
 
@@ -458,7 +459,7 @@ static void TestRoundingMode(VCVTTypes types,
   __ vmsr(r2);
 
   // Load value, convert, and move back result to r0 if everything went well.
-  __ vmov(d1, value);
+  __ vmov(d1, Double(value));
   switch (types) {
     case s32_f64:
       __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
@@ -1092,8 +1093,8 @@ TEST(13) {
     __ vstm(ia_w, r4, d29, d31);
 
     // Move constants into d20, d21, d22 and store into i, j, k.
-    __ vmov(d20, 14.7610017472335499);
-    __ vmov(d21, 16.0);
+    __ vmov(d20, Double(14.7610017472335499));
+    __ vmov(d21, Double(16.0));
     __ mov(r1, Operand(372106121));
     __ mov(r2, Operand(1079146608));
     __ vmov(d22, VmovIndexLo, r1);
@@ -1379,12 +1380,12 @@ TEST(15) {
 
     // ARM core register to scalar.
     __ mov(r4, Operand(0xfffffff8));
-    __ vmov(d0, 0);
+    __ vmov(d0, Double(0.0));
     __ vmov(NeonS8, d0, 1, r4);
     __ vmov(NeonS16, d0, 1, r4);
     __ vmov(NeonS32, d0, 1, r4);
     __ vstr(d0, r0, offsetof(T, vmov_to_scalar1));
-    __ vmov(d0, 0);
+    __ vmov(d0, Double(0.0));
     __ vmov(NeonS8, d0, 3, r4);
     __ vmov(NeonS16, d0, 3, r4);
     __ vstr(d0, r0, offsetof(T, vmov_to_scalar2));
@@ -3236,8 +3237,8 @@ TEST(ARMv8_vsel) {
     __ vsel(vc, s0, s1, s2);
     __ vstr(s0, r1, offsetof(ResultsF32, vselvc_));
 
-    __ vmov(d1, kResultPass);
-    __ vmov(d2, kResultFail);
+    __ vmov(d1, Double(kResultPass));
+    __ vmov(d2, Double(kResultFail));
 
     __ vsel(eq, d0, d1, d2);
     __ vstr(d0, r2, offsetof(ResultsF64, vseleq_));

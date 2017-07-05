@@ -2677,19 +2677,16 @@ void Assembler::vstm(BlockAddrMode am, Register base, SwVfpRegister first,
        0xA*B8 | count);
 }
 
-
-static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
-  uint64_t i;
-  memcpy(&i, &d, 8);
+static void DoubleAsTwoUInt32(Double d, uint32_t* lo, uint32_t* hi) {
+  uint64_t i = d.AsUint64();
 
   *lo = i & 0xffffffff;
   *hi = i >> 32;
 }
 
-
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
-static bool FitsVmovFPImmediate(double d, uint32_t* encoding) {
+static bool FitsVmovFPImmediate(Double d, uint32_t* encoding) {
   // VMOV can accept an immediate of the form:
   //
   //  +/- m * 2^(-n) where 16 <= m <= 31 and 0 <= n <= 7
@@ -2735,10 +2732,10 @@ static bool FitsVmovFPImmediate(double d, uint32_t* encoding) {
   return true;
 }
 
-
 void Assembler::vmov(const SwVfpRegister dst, float imm) {
   uint32_t enc;
-  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovFPImmediate(imm, &enc)) {
+  if (CpuFeatures::IsSupported(VFPv3) &&
+      FitsVmovFPImmediate(Double(imm), &enc)) {
     CpuFeatureScope scope(this, VFPv3);
     // The float can be encoded in the instruction.
     //
@@ -2755,9 +2752,7 @@ void Assembler::vmov(const SwVfpRegister dst, float imm) {
   }
 }
 
-
-void Assembler::vmov(const DwVfpRegister dst,
-                     double imm,
+void Assembler::vmov(const DwVfpRegister dst, Double imm,
                      const Register scratch) {
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(!scratch.is(ip));
@@ -2822,7 +2817,6 @@ void Assembler::vmov(const DwVfpRegister dst,
     }
   }
 }
-
 
 void Assembler::vmov(const SwVfpRegister dst,
                      const SwVfpRegister src,
@@ -5150,7 +5144,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
   }
 }
 
-void Assembler::ConstantPoolAddEntry(int position, double value) {
+void Assembler::ConstantPoolAddEntry(int position, Double value) {
   DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
   if (pending_64_bit_constants_.empty()) {
     first_const_pool_64_use_ = position;

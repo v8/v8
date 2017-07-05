@@ -45,6 +45,7 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {
@@ -1166,7 +1167,7 @@ class Assembler : public AssemblerBase {
 
   void vmov(const SwVfpRegister dst, float imm);
   void vmov(const DwVfpRegister dst,
-            double imm,
+            Double imm,
             const Register scratch = no_reg);
   void vmov(const SwVfpRegister dst,
             const SwVfpRegister src,
@@ -1857,7 +1858,7 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
-  void ConstantPoolAddEntry(int position, double value);
+  void ConstantPoolAddEntry(int position, Double value);
 
   friend class RelocInfo;
   friend class CodePatcher;

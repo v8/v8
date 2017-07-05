@@ -3225,7 +3225,6 @@ void Simulator::DecodeType7(Instruction* instr) {
 void Simulator::DecodeTypeVFP(Instruction* instr) {
   DCHECK((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0) );
   DCHECK(instr->Bits(11, 9) == 0x5);
-
   // Obtain single precision register codes.
   int m = instr->VFPMRegValue(kSinglePrecision);
   int d = instr->VFPDRegValue(kSinglePrecision);

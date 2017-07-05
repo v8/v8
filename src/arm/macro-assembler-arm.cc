@@ -14,6 +14,7 @@
 #include "src/codegen.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
+#include "src/double.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -992,15 +993,13 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
   vmrs(fpscr_flags, cond);
 }
 
-
-void MacroAssembler::Vmov(const DwVfpRegister dst,
-                          const double imm,
+void MacroAssembler::Vmov(const DwVfpRegister dst, Double imm,
                           const Register scratch) {
-  int64_t imm_bits = bit_cast<int64_t>(imm);
+  uint64_t imm_bits = imm.AsUint64();
   // Handle special values first.
-  if (imm_bits == bit_cast<int64_t>(0.0)) {
+  if (imm_bits == Double(0.0).AsUint64()) {
     vmov(dst, kDoubleRegZero);
-  } else if (imm_bits == bit_cast<int64_t>(-0.0)) {
+  } else if (imm_bits == Double(-0.0).AsUint64()) {
     vneg(dst, kDoubleRegZero);
   } else {
     vmov(dst, imm, scratch);
@@ -3379,7 +3378,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   Label done;
 
   // Handle inputs >= 255 (including +infinity).
-  Vmov(double_scratch, 255.0, result_reg);
+  Vmov(double_scratch, Double(255.0), result_reg);
   mov(result_reg, Operand(255));
   VFPCompareAndSetFlags(input_reg, double_scratch);
   b(ge, &done);
