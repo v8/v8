@@ -330,28 +330,14 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   Isolate* isolate = re->GetIsolate();
   Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
-  // If we had a compilation error the last time this is saved at the
-  // saved code index.
+#ifdef DEBUG
   Object* entry = re->DataAt(JSRegExp::code_index(is_one_byte));
-  // When arriving here entry can only be a smi, either representing an
-  // uncompiled regexp, a previous compilation error, or code that has
-  // been flushed.
+  // When arriving here entry can only be a smi representing an uncompiled
+  // regexp.
   DCHECK(entry->IsSmi());
   int entry_value = Smi::cast(entry)->value();
-  DCHECK(entry_value == JSRegExp::kUninitializedValue ||
-         entry_value == JSRegExp::kCompilationErrorValue ||
-         (entry_value < JSRegExp::kCodeAgeMask && entry_value >= 0));
-
-  if (entry_value == JSRegExp::kCompilationErrorValue) {
-    // A previous compilation failed and threw an error which we store in
-    // the saved code index (we store the error message, not the actual
-    // error). Recreate the error object and throw it.
-    Object* error_string = re->DataAt(JSRegExp::saved_code_index(is_one_byte));
-    DCHECK(error_string->IsString());
-    Handle<String> error_message(String::cast(error_string));
-    ThrowRegExpException(re, error_message);
-    return false;
-  }
+  DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
+#endif
 
   JSRegExp::Flags flags = re->GetFlags();
 

@@ -5652,14 +5652,6 @@ class JSRegExp: public JSObject {
     }
   }
 
-  static int saved_code_index(bool is_latin1) {
-    if (is_latin1) {
-      return kIrregexpLatin1CodeSavedIndex;
-    } else {
-      return kIrregexpUC16CodeSavedIndex;
-    }
-  }
-
   DECL_CAST(JSRegExp)
 
   // Dispatched behavior.
@@ -5691,22 +5683,14 @@ class JSRegExp: public JSObject {
   // fails, this fields hold an exception object that should be
   // thrown if the regexp is used again.
   static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
-
-  // Saved instance of Irregexp compiled code or bytecode for Latin1 that
-  // is a potential candidate for flushing.
-  static const int kIrregexpLatin1CodeSavedIndex = kDataIndex + 2;
-  // Saved instance of Irregexp compiled code or bytecode for UC16 that is
-  // a potential candidate for flushing.
-  static const int kIrregexpUC16CodeSavedIndex = kDataIndex + 3;
-
   // Maximal number of registers used by either Latin1 or UC16.
   // Only used to check that there is enough stack space
-  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 4;
+  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 2;
   // Number of captures in the compiled regexp.
-  static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
+  static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
-  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
+  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 4;
 
   static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
 
@@ -5716,15 +5700,6 @@ class JSRegExp: public JSObject {
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
-
-  // The compilation error value for the regexp code object. The real error
-  // object is in the saved code field.
-  static const int kCompilationErrorValue = -2;
-
-  // When we store the sweep generation at which we moved the code from the
-  // code index to the saved code index we mask it of to be in the [0:255]
-  // range.
-  static const int kCodeAgeMask = 0xff;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)

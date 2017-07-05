@@ -377,10 +377,22 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   }
 
   // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object otherwise it contains
-  // smi (code flushing support).
+  // encoding. If it has, the field contains a code object; and otherwise it
+  // contains the uninitialized sentinel as a smi.
 
   Node* const code = var_code.value();
+#ifdef DEBUG
+  {
+    Label next(this);
+    GotoIfNot(TaggedIsSmi(code), &next);
+
+    CSA_ASSERT(this,
+               SmiEqual(code, SmiConstant(JSRegExp::kUninitializedValue)));
+    Goto(&next);
+
+    BIND(&next);
+  }
+#endif
   GotoIf(TaggedIsSmi(code), &runtime);
   CSA_ASSERT(this, HasInstanceType(code, CODE_TYPE));
 

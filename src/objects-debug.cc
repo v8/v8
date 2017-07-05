@@ -1095,23 +1095,16 @@ void JSRegExp::JSRegExpVerify() {
 
       FixedArray* arr = FixedArray::cast(data());
       Object* one_byte_data = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
-      // Smi : Not compiled yet (-1) or code prepared for flushing.
-      // JSObject: Compilation error.
+      // Smi : Not compiled yet (-1).
       // Code/ByteArray: Compiled code.
       CHECK(
-          one_byte_data->IsSmi() ||
+          (one_byte_data->IsSmi() && Smi::cast(one_byte_data)->value() ==
+                                         JSRegExp::kUninitializedValue) ||
           (is_native ? one_byte_data->IsCode() : one_byte_data->IsByteArray()));
       Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      CHECK(uc16_data->IsSmi() ||
-             (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
-
-      Object* one_byte_saved =
-          arr->get(JSRegExp::kIrregexpLatin1CodeSavedIndex);
-      CHECK(one_byte_saved->IsSmi() || one_byte_saved->IsString() ||
-            one_byte_saved->IsCode());
-      Object* uc16_saved = arr->get(JSRegExp::kIrregexpUC16CodeSavedIndex);
-      CHECK(uc16_saved->IsSmi() || uc16_saved->IsString() ||
-             uc16_saved->IsCode());
+      CHECK((uc16_data->IsSmi() &&
+             Smi::cast(uc16_data)->value() == JSRegExp::kUninitializedValue) ||
+            (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
 
       CHECK(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());
       CHECK(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)->IsSmi());
