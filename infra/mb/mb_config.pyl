@@ -145,8 +145,6 @@
       # S390.
       'V8 Linux - s390 - sim': 'gyp_release_simulate_s390',
       'V8 Linux - s390x - sim': 'gyp_release_simulate_s390x',
-      # X87.
-      'V8 Linux - x87 - nosnap - debug builder': 'gyp_debug_simulate_x87',
     },
     'client.v8.branches': {
       'V8 Linux - beta branch': 'gn_release_x86',
@@ -481,10 +479,6 @@
       'gn', 'release_bot', 'x86', 'swarming', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
 
-    # Gyp debug configs for simulators.
-    'gyp_debug_simulate_x87': [
-      'gyp', 'debug_bot_static', 'simulate_x87', 'gcc', 'swarming'],
-
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
       'gyp', 'release', 'mips', 'crosscompile', 'static', 'v8_no_i18n',
@@ -564,12 +558,6 @@
     'debug_bot': {
       'mixins': [
         'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
-        'v8_optimized_debug'],
-    },
-
-    'debug_bot_static': {
-      'mixins': [
-        'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
@@ -689,11 +677,6 @@
     'simulate_s390x': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="s390x"',
       'gyp_defines': 'target_arch=x64 v8_target_arch=s390x',
-    },
-
-    'simulate_x87': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="x87"',
-      'gyp_defines': 'target_arch=ia32 v8_target_arch=x87',
     },
 
     'static': {
