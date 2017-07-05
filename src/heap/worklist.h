@@ -52,8 +52,10 @@ class Worklist {
   static const int kMaxNumTasks = 8;
   static const int kSegmentCapacity = SEGMENT_SIZE;
 
-  Worklist() {
-    for (int i = 0; i < kMaxNumTasks; i++) {
+  Worklist() : Worklist(kMaxNumTasks) {}
+
+  explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
+    for (int i = 0; i < num_tasks_; i++) {
       private_push_segment_[i] = new Segment();
       private_pop_segment_[i] = new Segment();
     }
@@ -61,7 +63,7 @@ class Worklist {
 
   ~Worklist() {
     CHECK(IsGlobalEmpty());
-    for (int i = 0; i < kMaxNumTasks; i++) {
+    for (int i = 0; i < num_tasks_; i++) {
       DCHECK_NOT_NULL(private_push_segment_[i]);
       DCHECK_NOT_NULL(private_pop_segment_[i]);
       delete private_push_segment_[i];
@@ -70,7 +72,7 @@ class Worklist {
   }
 
   bool Push(int task_id, EntryType entry) {
-    DCHECK_LT(task_id, kMaxNumTasks);
+    DCHECK_LT(task_id, num_tasks_);
     DCHECK_NOT_NULL(private_push_segment_[task_id]);
     if (!private_push_segment_[task_id]->Push(entry)) {
       PublishPushSegmentToGlobal(task_id);
@@ -82,7 +84,7 @@ class Worklist {
   }
 
   bool Pop(int task_id, EntryType* entry) {
-    DCHECK_LT(task_id, kMaxNumTasks);
+    DCHECK_LT(task_id, num_tasks_);
     DCHECK_NOT_NULL(private_pop_segment_[task_id]);
     if (!private_pop_segment_[task_id]->Pop(entry)) {
       if (!private_push_segment_[task_id]->IsEmpty()) {
@@ -110,7 +112,7 @@ class Worklist {
   }
 
   bool IsGlobalEmpty() {
-    for (int i = 0; i < kMaxNumTasks; i++) {
+    for (int i = 0; i < num_tasks_; i++) {
       if (!IsLocalEmpty(i)) return false;
     }
     return global_pool_.empty();
@@ -124,7 +126,7 @@ class Worklist {
   // Clears all segments. Frees the global segment pool.
   // This function assumes that other tasks are not running.
   void Clear() {
-    for (int i = 0; i < kMaxNumTasks; i++) {
+    for (int i = 0; i < num_tasks_; i++) {
       private_pop_segment_[i]->Clear();
       private_push_segment_[i]->Clear();
     }
@@ -143,7 +145,7 @@ class Worklist {
   // This function assumes that other tasks are not running.
   template <typename Callback>
   void Update(Callback callback) {
-    for (int i = 0; i < kMaxNumTasks; i++) {
+    for (int i = 0; i < num_tasks_; i++) {
       private_pop_segment_[i]->Update(callback);
       private_push_segment_[i]->Update(callback);
     }
@@ -248,6 +250,7 @@ class Worklist {
   Segment* private_pop_segment_[kMaxNumTasks];
   Segment* private_push_segment_[kMaxNumTasks];
   std::vector<Segment*> global_pool_;
+  int num_tasks_;
 };
 
 }  // namespace internal
