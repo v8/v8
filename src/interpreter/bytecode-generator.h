@@ -214,6 +214,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                      Register* out_register));
   void VisitInSameTestExecutionScope(Expression* expr);
 
+  int UpdateRuntimeFunctionForAsyncAwait(int context_index);
+
   // Returns the runtime function id for a store to super for the function's
   // language mode.
   inline Runtime::FunctionId StoreToSuperRuntimeId();
@@ -258,6 +260,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline LanguageMode language_mode() const;
   int feedback_index(FeedbackSlot slot) const;
 
+  inline HandlerTable::CatchPrediction catch_prediction() const {
+    return catch_prediction_;
+  }
+  inline void set_catch_prediction(HandlerTable::CatchPrediction value) {
+    catch_prediction_ = value;
+  }
+
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
@@ -282,6 +291,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Register generator_object_;
   Register generator_state_;
   int loop_depth_;
+
+  HandlerTable::CatchPrediction catch_prediction_;
 };
 
 }  // namespace interpreter

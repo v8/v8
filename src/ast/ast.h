@@ -971,30 +971,9 @@ class TryStatement : public Statement {
   Block* try_block() const { return try_block_; }
   void set_try_block(Block* b) { try_block_ = b; }
 
-  // Prediction of whether exceptions thrown into the handler for this try block
-  // will be caught.
-  //
-  // This is set in ast-numbering and later compiled into the code's handler
-  // table.  The runtime uses this information to implement a feature that
-  // notifies the debugger when an uncaught exception is thrown, _before_ the
-  // exception propagates to the top.
-  //
-  // Since it's generally undecidable whether an exception will be caught, our
-  // prediction is only an approximation.
-  HandlerTable::CatchPrediction catch_prediction() const {
-    return catch_prediction_;
-  }
-  void set_catch_prediction(HandlerTable::CatchPrediction prediction) {
-    catch_prediction_ = prediction;
-  }
-
  protected:
   TryStatement(Block* try_block, int pos, NodeType type)
-      : Statement(pos, type),
-        catch_prediction_(HandlerTable::UNCAUGHT),
-        try_block_(try_block) {}
-
-  HandlerTable::CatchPrediction catch_prediction_;
+      : Statement(pos, type), try_block_(try_block) {}
 
  private:
   Block* try_block_;
@@ -1007,18 +986,52 @@ class TryCatchStatement final : public TryStatement {
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
-  // The clear_pending_message flag indicates whether or not to clear the
-  // isolate's pending exception message before executing the catch_block.  In
-  // the normal use case, this flag is always on because the message object
-  // is not needed anymore when entering the catch block and should not be kept
-  // alive.
-  // The use case where the flag is off is when the catch block is guaranteed to
-  // rethrow the caught exception (using %ReThrow), which reuses the pending
-  // message instead of generating a new one.
+  // Prediction of whether exceptions thrown into the handler for this try block
+  // will be caught.
+  //
+  // BytecodeGenerator tracks the state of catch prediction, which can change
+  // with each TryCatchStatement encountered. The tracked catch prediction is
+  // later compiled into the code's handler table. The runtime uses this
+  // information to implement a feature that notifies the debugger when an
+  // uncaught exception is thrown, _before_ the exception propagates to the top.
+  //
+  // If this try/catch statement is meant to rethrow (HandlerTable::UNCAUGHT),
+  // the catch prediction value is set to the same value as the surrounding
+  // catch prediction.
+  //
+  // Since it's generally undecidable whether an exception will be caught, our
+  // prediction is only an approximation.
+  // ---------------------------------------------------------------------------
+  inline HandlerTable::CatchPrediction GetCatchPrediction(
+      HandlerTable::CatchPrediction outer_catch_prediction) const {
+    if (catch_prediction_ == HandlerTable::UNCAUGHT) {
+      return outer_catch_prediction;
+    }
+    return catch_prediction_;
+  }
+
+  // Indicates whether or not code should be generated to clear the pending
+  // exception. The pending exception is cleared for cases where the exception
+  // is not guaranteed to be rethrown, indicated by the value
+  // HandlerTable::UNCAUGHT. If both the current and surrounding catch handler's
+  // are predicted uncaught, the exception is not cleared.
+  //
+  // If this handler is not going to simply rethrow the exception, this method
+  // indicates that the isolate's pending exception message should be cleared
+  // before executing the catch_block.
+  // In the normal use case, this flag is always on because the message object
+  // is not needed anymore when entering the catch block and should not be
+  // kept alive.
+  // The use case where the flag is off is when the catch block is guaranteed
+  // to rethrow the caught exception (using %ReThrow), which reuses the
+  // pending message instead of generating a new one.
   // (When the catch block doesn't rethrow but is guaranteed to perform an
-  // ordinary throw, not clearing the old message is safe but not very useful.)
-  bool clear_pending_message() const {
-    return catch_prediction_ != HandlerTable::UNCAUGHT;
+  // ordinary throw, not clearing the old message is safe but not very
+  // useful.)
+  inline bool ShouldClearPendingException(
+      HandlerTable::CatchPrediction outer_catch_prediction) const {
+    return catch_prediction_ != HandlerTable::UNCAUGHT ||
+           outer_catch_prediction != HandlerTable::UNCAUGHT;
   }
 
  private:
@@ -1028,12 +1041,12 @@ class TryCatchStatement final : public TryStatement {
                     HandlerTable::CatchPrediction catch_prediction, int pos)
       : TryStatement(try_block, pos, kTryCatchStatement),
         scope_(scope),
-        catch_block_(catch_block) {
-    catch_prediction_ = catch_prediction;
-  }
+        catch_block_(catch_block),
+        catch_prediction_(catch_prediction) {}
 
   Scope* scope_;
   Block* catch_block_;
+  HandlerTable::CatchPrediction catch_prediction_;
 };
 
 

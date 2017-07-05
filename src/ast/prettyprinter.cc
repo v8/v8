@@ -875,24 +875,9 @@ void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
 
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH", node->position());
-  PrintTryStatement(node);
-  PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
-                               node->scope()->catch_variable()->name());
-  PrintIndentedVisit("CATCH", node->catch_block());
-}
-
-
-void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  IndentedScope indent(this, "TRY FINALLY", node->position());
-  PrintTryStatement(node);
-  PrintIndentedVisit("FINALLY", node->finally_block());
-}
-
-void AstPrinter::PrintTryStatement(TryStatement* node) {
-  PrintIndentedVisit("TRY", node->try_block());
   PrintIndented("CATCH PREDICTION");
   const char* prediction = "";
-  switch (node->catch_prediction()) {
+  switch (node->GetCatchPrediction(HandlerTable::UNCAUGHT)) {
     case HandlerTable::UNCAUGHT:
       prediction = "UNCAUGHT";
       break;
@@ -911,6 +896,14 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
       UNREACHABLE();
   }
   Print(" %s\n", prediction);
+  PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
+                               node->scope()->catch_variable()->name());
+  PrintIndentedVisit("CATCH", node->catch_block());
+}
+
+void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
+  IndentedScope indent(this, "TRY FINALLY", node->position());
+  PrintIndentedVisit("FINALLY", node->finally_block());
 }
 
 void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {

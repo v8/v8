@@ -26,7 +26,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         slot_cache_(zone),
         disable_fullcodegen_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
-        catch_prediction_(HandlerTable::UNCAUGHT),
         collect_type_profile_(collect_type_profile) {
     InitializeAstVisitor(stack_limit);
   }
@@ -102,7 +101,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   FeedbackSlotCache slot_cache_;
   BailoutReason disable_fullcodegen_reason_;
   BailoutReason dont_optimize_reason_;
-  HandlerTable::CatchPrediction catch_prediction_;
   bool collect_type_profile_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -296,34 +294,6 @@ void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
 void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   IncrementNodeCount();
   VisitArguments(node->arguments());
-  // To support catch prediction within async/await:
-  //
-  // The AstNumberingVisitor is when catch prediction currently occurs, and it
-  // is the only common point that has access to this information. The parser
-  // just doesn't know yet. Take the following two cases of catch prediction:
-  //
-  // try { await fn(); } catch (e) { }
-  // try { await fn(); } finally { }
-  //
-  // When parsing the await that we want to mark as caught or uncaught, it's
-  // not yet known whether it will be followed by a 'finally' or a 'catch.
-  // The AstNumberingVisitor is what learns whether it is caught. To make
-  // the information available later to the runtime, the AstNumberingVisitor
-  // has to stash it somewhere. Changing the runtime function into another
-  // one in ast-numbering seemed like a simple and straightforward solution to
-  // that problem.
-  if (node->is_jsruntime() && catch_prediction_ == HandlerTable::ASYNC_AWAIT) {
-    switch (node->context_index()) {
-      case Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX:
-        node->set_context_index(Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
-        break;
-      case Context::ASYNC_GENERATOR_AWAIT_CAUGHT:
-        node->set_context_index(Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT);
-        break;
-      default:
-        break;
-    }
-  }
 }
 
 
@@ -361,18 +331,7 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   DCHECK(node->scope() == nullptr || !node->scope()->HasBeenRemoved());
   IncrementNodeCount();
   DisableFullCodegen(kTryCatchStatement);
-  {
-    const HandlerTable::CatchPrediction old_prediction = catch_prediction_;
-    // This node uses its own prediction, unless it's "uncaught", in which case
-    // we adopt the prediction of the outer try-block.
-    HandlerTable::CatchPrediction catch_prediction = node->catch_prediction();
-    if (catch_prediction != HandlerTable::UNCAUGHT) {
-      catch_prediction_ = catch_prediction;
-    }
-    node->set_catch_prediction(catch_prediction_);
-    Visit(node->try_block());
-    catch_prediction_ = old_prediction;
-  }
+  Visit(node->try_block());
   Visit(node->catch_block());
 }
 
@@ -380,9 +339,6 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
   DisableFullCodegen(kTryFinallyStatement);
-  // We can't know whether the finally block will override ("catch") an
-  // exception thrown in the try block, so we just adopt the outer prediction.
-  node->set_catch_prediction(catch_prediction_);
   Visit(node->try_block());
   Visit(node->finally_block());
 }
