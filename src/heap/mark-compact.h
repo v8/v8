@@ -24,10 +24,8 @@ class ItemParallelJob;
 class MigrationObserver;
 class RecordMigratedSlotVisitor;
 class YoungGenerationMarkingVisitor;
-template <int SEGMENT_SIZE>
+template <typename EntryType, int SEGMENT_SIZE>
 class Worklist;
-template <int SEGMENT_SIZE>
-class WorklistView;
 
 class ObjectMarking : public AllStatic {
  public:
@@ -350,7 +348,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void CleanupSweepToIteratePages();
 
  private:
-  using MarkingWorklist = Worklist<64 /* segment size */>;
+  using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
   class RootMarkingVisitorSeedOnly;
   class RootMarkingVisitor;
 
@@ -396,7 +394,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
-    using ConcurrentMarkingWorklist = Worklist<64>;
+    using ConcurrentMarkingWorklist = Worklist<HeapObject*, 64>;
 
     static const int kMainThread = 0;
     // The heap parameter is not used but needed to match the sequential case.

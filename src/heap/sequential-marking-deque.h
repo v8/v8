@@ -87,9 +87,7 @@ class SequentialMarkingDeque {
     int i = bottom_;
     int new_top = bottom_;
     while (i != top_) {
-      HeapObject* object = callback(array_[i]);
-      if (object) {
-        array_[new_top] = object;
+      if (callback(array_[i], &array_[new_top])) {
         new_top = (new_top + 1) & mask_;
       }
       i = (i + 1) & mask_;

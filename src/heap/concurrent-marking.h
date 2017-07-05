@@ -15,12 +15,12 @@ namespace internal {
 
 class Heap;
 class Isolate;
-template <int SEGMENT_SIZE>
+template <typename EntryType, int SEGMENT_SIZE>
 class Worklist;
 
 class ConcurrentMarking {
  public:
-  using MarkingWorklist = Worklist<64 /* segment size */>;
+  using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared_,
                     MarkingWorklist* bailout_);

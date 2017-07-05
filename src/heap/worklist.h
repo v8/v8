@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-class HeapObject;
-
 // A concurrent worklist based on segments. Each tasks gets private
 // push and pop segments. Empty pop segments are swapped with their
 // corresponding push segments. Full push segments are published to a global
@@ -25,19 +23,19 @@ class HeapObject;
 //
 // Work stealing is best effort, i.e., there is no way to inform other tasks
 // of the need of items.
-template <int SEGMENT_SIZE>
+template <typename EntryType, int SEGMENT_SIZE>
 class Worklist {
  public:
   class View {
    public:
-    View(Worklist<SEGMENT_SIZE>* worklist, int task_id)
+    View(Worklist<EntryType, SEGMENT_SIZE>* worklist, int task_id)
         : worklist_(worklist), task_id_(task_id) {}
 
-    // Pushes an object onto the worklist.
-    bool Push(HeapObject* object) { return worklist_->Push(task_id_, object); }
+    // Pushes an entry onto the worklist.
+    bool Push(EntryType entry) { return worklist_->Push(task_id_, entry); }
 
-    // Pops an object from the worklist.
-    bool Pop(HeapObject** object) { return worklist_->Pop(task_id_, object); }
+    // Pops an entry from the worklist.
+    bool Pop(EntryType* entry) { return worklist_->Pop(task_id_, entry); }
 
     // Returns true if the local portion of the worklist is empty.
     bool IsLocalEmpty() { return worklist_->IsLocalEmpty(task_id_); }
@@ -47,7 +45,7 @@ class Worklist {
     bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
 
    private:
-    Worklist<SEGMENT_SIZE>* worklist_;
+    Worklist<EntryType, SEGMENT_SIZE>* worklist_;
     int task_id_;
   };
 
@@ -71,22 +69,22 @@ class Worklist {
     }
   }
 
-  bool Push(int task_id, HeapObject* object) {
+  bool Push(int task_id, EntryType entry) {
     DCHECK_LT(task_id, kMaxNumTasks);
     DCHECK_NOT_NULL(private_push_segment_[task_id]);
-    if (!private_push_segment_[task_id]->Push(object)) {
+    if (!private_push_segment_[task_id]->Push(entry)) {
       PublishPushSegmentToGlobal(task_id);
-      bool success = private_push_segment_[task_id]->Push(object);
+      bool success = private_push_segment_[task_id]->Push(entry);
       USE(success);
       DCHECK(success);
     }
     return true;
   }
 
-  bool Pop(int task_id, HeapObject** object) {
+  bool Pop(int task_id, EntryType* entry) {
     DCHECK_LT(task_id, kMaxNumTasks);
     DCHECK_NOT_NULL(private_pop_segment_[task_id]);
-    if (!private_pop_segment_[task_id]->Pop(object)) {
+    if (!private_pop_segment_[task_id]->Pop(entry)) {
       if (!private_push_segment_[task_id]->IsEmpty()) {
         Segment* tmp = private_pop_segment_[task_id];
         private_pop_segment_[task_id] = private_push_segment_[task_id];
@@ -94,7 +92,7 @@ class Worklist {
       } else if (!StealPopSegmentFromGlobal(task_id)) {
         return false;
       }
-      bool success = private_pop_segment_[task_id]->Pop(object);
+      bool success = private_pop_segment_[task_id]->Pop(entry);
       USE(success);
       DCHECK(success);
     }
@@ -137,9 +135,11 @@ class Worklist {
   }
 
   // Calls the specified callback on each element of the deques and replaces
-  // the element with the result of the callback. If the callback returns
-  // nullptr then the element is removed from the worklist.
-  // The callback must accept HeapObject* and return HeapObject*.
+  // the element with the result of the callback.
+  // The signature of the callback is
+  //   bool Callback(EntryType old, EntryType* new).
+  // If the callback returns |false| then the element is removed from the
+  // worklist. Otherwise the |new| entry is updated.
   // This function assumes that other tasks are not running.
   template <typename Callback>
   void Update(Callback callback) {
@@ -165,17 +165,16 @@ class Worklist {
   }
 
  private:
-  using TestWorklist = Worklist<64>;
-  FRIEND_TEST(TestWorklist, SegmentCreate);
-  FRIEND_TEST(TestWorklist, SegmentPush);
-  FRIEND_TEST(TestWorklist, SegmentPushPop);
-  FRIEND_TEST(TestWorklist, SegmentIsEmpty);
-  FRIEND_TEST(TestWorklist, SegmentIsFull);
-  FRIEND_TEST(TestWorklist, SegmentClear);
-  FRIEND_TEST(TestWorklist, SegmentFullPushFails);
-  FRIEND_TEST(TestWorklist, SegmentEmptyPopFails);
-  FRIEND_TEST(TestWorklist, SegmentUpdateNull);
-  FRIEND_TEST(TestWorklist, SegmentUpdate);
+  FRIEND_TEST(WorkListTest, SegmentCreate);
+  FRIEND_TEST(WorkListTest, SegmentPush);
+  FRIEND_TEST(WorkListTest, SegmentPushPop);
+  FRIEND_TEST(WorkListTest, SegmentIsEmpty);
+  FRIEND_TEST(WorkListTest, SegmentIsFull);
+  FRIEND_TEST(WorkListTest, SegmentClear);
+  FRIEND_TEST(WorkListTest, SegmentFullPushFails);
+  FRIEND_TEST(WorkListTest, SegmentEmptyPopFails);
+  FRIEND_TEST(WorkListTest, SegmentUpdateFalse);
+  FRIEND_TEST(WorkListTest, SegmentUpdate);
 
   class Segment {
    public:
@@ -183,15 +182,15 @@ class Worklist {
 
     Segment() : index_(0) {}
 
-    bool Push(HeapObject* object) {
+    bool Push(EntryType entry) {
       if (IsFull()) return false;
-      objects_[index_++] = object;
+      entries_[index_++] = entry;
       return true;
     }
 
-    bool Pop(HeapObject** object) {
+    bool Pop(EntryType* entry) {
       if (IsEmpty()) return false;
-      *object = objects_[--index_];
+      *entry = entries_[--index_];
       return true;
     }
 
@@ -204,9 +203,8 @@ class Worklist {
     void Update(Callback callback) {
       size_t new_index = 0;
       for (size_t i = 0; i < index_; i++) {
-        HeapObject* object = callback(objects_[i]);
-        if (object) {
-          objects_[new_index++] = object;
+        if (callback(entries_[i], &entries_[new_index])) {
+          new_index++;
         }
       }
       index_ = new_index;
@@ -214,7 +212,7 @@ class Worklist {
 
    private:
     size_t index_;
-    HeapObject* objects_[kCapacity];
+    EntryType entries_[kCapacity];
   };
 
   // Do not inline the following functions as this would mean that vector fast
