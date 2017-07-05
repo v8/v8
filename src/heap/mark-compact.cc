@@ -1044,12 +1044,12 @@ class MarkCompactMarkingVisitor final
       : MarkingVisitor<MarkCompactMarkingVisitor>(collector->heap(),
                                                   collector) {}
 
-  inline void VisitPointer(HeapObject* host, Object** p) final {
+  V8_INLINE void VisitPointer(HeapObject* host, Object** p) final {
     MarkObjectByPointer(host, p);
   }
 
-  inline void VisitPointers(HeapObject* host, Object** start,
-                            Object** end) final {
+  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
+                               Object** end) final {
     // Mark all objects pointed to in [start, end).
     const int kMinRangeForMarkingRecursion = 64;
     if (end - start >= kMinRangeForMarkingRecursion) {
@@ -1082,8 +1082,8 @@ class MarkCompactMarkingVisitor final
  protected:
   // Visit all unmarked objects pointed to by [start, end).
   // Returns false if the operation fails (lack of stack space).
-  V8_INLINE bool VisitUnmarkedObjects(HeapObject* host, Object** start,
-                                      Object** end) {
+  inline bool VisitUnmarkedObjects(HeapObject* host, Object** start,
+                                   Object** end) {
     // Return false is we are close to the stack limit.
     StackLimitCheck check(heap_->isolate());
     if (check.HasOverflowed()) return false;
