@@ -14234,8 +14234,13 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(6) << AstId(i).ToInt() << "  "
-       << std::setw(6) << ArgumentsStackHeight(i)->value() << " "
-       << std::setw(6) << Pc(i)->value();
+       << std::setw(6) << ArgumentsStackHeight(i)->value() << " ";
+    int pc_value = Pc(i)->value();
+    if (pc_value != -1) {
+      os << std::setw(6) << std::hex << pc_value;
+    } else {
+      os << std::setw(6) << "NA";
+    }
 
     if (!FLAG_print_code_verbose) {
       os << "\n";
