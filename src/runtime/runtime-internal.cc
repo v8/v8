@@ -474,6 +474,15 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(
+    Runtime_IncrementUseCounterConstructorReturnNonUndefinedPrimitive) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kConstructorNonUndefinedPrimitiveReturn);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   if (args.length() == 0) {

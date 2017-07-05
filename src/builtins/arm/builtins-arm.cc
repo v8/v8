@@ -642,17 +642,20 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ CompareObjectType(r0, r4, r5, FIRST_JS_RECEIVER_TYPE);
     __ b(ge, &leave_frame);
 
-    __ bind(&other_result);
     // The result is now neither undefined nor an object.
+    __ bind(&other_result);
+    __ ldr(r4, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
+    __ ldr(r4, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+    __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kCompilerHintsOffset));
+    __ tst(r4, Operand(SharedFunctionInfo::kClassConstructorMask));
+
     if (restrict_constructor_return) {
       // Throw if constructor function is a class constructor
-      __ ldr(r4, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-      __ ldr(r4, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-      __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kCompilerHintsOffset));
-      __ tst(r4, Operand(SharedFunctionInfo::kClassConstructorMask));
       __ b(eq, &use_receiver);
-
     } else {
+      __ b(ne, &use_receiver);
+      __ CallRuntime(
+          Runtime::kIncrementUseCounterConstructorReturnNonUndefinedPrimitive);
       __ b(&use_receiver);
     }
 
