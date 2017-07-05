@@ -9,6 +9,19 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "Proxies",
+      "path": ["Proxies"],
+      "main": "run.js",
+      "resources": ["proxies.js"],
+      "results_regexp": "^%s\\-Proxies\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ProxyConstructorWithArrowFunc"},
+        {"name": "ProxyConstructorWithClass"},
+        {"name": "ProxyConstructorWithObject"},
+        {"name": "ProxyConstructorWithProxy"}
+      ]
+    },
+    {
       "name": "AsyncAwait",
       "path": ["AsyncAwait"],
       "main": "run.js",
