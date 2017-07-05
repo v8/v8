@@ -1930,107 +1930,151 @@ void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
 
 // ------------Memory-instructions-------------
 
-// Helper for base-reg + offset, when offset is larger than int16.
-void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  if (IsMipsArchVariant(kMips32r6)) {
-    int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
-    if (src.offset_ & kNegOffset) {
-      hi += 1;
+void Assembler::AdjustBaseAndOffset(MemOperand& src,
+                                    OffsetAccessType access_type,
+                                    int second_access_add_to_offset) {
+  // This method is used to adjust the base register and offset pair
+  // for a load/store when the offset doesn't fit into int16_t.
+  // It is assumed that 'base + offset' is sufficiently aligned for memory
+  // operands that are machine word in size or smaller. For doubleword-sized
+  // operands it's assumed that 'base' is a multiple of 8, while 'offset'
+  // may be a multiple of 4 (e.g. 4-byte-aligned long and double arguments
+  // and spilled variables on the stack accessed relative to the stack
+  // pointer register).
+  // We preserve the "alignment" of 'offset' by adjusting it by a multiple of 8.
+
+  bool doubleword_aligned = (src.offset() & (kDoubleSize - 1)) == 0;
+  bool two_accesses = static_cast<bool>(access_type) || !doubleword_aligned;
+  DCHECK(second_access_add_to_offset <= 7);  // Must be <= 7.
+
+  // is_int16 must be passed a signed value, hence the static cast below.
+  if (is_int16(src.offset()) &&
+      (!two_accesses || is_int16(static_cast<int32_t>(
+                            src.offset() + second_access_add_to_offset)))) {
+    // Nothing to do: 'offset' (and, if needed, 'offset + 4', or other specified
+    // value) fits into int16_t.
+    return;
+  }
+
+  DCHECK(!src.rm().is(
+      at));  // Must not overwrite the register 'base' while loading 'offset'.
+
+#ifdef DEBUG
+  // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
+  uint32_t misalignment = src.offset() & (kDoubleSize - 1);
+#endif
+
+  // Do not load the whole 32-bit 'offset' if it can be represented as
+  // a sum of two 16-bit signed offsets. This can save an instruction or two.
+  // To simplify matters, only do this for a symmetric range of offsets from
+  // about -64KB to about +64KB, allowing further addition of 4 when accessing
+  // 64-bit variables with two 32-bit accesses.
+  constexpr int32_t kMinOffsetForSimpleAdjustment =
+      0x7ff8;  // Max int16_t that's a multiple of 8.
+  constexpr int32_t kMaxOffsetForSimpleAdjustment =
+      2 * kMinOffsetForSimpleAdjustment;
+  if (0 <= src.offset() && src.offset() <= kMaxOffsetForSimpleAdjustment) {
+    addiu(at, src.rm(), kMinOffsetForSimpleAdjustment);
+    src.offset_ -= kMinOffsetForSimpleAdjustment;
+  } else if (-kMaxOffsetForSimpleAdjustment <= src.offset() &&
+             src.offset() < 0) {
+    addiu(at, src.rm(), -kMinOffsetForSimpleAdjustment);
+    src.offset_ += kMinOffsetForSimpleAdjustment;
+  } else if (IsMipsArchVariant(kMips32r6)) {
+    // On r6 take advantage of the aui instruction, e.g.:
+    //   aui   at, base, offset_high
+    //   lw    reg_lo, offset_low(at)
+    //   lw    reg_hi, (offset_low+4)(at)
+    // or when offset_low+4 overflows int16_t:
+    //   aui   at, base, offset_high
+    //   addiu at, at, 8
+    //   lw    reg_lo, (offset_low-8)(at)
+    //   lw    reg_hi, (offset_low-4)(at)
+    int16_t offset_high = static_cast<uint16_t>(src.offset() >> 16);
+    int16_t offset_low = static_cast<uint16_t>(src.offset());
+    offset_high += (offset_low < 0)
+                       ? 1
+                       : 0;  // Account for offset sign extension in load/store.
+    aui(at, src.rm(), offset_high);
+    if (two_accesses && !is_int16(static_cast<int32_t>(
+                            offset_low + second_access_add_to_offset))) {
+      // Avoid overflow in the 16-bit offset of the load/store instruction when
+      // adding 4.
+      addiu(at, at, kDoubleSize);
+      offset_low -= kDoubleSize;
     }
-    aui(at, src.rm(), hi);
-    addiu(at, at, src.offset_ & kImm16Mask);
+    src.offset_ = offset_low;
   } else {
-    lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
-    ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
-    addu(at, at, src.rm());                 // Add base register.
+    // Do not load the whole 32-bit 'offset' if it can be represented as
+    // a sum of three 16-bit signed offsets. This can save an instruction.
+    // To simplify matters, only do this for a symmetric range of offsets from
+    // about -96KB to about +96KB, allowing further addition of 4 when accessing
+    // 64-bit variables with two 32-bit accesses.
+    constexpr int32_t kMinOffsetForMediumAdjustment =
+        2 * kMinOffsetForSimpleAdjustment;
+    constexpr int32_t kMaxOffsetForMediumAdjustment =
+        3 * kMinOffsetForSimpleAdjustment;
+    if (0 <= src.offset() && src.offset() <= kMaxOffsetForMediumAdjustment) {
+      addiu(at, src.rm(), kMinOffsetForMediumAdjustment / 2);
+      addiu(at, at, kMinOffsetForMediumAdjustment / 2);
+      src.offset_ -= kMinOffsetForMediumAdjustment;
+    } else if (-kMaxOffsetForMediumAdjustment <= src.offset() &&
+               src.offset() < 0) {
+      addiu(at, src.rm(), -kMinOffsetForMediumAdjustment / 2);
+      addiu(at, at, -kMinOffsetForMediumAdjustment / 2);
+      src.offset_ += kMinOffsetForMediumAdjustment;
+    } else {
+      // Now that all shorter options have been exhausted, load the full 32-bit
+      // offset.
+      int32_t loaded_offset = RoundDown(src.offset(), kDoubleSize);
+      lui(at, (loaded_offset >> kLuiShift) & kImm16Mask);
+      ori(at, at, loaded_offset & kImm16Mask);  // Load 32-bit offset.
+      addu(at, at, src.rm());
+      src.offset_ -= loaded_offset;
+    }
   }
-}
+  src.rm_ = at;
 
-// Helper for base-reg + upper part of offset, when offset is larger than int16.
-// Loads higher part of the offset to AT register.
-// Returns lower part of the offset to be used as offset
-// in Load/Store instructions
-int32_t Assembler::LoadRegPlusUpperOffsetPartToAt(const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
-  // If the highest bit of the lower part of the offset is 1, this would make
-  // the offset in the load/store instruction negative. We need to compensate
-  // for this by adding 1 to the upper part of the offset.
-  if (src.offset_ & kNegOffset) {
-    hi += 1;
+  DCHECK(is_int16(src.offset()));
+  if (two_accesses) {
+    DCHECK(is_int16(
+        static_cast<int32_t>(src.offset() + second_access_add_to_offset)));
   }
-
-  if (IsMipsArchVariant(kMips32r6)) {
-    aui(at, src.rm(), hi);
-  } else {
-    lui(at, hi);
-    addu(at, at, src.rm());
-  }
-  return (src.offset_ & kImm16Mask);
-}
-
-// Helper for loading base-reg + upper offset's part to AT reg when we are using
-// two 32-bit loads/stores instead of one 64-bit
-int32_t Assembler::LoadUpperOffsetForTwoMemoryAccesses(const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  if (is_int16((src.offset_ & kImm16Mask) + kIntSize)) {
-    // Only if lower part of offset + kIntSize fits in 16bits
-    return LoadRegPlusUpperOffsetPartToAt(src);
-  }
-  // In case offset's lower part + kIntSize doesn't fit in 16bits,
-  // load reg + hole offset to AT
-  LoadRegPlusOffsetToAt(src);
-  return 0;
+  DCHECK(misalignment == (src.offset() & (kDoubleSize - 1)));
 }
 
 void Assembler::lb(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(LB, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(LB, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(LB, source.rm(), rd, source.offset());
 }
 
 
 void Assembler::lbu(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(LBU, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(LBU, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(LBU, source.rm(), rd, source.offset());
 }
 
 
 void Assembler::lh(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(LH, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(LH, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(LH, source.rm(), rd, source.offset());
 }
 
 
 void Assembler::lhu(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(LHU, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(LHU, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(LHU, source.rm(), rd, source.offset());
 }
 
 
 void Assembler::lw(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(LW, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(LW, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(LW, source.rm(), rd, source.offset());
 }
 
 
@@ -2051,32 +2095,23 @@ void Assembler::lwr(Register rd, const MemOperand& rs) {
 
 
 void Assembler::sb(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(SB, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(SB, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(SB, source.rm(), rd, source.offset());
 }
 
 
 void Assembler::sh(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(SH, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(SH, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(SH, source.rm(), rd, source.offset());
 }
 
 
 void Assembler::sw(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset_)) {
-    GenInstrImmediate(SW, rs.rm(), rd, rs.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    GenInstrImmediate(SW, at, rd, off16);
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  GenInstrImmediate(SW, source.rm(), rd, source.offset());
 }
 
 
@@ -2361,22 +2396,16 @@ void Assembler::seb(Register rd, Register rt) {
 
 // Load, store, move.
 void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
-  if (is_int16(src.offset_)) {
-    GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
-    GenInstrImmediate(LWC1, at, fd, off16);
-  }
+  MemOperand tmp = src;
+  AdjustBaseAndOffset(tmp);
+  GenInstrImmediate(LWC1, tmp.rm(), fd, tmp.offset());
 }
 
 
 void Assembler::swc1(FPURegister fd, const MemOperand& src) {
-  if (is_int16(src.offset_)) {
-    GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
-    GenInstrImmediate(SWC1, at, fd, off16);
-  }
+  MemOperand tmp = src;
+  AdjustBaseAndOffset(tmp);
+  GenInstrImmediate(SWC1, tmp.rm(), fd, tmp.offset());
 }
 
 
@@ -3052,14 +3081,17 @@ MSA_BRANCH_LIST(MSA_BRANCH)
   V(st_w, ST_W)           \
   V(st_d, ST_D)
 
-#define MSA_LD_ST(name, opcode)                                \
-  void Assembler::name(MSARegister wd, const MemOperand& rs) { \
-    if (is_int10(rs.offset())) {                               \
-      GenInstrMsaMI10(opcode, rs.offset(), rs.rm(), wd);       \
-    } else {                                                   \
-      LoadRegPlusOffsetToAt(rs);                               \
-      GenInstrMsaMI10(opcode, 0, at, wd);                      \
-    }                                                          \
+#define MSA_LD_ST(name, opcode)                                  \
+  void Assembler::name(MSARegister wd, const MemOperand& rs) {   \
+    MemOperand source = rs;                                      \
+    AdjustBaseAndOffset(source);                                 \
+    if (is_int10(source.offset())) {                             \
+      GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
+    } else {                                                     \
+      DCHECK(!rs.rm().is(at));                                   \
+      addiu(at, source.rm(), source.offset());                   \
+      GenInstrMsaMI10(opcode, 0, at, wd);                        \
+    }                                                            \
   }
 
 MSA_LD_ST_LIST(MSA_LD_ST)

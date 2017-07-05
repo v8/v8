@@ -1873,10 +1873,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
-  // Helpers.
-  void LoadRegPlusOffsetToAt(const MemOperand& src);
-  int32_t LoadRegPlusUpperOffsetPartToAt(const MemOperand& src);
-
   bool has_frame_;
   bool has_double_zero_reg_set_;
   Isolate* isolate_;

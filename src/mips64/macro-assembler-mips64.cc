@@ -194,62 +194,6 @@ MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   return MemOperand(sp, doubles_size + register_offset);
 }
 
-// Helper for base-reg + offset, when offset is larger than int16.
-void MacroAssembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  DCHECK(is_int32(src.offset()));
-
-  if (kArchVariant == kMips64r6) {
-    int32_t hi = (src.offset() >> kLuiShift) & kImm16Mask;
-    if (src.offset() & kNegOffset) {
-      if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
-        lui(at, (src.offset() >> kLuiShift) & kImm16Mask);
-        ori(at, at, src.offset() & kImm16Mask);  // Load 32-bit offset.
-        daddu(at, at, src.rm());                 // Add base register.
-        return;
-      }
-
-      hi += 1;
-    }
-
-    daui(at, src.rm(), hi);
-    daddiu(at, at, src.offset() & kImm16Mask);
-  } else {
-    lui(at, (src.offset() >> kLuiShift) & kImm16Mask);
-    ori(at, at, src.offset() & kImm16Mask);  // Load 32-bit offset.
-    daddu(at, at, src.rm());                 // Add base register.
-  }
-}
-
-// Helper for base-reg + upper part of offset, when offset is larger than int16.
-// Loads higher part of the offset to AT register.
-// Returns lower part of the offset to be used as offset
-// in Load/Store instructions
-int32_t MacroAssembler::LoadRegPlusUpperOffsetPartToAt(const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  DCHECK(is_int32(src.offset()));
-  int32_t hi = (src.offset() >> kLuiShift) & kImm16Mask;
-  // If the highest bit of the lower part of the offset is 1, this would make
-  // the offset in the load/store instruction negative. We need to compensate
-  // for this by adding 1 to the upper part of the offset.
-  if (src.offset() & kNegOffset) {
-    if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
-      LoadRegPlusOffsetToAt(src);
-      return 0;
-    }
-
-    hi += 1;
-  }
-
-  if (kArchVariant == kMips64r6) {
-    daui(at, src.rm(), hi);
-  } else {
-    lui(at, hi);
-    daddu(at, at, src.rm());
-  }
-  return (src.offset() & kImm16Mask);
-}
-
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cc,
@@ -1321,20 +1265,17 @@ void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
     Lw(rd, rs);
   } else {
     DCHECK(kArchVariant == kMips64r2);
-    if (is_int16(rs.offset() + kMipsLwrOffset) &&
-        is_int16(rs.offset() + kMipsLwlOffset)) {
-      if (!rd.is(rs.rm())) {
-        lwr(rd, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
-        lwl(rd, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
-      } else {
-        lwr(at, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
-        lwl(at, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
-        mov(rd, at);
-      }
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(rs);
-      lwr(rd, MemOperand(at, kMipsLwrOffset));
-      lwl(rd, MemOperand(at, kMipsLwlOffset));
+    DCHECK(kMipsLwrOffset <= 3 && kMipsLwlOffset <= 3);
+    MemOperand source = rs;
+    // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 3);
+    if (!rd.is(source.rm())) {
+      lwr(rd, MemOperand(source.rm(), source.offset() + kMipsLwrOffset));
+      lwl(rd, MemOperand(source.rm(), source.offset() + kMipsLwlOffset));
+    } else {
+      lwr(at, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
+      lwl(at, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
+      mov(rd, at);
     }
   }
 }
@@ -1353,19 +1294,17 @@ void MacroAssembler::Ulwu(Register rd, const MemOperand& rs) {
 void MacroAssembler::Usw(Register rd, const MemOperand& rs) {
   DCHECK(!rd.is(at));
   DCHECK(!rs.rm().is(at));
+  DCHECK(!rd.is(rs.rm()));
   if (kArchVariant == kMips64r6) {
     Sw(rd, rs);
   } else {
     DCHECK(kArchVariant == kMips64r2);
-    if (is_int16(rs.offset() + kMipsSwrOffset) &&
-        is_int16(rs.offset() + kMipsSwlOffset)) {
-      swr(rd, MemOperand(rs.rm(), rs.offset() + kMipsSwrOffset));
-      swl(rd, MemOperand(rs.rm(), rs.offset() + kMipsSwlOffset));
-    } else {
-      LoadRegPlusOffsetToAt(rs);
-      swr(rd, MemOperand(at, kMipsSwrOffset));
-      swl(rd, MemOperand(at, kMipsSwlOffset));
-    }
+    DCHECK(kMipsSwrOffset <= 3 && kMipsSwlOffset <= 3);
+    MemOperand source = rs;
+    // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 3);
+    swr(rd, MemOperand(source.rm(), source.offset() + kMipsSwrOffset));
+    swl(rd, MemOperand(source.rm(), source.offset() + kMipsSwlOffset));
   }
 }
 
@@ -1376,22 +1315,24 @@ void MacroAssembler::Ulh(Register rd, const MemOperand& rs) {
     Lh(rd, rs);
   } else {
     DCHECK(kArchVariant == kMips64r2);
-    if (is_int16(rs.offset()) && is_int16(rs.offset() + 1)) {
+    MemOperand source = rs;
+    // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 1);
+    if (source.rm().is(at)) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lbu(at, rs);
-      Lb(rd, MemOperand(rs.rm(), rs.offset() + 1));
+      Lb(rd, MemOperand(source.rm(), source.offset() + 1));
+      Lbu(at, source);
 #elif defined(V8_TARGET_BIG_ENDIAN)
-      Lbu(at, MemOperand(rs.rm(), rs.offset() + 1));
-      Lb(rd, rs);
+      Lb(rd, source);
+      Lbu(at, MemOperand(source.rm(), source.offset() + 1));
 #endif
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(rs);
+    } else {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lb(rd, MemOperand(at, 1));
-      Lbu(at, MemOperand(at, 0));
+      Lbu(at, source);
+      Lb(rd, MemOperand(source.rm(), source.offset() + 1));
 #elif defined(V8_TARGET_BIG_ENDIAN)
-      Lb(rd, MemOperand(at, 0));
-      Lbu(at, MemOperand(at, 1));
+      Lbu(at, MemOperand(source.rm(), source.offset() + 1));
+      Lb(rd, source);
 #endif
     }
     dsll(rd, rd, 8);
@@ -1406,22 +1347,24 @@ void MacroAssembler::Ulhu(Register rd, const MemOperand& rs) {
     Lhu(rd, rs);
   } else {
     DCHECK(kArchVariant == kMips64r2);
-    if (is_int16(rs.offset()) && is_int16(rs.offset() + 1)) {
+    MemOperand source = rs;
+    // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 1);
+    if (source.rm().is(at)) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lbu(at, rs);
-      Lbu(rd, MemOperand(rs.rm(), rs.offset() + 1));
+      Lbu(rd, MemOperand(source.rm(), source.offset() + 1));
+      Lbu(at, source);
 #elif defined(V8_TARGET_BIG_ENDIAN)
-      Lbu(at, MemOperand(rs.rm(), rs.offset() + 1));
-      Lbu(rd, rs);
+      Lbu(rd, source);
+      Lbu(at, MemOperand(source.rm(), source.offset() + 1));
 #endif
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(rs);
+    } else {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lbu(rd, MemOperand(at, 1));
-      Lbu(at, MemOperand(at, 0));
+      Lbu(at, source);
+      Lbu(rd, MemOperand(source.rm(), source.offset() + 1));
 #elif defined(V8_TARGET_BIG_ENDIAN)
-      Lbu(rd, MemOperand(at, 0));
-      Lbu(at, MemOperand(at, 1));
+      Lbu(at, MemOperand(source.rm(), source.offset() + 1));
+      Lbu(rd, source);
 #endif
     }
     dsll(rd, rd, 8);
@@ -1439,11 +1382,8 @@ void MacroAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
   } else {
     DCHECK(kArchVariant == kMips64r2);
     MemOperand source = rs;
-    // If offset > 16 bits, load address to at with offset 0.
-    if (!is_int16(rs.offset()) || !is_int16(rs.offset() + 1)) {
-      LoadRegPlusOffsetToAt(rs);
-      source = MemOperand(at, 0);
-    }
+    // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 1);
 
     if (!scratch.is(rd)) {
       mov(scratch, rd);
@@ -1468,20 +1408,17 @@ void MacroAssembler::Uld(Register rd, const MemOperand& rs) {
     Ld(rd, rs);
   } else {
     DCHECK(kArchVariant == kMips64r2);
-    if (is_int16(rs.offset() + kMipsLdrOffset) &&
-        is_int16(rs.offset() + kMipsLdlOffset)) {
-      if (!rd.is(rs.rm())) {
-        ldr(rd, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
-        ldl(rd, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
-      } else {
-        ldr(at, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
-        ldl(at, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
-        mov(rd, at);
-      }
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(rs);
-      ldr(rd, MemOperand(at, kMipsLdrOffset));
-      ldl(rd, MemOperand(at, kMipsLdlOffset));
+    DCHECK(kMipsLdrOffset <= 7 && kMipsLdlOffset <= 7);
+    MemOperand source = rs;
+    // Adjust offset for two accesses and check if offset + 7 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 7);
+    if (!rd.is(source.rm())) {
+      ldr(rd, MemOperand(source.rm(), source.offset() + kMipsLdrOffset));
+      ldl(rd, MemOperand(source.rm(), source.offset() + kMipsLdlOffset));
+    } else {
+      ldr(at, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
+      ldl(at, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
+      mov(rd, at);
     }
   }
 }
@@ -1505,15 +1442,12 @@ void MacroAssembler::Usd(Register rd, const MemOperand& rs) {
     Sd(rd, rs);
   } else {
     DCHECK(kArchVariant == kMips64r2);
-    if (is_int16(rs.offset() + kMipsSdrOffset) &&
-        is_int16(rs.offset() + kMipsSdlOffset)) {
-      sdr(rd, MemOperand(rs.rm(), rs.offset() + kMipsSdrOffset));
-      sdl(rd, MemOperand(rs.rm(), rs.offset() + kMipsSdlOffset));
-    } else {
-      LoadRegPlusOffsetToAt(rs);
-      sdr(rd, MemOperand(at, kMipsSdrOffset));
-      sdl(rd, MemOperand(at, kMipsSdlOffset));
-    }
+    DCHECK(kMipsSdrOffset <= 7 && kMipsSdlOffset <= 7);
+    MemOperand source = rs;
+    // Adjust offset for two accesses and check if offset + 7 fits into int16_t.
+    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 7);
+    sdr(rd, MemOperand(source.rm(), source.offset() + kMipsSdrOffset));
+    sdl(rd, MemOperand(source.rm(), source.offset() + kMipsSdlOffset));
   }
 }
 
@@ -1573,139 +1507,93 @@ void MacroAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
 }
 
 void MacroAssembler::Lb(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    lb(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    lb(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lb(rd, source);
 }
 
 void MacroAssembler::Lbu(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    lbu(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    lbu(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lbu(rd, source);
 }
 
 void MacroAssembler::Sb(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    sb(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    sb(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  sb(rd, source);
 }
 
 void MacroAssembler::Lh(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    lh(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    lh(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lh(rd, source);
 }
 
 void MacroAssembler::Lhu(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    lhu(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    lhu(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lhu(rd, source);
 }
 
 void MacroAssembler::Sh(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    sh(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    sh(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  sh(rd, source);
 }
 
 void MacroAssembler::Lw(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    lw(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    lw(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lw(rd, source);
 }
 
 void MacroAssembler::Lwu(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    lwu(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    lwu(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lwu(rd, source);
 }
 
 void MacroAssembler::Sw(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    sw(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    sw(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  sw(rd, source);
 }
 
 void MacroAssembler::Ld(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    ld(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    ld(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  ld(rd, source);
 }
 
 void MacroAssembler::Sd(Register rd, const MemOperand& rs) {
-  if (is_int16(rs.offset())) {
-    sd(rd, rs);
-  } else {  // Offset > 16 bits, use multiple instructions to store.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
-    sd(rd, MemOperand(at, off16));
-  }
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  sd(rd, source);
 }
 
 void MacroAssembler::Lwc1(FPURegister fd, const MemOperand& src) {
-  if (is_int16(src.offset())) {
-    lwc1(fd, src);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
-    lwc1(fd, MemOperand(at, off16));
-  }
+  MemOperand tmp = src;
+  AdjustBaseAndOffset(tmp);
+  lwc1(fd, tmp);
 }
 
 void MacroAssembler::Swc1(FPURegister fs, const MemOperand& src) {
-  if (is_int16(src.offset())) {
-    swc1(fs, src);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
-    swc1(fs, MemOperand(at, off16));
-  }
+  MemOperand tmp = src;
+  AdjustBaseAndOffset(tmp);
+  swc1(fs, tmp);
 }
 
 void MacroAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
-  if (is_int16(src.offset())) {
-    ldc1(fd, src);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
-    ldc1(fd, MemOperand(at, off16));
-  }
+  MemOperand tmp = src;
+  AdjustBaseAndOffset(tmp);
+  ldc1(fd, tmp);
 }
 
 void MacroAssembler::Sdc1(FPURegister fs, const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  if (is_int16(src.offset())) {
-    sdc1(fs, src);
-  } else {  // Offset > 16 bits, use multiple instructions to load.
-    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
-    sdc1(fs, MemOperand(at, off16));
-  }
+  MemOperand tmp = src;
+  AdjustBaseAndOffset(tmp);
+  sdc1(fs, tmp);
 }
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {

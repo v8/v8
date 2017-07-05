@@ -2090,31 +2090,130 @@ void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
 
 // ------------Memory-instructions-------------
 
-// Helper for base-reg + offset, when offset is larger than int16.
-void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
-  DCHECK(is_int32(src.offset_));
+void Assembler::AdjustBaseAndOffset(MemOperand& src,
+                                    OffsetAccessType access_type,
+                                    int second_access_add_to_offset) {
+  // This method is used to adjust the base register and offset pair
+  // for a load/store when the offset doesn't fit into int16_t.
+  // It is assumed that 'base + offset' is sufficiently aligned for memory
+  // operands that are machine word in size or smaller. For doubleword-sized
+  // operands it's assumed that 'base' is a multiple of 8, while 'offset'
+  // may be a multiple of 4 (e.g. 4-byte-aligned long and double arguments
+  // and spilled variables on the stack accessed relative to the stack
+  // pointer register).
+  // We preserve the "alignment" of 'offset' by adjusting it by a multiple of 8.
 
-  if (kArchVariant == kMips64r6) {
-    int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
-    if (src.offset_ & kNegOffset) {
-      if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
-        lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
-        ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
-        daddu(at, at, src.rm());                // Add base register.
-        return;
-      }
+  bool doubleword_aligned = (src.offset() & (kDoubleSize - 1)) == 0;
+  bool two_accesses = static_cast<bool>(access_type) || !doubleword_aligned;
+  DCHECK(second_access_add_to_offset <= 7);  // Must be <= 7.
 
-      hi += 1;
+  // is_int16 must be passed a signed value, hence the static cast below.
+  if (is_int16(src.offset()) &&
+      (!two_accesses || is_int16(static_cast<int32_t>(
+                            src.offset() + second_access_add_to_offset)))) {
+    // Nothing to do: 'offset' (and, if needed, 'offset + 4', or other specified
+    // value) fits into int16_t.
+    return;
+  }
+
+  DCHECK(!src.rm().is(
+      at));  // Must not overwrite the register 'base' while loading 'offset'.
+
+#ifdef DEBUG
+  // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
+  uint32_t misalignment = src.offset() & (kDoubleSize - 1);
+#endif
+
+  // Do not load the whole 32-bit 'offset' if it can be represented as
+  // a sum of two 16-bit signed offsets. This can save an instruction or two.
+  // To simplify matters, only do this for a symmetric range of offsets from
+  // about -64KB to about +64KB, allowing further addition of 4 when accessing
+  // 64-bit variables with two 32-bit accesses.
+  constexpr int32_t kMinOffsetForSimpleAdjustment =
+      0x7ff8;  // Max int16_t that's a multiple of 8.
+  constexpr int32_t kMaxOffsetForSimpleAdjustment =
+      2 * kMinOffsetForSimpleAdjustment;
+
+  if (0 <= src.offset() && src.offset() <= kMaxOffsetForSimpleAdjustment) {
+    daddiu(at, src.rm(), kMinOffsetForSimpleAdjustment);
+    src.offset_ -= kMinOffsetForSimpleAdjustment;
+  } else if (-kMaxOffsetForSimpleAdjustment <= src.offset() &&
+             src.offset() < 0) {
+    daddiu(at, src.rm(), -kMinOffsetForSimpleAdjustment);
+    src.offset_ += kMinOffsetForSimpleAdjustment;
+  } else if (kArchVariant == kMips64r6) {
+    // On r6 take advantage of the daui instruction, e.g.:
+    //    daui   AT, base, offset_high
+    //   [dahi   AT, 1]                       // When `offset` is close to +2GB.
+    //    lw     reg_lo, offset_low(AT)
+    //   [lw     reg_hi, (offset_low+4)(AT)]  // If misaligned 64-bit load.
+    // or when offset_low+4 overflows int16_t:
+    //    daui   AT, base, offset_high
+    //    daddiu AT, AT, 8
+    //    lw     reg_lo, (offset_low-8)(AT)
+    //    lw     reg_hi, (offset_low-4)(AT)
+    int16_t offset_low = static_cast<uint16_t>(src.offset());
+    int32_t offset_low32 = offset_low;
+    int16_t offset_high = static_cast<uint16_t>(src.offset() >> 16);
+    bool increment_hi16 = offset_low < 0;
+    bool overflow_hi16 = false;
+
+    if (increment_hi16) {
+      offset_high++;
+      overflow_hi16 = (offset_high == -32768);
+    }
+    daui(at, src.rm(), offset_high);
+
+    if (overflow_hi16) {
+      dahi(at, 1);
     }
 
-    daui(at, src.rm(), hi);
-    daddiu(at, at, src.offset_ & kImm16Mask);
+    if (two_accesses && !is_int16(static_cast<int32_t>(
+                            offset_low32 + second_access_add_to_offset))) {
+      // Avoid overflow in the 16-bit offset of the load/store instruction when
+      // adding 4.
+      daddiu(at, at, kDoubleSize);
+      offset_low32 -= kDoubleSize;
+    }
+
+    src.offset_ = offset_low32;
   } else {
-    lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
-    ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
-    daddu(at, at, src.rm());                // Add base register.
+    // Do not load the whole 32-bit 'offset' if it can be represented as
+    // a sum of three 16-bit signed offsets. This can save an instruction.
+    // To simplify matters, only do this for a symmetric range of offsets from
+    // about -96KB to about +96KB, allowing further addition of 4 when accessing
+    // 64-bit variables with two 32-bit accesses.
+    constexpr int32_t kMinOffsetForMediumAdjustment =
+        2 * kMinOffsetForSimpleAdjustment;
+    constexpr int32_t kMaxOffsetForMediumAdjustment =
+        3 * kMinOffsetForSimpleAdjustment;
+    if (0 <= src.offset() && src.offset() <= kMaxOffsetForMediumAdjustment) {
+      daddiu(at, src.rm(), kMinOffsetForMediumAdjustment / 2);
+      daddiu(at, at, kMinOffsetForMediumAdjustment / 2);
+      src.offset_ -= kMinOffsetForMediumAdjustment;
+    } else if (-kMaxOffsetForMediumAdjustment <= src.offset() &&
+               src.offset() < 0) {
+      daddiu(at, src.rm(), -kMinOffsetForMediumAdjustment / 2);
+      daddiu(at, at, -kMinOffsetForMediumAdjustment / 2);
+      src.offset_ += kMinOffsetForMediumAdjustment;
+    } else {
+      // Now that all shorter options have been exhausted, load the full 32-bit
+      // offset.
+      int32_t loaded_offset = RoundDown(src.offset(), kDoubleSize);
+      lui(at, (loaded_offset >> kLuiShift) & kImm16Mask);
+      ori(at, at, loaded_offset & kImm16Mask);  // Load 32-bit offset.
+      daddu(at, at, src.rm());
+      src.offset_ -= loaded_offset;
+    }
   }
+  src.rm_ = at;
+
+  DCHECK(is_int16(src.offset()));
+  if (two_accesses) {
+    DCHECK(is_int16(
+        static_cast<int32_t>(src.offset() + second_access_add_to_offset)));
+  }
+  DCHECK(misalignment == (src.offset() & (kDoubleSize - 1)));
 }
 
 void Assembler::lb(Register rd, const MemOperand& rs) {
@@ -3285,14 +3384,17 @@ MSA_BRANCH_LIST(MSA_BRANCH)
   V(st_w, ST_W)           \
   V(st_d, ST_D)
 
-#define MSA_LD_ST(name, opcode)                                \
-  void Assembler::name(MSARegister wd, const MemOperand& rs) { \
-    if (is_int10(rs.offset())) {                               \
-      GenInstrMsaMI10(opcode, rs.offset(), rs.rm(), wd);       \
-    } else {                                                   \
-      LoadRegPlusOffsetToAt(rs);                               \
-      GenInstrMsaMI10(opcode, 0, at, wd);                      \
-    }                                                          \
+#define MSA_LD_ST(name, opcode)                                  \
+  void Assembler::name(MSARegister wd, const MemOperand& rs) {   \
+    MemOperand source = rs;                                      \
+    AdjustBaseAndOffset(source);                                 \
+    if (is_int10(source.offset())) {                             \
+      GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
+    } else {                                                     \
+      DCHECK(!rs.rm().is(at));                                   \
+      daddiu(at, source.rm(), source.offset());                  \
+      GenInstrMsaMI10(opcode, 0, at, wd);                        \
+    }                                                            \
   }
 
 MSA_LD_ST_LIST(MSA_LD_ST)
