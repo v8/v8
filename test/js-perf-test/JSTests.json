@@ -110,10 +110,12 @@
         {"name": "Map-String"},
         {"name": "Map-Object"},
         {"name": "Map-Iteration"},
+        {"name": "Map-Iterator"},
         {"name": "Set-Smi"},
         {"name": "Set-String"},
         {"name": "Set-Object"},
         {"name": "Set-Iteration"},
+        {"name": "Set-Iterator"},
         {"name": "WeakMap"},
         {"name": "WeakSet"}
       ]
