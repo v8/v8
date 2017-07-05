@@ -1447,14 +1447,12 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, context, frame_state0, *effect, *control);
   } else {
-    Node* holder = jsgraph()->Constant(access_info.holder().ToHandleChecked());
     DCHECK(access_info.constant()->IsFunctionTemplateInfo());
     Handle<FunctionTemplateInfo> function_template_info(
         Handle<FunctionTemplateInfo>::cast(access_info.constant()));
     DCHECK(!function_template_info->call_code()->IsUndefined(isolate()));
-    value =
-        InlineApiCall(receiver, holder, context, target, frame_state0, nullptr,
-                      effect, control, shared_info, function_template_info);
+    value = InlineApiCall(receiver, context, target, frame_state0, nullptr,
+                          effect, control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1496,14 +1494,12 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, value, context, frame_state0, *effect, *control);
   } else {
-    Node* holder = jsgraph()->Constant(access_info.holder().ToHandleChecked());
     DCHECK(access_info.constant()->IsFunctionTemplateInfo());
     Handle<FunctionTemplateInfo> function_template_info(
         Handle<FunctionTemplateInfo>::cast(access_info.constant()));
     DCHECK(!function_template_info->call_code()->IsUndefined(isolate()));
-    value =
-        InlineApiCall(receiver, holder, context, target, frame_state0, value,
-                      effect, control, shared_info, function_template_info);
+    value = InlineApiCall(receiver, context, target, frame_state0, value,
+                          effect, control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1518,9 +1514,8 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
 }
 
 Node* JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* holder, Node* context, Node* target,
-    Node* frame_state, Node* value, Node** effect, Node** control,
-    Handle<SharedFunctionInfo> shared_info,
+    Node* receiver, Node* context, Node* target, Node* frame_state, Node* value,
+    Node** effect, Node** control, Handle<SharedFunctionInfo> shared_info,
     Handle<FunctionTemplateInfo> function_template_info) {
   Handle<CallHandlerInfo> call_handler_info = handle(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
@@ -1537,7 +1532,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), call_interface_descriptor,
       call_interface_descriptor.GetStackParameterCount() + argc +
-          1 /* implicit receiver */ + 1 /* accessor holder */,
+          1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1);
 
@@ -1549,10 +1544,9 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* inputs[12] = {
-      code,   target,  data, receiver /* holder */, function_reference,
-      holder, receiver};
-  int index = 7 + argc;
+  Node* inputs[11] = {
+      code, target, data, receiver /* holder */, function_reference, receiver};
+  int index = 6 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
   inputs[index++] = *effect;
@@ -1560,7 +1554,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // This needs to stay here because of the edge case described in
   // http://crbug.com/675648.
   if (value != nullptr) {
-    inputs[7] = value;
+    inputs[6] = value;
   }
 
   return *effect = *control =

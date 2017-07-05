@@ -3237,7 +3237,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- esp[argc * 4]       : first argument
   //  -- esp[(argc + 1) * 4] : receiver
-  //  -- esp[(argc + 2) * 4] : accessor_holder
   // -----------------------------------
 
   Register callee = edi;
@@ -3290,24 +3289,15 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // holder
   __ push(holder);
 
-  // enter a new context
-  if (is_lazy()) {
-    // load context from accessor_holder
-    Register accessor_holder = context;
-    __ movp(accessor_holder,
-            MemOperand(esp, (argc() + FCA::kArgsLength + 1) * kPointerSize));
-    __ movp(scratch, FieldOperand(accessor_holder, HeapObject::kMapOffset));
-    __ GetMapConstructor(scratch, scratch, context);
-    __ movp(context, FieldOperand(scratch, JSFunction::kContextOffset));
-  } else {
-    // load context from callee
-    __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
-  }
-
   __ mov(scratch, esp);
 
   // push return address
   __ push(return_address);
+
+  if (!is_lazy()) {
+    // load context from callee
+    __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
+  }
 
   // API function gets reference to the v8::Arguments. If CPU profiler
   // is enabled wrapper function will be called and we need to pass
@@ -3346,8 +3336,11 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   Operand return_value_operand(ebp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 2;
-  Operand* stack_space_operand = nullptr;
+  int stack_space = 0;
+  Operand length_operand = ApiParameterOperand(4);
+  Operand* stack_space_operand = &length_operand;
+  stack_space = argc() + FCA::kArgsLength + 1;
+  stack_space_operand = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            ApiParameterOperand(1), stack_space,
                            stack_space_operand, return_value_operand,

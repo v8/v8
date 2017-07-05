@@ -2882,9 +2882,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  --
   //  -- sp[0]               : last argument
   //  -- ...
-  //  -- sp[(argc - 1) * 8]  : first argument
+  //  -- sp[(argc - 1)* 8]   : first argument
   //  -- sp[argc * 8]        : receiver
-  //  -- sp[(argc + 1) * 8]  : accessor_holder
   // -----------------------------------
 
   Register callee = a0;
@@ -2910,6 +2909,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // Save context, callee and call data.
   __ Push(context, callee, call_data);
+  if (!is_lazy()) {
+    // Load context from callee.
+    __ Ld(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+  }
 
   Register scratch = call_data;
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
@@ -2918,20 +2921,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
   // Push isolate and holder.
   __ Push(scratch, holder);
-
-  // Enter a new context
-  if (is_lazy()) {
-    // Load context from accessor_holder
-    Register accessor_holder = context;
-    __ Ld(accessor_holder,
-          MemOperand(sp, (FCA::kArgsLength + 1 + argc()) * kPointerSize));
-    __ Ld(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
-    __ GetMapConstructor(scratch, scratch, context, callee);
-    __ Ld(context, FieldMemOperand(scratch, JSFunction::kContextOffset));
-  } else {
-    // Load context from callee.
-    __ Ld(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
 
   // Prepare arguments.
   __ mov(scratch, sp);
@@ -2973,9 +2962,11 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 2;
+  int stack_space = 0;
+  int32_t stack_space_offset = 3 * kPointerSize;
+  stack_space = argc() + FCA::kArgsLength + 1;
   // TODO(adamk): Why are we clobbering this immediately?
-  const int32_t stack_space_offset = kInvalidStackOffset;
+  stack_space_offset = kInvalidStackOffset;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            stack_space_offset, return_value_operand,
                            &context_restore_operand);

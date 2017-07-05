@@ -2700,9 +2700,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  --
   //  -- sp[0]               : last argument
   //  -- ...
-  //  -- sp[(argc - 1) * 4]  : first argument
+  //  -- sp[(argc - 1)* 4]   : first argument
   //  -- sp[argc * 4]        : receiver
-  //  -- sp[(argc + 1) * 4]  : accessor_holder
   // -----------------------------------
 
   Register callee = r0;
@@ -2728,6 +2727,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // context save
   __ push(context);
+  if (!is_lazy()) {
+    // load context from callee
+    __ ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+  }
 
   // callee
   __ push(callee);
@@ -2746,20 +2749,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ push(scratch);
   // holder
   __ push(holder);
-
-  // enter a new context
-  if (is_lazy()) {
-    // load context from accessor_holder
-    Register accessor_holder = context;
-    __ ldr(accessor_holder,
-           MemOperand(sp, (FCA::kArgsLength + 1 + argc()) * kPointerSize));
-    __ ldr(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
-    __ GetMapConstructor(scratch, scratch, context, callee);
-    __ ldr(context, FieldMemOperand(scratch, JSFunction::kContextOffset));
-  } else {
-    // load context from callee
-    __ ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
 
   // Prepare arguments.
   __ mov(scratch, sp);
@@ -2798,8 +2787,11 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 2;
-  MemOperand* stack_space_operand = nullptr;
+  int stack_space = 0;
+  MemOperand length_operand = MemOperand(sp, 3 * kPointerSize);
+  MemOperand* stack_space_operand = &length_operand;
+  stack_space = argc() + FCA::kArgsLength + 1;
+  stack_space_operand = NULL;
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            stack_space_operand, return_value_operand,
