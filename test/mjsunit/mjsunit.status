@@ -334,6 +334,8 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
+  # Expects to finish in a certain time, but sometimes doesn't.
+  'regress/regress-165637': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
