@@ -646,11 +646,11 @@ class ModuleDecoder : public Decoder {
       std::vector<uint32_t> vector;
       module_->table_inits.push_back({table_index, offset, vector});
       WasmTableInit* init = &module_->table_inits.back();
-      for (uint32_t j = 0; ok() && j < num_elem; j++) {
+      for (uint32_t j = 0; j < num_elem; j++) {
         WasmFunction* func = nullptr;
         uint32_t index = consume_func_index(module_.get(), &func);
-        DCHECK_EQ(func != nullptr, ok());
-        if (!func) break;
+        DCHECK_IMPLIES(ok(), func != nullptr);
+        if (!ok()) break;
         DCHECK_EQ(index, func->func_index);
         init->entries.push_back(index);
         // Canonicalize signature indices during decoding.

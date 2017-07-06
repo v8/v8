@@ -660,6 +660,26 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, Regression_735887) {
+  // Test with an invalid function index in the element section.
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeForm, 0, 1,
+      // elements ------------------------------------------------------------
+      SECTION(Element, 7),
+      1,  // entry count
+      TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
+      1,    // elements count
+      0x9a  // invalid I32V as function index
+  };
+
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
