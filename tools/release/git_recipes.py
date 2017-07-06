@@ -222,6 +222,7 @@ class GitRecipesMixin(object):
       args += ["--cc", Quoted(cc)]
     if use_gerrit:
       args += ["--gerrit"]
+      args += ["--private"]
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False, **kwargs)
