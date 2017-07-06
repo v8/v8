@@ -383,7 +383,7 @@
     'gn_release_x64_correctness_fuzzer' : [
       'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'gn_release_x64_gcc_coverage': [
-      'gn', 'release_bot', 'x64', 'coverage', 'gcc'],
+      'gn', 'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -401,9 +401,11 @@
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
     'gn_release_x64_valgrind': [
-      'gn', 'release_bot', 'x64', 'swarming', 'valgrind'],
+      'gn', 'release_bot', 'x64', 'swarming', 'valgrind',
+      'no_custom_libcxx'],
     'gn_release_x64_valgrind_trybot': [
-      'gn', 'release_trybot', 'x64', 'swarming', 'valgrind'],
+      'gn', 'release_trybot', 'x64', 'swarming', 'valgrind',
+      'no_custom_libcxx'],
     'gn_release_x64_verify_csa': [
       'gn', 'release_bot', 'x64', 'swarming', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
@@ -416,13 +418,14 @@
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gn_debug_x64_gcc': [
-      'gn', 'debug_bot', 'x64', 'gcc'],
+      'gn', 'debug_bot', 'x64', 'gcc', 'no_custom_libcxx'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_debug_x64_trybot': [
       'gn', 'debug_trybot', 'x64', 'swarming'],
     'gn_debug_x64_valgrind': [
-      'gn', 'debug_bot', 'x64', 'swarming', 'valgrind'],
+      'gn', 'debug_bot', 'x64', 'swarming', 'valgrind',
+      'no_custom_libcxx'],
 
     # GN debug configs for x86.
     'gn_debug_x86': [
@@ -449,9 +452,10 @@
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
-      'gn', 'release_bot', 'x86', 'gcc'],
+      'gn', 'release_bot', 'x86', 'gcc', 'no_custom_libcxx'],
     'gn_release_x86_gcc_minimal_symbols': [
-      'gn', 'release_bot', 'x86', 'gcc', 'minimal_symbols'],
+      'gn', 'release_bot', 'x86', 'gcc', 'minimal_symbols',
+      'no_custom_libcxx'],
     'gn_release_x86_gcmole': [
       'gn', 'release_bot', 'x86', 'gcmole', 'swarming'],
     'gn_release_x86_gcmole_trybot': [
@@ -619,6 +623,11 @@
     'msan_no_origins': {
       'gn_args': ('is_msan=true msan_track_origins=0 '
                   'use_prebuilt_instrumented_libraries=true'),
+    },
+
+    # TODO(machenbach): Remove when http://crbug.com/738814 is resolved.
+    'no_custom_libcxx': {
+      'gn_args': 'use_custom_libcxx=false',
     },
 
     'release': {
