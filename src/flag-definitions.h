@@ -391,8 +391,6 @@ DEFINE_BOOL(stress_pointer_maps, false, "pointer map for every instruction")
 DEFINE_BOOL(stress_environments, false, "environment for every instruction")
 DEFINE_INT(deopt_every_n_times, 0,
            "deoptimize every n times a deopt point is passed")
-DEFINE_INT(deopt_every_n_garbage_collections, 0,
-           "deoptimize every n garbage collections")
 DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 DEFINE_BOOL(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_BOOL(trap_on_stub_deopt, false,

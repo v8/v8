@@ -2336,11 +2336,6 @@ class Heap {
   // The size of objects in old generation after the last MarkCompact GC.
   size_t old_generation_size_at_last_gc_;
 
-  // If the --deopt_every_n_garbage_collections flag is set to a positive value,
-  // this variable holds the number of garbage collections since the last
-  // deoptimization triggered by garbage collection.
-  int gcs_since_last_deopt_;
-
   // The feedback storage is used to store allocation sites (keys) and how often
   // they have been visited (values) by finding a memento behind an object. The
   // storage is only alive temporary during a GC. The invariant is that all

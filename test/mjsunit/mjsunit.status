@@ -48,9 +48,6 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
-  # Issue 3389: deopt_every_n_garbage_collections is unsafe
-  'regress/regress-2653': [SKIP],
-
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
@@ -563,17 +560,13 @@
   # Deopting uses just enough memory to make this one OOM.
   'regress/regress-3976': [SKIP],
 
-  # Deopt every n garbage collections collides with deopt every n times.
-  'regress/regress-2653': [SKIP],
-
   # Too slow.
   'es6/tail-call-megatest*': [SKIP],
 
   # Forced optimisation path tests.
   'shared-function-tier-up-turbo': [SKIP],
 
-  # Fails deopt_fuzzer due to --deopt_every_n_times or
-  # deopt_every_n_garbage_collections
+  # Fails deopt_fuzzer due to --deopt_every_n_times
   'es6/array-iterator-turbo': [SKIP]
 }],  # 'deopt_fuzzer == True'
 
