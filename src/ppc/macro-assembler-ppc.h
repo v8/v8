@@ -276,6 +276,7 @@ class MacroAssembler : public Assembler {
   // Push a handle.
   void Push(Handle<Object> handle);
   void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+  void PushObject(Handle<Object> handle);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {

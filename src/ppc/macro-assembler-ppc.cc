@@ -183,6 +183,10 @@ void MacroAssembler::Push(Handle<Object> handle) {
   push(r0);
 }
 
+void MacroAssembler::PushObject(Handle<Object> handle) {
+  mov(r0, Operand(handle));
+  push(r0);
+}
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, Operand(value));
