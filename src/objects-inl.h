@@ -2663,24 +2663,23 @@ FixedTypedArray<Traits>::cast(const Object* object) {
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrAstId, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(WeakCellCache, Object)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
-DEFINE_DEOPT_ENTRY_ACCESSORS(AstIdRaw, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
-BailoutId DeoptimizationInputData::AstId(int i) {
-  return BailoutId(AstIdRaw(i)->value());
+BailoutId DeoptimizationInputData::BytecodeOffset(int i) {
+  return BailoutId(BytecodeOffsetRaw(i)->value());
 }
 
-
-void DeoptimizationInputData::SetAstId(int i, BailoutId value) {
-  SetAstIdRaw(i, Smi::FromInt(value.ToInt()));
+void DeoptimizationInputData::SetBytecodeOffset(int i, BailoutId value) {
+  SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 
 

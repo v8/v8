@@ -265,7 +265,7 @@ BailoutId DetermineEntryAndDisarmOSRForBaseline(JavaScriptFrame* frame) {
   // Return a BailoutId representing an AST id of the {IterationStatement}.
   uint32_t pc_offset =
       static_cast<uint32_t>(frame->pc() - caller_code->instruction_start());
-  return caller_code->TranslatePcOffsetToAstId(pc_offset);
+  return caller_code->TranslatePcOffsetToBytecodeOffset(pc_offset);
 }
 
 BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
@@ -332,7 +332,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         DeoptimizationInputData::cast(result->deoptimization_data());
 
     if (data->OsrPcOffset()->value() >= 0) {
-      DCHECK(BailoutId(data->OsrAstId()->value()) == ast_id);
+      DCHECK(BailoutId(data->OsrBytecodeOffset()->value()) == ast_id);
       if (FLAG_trace_osr) {
         PrintF("[OSR - Entry at AST id %d, offset %d in optimized code]\n",
                ast_id.ToInt(), data->OsrPcOffset()->value());

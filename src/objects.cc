@@ -13948,7 +13948,7 @@ void JSFunction::ClearTypeFeedbackInfo() {
   }
 }
 
-BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
+BailoutId Code::TranslatePcOffsetToBytecodeOffset(uint32_t pc_offset) {
   DisallowHeapAllocation no_gc;
   DCHECK(kind() == FUNCTION);
   BackEdgeTable back_edges(this, &no_gc);
@@ -13958,13 +13958,12 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
   return BailoutId::None();
 }
 
-
-uint32_t Code::TranslateAstIdToPcOffset(BailoutId ast_id) {
+uint32_t Code::TranslateBytecodeOffsetToPcOffset(BailoutId bytecode_offset) {
   DisallowHeapAllocation no_gc;
   DCHECK(kind() == FUNCTION);
   BackEdgeTable back_edges(this, &no_gc);
   for (uint32_t i = 0; i < back_edges.length(); i++) {
-    if (back_edges.ast_id(i) == ast_id) return back_edges.pc_offset(i);
+    if (back_edges.ast_id(i) == bytecode_offset) return back_edges.pc_offset(i);
   }
   UNREACHABLE();  // We expect to find the back edge.
   return 0;
@@ -14128,7 +14127,7 @@ bool Code::CanDeoptAt(Address pc) {
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i)->value();
-    if (address == pc && deopt_data->AstId(i) != BailoutId::None()) {
+    if (address == pc && deopt_data->BytecodeOffset(i) != BailoutId::None()) {
       return true;
     }
   }
@@ -14227,19 +14226,21 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
-    os << " index  ast id    argc     pc";
+    os << " index  bytecode-offset    argc     pc";
     if (FLAG_print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
-    os << std::setw(6) << i << "  " << std::setw(6) << AstId(i).ToInt() << "  "
-       << std::setw(6) << ArgumentsStackHeight(i)->value() << " ";
+    os << std::setw(6) << i << "  " << std::setw(15)
+       << BytecodeOffset(i).ToInt() << "  " << std::setw(6)
+       << ArgumentsStackHeight(i)->value() << " ";
     int pc_value = Pc(i)->value();
     if (pc_value != -1) {
       os << std::setw(6) << std::hex << pc_value;
     } else {
       os << std::setw(6) << "NA";
     }
+    os << std::dec;
 
     if (!FLAG_print_code_verbose) {
       os << "\n";
@@ -14260,7 +14261,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
     while (iterator.HasNext() &&
            Translation::BEGIN !=
            (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
-      os << std::setw(31) << "    " << Translation::StringFor(opcode) << " ";
+      os << std::setw(40) << "    " << Translation::StringFor(opcode) << " ";
 
       switch (opcode) {
         case Translation::BEGIN:

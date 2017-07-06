@@ -711,7 +711,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
-  BailoutId node_id = input_data->AstId(bailout_id_);
+  BailoutId node_id = input_data->BytecodeOffset(bailout_id_);
   ByteArray* translations = input_data->TranslationByteArray();
   unsigned translation_index =
       input_data->TranslationIndex(bailout_id_)->value();

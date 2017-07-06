@@ -587,18 +587,18 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
 
   if (info->is_osr()) {
     DCHECK(osr_pc_offset_ >= 0);
-    data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
+    data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_ast_id().ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
   } else {
     BailoutId osr_ast_id = BailoutId::None();
-    data->SetOsrAstId(Smi::FromInt(osr_ast_id.ToInt()));
+    data->SetOsrBytecodeOffset(Smi::FromInt(osr_ast_id.ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(-1));
   }
 
   // Populate deoptimization entries.
   for (int i = 0; i < deopt_count; i++) {
     DeoptimizationState* deoptimization_state = deoptimization_states_[i];
-    data->SetAstId(i, deoptimization_state->bailout_id());
+    data->SetBytecodeOffset(i, deoptimization_state->bailout_id());
     CHECK(deoptimization_states_[i]);
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_states_[i]->translation_id()));

@@ -3446,7 +3446,7 @@ class DeoptimizationInputData: public FixedArray {
   static const int kTranslationByteArrayIndex = 0;
   static const int kInlinedFunctionCountIndex = 1;
   static const int kLiteralArrayIndex = 2;
-  static const int kOsrAstIdIndex = 3;
+  static const int kOsrBytecodeOffsetIndex = 3;
   static const int kOsrPcOffsetIndex = 4;
   static const int kOptimizationIdIndex = 5;
   static const int kSharedFunctionInfoIndex = 6;
@@ -3455,7 +3455,7 @@ class DeoptimizationInputData: public FixedArray {
   static const int kFirstDeoptEntryIndex = 9;
 
   // Offsets of deopt entry elements relative to the start of the entry.
-  static const int kAstIdRawOffset = 0;
+  static const int kBytecodeOffsetRawOffset = 0;
   static const int kTranslationIndexOffset = 1;
   static const int kArgumentsStackHeightOffset = 2;
   static const int kPcOffset = 3;
@@ -3469,7 +3469,7 @@ class DeoptimizationInputData: public FixedArray {
   DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
   DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
-  DECL_ELEMENT_ACCESSORS(OsrAstId, Smi)
+  DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -3483,16 +3483,16 @@ class DeoptimizationInputData: public FixedArray {
   inline type* name(int i);              \
   inline void Set##name(int i, type* value);
 
-  DECL_ENTRY_ACCESSORS(AstIdRaw, Smi)
+  DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
   DECL_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
   DECL_ENTRY_ACCESSORS(Pc, Smi)
 
 #undef DECL_ENTRY_ACCESSORS
 
-  inline BailoutId AstId(int i);
+  inline BailoutId BytecodeOffset(int i);
 
-  inline void SetAstId(int i, BailoutId value);
+  inline void SetBytecodeOffset(int i, BailoutId value);
 
   inline int DeoptCount();
 
@@ -3913,8 +3913,8 @@ class Code: public HeapObject {
 
   void ClearInlineCaches();
 
-  BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
-  uint32_t TranslateAstIdToPcOffset(BailoutId ast_id);
+  BailoutId TranslatePcOffsetToBytecodeOffset(uint32_t pc_offset);
+  uint32_t TranslateBytecodeOffsetToPcOffset(BailoutId bytecode_offset);
 
 #define DECL_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
