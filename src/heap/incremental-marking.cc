@@ -290,7 +290,7 @@ class IncrementalMarkingMarkingVisitor final
     return Parent::VisitNativeContext(map, context);
   }
 
-  inline void VisitPointer(HeapObject* host, Object** p) final {
+  V8_INLINE void VisitPointer(HeapObject* host, Object** p) final {
     Object* target = *p;
     if (target->IsHeapObject()) {
       collector_->RecordSlot(host, p, target);
@@ -298,8 +298,8 @@ class IncrementalMarkingMarkingVisitor final
     }
   }
 
-  inline void VisitPointers(HeapObject* host, Object** start,
-                            Object** end) final {
+  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
+                               Object** end) final {
     for (Object** p = start; p < end; p++) {
       Object* target = *p;
       if (target->IsHeapObject()) {
