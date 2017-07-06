@@ -977,7 +977,12 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSArrayBuffer");
   os << "\n - backing_store = " << backing_store();
   os << "\n - byte_length = " << Brief(byte_length());
+  if (is_external()) os << "\n - external";
+  if (is_neuterable()) os << "\n - neuterable";
   if (was_neutered()) os << "\n - neutered";
+  if (is_shared()) os << "\n - shared";
+  if (has_guard_region()) os << "\n - has_guard_region";
+  if (is_wasm_buffer()) os << "\n - wasm_buffer";
   JSObjectPrintBody(os, this, !was_neutered());
 }
 
