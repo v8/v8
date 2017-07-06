@@ -1,5 +1,5 @@
-*%(basename)s:6: TypeError: [Symbol.iterator] is not a function
+*%(basename)s:6: TypeError: x is not iterable
 var [a] = x;
           ^
-TypeError: [Symbol.iterator] is not a function
+TypeError: x is not iterable
     at *%(basename)s:6:11

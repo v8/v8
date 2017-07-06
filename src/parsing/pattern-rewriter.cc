@@ -399,7 +399,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
   auto temp = *temp_var = CreateTempVar(current_value_);
   auto iterator = CreateTempVar(factory()->NewGetIterator(
-      factory()->NewVariableProxy(temp), IteratorType::kNormal,
+      factory()->NewVariableProxy(temp), current_value_, IteratorType::kNormal,
       current_value_->position()));
   auto done =
       CreateTempVar(factory()->NewBooleanLiteral(false, kNoSourcePosition));

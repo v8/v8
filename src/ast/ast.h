@@ -2914,14 +2914,35 @@ class GetIterator final : public Expression {
     return async_iterator_call_feedback_slot_;
   }
 
+  Expression* iterable_for_call_printer() const {
+    return destructured_iterable_ != nullptr ? destructured_iterable_
+                                             : iterable_;
+  }
+
  private:
   friend class AstNodeFactory;
 
-  explicit GetIterator(Expression* iterable, IteratorType hint, int pos)
-      : Expression(pos, kGetIterator), hint_(hint), iterable_(iterable) {}
+  GetIterator(Expression* iterable, Expression* destructured_iterable,
+              IteratorType hint, int pos)
+      : Expression(pos, kGetIterator),
+        hint_(hint),
+        iterable_(iterable),
+        destructured_iterable_(destructured_iterable) {}
+
+  GetIterator(Expression* iterable, IteratorType hint, int pos)
+      : Expression(pos, kGetIterator),
+        hint_(hint),
+        iterable_(iterable),
+        destructured_iterable_(nullptr) {}
 
   IteratorType hint_;
   Expression* iterable_;
+
+  // iterable_ is the variable proxy, while destructured_iterable_ points to
+  // the raw value stored in the variable proxy. This is only used for
+  // pretty printing error messages.
+  Expression* destructured_iterable_;
+
   FeedbackSlot iterator_property_feedback_slot_;
   FeedbackSlot iterator_call_feedback_slot_;
   FeedbackSlot async_iterator_property_feedback_slot_;
@@ -3520,6 +3541,12 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
     return new (zone_) EmptyParentheses(pos);
+  }
+
+  GetIterator* NewGetIterator(Expression* iterable,
+                              Expression* destructured_iterable,
+                              IteratorType hint, int pos) {
+    return new (zone_) GetIterator(iterable, destructured_iterable, hint, pos);
   }
 
   GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
