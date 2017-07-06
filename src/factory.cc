@@ -1925,7 +1925,7 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
 
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(length));
-  JSObject::ValidateElements(array);
+  JSObject::ValidateElements(*array);
   return array;
 }
 

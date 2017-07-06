@@ -1259,7 +1259,7 @@ Address AllocationMemento::GetAllocationSiteUnchecked() {
 }
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
-  JSObject::ValidateElements(object);
+  JSObject::ValidateElements(*object);
   ElementsKind elements_kind = object->map()->elements_kind();
   if (!IsObjectElementsKind(elements_kind)) {
     if (IsHoleyElementsKind(elements_kind)) {

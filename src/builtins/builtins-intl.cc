@@ -236,7 +236,7 @@ Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
     }
     ++index;
   }
-  JSObject::ValidateElements(result);
+  JSObject::ValidateElements(*result);
 
   return *result;
 }

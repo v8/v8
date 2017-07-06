@@ -2201,17 +2201,6 @@ class JSObject: public JSReceiver {
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
 
-  // Collects elements starting at index 0.
-  // Undefined values are placed after non-undefined values.
-  // Returns the number of non-undefined values.
-  static Handle<Object> PrepareElementsForSort(Handle<JSObject> object,
-                                               uint32_t limit);
-  // As PrepareElementsForSort, but only on objects where elements is
-  // a dictionary, and it will stay a dictionary.  Collates undefined and
-  // unexisting elements below limit from position zero of the elements.
-  static Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
-                                                   uint32_t limit);
-
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw, Handle<Object> value);
 
@@ -2344,7 +2333,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
-  static void ValidateElements(Handle<JSObject> object);
+  static void ValidateElements(JSObject* object);
 
   // Makes sure that this object can contain HeapObject as elements.
   static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);

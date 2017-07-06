@@ -544,17 +544,16 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static ElementsKind kind() { return ElementsTraits::Kind; }
 
-  static void ValidateContents(Handle<JSObject> holder, int length) {
-  }
+  static void ValidateContents(JSObject* holder, int length) {}
 
-  static void ValidateImpl(Handle<JSObject> holder) {
-    Handle<FixedArrayBase> fixed_array_base(holder->elements());
+  static void ValidateImpl(JSObject* holder) {
+    FixedArrayBase* fixed_array_base = holder->elements();
     if (!fixed_array_base->IsHeapObject()) return;
     // Arrays that have been shifted in place can't be verified.
     if (fixed_array_base->IsFiller()) return;
     int length = 0;
     if (holder->IsJSArray()) {
-      Object* length_obj = Handle<JSArray>::cast(holder)->length();
+      Object* length_obj = JSArray::cast(holder)->length();
       if (length_obj->IsSmi()) {
         length = Smi::cast(length_obj)->value();
       }
@@ -564,7 +563,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     Subclass::ValidateContents(holder, length);
   }
 
-  void Validate(Handle<JSObject> holder) final {
+  void Validate(JSObject* holder) final {
     DisallowHeapAllocation no_gc;
     Subclass::ValidateImpl(holder);
   }
@@ -791,7 +790,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
 
     array->set_length(Smi::FromInt(length));
-    JSObject::ValidateElements(array);
+    JSObject::ValidateElements(*array);
   }
 
   uint32_t NumberOfElements(JSObject* receiver) final {
@@ -1793,6 +1792,36 @@ class DictionaryElementsAccessor
     }
     return Just<int64_t>(-1);
   }
+
+  static void ValidateContents(JSObject* holder, int length) {
+    DisallowHeapAllocation no_gc;
+#if DEBUG
+    DCHECK_EQ(holder->map()->elements_kind(), DICTIONARY_ELEMENTS);
+    if (!FLAG_enable_slow_asserts) return;
+    Isolate* isolate = holder->GetIsolate();
+    SeededNumberDictionary* dictionary =
+        SeededNumberDictionary::cast(holder->elements());
+    // Validate the requires_slow_elements and max_number_key values.
+    int capacity = dictionary->Capacity();
+    bool requires_slow_elements = false;
+    int max_key = 0;
+    for (int i = 0; i < capacity; ++i) {
+      Object* k;
+      if (!dictionary->ToKey(isolate, i, &k)) continue;
+      DCHECK_LE(0.0, k->Number());
+      if (k->Number() > SeededNumberDictionary::kRequiresSlowElementsLimit) {
+        requires_slow_elements = true;
+      } else {
+        max_key = Max(max_key, Smi::cast(k)->value());
+      }
+    }
+    if (requires_slow_elements) {
+      DCHECK(dictionary->requires_slow_elements());
+    } else if (!dictionary->requires_slow_elements()) {
+      DCHECK_LE(max_key, dictionary->max_number_key());
+    }
+#endif
+  }
 };
 
 
@@ -2009,12 +2038,11 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
   }
 
-  static void ValidateContents(Handle<JSObject> holder, int length) {
+  static void ValidateContents(JSObject* holder, int length) {
 #if DEBUG
     Isolate* isolate = holder->GetIsolate();
     Heap* heap = isolate->heap();
-    HandleScope scope(isolate);
-    Handle<FixedArrayBase> elements(holder->elements(), isolate);
+    FixedArrayBase* elements = holder->elements();
     Map* map = elements->map();
     if (IsSmiOrObjectElementsKind(KindTraits::Kind)) {
       DCHECK_NE(map, heap->fixed_double_array_map());
@@ -2027,10 +2055,11 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (length == 0) return;  // nothing to do!
 #if ENABLE_SLOW_DCHECKS
     DisallowHeapAllocation no_gc;
-    Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
+    BackingStore* backing_store = BackingStore::cast(elements);
     if (IsSmiElementsKind(KindTraits::Kind)) {
+      HandleScope scope(isolate);
       for (int i = 0; i < length; i++) {
-        DCHECK(BackingStore::get(*backing_store, i, isolate)->IsSmi() ||
+        DCHECK(BackingStore::get(backing_store, i, isolate)->IsSmi() ||
                (IsHoleyElementsKind(KindTraits::Kind) &&
                 backing_store->is_the_hole(isolate, i)));
       }
@@ -3914,7 +3943,7 @@ class FastSloppyArgumentsElementsAccessor
         object, FAST_SLOPPY_ARGUMENTS_ELEMENTS);
     JSObject::MigrateToMap(object, new_map);
     elements->set_arguments(FixedArray::cast(*arguments));
-    JSObject::ValidateElements(object);
+    JSObject::ValidateElements(*object);
   }
 };
 

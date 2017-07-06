@@ -494,7 +494,7 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::AddDataElement(array, index, value, NONE));
-  JSObject::ValidateElements(array);
+  JSObject::ValidateElements(*array);
   return *array;
 }
 

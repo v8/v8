@@ -392,6 +392,17 @@ void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
   }
 }
 
+void PrintDictionaryElements(std::ostream& os, FixedArrayBase* elements) {
+  // Print some internal fields
+  SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
+  if (dict->requires_slow_elements()) {
+    os << "\n   - requires_slow_elements";
+  } else {
+    os << "\n   - max_number_key: " << dict->max_number_key();
+  }
+  dict->Print(os);
+}
+
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
                                  SloppyArgumentsElements* elements) {
   Isolate* isolate = elements->GetIsolate();
@@ -418,7 +429,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
     PrintFixedArrayElements(os, arguments_store);
   } else {
     DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    SeededNumberDictionary::cast(arguments_store)->Print(os);
+    PrintDictionaryElements(os, arguments_store);
   }
   os << "\n }";
 }
@@ -458,7 +469,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 
     case DICTIONARY_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      SeededNumberDictionary::cast(elements())->Print(os);
+      PrintDictionaryElements(os, elements());
       break;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:

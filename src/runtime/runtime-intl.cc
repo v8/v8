@@ -471,7 +471,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
       return isolate->heap()->undefined_value();
     }
   }
-  JSObject::ValidateElements(result);
+  JSObject::ValidateElements(*result);
   return *result;
 }
 

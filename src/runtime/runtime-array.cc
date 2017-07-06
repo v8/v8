@@ -47,6 +47,235 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   return *object;
 }
 
+namespace {
+// As PrepareElementsForSort, but only on objects where elements is
+// a dictionary, and it will stay a dictionary.  Collates undefined and
+// unexisting elements below limit from position zero of the elements.
+Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
+                                          uint32_t limit) {
+  DCHECK(object->HasDictionaryElements());
+  Isolate* isolate = object->GetIsolate();
+  // Must stay in dictionary mode, either because of requires_slow_elements,
+  // or because we are not going to sort (and therefore compact) all of the
+  // elements.
+  Handle<SeededNumberDictionary> dict(object->element_dictionary(), isolate);
+  Handle<SeededNumberDictionary> new_dict =
+      SeededNumberDictionary::New(isolate, dict->NumberOfElements());
+
+  uint32_t pos = 0;
+  uint32_t undefs = 0;
+  uint32_t max_key = 0;
+  int capacity = dict->Capacity();
+  Handle<Smi> bailout(Smi::FromInt(-1), isolate);
+  // Entry to the new dictionary does not cause it to grow, as we have
+  // allocated one that is large enough for all entries.
+  DisallowHeapAllocation no_gc;
+  for (int i = 0; i < capacity; i++) {
+    Object* k;
+    if (!dict->ToKey(isolate, i, &k)) continue;
+
+    DCHECK_LE(0, k->Number());
+    DCHECK_LE(k->Number(), kMaxUInt32);
+
+    HandleScope scope(isolate);
+    Handle<Object> value(dict->ValueAt(i), isolate);
+    PropertyDetails details = dict->DetailsAt(i);
+    if (details.kind() == kAccessor || details.IsReadOnly()) {
+      // Bail out and do the sorting of undefineds and array holes in JS.
+      // Also bail out if the element is not supposed to be moved.
+      return bailout;
+    }
+
+    uint32_t key = NumberToUint32(k);
+    if (key < limit) {
+      if (value->IsUndefined(isolate)) {
+        undefs++;
+      } else if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+        // Adding an entry with the key beyond smi-range requires
+        // allocation. Bailout.
+        return bailout;
+      } else {
+        Handle<Object> result =
+            SeededNumberDictionary::Add(new_dict, pos, value, details);
+        DCHECK(result.is_identical_to(new_dict));
+        USE(result);
+        pos++;
+      }
+    } else if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
+      // Adding an entry with the key beyond smi-range requires
+      // allocation. Bailout.
+      return bailout;
+    } else {
+      Handle<Object> result =
+          SeededNumberDictionary::Add(new_dict, key, value, details);
+      DCHECK(result.is_identical_to(new_dict));
+      USE(result);
+      max_key = Max(max_key, key);
+    }
+  }
+
+  uint32_t result = pos;
+  PropertyDetails no_details = PropertyDetails::Empty();
+  while (undefs > 0) {
+    if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+      // Adding an entry with the key beyond smi-range requires
+      // allocation. Bailout.
+      return bailout;
+    }
+    HandleScope scope(isolate);
+    Handle<Object> result = SeededNumberDictionary::Add(
+        new_dict, pos, isolate->factory()->undefined_value(), no_details);
+    DCHECK(result.is_identical_to(new_dict));
+    USE(result);
+    pos++;
+    undefs--;
+  }
+  max_key = Max(max_key, pos - 1);
+
+  object->set_elements(*new_dict);
+  new_dict->UpdateMaxNumberKey(max_key, object);
+  JSObject::ValidateElements(*object);
+
+  AllowHeapAllocation allocate_return_value;
+  return isolate->factory()->NewNumberFromUint(result);
+}
+
+// Collects all defined (non-hole) and non-undefined (array) elements at the
+// start of the elements array.  If the object is in dictionary mode, it is
+// converted to fast elements mode.  Undefined values are placed after
+// non-undefined values.  Returns the number of non-undefined values.
+Handle<Object> PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
+  Isolate* isolate = object->GetIsolate();
+  if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
+    return handle(Smi::FromInt(-1), isolate);
+  }
+
+  if (object->HasStringWrapperElements()) {
+    int len = String::cast(Handle<JSValue>::cast(object)->value())->length();
+    return handle(Smi::FromInt(len), isolate);
+  }
+
+  JSObject::ValidateElements(*object);
+  if (object->HasDictionaryElements()) {
+    // Convert to fast elements containing only the existing properties.
+    // Ordering is irrelevant, since we are going to sort anyway.
+    Handle<SeededNumberDictionary> dict(object->element_dictionary());
+    if (object->IsJSArray() || dict->requires_slow_elements() ||
+        dict->max_number_key() >= limit) {
+      return PrepareSlowElementsForSort(object, limit);
+    }
+    // Convert to fast elements.
+    Handle<Map> new_map =
+        JSObject::GetElementsTransitionMap(object, HOLEY_ELEMENTS);
+
+    PretenureFlag tenure =
+        isolate->heap()->InNewSpace(*object) ? NOT_TENURED : TENURED;
+    Handle<FixedArray> fast_elements =
+        isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
+    dict->CopyValuesTo(*fast_elements);
+
+    JSObject::SetMapAndElements(object, new_map, fast_elements);
+    JSObject::ValidateElements(*object);
+  } else if (object->HasFixedTypedArrayElements()) {
+    // Typed arrays cannot have holes or undefined elements.
+    return handle(
+        Smi::FromInt(FixedArrayBase::cast(object->elements())->length()),
+        isolate);
+  } else if (!object->HasDoubleElements()) {
+    JSObject::EnsureWritableFastElements(object);
+  }
+  DCHECK(object->HasSmiOrObjectElements() || object->HasDoubleElements());
+
+  // Collect holes at the end, undefined before that and the rest at the
+  // start, and return the number of non-hole, non-undefined values.
+
+  Handle<FixedArrayBase> elements_base(object->elements());
+  uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
+  if (limit > elements_length) {
+    limit = elements_length;
+  }
+  if (limit == 0) {
+    return handle(Smi::kZero, isolate);
+  }
+
+  uint32_t result = 0;
+  if (elements_base->map() == isolate->heap()->fixed_double_array_map()) {
+    FixedDoubleArray* elements = FixedDoubleArray::cast(*elements_base);
+    // Split elements into defined and the_hole, in that order.
+    unsigned int holes = limit;
+    // Assume most arrays contain no holes and undefined values, so minimize the
+    // number of stores of non-undefined, non-the-hole values.
+    for (unsigned int i = 0; i < holes; i++) {
+      if (elements->is_the_hole(i)) {
+        holes--;
+      } else {
+        continue;
+      }
+      // Position i needs to be filled.
+      while (holes > i) {
+        if (elements->is_the_hole(holes)) {
+          holes--;
+        } else {
+          elements->set(i, elements->get_scalar(holes));
+          break;
+        }
+      }
+    }
+    result = holes;
+    while (holes < limit) {
+      elements->set_the_hole(holes);
+      holes++;
+    }
+  } else {
+    FixedArray* elements = FixedArray::cast(*elements_base);
+    DisallowHeapAllocation no_gc;
+
+    // Split elements into defined, undefined and the_hole, in that order.  Only
+    // count locations for undefined and the hole, and fill them afterwards.
+    WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_gc);
+    unsigned int undefs = limit;
+    unsigned int holes = limit;
+    // Assume most arrays contain no holes and undefined values, so minimize the
+    // number of stores of non-undefined, non-the-hole values.
+    for (unsigned int i = 0; i < undefs; i++) {
+      Object* current = elements->get(i);
+      if (current->IsTheHole(isolate)) {
+        holes--;
+        undefs--;
+      } else if (current->IsUndefined(isolate)) {
+        undefs--;
+      } else {
+        continue;
+      }
+      // Position i needs to be filled.
+      while (undefs > i) {
+        current = elements->get(undefs);
+        if (current->IsTheHole(isolate)) {
+          holes--;
+          undefs--;
+        } else if (current->IsUndefined(isolate)) {
+          undefs--;
+        } else {
+          elements->set(i, current, write_barrier);
+          break;
+        }
+      }
+    }
+    result = undefs;
+    while (undefs < holes) {
+      elements->set_undefined(isolate, undefs);
+      undefs++;
+    }
+    while (holes < limit) {
+      elements->set_the_hole(isolate, holes);
+      holes++;
+    }
+  }
+
+  return isolate->factory()->NewNumberFromUint(result);
+}
+
+}  // namespace
 
 // Moves all own elements of an object, that are below a limit, to positions
 // starting at zero. All undefined values are placed after non-undefined values,
@@ -60,8 +289,7 @@ RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
   if (object->IsJSProxy()) return Smi::FromInt(-1);
-  return *JSObject::PrepareElementsForSort(Handle<JSObject>::cast(object),
-                                           limit);
+  return *PrepareElementsForSort(Handle<JSObject>::cast(object), limit);
 }
 
 
@@ -71,8 +299,8 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, from, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, to, 1);
-  JSObject::ValidateElements(from);
-  JSObject::ValidateElements(to);
+  JSObject::ValidateElements(*from);
+  JSObject::ValidateElements(*to);
 
   Handle<FixedArrayBase> new_elements(from->elements());
   ElementsKind from_kind = from->GetElementsKind();
@@ -83,7 +311,7 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
   from->initialize_elements();
   from->set_length(Smi::kZero);
 
-  JSObject::ValidateElements(to);
+  JSObject::ValidateElements(*to);
   return *to;
 }
 
