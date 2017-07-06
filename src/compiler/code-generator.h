@@ -81,7 +81,8 @@ class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info,
-                         base::Optional<OsrHelper> osr_helper);
+                         base::Optional<OsrHelper> osr_helper,
+                         int start_source_position);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -97,8 +98,11 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
 
-  void AssembleSourcePosition(Instruction* instr);
+  SourcePosition start_source_position() const {
+    return start_source_position_;
+  }
 
+  void AssembleSourcePosition(Instruction* instr);
   void AssembleSourcePosition(SourcePosition source_position);
 
   // Record a safepoint with the given pointer map.
@@ -309,6 +313,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   Label* const labels_;
   Label return_label_;
   RpoNumber current_block_;
+  SourcePosition start_source_position_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;
   GapResolver resolver_;

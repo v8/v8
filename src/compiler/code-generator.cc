@@ -37,7 +37,8 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 
 CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info,
-                             base::Optional<OsrHelper> osr_helper)
+                             base::Optional<OsrHelper> osr_helper,
+                             int start_source_position)
     : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
@@ -45,6 +46,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       info_(info),
       labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
+      start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
       masm_(info->isolate(), nullptr, 0, CodeObjectRequired::kNo),
       resolver_(this),
@@ -87,8 +89,7 @@ void CodeGenerator::AssembleCode() {
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
 
   if (info->is_source_positions_enabled()) {
-    SourcePosition source_position(info->shared_info()->start_position());
-    AssembleSourcePosition(source_position);
+    AssembleSourcePosition(start_source_position());
   }
 
   // Place function entry hook if requested to do so.

@@ -325,10 +325,15 @@ class PipelineData {
     osr_helper_.emplace(info());
   }
 
+  void set_start_source_position(int position) {
+    DCHECK_EQ(start_source_position_, kNoSourcePosition);
+    start_source_position_ = position;
+  }
+
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-    code_generator_ =
-        new CodeGenerator(frame(), linkage, sequence(), info(), osr_helper_);
+    code_generator_ = new CodeGenerator(frame(), linkage, sequence(), info(),
+                                        osr_helper_, start_source_position_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -355,6 +360,7 @@ class PipelineData {
   bool compilation_failed_ = false;
   bool verify_graph_ = false;
   bool is_asm_ = false;
+  int start_source_position_ = kNoSourcePosition;
   base::Optional<OsrHelper> osr_helper_;
   Handle<Code> code_ = Handle<Code>::null();
   CodeGenerator* code_generator_ = nullptr;
@@ -629,6 +635,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   } else if (FLAG_turbo_inlining) {
     info()->MarkAsInliningEnabled();
   }
+
+  data_.set_start_source_position(info()->shared_info()->start_position());
 
   linkage_ = new (info()->zone())
       Linkage(Linkage::ComputeIncoming(info()->zone(), info()));
