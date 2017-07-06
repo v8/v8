@@ -44,6 +44,10 @@ class Worklist {
     // thread without concurrent access.
     bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
 
+    size_t LocalPushSegmentSize() {
+      return worklist_->LocalPushSegmentSize(task_id_);
+    }
+
    private:
     Worklist<EntryType, SEGMENT_SIZE>* worklist_;
     int task_id_;
@@ -99,6 +103,10 @@ class Worklist {
       DCHECK(success);
     }
     return true;
+  }
+
+  size_t LocalPushSegmentSize(int task_id) {
+    return private_push_segment_[task_id]->Size();
   }
 
   bool IsLocalEmpty(int task_id) {

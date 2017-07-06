@@ -421,57 +421,6 @@ enum class YoungGenerationHandling {
   // Also update src/tools/metrics/histograms/histograms.xml in chromium.
 };
 
-// A queue of objects promoted during scavenge. Each object is accompanied by
-// its size to avoid dereferencing a map pointer for scanning. The last page in
-// to-space is used for the promotion queue. On conflict during scavenge, the
-// promotion queue is allocated externally and all entries are copied to the
-// external queue.
-class PromotionQueue {
- public:
-  explicit PromotionQueue(Heap* heap)
-      : front_(nullptr),
-        rear_(nullptr),
-        limit_(nullptr),
-        emergency_stack_(nullptr),
-        heap_(heap) {}
-
-  void Initialize();
-  void Destroy();
-
-  inline void SetNewLimit(Address limit);
-  inline bool IsBelowPromotionQueue(Address to_space_top);
-
-  inline void insert(HeapObject* target, int32_t size);
-  inline void remove(HeapObject** target, int32_t* size);
-
-  bool is_empty() {
-    return (front_ == rear_) &&
-           (emergency_stack_ == nullptr || emergency_stack_->length() == 0);
-  }
-
- private:
-  struct Entry {
-    Entry(HeapObject* obj, int32_t size) : obj_(obj), size_(size) {}
-
-    HeapObject* obj_;
-    int32_t size_;
-  };
-
-  inline Page* GetHeadPage();
-
-  void RelocateQueueHead();
-
-  // The front of the queue is higher in the memory page chain than the rear.
-  struct Entry* front_;
-  struct Entry* rear_;
-  struct Entry* limit_;
-
-  List<Entry>* emergency_stack_;
-  Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
-};
-
 class AllocationResult {
  public:
   static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
@@ -1020,8 +969,6 @@ class Heap {
   GCTracer* tracer() { return tracer_; }
 
   MemoryAllocator* memory_allocator() { return memory_allocator_; }
-
-  PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
   inline Isolate* isolate();
 
@@ -2349,9 +2296,6 @@ class Heap {
   // from 0 to ring_buffer_end_.
   bool ring_buffer_full_;
   size_t ring_buffer_end_;
-
-  // Shared state read by the scavenge collector and set by ScavengeObject.
-  PromotionQueue promotion_queue_;
 
   // Flag is set when the heap has been configured.  The heap can be repeatedly
   // configured through the API until it is set up.

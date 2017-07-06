@@ -152,7 +152,6 @@ Heap::Heap()
       global_pretenuring_feedback_(nullptr),
       ring_buffer_full_(false),
       ring_buffer_end_(0),
-      promotion_queue_(this),
       configured_(false),
       current_gc_flags_(Heap::kNoGCFlags),
       current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
@@ -1620,54 +1619,10 @@ void Heap::CheckNewSpaceExpansionCriteria() {
   }
 }
 
-
 static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
   return heap->InNewSpace(*p) &&
          !HeapObject::cast(*p)->map_word().IsForwardingAddress();
 }
-
-void PromotionQueue::Initialize() {
-  // The last to-space page may be used for promotion queue. On promotion
-  // conflict, we use the emergency stack.
-  DCHECK((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize) ==
-         0);
-  front_ = rear_ =
-      reinterpret_cast<struct Entry*>(heap_->new_space()->ToSpaceEnd());
-  limit_ = reinterpret_cast<struct Entry*>(
-      Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_))
-          ->area_start());
-  emergency_stack_ = NULL;
-}
-
-void PromotionQueue::Destroy() {
-  DCHECK(is_empty());
-  delete emergency_stack_;
-  emergency_stack_ = NULL;
-}
-
-void PromotionQueue::RelocateQueueHead() {
-  DCHECK(emergency_stack_ == NULL);
-
-  Page* p = Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
-  struct Entry* head_start = rear_;
-  struct Entry* head_end =
-      Min(front_, reinterpret_cast<struct Entry*>(p->area_end()));
-
-  int entries_count =
-      static_cast<int>(head_end - head_start) / sizeof(struct Entry);
-
-  emergency_stack_ = new List<Entry>(2 * entries_count);
-
-  while (head_start != head_end) {
-    struct Entry* entry = head_start++;
-    // New space allocation in SemiSpaceCopyObject marked the region
-    // overlapping with promotion queue as uninitialized.
-    MSAN_MEMORY_IS_INITIALIZED(entry, sizeof(struct Entry));
-    emergency_stack_->Add(*entry);
-  }
-  rear_ = head_end;
-}
-
 
 class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
  public:
@@ -1786,10 +1741,13 @@ void Heap::Scavenge() {
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
   Address new_space_front = new_space_->ToSpaceStart();
-  promotion_queue_.Initialize();
 
+  const int kScavengerTasks = 1;
+  const int kMainThreadId = 0;
+  PromotionList promotion_list(kScavengerTasks);
   Scavenger scavenger(this, IsLogging(isolate()),
-                      incremental_marking()->IsMarking());
+                      incremental_marking()->IsMarking(), &promotion_list,
+                      kMainThreadId);
   RootScavengeVisitor root_scavenge_visitor(this, &scavenger);
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
@@ -1842,8 +1800,6 @@ void Heap::Scavenge() {
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
-
-  promotion_queue_.Destroy();
 
   incremental_marking()->UpdateMarkingWorklistAfterScavenge();
 
@@ -2047,13 +2003,19 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
 }
 
 Address Heap::DoScavenge(Scavenger* scavenger, Address new_space_front) {
+  // Threshold when to switch processing the promotion list to avoid allocating
+  // too much backing store in the worklist.
+  const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
   ScavengeVisitor scavenge_visitor(this, scavenger);
+  PromotionList::View* promotion_list = scavenger->promotion_list();
   do {
     SemiSpace::AssertValidRange(new_space_front, new_space_->top());
     // The addresses new_space_front and new_space_.top() define a
     // queue of unprocessed copied objects.  Process them until the
     // queue is empty.
-    while (new_space_front != new_space_->top()) {
+    while ((promotion_list->LocalPushSegmentSize() <
+            kProcessPromotionListThreshold) &&
+           new_space_front != new_space_->top()) {
       if (!Page::IsAlignedToPageSize(new_space_front)) {
         HeapObject* object = HeapObject::FromAddress(new_space_front);
         new_space_front += scavenge_visitor.Visit(object);
@@ -2064,22 +2026,12 @@ Address Heap::DoScavenge(Scavenger* scavenger, Address new_space_front) {
       }
     }
 
-    // Promote and process all the to-be-promoted objects.
-    {
-      while (!promotion_queue()->is_empty()) {
-        HeapObject* target;
-        int32_t size;
-        promotion_queue()->remove(&target, &size);
-
-        // Promoted object might be already partially visited
-        // during old space pointer iteration. Thus we search specifically
-        // for pointers to from semispace instead of looking for pointers
-        // to new space.
-        DCHECK(!target->IsMap());
-
-        IterateAndScavengePromotedObject(scavenger, target,
-                                         static_cast<int>(size));
-      }
+    ObjectAndSize object_and_size;
+    while (promotion_list->Pop(&object_and_size)) {
+      HeapObject* target = object_and_size.first;
+      int size = object_and_size.second;
+      DCHECK(!target->IsMap());
+      IterateAndScavengePromotedObject(scavenger, target, size);
     }
 
     // Take another spin if there are now unswept objects in new space

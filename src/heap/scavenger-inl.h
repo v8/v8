@@ -46,12 +46,6 @@ HeapObject* Scavenger::MigrateObject(HeapObject* source, HeapObject* target,
          target->address() + size == heap()->new_space()->top() ||
          target->address() + size + kPointerSize == heap()->new_space()->top());
 
-  // Make sure that we do not overwrite the promotion queue which is at
-  // the end of to-space.
-  DCHECK(!heap()->InToSpace(target) ||
-         heap()->promotion_queue()->IsBelowPromotionQueue(
-             heap()->new_space()->top()));
-
   // Copy the content of source to target.
   heap()->CopyBlock(target->address(), source->address(), size);
 
@@ -79,12 +73,6 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
 
   HeapObject* target = NULL;  // Initialization to please compiler.
   if (allocation.To(&target)) {
-    // Order is important here: Set the promotion limit before storing a
-    // filler for double alignment or migrating the object. Otherwise we
-    // may end up overwriting promotion queue entries when we migrate the
-    // object.
-    heap()->promotion_queue()->SetNewLimit(heap()->new_space()->top());
-
     MigrateObject(object, target, object_size);
 
     // Update slot to new target.
@@ -116,7 +104,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
                                  reinterpret_cast<base::AtomicWord>(target));
 
     if (!ContainsOnlyData(static_cast<VisitorId>(map->visitor_id()))) {
-      heap()->promotion_queue()->insert(target, object_size);
+      promotion_list()->Push(ObjectAndSize(target, object_size));
     }
     heap()->IncrementPromotedObjectsSize(object_size);
     return true;

@@ -1774,7 +1774,6 @@ void NewSpace::Shrink() {
 }
 
 bool NewSpace::Rebalance() {
-  CHECK(heap()->promotion_queue()->is_empty());
   // Order here is important to make use of the page pool.
   return to_space_.EnsureCurrentCapacity() &&
          from_space_.EnsureCurrentCapacity();
@@ -1919,10 +1918,6 @@ bool NewSpace::AddFreshPage() {
 
   // Clear remainder of current page.
   Address limit = Page::FromAllocationAreaAddress(top)->area_end();
-  if (heap()->gc_state() == Heap::SCAVENGE) {
-    heap()->promotion_queue()->SetNewLimit(limit);
-  }
-
   int remaining_in_page = static_cast<int>(limit - top);
   heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
   UpdateAllocationInfo();
