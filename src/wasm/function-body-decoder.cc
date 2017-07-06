@@ -741,17 +741,6 @@ class WasmFullDecoder : public WasmDecoder {
     }
   }
 
-  char* indentation() {
-    static const int kMaxIndent = 64;
-    static char bytes[kMaxIndent + 1];
-    for (int i = 0; i < kMaxIndent; ++i) bytes[i] = ' ';
-    bytes[kMaxIndent] = 0;
-    if (stack_.size() < kMaxIndent / 2) {
-      bytes[stack_.size() * 2] = 0;
-    }
-    return bytes;
-  }
-
   bool CheckHasMemory() {
     if (!module_->has_memory) {
       error(pc_ - 1, "memory instruction with no memory");
