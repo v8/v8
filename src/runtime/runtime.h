@@ -97,14 +97,12 @@ namespace internal {
   F(SetInitialize, 1, 1)                  \
   F(SetGrow, 1, 1)                        \
   F(SetShrink, 1, 1)                      \
-  F(SetClear, 1, 1)                       \
   F(SetIteratorInitialize, 3, 1)          \
   F(SetIteratorClone, 1, 1)               \
   F(SetIteratorNext, 2, 1)                \
   F(SetIteratorDetails, 1, 1)             \
   F(MapInitialize, 1, 1)                  \
   F(MapShrink, 1, 1)                      \
-  F(MapClear, 1, 1)                       \
   F(MapGrow, 1, 1)                        \
   F(MapIteratorInitialize, 3, 1)          \
   F(MapIteratorClone, 1, 1)               \
