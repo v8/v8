@@ -872,7 +872,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
   void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,
-                                Variable* var_did_something);
+                                Label* did_deref, Label* cannot_deref);
   // Check if |var_left| or |var_right| has an indirect (thin or flat cons)
   // string type, and unpack it/them if so. Fall through if nothing was done.
   void MaybeDerefIndirectStrings(Variable* var_left, Node* left_instance_type,

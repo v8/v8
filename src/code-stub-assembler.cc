@@ -4029,17 +4029,17 @@ void CodeStubAssembler::DerefIndirectString(Variable* var_string,
 
 void CodeStubAssembler::MaybeDerefIndirectString(Variable* var_string,
                                                  Node* instance_type,
-                                                 Variable* var_did_something) {
-  Label deref(this), done(this, var_did_something);
+                                                 Label* did_deref,
+                                                 Label* cannot_deref) {
+  Label deref(this);
   BranchIfCanDerefIndirectString(var_string->value(), instance_type, &deref,
-                                 &done);
+                                 cannot_deref);
 
   BIND(&deref);
-  DerefIndirectString(var_string, instance_type);
-  var_did_something->Bind(IntPtrConstant(1));
-  Goto(&done);
-
-  BIND(&done);
+  {
+    DerefIndirectString(var_string, instance_type);
+    Goto(did_deref);
+  }
 }
 
 void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
@@ -4047,13 +4047,24 @@ void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
                                                   Variable* var_right,
                                                   Node* right_instance_type,
                                                   Label* did_something) {
-  VARIABLE(var_did_something, MachineType::PointerRepresentation(),
-           IntPtrConstant(0));
-  MaybeDerefIndirectString(var_left, left_instance_type, &var_did_something);
-  MaybeDerefIndirectString(var_right, right_instance_type, &var_did_something);
+  Label did_nothing_left(this), did_something_left(this),
+      didnt_do_anything(this);
+  MaybeDerefIndirectString(var_left, left_instance_type, &did_something_left,
+                           &did_nothing_left);
 
-  GotoIf(WordNotEqual(var_did_something.value(), IntPtrConstant(0)),
-         did_something);
+  BIND(&did_something_left);
+  {
+    MaybeDerefIndirectString(var_right, right_instance_type, did_something,
+                             did_something);
+  }
+
+  BIND(&did_nothing_left);
+  {
+    MaybeDerefIndirectString(var_right, right_instance_type, did_something,
+                             &didnt_do_anything);
+  }
+
+  BIND(&didnt_do_anything);
   // Fall through if neither string was an indirect string.
 }
 

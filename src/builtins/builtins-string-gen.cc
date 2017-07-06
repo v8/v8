@@ -1882,6 +1882,8 @@ Node* StringBuiltinsAssembler::ConcatenateSequentialStrings(
 
     BIND(&is_sequential);
     {
+      CSA_ASSERT(this, IsSequentialStringInstanceType(
+                           LoadInstanceType(current_string.value())));
       Node* current_length = LoadStringLength(current_string.value());
       CopyStringCharacters(current_string.value(), result,
                            SmiConstant(Smi::kZero), str_index.value(),
@@ -1933,7 +1935,7 @@ Node* StringBuiltinsAssembler::ConcatenateStrings(Node* context,
   BIND(&flat_length_loop);
   {
     Comment("Loop to find length and type of initial flat-string");
-    Label is_sequential_or_can_deref(this);
+    Label is_sequential_or_can_deref(this), check_deref_instance_type(this);
 
     // Increment total_length by the current string's length.
     Node* string_length = LoadStringLength(current_string.value());
@@ -1946,24 +1948,33 @@ Node* StringBuiltinsAssembler::ConcatenateStrings(Node* context,
                            SmiConstant(ConsString::kMinLength)),
            &done_flat_length_loop);
 
-    // Check that all the strings have the same encoding type. If we got here
-    // we are still under ConsString::kMinLength so need to bailout to the
-    // runtime if the strings have different encodings.
-    Node* instance_type = LoadInstanceType(current_string.value());
-    GotoIf(Word32NotEqual(
-               string_encoding,
-               Word32And(instance_type, Int32Constant(kStringEncodingMask))),
-           bailout_to_runtime);
+    VARIABLE(instance_type, MachineRepresentation::kWord32,
+             LoadInstanceType(current_string.value()));
 
     // Check if the new string is sequential or can be dereferenced as a
     // sequential string. If it can't and we've reached here, we are still under
     // ConsString::kMinLength so need to bailout to the runtime.
-    GotoIf(IsSequentialStringInstanceType(instance_type),
+    GotoIf(IsSequentialStringInstanceType(instance_type.value()),
            &is_sequential_or_can_deref);
-    BranchIfCanDerefIndirectString(current_string.value(), instance_type,
-                                   &is_sequential_or_can_deref,
-                                   bailout_to_runtime);
+    MaybeDerefIndirectString(&current_string, instance_type.value(),
+                             &check_deref_instance_type, bailout_to_runtime);
+
+    BIND(&check_deref_instance_type);
+    {
+      instance_type.Bind(LoadInstanceType(current_string.value()));
+      Branch(IsSequentialStringInstanceType(instance_type.value()),
+             &is_sequential_or_can_deref, bailout_to_runtime);
+    }
+
     BIND(&is_sequential_or_can_deref);
+
+    // Check that all the strings have the same encoding type. If we got here
+    // we are still under ConsString::kMinLength so need to bailout to the
+    // runtime if the strings have different encodings.
+    GotoIf(Word32NotEqual(string_encoding,
+                          Word32And(instance_type.value(),
+                                    Int32Constant(kStringEncodingMask))),
+           bailout_to_runtime);
 
     current_arg.Bind(
         IntPtrSub(current_arg.value(), IntPtrConstant(kPointerSize)));
