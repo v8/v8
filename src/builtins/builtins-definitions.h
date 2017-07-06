@@ -583,6 +583,14 @@ namespace internal {
   CPP(MapGetSize)                                                              \
   CPP(MapClear)                                                                \
   CPP(MapForEach)                                                              \
+  /* ES #sec-map.prototype.entries */                                          \
+  CPP(MapPrototypeEntries)                                                     \
+  /* ES #sec-map.prototype.keys */                                             \
+  CPP(MapPrototypeKeys)                                                        \
+  /* ES #sec-map.prototype.values */                                           \
+  CPP(MapPrototypeValues)                                                      \
+  /* ES #sec-%mapiteratorprototype%.next */                                    \
+  CPP(MapIteratorPrototypeNext)                                                \
                                                                                \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
@@ -863,6 +871,12 @@ namespace internal {
   CPP(SetGetSize)                                                              \
   CPP(SetClear)                                                                \
   CPP(SetForEach)                                                              \
+  /* ES #sec-set.prototype.entries */                                          \
+  CPP(SetPrototypeEntries)                                                     \
+  /* ES #sec-set.prototype.values */                                           \
+  CPP(SetPrototypeValues)                                                      \
+  /* ES #sec-%setiteratorprototype%.next */                                    \
+  CPP(SetIteratorPrototypeNext)                                                \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

@@ -877,11 +877,6 @@ class OrderedHashTableIterator : public JSObject {
   // Move the index forward one.
   void MoveNext() { set_index(Smi::FromInt(Smi::cast(index())->value() + 1)); }
 
-  // Populates the array with the next key and value and then moves the iterator
-  // forward.
-  // This returns the |kind| or 0 if the iterator is already at the end.
-  Smi* Next(JSArray* value_array);
-
   // Returns the current key of the iterator. This should only be called when
   // |HasMore| returns true.
   inline Object* CurrentKey();
@@ -903,10 +898,6 @@ class JSSetIterator
 
   DECL_CAST(JSSetIterator)
 
-  // Called by |Next| to populate the array. This allows the subclasses to
-  // populate the array differently.
-  inline void PopulateValueArray(FixedArray* array);
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSetIterator);
 };
@@ -919,10 +910,6 @@ class JSMapIterator
   DECL_VERIFIER(JSMapIterator)
 
   DECL_CAST(JSMapIterator)
-
-  // Called by |Next| to populate the array. This allows the subclasses to
-  // populate the array differently.
-  inline void PopulateValueArray(FixedArray* array);
 
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.

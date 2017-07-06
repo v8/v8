@@ -572,9 +572,10 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<JSMap> NewJSMap();
   Handle<JSSet> NewJSSet();
 
-  // TODO(aandrey): Maybe these should take table, index and kind arguments.
-  Handle<JSMapIterator> NewJSMapIterator();
-  Handle<JSSetIterator> NewJSSetIterator();
+  Handle<JSMapIterator> NewJSMapIterator(Handle<OrderedHashMap> table,
+                                         int index, JSMapIterator::Kind kind);
+  Handle<JSSetIterator> NewJSSetIterator(Handle<OrderedHashSet> table,
+                                         int index, JSSetIterator::Kind kind);
 
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(

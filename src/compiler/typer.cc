@@ -1480,6 +1480,8 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kTypedArrayKeys:
         case kTypedArrayValues:
         case kArrayIteratorNext:
+        case kMapIteratorNext:
+        case kSetIteratorNext:
           return Type::OtherObject();
 
         // Array functions.

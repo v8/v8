@@ -2971,10 +2971,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_map_has(*map_has);
 
     SimpleInstallFunction(prototype, "clear", Builtins::kMapClear, 0, true);
+    Handle<JSFunction> entries = SimpleInstallFunction(
+        prototype, "entries", Builtins::kMapPrototypeEntries, 0, true);
+    JSObject::AddProperty(prototype, factory->iterator_symbol(), entries,
+                          DONT_ENUM);
     SimpleInstallFunction(prototype, "forEach", Builtins::kMapForEach, 1,
                           false);
+    SimpleInstallFunction(prototype, "keys", Builtins::kMapPrototypeKeys, 0,
+                          true);
     SimpleInstallGetter(prototype, factory->InternalizeUtf8String("size"),
                         Builtins::kMapGetSize, false);
+    SimpleInstallFunction(prototype, "values", Builtins::kMapPrototypeValues, 0,
+                          true);
     InstallSpeciesGetter(js_map_fun);
   }
 
@@ -3004,10 +3012,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallFunction(prototype, "has", Builtins::kSetHas, 1, true);
     native_context()->set_set_has(*set_has);
     SimpleInstallFunction(prototype, "clear", Builtins::kSetClear, 0, true);
+    SimpleInstallFunction(prototype, "entries", Builtins::kSetPrototypeEntries,
+                          0, true);
     SimpleInstallFunction(prototype, "forEach", Builtins::kSetForEach, 1,
                           false);
     SimpleInstallGetter(prototype, factory->InternalizeUtf8String("size"),
                         Builtins::kSetGetSize, false);
+    Handle<JSFunction> values = SimpleInstallFunction(
+        prototype, "values", Builtins::kSetPrototypeValues, 0, true);
+    JSObject::AddProperty(prototype, factory->keys_string(), values, DONT_ENUM);
+    JSObject::AddProperty(prototype, factory->iterator_symbol(), values,
+                          DONT_ENUM);
     InstallSpeciesGetter(js_set_fun);
   }
 
@@ -3661,6 +3676,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         prototype, factory->to_string_tag_symbol(), name,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
+    // Install the next function on the {prototype}.
+    SimpleInstallFunction(prototype, "next",
+                          Builtins::kSetIteratorPrototypeNext, 0, true,
+                          kSetIteratorNext);
+
     // Setup SetIterator constructor.
     Handle<JSFunction> set_iterator_function =
         InstallFunction(container, "SetIterator", JS_SET_ITERATOR_TYPE,
@@ -3681,6 +3701,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(), name,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    // Install the next function on the {prototype}.
+    SimpleInstallFunction(prototype, "next",
+                          Builtins::kMapIteratorPrototypeNext, 0, true,
+                          kMapIteratorNext);
 
     // Setup MapIterator constructor.
     Handle<JSFunction> map_iterator_function =

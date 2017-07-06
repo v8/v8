@@ -2335,7 +2335,6 @@
           'js/typedarray.js',
           'js/collection.js',
           'js/weak-collection.js',
-          'js/collection-iterator.js',
           'js/promise.js',
           'js/messages.js',
           'js/templates.js',

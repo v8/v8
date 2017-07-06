@@ -313,7 +313,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(FixedArrayGet)                   \
   V(StringGetRawHashField)           \
   V(GenericHash)                     \
-  V(MapIteratorInitialize)           \
   V(MapInitialize)                   \
   V(SetInitialize)                   \
   /* Called from builtins */         \
@@ -538,6 +537,9 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kMapConstructor:
     case Builtins::kMapGet:
     case Builtins::kMapGetSize:
+    case Builtins::kMapPrototypeEntries:
+    case Builtins::kMapPrototypeKeys:
+    case Builtins::kMapPrototypeValues:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -590,6 +592,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     // Set builtins.
     case Builtins::kSetConstructor:
     case Builtins::kSetGetSize:
+    case Builtins::kSetPrototypeEntries:
+    case Builtins::kSetPrototypeValues:
     // String builtins. Strings are immutable.
     case Builtins::kStringFromCharCode:
     case Builtins::kStringFromCodePoint:

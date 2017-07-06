@@ -6249,17 +6249,6 @@ Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
 }
 
 
-void JSSetIterator::PopulateValueArray(FixedArray* array) {
-  array->set(0, CurrentKey());
-}
-
-
-void JSMapIterator::PopulateValueArray(FixedArray* array) {
-  array->set(0, CurrentKey());
-  array->set(1, CurrentValue());
-}
-
-
 Object* JSMapIterator::CurrentValue() {
   OrderedHashMap* table(OrderedHashMap::cast(this->table()));
   int index = Smi::cast(this->index())->value();
@@ -6288,7 +6277,7 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, uint32_t index,
                                                     PACKED_ELEMENTS, 2);
 }
 
-static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
+static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
                                            Handle<Object> value) {
   Handle<FixedArray> entry_storage =
       isolate->factory()->NewUninitializedFixedArray(2);

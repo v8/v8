@@ -2078,20 +2078,28 @@ Handle<JSSet> Factory::NewJSSet() {
   return js_set;
 }
 
-
-Handle<JSMapIterator> Factory::NewJSMapIterator() {
-  Handle<Map> map(isolate()->native_context()->map_iterator_map());
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSObjectFromMap(*map),
-                     JSMapIterator);
+Handle<JSMapIterator> Factory::NewJSMapIterator(Handle<OrderedHashMap> table,
+                                                int index,
+                                                JSMapIterator::Kind kind) {
+  Handle<Map> map(isolate()->native_context()->map_iterator_map(), isolate());
+  Handle<JSMapIterator> result =
+      Handle<JSMapIterator>::cast(NewJSObjectFromMap(map));
+  result->set_table(*table);
+  result->set_index(Smi::FromInt(index));
+  result->set_kind(Smi::FromInt(kind));
+  return result;
 }
 
-
-Handle<JSSetIterator> Factory::NewJSSetIterator() {
-  Handle<Map> map(isolate()->native_context()->set_iterator_map());
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSObjectFromMap(*map),
-                     JSSetIterator);
+Handle<JSSetIterator> Factory::NewJSSetIterator(Handle<OrderedHashSet> table,
+                                                int index,
+                                                JSSetIterator::Kind kind) {
+  Handle<Map> map(isolate()->native_context()->set_iterator_map(), isolate());
+  Handle<JSSetIterator> result =
+      Handle<JSSetIterator>::cast(NewJSObjectFromMap(map));
+  result->set_table(*table);
+  result->set_index(Smi::FromInt(index));
+  result->set_kind(Smi::FromInt(kind));
+  return result;
 }
 
 ExternalArrayType Factory::GetArrayTypeFromElementsKind(ElementsKind kind) {

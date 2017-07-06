@@ -4662,6 +4662,8 @@ enum BuiltinFunctionId {
   kArrayKeys,
   kArrayValues,
   kArrayIteratorNext,
+  kMapIteratorNext,
+  kSetIteratorNext,
   kDataViewBuffer,
   kDataViewByteLength,
   kDataViewByteOffset,

@@ -18552,24 +18552,6 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   return false;
 }
 
-
-template<class Derived, class TableType>
-Smi* OrderedHashTableIterator<Derived, TableType>::Next(JSArray* value_array) {
-  DisallowHeapAllocation no_allocation;
-  if (HasMore()) {
-    FixedArray* array = FixedArray::cast(value_array->elements());
-    static_cast<Derived*>(this)->PopulateValueArray(array);
-    MoveNext();
-    return Smi::cast(kind());
-  }
-  return Smi::kZero;
-}
-
-
-template Smi*
-OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::Next(
-    JSArray* value_array);
-
 template bool
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::HasMore();
 
@@ -18582,10 +18564,6 @@ OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::CurrentKey();
 template void
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::Transition();
 
-
-template Smi*
-OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::Next(
-    JSArray* value_array);
 
 template bool
 OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::HasMore();

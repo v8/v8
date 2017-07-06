@@ -75,44 +75,15 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_SetIteratorInitialize) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, set, 1);
-  CONVERT_SMI_ARG_CHECKED(kind, 2)
-  CHECK(kind == JSSetIterator::kKindValues ||
-        kind == JSSetIterator::kKindEntries);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
-  holder->set_table(*table);
-  holder->set_index(Smi::kZero);
-  holder->set_kind(Smi::FromInt(kind));
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_SetIteratorClone) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
-
-  Handle<JSSetIterator> result = isolate->factory()->NewJSSetIterator();
-  result->set_table(holder->table());
-  result->set_index(Smi::FromInt(Smi::cast(holder->index())->value()));
-  result->set_kind(Smi::FromInt(Smi::cast(holder->kind())->value()));
-
-  return *result;
+  return *isolate->factory()->NewJSSetIterator(
+      handle(OrderedHashSet::cast(holder->table()), isolate),
+      Smi::cast(holder->index())->value(),
+      static_cast<JSSetIterator::Kind>(Smi::cast(holder->kind())->value()));
 }
-
-
-RUNTIME_FUNCTION(Runtime_SetIteratorNext) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(JSSetIterator, holder, 0);
-  CONVERT_ARG_CHECKED(JSArray, value_array, 1);
-  return holder->Next(value_array);
-}
-
 
 // The array returned contains the following information:
 // 0: HasMore flag
@@ -159,35 +130,14 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   return isolate->heap()->undefined_value();
 }
 
-
-RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, map, 1);
-  CONVERT_SMI_ARG_CHECKED(kind, 2)
-  CHECK(kind == JSMapIterator::kKindKeys ||
-        kind == JSMapIterator::kKindValues ||
-        kind == JSMapIterator::kKindEntries);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
-  holder->set_table(*table);
-  holder->set_index(Smi::kZero);
-  holder->set_kind(Smi::FromInt(kind));
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_MapIteratorClone) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
-
-  Handle<JSMapIterator> result = isolate->factory()->NewJSMapIterator();
-  result->set_table(holder->table());
-  result->set_index(Smi::FromInt(Smi::cast(holder->index())->value()));
-  result->set_kind(Smi::FromInt(Smi::cast(holder->kind())->value()));
-
-  return *result;
+  return *isolate->factory()->NewJSMapIterator(
+      handle(OrderedHashMap::cast(holder->table()), isolate),
+      Smi::cast(holder->index())->value(),
+      static_cast<JSMapIterator::Kind>(Smi::cast(holder->kind())->value()));
 }
 
 
@@ -215,16 +165,6 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   CHECK(max_entries >= 0);
   return *JSWeakCollection::GetEntries(holder, max_entries);
 }
-
-
-RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(JSMapIterator, holder, 0);
-  CONVERT_ARG_CHECKED(JSArray, value_array, 1);
-  return holder->Next(value_array);
-}
-
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionInitialize) {
   HandleScope scope(isolate);
