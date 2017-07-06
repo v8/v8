@@ -1697,6 +1697,56 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
   }
 }
 
+void TransitionArray::PrintTransitionTree(Map* map) {
+  OFStream os(stdout);
+  os << "map= " << Brief(map);
+  PrintTransitionTree(os, map);
+  os << "\n" << std::flush;
+}
+
+// static
+void TransitionArray::PrintTransitionTree(std::ostream& os, Map* map,
+                                          int level) {
+  Object* transitions = map->raw_transitions();
+  int num_transitions = NumberOfTransitions(transitions);
+  if (num_transitions == 0) return;
+  for (int i = 0; i < num_transitions; i++) {
+    Name* key = GetKey(transitions, i);
+    Map* target = GetTarget(transitions, i);
+    os << std::endl
+       << "  " << level << "/" << i << ":" << std::setw(level * 2 + 2) << " ";
+    std::stringstream ss;
+    ss << Brief(target);
+    os << std::left << std::setw(50) << ss.str() << ": ";
+
+    Heap* heap = key->GetHeap();
+    if (key == heap->nonextensible_symbol()) {
+      os << "to non-extensible";
+    } else if (key == heap->sealed_symbol()) {
+      os << "to sealed ";
+    } else if (key == heap->frozen_symbol()) {
+      os << "to frozen";
+    } else if (key == heap->elements_transition_symbol()) {
+      os << "to " << ElementsKindToString(target->elements_kind());
+    } else if (key == heap->strict_function_transition_symbol()) {
+      os << "to strict function";
+    } else {
+#ifdef OBJECT_PRINT
+      key->NamePrint(os);
+#else
+      key->ShortPrint(os);
+#endif
+      os << " ";
+      DCHECK(!IsSpecialTransition(key));
+      os << "to ";
+      int descriptor = target->LastAdded();
+      DescriptorArray* descriptors = target->instance_descriptors();
+      descriptors->PrintDescriptorDetails(os, descriptor,
+                                          PropertyDetails::kForTransitions);
+    }
+    TransitionArray::PrintTransitionTree(os, target, level + 1);
+  }
+}
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
   Object* transitions = map()->raw_transitions();
@@ -1723,7 +1773,7 @@ extern void _v8_internal_Print_Code(void* object) {
 
 extern void _v8_internal_Print_FeedbackMetadata(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
-    printf("Not a feedback metadata object\n");
+    printf("Please provide a feedback metadata object\n");
   } else {
     reinterpret_cast<i::FeedbackMetadata*>(object)->Print();
   }
@@ -1731,7 +1781,7 @@ extern void _v8_internal_Print_FeedbackMetadata(void* object) {
 
 extern void _v8_internal_Print_FeedbackVector(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
-    printf("Not a feedback vector\n");
+    printf("Please provide a feedback vector\n");
   } else {
     reinterpret_cast<i::FeedbackVector*>(object)->Print();
   }
@@ -1739,7 +1789,7 @@ extern void _v8_internal_Print_FeedbackVector(void* object) {
 
 extern void _v8_internal_Print_DescriptorArray(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
-    printf("Not a descriptor array\n");
+    printf("Please provide a descriptor array\n");
   } else {
     reinterpret_cast<i::DescriptorArray*>(object)->Print();
   }
@@ -1748,7 +1798,7 @@ extern void _v8_internal_Print_DescriptorArray(void* object) {
 extern void _v8_internal_Print_LayoutDescriptor(void* object) {
   i::Object* o = reinterpret_cast<i::Object*>(object);
   if (!o->IsLayoutDescriptor()) {
-    printf("Not a layout descriptor\n");
+    printf("Please provide a layout descriptor\n");
   } else {
     reinterpret_cast<i::LayoutDescriptor*>(object)->Print();
   }
@@ -1756,7 +1806,7 @@ extern void _v8_internal_Print_LayoutDescriptor(void* object) {
 
 extern void _v8_internal_Print_TransitionArray(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
-    printf("Not a transition array\n");
+    printf("Please provide a transition array\n");
   } else {
     reinterpret_cast<i::TransitionArray*>(object)->Print();
   }
@@ -1765,4 +1815,15 @@ extern void _v8_internal_Print_TransitionArray(void* object) {
 extern void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
+}
+
+extern void _v8_internal_Print_TransitionTree(void* object) {
+  i::Object* o = reinterpret_cast<i::Object*>(object);
+  if (!o->IsMap()) {
+    printf("Please provide a valid Map\n");
+  } else {
+#if defined(DEBUG) || defined(OBJECT_PRINT)
+    i::TransitionArray::PrintTransitionTree(reinterpret_cast<i::Map*>(object));
+#endif
+  }
 }
