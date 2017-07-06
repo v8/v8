@@ -281,25 +281,15 @@ class MacroAssembler: public Assembler {
   // Nop, because ia32 does not have a root register.
   void InitializeRootRegister() {}
 
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
   void CmpHeapObject(Register reg, Handle<HeapObject> object);
-  void PushHeapObject(Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, Immediate(object));
-    }
-  }
+  void PushObject(Handle<Object> object);
 
   void CmpObject(Register reg, Handle<Object> object) {
     AllowDeferredHandleDereference heap_object_check;
     if (object->IsHeapObject()) {
       CmpHeapObject(reg, Handle<HeapObject>::cast(object));
     } else {
-      cmp(reg, Immediate(object));
+      cmp(reg, Immediate(Smi::cast(*object)));
     }
   }
 
@@ -771,14 +761,14 @@ class MacroAssembler: public Assembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
-  void Move(Register dst, Handle<Object> handle) { LoadObject(dst, handle); }
+  void Move(Register dst, Handle<HeapObject> handle);
   void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
 
   // Push a handle value.
-  void Push(Handle<Object> handle) { push(Immediate(handle)); }
+  void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Immediate(smi)); }
 
-  Handle<Object> CodeObject() {
+  Handle<HeapObject> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -870,7 +860,7 @@ class MacroAssembler: public Assembler {
   bool has_frame_;
   Isolate* isolate_;
   // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
+  Handle<HeapObject> code_object_;
   int jit_cookie_;
 
   // Helper functions for generating invokes.

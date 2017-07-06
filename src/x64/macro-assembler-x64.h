@@ -818,20 +818,19 @@ class MacroAssembler: public Assembler {
   void Move(Register target, Register source);
 
   // Handle support
-  void Move(Register dst, Handle<Object> source);
-  void Move(const Operand& dst, Handle<Object> source);
+  void Move(Register dst, Handle<HeapObject> source,
+            RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
+  void Move(const Operand& dst, Handle<HeapObject> source,
+            RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Smi* src);
   void Cmp(const Operand& dst, Smi* src);
-  void Push(Handle<Object> source);
+  void Push(Handle<HeapObject> source);
+  void PushObject(Handle<Object> source);
 
   // Move a Smi or HeapNumber.
   void MoveNumber(Register dst, double value);
-
-  // Load a heap object and handle the case of new-space objects by
-  // indirecting via a global cell.
-  void MoveHeapObject(Register result, Handle<Object> object);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -882,13 +881,6 @@ class MacroAssembler: public Assembler {
     // address is not GC safe. Use the handle version instead.
     DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
     movp(dst, ptr, rmode);
-  }
-
-  void Move(Register dst, Handle<Object> value, RelocInfo::Mode rmode) {
-    AllowDeferredHandleDereference using_raw_address;
-    DCHECK(!RelocInfo::IsNone(rmode));
-    DCHECK(value->IsHeapObject());
-    movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
   void Move(XMMRegister dst, uint32_t src);
@@ -1334,7 +1326,7 @@ class MacroAssembler: public Assembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-  Handle<Object> CodeObject() {
+  Handle<HeapObject> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -1429,7 +1421,7 @@ class MacroAssembler: public Assembler {
   void LoadSmiConstant(Register dst, Smi* value);
 
   // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
+  Handle<HeapObject> code_object_;
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,

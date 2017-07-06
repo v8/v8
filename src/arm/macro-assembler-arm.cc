@@ -35,7 +35,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
   }
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -63,7 +63,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
@@ -143,7 +143,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
 int MacroAssembler::CallSize(Handle<Code> code,
                              RelocInfo::Mode rmode,
                              Condition cond) {
-  AllowDeferredHandleDereference using_raw_address;
+  AllowHandleDereference using_location;
   return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
@@ -152,7 +152,7 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           bool check_constant_pool) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, mode);
 }
 
@@ -235,19 +235,31 @@ void MacroAssembler::Call(Label* target) {
   bl(target);
 }
 
-
-void MacroAssembler::Push(Handle<Object> handle) {
+void MacroAssembler::Push(Handle<HeapObject> handle) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   mov(scratch, Operand(handle));
   push(scratch);
 }
 
-void MacroAssembler::Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+void MacroAssembler::Push(Smi* smi) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mov(scratch, Operand(smi));
+  push(scratch);
+}
+
+void MacroAssembler::PushObject(Handle<Object> handle) {
+  if (handle->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(handle));
+  } else {
+    Push(Smi::cast(*handle));
+  }
+}
 
 void MacroAssembler::Move(Register dst, Smi* smi) { mov(dst, Operand(smi)); }
 
-void MacroAssembler::Move(Register dst, Handle<Object> value) {
+void MacroAssembler::Move(Register dst, Handle<HeapObject> value) {
   mov(dst, Operand(value));
 }
 
@@ -2581,9 +2593,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
     return;
   }
 #endif
-
-  // Check if Abort() has already been initialized.
-  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
   Move(r1, Smi::FromInt(static_cast<int>(reason)));
 

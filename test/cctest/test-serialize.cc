@@ -1920,7 +1920,7 @@ TEST(CodeSerializerEmbeddedObject) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
                            v8::internal::CodeObjectRequired::kYes);
   assembler.enable_serializer();
-  Handle<Object> number = isolate->factory()->NewHeapNumber(0.3);
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
   CHECK(isolate->heap()->InNewSpace(*number));
   Handle<Code> code;
   {

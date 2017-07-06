@@ -33,7 +33,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
   }
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -578,9 +578,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
     return;
   }
 #endif
-
-  // Check if Abort() has already been initialized.
-  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
   Move(rdx, Smi::FromInt(static_cast<int>(reason)));
 
@@ -2525,27 +2522,6 @@ void MacroAssembler::MoveNumber(Register dst, double value) {
   }
 }
 
-void MacroAssembler::Move(Register dst, Handle<Object> source) {
-  AllowDeferredHandleDereference smi_check;
-  if (source->IsSmi()) {
-    Move(dst, Smi::cast(*source));
-  } else {
-    MoveHeapObject(dst, source);
-  }
-}
-
-
-void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
-  AllowDeferredHandleDereference smi_check;
-  if (source->IsSmi()) {
-    Move(dst, Smi::cast(*source));
-  } else {
-    MoveHeapObject(kScratchRegister, source);
-    movp(dst, kScratchRegister);
-  }
-}
-
-
 void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
     Xorpd(dst, dst);
@@ -2890,7 +2866,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    MoveHeapObject(kScratchRegister, source);
+    Move(kScratchRegister, Handle<HeapObject>::cast(source));
     cmpp(dst, kScratchRegister);
   }
 }
@@ -2901,27 +2877,35 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    MoveHeapObject(kScratchRegister, source);
+    Move(kScratchRegister, Handle<HeapObject>::cast(source));
     cmpp(dst, kScratchRegister);
   }
 }
 
-
-void MacroAssembler::Push(Handle<Object> source) {
+void MacroAssembler::PushObject(Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Push(Smi::cast(*source));
   } else {
-    MoveHeapObject(kScratchRegister, source);
-    Push(kScratchRegister);
+    Push(Handle<HeapObject>::cast(source));
   }
 }
 
+void MacroAssembler::Push(Handle<HeapObject> source) {
+  Move(kScratchRegister, source);
+  Push(kScratchRegister);
+}
 
-void MacroAssembler::MoveHeapObject(Register result,
-                                    Handle<Object> object) {
-  DCHECK(object->IsHeapObject());
-  Move(result, object, RelocInfo::EMBEDDED_OBJECT);
+void MacroAssembler::Move(Register result, Handle<HeapObject> object,
+                          RelocInfo::Mode rmode) {
+  AllowHandleDereference using_location;
+  movp(result, reinterpret_cast<void*>(object.location()), rmode);
+}
+
+void MacroAssembler::Move(const Operand& dst, Handle<HeapObject> object,
+                          RelocInfo::Mode rmode) {
+  Move(kScratchRegister, object, rmode);
+  movp(dst, kScratchRegister);
 }
 
 

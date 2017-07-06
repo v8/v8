@@ -493,13 +493,21 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
-  __ Mov(result_register(), Operand(lit));
+  if (lit->IsHeapObject()) {
+    __ Mov(result_register(), Operand(Handle<HeapObject>::cast(lit)));
+  } else {
+    __ Mov(result_register(), Operand(Smi::cast(*lit)));
+  }
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
   // Immediates cannot be pushed directly.
-  __ Mov(result_register(), Operand(lit));
+  if (lit->IsHeapObject()) {
+    __ Mov(result_register(), Operand(Handle<HeapObject>::cast(lit)));
+  } else {
+    __ Mov(result_register(), Operand(Smi::cast(*lit)));
+  }
   codegen()->PushOperand(result_register());
 }
 
@@ -524,7 +532,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
     }
   } else {
     // For simplicity we always test the accumulator register.
-    __ Mov(result_register(), Operand(lit));
+    __ Mov(result_register(), Operand(Handle<HeapObject>::cast(lit)));
     codegen()->DoTest(this);
   }
 }

@@ -615,8 +615,7 @@ void Assembler::mov(Register dst, const Immediate& x) {
   emit(x);
 }
 
-
-void Assembler::mov(Register dst, Handle<Object> handle) {
+void Assembler::mov(Register dst, Handle<HeapObject> handle) {
   EnsureSpace ensure_space(this);
   EMIT(0xB8 | dst.code());
   emit(handle);
@@ -644,8 +643,7 @@ void Assembler::mov(const Operand& dst, const Immediate& x) {
   emit(x);
 }
 
-
-void Assembler::mov(const Operand& dst, Handle<Object> handle) {
+void Assembler::mov(const Operand& dst, Handle<HeapObject> handle) {
   EnsureSpace ensure_space(this);
   EMIT(0xC7);
   emit_operand(eax, dst);
@@ -907,8 +905,7 @@ void Assembler::cmp(Register reg, int32_t imm32) {
   emit_arith(7, Operand(reg), Immediate(imm32));
 }
 
-
-void Assembler::cmp(Register reg, Handle<Object> handle) {
+void Assembler::cmp(Register reg, Handle<HeapObject> handle) {
   EnsureSpace ensure_space(this);
   emit_arith(7, Operand(reg), Immediate(handle));
 }
@@ -931,8 +928,7 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
   emit_arith(7, op, imm);
 }
 
-
-void Assembler::cmp(const Operand& op, Handle<Object> handle) {
+void Assembler::cmp(const Operand& op, Handle<HeapObject> handle) {
   EnsureSpace ensure_space(this);
   emit_arith(7, op, Immediate(handle));
 }

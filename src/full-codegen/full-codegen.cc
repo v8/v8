@@ -180,7 +180,7 @@ void FullCodeGenerator::CallIC(Handle<Code> code) {
 
 void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
   DCHECK(name->IsName());
-  __ Move(LoadDescriptor::NameRegister(), name);
+  __ Move(LoadDescriptor::NameRegister(), Handle<Name>::cast(name));
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
 
@@ -192,7 +192,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
 void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
                                     StoreICKind store_ic_kind) {
   DCHECK(name->IsName());
-  __ Move(StoreDescriptor::NameRegister(), name);
+  __ Move(StoreDescriptor::NameRegister(), Handle<Name>::cast(name));
 
   STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
                 StoreDescriptor::kStackArgumentsCount == 2);
@@ -462,7 +462,7 @@ int FullCodeGenerator::DeclareGlobalsFlags() {
 
 void FullCodeGenerator::PushOperand(Handle<Object> handle) {
   OperandStackDepthIncrement(1);
-  __ Push(handle);
+  __ PushObject(handle);
 }
 
 void FullCodeGenerator::PushOperand(Smi* smi) {

@@ -4340,6 +4340,10 @@ void MacroAssembler::Push(Handle<Object> handle) {
   push(at);
 }
 
+void MacroAssembler::PushObject(Handle<Object> handle) {
+  li(at, Operand(handle));
+  push(at);
+}
 
 void MacroAssembler::PushRegisterAsTwoSmis(Register src, Register scratch) {
   DCHECK(!src.is(scratch));

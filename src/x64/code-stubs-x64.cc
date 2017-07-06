@@ -1800,7 +1800,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ j(equal, done);
 
     // Stop if found the property.
-    __ Cmp(entity_name, Handle<Name>(name));
+    __ Cmp(entity_name, name);
     __ j(equal, miss);
 
     Label good;
@@ -1817,7 +1817,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
   NameDictionaryLookupStub stub(masm->isolate(), properties, r0, r0,
                                 NEGATIVE_LOOKUP);
-  __ Push(Handle<Object>(name));
+  __ Push(name);
   __ Push(Immediate(name->Hash()));
   __ CallStub(&stub);
   __ testp(r0, r0);

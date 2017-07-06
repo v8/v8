@@ -39,7 +39,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, byte* buffer,
       fptmp_list_(DefaultFPTmpList()) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -1618,25 +1618,17 @@ void MacroAssembler::LoadTrueFalseRoots(Register true_root,
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  Mov(result, Operand(object));
-}
-
 void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
   AllowDeferredHandleDereference heap_object_check;
   if (object->IsHeapObject()) {
-    LoadHeapObject(result, Handle<HeapObject>::cast(object));
+    Move(result, Handle<HeapObject>::cast(object));
   } else {
-    DCHECK(object->IsSmi());
-    Mov(result, Operand(object));
+    Mov(result, Operand(Smi::cast(*object)));
   }
 }
 
 void MacroAssembler::Move(Register dst, Register src) { Mov(dst, src); }
-void MacroAssembler::Move(Register dst, Handle<Object> x) {
-  LoadObject(dst, x);
-}
+void MacroAssembler::Move(Register dst, Handle<HeapObject> x) { Mov(dst, x); }
 void MacroAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
@@ -2130,7 +2122,7 @@ void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode,
 void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
@@ -2203,7 +2195,7 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   Bind(&start_call);
 #endif
 
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   Call(reinterpret_cast<Address>(code.location()), rmode);
 
 #ifdef DEBUG
@@ -4256,9 +4248,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
   if (use_real_aborts()) {
     // Avoid infinite recursion; Push contains some assertions that use Abort.
     NoUseRealAbortsScope no_real_aborts(this);
-
-    // Check if Abort() has already been initialized.
-    DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
     Move(x1, Smi::FromInt(static_cast<int>(reason)));
 

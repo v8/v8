@@ -175,7 +175,7 @@ class MacroAssembler: public Assembler {
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi);
-  void Move(Register dst, Handle<Object> value);
+  void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
             Condition cond = al) {
@@ -330,9 +330,9 @@ class MacroAssembler: public Assembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  // Push a handle.
-  void Push(Handle<Object> handle);
+  void Push(Handle<HeapObject> handle);
   void Push(Smi* smi);
+  void PushObject(Handle<Object> handle);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -1087,7 +1087,7 @@ class MacroAssembler: public Assembler {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
-  Handle<Object> CodeObject() {
+  Handle<HeapObject> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -1370,7 +1370,7 @@ class MacroAssembler: public Assembler {
   bool has_frame_;
   Isolate* isolate_;
   // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
+  Handle<HeapObject> code_object_;
   int jit_cookie_;
 
   // Needs access to SafepointRegisterStackIndex for compiled frame

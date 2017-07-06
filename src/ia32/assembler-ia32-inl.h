@@ -315,19 +315,10 @@ Immediate::Immediate(Label* internal_offset) {
   rmode_ = RelocInfo::INTERNAL_REFERENCE;
 }
 
-
-Immediate::Immediate(Handle<Object> handle) {
-  AllowDeferredHandleDereference using_raw_address;
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    // no relocation needed
-    value_.immediate = reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE32;
-  }
+Immediate::Immediate(Handle<HeapObject> handle) {
+  AllowHandleDereference using_location;
+  value_.immediate = reinterpret_cast<intptr_t>(handle.location());
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
 
@@ -354,18 +345,10 @@ void Assembler::emit_q(uint64_t x) {
   pc_ += sizeof(uint64_t);
 }
 
-
-void Assembler::emit(Handle<Object> handle) {
-  AllowDeferredHandleDereference heap_object_check;
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    emit(reinterpret_cast<intptr_t>(handle.location()),
-         RelocInfo::EMBEDDED_OBJECT);
-  } else {
-    // no relocation needed
-    emit(reinterpret_cast<intptr_t>(obj));
-  }
+void Assembler::emit(Handle<HeapObject> handle) {
+  AllowHandleDereference using_location;
+  emit(reinterpret_cast<intptr_t>(handle.location()),
+       RelocInfo::EMBEDDED_OBJECT);
 }
 
 void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
@@ -376,7 +359,7 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
 }
 
 void Assembler::emit(Handle<Code> code, RelocInfo::Mode rmode) {
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   emit(reinterpret_cast<intptr_t>(code.location()), rmode);
 }
 

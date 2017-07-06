@@ -184,7 +184,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   Heap* heap = isolate->heap();
   HandleScope sc(isolate);
 
-  Handle<Object> value = factory->NewNumber(1.000123);
+  Handle<HeapNumber> value = factory->NewHeapNumber(1.000123);
   CHECK(heap->InNewSpace(*value));
 
   i::byte buffer[i::Assembler::kMinimalBufferSize];

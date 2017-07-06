@@ -1867,7 +1867,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
   NameDictionaryLookupStub stub(masm->isolate(), properties, r0, r0,
                                 NEGATIVE_LOOKUP);
-  __ push(Immediate(Handle<Object>(name)));
+  __ push(Immediate(name));
   __ push(Immediate(name->Hash()));
   __ CallStub(&stub);
   __ test(r0, r0);

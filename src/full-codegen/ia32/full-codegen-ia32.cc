@@ -442,9 +442,9 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
   if (lit->IsSmi()) {
-    __ SafeMove(result_register(), Immediate(lit));
+    __ SafeMove(result_register(), Immediate(Smi::cast(*lit)));
   } else {
-    __ Move(result_register(), Immediate(lit));
+    __ Move(result_register(), Immediate(Handle<HeapObject>::cast(lit)));
   }
 }
 
@@ -452,9 +452,9 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
   codegen()->OperandStackDepthIncrement(1);
   if (lit->IsSmi()) {
-    __ SafePush(Immediate(lit));
+    __ SafePush(Immediate(Smi::cast(*lit)));
   } else {
-    __ push(Immediate(lit));
+    __ push(Immediate(Handle<HeapObject>::cast(lit)));
   }
 }
 
@@ -479,7 +479,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
     }
   } else {
     // For simplicity we always test the accumulator register.
-    __ mov(result_register(), lit);
+    __ mov(result_register(), Handle<HeapObject>::cast(lit));
     codegen()->DoTest(this);
   }
 }
@@ -535,18 +535,16 @@ void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
-  Handle<Object> value = flag
-      ? isolate()->factory()->true_value()
-      : isolate()->factory()->false_value();
+  Handle<HeapObject> value = flag ? isolate()->factory()->true_value()
+                                  : isolate()->factory()->false_value();
   __ mov(result_register(), value);
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
   codegen()->OperandStackDepthIncrement(1);
-  Handle<Object> value = flag
-      ? isolate()->factory()->true_value()
-      : isolate()->factory()->false_value();
+  Handle<HeapObject> value = flag ? isolate()->factory()->true_value()
+                                  : isolate()->factory()->false_value();
   __ push(Immediate(value));
 }
 
@@ -2291,9 +2289,9 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 
   VisitForAccumulatorValue(sub_expr);
 
-  Handle<Object> nil_value = nil == kNullValue
-      ? isolate()->factory()->null_value()
-      : isolate()->factory()->undefined_value();
+  Handle<HeapObject> nil_value = nil == kNullValue
+                                     ? isolate()->factory()->null_value()
+                                     : isolate()->factory()->undefined_value();
   if (expr->op() == Token::EQ_STRICT) {
     __ cmp(eax, nil_value);
     Split(equal, if_true, if_false, fall_through);

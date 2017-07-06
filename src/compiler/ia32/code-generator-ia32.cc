@@ -2611,7 +2611,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Handle<HeapObject> src = src_constant.ToHeapObject();
       if (destination->IsRegister()) {
         Register dst = g.ToRegister(destination);
-        __ LoadHeapObject(dst, src);
+        __ Move(dst, src);
       } else {
         DCHECK(destination->IsStackSlot());
         Operand dst = g.ToOperand(destination);

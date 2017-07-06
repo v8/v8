@@ -184,7 +184,7 @@ class MacroAssembler : public Assembler {
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<Object> CodeObject() {
+  Handle<HeapObject> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -1266,9 +1266,9 @@ class MacroAssembler : public Assembler {
   void PushMultipleTimes(CPURegister src, Register count);
   void PushMultipleTimes(CPURegister src, int count);
 
-  // This is a convenience method for pushing a single Handle<Object>.
-  inline void Push(Handle<Object> handle);
+  inline void Push(Handle<HeapObject> handle);
   inline void Push(Smi* smi);
+  inline void PushObject(Handle<Object> handle);
 
   // Aliases of Push and Pop, required for V8 compatibility.
   inline void push(Register src) {
@@ -1517,7 +1517,7 @@ class MacroAssembler : public Assembler {
   // This is required for compatibility with architecture independant code.
   // Remove if not needed.
   void Move(Register dst, Register src);
-  void Move(Register dst, Handle<Object> x);
+  void Move(Register dst, Handle<HeapObject> x);
   void Move(Register dst, Smi* src);
 
   void LoadInstanceDescriptors(Register map,
@@ -2520,7 +2520,7 @@ class MacroAssembler : public Assembler {
   bool use_real_aborts_;
 
   // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
+  Handle<HeapObject> code_object_;
 
   // The register to use as a stack pointer for stack operations.
   Register sp_;

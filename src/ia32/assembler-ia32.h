@@ -269,7 +269,7 @@ class Immediate BASE_EMBEDDED {
  public:
   inline explicit Immediate(int x);
   inline explicit Immediate(const ExternalReference& ext);
-  inline explicit Immediate(Handle<Object> handle);
+  inline explicit Immediate(Handle<HeapObject> handle);
   inline explicit Immediate(Smi* value);
   inline explicit Immediate(Address addr);
   inline explicit Immediate(Address x, RelocInfo::Mode rmode);
@@ -641,11 +641,11 @@ class Assembler : public AssemblerBase {
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
-  void mov(Register dst, Handle<Object> handle);
+  void mov(Register dst, Handle<HeapObject> handle);
   void mov(Register dst, const Operand& src);
   void mov(Register dst, Register src);
   void mov(const Operand& dst, const Immediate& x);
-  void mov(const Operand& dst, Handle<Object> handle);
+  void mov(const Operand& dst, Handle<HeapObject> handle);
   void mov(const Operand& dst, Register src);
 
   void movsx_b(Register dst, Register src) { movsx_b(dst, Operand(src)); }
@@ -718,13 +718,13 @@ class Assembler : public AssemblerBase {
   void cmpw(Register dst, Register src) { cmpw(Operand(dst), src); }
   void cmpw(const Operand& dst, Register src);
   void cmp(Register reg, int32_t imm32);
-  void cmp(Register reg, Handle<Object> handle);
+  void cmp(Register reg, Handle<HeapObject> handle);
   void cmp(Register reg0, Register reg1) { cmp(reg0, Operand(reg1)); }
   void cmp(Register reg, const Operand& op);
   void cmp(Register reg, const Immediate& imm) { cmp(Operand(reg), imm); }
   void cmp(const Operand& op, Register reg);
   void cmp(const Operand& op, const Immediate& imm);
-  void cmp(const Operand& op, Handle<Object> handle);
+  void cmp(const Operand& op, Handle<HeapObject> handle);
 
   void dec_b(Register dst);
   void dec_b(const Operand& dst);
@@ -1741,7 +1741,7 @@ class Assembler : public AssemblerBase {
   // code emission
   void GrowBuffer();
   inline void emit(uint32_t x);
-  inline void emit(Handle<Object> handle);
+  inline void emit(Handle<HeapObject> handle);
   inline void emit(uint32_t x, RelocInfo::Mode rmode);
   inline void emit(Handle<Code> code, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);

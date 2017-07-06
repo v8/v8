@@ -32,7 +32,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
   }
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -72,7 +72,12 @@ void MacroAssembler::Store(Register src, const Operand& dst, Representation r) {
 
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
-    mov(destination, isolate()->heap()->root_handle(index));
+    Handle<Object> object = isolate()->heap()->root_handle(index);
+    if (object->IsHeapObject()) {
+      mov(destination, Handle<HeapObject>::cast(object));
+    } else {
+      mov(destination, Immediate(Smi::cast(*object)));
+    }
     return;
   }
   ExternalReference roots_array_start =
@@ -110,20 +115,30 @@ void MacroAssembler::CompareRoot(Register with,
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
-  cmp(with, isolate()->heap()->root_handle(index));
+  Handle<Object> object = isolate()->heap()->root_handle(index);
+  if (object->IsHeapObject()) {
+    cmp(with, Handle<HeapObject>::cast(object));
+  } else {
+    cmp(with, Immediate(Smi::cast(*object)));
+  }
 }
 
 
 void MacroAssembler::CompareRoot(const Operand& with,
                                  Heap::RootListIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
-  cmp(with, isolate()->heap()->root_handle(index));
+  Handle<Object> object = isolate()->heap()->root_handle(index);
+  if (object->IsHeapObject()) {
+    cmp(with, Handle<HeapObject>::cast(object));
+  } else {
+    cmp(with, Immediate(Smi::cast(*object)));
+  }
 }
 
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
-  Push(isolate()->heap()->root_handle(index));
+  PushObject(isolate()->heap()->root_handle(index));
 }
 
 #define REG(Name) \
@@ -1864,7 +1879,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
-  LoadHeapObject(edi, function);
+  Move(edi, function);
   InvokeFunction(edi, expected, actual, flag, call_wrapper);
 }
 
@@ -1954,17 +1969,17 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  mov(result, object);
-}
-
-
 void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
   cmp(reg, object);
 }
 
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) { Push(object); }
+void MacroAssembler::PushObject(Handle<Object> object) {
+  if (object->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(object));
+  } else {
+    Push(Smi::cast(*object));
+  }
+}
 
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, cell);
@@ -2024,6 +2039,9 @@ void MacroAssembler::Move(const Operand& dst, const Immediate& x) {
   mov(dst, x);
 }
 
+void MacroAssembler::Move(Register dst, Handle<HeapObject> object) {
+  mov(dst, object);
+}
 
 void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {

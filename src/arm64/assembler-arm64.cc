@@ -308,19 +308,10 @@ bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
   return true;
 }
 
-void Immediate::InitializeHandle(Handle<Object> handle) {
-  AllowDeferredHandleDereference using_raw_address;
-
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    value_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    STATIC_ASSERT(sizeof(intptr_t) == sizeof(int64_t));
-    value_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE64;
-  }
+void Immediate::InitializeHandle(Handle<HeapObject> handle) {
+  AllowHandleDereference using_location;
+  value_ = reinterpret_cast<intptr_t>(handle.location());
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
 

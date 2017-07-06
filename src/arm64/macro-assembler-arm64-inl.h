@@ -1379,15 +1379,27 @@ void MacroAssembler::IsObjectJSStringType(Register object,
   }
 }
 
-
-void MacroAssembler::Push(Handle<Object> handle) {
+void MacroAssembler::Push(Handle<HeapObject> handle) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
   Mov(tmp, Operand(handle));
   Push(tmp);
 }
 
-void MacroAssembler::Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+void MacroAssembler::Push(Smi* smi) {
+  UseScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireX();
+  Mov(tmp, Operand(smi));
+  Push(tmp);
+}
+
+void MacroAssembler::PushObject(Handle<Object> handle) {
+  if (handle->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(handle));
+  } else {
+    Push(Smi::cast(*handle));
+  }
+}
 
 void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
   DCHECK(count >= 0);

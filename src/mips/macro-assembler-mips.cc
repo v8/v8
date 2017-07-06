@@ -4068,6 +4068,11 @@ void MacroAssembler::Push(Handle<Object> handle) {
   push(at);
 }
 
+void MacroAssembler::PushObject(Handle<Object> handle) {
+  li(at, Operand(handle));
+  push(at);
+}
+
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
