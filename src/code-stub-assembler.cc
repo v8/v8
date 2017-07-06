@@ -3095,16 +3095,13 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
           GotoIf(WordEqual(value_map, BooleanMapConstant()), &done_loop);
           break;
         case PrimitiveType::kNumber:
-          GotoIf(
-              Word32Equal(value_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
-              &done_loop);
+          GotoIf(WordEqual(value_map, HeapNumberMapConstant()), &done_loop);
           break;
         case PrimitiveType::kString:
           GotoIf(IsStringInstanceType(value_instance_type), &done_loop);
           break;
         case PrimitiveType::kSymbol:
-          GotoIf(Word32Equal(value_instance_type, Int32Constant(SYMBOL_TYPE)),
-                 &done_loop);
+          GotoIf(WordEqual(value_map, SymbolMapConstant()), &done_loop);
           break;
       }
       Goto(&done_throw);
