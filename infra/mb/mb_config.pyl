@@ -346,7 +346,8 @@
 
     # GN debug configs for arm.
     'gn_debug_arm': [
-      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
+      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming',
+      'no_custom_libcxx'],
 
     # GN release configs for arm.
     'gn_release_arm': [
