@@ -15700,21 +15700,23 @@ int JSObject::GetFastElementsUsage() {
 // we keep it here instead to satisfy certain compilers.
 #ifdef OBJECT_PRINT
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::Print(std::ostream& os) {  // NOLINT
+void Dictionary<Derived, Shape>::Print(std::ostream& os) {
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = this->GetIsolate();
-  int capacity = this->Capacity();
+  Derived* dictionary = Derived::cast(this);
+  int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (Shape::IsLive(isolate, k)) {
-      os << "\n   ";
-      if (k->IsString()) {
-        String::cast(k)->StringPrint(os);
-      } else {
-        os << Brief(k);
-      }
-      os << ": " << Brief(this->ValueAt(i)) << " ";
-      this->DetailsAt(i).PrintAsSlowTo(os);
+    Object* k = dictionary->KeyAt(i);
+    if (!Shape::IsLive(isolate, k)) continue;
+    if (!dictionary->ToKey(isolate, i, &k)) continue;
+    os << "\n   ";
+    if (k->IsString()) {
+      String::cast(k)->StringPrint(os);
+    } else {
+      os << Brief(k);
     }
+    os << ": " << Brief(dictionary->ValueAt(i)) << " ";
+    dictionary->DetailsAt(i).PrintAsSlowTo(os);
   }
 }
 template <typename Derived, typename Shape>
@@ -16225,13 +16227,12 @@ void HashTable<Derived, Shape>::Rehash(Derived* new_table) {
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = this->get(from_index);
-    if (Shape::IsLive(isolate, k)) {
-      uint32_t hash = Shape::HashForObject(isolate, k);
-      uint32_t insertion_index =
-          EntryToIndex(new_table->FindInsertionEntry(hash));
-      for (int j = 0; j < Shape::kEntrySize; j++) {
-        new_table->set(insertion_index + j, get(from_index + j), mode);
-      }
+    if (!Shape::IsLive(isolate, k)) continue;
+    uint32_t hash = Shape::HashForObject(isolate, k);
+    uint32_t insertion_index =
+        EntryToIndex(new_table->FindInsertionEntry(hash));
+    for (int j = 0; j < Shape::kEntrySize; j++) {
+      new_table->set(insertion_index + j, get(from_index + j), mode);
     }
   }
   new_table->SetNumberOfElements(NumberOfElements());
@@ -16281,21 +16282,20 @@ void HashTable<Derived, Shape>::Rehash() {
     done = true;
     for (uint32_t current = 0; current < capacity; current++) {
       Object* current_key = KeyAt(current);
-      if (Shape::IsLive(isolate, current_key)) {
-        uint32_t target = EntryForProbe(current_key, probe, current);
-        if (current == target) continue;
-        Object* target_key = KeyAt(target);
-        if (!Shape::IsLive(isolate, target_key) ||
-            EntryForProbe(target_key, probe, target) != target) {
-          // Put the current element into the correct position.
-          Swap(current, target, mode);
-          // The other element will be processed on the next iteration.
-          current--;
-        } else {
-          // The place for the current element is occupied. Leave the element
-          // for the next probe.
-          done = false;
-        }
+      if (!Shape::IsLive(isolate, current_key)) continue;
+      uint32_t target = EntryForProbe(current_key, probe, current);
+      if (current == target) continue;
+      Object* target_key = KeyAt(target);
+      if (!Shape::IsLive(isolate, target_key) ||
+          EntryForProbe(target_key, probe, target) != target) {
+        // Put the current element into the correct position.
+        Swap(current, target, mode);
+        // The other element will be processed on the next iteration.
+        current--;
+      } else {
+        // The place for the current element is occupied. Leave the element
+        // for the next probe.
+        done = false;
       }
     }
   }
