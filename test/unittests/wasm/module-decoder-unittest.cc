@@ -1347,6 +1347,19 @@ TEST_F(WasmModuleVerifyTest, Regression_648070) {
   EXPECT_FAILURE(data);
 }
 
+TEST_F(WasmModuleVerifyTest, Regression_738097) {
+  // The function body size caused an integer overflow in the module decoder.
+  static const byte data[] = {
+      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
+      FUNCTION_SIGNATURES_SECTION(1, 0),     // --
+      SECTION(Code, 1 + 5 + 1),              // --
+      1,                                     // --
+      U32V_5(0xffffffff),                    // function size,
+      0                                      // No real body
+  };
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
   static const byte data[] = {
       EMPTY_SIGNATURES_SECTION,           // --

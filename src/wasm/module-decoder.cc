@@ -665,13 +665,15 @@ class ModuleDecoder : public Decoder {
       errorf(pos, "function body count %u mismatch (%u expected)",
              functions_count, module_->num_declared_functions);
     }
-    for (uint32_t i = 0; ok() && i < functions_count; ++i) {
+    for (uint32_t i = 0; i < functions_count; ++i) {
+      uint32_t size = consume_u32v("body size");
+      uint32_t offset = pc_offset();
+      consume_bytes(size, "function body");
+      if (failed()) break;
       WasmFunction* function =
           &module_->functions[i + module_->num_imported_functions];
-      uint32_t size = consume_u32v("body size");
-      function->code = {pc_offset(), size};
-      consume_bytes(size, "function body");
-      if (ok() && verify_functions) {
+      function->code = {offset, size};
+      if (verify_functions) {
         ModuleBytesEnv module_env(module_.get(), nullptr,
                                   ModuleWireBytes(start_, end_));
         VerifyFunctionBody(module_->signature_zone->allocator(),
