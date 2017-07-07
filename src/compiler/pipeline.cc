@@ -661,11 +661,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
 
 PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
   if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
+  pipeline_.AssembleCode(linkage_);
   return SUCCEEDED;
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
-  pipeline_.AssembleCode(linkage_);
   Handle<Code> code = pipeline_.FinalizeCode();
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
