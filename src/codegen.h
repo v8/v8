@@ -78,7 +78,7 @@ class CodeGenerator {
   static void MakeCodePrologue(CompilationInfo* info, const char* kind);
 
   // Allocate and install the code.
-  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
+  static Handle<Code> MakeCodeEpilogue(TurboAssembler* tasm,
                                        EhFrameWriter* unwinding,
                                        CompilationInfo* info,
                                        Handle<Object> self_reference);

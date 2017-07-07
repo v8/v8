@@ -87,7 +87,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
   // FinalizeCode returns a null handle.
-  void AssembleCode();
+  void AssembleCode();  // Does not need to run on main thread.
   Handle<Code> FinalizeCode();
 
   InstructionSequence* code() const { return code_; }
@@ -112,7 +112,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   Zone* zone() const { return code()->zone(); }
 
  private:
-  MacroAssembler* masm() { return &masm_; }
+  TurboAssembler* tasm() { return &tasm_; }
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   CompilationInfo* info() const { return info_; }
@@ -315,7 +315,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   RpoNumber current_block_;
   SourcePosition start_source_position_;
   SourcePosition current_source_position_;
-  MacroAssembler masm_;
+  TurboAssembler tasm_;
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;

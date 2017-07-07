@@ -2175,18 +2175,18 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 static const unsigned int kProfileEntryHookCallSize =
     Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
 
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
-  if (masm->isolate()->function_entry_hook() != NULL) {
-    Assembler::BlockConstPoolScope no_const_pools(masm);
-    DontEmitDebugCodeScope no_debug_code(masm);
+  if (tasm->isolate()->function_entry_hook() != NULL) {
+    Assembler::BlockConstPoolScope no_const_pools(tasm);
+    DontEmitDebugCodeScope no_debug_code(tasm);
     Label entry_hook_call_start;
-    __ Bind(&entry_hook_call_start);
-    __ Push(lr);
-    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
+    tasm->Bind(&entry_hook_call_start);
+    tasm->Push(lr);
+    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
+    DCHECK(tasm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
            kProfileEntryHookCallSize);
-    __ Pop(lr);
+    tasm->Pop(lr);
   }
 }
 

@@ -142,7 +142,6 @@ class Node;
 
 static const int kHasReturnedMinusZeroSentinel = 1;
 
-// Stub is base classes of all stubs.
 class CodeStub : public ZoneObject {
  public:
   enum Major {
@@ -1427,7 +1426,7 @@ class ProfileEntryHookStub : public PlatformCodeStub {
 
   // Generates a call to the entry hook if it's enabled.
   static void MaybeCallEntryHook(MacroAssembler* masm);
-  static void MaybeCallEntryHookDelayed(MacroAssembler* masm, Zone* zone);
+  static void MaybeCallEntryHookDelayed(TurboAssembler* tasm, Zone* zone);
 
  private:
   static void EntryHookTrampoline(intptr_t function,

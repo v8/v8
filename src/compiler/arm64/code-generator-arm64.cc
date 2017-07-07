@@ -18,8 +18,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define __ masm()->
-
+#define __ tasm()->
 
 // Adds Arm64-specific methods to convert InstructionOperands.
 class Arm64OperandConverter final : public InstructionOperandConverter {
@@ -241,13 +240,13 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     UNREACHABLE();
   }
 
-  MemOperand ToMemOperand(InstructionOperand* op, MacroAssembler* masm) const {
+  MemOperand ToMemOperand(InstructionOperand* op, TurboAssembler* tasm) const {
     DCHECK_NOT_NULL(op);
     DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
-    return SlotToMemOperand(AllocatedOperand::cast(op)->index(), masm);
+    return SlotToMemOperand(AllocatedOperand::cast(op)->index(), tasm);
   }
 
-  MemOperand SlotToMemOperand(int slot, MacroAssembler* masm) const {
+  MemOperand SlotToMemOperand(int slot, TurboAssembler* tasm) const {
     FrameOffset offset = frame_access_state()->GetFrameOffset(slot);
     if (offset.from_frame_pointer()) {
       int from_sp = offset.offset() + frame_access_state()->GetSPToFPOffset();
@@ -257,7 +256,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         offset = FrameOffset::FromStackPointer(from_sp);
       }
     }
-    return MemOperand(offset.from_stack_pointer() ? masm->StackPointer() : fp,
+    return MemOperand(offset.from_stack_pointer() ? tasm->StackPointer() : fp,
                       offset.offset());
   }
 };
@@ -566,18 +565,18 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ cbnz(i.TempRegister32(1), &binop);                              \
   } while (0)
 
-#define ASSEMBLE_IEEE754_BINOP(name)                                          \
-  do {                                                                        \
-    FrameScope scope(masm(), StackFrame::MANUAL);                             \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
-                     0, 2);                                                   \
+#define ASSEMBLE_IEEE754_BINOP(name)                                       \
+  do {                                                                     \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                          \
+    __ CallCFunction(                                                      \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 2); \
   } while (0)
 
-#define ASSEMBLE_IEEE754_UNOP(name)                                           \
-  do {                                                                        \
-    FrameScope scope(masm(), StackFrame::MANUAL);                             \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
-                     0, 1);                                                   \
+#define ASSEMBLE_IEEE754_UNOP(name)                                        \
+  do {                                                                     \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                          \
+    __ CallCFunction(                                                      \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 1); \
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -628,7 +627,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void AdjustStackPointerForTailCall(MacroAssembler* masm,
+void AdjustStackPointerForTailCall(TurboAssembler* tasm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
@@ -636,10 +635,10 @@ void AdjustStackPointerForTailCall(MacroAssembler* masm,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    masm->Claim(stack_slot_delta);
+    tasm->Claim(stack_slot_delta);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    masm->Drop(-stack_slot_delta);
+    tasm->Drop(-stack_slot_delta);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -648,13 +647,13 @@ void AdjustStackPointerForTailCall(MacroAssembler* masm,
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
                                               int first_unused_stack_slot) {
-  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
                                 first_unused_stack_slot, false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_stack_slot) {
-  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
                                 first_unused_stack_slot);
 }
 
@@ -669,7 +668,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       internal::Assembler::BlockCodeTargetSharingScope scope;
-      if (info()->IsWasm()) scope.Open(masm());
+      if (info()->IsWasm()) scope.Open(tasm());
 
       EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
@@ -701,7 +700,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       internal::Assembler::BlockCodeTargetSharingScope scope;
-      if (info()->IsWasm()) scope.Open(masm());
+      if (info()->IsWasm()) scope.Open(tasm());
 
       if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
@@ -734,7 +733,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
-        UseScratchRegisterScope scope(masm());
+        UseScratchRegisterScope scope(tasm());
         Register temp = scope.AcquireX();
         __ Ldr(temp, FieldMemOperand(func, JSFunction::kContextOffset));
         __ cmp(cp, temp);
@@ -762,7 +761,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
-        UseScratchRegisterScope scope(masm());
+        UseScratchRegisterScope scope(tasm());
         Register temp = scope.AcquireX();
         __ Ldr(temp, FieldMemOperand(func, JSFunction::kContextOffset));
         __ cmp(cp, temp);
@@ -835,7 +834,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       break;
     case kArchStackPointer:
-      __ mov(i.OutputRegister(), masm()->StackPointer());
+      __ mov(i.OutputRegister(), tasm()->StackPointer());
       break;
     case kArchFramePointer:
       __ mov(i.OutputRegister(), fp);
@@ -848,7 +847,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArchTruncateDoubleToI:
-      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
+                                  i.InputDoubleRegister(0));
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
@@ -1083,14 +1083,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Udiv(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
       break;
     case kArm64Imod: {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register temp = scope.AcquireX();
       __ Sdiv(temp, i.InputRegister(0), i.InputRegister(1));
       __ Msub(i.OutputRegister(), temp, i.InputRegister(1), i.InputRegister(0));
       break;
     }
     case kArm64Imod32: {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register temp = scope.AcquireW();
       __ Sdiv(temp, i.InputRegister32(0), i.InputRegister32(1));
       __ Msub(i.OutputRegister32(), temp, i.InputRegister32(1),
@@ -1098,14 +1098,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64Umod: {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register temp = scope.AcquireX();
       __ Udiv(temp, i.InputRegister(0), i.InputRegister(1));
       __ Msub(i.OutputRegister(), temp, i.InputRegister(1), i.InputRegister(0));
       break;
     }
     case kArm64Umod32: {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register temp = scope.AcquireW();
       __ Udiv(temp, i.InputRegister32(0), i.InputRegister32(1));
       __ Msub(i.OutputRegister32(), temp, i.InputRegister32(1),
@@ -1240,7 +1240,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Align the CSP and store the previous JSSP on the stack. We do not
         // need to modify the SP delta here, as we will continue to access the
         // frame via JSSP.
-        UseScratchRegisterScope scope(masm());
+        UseScratchRegisterScope scope(tasm());
         Register tmp = scope.AcquireX();
 
         // TODO(arm64): Storing JSSP on the stack is redundant when calling a C
@@ -1248,7 +1248,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // calling a code object that uses the CSP as the stack pointer). See
         // the code generation for kArchCallCodeObject vs. kArchCallCFunction
         // (the latter does not restore CSP/JSSP).
-        // MacroAssembler::CallCFunction() (safely) drops this extra slot
+        // TurboAssembler::CallCFunction() (safely) drops this extra slot
         // anyway.
         int sp_alignment = __ ActivationFrameAlignment();
         __ Sub(tmp, jssp, kPointerSize);
@@ -1407,13 +1407,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Float64Mod: {
       // TODO(dcarney): implement directly. See note in lithium-codegen-arm64.cc
-      FrameScope scope(masm(), StackFrame::MANUAL);
+      FrameScope scope(tasm(), StackFrame::MANUAL);
       DCHECK(d0.is(i.InputDoubleRegister(0)));
       DCHECK(d1.is(i.InputDoubleRegister(1)));
       DCHECK(d0.is(i.OutputDoubleRegister()));
       // TODO(dcarney): make sure this saves all relevant registers.
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(isolate()),
-                       0, 2);
+      __ CallCFunction(
+          ExternalReference::mod_two_doubles_operation(__ isolate()), 0, 2);
       break;
     }
     case kArm64Float32Max: {
@@ -1551,7 +1551,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Float64InsertLowWord32: {
       // TODO(arm64): This should use MOV (from general) when NEON is supported.
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register tmp = scope.AcquireX();
       __ Fmov(tmp, i.InputFloat64Register(0));
       __ Bfi(tmp, i.InputRegister(1), 0, 32);
@@ -1560,7 +1560,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64Float64InsertHighWord32: {
       // TODO(arm64): This should use MOV (from general) when NEON is supported.
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register tmp = scope.AcquireX();
       __ Fmov(tmp.W(), i.InputFloat32Register(0));
       __ Bfi(tmp, i.InputRegister(1), 32, 32);
@@ -1919,7 +1919,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
                 src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat4S);
       if (dst.is(src1)) {
         __ Mov(temp, src1.V4S());
@@ -1965,7 +1965,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
                 src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat4S);
       if (dst.is(src1)) {
         __ Mov(temp, src1.V4S());
@@ -2014,7 +2014,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
                 src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat8H);
       if (dst.is(src1)) {
         __ Mov(temp, src1.V8H());
@@ -2050,7 +2050,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
                 src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat8H);
       if (dst.is(src1)) {
         __ Mov(temp, src1.V8H());
@@ -2087,7 +2087,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src1 = i.InputSimd128Register(1).V4S();
       // Check for in-place shuffles.
       // If dst == src0 == src1, then the shuffle is unary and we only use src0.
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat4S);
       if (dst.is(src0)) {
         __ Mov(temp, src0);
@@ -2150,7 +2150,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           (i.InputInt32(2) & mask) | ((i.InputInt32(3) & mask) << 32);
       int64_t imm2 =
           (i.InputInt32(4) & mask) | ((i.InputInt32(5) & mask) << 32);
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat16B);
       __ Movi(temp, imm2, imm1);
 
@@ -2170,7 +2170,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
   case Op: {                                               \
-    UseScratchRegisterScope scope(masm());                 \
+    UseScratchRegisterScope scope(tasm());                 \
     VRegister temp = scope.AcquireV(format);               \
     __ Instr(temp, i.InputSimd128Register(0).V##FORMAT()); \
     __ Umov(i.OutputRegister32(), temp, 0);                \
@@ -2284,9 +2284,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       if (trap_id == Builtins::builtin_count) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
-        __ CallCFunction(
-            ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
-            0);
+        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
+                             __ isolate()),
+                         0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         __ Ret();
       } else {
@@ -2294,7 +2294,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // Initialize the jssp because it is required for the runtime call.
         __ Mov(jssp, csp);
         gen_->AssembleSourcePosition(instr_);
-        __ Call(isolate()->builtins()->builtin_handle(trap_id),
+        __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -2344,7 +2344,7 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
-  UseScratchRegisterScope scope(masm());
+  UseScratchRegisterScope scope(tasm());
   Register input = i.InputRegister32(0);
   Register temp = scope.AcquireX();
   size_t const case_count = instr->InputCount() - 2;
@@ -2371,7 +2371,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
       deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
                                                    : Deoptimizer::EAGER;
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      isolate(), deoptimization_id, bailout_type);
+      __ isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   if (info()->is_source_positions_enabled()) {
     __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
@@ -2425,7 +2425,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Prologue(this->info()->GeneratePreagedPrologue());
     } else {
       __ Push(lr, fp);
-      __ Mov(fp, masm_.StackPointer());
+      __ Mov(fp, __ StackPointer());
     }
     if (!info()->GeneratePreagedPrologue()) {
       unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
@@ -2458,11 +2458,10 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
-        UseScratchRegisterScope scope(masm());
+        UseScratchRegisterScope scope(tasm());
         Register scratch = scope.AcquireX();
-        __ Mov(
-            scratch,
-            Operand(ExternalReference::address_of_real_stack_limit(isolate())));
+        __ Mov(scratch, Operand(ExternalReference::address_of_real_stack_limit(
+                            __ isolate())));
         __ Ldr(scratch, MemOperand(scratch));
         __ Add(scratch, scratch, Operand(shrink_slots * kPointerSize));
         __ Cmp(__ StackPointer(), scratch);
@@ -2506,7 +2505,7 @@ void CodeGenerator::AssembleConstructFrame() {
     bool is_stub_frame =
         !descriptor->IsJSFunctionCall() && !descriptor->IsCFunctionCall();
     if (is_stub_frame) {
-      UseScratchRegisterScope temps(masm());
+      UseScratchRegisterScope temps(tasm());
       Register temp = temps.AcquireX();
       __ Mov(temp, StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
       __ Str(temp, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
@@ -2596,7 +2595,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   __ Ret();
 }
 
-void CodeGenerator::FinishCode() { masm()->CheckConstPool(true, false); }
+void CodeGenerator::FinishCode() { __ CheckConstPool(true, false); }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -2609,23 +2608,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ Mov(g.ToRegister(destination), src);
     } else {
-      __ Str(src, g.ToMemOperand(destination, masm()));
+      __ Str(src, g.ToMemOperand(destination, tasm()));
     }
   } else if (source->IsStackSlot()) {
-    MemOperand src = g.ToMemOperand(source, masm());
+    MemOperand src = g.ToMemOperand(source, tasm());
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     if (destination->IsRegister()) {
       __ Ldr(g.ToRegister(destination), src);
     } else {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register temp = scope.AcquireX();
       __ Ldr(temp, src);
-      __ Str(temp, g.ToMemOperand(destination, masm()));
+      __ Str(temp, g.ToMemOperand(destination, tasm()));
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(ConstantOperand::cast(source));
     if (destination->IsRegister() || destination->IsStackSlot()) {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : scope.AcquireX();
       if (src.type() == Constant::kHeapObject) {
@@ -2634,13 +2633,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (IsMaterializableFromRoot(src_object, &index)) {
           __ LoadRoot(dst, index);
         } else {
-          __ LoadObject(dst, src_object);
+          __ Mov(dst, src_object);
         }
       } else {
         __ Mov(dst, g.ToImmediate(source));
       }
       if (destination->IsStackSlot()) {
-        __ Str(dst, g.ToMemOperand(destination, masm()));
+        __ Str(dst, g.ToMemOperand(destination, tasm()));
       }
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPRegister()) {
@@ -2649,12 +2648,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
-          __ Str(wzr, g.ToMemOperand(destination, masm()));
+          __ Str(wzr, g.ToMemOperand(destination, tasm()));
         } else {
-          UseScratchRegisterScope scope(masm());
+          UseScratchRegisterScope scope(tasm());
           VRegister temp = scope.AcquireS();
           __ Fmov(temp, src.ToFloat32());
-          __ Str(temp, g.ToMemOperand(destination, masm()));
+          __ Str(temp, g.ToMemOperand(destination, tasm()));
         }
       }
     } else {
@@ -2665,12 +2664,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (bit_cast<int64_t>(src.ToFloat64()) == 0) {
-          __ Str(xzr, g.ToMemOperand(destination, masm()));
+          __ Str(xzr, g.ToMemOperand(destination, tasm()));
         } else {
-          UseScratchRegisterScope scope(masm());
+          UseScratchRegisterScope scope(tasm());
           VRegister temp = scope.AcquireD();
           __ Fmov(temp, src.ToFloat64());
-          __ Str(temp, g.ToMemOperand(destination, masm()));
+          __ Str(temp, g.ToMemOperand(destination, tasm()));
         }
       }
     }
@@ -2681,7 +2680,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Fmov(dst, src);
     } else {
       DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination, masm());
+      MemOperand dst = g.ToMemOperand(destination, tasm());
       if (destination->IsSimd128StackSlot()) {
         __ Str(src.Q(), dst);
       } else {
@@ -2690,7 +2689,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
-    MemOperand src = g.ToMemOperand(source, masm());
+    MemOperand src = g.ToMemOperand(source, tasm());
     if (destination->IsFPRegister()) {
       VRegister dst = g.ToDoubleRegister(destination);
       if (destination->IsSimd128Register()) {
@@ -2699,9 +2698,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Ldr(dst, src);
       }
     } else {
-      UseScratchRegisterScope scope(masm());
+      UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireD();
-      MemOperand dst = g.ToMemOperand(destination, masm());
+      MemOperand dst = g.ToMemOperand(destination, tasm());
       if (destination->IsSimd128StackSlot()) {
         __ Ldr(temp.Q(), src);
         __ Str(temp.Q(), dst);
@@ -2723,7 +2722,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   // combinations are possible.
   if (source->IsRegister()) {
     // Register-register.
-    UseScratchRegisterScope scope(masm());
+    UseScratchRegisterScope scope(tasm());
     Register temp = scope.AcquireX();
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
@@ -2733,17 +2732,17 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Mov(dst, temp);
     } else {
       DCHECK(destination->IsStackSlot());
-      MemOperand dst = g.ToMemOperand(destination, masm());
+      MemOperand dst = g.ToMemOperand(destination, tasm());
       __ Mov(temp, src);
       __ Ldr(src, dst);
       __ Str(temp, dst);
     }
   } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
-    UseScratchRegisterScope scope(masm());
+    UseScratchRegisterScope scope(tasm());
     VRegister temp_0 = scope.AcquireD();
     VRegister temp_1 = scope.AcquireD();
-    MemOperand src = g.ToMemOperand(source, masm());
-    MemOperand dst = g.ToMemOperand(destination, masm());
+    MemOperand src = g.ToMemOperand(source, tasm());
+    MemOperand dst = g.ToMemOperand(destination, tasm());
     if (source->IsSimd128StackSlot()) {
       __ Ldr(temp_0.Q(), src);
       __ Ldr(temp_1.Q(), dst);
@@ -2756,7 +2755,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Str(temp_1, src);
     }
   } else if (source->IsFPRegister()) {
-    UseScratchRegisterScope scope(masm());
+    UseScratchRegisterScope scope(tasm());
     VRegister temp = scope.AcquireD();
     VRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
@@ -2766,7 +2765,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Fmov(dst, temp);
     } else {
       DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination, masm());
+      MemOperand dst = g.ToMemOperand(destination, tasm());
       if (source->IsSimd128Register()) {
         __ Fmov(temp.Q(), src.Q());
         __ Ldr(src.Q(), dst);
@@ -2798,13 +2797,13 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
   int space_needed = Deoptimizer::patch_size();
   // Ensure that we have enough space after the previous lazy-bailout
   // instruction for patching the code here.
-  intptr_t current_pc = masm()->pc_offset();
+  intptr_t current_pc = tasm()->pc_offset();
 
   if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
     intptr_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
     DCHECK((padding_size % kInstructionSize) == 0);
     InstructionAccurateScope instruction_accurate(
-        masm(), padding_size / kInstructionSize);
+        tasm(), padding_size / kInstructionSize);
 
     while (padding_size > 0) {
       __ nop();

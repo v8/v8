@@ -2101,10 +2101,10 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   }
 }
 
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    masm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
+  if (tasm->isolate()->function_entry_hook() != nullptr) {
+    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
   }
 }
 

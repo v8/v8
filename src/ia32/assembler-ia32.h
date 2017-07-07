@@ -313,6 +313,8 @@ class Immediate BASE_EMBEDDED {
     return RelocInfo::IsNone(rmode_) && i::is_uint16(immediate());
   }
 
+  RelocInfo::Mode rmode() const { return rmode_; }
+
  private:
   inline explicit Immediate(Label* value);
 
@@ -429,7 +431,6 @@ class Operand BASE_EMBEDDED {
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
-  friend class MacroAssembler;
 };
 
 

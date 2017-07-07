@@ -19,8 +19,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define __ masm()->
-
+#define __ tasm()->
 
 #define kScratchReg r9
 
@@ -469,12 +468,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
-    FrameScope scope(masm(), StackFrame::MANUAL);                              \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 2);                                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
-                     0, 2);                                                    \
+    __ CallCFunction(                                                          \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 2);     \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
@@ -484,11 +483,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
-    FrameScope scope(masm(), StackFrame::MANUAL);                              \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 1);                                             \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
-                     0, 1);                                                    \
+    __ CallCFunction(                                                          \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 1);     \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
@@ -570,20 +569,20 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void FlushPendingPushRegisters(MacroAssembler* masm,
+void FlushPendingPushRegisters(TurboAssembler* tasm,
                                FrameAccessState* frame_access_state,
                                ZoneVector<Register>* pending_pushes) {
   switch (pending_pushes->size()) {
     case 0:
       break;
     case 1:
-      masm->push((*pending_pushes)[0]);
+      tasm->push((*pending_pushes)[0]);
       break;
     case 2:
-      masm->Push((*pending_pushes)[0], (*pending_pushes)[1]);
+      tasm->Push((*pending_pushes)[0], (*pending_pushes)[1]);
       break;
     case 3:
-      masm->Push((*pending_pushes)[0], (*pending_pushes)[1],
+      tasm->Push((*pending_pushes)[0], (*pending_pushes)[1],
                  (*pending_pushes)[2]);
       break;
     default:
@@ -594,18 +593,18 @@ void FlushPendingPushRegisters(MacroAssembler* masm,
   pending_pushes->resize(0);
 }
 
-void AddPendingPushRegister(MacroAssembler* masm,
+void AddPendingPushRegister(TurboAssembler* tasm,
                             FrameAccessState* frame_access_state,
                             ZoneVector<Register>* pending_pushes,
                             Register reg) {
   pending_pushes->push_back(reg);
   if (pending_pushes->size() == 3 || reg.is(ip)) {
-    FlushPendingPushRegisters(masm, frame_access_state, pending_pushes);
+    FlushPendingPushRegisters(tasm, frame_access_state, pending_pushes);
   }
 }
 
 void AdjustStackPointerForTailCall(
-    MacroAssembler* masm, FrameAccessState* state, int new_slot_above_sp,
+    TurboAssembler* tasm, FrameAccessState* state, int new_slot_above_sp,
     ZoneVector<Register>* pending_pushes = nullptr,
     bool allow_shrinkage = true) {
   int current_sp_offset = state->GetSPToFPSlotCount() +
@@ -613,15 +612,15 @@ void AdjustStackPointerForTailCall(
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
     if (pending_pushes != nullptr) {
-      FlushPendingPushRegisters(masm, state, pending_pushes);
+      FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    masm->sub(sp, sp, Operand(stack_slot_delta * kPointerSize));
+    tasm->sub(sp, sp, Operand(stack_slot_delta * kPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
-      FlushPendingPushRegisters(masm, state, pending_pushes);
+      FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    masm->add(sp, sp, Operand(-stack_slot_delta * kPointerSize));
+    tasm->add(sp, sp, Operand(-stack_slot_delta * kPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -644,20 +643,20 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
           LocationOperand::cast(move->destination()));
       InstructionOperand source(move->source());
       AdjustStackPointerForTailCall(
-          masm(), frame_access_state(),
+          tasm(), frame_access_state(),
           destination_location.index() - pending_pushes.size(),
           &pending_pushes);
       if (source.IsStackSlot()) {
         LocationOperand source_location(LocationOperand::cast(source));
         __ ldr(ip, g.SlotToMemOperand(source_location.index()));
-        AddPendingPushRegister(masm(), frame_access_state(), &pending_pushes,
+        AddPendingPushRegister(tasm(), frame_access_state(), &pending_pushes,
                                ip);
       } else if (source.IsRegister()) {
         LocationOperand source_location(LocationOperand::cast(source));
-        AddPendingPushRegister(masm(), frame_access_state(), &pending_pushes,
+        AddPendingPushRegister(tasm(), frame_access_state(), &pending_pushes,
                                source_location.GetRegister());
       } else if (source.IsImmediate()) {
-        AddPendingPushRegister(masm(), frame_access_state(), &pending_pushes,
+        AddPendingPushRegister(tasm(), frame_access_state(), &pending_pushes,
                                ip);
       } else {
         // Pushes of non-scalar data types is not supported.
@@ -665,15 +664,15 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
       }
       move->Eliminate();
     }
-    FlushPendingPushRegisters(masm(), frame_access_state(), &pending_pushes);
+    FlushPendingPushRegisters(tasm(), frame_access_state(), &pending_pushes);
   }
-  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
                                 first_unused_stack_slot, nullptr, false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_stack_slot) {
-  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
                                 first_unused_stack_slot);
 }
 
@@ -690,7 +689,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       internal::Assembler::BlockCodeTargetSharingScope scope;
-      if (info()->IsWasm()) scope.Open(masm());
+      if (info()->IsWasm()) scope.Open(tasm());
 
       EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
@@ -711,7 +710,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       internal::Assembler::BlockCodeTargetSharingScope scope;
-      if (info()->IsWasm()) scope.Open(masm());
+      if (info()->IsWasm()) scope.Open(tasm());
 
       if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
@@ -850,7 +849,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArchTruncateDoubleToI:
-      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
+                                  i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchStoreWithWriteBarrier: {
@@ -983,7 +983,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputRegister(2), i.OutputSBit());
       break;
     case kArmMls: {
-      CpuFeatureScope scope(masm(), ARMv7);
+      CpuFeatureScope scope(tasm(), ARMv7);
       __ mls(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
              i.InputRegister(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1007,13 +1007,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputRegister(1), i.OutputSBit());
       break;
     case kArmSdiv: {
-      CpuFeatureScope scope(masm(), SUDIV);
+      CpuFeatureScope scope(tasm(), SUDIV);
       __ sdiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmUdiv: {
-      CpuFeatureScope scope(masm(), SUDIV);
+      CpuFeatureScope scope(tasm(), SUDIV);
       __ udiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
@@ -1041,20 +1041,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.OutputSBit());
       break;
     case kArmBfc: {
-      CpuFeatureScope scope(masm(), ARMv7);
+      CpuFeatureScope scope(tasm(), ARMv7);
       __ bfc(i.OutputRegister(), i.InputInt8(1), i.InputInt8(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmUbfx: {
-      CpuFeatureScope scope(masm(), ARMv7);
+      CpuFeatureScope scope(tasm(), ARMv7);
       __ ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
               i.InputInt8(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmSbfx: {
-      CpuFeatureScope scope(masm(), ARMv7);
+      CpuFeatureScope scope(tasm(), ARMv7);
       __ sbfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
               i.InputInt8(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1097,7 +1097,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmRbit: {
-      CpuFeatureScope scope(masm(), ARMv7);
+      CpuFeatureScope scope(tasm(), ARMv7);
       __ rbit(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
@@ -1288,12 +1288,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmVmodF64: {
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
-      FrameScope scope(masm(), StackFrame::MANUAL);
+      FrameScope scope(tasm(), StackFrame::MANUAL);
       __ PrepareCallCFunction(0, 2);
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(isolate()),
-                       0, 2);
+      __ CallCFunction(
+          ExternalReference::mod_two_doubles_operation(__ isolate()), 0, 2);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputDoubleRegister());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1309,47 +1309,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kArmVrintmF32: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintm(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintmF64: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintm(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kArmVrintpF32: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintp(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintpF64: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kArmVrintzF32: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintz(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintzF64: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintz(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kArmVrintaF64: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrinta(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kArmVrintnF32: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintn(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintnF64: {
-      CpuFeatureScope scope(masm(), ARMv8);
+      CpuFeatureScope scope(tasm(), ARMv8);
       __ vrintn(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
@@ -2639,14 +2639,14 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // We use the context register as the scratch register, because we do
         // not have a context here.
         __ PrepareCallCFunction(0, 0);
-        __ CallCFunction(
-            ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
-            0);
+        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
+                             __ isolate()),
+                         0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         __ Ret();
       } else {
         gen_->AssembleSourcePosition(instr_);
-        __ Call(isolate()->builtins()->builtin_handle(trap_id),
+        __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -2719,7 +2719,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
       deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
                                                    : Deoptimizer::EAGER;
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      isolate(), deoptimization_id, bailout_type);
+      __ isolate(), deoptimization_id, bailout_type);
   // TODO(turbofan): We should be able to generate better code by sharing the
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
@@ -2809,7 +2809,7 @@ void CodeGenerator::AssembleConstructFrame() {
         if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
           __ Move(kScratchReg,
                   Operand(ExternalReference::address_of_real_stack_limit(
-                      isolate())));
+                      __ isolate())));
           __ ldr(kScratchReg, MemOperand(kScratchReg));
           __ add(kScratchReg, kScratchReg,
                  Operand(shrink_slots * kPointerSize));
@@ -2906,7 +2906,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   __ Ret();
 }
 
-void CodeGenerator::FinishCode() { masm()->CheckConstPool(true, false); }
+void CodeGenerator::FinishCode() { __ CheckConstPool(true, false); }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -3202,10 +3202,10 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
   int space_needed = Deoptimizer::patch_size();
   // Ensure that we have enough space after the previous lazy-bailout
   // instruction for patching the code here.
-  int current_pc = masm()->pc_offset();
+  int current_pc = tasm()->pc_offset();
   if (current_pc < last_lazy_deopt_pc_ + space_needed) {
     // Block literal pool emission for duration of padding.
-    v8::internal::Assembler::BlockConstPoolScope block_const_pool(masm());
+    v8::internal::Assembler::BlockConstPoolScope block_const_pool(tasm());
     int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
     DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
     while (padding_size > 0) {

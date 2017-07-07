@@ -1885,6 +1885,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   friend class StandardFrame;
 };
 
+using TurboAssembler = MacroAssembler;  // TODO(mips): Implement TurboAssembler.
 
 // The code patcher is used to patch (typically) small parts of code e.g. for
 // debugging and other types of instrumentation. When using the code patcher
