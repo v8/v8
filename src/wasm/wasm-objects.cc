@@ -323,7 +323,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   }
   memory_obj->set_array_buffer(*buffer);
   memory_obj->set_maximum_pages(maximum);
-  return Handle<WasmMemoryObject>::cast(memory_obj);
+  return memory_obj;
 }
 
 uint32_t WasmMemoryObject::current_pages() {
@@ -333,17 +333,23 @@ uint32_t WasmMemoryObject::current_pages() {
 }
 
 void WasmMemoryObject::AddInstance(Isolate* isolate,
+                                   Handle<WasmMemoryObject> memory,
                                    Handle<WasmInstanceObject> instance) {
-  Handle<WasmInstanceWrapper> instance_wrapper =
-      handle(instance->instance_wrapper());
-  if (has_instances_link()) {
-    Handle<WasmInstanceWrapper> current_wrapper(instances_link());
-    DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*current_wrapper));
-    DCHECK(!current_wrapper->has_previous());
-    instance_wrapper->set_next_wrapper(*current_wrapper);
-    current_wrapper->set_previous_wrapper(*instance_wrapper);
+  Handle<WeakFixedArray> old_instances =
+      memory->has_instances()
+          ? Handle<WeakFixedArray>(memory->instances(), isolate)
+          : Handle<WeakFixedArray>::null();
+  Handle<WeakFixedArray> new_instances =
+      WeakFixedArray::Add(old_instances, instance);
+  memory->set_instances(*new_instances);
+}
+
+void WasmMemoryObject::RemoveInstance(Isolate* isolate,
+                                      Handle<WasmMemoryObject> memory,
+                                      Handle<WasmInstanceObject> instance) {
+  if (memory->has_instances()) {
+    memory->instances()->Remove(instance);
   }
-  set_instances_link(*instance_wrapper);
 }
 
 // static
@@ -368,42 +374,30 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
     return old_size / WasmModule::kPageSize;
   }
-  if (!memory_object->has_instances_link()) {
-    // Memory object does not have an instance associated with it, just grow
-    uint32_t max_pages;
-    if (memory_object->has_maximum_pages()) {
-      max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
-      if (FLAG_wasm_max_mem_pages < max_pages) return -1;
-    } else {
-      max_pages = FLAG_wasm_max_mem_pages;
-    }
-    new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
-    if (new_buffer.is_null()) return -1;
-  } else {
-    Handle<WasmInstanceWrapper> instance_wrapper(
-        memory_object->instances_link());
-    DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
-    DCHECK(instance_wrapper->has_instance());
-    Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
-    DCHECK(instance->IsWasmInstanceObject());
-    uint32_t max_pages = instance->GetMaxMemoryPages();
 
-    // Grow memory object buffer and update instances associated with it.
-    new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
-    if (new_buffer.is_null()) return -1;
-    DCHECK(!instance_wrapper->has_previous());
-    SetInstanceMemory(isolate, instance, new_buffer);
+  uint32_t max_pages;
+  if (memory_object->has_maximum_pages()) {
+    max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
+    if (FLAG_wasm_max_mem_pages < max_pages) return -1;
+  } else {
+    max_pages = FLAG_wasm_max_mem_pages;
+  }
+  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
+  if (new_buffer.is_null()) return -1;
+
+  if (memory_object->has_instances()) {
     Address old_mem_start = static_cast<Address>(old_buffer->backing_store());
-    UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
-    while (instance_wrapper->has_next()) {
-      instance_wrapper = instance_wrapper->next_wrapper();
-      DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
-      Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
-      DCHECK(instance->IsWasmInstanceObject());
+    Handle<WeakFixedArray> instances(memory_object->instances(), isolate);
+    for (int i = 0; i < instances->Length(); i++) {
+      Object* elem = instances->Get(i);
+      if (!elem->IsWasmInstanceObject()) continue;
+      Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(elem),
+                                          isolate);
       SetInstanceMemory(isolate, instance, new_buffer);
       UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
     }
   }
+
   memory_object->set_array_buffer(*new_buffer);
   DCHECK_EQ(0, old_size % WasmModule::kPageSize);
   return old_size / WasmModule::kPageSize;
@@ -434,9 +428,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
   instance->set_compiled_module(*compiled_module);
-  Handle<WasmInstanceWrapper> instance_wrapper =
-      WasmInstanceWrapper::New(isolate, instance);
-  instance->set_instance_wrapper(*instance_wrapper);
   return instance;
 }
 
@@ -1391,30 +1382,4 @@ Handle<Code> WasmCompiledModule::CompileLazy(
       Managed<LazyCompilationOrchestrator>::cast(orch_obj)->get();
   return orch->CompileLazy(isolate, instance, caller, offset, func_index,
                            patch_caller);
-}
-
-Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance) {
-  Handle<FixedArray> array =
-      isolate->factory()->NewFixedArray(kFieldCount, TENURED);
-  Handle<WasmInstanceWrapper> instance_wrapper(
-      reinterpret_cast<WasmInstanceWrapper*>(*array), isolate);
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
-  instance_wrapper->set(kWrapperInstanceObjectIndex, *cell);
-  return instance_wrapper;
-}
-
-bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
-  if (!obj->IsFixedArray()) return false;
-  Handle<FixedArray> array = handle(FixedArray::cast(obj));
-  if (array->length() != kFieldCount) return false;
-  if (!array->get(kWrapperInstanceObjectIndex)->IsWeakCell()) return false;
-  Isolate* isolate = array->GetIsolate();
-  if (!array->get(kNextInstanceWrapperIndex)->IsUndefined(isolate) &&
-      !array->get(kNextInstanceWrapperIndex)->IsFixedArray())
-    return false;
-  if (!array->get(kPreviousInstanceWrapperIndex)->IsUndefined(isolate) &&
-      !array->get(kPreviousInstanceWrapperIndex)->IsFixedArray())
-    return false;
-  return true;
 }

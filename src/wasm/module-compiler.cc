@@ -1022,9 +1022,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Add instance to Memory object
   //--------------------------------------------------------------------------
-  DCHECK(instance->IsWasmInstanceObject());
   if (instance->has_memory_object()) {
-    instance->memory_object()->AddInstance(isolate_, instance);
+    Handle<WasmMemoryObject> memory(instance->memory_object(), isolate_);
+    WasmMemoryObject::AddInstance(isolate_, memory, instance);
   }
 
   //--------------------------------------------------------------------------
@@ -1667,7 +1667,6 @@ void InstanceBuilder::ProcessExports(
         } else {
           memory_object =
               Handle<WasmMemoryObject>(instance->memory_object(), isolate_);
-          memory_object->ResetInstancesLink(isolate_);
         }
 
         desc.set_value(memory_object);

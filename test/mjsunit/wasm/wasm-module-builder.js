@@ -623,4 +623,8 @@ class WasmModuleBuilder {
     let instance = new WebAssembly.Instance(module, ffi);
     return instance;
   }
+
+  toModule(debug = false) {
+    return new WebAssembly.Module(this.toBuffer());
+  }
 }

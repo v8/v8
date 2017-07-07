@@ -88,48 +88,6 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
   }
 }
 
-static void MemoryInstanceFinalizer(Isolate* isolate,
-                                    WasmInstanceObject* instance) {
-  DisallowHeapAllocation no_gc;
-  // If the memory object is destroyed, nothing needs to be done here.
-  if (!instance->has_memory_object()) return;
-  Handle<WasmInstanceWrapper> instance_wrapper =
-      handle(instance->instance_wrapper());
-  DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
-  DCHECK(instance_wrapper->has_instance());
-  bool has_prev = instance_wrapper->has_previous();
-  bool has_next = instance_wrapper->has_next();
-  Handle<WasmMemoryObject> memory_object(instance->memory_object());
-
-  if (!has_prev && !has_next) {
-    memory_object->ResetInstancesLink(isolate);
-    return;
-  } else {
-    Handle<WasmInstanceWrapper> next_wrapper, prev_wrapper;
-    if (!has_prev) {
-      Handle<WasmInstanceWrapper> next_wrapper =
-          instance_wrapper->next_wrapper();
-      next_wrapper->reset_previous_wrapper();
-      // As this is the first link in the memory object, destroying
-      // without updating memory object would corrupt the instance chain in
-      // the memory object.
-      memory_object->set_instances_link(*next_wrapper);
-    } else if (!has_next) {
-      instance_wrapper->previous_wrapper()->reset_next_wrapper();
-    } else {
-      DCHECK(has_next && has_prev);
-      Handle<WasmInstanceWrapper> prev_wrapper =
-          instance_wrapper->previous_wrapper();
-      Handle<WasmInstanceWrapper> next_wrapper =
-          instance_wrapper->next_wrapper();
-      prev_wrapper->set_next_wrapper(*next_wrapper);
-      next_wrapper->set_previous_wrapper(*prev_wrapper);
-    }
-    // Reset to avoid dangling pointers
-    instance_wrapper->reset();
-  }
-}
-
 static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   DisallowHeapAllocation no_gc;
   JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
@@ -137,7 +95,6 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   // If a link to shared memory instances exists, update the list of memory
   // instances before the instance is destroyed.
-  if (owner->has_instance_wrapper()) MemoryInstanceFinalizer(isolate, owner);
   WasmCompiledModule* compiled_module = owner->compiled_module();
   TRACE("Finalizing %d {\n", compiled_module->instance_id());
   DCHECK(compiled_module->has_weak_wasm_module());
@@ -153,6 +110,18 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
         code->set_trap_handler_index(Smi::FromInt(-1));
       }
     }
+  }
+
+  // Since the order of finalizers is not guaranteed, it can be the case
+  // that {instance->compiled_module()->module()}, which is a
+  // {Managed<WasmModule>} has been collected earlier in this GC cycle.
+  // Weak references to this instance won't be cleared until
+  // the next GC cycle, so we need to manually break some links (such as
+  // the weak references from {WasmMemoryObject::instances}.
+  if (owner->has_memory_object()) {
+    Handle<WasmMemoryObject> memory(owner->memory_object(), isolate);
+    Handle<WasmInstanceObject> instance(owner, isolate);
+    WasmMemoryObject::RemoveInstance(isolate, memory, instance);
   }
 
   // weak_wasm_module may have been cleared, meaning the module object

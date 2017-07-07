@@ -29,7 +29,6 @@ class WasmInterpreter;
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
-class WasmInstanceWrapper;
 
 #define DECL_OOL_QUERY(type) static bool Is##type(Object* object);
 #define DECL_OOL_CAST(type) static type* cast(Object* object);
@@ -113,22 +112,26 @@ class WasmMemoryObject : public JSObject {
 
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
-  DECL_OPTIONAL_ACCESSORS(instances_link, WasmInstanceWrapper)
+  DECL_OPTIONAL_ACCESSORS(instances, WeakFixedArray)
 
   enum {  // --
     kArrayBufferIndex,
     kMaximumPagesIndex,
-    kInstancesLinkIndex,
+    kInstancesIndex,
     kFieldCount
   };
 
   DEF_SIZE(JSObject)
   DEF_OFFSET(ArrayBuffer)
   DEF_OFFSET(MaximumPages)
-  DEF_OFFSET(InstancesLink)
+  DEF_OFFSET(Instances)
 
-  void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);
-  inline void ResetInstancesLink(Isolate* isolate);
+  // Add an instance to the internal (weak) list. amortized O(n).
+  static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
+                          Handle<WasmInstanceObject> object);
+  // Remove an instance from the internal (weak) list. O(n).
+  static void RemoveInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
+                             Handle<WasmInstanceObject> object);
   uint32_t current_pages();
   inline bool has_maximum_pages() { return maximum_pages() >= 0; }
 
@@ -149,7 +152,6 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
-  DECL_OPTIONAL_ACCESSORS(instance_wrapper, WasmInstanceWrapper)
   // FixedArray of all instances whose code was imported
   DECL_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray)
 
@@ -159,7 +161,6 @@ class WasmInstanceObject : public JSObject {
     kMemoryBufferIndex,
     kGlobalsBufferIndex,
     kDebugInfoIndex,
-    kInstanceWrapperIndex,
     kDirectlyCalledInstancesIndex,
     kFieldCount
   };
@@ -170,7 +171,6 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(MemoryBuffer)
   DEF_OFFSET(GlobalsBuffer)
   DEF_OFFSET(DebugInfo)
-  DEF_OFFSET(InstanceWrapper)
   DEF_OFFSET(DirectlyCalledInstances)
 
   WasmModuleObject* module_object();
@@ -668,64 +668,6 @@ class WasmDebugInfo : public FixedArray {
                                          int frame_index);
 };
 
-class WasmInstanceWrapper : public FixedArray {
- public:
-  enum {  // --
-    kWrapperInstanceObjectIndex,
-    kNextInstanceWrapperIndex,
-    kPreviousInstanceWrapperIndex,
-    kFieldCount
-  };
-
-  static WasmInstanceWrapper* cast(Object* fixed_array) {
-    SLOW_DCHECK(IsWasmInstanceWrapper(fixed_array));
-    return reinterpret_cast<WasmInstanceWrapper*>(fixed_array);
-  }
-  static bool IsWasmInstanceWrapper(Object* obj);
-  bool has_instance() { return get(kWrapperInstanceObjectIndex)->IsWeakCell(); }
-  Handle<WasmInstanceObject> instance_object() {
-    Object* obj = get(kWrapperInstanceObjectIndex);
-    DCHECK(obj->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(obj);
-    DCHECK(cell->value()->IsJSObject());
-    return handle(WasmInstanceObject::cast(cell->value()));
-  }
-  bool has_next() {
-    return IsWasmInstanceWrapper(get(kNextInstanceWrapperIndex));
-  }
-  bool has_previous() {
-    return IsWasmInstanceWrapper(get(kPreviousInstanceWrapperIndex));
-  }
-  void set_next_wrapper(Object* obj) {
-    DCHECK(IsWasmInstanceWrapper(obj));
-    set(kNextInstanceWrapperIndex, obj);
-  }
-  void set_previous_wrapper(Object* obj) {
-    DCHECK(IsWasmInstanceWrapper(obj));
-    set(kPreviousInstanceWrapperIndex, obj);
-  }
-  Handle<WasmInstanceWrapper> next_wrapper() {
-    Object* obj = get(kNextInstanceWrapperIndex);
-    DCHECK(IsWasmInstanceWrapper(obj));
-    return handle(WasmInstanceWrapper::cast(obj));
-  }
-  Handle<WasmInstanceWrapper> previous_wrapper() {
-    Object* obj = get(kPreviousInstanceWrapperIndex);
-    DCHECK(IsWasmInstanceWrapper(obj));
-    return handle(WasmInstanceWrapper::cast(obj));
-  }
-  void reset_next_wrapper() { set_undefined(kNextInstanceWrapperIndex); }
-  void reset_previous_wrapper() {
-    set_undefined(kPreviousInstanceWrapperIndex);
-  }
-  void reset() {
-    for (int kID = 0; kID < kFieldCount; kID++) set_undefined(kID);
-  }
-
-  static Handle<WasmInstanceWrapper> New(Isolate* isolate,
-                                         Handle<WasmInstanceObject> instance);
-};
-
 // TODO(titzer): these should be moved to wasm-objects-inl.h
 CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
@@ -744,8 +686,7 @@ ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
-ACCESSORS(WasmMemoryObject, instances_link, WasmInstanceWrapper,
-          kInstancesLinkOffset)
+ACCESSORS(WasmMemoryObject, instances, WeakFixedArray, kInstancesOffset)
 
 // WasmInstanceObject
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
@@ -756,8 +697,6 @@ ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer, kMemoryBufferOffset)
 ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
           kGlobalsBufferOffset)
 ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo, kDebugInfoOffset)
-ACCESSORS(WasmInstanceObject, instance_wrapper, WasmInstanceWrapper,
-          kInstanceWrapperOffset)
 ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
           kDirectlyCalledInstancesOffset)
 
@@ -782,9 +721,8 @@ ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
 OPTIONAL_ACCESSOR(WasmInstanceObject, debug_info, kDebugInfoOffset)
 OPTIONAL_ACCESSOR(WasmInstanceObject, memory_buffer, kMemoryBufferOffset)
 OPTIONAL_ACCESSOR(WasmInstanceObject, memory_object, kMemoryObjectOffset)
-OPTIONAL_ACCESSOR(WasmInstanceObject, instance_wrapper, kInstanceWrapperOffset)
 
-OPTIONAL_ACCESSOR(WasmMemoryObject, instances_link, kInstancesLinkOffset)
+OPTIONAL_ACCESSOR(WasmMemoryObject, instances, kInstancesOffset)
 
 OPTIONAL_ACCESSOR(WasmSharedModuleData, breakpoint_infos,
                   kBreakPointInfosOffset)
@@ -796,11 +734,6 @@ OPTIONAL_ACCESSOR(WasmSharedModuleData, lazy_compilation_orchestrator,
 ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
 
 OPTIONAL_ACCESSOR(WasmDebugInfo, locals_names, kLocalsNamesOffset)
-
-inline void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
-  // This has to be a raw access to bypass typechecking.
-  WRITE_FIELD(this, kInstancesLinkOffset, isolate->heap()->undefined_value());
-}
 
 #undef DECL_OOL_QUERY
 #undef DECL_OOL_CAST
