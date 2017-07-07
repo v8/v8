@@ -192,8 +192,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildLoadPropertyKey(LiteralProperty* property, Register out_reg);
 
-  int AllocateBlockCoverageSlotIfEnabled(SourceRange range);
+  int AllocateBlockCoverageSlotIfEnabled(const SourceRange& range);
   void BuildIncrementBlockCoverageCounterIfEnabled(int coverage_array_slot);
+  void BuildIncrementBlockCoverageCounterIfEnabled(const SourceRange& range);
 
   void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
                  BytecodeLabels* else_labels, TestFallthrough fallthrough);

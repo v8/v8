@@ -312,4 +312,34 @@ TestCoverage(
  {"start":81,"end":122,"count":0}]
 );
 
+TestCoverage(
+"try/catch/finally statements",
+`
+!function() {                             // 0000
+  try { nop(); } catch (e) { nop(); }     // 0050
+  try { nop(); } finally { nop(); }       // 0100
+  try {                                   // 0150
+    try { throw 42; } catch (e) { nop(); }// 0200
+  } catch (e) { nop(); }                  // 0250
+  try {                                   // 0300
+    try { throw 42; } finally { nop(); }  // 0350
+  } catch (e) { nop(); }                  // 0400
+  try {                                   // 0450
+    throw 42;                             // 0500
+  } catch (e) {                           // 0550
+    nop();                                // 0600
+  } finally {                             // 0650
+    nop();                                // 0700
+  }                                       // 0750
+}();                                      // 0800
+`,
+[{"start":0,"end":849,"count":1},
+ {"start":1,"end":801,"count":1},
+ {"start":77,"end":87,"count":0},
+ {"start":219,"end":232,"count":0},
+ {"start":264,"end":274,"count":0},
+ {"start":369,"end":380,"count":0},
+ {"start":513,"end":564,"count":0}]
+);
+
 %DebugToggleBlockCoverage(false);

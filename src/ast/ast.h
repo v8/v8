@@ -986,6 +986,8 @@ class TryCatchStatement final : public TryStatement {
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
+  SourceRange catch_range() const { return catch_range_; }
+
   // Prediction of whether exceptions thrown into the handler for this try block
   // will be caught.
   //
@@ -1038,15 +1040,18 @@ class TryCatchStatement final : public TryStatement {
   friend class AstNodeFactory;
 
   TryCatchStatement(Block* try_block, Scope* scope, Block* catch_block,
-                    HandlerTable::CatchPrediction catch_prediction, int pos)
+                    HandlerTable::CatchPrediction catch_prediction, int pos,
+                    const SourceRange& catch_range)
       : TryStatement(try_block, pos, kTryCatchStatement),
         scope_(scope),
         catch_block_(catch_block),
-        catch_prediction_(catch_prediction) {}
+        catch_prediction_(catch_prediction),
+        catch_range_(catch_range) {}
 
   Scope* scope_;
   Block* catch_block_;
   HandlerTable::CatchPrediction catch_prediction_;
+  SourceRange catch_range_;
 };
 
 
@@ -1055,14 +1060,19 @@ class TryFinallyStatement final : public TryStatement {
   Block* finally_block() const { return finally_block_; }
   void set_finally_block(Block* b) { finally_block_ = b; }
 
+  SourceRange finally_range() const { return finally_range_; }
+
  private:
   friend class AstNodeFactory;
 
-  TryFinallyStatement(Block* try_block, Block* finally_block, int pos)
+  TryFinallyStatement(Block* try_block, Block* finally_block, int pos,
+                      const SourceRange& finally_range)
       : TryStatement(try_block, pos, kTryFinallyStatement),
-        finally_block_(finally_block) {}
+        finally_block_(finally_block),
+        finally_range_(finally_range) {}
 
   Block* finally_block_;
+  SourceRange finally_range_;
 };
 
 
@@ -2421,14 +2431,20 @@ class Throw final : public Expression {
  public:
   Expression* exception() const { return exception_; }
   void set_exception(Expression* e) { exception_ = e; }
+  // The first source position past the end of the throw statement, used by
+  // block coverage.
+  int32_t continuation_pos() const { return continuation_pos_; }
 
  private:
   friend class AstNodeFactory;
 
-  Throw(Expression* exception, int pos)
-      : Expression(pos, kThrow), exception_(exception) {}
+  Throw(Expression* exception, int pos, int32_t continuation_pos)
+      : Expression(pos, kThrow),
+        exception_(exception),
+        continuation_pos_(continuation_pos) {}
 
   Expression* exception_;
+  int32_t continuation_pos_;
 };
 
 
@@ -3206,9 +3222,10 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
-                                          Block* catch_block, int pos) {
-    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
-                                         HandlerTable::CAUGHT, pos);
+                                          Block* catch_block, int pos,
+                                          const SourceRange catch_range = {}) {
+    return new (zone_) TryCatchStatement(
+        try_block, scope, catch_block, HandlerTable::CAUGHT, pos, catch_range);
   }
 
   TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
@@ -3216,7 +3233,7 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                     Block* catch_block,
                                                     int pos) {
     return new (zone_) TryCatchStatement(try_block, scope, catch_block,
-                                         HandlerTable::UNCAUGHT, pos);
+                                         HandlerTable::UNCAUGHT, pos, {});
   }
 
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
@@ -3224,7 +3241,7 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                        Block* catch_block,
                                                        int pos) {
     return new (zone_) TryCatchStatement(try_block, scope, catch_block,
-                                         HandlerTable::DESUGARING, pos);
+                                         HandlerTable::DESUGARING, pos, {});
   }
 
   TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
@@ -3232,12 +3249,14 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                        Block* catch_block,
                                                        int pos) {
     return new (zone_) TryCatchStatement(try_block, scope, catch_block,
-                                         HandlerTable::ASYNC_AWAIT, pos);
+                                         HandlerTable::ASYNC_AWAIT, pos, {});
   }
 
-  TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
-                                              Block* finally_block, int pos) {
-    return new (zone_) TryFinallyStatement(try_block, finally_block, pos);
+  TryFinallyStatement* NewTryFinallyStatement(
+      Block* try_block, Block* finally_block, int pos,
+      const SourceRange& finally_range = {}) {
+    return new (zone_)
+        TryFinallyStatement(try_block, finally_block, pos, finally_range);
   }
 
   DebuggerStatement* NewDebuggerStatement(int pos) {
@@ -3453,8 +3472,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) YieldStar(expression, pos, flags);
   }
 
-  Throw* NewThrow(Expression* exception, int pos) {
-    return new (zone_) Throw(exception, pos);
+  Throw* NewThrow(Expression* exception, int pos,
+                  int32_t continuation_pos = kNoSourcePosition) {
+    return new (zone_) Throw(exception, pos, continuation_pos);
   }
 
   FunctionLiteral* NewFunctionLiteral(

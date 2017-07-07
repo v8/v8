@@ -1736,7 +1736,9 @@ void Parser::ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {
 }
 
 Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
+                                       const SourceRange& catch_range,
                                        Block* finally_block,
+                                       const SourceRange& finally_range,
                                        const CatchInfo& catch_info, int pos) {
   // Simplify the AST nodes by converting:
   //   'try B0 catch B1 finally B2'
@@ -1748,7 +1750,8 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
     DCHECK_NOT_NULL(catch_info.scope);
     TryCatchStatement* statement;
     statement = factory()->NewTryCatchStatement(try_block, catch_info.scope,
-                                                catch_block, kNoSourcePosition);
+                                                catch_block, kNoSourcePosition,
+                                                catch_range);
 
     try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
     try_block->statements()->Add(statement, zone());
@@ -1764,10 +1767,11 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
     DCHECK_NULL(finally_block);
     DCHECK_NOT_NULL(catch_info.scope);
     return factory()->NewTryCatchStatement(try_block, catch_info.scope,
-                                           catch_block, pos);
+                                           catch_block, pos, catch_range);
   } else {
     DCHECK_NOT_NULL(finally_block);
-    return factory()->NewTryFinallyStatement(try_block, finally_block, pos);
+    return factory()->NewTryFinallyStatement(try_block, finally_block, pos,
+                                             finally_range);
   }
 }
 

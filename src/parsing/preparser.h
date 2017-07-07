@@ -1094,7 +1094,8 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {}
   V8_INLINE PreParserStatement RewriteTryStatement(
       PreParserStatement try_block, PreParserStatement catch_block,
-      PreParserStatement finally_block, const CatchInfo& catch_info, int pos) {
+      const SourceRange& catch_range, PreParserStatement finally_block,
+      const SourceRange& finally_range, const CatchInfo& catch_info, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -1636,7 +1637,8 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatement NewThrowStatement(PreParserExpression exception,
-                                                 int pos) {
+                                                 int pos,
+                                                 int32_t continuation_pos) {
     return PreParserStatement::Jump();
   }
 
