@@ -5830,7 +5830,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
   scope()->set_end_position(scanner()->location().end_pos);
   inner_scope->set_end_position(scanner()->location().end_pos);
   if (bound_names_are_lexical && for_info->bound_names.length() > 0 &&
-      (is_resumable() || function_state_->contains_function_or_eval())) {
+      function_state_->contains_function_or_eval()) {
     scope()->set_is_hidden();
     return impl()->DesugarLexicalBindingsInForStatement(
         loop, init, cond, next, body, body_range, inner_scope, *for_info,
