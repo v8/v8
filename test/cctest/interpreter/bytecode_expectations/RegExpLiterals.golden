@@ -52,7 +52,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(6), U8(0),
                 B(Star), R(1),
-  /*   47 E> */ B(LdaNamedProperty), R(1), U8(1), U8(7),
+  /*   48 E> */ B(LdaNamedProperty), R(1), U8(1), U8(7),
                 B(Star), R(0),
                 B(LdaConstant), U8(2),
                 B(Star), R(2),
