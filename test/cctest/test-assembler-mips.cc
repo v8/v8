@@ -6161,30 +6161,75 @@ uint32_t run_Ins(uint32_t imm, uint32_t source, uint16_t pos, uint16_t size) {
 TEST(Ins) {
   CcTest::InitializeVM();
 
-  // Test Ins macro-instruction.
+  //       run_Ins(rt_value, rs_value, pos, size), expected_result
+  CHECK_EQ(run_Ins(0x55555555, 0xabcdef01, 31, 1), 0xd5555555);
+  CHECK_EQ(run_Ins(0x55555555, 0xabcdef02, 30, 2), 0x95555555);
+  CHECK_EQ(run_Ins(0x01234567, 0xfabcdeff, 0, 32), 0xfabcdeff);
 
-  struct TestCaseIns {
-    uint32_t imm;
-    uint32_t source;
-    uint16_t pos;
-    uint16_t size;
-    uint32_t expected_res;
-  };
+  // Results with positive sign.
+  CHECK_EQ(run_Ins(0x55555550, 0x80000001, 0, 1), 0x55555551);
+  CHECK_EQ(run_Ins(0x55555555, 0x40000001, 0, 32), 0x40000001);
+  CHECK_EQ(run_Ins(0x55555555, 0x20000001, 1, 31), 0x40000003);
+  CHECK_EQ(run_Ins(0x55555555, 0x80700001, 8, 24), 0x70000155);
+  CHECK_EQ(run_Ins(0x55555555, 0x80007001, 16, 16), 0x70015555);
+  CHECK_EQ(run_Ins(0x55555555, 0x80000071, 24, 8), 0x71555555);
+  CHECK_EQ(run_Ins(0x75555555, 0x40000000, 31, 1), 0x75555555);
 
-  // We load imm to v0 and source to t0 and then call
-  // Ins(v0, t0, pos, size) to test cases listed below.
-  struct TestCaseIns tc[] = {
-      // imm, source, pos, size, expected_res
-      {0x55555555, 0xabcdef01, 31, 1, 0xd5555555},
-      {0x55555555, 0xabcdef02, 30, 2, 0x95555555},
-      {0x01234567, 0xfabcdeff, 0, 32, 0xfabcdeff},
-  };
+  // Results with negative sign.
+  CHECK_EQ(run_Ins(0x85555550, 0x80000001, 0, 1), 0x85555551);
+  CHECK_EQ(run_Ins(0x55555555, 0x80000001, 0, 32), 0x80000001);
+  CHECK_EQ(run_Ins(0x55555555, 0x40000001, 1, 31), 0x80000003);
+  CHECK_EQ(run_Ins(0x55555555, 0x80800001, 8, 24), 0x80000155);
+  CHECK_EQ(run_Ins(0x55555555, 0x80008001, 16, 16), 0x80015555);
+  CHECK_EQ(run_Ins(0x55555555, 0x80000081, 24, 8), 0x81555555);
+  CHECK_EQ(run_Ins(0x75555555, 0x00000001, 31, 1), 0xf5555555);
+}
 
-  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseIns);
-  for (size_t i = 0; i < nr_test_cases; ++i) {
-    CHECK_EQ(tc[i].expected_res,
-             run_Ins(tc[i].imm, tc[i].source, tc[i].pos, tc[i].size));
-  }
+uint32_t run_Ext(uint32_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, 0xffffffff);
+  __ li(t0, source);
+  __ Ext(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Ext) {
+  CcTest::InitializeVM();
+
+  // Source values with negative sign.
+  //       run_Ext(rs_value, pos, size), expected_result
+  CHECK_EQ(run_Ext(0x80000001, 0, 1), 0x00000001);
+  CHECK_EQ(run_Ext(0x80000001, 0, 32), 0x80000001);
+  CHECK_EQ(run_Ext(0x80000002, 1, 31), 0x40000001);
+  CHECK_EQ(run_Ext(0x80000100, 8, 24), 0x00800001);
+  CHECK_EQ(run_Ext(0x80010000, 16, 16), 0x00008001);
+  CHECK_EQ(run_Ext(0x81000000, 24, 8), 0x00000081);
+  CHECK_EQ(run_Ext(0x80000000, 31, 1), 0x00000001);
+
+  // Source values with positive sign.
+  CHECK_EQ(run_Ext(0x00000001, 0, 1), 0x00000001);
+  CHECK_EQ(run_Ext(0x40000001, 0, 32), 0x40000001);
+  CHECK_EQ(run_Ext(0x40000002, 1, 31), 0x20000001);
+  CHECK_EQ(run_Ext(0x40000100, 8, 24), 0x00400001);
+  CHECK_EQ(run_Ext(0x40010000, 16, 16), 0x00004001);
+  CHECK_EQ(run_Ext(0x41000000, 24, 8), 0x00000041);
+  CHECK_EQ(run_Ext(0x40000000, 31, 1), 0x00000000);
 }
 
 struct TestCaseMsaI5 {

@@ -6440,6 +6440,122 @@ TEST(Dins) {
   }
 }
 
+uint64_t run_Ins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, imm);
+  __ li(t0, source);
+  __ Ins(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Ins) {
+  CcTest::InitializeVM();
+
+  //       run_Ins(rt_value, rs_value, pos, size),
+  //       expected_result
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffffabcdef01, 31, 1),
+           0xffffffffd5555555);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffffabcdef02, 30, 2),
+           0xffffffff95555555);
+  CHECK_EQ(run_Ins(0x0000000001234567, 0xfffffffffabcdeff, 0, 32),
+           0xfffffffffabcdeff);
+
+  // Results with positive sign.
+  CHECK_EQ(run_Ins(0x0000000055555550, 0xffffffff80000001, 0, 1),
+           0x0000000055555551);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0x0000000040000001, 0, 32),
+           0x0000000040000001);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0x0000000020000001, 1, 31),
+           0x0000000040000003);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80700001, 8, 24),
+           0x0000000070000155);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80007001, 16, 16),
+           0x0000000070015555);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80000071, 24, 8),
+           0x0000000071555555);
+  CHECK_EQ(run_Ins(0x0000000075555555, 0x0000000040000000, 31, 1),
+           0x0000000075555555);
+
+  // Results with negative sign.
+  CHECK_EQ(run_Ins(0xffffffff85555550, 0xffffffff80000001, 0, 1),
+           0xffffffff85555551);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80000001, 0, 32),
+           0xffffffff80000001);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0x0000000040000001, 1, 31),
+           0xffffffff80000003);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80800001, 8, 24),
+           0xffffffff80000155);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80008001, 16, 16),
+           0xffffffff80015555);
+  CHECK_EQ(run_Ins(0x0000000055555555, 0xffffffff80000081, 24, 8),
+           0xffffffff81555555);
+  CHECK_EQ(run_Ins(0x0000000075555555, 0x0000000000000001, 31, 1),
+           0xfffffffff5555555);
+}
+
+uint64_t run_Ext(uint64_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, 0xffffffffffffffff);
+  __ li(t0, source);
+  __ Ext(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Ext) {
+  CcTest::InitializeVM();
+
+  // Source values with negative sign.
+  //       run_Ext(rs_value, pos, size), expected_result
+  CHECK_EQ(run_Ext(0xffffffff80000001, 0, 1), 0x0000000000000001);
+  CHECK_EQ(run_Ext(0xffffffff80000001, 0, 32), 0xffffffff80000001);
+  CHECK_EQ(run_Ext(0xffffffff80000002, 1, 31), 0x0000000040000001);
+  CHECK_EQ(run_Ext(0xffffffff80000100, 8, 24), 0x0000000000800001);
+  CHECK_EQ(run_Ext(0xffffffff80010000, 16, 16), 0x0000000000008001);
+  CHECK_EQ(run_Ext(0xffffffff81000000, 24, 8), 0x0000000000000081);
+  CHECK_EQ(run_Ext(0xffffffff80000000, 31, 1), 0x0000000000000001);
+
+  // Source values with positive sign.
+  CHECK_EQ(run_Ext(0x0000000000000001, 0, 1), 0x0000000000000001);
+  CHECK_EQ(run_Ext(0x0000000040000001, 0, 32), 0x0000000040000001);
+  CHECK_EQ(run_Ext(0x0000000040000002, 1, 31), 0x0000000020000001);
+  CHECK_EQ(run_Ext(0x0000000040000100, 8, 24), 0x0000000000400001);
+  CHECK_EQ(run_Ext(0x0000000040010000, 16, 16), 0x0000000000004001);
+  CHECK_EQ(run_Ext(0x0000000041000000, 24, 8), 0x0000000000000041);
+  CHECK_EQ(run_Ext(0x0000000040000000, 31, 1), 0x0000000000000000);
+}
+
 TEST(MSA_fill_copy) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
