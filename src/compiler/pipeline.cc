@@ -807,6 +807,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   }
 
   if (!pipeline_.ScheduleAndSelectInstructions(&linkage_, true)) return FAILED;
+  pipeline_.AssembleCode(&linkage_);
   return SUCCEEDED;
 }
 
@@ -816,7 +817,6 @@ size_t PipelineWasmCompilationJob::AllocatedMemory() const {
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::FinalizeJobImpl() {
-  pipeline_.AssembleCode(&linkage_);
   pipeline_.FinalizeCode();
   return SUCCEEDED;
 }
