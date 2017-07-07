@@ -1723,31 +1723,13 @@ void Heap::Scavenge() {
   new_space_->Flip();
   new_space_->ResetAllocationInfo();
 
-  // We need to sweep newly copied objects which can be either in the
-  // to space or promoted to the old generation.  For to-space
-  // objects, we treat the bottom of the to space as a queue.  Newly
-  // copied and unswept objects lie between a 'front' mark and the
-  // allocation pointer.
-  //
-  // Promoted objects can go into various old-generation spaces, and
-  // can be allocated internally in the spaces (from the free list).
-  // We treat the top of the to space as a queue of addresses of
-  // promoted objects.  The addresses of newly promoted and unswept
-  // objects lie between a 'front' mark and a 'rear' mark that is
-  // updated as a side effect of promoting an object.
-  //
-  // There is guaranteed to be enough room at the top of the to space
-  // for the addresses of promoted objects: every object promoted
-  // frees up its size in bytes from the top of the new space, and
-  // objects are at least one pointer in size.
-  Address new_space_front = new_space_->ToSpaceStart();
-
   const int kScavengerTasks = 1;
   const int kMainThreadId = 0;
+  CopiedList copied_list(kScavengerTasks);
   PromotionList promotion_list(kScavengerTasks);
   Scavenger scavenger(this, IsLogging(isolate()),
-                      incremental_marking()->IsMarking(), &promotion_list,
-                      kMainThreadId);
+                      incremental_marking()->IsMarking(), &copied_list,
+                      &promotion_list, kMainThreadId);
   RootScavengeVisitor root_scavenge_visitor(this, &scavenger);
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
@@ -1788,7 +1770,7 @@ void Heap::Scavenge() {
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
-    new_space_front = DoScavenge(&scavenger, new_space_front);
+    DoScavenge(&scavenger);
   }
 
   isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
@@ -1796,7 +1778,7 @@ void Heap::Scavenge() {
 
   isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
       &root_scavenge_visitor);
-  new_space_front = DoScavenge(&scavenger, new_space_front);
+  DoScavenge(&scavenger);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -1805,8 +1787,6 @@ void Heap::Scavenge() {
 
   ScavengeWeakObjectRetainer weak_object_retainer(this);
   ProcessYoungWeakReferences(&weak_object_retainer);
-
-  DCHECK(new_space_front == new_space_->top());
 
   // Set age mark.
   new_space_->set_age_mark(new_space_->top());
@@ -2002,43 +1982,38 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
 
-Address Heap::DoScavenge(Scavenger* scavenger, Address new_space_front) {
-  // Threshold when to switch processing the promotion list to avoid allocating
-  // too much backing store in the worklist.
+void Heap::DoScavenge(Scavenger* scavenger) {
+  // Threshold when to switch processing the promotion list to avoid
+  // allocating too much backing store in the worklist.
   const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
   ScavengeVisitor scavenge_visitor(this, scavenger);
   PromotionList::View* promotion_list = scavenger->promotion_list();
+  CopiedRangesList* copied_list = scavenger->copied_list();
+
+  bool done;
   do {
-    SemiSpace::AssertValidRange(new_space_front, new_space_->top());
-    // The addresses new_space_front and new_space_.top() define a
-    // queue of unprocessed copied objects.  Process them until the
-    // queue is empty.
+    done = true;
+    AddressRange range;
     while ((promotion_list->LocalPushSegmentSize() <
             kProcessPromotionListThreshold) &&
-           new_space_front != new_space_->top()) {
-      if (!Page::IsAlignedToPageSize(new_space_front)) {
-        HeapObject* object = HeapObject::FromAddress(new_space_front);
-        new_space_front += scavenge_visitor.Visit(object);
-      } else {
-        new_space_front = Page::FromAllocationAreaAddress(new_space_front)
-                              ->next_page()
-                              ->area_start();
+           copied_list->Pop(&range)) {
+      for (Address current = range.first; current < range.second;) {
+        HeapObject* object = HeapObject::FromAddress(current);
+        int size = object->Size();
+        scavenge_visitor.Visit(object);
+        current += size;
       }
+      done = false;
     }
-
     ObjectAndSize object_and_size;
     while (promotion_list->Pop(&object_and_size)) {
       HeapObject* target = object_and_size.first;
       int size = object_and_size.second;
       DCHECK(!target->IsMap());
       IterateAndScavengePromotedObject(scavenger, target, size);
+      done = false;
     }
-
-    // Take another spin if there are now unswept objects in new space
-    // (there are currently no more unswept promoted objects).
-  } while (new_space_front != new_space_->top());
-
-  return new_space_front;
+  } while (!done);
 }
 
 

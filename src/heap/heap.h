@@ -1783,7 +1783,7 @@ class Heap {
   void Scavenge();
   void EvacuateYoungGeneration();
 
-  Address DoScavenge(Scavenger* scavenger, Address new_space_front);
+  void DoScavenge(Scavenger* scavenger);
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);

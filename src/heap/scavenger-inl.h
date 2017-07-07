@@ -78,6 +78,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
     // Update slot to new target.
     *slot = target;
 
+    copied_list()->Insert(target, object_size);
     heap()->IncrementSemiSpaceCopiedObjectSize(object_size);
     return true;
   }

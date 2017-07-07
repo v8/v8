@@ -12,17 +12,67 @@
 namespace v8 {
 namespace internal {
 
+static const int kCopiedListSegmentSize = 64;
 static const int kPromotionListSegmentSize = 64;
 
+using AddressRange = std::pair<Address, Address>;
+using CopiedList = Worklist<AddressRange, kCopiedListSegmentSize>;
 using ObjectAndSize = std::pair<HeapObject*, int>;
 using PromotionList = Worklist<ObjectAndSize, kPromotionListSegmentSize>;
+
+// A list of copied ranges. Keeps the last consecutive range local and announces
+// all other ranges to a global work list.
+class CopiedRangesList {
+ public:
+  CopiedRangesList(CopiedList* copied_list, int task_id)
+      : current_start_(nullptr),
+        current_end_(nullptr),
+        copied_list_(copied_list, task_id) {}
+
+  ~CopiedRangesList() {
+    CHECK_NULL(current_start_);
+    CHECK_NULL(current_end_);
+  }
+
+  void Insert(HeapObject* object, int size) {
+    const Address object_address = object->address();
+    if (current_end_ != object_address) {
+      if (current_start_ != nullptr) {
+        copied_list_.Push(AddressRange(current_start_, current_end_));
+      }
+      current_start_ = object_address;
+      current_end_ = current_start_ + size;
+      return;
+    }
+    DCHECK_EQ(current_end_, object_address);
+    current_end_ += size;
+    return;
+  }
+
+  bool Pop(AddressRange* entry) {
+    if (copied_list_.Pop(entry)) {
+      return true;
+    } else if (current_start_ != nullptr) {
+      *entry = AddressRange(current_start_, current_end_);
+      current_start_ = current_end_ = nullptr;
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  Address current_start_;
+  Address current_end_;
+  CopiedList::View copied_list_;
+};
 
 class Scavenger {
  public:
   Scavenger(Heap* heap, bool is_logging, bool is_incremental_marking,
-            PromotionList* promotion_list, int task_id)
+            CopiedList* copied_list, PromotionList* promotion_list, int task_id)
       : heap_(heap),
         promotion_list_(promotion_list, task_id),
+        copied_list_(copied_list, task_id),
         is_logging_(is_logging),
         is_incremental_marking_(is_incremental_marking) {}
 
@@ -36,6 +86,7 @@ class Scavenger {
                                                    Address slot_address);
   inline Heap* heap() { return heap_; }
   inline PromotionList::View* promotion_list() { return &promotion_list_; }
+  inline CopiedRangesList* copied_list() { return &copied_list_; }
 
  private:
   V8_INLINE HeapObject* MigrateObject(HeapObject* source, HeapObject* target,
@@ -68,6 +119,7 @@ class Scavenger {
 
   Heap* const heap_;
   PromotionList::View promotion_list_;
+  CopiedRangesList copied_list_;
   bool is_logging_;
   bool is_incremental_marking_;
 };
