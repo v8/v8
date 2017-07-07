@@ -197,7 +197,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony public fields in class literals")  \
   V(harmony_async_iteration, "harmony async iteration")               \
-  V(harmony_dynamic_import, "harmony dynamic import")                 \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 #ifdef V8_INTL_SUPPORT
@@ -223,7 +222,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
     "harmony invalid escapes in tagged template literals")              \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
-    "constructor")
+    "constructor")                                                      \
+  V(harmony_dynamic_import, "harmony dynamic import")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                           \
