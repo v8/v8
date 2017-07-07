@@ -932,68 +932,75 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Clz(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMipsCtz: {
-      Register reg1 = kScratchReg;
-      Register reg2 = kScratchReg2;
-      Label skip_for_zero;
-      Label end;
-      // Branch if the operand is zero
-      __ Branch(&skip_for_zero, eq, i.InputRegister(0), Operand(zero_reg));
-      // Find the number of bits before the last bit set to 1.
-      __ Subu(reg2, zero_reg, i.InputRegister(0));
-      __ And(reg2, reg2, i.InputRegister(0));
-      __ clz(reg2, reg2);
-      // Get the number of bits after the last bit set to 1.
-      __ li(reg1, 0x1F);
-      __ Subu(i.OutputRegister(), reg1, reg2);
-      __ Branch(&end);
-      __ bind(&skip_for_zero);
-      // If the operand is zero, return word length as the result.
-      __ li(i.OutputRegister(), 0x20);
-      __ bind(&end);
+      Register src = i.InputRegister(0);
+      Register dst = i.OutputRegister();
+      if (IsMipsArchVariant(kMips32r6)) {
+        // We don't have an instruction to count the number of trailing zeroes.
+        // Start by flipping the bits end-for-end so we can count the number of
+        // leading zeroes instead.
+        __ rotr(dst, src, 16);
+        __ wsbh(dst, dst);
+        __ bitswap(dst, dst);
+        __ Clz(dst, dst);
+      } else {
+        // Convert trailing zeroes to trailing ones, and bits to their left
+        // to zeroes.
+        __ Addu(kScratchReg, src, -1);
+        __ Xor(dst, kScratchReg, src);
+        __ And(dst, dst, kScratchReg);
+        // Count number of leading zeroes.
+        __ Clz(dst, dst);
+        // Subtract number of leading zeroes from 32 to get number of trailing
+        // ones. Remember that the trailing ones were formerly trailing zeroes.
+        __ li(kScratchReg, 32);
+        __ Subu(dst, kScratchReg, dst);
+      }
     } break;
     case kMipsPopcnt: {
-      Register reg1 = kScratchReg;
-      Register reg2 = kScratchReg2;
-      uint32_t m1 = 0x55555555;
-      uint32_t m2 = 0x33333333;
-      uint32_t m4 = 0x0f0f0f0f;
-      uint32_t m8 = 0x00ff00ff;
-      uint32_t m16 = 0x0000ffff;
-
-      // Put count of ones in every 2 bits into those 2 bits.
-      __ li(at, m1);
-      __ srl(reg1, i.InputRegister(0), 1);
-      __ And(reg2, i.InputRegister(0), at);
-      __ And(reg1, reg1, at);
-      __ addu(reg1, reg1, reg2);
-
-      // Put count of ones in every 4 bits into those 4 bits.
-      __ li(at, m2);
-      __ srl(reg2, reg1, 2);
-      __ And(reg2, reg2, at);
-      __ And(reg1, reg1, at);
-      __ addu(reg1, reg1, reg2);
-
-      // Put count of ones in every 8 bits into those 8 bits.
-      __ li(at, m4);
-      __ srl(reg2, reg1, 4);
-      __ And(reg2, reg2, at);
-      __ And(reg1, reg1, at);
-      __ addu(reg1, reg1, reg2);
-
-      // Put count of ones in every 16 bits into those 16 bits.
-      __ li(at, m8);
-      __ srl(reg2, reg1, 8);
-      __ And(reg2, reg2, at);
-      __ And(reg1, reg1, at);
-      __ addu(reg1, reg1, reg2);
-
-      // Calculate total number of ones.
-      __ li(at, m16);
-      __ srl(reg2, reg1, 16);
-      __ And(reg2, reg2, at);
-      __ And(reg1, reg1, at);
-      __ addu(i.OutputRegister(), reg1, reg2);
+      // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+      //
+      // A generalization of the best bit counting method to integers of
+      // bit-widths up to 128 (parameterized by type T) is this:
+      //
+      // v = v - ((v >> 1) & (T)~(T)0/3);                           // temp
+      // v = (v & (T)~(T)0/15*3) + ((v >> 2) & (T)~(T)0/15*3);      // temp
+      // v = (v + (v >> 4)) & (T)~(T)0/255*15;                      // temp
+      // c = (T)(v * ((T)~(T)0/255)) >> (sizeof(T) - 1) * BITS_PER_BYTE; //count
+      //
+      // For comparison, for 32-bit quantities, this algorithm can be executed
+      // using 20 MIPS instructions (the calls to LoadConst32() generate two
+      // machine instructions each for the values being used in this algorithm).
+      // A(n unrolled) loop-based algorithm requires 25 instructions.
+      //
+      // For 64-bit quantities, this algorithm gets executed twice, (once
+      // for in_lo, and again for in_hi), but saves a few instructions
+      // because the mask values only have to be loaded once. Using this
+      // algorithm the count for a 64-bit operand can be performed in 29
+      // instructions compared to a loop-based algorithm which requires 47
+      // instructions.
+      Register src = i.InputRegister(0);
+      Register dst = i.OutputRegister();
+      uint32_t B0 = 0x55555555;     // (T)~(T)0/3
+      uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
+      uint32_t B2 = 0x0f0f0f0f;     // (T)~(T)0/255*15
+      uint32_t value = 0x01010101;  // (T)~(T)0/255
+      uint32_t shift = 24;          // (sizeof(T) - 1) * BITS_PER_BYTE
+      __ srl(kScratchReg, src, 1);
+      __ li(kScratchReg2, B0);
+      __ And(kScratchReg, kScratchReg, kScratchReg2);
+      __ Subu(kScratchReg, src, kScratchReg);
+      __ li(kScratchReg2, B1);
+      __ And(dst, kScratchReg, kScratchReg2);
+      __ srl(kScratchReg, kScratchReg, 2);
+      __ And(kScratchReg, kScratchReg, kScratchReg2);
+      __ Addu(kScratchReg, dst, kScratchReg);
+      __ srl(dst, kScratchReg, 4);
+      __ Addu(dst, dst, kScratchReg);
+      __ li(kScratchReg2, B2);
+      __ And(dst, dst, kScratchReg2);
+      __ li(kScratchReg, value);
+      __ Mul(dst, dst, kScratchReg);
+      __ srl(dst, dst, shift);
     } break;
     case kMipsShl:
       if (instr->InputAt(1)->IsRegister()) {
