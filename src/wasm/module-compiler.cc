@@ -1318,7 +1318,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         break;
       }
       case kExternalTable: {
-        if (!WasmJs::IsWasmTableObject(isolate_, value)) {
+        if (!value->IsWasmTableObject()) {
           ReportLinkError("table import requires a WebAssembly.Table", index,
                           module_name, import_name);
           return -1;
@@ -1390,13 +1390,12 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         // Validation should have failed if more than one memory object was
         // provided.
         DCHECK(!instance->has_memory_object());
-        if (!WasmJs::IsWasmMemoryObject(isolate_, value)) {
+        if (!value->IsWasmMemoryObject()) {
           ReportLinkError("memory import must be a WebAssembly.Memory object",
                           index, module_name, import_name);
           return -1;
         }
         auto memory = Handle<WasmMemoryObject>::cast(value);
-        DCHECK(WasmJs::IsWasmMemoryObject(isolate_, memory));
         instance->set_memory_object(*memory);
         memory_ = Handle<JSArrayBuffer>(memory->array_buffer(), isolate_);
         uint32_t imported_cur_pages = static_cast<uint32_t>(

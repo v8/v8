@@ -162,8 +162,6 @@ Handle<WasmModuleObject> WasmModuleObject::New(
       isolate->native_context()->wasm_module_constructor());
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
-  Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
-  Object::SetProperty(module_object, module_sym, module_object, STRICT).Check();
   module_object->set_compiled_module(*compiled_module);
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
@@ -190,8 +188,6 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
 
   Handle<FixedArray> dispatch_tables = isolate->factory()->NewFixedArray(0);
   table_obj->set_dispatch_tables(*dispatch_tables);
-  Handle<Symbol> table_sym(isolate->native_context()->wasm_table_sym());
-  Object::SetProperty(table_obj, table_sym, table_obj, STRICT).Check();
   return Handle<WasmTableObject>::cast(table_obj);
 }
 
@@ -327,8 +323,6 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   }
   memory_obj->set_array_buffer(*buffer);
   memory_obj->set_maximum_pages(maximum);
-  Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
-  Object::SetProperty(memory_obj, memory_sym, memory_obj, STRICT).Check();
   return Handle<WasmMemoryObject>::cast(memory_obj);
 }
 
@@ -436,9 +430,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<JSObject> instance_object =
       isolate->factory()->NewJSObject(instance_cons, TENURED);
 
-  Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
-  Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
-      .Check();
   Handle<WasmInstanceObject> instance(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
