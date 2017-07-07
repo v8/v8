@@ -1544,6 +1544,7 @@ v8_source_set("v8_base") {
     "src/flag-definitions.h",
     "src/flags.cc",
     "src/flags.h",
+    "src/float.h",
     "src/frames-inl.h",
     "src/frames.cc",
     "src/frames.h",

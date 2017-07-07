@@ -12,6 +12,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/double.h"
+#include "src/float.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {
@@ -145,7 +146,7 @@ class OutOfLineLoadFloat final : public OutOfLineCode {
 
   void Generate() final {
     // Compute sqrtf(-1.0f), which results in a quiet single-precision NaN.
-    __ vmov(result_, -1.0f);
+    __ vmov(result_, Float32(-1.0f));
     __ vsqrt(result_, result_);
   }
 
@@ -2358,11 +2359,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // The shuffle lane mask is a byte mask, materialize in kScratchQuadReg.
       int scratch_s_base = kScratchQuadReg.code() * 4;
       for (int j = 0; j < 4; j++) {
-        int32_t four_lanes = i.InputInt32(2 + j);
+        uint32_t four_lanes = i.InputUint32(2 + j);
         // Ensure byte indices are in [0, 31] so masks are never NaNs.
         four_lanes &= 0x1F1F1F1F;
         __ vmov(SwVfpRegister::from_code(scratch_s_base + j),
-                bit_cast<float>(four_lanes));
+                Float32(four_lanes));
       }
       NeonListOperand table(table_base, table_size);
       if (!dst.is(src0) && !dst.is(src1)) {
@@ -2977,7 +2978,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ str(ip, dst);
       } else {
         SwVfpRegister dst = g.ToFloatRegister(destination);
-        __ vmov(dst, src.ToFloat32());
+        __ vmov(dst, Float32(src.ToFloat32AsInt()));
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());

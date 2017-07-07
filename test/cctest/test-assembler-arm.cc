@@ -317,9 +317,9 @@ TEST(4) {
     __ vstr(d0, r4, offsetof(T, n));
 
     // Test vmov for single-precision immediates.
-    __ vmov(s0, 0.25f);
+    __ vmov(s0, Float32(0.25f));
     __ vstr(s0, r4, offsetof(T, o));
-    __ vmov(s0, -16.0f);
+    __ vmov(s0, Float32(-16.0f));
     __ vstr(s0, r4, offsetof(T, p));
 
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
@@ -1420,10 +1420,10 @@ TEST(15) {
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
     // vcvt for q-registers.
-    __ vmov(s0, -1.5);
-    __ vmov(s1, -1);
-    __ vmov(s2, 1);
-    __ vmov(s3, 1.5);
+    __ vmov(s0, Float32(-1.5f));
+    __ vmov(s1, Float32(-1.0f));
+    __ vmov(s2, Float32(1.0f));
+    __ vmov(s3, Float32(1.5f));
     __ vcvt_s32_f32(q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcvt_s32_f32))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
@@ -1456,7 +1456,7 @@ TEST(15) {
     __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
     // vdup (from scalar).
-    __ vmov(s0, -1.0);
+    __ vmov(s0, Float32(-1.0f));
     __ vdup(Neon32, q1, d0, 0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vdupf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
@@ -1467,10 +1467,10 @@ TEST(15) {
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
     // vabs (float).
-    __ vmov(s0, -1.0);
-    __ vmov(s1, -0.0);
-    __ vmov(s2, 0.0);
-    __ vmov(s3, 1.0);
+    __ vmov(s0, Float32(-1.0f));
+    __ vmov(s1, Float32(-0.0f));
+    __ vmov(s2, Float32(0.0f));
+    __ vmov(s3, Float32(1.0f));
     __ vabs(q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vabsf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
@@ -1532,90 +1532,90 @@ TEST(15) {
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
     // vmin (float).
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
-    __ vmov(s4, 1.0);
+    __ vmov(s4, Float32(1.0f));
     __ vdup(Neon32, q1, d2, 0);
     __ vmin(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vminf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vmax (float).
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
-    __ vmov(s4, 1.0);
+    __ vmov(s4, Float32(1.0f));
     __ vdup(Neon32, q1, d2, 0);
     __ vmax(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmaxf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vadd (float).
-    __ vmov(s4, 1.0);
+    __ vmov(s4, Float32(1.0f));
     __ vdup(Neon32, q0, d2, 0);
     __ vdup(Neon32, q1, d2, 0);
     __ vadd(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vaddf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vpadd (float).
-    __ vmov(s0, 1.0);
-    __ vmov(s1, 2.0);
-    __ vmov(s2, 3.0);
-    __ vmov(s3, 4.0);
+    __ vmov(s0, Float32(1.0f));
+    __ vmov(s1, Float32(2.0f));
+    __ vmov(s2, Float32(3.0f));
+    __ vmov(s3, Float32(4.0f));
     __ vpadd(d2, d0, d1);
     __ vstr(d2, r0, offsetof(T, vpaddf));
     // vsub (float).
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
-    __ vmov(s4, 1.0);
+    __ vmov(s4, Float32(1.0f));
     __ vdup(Neon32, q1, d2, 0);
     __ vsub(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vsubf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vmul (float).
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
     __ vdup(Neon32, q1, d2, 0);
     __ vmul(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmulf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vrecpe.
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
     __ vrecpe(q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrecpe))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vrecps.
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
-    __ vmov(s4, 1.5);
+    __ vmov(s4, Float32(1.5f));
     __ vdup(Neon32, q1, d2, 0);
     __ vrecps(q1, q0, q1);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrecps))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vrsqrte.
-    __ vmov(s4, 4.0);
+    __ vmov(s4, Float32(4.0f));
     __ vdup(Neon32, q0, d2, 0);
     __ vrsqrte(q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrsqrte))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vrsqrts.
-    __ vmov(s4, 2.0);
+    __ vmov(s4, Float32(2.0f));
     __ vdup(Neon32, q0, d2, 0);
-    __ vmov(s4, 2.5);
+    __ vmov(s4, Float32(2.5f));
     __ vdup(Neon32, q1, d2, 0);
     __ vrsqrts(q1, q0, q1);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrsqrts))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vceq (float).
-    __ vmov(s4, 1.0);
+    __ vmov(s4, Float32(1.0f));
     __ vdup(Neon32, q0, d2, 0);
     __ vdup(Neon32, q1, d2, 0);
     __ vceq(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vceqf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vcge (float).
-    __ vmov(s0, 1.0);
-    __ vmov(s1, -1.0);
-    __ vmov(s2, -0.0);
-    __ vmov(s3, 0.0);
+    __ vmov(s0, Float32(1.0f));
+    __ vmov(s1, Float32(-1.0f));
+    __ vmov(s2, Float32(-0.0f));
+    __ vmov(s3, Float32(0.0f));
     __ vdup(Neon32, q1, d1, 1);
     __ vcge(q2, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgef))));
@@ -3216,8 +3216,8 @@ TEST(ARMv8_vsel) {
     //                ResultsF64* results_f64);
     __ msr(CPSR_f, Operand(r0));
 
-    __ vmov(s1, kResultPass);
-    __ vmov(s2, kResultFail);
+    __ vmov(s1, Float32(kResultPass));
+    __ vmov(s2, Float32(kResultFail));
 
     __ vsel(eq, s0, s1, s2);
     __ vstr(s0, r1, offsetof(ResultsF32, vseleq_));

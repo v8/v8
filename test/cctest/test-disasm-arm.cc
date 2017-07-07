@@ -33,6 +33,7 @@
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/double.h"
+#include "src/float.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
@@ -630,9 +631,9 @@ TEST(Vfp) {
     COMPARE(vmov(d2, Double(-13.0)),
             "eeba2b0a       vmov.f64 d2, #-13");
 
-    COMPARE(vmov(s1, -1.0f),
+    COMPARE(vmov(s1, Float32(-1.0f)),
             "eeff0a00       vmov.f32 s1, #-1");
-    COMPARE(vmov(s3, 13.0f),
+    COMPARE(vmov(s3, Float32(13.0f)),
             "eef21a0a       vmov.f32 s3, #13");
 
     COMPARE(vmov(d0, VmovIndexLo, r0),

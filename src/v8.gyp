@@ -984,6 +984,7 @@
         'flag-definitions.h',
         'flags.cc',
         'flags.h',
+        'float.h',
         'frames-inl.h',
         'frames.cc',
         'frames.h',
