@@ -4753,19 +4753,43 @@ void Simulator::DecodeTypeMsaVec() {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaVECMask;
-  switch (opcode) {
-    case AND_V:
-    case OR_V:
-    case NOR_V:
-    case XOR_V:
-    case BMNZ_V:
-    case BMZ_V:
-    case BSEL_V:
-      UNIMPLEMENTED();
-      break;
-    default:
-      UNREACHABLE();
+  msa_reg_t wd, ws, wt;
+
+  get_msa_register(instr_.WsValue(), ws.w);
+  get_msa_register(instr_.WtValue(), wt.w);
+  if (opcode == BMNZ_V || opcode == BMZ_V || opcode == BSEL_V) {
+    get_msa_register(instr_.WdValue(), wd.w);
   }
+
+  for (int i = 0; i < kMSALanesWord; i++) {
+    switch (opcode) {
+      case AND_V:
+        wd.w[i] = ws.w[i] & wt.w[i];
+        break;
+      case OR_V:
+        wd.w[i] = ws.w[i] | wt.w[i];
+        break;
+      case NOR_V:
+        wd.w[i] = ~(ws.w[i] | wt.w[i]);
+        break;
+      case XOR_V:
+        wd.w[i] = ws.w[i] ^ wt.w[i];
+        break;
+      case BMNZ_V:
+        wd.w[i] = (wt.w[i] & ws.w[i]) | (~wt.w[i] & wd.w[i]);
+        break;
+      case BMZ_V:
+        wd.w[i] = (~wt.w[i] & ws.w[i]) | (wt.w[i] & wd.w[i]);
+        break;
+      case BSEL_V:
+        wd.w[i] = (~wd.w[i] & ws.w[i]) | (wd.w[i] & wt.w[i]);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  set_msa_register(instr_.WdValue(), wd.w);
+  TraceMSARegWr(wd.d);
 }
 
 void Simulator::DecodeTypeMsa2R() {

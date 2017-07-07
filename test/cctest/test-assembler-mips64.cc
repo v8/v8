@@ -7757,4 +7757,109 @@ TEST(MSA_nloc) {
   }
 }
 
+struct TestCaseMsaVector {
+  uint64_t wd_lo;
+  uint64_t wd_hi;
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t wt_lo;
+  uint64_t wt_hi;
+};
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_vector(struct TestCaseMsaVector* input,
+                    InstFunc GenerateVectorInstructionFunc,
+                    OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+#define LOAD_W_REG(lo, hi, w_reg) \
+  __ li(t0, lo);                  \
+  __ li(t1, hi);                  \
+  __ insert_d(w_reg, 0, t0);      \
+  __ insert_d(w_reg, 1, t1)
+
+  LOAD_W_REG(input->ws_lo, input->ws_hi, w0);
+  LOAD_W_REG(input->wt_lo, input->wt_hi, w2);
+  LOAD_W_REG(input->wd_lo, input->wd_hi, w4);
+#undef LOAD_W_REG
+
+  GenerateVectorInstructionFunc(assm);
+
+  __ copy_u_w(t2, w4, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w4, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w4, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w4, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input->wd_lo, input->ws_lo, input->wt_lo),
+           res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input->wd_hi, input->ws_hi, input->wt_hi),
+           res.d[1]);
+}
+
+TEST(MSA_vector) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaVector tc[] = {
+      // wd_lo, wd_hi, ws_lo, ws_hi, wt_lo, wt_hi
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xdcd39d91f9057627,
+       0x64be4f6dbe9caa51, 0x6b23de1a687d9cb9, 0x49547aad691da4ca},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x401614523d830549,
+       0xd7c46d613f50eddd, 0x52284cbc60a1562b, 0x1756ed510d8849cd},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xd6e2d2ebcb40d72f,
+       0x13a619afce67b079, 0x36cce284343e40f9, 0xb4e8f44fd148bf7f}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaVector); ++i) {
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ and_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ws & wt; });
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ or_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ws | wt; });
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ nor_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ~(ws | wt); });
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ xor_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ws ^ wt; });
+    run_msa_vector(&tc[i], [](MacroAssembler& assm) { __ bmnz_v(w4, w0, w2); },
+                   [](uint64_t wd, uint64_t ws, uint64_t wt) {
+                     return (ws & wt) | (wd & ~wt);
+                   });
+    run_msa_vector(&tc[i], [](MacroAssembler& assm) { __ bmz_v(w4, w0, w2); },
+                   [](uint64_t wd, uint64_t ws, uint64_t wt) {
+                     return (ws & ~wt) | (wd & wt);
+                   });
+    run_msa_vector(&tc[i], [](MacroAssembler& assm) { __ bsel_v(w4, w0, w2); },
+                   [](uint64_t wd, uint64_t ws, uint64_t wt) {
+                     return (ws & ~wd) | (wt & wd);
+                   });
+  }
+}
+
 #undef __
