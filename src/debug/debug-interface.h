@@ -216,6 +216,9 @@ V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
 
 int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 
+v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,
+                                                v8::Local<v8::Object> error);
+
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */

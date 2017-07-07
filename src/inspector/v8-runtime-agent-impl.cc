@@ -135,12 +135,27 @@ class ProtocolPromiseHandler {
         handler->wrapObject(value));
     if (!wrappedValue) return;
 
-    std::unique_ptr<V8StackTraceImpl> stack =
-        handler->m_inspector->debugger()->captureStackTrace(true);
+    String16 message;
+    std::unique_ptr<V8StackTraceImpl> stack;
+    if (value->IsNativeError()) {
+      message =
+          " " +
+          toProtocolString(
+              value->ToDetailString(info.GetIsolate()->GetCurrentContext())
+                  .ToLocalChecked());
+      v8::Local<v8::StackTrace> stackTrace = v8::debug::GetDetailedStackTrace(
+          info.GetIsolate(), v8::Local<v8::Object>::Cast(value));
+      if (!stackTrace.IsEmpty()) {
+        stack = handler->m_inspector->debugger()->createStackTrace(stackTrace);
+      }
+    }
+    if (!stack) {
+      stack = handler->m_inspector->debugger()->captureStackTrace(true);
+    }
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(handler->m_inspector->nextExceptionId())
-            .setText("Uncaught (in promise)")
+            .setText("Uncaught (in promise)" + message)
             .setLineNumber(stack && !stack->isEmpty() ? stack->topLineNumber()
                                                       : 0)
             .setColumnNumber(
