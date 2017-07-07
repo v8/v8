@@ -1022,7 +1022,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Add instance to Memory object
   //--------------------------------------------------------------------------
-  DCHECK(wasm::IsWasmInstance(*instance));
+  DCHECK(instance->IsWasmInstanceObject());
   if (instance->has_memory_object()) {
     instance->memory_object()->AddInstance(isolate_, instance);
   }
@@ -1074,7 +1074,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         compiled_module_->set_weak_wasm_module(
             original.ToHandleChecked()->weak_wasm_module());
       }
-      module_object_->SetEmbedderField(0, *compiled_module_);
+      module_object_->set_compiled_module(*compiled_module_);
       compiled_module_->set_weak_owning_instance(link_to_owning_instance);
       GlobalHandles::MakeWeak(
           global_handle.location(), global_handle.location(),
@@ -1398,7 +1398,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         auto memory = Handle<WasmMemoryObject>::cast(value);
         DCHECK(WasmJs::IsWasmMemoryObject(isolate_, memory));
         instance->set_memory_object(*memory);
-        memory_ = Handle<JSArrayBuffer>(memory->buffer(), isolate_);
+        memory_ = Handle<JSArrayBuffer>(memory->array_buffer(), isolate_);
         uint32_t imported_cur_pages = static_cast<uint32_t>(
             memory_->byte_length()->Number() / WasmModule::kPageSize);
         if (imported_cur_pages < module_->min_mem_pages) {
@@ -1668,7 +1668,6 @@ void InstanceBuilder::ProcessExports(
         } else {
           memory_object =
               Handle<WasmMemoryObject>(instance->memory_object(), isolate_);
-          DCHECK(WasmJs::IsWasmMemoryObject(isolate_, memory_object));
           memory_object->ResetInstancesLink(isolate_);
         }
 

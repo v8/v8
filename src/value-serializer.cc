@@ -449,12 +449,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
-      Map* map = js_object->map();
-      if (!FLAG_wasm_disable_structured_cloning &&
-          map->GetConstructor() ==
-              isolate_->native_context()->wasm_module_constructor()) {
-        return WriteWasmModule(js_object);
-      } else if (JSObject::GetEmbedderFieldCount(map)) {
+      if (JSObject::GetEmbedderFieldCount(js_object->map())) {
         return WriteHostObject(js_object);
       } else {
         return WriteJSObject(js_object);
@@ -479,6 +474,11 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
+    case WASM_MODULE_TYPE:
+      if (!FLAG_wasm_disable_structured_cloning) {
+        // Only write WebAssembly modules if not disabled by a flag.
+        return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
+      }  // fall through to error case
     default:
       ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
       return Nothing<bool>();
@@ -815,11 +815,13 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
+Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   if (delegate_ != nullptr) {
+    // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
     Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
         reinterpret_cast<v8::Isolate*>(isolate_),
-        v8::Local<v8::WasmCompiledModule>::Cast(Utils::ToLocal(object)));
+        v8::Local<v8::WasmCompiledModule>::Cast(
+            Utils::ToLocal(Handle<JSObject>::cast(object))));
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
     uint32_t id = 0;
     if (transfer_id.To(&id)) {
@@ -829,8 +831,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
     }
   }
 
-  Handle<WasmCompiledModule> compiled_part(
-      WasmCompiledModule::cast(object->GetEmbedderField(0)), isolate_);
+  Handle<WasmCompiledModule> compiled_part(object->compiled_module(), isolate_);
   WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));

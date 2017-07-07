@@ -539,25 +539,25 @@ class InterpreterHandle {
 
 InterpreterHandle* GetOrCreateInterpreterHandle(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
-  Handle<Object> handle(debug_info->get(WasmDebugInfo::kInterpreterHandle),
+  Handle<Object> handle(debug_info->get(WasmDebugInfo::kInterpreterHandleIndex),
                         isolate);
   if (handle->IsUndefined(isolate)) {
     InterpreterHandle* cpp_handle = new InterpreterHandle(isolate, *debug_info);
     handle = Managed<InterpreterHandle>::New(isolate, cpp_handle);
-    debug_info->set(WasmDebugInfo::kInterpreterHandle, *handle);
+    debug_info->set(WasmDebugInfo::kInterpreterHandleIndex, *handle);
   }
 
   return Handle<Managed<InterpreterHandle>>::cast(handle)->get();
 }
 
 InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
-  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
+  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandleIndex);
   DCHECK(!handle_obj->IsUndefined(debug_info->GetIsolate()));
   return Managed<InterpreterHandle>::cast(handle_obj)->get();
 }
 
 InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
-  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
+  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandleIndex);
   if (handle_obj->IsUndefined(debug_info->GetIsolate())) return nullptr;
   return Managed<InterpreterHandle>::cast(handle_obj)->get();
 }
@@ -571,13 +571,13 @@ int GetNumFunctions(WasmInstanceObject* instance) {
 
 Handle<FixedArray> GetOrCreateInterpretedFunctions(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
-  Handle<Object> obj(debug_info->get(WasmDebugInfo::kInterpretedFunctions),
+  Handle<Object> obj(debug_info->get(WasmDebugInfo::kInterpretedFunctionsIndex),
                      isolate);
   if (!obj->IsUndefined(isolate)) return Handle<FixedArray>::cast(obj);
 
   Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(
       GetNumFunctions(debug_info->wasm_instance()));
-  debug_info->set(WasmDebugInfo::kInterpretedFunctions, *new_arr);
+  debug_info->set(WasmDebugInfo::kInterpretedFunctionsIndex, *new_arr);
   return new_arr;
 }
 
@@ -622,8 +622,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   DCHECK(!instance->has_debug_info());
   Factory* factory = instance->GetIsolate()->factory();
   Handle<FixedArray> arr = factory->NewFixedArray(kFieldCount, TENURED);
-  arr->set(kWrapperTracerHeader, Smi::kZero);
-  arr->set(kInstance, *instance);
+  arr->set(kInstanceIndex, *instance);
   Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(arr);
   instance->set_debug_info(*debug_info);
   return debug_info;
@@ -636,29 +635,29 @@ WasmInterpreter* WasmDebugInfo::SetupForTesting(
   InterpreterHandle* cpp_handle =
       new InterpreterHandle(isolate, *debug_info, instance);
   Handle<Object> handle = Managed<InterpreterHandle>::New(isolate, cpp_handle);
-  debug_info->set(kInterpreterHandle, *handle);
+  debug_info->set(kInterpreterHandleIndex, *handle);
   return cpp_handle->interpreter();
 }
 
-bool WasmDebugInfo::IsDebugInfo(Object* object) {
+bool WasmDebugInfo::IsWasmDebugInfo(Object* object) {
   if (!object->IsFixedArray()) return false;
   FixedArray* arr = FixedArray::cast(object);
   if (arr->length() != kFieldCount) return false;
-  if (!IsWasmInstance(arr->get(kInstance))) return false;
+  if (!arr->get(kInstanceIndex)->IsWasmInstanceObject()) return false;
   Isolate* isolate = arr->GetIsolate();
-  if (!arr->get(kInterpreterHandle)->IsUndefined(isolate) &&
-      !arr->get(kInterpreterHandle)->IsForeign())
+  if (!arr->get(kInterpreterHandleIndex)->IsUndefined(isolate) &&
+      !arr->get(kInterpreterHandleIndex)->IsForeign())
     return false;
   return true;
 }
 
 WasmDebugInfo* WasmDebugInfo::cast(Object* object) {
-  DCHECK(IsDebugInfo(object));
+  DCHECK(IsWasmDebugInfo(object));
   return reinterpret_cast<WasmDebugInfo*>(object);
 }
 
 WasmInstanceObject* WasmDebugInfo::wasm_instance() {
-  return WasmInstanceObject::cast(get(kInstance));
+  return WasmInstanceObject::cast(get(kInstanceIndex));
 }
 
 void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,

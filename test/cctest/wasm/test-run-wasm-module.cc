@@ -272,9 +272,8 @@ class WasmSerializationTest {
         v8::Utils::OpenHandle(*deserialized_module));
     {
       DisallowHeapAllocation assume_no_gc;
-      Handle<WasmCompiledModule> compiled_part(
-          WasmCompiledModule::cast(module_object->GetEmbedderField(0)),
-          current_isolate());
+      Handle<WasmCompiledModule> compiled_part(module_object->compiled_module(),
+                                               current_isolate());
       CHECK_EQ(memcmp(compiled_part->module_bytes()->GetCharsAddress(),
                       wire_bytes().first, wire_bytes().second),
                0);
@@ -1109,7 +1108,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     const bool free_memory = true;
     wasm::DetachWebAssemblyMemoryBuffer(isolate, memory, free_memory);
     CHECK_EQ(16, result);
-    memory = handle(mem_obj->buffer());
+    memory = handle(mem_obj->array_buffer());
     instance->set_memory_buffer(*memory);
     // Externalize should make no difference without the JS API as in this case
     // the buffer is not detached.

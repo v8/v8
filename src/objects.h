@@ -73,6 +73,10 @@
 //           - JSDate
 //         - JSMessageObject
 //         - JSModuleNamespace
+//         - WasmInstanceObject
+//         - WasmMemoryObject
+//         - WasmModuleObject
+//         - WasmTableObject
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -99,6 +103,8 @@
 //         - ModuleInfo
 //         - ScriptContextTable
 //         - WeakFixedArray
+//         - WasmSharedModuleData
+//         - WasmCompiledModule
 //       - FixedDoubleArray
 //     - Name
 //       - String
@@ -445,6 +451,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)                            \
   V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)                                      \
                                                                                \
+  V(WASM_INSTANCE_TYPE)                                                        \
+  V(WASM_MEMORY_TYPE)                                                          \
+  V(WASM_MODULE_TYPE)                                                          \
+  V(WASM_TABLE_TYPE)                                                           \
   V(JS_BOUND_FUNCTION_TYPE)                                                    \
   V(JS_FUNCTION_TYPE)
 
@@ -798,6 +808,10 @@ enum InstanceType {
   JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
   JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE,
 
+  WASM_INSTANCE_TYPE,
+  WASM_MEMORY_TYPE,
+  WASM_MODULE_TYPE,
+  WASM_TABLE_TYPE,
   JS_BOUND_FUNCTION_TYPE,
   JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
 
@@ -1053,6 +1067,10 @@ template <class C> inline bool Is(Object* obj);
   V(JSMapIterator)                     \
   V(JSMessageObject)                   \
   V(JSModuleNamespace)                 \
+  V(WasmInstanceObject)                \
+  V(WasmMemoryObject)                  \
+  V(WasmModuleObject)                  \
+  V(WasmTableObject)                   \
   V(JSObject)                          \
   V(JSPromise)                         \
   V(JSPromiseCapability)               \
@@ -2389,7 +2407,7 @@ class JSObject: public JSReceiver {
 
   // Get the header size for a JSObject.  Used to compute the index of
   // embedder fields as well as the number of embedder fields.
-  static inline int GetHeaderSize(InstanceType instance_type);
+  static int GetHeaderSize(InstanceType instance_type);
   inline int GetHeaderSize();
 
   static inline int GetEmbedderFieldCount(const Map* map);

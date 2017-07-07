@@ -864,16 +864,12 @@ RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
   return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
 }
 
-#define CONVERT_ARG_HANDLE_CHECKED_2(Type, name, index) \
-  CHECK(Type::Is##Type(args[index]));                   \
-  Handle<Type> name = args.at<Type>(index);
-
 // Take a compiled wasm module, serialize it and copy the buffer into an array
 // buffer, which is then returned.
 RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED_2(WasmModuleObject, module_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
   Handle<WasmCompiledModule> orig(module_obj->compiled_module());
   std::unique_ptr<ScriptData> data =
@@ -925,7 +921,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
 RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {
   HandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED_2(WasmModuleObject, module_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, instance_count, 1);
   wasm::testing::ValidateInstancesChain(isolate, module_obj,
                                         instance_count->value());
@@ -935,7 +931,7 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {
 RUNTIME_FUNCTION(Runtime_ValidateWasmModuleState) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED_2(WasmModuleObject, module_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
   wasm::testing::ValidateModuleState(isolate, module_obj);
   return isolate->heap()->ToBoolean(true);
 }
@@ -943,7 +939,7 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmModuleState) {
 RUNTIME_FUNCTION(Runtime_ValidateWasmOrphanedInstance) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED_2(WasmInstanceObject, instance, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   wasm::testing::ValidateOrphanedInstance(isolate, instance);
   return isolate->heap()->ToBoolean(true);
 }
@@ -968,10 +964,7 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
 RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
-  CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
-  Handle<WasmInstanceObject> instance =
-      Handle<WasmInstanceObject>::cast(instance_obj);
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   if (!instance->has_debug_info()) return 0;
   uint64_t num = instance->debug_info()->NumInterpretedCalls();
   return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
@@ -980,11 +973,8 @@ RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
 RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(function_index, 1);
-  CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
-  Handle<WasmInstanceObject> instance =
-      Handle<WasmInstanceObject>::cast(instance_obj);
   Handle<WasmDebugInfo> debug_info =
       WasmInstanceObject::GetOrCreateDebugInfo(instance);
   WasmDebugInfo::RedirectToInterpreter(debug_info,

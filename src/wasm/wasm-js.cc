@@ -69,7 +69,7 @@ class ScheduledErrorThrower : public ErrorThrower {
   }
 };
 
-// TODO(wasm): move brand check to the respective types, and don't throw
+// TODO(titzer): move brand check to the respective types, and don't throw
 // in it, rather, use a provided ErrorThrower, or let caller handle it.
 static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> sym) {
   if (!value->IsJSObject()) return false;
@@ -780,7 +780,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
     max_size64 = i::FLAG_wasm_max_mem_pages;
   }
-  i::Handle<i::JSArrayBuffer> old_buffer(receiver->buffer());
+  i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer());
   uint32_t old_size =
       old_buffer->byte_length()->Number() / i::wasm::kSpecMaxWasmMemoryPages;
   int64_t new_size64 = old_size + delta_size;
@@ -817,7 +817,7 @@ void WebAssemblyMemoryGetBuffer(
   }
   i::Handle<i::WasmMemoryObject> receiver =
       i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(receiver->buffer(), i_isolate);
+  i::Handle<i::Object> buffer(receiver->array_buffer(), i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
@@ -879,12 +879,9 @@ void WasmJs::Install(Isolate* isolate) {
   int pre_allocated =
       prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
   int instance_size = 0;
-  int in_object_properties = 0;
-  int wasm_embedder_fields = embedder_fields + 1  // module instance object
-                             + 1                  // function arity
-                             + 1;                 // function signature
-  JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_embedder_fields,
-                                          0, &instance_size,
+  int in_object_properties = WasmExportedFunction::kFieldCount;
+  JSFunction::CalculateInstanceSizeHelper(instance_type, embedder_fields,
+                                          in_object_properties, &instance_size,
                                           &in_object_properties);
 
   int unused_property_fields = in_object_properties - pre_allocated;
@@ -942,8 +939,8 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> module_proto =
       factory->NewJSObject(module_constructor, TENURED);
   i::Handle<i::Map> module_map = isolate->factory()->NewMap(
-      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
-                             WasmModuleObject::kFieldCount * i::kPointerSize);
+      i::WASM_MODULE_TYPE, i::JSObject::kHeaderSize +
+                               WasmModuleObject::kFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
               1);
@@ -963,8 +960,7 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> instance_proto =
       factory->NewJSObject(instance_constructor, TENURED);
   i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
-      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
-                             WasmInstanceObject::kFieldCount * i::kPointerSize);
+      i::WASM_INSTANCE_TYPE, WasmInstanceObject::kSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
   JSObject::AddProperty(instance_proto,
                         isolate->factory()->constructor_string(),
@@ -978,9 +974,8 @@ void WasmJs::Install(Isolate* isolate) {
   context->set_wasm_table_constructor(*table_constructor);
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
-  i::Handle<i::Map> table_map = isolate->factory()->NewMap(
-      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
-                             WasmTableObject::kFieldCount * i::kPointerSize);
+  i::Handle<i::Map> table_map =
+      isolate->factory()->NewMap(i::WASM_TABLE_TYPE, WasmTableObject::kSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
                         table_constructor, DONT_ENUM);
@@ -997,9 +992,8 @@ void WasmJs::Install(Isolate* isolate) {
   context->set_wasm_memory_constructor(*memory_constructor);
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
-  i::Handle<i::Map> memory_map = isolate->factory()->NewMap(
-      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
-                             WasmMemoryObject::kFieldCount * i::kPointerSize);
+  i::Handle<i::Map> memory_map =
+      isolate->factory()->NewMap(i::WASM_MEMORY_TYPE, WasmMemoryObject::kSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
                         memory_constructor, DONT_ENUM);

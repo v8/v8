@@ -159,9 +159,9 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   // was GC-ed. In that case, there won't be any new instances created,
   // and we don't need to maintain the links between instances.
   if (!weak_wasm_module->cleared()) {
-    JSObject* wasm_module = JSObject::cast(weak_wasm_module->value());
-    WasmCompiledModule* current_template =
-        WasmCompiledModule::cast(wasm_module->GetEmbedderField(0));
+    WasmModuleObject* wasm_module =
+        WasmModuleObject::cast(weak_wasm_module->value());
+    WasmCompiledModule* current_template = wasm_module->compiled_module();
 
     TRACE("chain before {\n");
     TRACE_CHAIN(current_template);
@@ -175,10 +175,12 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
       if (next == nullptr) {
         WasmCompiledModule::Reset(isolate, compiled_module);
       } else {
-        DCHECK(next->value()->IsFixedArray());
-        wasm_module->SetEmbedderField(0, next->value());
+        WasmCompiledModule* next_compiled_module =
+            WasmCompiledModule::cast(next->value());
+        WasmModuleObject::cast(wasm_module)
+            ->set_compiled_module(next_compiled_module);
         DCHECK_NULL(prev);
-        WasmCompiledModule::cast(next->value())->reset_weak_prev_instance();
+        next_compiled_module->reset_weak_prev_instance();
       }
     } else {
       DCHECK(!(prev == nullptr && next == nullptr));
@@ -205,7 +207,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
       }
     }
     TRACE("chain after {\n");
-    TRACE_CHAIN(WasmCompiledModule::cast(wasm_module->GetEmbedderField(0)));
+    TRACE_CHAIN(wasm_module->compiled_module());
     TRACE("}\n");
   }
   compiled_module->reset_weak_owning_instance();
@@ -452,10 +454,6 @@ void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
   array->set(index, *value);
 }
 
-bool wasm::IsWasmInstance(Object* object) {
-  return WasmInstanceObject::IsWasmInstanceObject(object);
-}
-
 Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
   WasmCompiledModule* compiled_module =
       WasmInstanceObject::cast(*instance)->compiled_module();
@@ -514,8 +512,9 @@ void testing::ValidateInstancesChain(Isolate* isolate,
     CHECK((prev == nullptr && !current_instance->has_weak_prev_instance()) ||
           current_instance->ptr_to_weak_prev_instance()->value() == prev);
     CHECK_EQ(current_instance->ptr_to_weak_wasm_module()->value(), *module_obj);
-    CHECK(IsWasmInstance(
-        current_instance->ptr_to_weak_owning_instance()->value()));
+    CHECK(current_instance->ptr_to_weak_owning_instance()
+              ->value()
+              ->IsWasmInstanceObject());
     prev = current_instance;
     current_instance = WasmCompiledModule::cast(
         current_instance->ptr_to_weak_next_instance()->value());

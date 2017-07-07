@@ -29,46 +29,6 @@
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 
-#define DEFINE_GETTER0(getter, Container, name, field, type) \
-  type* Container::name() { return type::cast(getter(field)); }
-
-#define DEFINE_ACCESSORS0(getter, setter, Container, name, field, type) \
-  DEFINE_GETTER0(getter, Container, name, field, type)                  \
-  void Container::set_##name(type* value) { return setter(field, value); }
-
-#define DEFINE_OPTIONAL_ACCESSORS0(getter, setter, Container, name, field, \
-                                   type)                                   \
-  DEFINE_ACCESSORS0(getter, setter, Container, name, field, type)          \
-  bool Container::has_##name() {                                           \
-    return !getter(field)->IsUndefined(GetIsolate());                      \
-  }
-
-#define DEFINE_OPTIONAL_GETTER0(getter, Container, name, field, type) \
-  DEFINE_GETTER0(getter, Container, name, field, type)                \
-  bool Container::has_##name() {                                      \
-    return !getter(field)->IsUndefined(GetIsolate());                 \
-  }
-
-#define DEFINE_GETTER0(getter, Container, name, field, type) \
-  type* Container::name() { return type::cast(getter(field)); }
-
-#define DEFINE_OBJ_GETTER(Container, name, field, type) \
-  DEFINE_GETTER0(GetEmbedderField, Container, name, field, type)
-#define DEFINE_OBJ_ACCESSORS(Container, name, field, type)               \
-  DEFINE_ACCESSORS0(GetEmbedderField, SetEmbedderField, Container, name, \
-                    field, type)
-#define DEFINE_OPTIONAL_OBJ_ACCESSORS(Container, name, field, type)         \
-  DEFINE_OPTIONAL_ACCESSORS0(GetEmbedderField, SetEmbedderField, Container, \
-                             name, field, type)
-#define DEFINE_ARR_GETTER(Container, name, field, type) \
-  DEFINE_GETTER0(get, Container, name, field, type)
-#define DEFINE_ARR_ACCESSORS(Container, name, field, type) \
-  DEFINE_ACCESSORS0(get, set, Container, name, field, type)
-#define DEFINE_OPTIONAL_ARR_ACCESSORS(Container, name, field, type) \
-  DEFINE_OPTIONAL_ACCESSORS0(get, set, Container, name, field, type)
-#define DEFINE_OPTIONAL_ARR_GETTER(Container, name, field, type) \
-  DEFINE_OPTIONAL_GETTER0(get, Container, name, field, type)
-
 namespace {
 
 // An iterator that returns first the module itself, then all modules linked via
@@ -198,63 +158,38 @@ bool IsBreakablePosition(Handle<WasmCompiledModule> compiled_module,
 
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  WasmModule* module = compiled_module->module();
-  Handle<JSObject> module_object;
-  if (module->is_wasm()) {
-    Handle<JSFunction> module_cons(
-        isolate->native_context()->wasm_module_constructor());
-    module_object = isolate->factory()->NewJSObject(module_cons);
-    Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
-    Object::SetProperty(module_object, module_sym, module_object, STRICT)
-        .Check();
-  } else {
-    DCHECK(module->is_asm_js());
-    Handle<Map> map = isolate->factory()->NewMap(
-        JS_OBJECT_TYPE,
-        JSObject::kHeaderSize + WasmModuleObject::kFieldCount * kPointerSize);
-    module_object = isolate->factory()->NewJSObjectFromMap(map, TENURED);
-  }
-  module_object->SetEmbedderField(WasmModuleObject::kCompiledModule,
-                                  *compiled_module);
+  Handle<JSFunction> module_cons(
+      isolate->native_context()->wasm_module_constructor());
+  auto module_object = Handle<WasmModuleObject>::cast(
+      isolate->factory()->NewJSObject(module_cons));
+  Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
+  Object::SetProperty(module_object, module_sym, module_object, STRICT).Check();
+  module_object->set_compiled_module(*compiled_module);
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
   compiled_module->set_weak_wasm_module(link_to_module);
-  return Handle<WasmModuleObject>::cast(module_object);
+  return module_object;
 }
-
-WasmModuleObject* WasmModuleObject::cast(Object* object) {
-  DCHECK(object->IsJSObject());
-  // TODO(titzer): brand check for WasmModuleObject.
-  return reinterpret_cast<WasmModuleObject*>(object);
-}
-
-bool WasmModuleObject::IsWasmModuleObject(Object* object) {
-  return object->IsJSObject() &&
-         JSObject::cast(object)->GetEmbedderFieldCount() == kFieldCount;
-}
-
-DEFINE_OBJ_GETTER(WasmModuleObject, compiled_module, kCompiledModule,
-                  WasmCompiledModule)
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
                                              int64_t maximum,
                                              Handle<FixedArray>* js_functions) {
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor());
-  Handle<JSObject> table_obj = isolate->factory()->NewJSObject(table_ctor);
-  table_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
+  auto table_obj = Handle<WasmTableObject>::cast(
+      isolate->factory()->NewJSObject(table_ctor));
 
   *js_functions = isolate->factory()->NewFixedArray(initial);
   Object* null = isolate->heap()->null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     (*js_functions)->set(i, null);
   }
-  table_obj->SetEmbedderField(kFunctions, *(*js_functions));
-  Handle<Object> max = isolate->factory()->NewNumber(maximum);
-  table_obj->SetEmbedderField(kMaximum, *max);
+  table_obj->set_functions(**js_functions);
+  DCHECK_EQ(maximum, static_cast<int>(maximum));
+  table_obj->set_maximum_length(static_cast<int>(maximum));
 
   Handle<FixedArray> dispatch_tables = isolate->factory()->NewFixedArray(0);
-  table_obj->SetEmbedderField(kDispatchTables, *dispatch_tables);
+  table_obj->set_dispatch_tables(*dispatch_tables);
   Handle<Symbol> table_sym(isolate->native_context()->wasm_table_sym());
   Object::SetProperty(table_obj, table_sym, table_obj, STRICT).Check();
   return Handle<WasmTableObject>::cast(table_obj);
@@ -264,8 +199,7 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
     Isolate* isolate, Handle<WasmTableObject> table_obj,
     Handle<WasmInstanceObject> instance, int table_index,
     Handle<FixedArray> function_table, Handle<FixedArray> signature_table) {
-  Handle<FixedArray> dispatch_tables(
-      FixedArray::cast(table_obj->GetEmbedderField(kDispatchTables)), isolate);
+  Handle<FixedArray> dispatch_tables(table_obj->dispatch_tables());
   DCHECK_EQ(0, dispatch_tables->length() % 4);
 
   if (instance.is_null()) return dispatch_tables;
@@ -281,35 +215,13 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
   new_dispatch_tables->set(dispatch_tables->length() + 2, *function_table);
   new_dispatch_tables->set(dispatch_tables->length() + 3, *signature_table);
 
-  table_obj->SetEmbedderField(WasmTableObject::kDispatchTables,
-                              *new_dispatch_tables);
+  table_obj->set_dispatch_tables(*new_dispatch_tables);
 
   return new_dispatch_tables;
 }
 
-DEFINE_OBJ_ACCESSORS(WasmTableObject, functions, kFunctions, FixedArray)
-
-DEFINE_OBJ_GETTER(WasmTableObject, dispatch_tables, kDispatchTables, FixedArray)
-
-uint32_t WasmTableObject::current_length() { return functions()->length(); }
-
-bool WasmTableObject::has_maximum_length() {
-  return GetEmbedderField(kMaximum)->Number() >= 0;
-}
-
-int64_t WasmTableObject::maximum_length() {
-  return static_cast<int64_t>(GetEmbedderField(kMaximum)->Number());
-}
-
-WasmTableObject* WasmTableObject::cast(Object* object) {
-  DCHECK(object && object->IsJSObject());
-  // TODO(titzer): brand check for WasmTableObject.
-  return reinterpret_cast<WasmTableObject*>(object);
-}
-
 void WasmTableObject::grow(Isolate* isolate, uint32_t count) {
-  Handle<FixedArray> dispatch_tables(
-      FixedArray::cast(GetEmbedderField(kDispatchTables)));
+  Handle<FixedArray> dispatch_tables(this->dispatch_tables());
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   uint32_t old_size = functions()->length();
 
@@ -406,44 +318,24 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                int32_t maximum) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor());
-  Handle<JSObject> memory_obj =
-      isolate->factory()->NewJSObject(memory_ctor, TENURED);
-  memory_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
+  auto memory_obj = Handle<WasmMemoryObject>::cast(
+      isolate->factory()->NewJSObject(memory_ctor, TENURED));
   if (buffer.is_null()) {
     const bool enable_guard_regions = EnableGuardRegions();
     buffer = SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
                               enable_guard_regions);
   }
-  memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
-  Handle<Object> max = isolate->factory()->NewNumber(maximum);
-  memory_obj->SetEmbedderField(kMaximum, *max);
+  memory_obj->set_array_buffer(*buffer);
+  memory_obj->set_maximum_pages(maximum);
   Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
   Object::SetProperty(memory_obj, memory_sym, memory_obj, STRICT).Check();
   return Handle<WasmMemoryObject>::cast(memory_obj);
 }
 
-DEFINE_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer, JSArrayBuffer)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
-                              WasmInstanceWrapper)
-
 uint32_t WasmMemoryObject::current_pages() {
   uint32_t byte_length;
-  CHECK(buffer()->byte_length()->ToUint32(&byte_length));
+  CHECK(array_buffer()->byte_length()->ToUint32(&byte_length));
   return byte_length / wasm::WasmModule::kPageSize;
-}
-
-bool WasmMemoryObject::has_maximum_pages() {
-  return GetEmbedderField(kMaximum)->Number() >= 0;
-}
-
-int32_t WasmMemoryObject::maximum_pages() {
-  return static_cast<int32_t>(GetEmbedderField(kMaximum)->Number());
-}
-
-WasmMemoryObject* WasmMemoryObject::cast(Object* object) {
-  DCHECK(object && object->IsJSObject());
-  // TODO(titzer): brand check for WasmMemoryObject.
-  return reinterpret_cast<WasmMemoryObject*>(object);
 }
 
 void WasmMemoryObject::AddInstance(Isolate* isolate,
@@ -460,16 +352,11 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
   set_instances_link(*instance_wrapper);
 }
 
-void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  SetEmbedderField(kInstancesLink, *undefined);
-}
-
 // static
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
-  Handle<JSArrayBuffer> old_buffer(memory_object->buffer());
+  Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer());
   uint32_t old_size = 0;
   CHECK(old_buffer->byte_length()->ToUint32(&old_size));
   Handle<JSArrayBuffer> new_buffer;
@@ -482,7 +369,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
           isolate, old_buffer->allocation_base(),
           old_buffer->allocation_length(), old_buffer->backing_store(),
           old_size, old_buffer->is_external(), old_buffer->has_guard_region());
-      memory_object->set_buffer(*new_buffer);
+      memory_object->set_array_buffer(*new_buffer);
     }
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
     return old_size / WasmModule::kPageSize;
@@ -504,7 +391,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
     DCHECK(instance_wrapper->has_instance());
     Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
-    DCHECK(IsWasmInstance(*instance));
+    DCHECK(instance->IsWasmInstanceObject());
     uint32_t max_pages = instance->GetMaxMemoryPages();
 
     // Grow memory object buffer and update instances associated with it.
@@ -518,30 +405,15 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       instance_wrapper = instance_wrapper->next_wrapper();
       DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
       Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
-      DCHECK(IsWasmInstance(*instance));
+      DCHECK(instance->IsWasmInstanceObject());
       SetInstanceMemory(isolate, instance, new_buffer);
       UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
     }
   }
-  memory_object->set_buffer(*new_buffer);
+  memory_object->set_array_buffer(*new_buffer);
   DCHECK_EQ(0, old_size % WasmModule::kPageSize);
   return old_size / WasmModule::kPageSize;
 }
-
-DEFINE_OBJ_ACCESSORS(WasmInstanceObject, compiled_module, kCompiledModule,
-                     WasmCompiledModule)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, globals_buffer,
-                              kGlobalsArrayBuffer, JSArrayBuffer)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, memory_buffer,
-                              kMemoryArrayBuffer, JSArrayBuffer)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, memory_object, kMemoryObject,
-                              WasmMemoryObject)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, debug_info, kDebugInfo,
-                              WasmDebugInfo)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, instance_wrapper,
-                              kWasmMemInstanceWrapper, WasmInstanceWrapper)
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmInstanceObject, directly_called_instances,
-                              kDirectlyCalledInstances, FixedArray)
 
 WasmModuleObject* WasmInstanceObject::module_object() {
   return *compiled_module()->wasm_module();
@@ -557,38 +429,12 @@ Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
   return new_info;
 }
 
-WasmInstanceObject* WasmInstanceObject::cast(Object* object) {
-  DCHECK(IsWasmInstanceObject(object));
-  return reinterpret_cast<WasmInstanceObject*>(object);
-}
-
-bool WasmInstanceObject::IsWasmInstanceObject(Object* object) {
-  if (!object->IsJSObject()) return false;
-
-  JSObject* obj = JSObject::cast(object);
-  Isolate* isolate = obj->GetIsolate();
-  if (obj->GetEmbedderFieldCount() != kFieldCount) {
-    return false;
-  }
-
-  Object* mem = obj->GetEmbedderField(kMemoryArrayBuffer);
-  if (!(mem->IsUndefined(isolate) || mem->IsJSArrayBuffer()) ||
-      !WasmCompiledModule::IsWasmCompiledModule(
-          obj->GetEmbedderField(kCompiledModule))) {
-    return false;
-  }
-
-  // All checks passed.
-  return true;
-}
-
 Handle<WasmInstanceObject> WasmInstanceObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   Handle<JSFunction> instance_cons(
       isolate->native_context()->wasm_instance_constructor());
   Handle<JSObject> instance_object =
       isolate->factory()->NewJSObject(instance_cons, TENURED);
-  instance_object->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
 
   Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
   Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
@@ -596,11 +442,10 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<WasmInstanceObject> instance(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
-  instance->SetEmbedderField(kCompiledModule, *compiled_module);
-  instance->SetEmbedderField(kMemoryObject, isolate->heap()->undefined_value());
+  instance->set_compiled_module(*compiled_module);
   Handle<WasmInstanceWrapper> instance_wrapper =
       WasmInstanceWrapper::New(isolate, instance);
-  instance->SetEmbedderField(kWasmMemInstanceWrapper, *instance_wrapper);
+  instance->set_instance_wrapper(*instance_wrapper);
   return instance;
 }
 
@@ -656,16 +501,6 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
   return FLAG_wasm_max_mem_pages;
 }
 
-WasmInstanceObject* WasmExportedFunction::instance() {
-  return WasmInstanceObject::cast(GetEmbedderField(kInstance));
-}
-
-int WasmExportedFunction::function_index() {
-  int32_t func_index;
-  CHECK(GetEmbedderField(kIndex)->ToInt32(&func_index));
-  return func_index;
-}
-
 WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
   DCHECK(object && object->IsJSFunction());
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION,
@@ -694,14 +529,16 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       isolate->factory()->NewSharedFunctionInfo(name, export_wrapper, false);
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(arity);
-  Handle<JSFunction> function = isolate->factory()->NewFunction(
+  Handle<JSFunction> js_function = isolate->factory()->NewFunction(
       isolate->wasm_function_map(), name, export_wrapper);
-  function->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
+
+  Handle<WasmExportedFunction> function(
+      reinterpret_cast<WasmExportedFunction*>(*js_function), isolate);
 
   function->set_shared(*shared);
+  function->set_instance(*instance);
+  function->set_function_index(func_index);
 
-  function->SetEmbedderField(kInstance, *instance);
-  function->SetEmbedderField(kIndex, Smi::FromInt(func_index));
   return Handle<WasmExportedFunction>::cast(function);
 }
 
@@ -710,16 +547,16 @@ bool WasmSharedModuleData::IsWasmSharedModuleData(Object* object) {
   FixedArray* arr = FixedArray::cast(object);
   if (arr->length() != kFieldCount) return false;
   Isolate* isolate = arr->GetIsolate();
-  if (!arr->get(kModuleWrapper)->IsForeign()) return false;
-  if (!arr->get(kModuleBytes)->IsUndefined(isolate) &&
-      !arr->get(kModuleBytes)->IsSeqOneByteString())
+  if (!arr->get(kModuleWrapperIndex)->IsForeign()) return false;
+  if (!arr->get(kModuleBytesIndex)->IsUndefined(isolate) &&
+      !arr->get(kModuleBytesIndex)->IsSeqOneByteString())
     return false;
-  if (!arr->get(kScript)->IsScript()) return false;
-  if (!arr->get(kAsmJsOffsetTable)->IsUndefined(isolate) &&
-      !arr->get(kAsmJsOffsetTable)->IsByteArray())
+  if (!arr->get(kScriptIndex)->IsScript()) return false;
+  if (!arr->get(kAsmJsOffsetTableIndex)->IsUndefined(isolate) &&
+      !arr->get(kAsmJsOffsetTableIndex)->IsByteArray())
     return false;
-  if (!arr->get(kBreakPointInfos)->IsUndefined(isolate) &&
-      !arr->get(kBreakPointInfos)->IsFixedArray())
+  if (!arr->get(kBreakPointInfosIndex)->IsUndefined(isolate) &&
+      !arr->get(kBreakPointInfosIndex)->IsFixedArray())
     return false;
   return true;
 }
@@ -736,18 +573,8 @@ wasm::WasmModule* WasmSharedModuleData::module() {
   // a Managed<WasmModule> object, as well as cases when it's managed
   // by the embedder. CcTests fall into the latter case.
   return *(reinterpret_cast<wasm::WasmModule**>(
-      Foreign::cast(get(kModuleWrapper))->foreign_address()));
+      Foreign::cast(get(kModuleWrapperIndex))->foreign_address()));
 }
-
-DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, module_bytes, kModuleBytes,
-                              SeqOneByteString);
-DEFINE_ARR_GETTER(WasmSharedModuleData, script, kScript, Script);
-DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, asm_js_offset_table,
-                              kAsmJsOffsetTable, ByteArray);
-DEFINE_OPTIONAL_ARR_GETTER(WasmSharedModuleData, breakpoint_infos,
-                           kBreakPointInfos, FixedArray);
-DEFINE_OPTIONAL_ARR_GETTER(WasmSharedModuleData, lazy_compilation_orchestrator,
-                           kLazyCompilationOrchestrator, Foreign);
 
 Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Isolate* isolate, Handle<Foreign> module_wrapper,
@@ -755,20 +582,23 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Handle<ByteArray> asm_js_offset_table) {
   Handle<FixedArray> arr =
       isolate->factory()->NewFixedArray(kFieldCount, TENURED);
-  arr->set(kWrapperTracerHeader, Smi::kZero);
-  arr->set(kModuleWrapper, *module_wrapper);
+  arr->set(kModuleWrapperIndex, *module_wrapper);
   if (!module_bytes.is_null()) {
-    arr->set(kModuleBytes, *module_bytes);
+    arr->set(kModuleBytesIndex, *module_bytes);
   }
   if (!script.is_null()) {
-    arr->set(kScript, *script);
+    arr->set(kScriptIndex, *script);
   }
   if (!asm_js_offset_table.is_null()) {
-    arr->set(kAsmJsOffsetTable, *asm_js_offset_table);
+    arr->set(kAsmJsOffsetTableIndex, *asm_js_offset_table);
   }
 
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*arr));
   return Handle<WasmSharedModuleData>::cast(arr);
+}
+
+Foreign* WasmSharedModuleData::lazy_compilation_orchestrator() {
+  return Foreign::cast(get(kLazyCompilationOrchestratorIndex));
 }
 
 bool WasmSharedModuleData::is_asm_js() {
@@ -780,7 +610,7 @@ bool WasmSharedModuleData::is_asm_js() {
 
 void WasmSharedModuleData::ReinitializeAfterDeserialization(
     Isolate* isolate, Handle<WasmSharedModuleData> shared) {
-  DCHECK(shared->get(kModuleWrapper)->IsUndefined(isolate));
+  DCHECK(shared->get(kModuleWrapperIndex)->IsUndefined(isolate));
 #ifdef DEBUG
   // No BreakpointInfo objects should survive deserialization.
   if (shared->has_breakpoint_infos()) {
@@ -790,7 +620,7 @@ void WasmSharedModuleData::ReinitializeAfterDeserialization(
   }
 #endif
 
-  shared->set(kBreakPointInfos, isolate->heap()->undefined_value());
+  shared->set(kBreakPointInfosIndex, isolate->heap()->undefined_value());
 
   WasmModule* module = nullptr;
   {
@@ -815,7 +645,7 @@ void WasmSharedModuleData::ReinitializeAfterDeserialization(
   Handle<WasmModuleWrapper> module_wrapper =
       WasmModuleWrapper::New(isolate, module);
 
-  shared->set(kModuleWrapper, *module_wrapper);
+  shared->set(kModuleWrapperIndex, *module_wrapper);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 
@@ -860,7 +690,7 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
     breakpoint_infos = handle(shared->breakpoint_infos(), isolate);
   } else {
     breakpoint_infos = isolate->factory()->NewFixedArray(4, TENURED);
-    shared->set(kBreakPointInfos, *breakpoint_infos);
+    shared->set(kBreakPointInfosIndex, *breakpoint_infos);
   }
 
   int insert_pos =
@@ -884,7 +714,7 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
         2 * breakpoint_infos->length(), TENURED);
-    shared->set(kBreakPointInfos, *new_breakpoint_infos);
+    shared->set(kBreakPointInfosIndex, *new_breakpoint_infos);
     // Copy over the entries [0, insert_pos).
     for (int i = 0; i < insert_pos; ++i)
       new_breakpoint_infos->set(i, breakpoint_infos->get(i));
@@ -946,7 +776,7 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
   LazyCompilationOrchestrator* orch = new LazyCompilationOrchestrator();
   Handle<Managed<LazyCompilationOrchestrator>> orch_handle =
       Managed<LazyCompilationOrchestrator>::New(isolate, orch);
-  shared->set(WasmSharedModuleData::kLazyCompilationOrchestrator, *orch_handle);
+  shared->set(kLazyCompilationOrchestratorIndex, *orch_handle);
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
@@ -1575,28 +1405,25 @@ Handle<Code> WasmCompiledModule::CompileLazy(
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance) {
   Handle<FixedArray> array =
-      isolate->factory()->NewFixedArray(kWrapperPropertyCount, TENURED);
+      isolate->factory()->NewFixedArray(kFieldCount, TENURED);
   Handle<WasmInstanceWrapper> instance_wrapper(
       reinterpret_cast<WasmInstanceWrapper*>(*array), isolate);
   Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
-  instance_wrapper->set(kWrapperInstanceObject, *cell);
+  instance_wrapper->set(kWrapperInstanceObjectIndex, *cell);
   return instance_wrapper;
 }
 
 bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
   if (!obj->IsFixedArray()) return false;
   Handle<FixedArray> array = handle(FixedArray::cast(obj));
-  if (array->length() != kWrapperPropertyCount) return false;
-  if (!array->get(kWrapperInstanceObject)->IsWeakCell()) return false;
+  if (array->length() != kFieldCount) return false;
+  if (!array->get(kWrapperInstanceObjectIndex)->IsWeakCell()) return false;
   Isolate* isolate = array->GetIsolate();
-  if (!array->get(kNextInstanceWrapper)->IsUndefined(isolate) &&
-      !array->get(kNextInstanceWrapper)->IsFixedArray())
+  if (!array->get(kNextInstanceWrapperIndex)->IsUndefined(isolate) &&
+      !array->get(kNextInstanceWrapperIndex)->IsFixedArray())
     return false;
-  if (!array->get(kPreviousInstanceWrapper)->IsUndefined(isolate) &&
-      !array->get(kPreviousInstanceWrapper)->IsFixedArray())
+  if (!array->get(kPreviousInstanceWrapperIndex)->IsUndefined(isolate) &&
+      !array->get(kPreviousInstanceWrapperIndex)->IsFixedArray())
     return false;
   return true;
 }
-
-DEFINE_OPTIONAL_ARR_ACCESSORS(WasmDebugInfo, locals_names, kLocalsNames,
-                              FixedArray)
