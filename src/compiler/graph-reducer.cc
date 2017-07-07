@@ -56,7 +56,7 @@ void GraphReducer::ReduceNode(Node* node) {
       ReduceTop();
     } else if (!revisit_.empty()) {
       // If the stack becomes empty, revisit any nodes in the revisit queue.
-      Node* const node = revisit_.top();
+      Node* const node = revisit_.front();
       revisit_.pop();
       if (state_.Get(node) == State::kRevisit) {
         // state can change while in queue.
