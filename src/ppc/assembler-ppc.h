@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/double.h"
 #include "src/ppc/constants-ppc.h"
 
 #if V8_HOST_ARCH_PPC && \
@@ -1374,7 +1375,7 @@ class Assembler : public AssemblerBase {
                         is_constant_pool_entry_sharing_blocked());
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
-  ConstantPoolEntry::Access ConstantPoolAddEntry(double value) {
+  ConstantPoolEntry::Access ConstantPoolAddEntry(Double value) {
     return constant_pool_builder_.AddEntry(pc_offset(), value);
   }
 

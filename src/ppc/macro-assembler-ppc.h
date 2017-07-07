@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
+#include "src/double.h"
 #include "src/frames.h"
 #include "src/globals.h"
 
@@ -494,7 +495,7 @@ class MacroAssembler : public Assembler {
   void LoadSmiLiteral(Register dst, Smi* smi);
 
   // load a literal double value <value> to FPR <result>
-  void LoadDoubleLiteral(DoubleRegister result, double value, Register scratch);
+  void LoadDoubleLiteral(DoubleRegister result, Double value, Register scratch);
 
   void LoadWord(Register dst, const MemOperand& mem, Register scratch);
   void LoadWordArith(Register dst, const MemOperand& mem,

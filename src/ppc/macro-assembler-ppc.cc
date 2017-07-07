@@ -3071,7 +3071,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   Label done;
   Label in_bounds;
 
-  LoadDoubleLiteral(double_scratch, 0.0, result_reg);
+  LoadDoubleLiteral(double_scratch, Double(0.0), result_reg);
   fcmpu(input_reg, double_scratch);
   bgt(&above_zero);
 
@@ -3081,7 +3081,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // Double value is >= 255, return 255.
   bind(&above_zero);
-  LoadDoubleLiteral(double_scratch, 255.0, result_reg);
+  LoadDoubleLiteral(double_scratch, Double(255.0), result_reg);
   fcmpu(input_reg, double_scratch);
   ble(&in_bounds);
   LoadIntLiteral(result_reg, 255);
@@ -3191,8 +3191,7 @@ void MacroAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
   mov(dst, Operand(smi));
 }
 
-
-void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
+void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, Double value,
                                        Register scratch) {
   if (FLAG_enable_embedded_constant_pool && is_constant_pool_available() &&
       !(scratch.is(r0) && ConstantPoolAccessIsInOverflow())) {
@@ -3208,7 +3207,7 @@ void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
 
   // avoid gcc strict aliasing error using union cast
   union {
-    double dval;
+    uint64_t dval;
 #if V8_TARGET_ARCH_PPC64
     intptr_t ival;
 #else
@@ -3216,7 +3215,7 @@ void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
 #endif
   } litVal;
 
-  litVal.dval = value;
+  litVal.dval = value.AsUint64();
 
 #if V8_TARGET_ARCH_PPC64
   if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {

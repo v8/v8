@@ -9,6 +9,7 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/double.h"
 #include "src/ppc/macro-assembler-ppc.h"
 
 namespace v8 {
@@ -124,8 +125,8 @@ class OutOfLineLoadNAN32 final : public OutOfLineCode {
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
-    __ LoadDoubleLiteral(result_, std::numeric_limits<float>::quiet_NaN(),
-                         kScratchReg);
+    __ LoadDoubleLiteral(
+        result_, Double(std::numeric_limits<double>::quiet_NaN()), kScratchReg);
   }
 
  private:
@@ -139,8 +140,8 @@ class OutOfLineLoadNAN64 final : public OutOfLineCode {
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
-    __ LoadDoubleLiteral(result_, std::numeric_limits<double>::quiet_NaN(),
-                         kScratchReg);
+    __ LoadDoubleLiteral(
+        result_, Double(std::numeric_limits<double>::quiet_NaN()), kScratchReg);
   }
 
  private:
@@ -2450,31 +2451,27 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      double value;
+      Double value;
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       // casting double precision snan to single precision
       // converts it to qnan on ia32/x64
       if (src.type() == Constant::kFloat32) {
-        int32_t val = src.ToFloat32AsInt();
+        uint32_t val = src.ToFloat32AsInt();
         if ((val & 0x7f800000) == 0x7f800000) {
-          int64_t dval = static_cast<int64_t>(val);
+          uint64_t dval = static_cast<uint64_t>(val);
           dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
                  ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29);
-          value = bit_cast<double, int64_t>(dval);
+          value = Double(dval);
         } else {
-          value = src.ToFloat32();
+          value = Double(static_cast<double>(src.ToFloat32()));
         }
       } else {
-        int64_t val = src.ToFloat64AsInt();
-        if ((val & 0x7f80000000000000) == 0x7f80000000000000) {
-          value = bit_cast<double, int64_t>(val);
-        } else {
-          value = src.ToFloat64();
-        }
+        value = Double(src.ToFloat64AsInt());
       }
 #else
-      value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                   : src.ToFloat64();
+      value = Double((src.type() == Constant::kFloat32)
+                         ? static_cast<double>(src.ToFloat32())
+                         : src.ToFloat64());
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {

@@ -1213,9 +1213,14 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   }
 
   // Add double constant to the embedded constant pool
-  ConstantPoolEntry::Access AddEntry(int position, double value) {
-    ConstantPoolEntry entry(position, Double(value));
+  ConstantPoolEntry::Access AddEntry(int position, Double value) {
+    ConstantPoolEntry entry(position, value);
     return AddEntry(entry, ConstantPoolEntry::DOUBLE);
+  }
+
+  // Add double constant to the embedded constant pool
+  ConstantPoolEntry::Access AddEntry(int position, double value) {
+    return AddEntry(position, Double(value));
   }
 
   // Previews the access type required for the next new entry to be added.
