@@ -3,6 +3,19 @@
 // found in the LICENSE file.
 
 
+function CheckNoPrototype(object) {
+  var desc = Object.getOwnPropertyDescriptor(object, "prototype");
+  assertEquals(undefined, desc);
+}
+
+function CheckReadonlyPrototype(object) {
+  var desc = Object.getOwnPropertyDescriptor(object, "prototype");
+  assertTrue(desc != undefined);
+  assertFalse(desc.enumerable);
+  assertFalse(desc.configurable);
+  assertFalse(desc.writable);
+}
+
 function CheckMethodEx(object, prop_name, function_name, length) {
   var desc = Object.getOwnPropertyDescriptor(object, prop_name);
   assertTrue(desc != undefined);
@@ -41,23 +54,54 @@ function CheckGetter(object, name) {
 }
 
 
+(function TestIntrinsicConstructors() {
+  CheckReadonlyPrototype(Object);
+  CheckReadonlyPrototype(Function);
+  CheckReadonlyPrototype(Number);
+  CheckReadonlyPrototype(Boolean);
+  CheckReadonlyPrototype(Symbol);
+  CheckReadonlyPrototype(Date);
+  CheckReadonlyPrototype(RegExp);
+  CheckReadonlyPrototype(DataView);
+  CheckReadonlyPrototype(ArrayBuffer);
+
+  var AsyncFunction = (async function(){}).constructor;
+  CheckReadonlyPrototype(AsyncFunction);
+  var GeneratorFunction = (function*(){}).constructor;
+  CheckReadonlyPrototype(GeneratorFunction);
+
+  CheckReadonlyPrototype(Error);
+  CheckReadonlyPrototype(SyntaxError);
+  CheckReadonlyPrototype(RangeError);
+  CheckReadonlyPrototype(TypeError);
+  CheckReadonlyPrototype(ReferenceError);
+  CheckReadonlyPrototype(EvalError);
+  CheckReadonlyPrototype(URIError);
+  CheckReadonlyPrototype(Error);
+})();
+
+
 (function TestIntl() {
   if (typeof (Intl) == "undefined") return;
   CheckMethod(Intl, "getCanonicalLocales", 1);
 
+  CheckReadonlyPrototype(Intl.Collator);
   CheckMethod(Intl.Collator, "supportedLocalesOf", 1);
   CheckGetter(Intl.Collator.prototype, "compare");
   CheckMethod(Intl.Collator.prototype, "resolvedOptions", 0);
 
+  CheckReadonlyPrototype(Intl.NumberFormat);
   CheckMethod(Intl.NumberFormat, "supportedLocalesOf", 1);
   CheckGetter(Intl.NumberFormat.prototype, "format");
   CheckMethod(Intl.NumberFormat.prototype, "resolvedOptions", 0);
 
+  CheckReadonlyPrototype(Intl.DateTimeFormat);
   CheckMethod(Intl.DateTimeFormat, "supportedLocalesOf", 1);
   CheckGetter(Intl.DateTimeFormat.prototype, "format");
   CheckMethod(Intl.DateTimeFormat.prototype, "resolvedOptions", 0);
   CheckMethod(Intl.DateTimeFormat.prototype, "formatToParts", 1);
 
+  CheckReadonlyPrototype(Intl.v8BreakIterator);
   CheckMethod(Intl.v8BreakIterator, "supportedLocalesOf", 1);
   CheckMethod(Intl.v8BreakIterator.prototype, "resolvedOptions", 0);
   CheckGetter(Intl.v8BreakIterator.prototype, "adoptText");
@@ -79,6 +123,7 @@ function CheckGetter(object, name) {
 
 
 (function TestCollection() {
+  CheckReadonlyPrototype(Set);
   CheckMethod(Set.prototype, "add", 1);
   CheckMethod(Set.prototype, "delete", 1);
   CheckMethod(Set.prototype, "entries", 0);
@@ -93,6 +138,7 @@ function CheckGetter(object, name) {
       undefined,
       Object.getOwnPropertyDescriptor(SetIteratorPrototype, "constructor"));
 
+  CheckReadonlyPrototype(Map);
   CheckMethod(Map.prototype, "set", 2);
   CheckMethod(Map.prototype, "delete", 1);
   CheckMethod(Map.prototype, "entries", 0);
@@ -107,11 +153,13 @@ function CheckGetter(object, name) {
       undefined,
       Object.getOwnPropertyDescriptor(MapIteratorPrototype, "constructor"));
 
+  CheckReadonlyPrototype(WeakSet);
   assertEquals(0, WeakSet.length);
   CheckMethod(WeakSet.prototype, "add", 1);
   CheckMethod(WeakSet.prototype, "delete", 1);
   CheckMethod(WeakSet.prototype, "has", 1);
 
+  CheckReadonlyPrototype(WeakMap);
   assertEquals(0, WeakMap.length);
   CheckMethod(WeakMap.prototype, "delete", 1);
   CheckMethod(WeakMap.prototype, "get", 1);
@@ -123,6 +171,17 @@ function CheckGetter(object, name) {
 (function TestTypedArrays() {
   var TypedArray = Uint8Array.__proto__;
 
+  CheckReadonlyPrototype(Int8Array);
+  CheckReadonlyPrototype(Uint8Array);
+  CheckReadonlyPrototype(Uint8ClampedArray);
+  CheckReadonlyPrototype(Int16Array);
+  CheckReadonlyPrototype(Uint16Array);
+  CheckReadonlyPrototype(Int32Array);
+  CheckReadonlyPrototype(Uint32Array);
+  CheckReadonlyPrototype(Float32Array);
+  CheckReadonlyPrototype(Float64Array);
+
+  CheckReadonlyPrototype(TypedArray);
   CheckMethod(TypedArray, "of", 0);
   CheckMethod(TypedArray, "from", 1);
 
@@ -139,6 +198,8 @@ function CheckGetter(object, name) {
 
 
 (function TestArray() {
+  CheckReadonlyPrototype(Array);
+
   CheckMethod(Array, "of", 0);
   CheckMethod(Array, "from", 1);
 
@@ -176,16 +237,22 @@ function CheckGetter(object, name) {
 
 
 (function TestPromise() {
+  CheckReadonlyPrototype(Promise);
+  CheckMethod(Promise, "all", 1);
   CheckMethod(Promise, "race", 1);
+  CheckMethod(Promise, "reject", 1);
+  CheckMethod(Promise, "resolve", 1);
 })();
 
 
 (function TestProxy() {
+  CheckNoPrototype(Proxy);
   CheckMethod(Proxy, "revocable", 2);
 })();
 
 
 (function TestString() {
+  CheckReadonlyPrototype(String);
   CheckMethod(String, "raw", 1);
 
   CheckMethod(String.prototype, "codePointAt", 1);
