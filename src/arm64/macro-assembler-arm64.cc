@@ -2049,8 +2049,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  AllowHandleDereference using_location;
-  Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
+  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond);
 }
 
 void TurboAssembler::Call(Register target) {
@@ -2119,8 +2118,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   Bind(&start_call);
 #endif
 
-  AllowHandleDereference using_location;
-  Call(reinterpret_cast<Address>(code.location()), rmode);
+  Call(code.address(), rmode);
 
 #ifdef DEBUG
   // Check the size of the code generated.

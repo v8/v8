@@ -316,8 +316,7 @@ Immediate::Immediate(Label* internal_offset) {
 }
 
 Immediate::Immediate(Handle<HeapObject> handle) {
-  AllowHandleDereference using_location;
-  value_.immediate = reinterpret_cast<intptr_t>(handle.location());
+  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -346,8 +345,7 @@ void Assembler::emit_q(uint64_t x) {
 }
 
 void Assembler::emit(Handle<HeapObject> handle) {
-  AllowHandleDereference using_location;
-  emit(reinterpret_cast<intptr_t>(handle.location()),
+  emit(reinterpret_cast<intptr_t>(handle.address()),
        RelocInfo::EMBEDDED_OBJECT);
 }
 
@@ -359,8 +357,7 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
 }
 
 void Assembler::emit(Handle<Code> code, RelocInfo::Mode rmode) {
-  AllowHandleDereference using_location;
-  emit(reinterpret_cast<intptr_t>(code.location()), rmode);
+  emit(reinterpret_cast<intptr_t>(code.address()), rmode);
 }
 
 

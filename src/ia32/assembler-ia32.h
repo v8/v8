@@ -396,9 +396,7 @@ class Operand BASE_EMBEDDED {
   }
 
   static Operand ForCell(Handle<Cell> cell) {
-    AllowDeferredHandleDereference embedding_raw_address;
-    return Operand(reinterpret_cast<int32_t>(cell.location()),
-                   RelocInfo::CELL);
+    return Operand(reinterpret_cast<int32_t>(cell.address()), RelocInfo::CELL);
   }
 
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {

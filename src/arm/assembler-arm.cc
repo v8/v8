@@ -374,9 +374,8 @@ void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
 // See assembler-arm-inl.h for inlined constructors
 
 Operand::Operand(Handle<HeapObject> handle) {
-  AllowHandleDereference using_location;
   rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(handle.location());
+  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -511,7 +510,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     }
     Address pc = buffer_ + request.offset();
     Memory::Address_at(constant_pool_entry_address(pc, 0 /* unused */)) =
-        reinterpret_cast<Address>(object.location());
+        object.address();
   }
 }
 

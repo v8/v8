@@ -51,8 +51,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
-  AllowHandleDereference using_location;
-  Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
+  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond);
 }
 
 int TurboAssembler::CallSize(Register target, Condition cond) {
@@ -126,8 +125,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
 
 int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
                              Condition cond) {
-  AllowHandleDereference using_location;
-  return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
+  return CallSize(code.address(), rmode, cond);
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
@@ -135,8 +133,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           bool check_constant_pool) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
-  AllowHandleDereference using_location;
-  Call(reinterpret_cast<Address>(code.location()), rmode, cond, mode);
+  Call(code.address(), rmode, cond, mode);
 }
 
 void MacroAssembler::CallDeoptimizer(Address target) {

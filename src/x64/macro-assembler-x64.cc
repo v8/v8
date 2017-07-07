@@ -2827,8 +2827,7 @@ void TurboAssembler::Push(Handle<HeapObject> source) {
 
 void TurboAssembler::Move(Register result, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
-  AllowHandleDereference using_location;
-  movp(result, reinterpret_cast<void*>(object.location()), rmode);
+  movp(result, reinterpret_cast<void*>(object.address()), rmode);
 }
 
 void TurboAssembler::Move(const Operand& dst, Handle<HeapObject> object,

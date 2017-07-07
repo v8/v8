@@ -309,8 +309,7 @@ bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
 }
 
 void Immediate::InitializeHandle(Handle<HeapObject> handle) {
-  AllowHandleDereference using_location;
-  value_ = reinterpret_cast<intptr_t>(handle.location());
+  value_ = reinterpret_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -616,8 +615,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = buffer_ + request.offset();
-    Memory::Address_at(target_pointer_address_at(pc)) =
-        reinterpret_cast<Address>(object.location());
+    Memory::Address_at(target_pointer_address_at(pc)) = object.address();
   }
 }
 
