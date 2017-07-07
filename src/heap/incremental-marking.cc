@@ -238,7 +238,7 @@ class IncrementalMarkingMarkingVisitor final
       int start_offset =
           Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
       if (start_offset < object_size) {
-#ifdef CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
         incremental_marking_->marking_worklist()->PushBailout(object);
 #else
         if (ObjectMarking::IsGrey<IncrementalMarking::kAtomicity>(
