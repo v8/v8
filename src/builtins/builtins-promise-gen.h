@@ -164,6 +164,16 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* IncrementSmiCell(Node* cell, Label* if_overflow = nullptr);
   Node* DecrementSmiCell(Node* cell);
 
+  void SetForwardingHandlerIfTrue(Node* context, Node* condition,
+                                  const NodeGenerator& object);
+  inline void SetForwardingHandlerIfTrue(Node* context, Node* condition,
+                                         Node* object) {
+    return SetForwardingHandlerIfTrue(context, condition,
+                                      [object]() -> Node* { return object; });
+  }
+  void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
+                                 const NodeGenerator& handled_by);
+
  private:
   Node* AllocateJSPromise(Node* context);
 };

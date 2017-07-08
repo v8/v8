@@ -2072,6 +2072,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     SimpleInstallFunction(promise_fun, "all", Builtins::kPromiseAll, 1, true);
 
+    SimpleInstallFunction(promise_fun, "race", Builtins::kPromiseRace, 1, true);
+
     SimpleInstallFunction(promise_fun, "resolve", Builtins::kPromiseResolve, 1,
                           true);
 
@@ -2096,6 +2098,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, "catch", Builtins::kPromiseCatch, 1, true);
     native_context()->set_promise_catch(*promise_catch);
 
+    // Force the Promise constructor to fast properties, so that we can use the
+    // fast paths for various things like
+    //
+    //   x instanceof Promise
+    //
+    // etc. We should probably come up with a more principled approach once
+    // the JavaScript builtins are gone.
+    JSObject::MigrateSlowToFast(Handle<JSObject>::cast(promise_fun), 0,
+                                "Bootstrapping");
 
     Handle<Map> prototype_map(prototype->map());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);

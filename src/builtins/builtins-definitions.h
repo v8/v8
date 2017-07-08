@@ -787,6 +787,8 @@ namespace internal {
   TFJ(PromiseThrowerFinally, 0)                                                \
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kIterable)                                                \
+  /* ES #sec-promise.race */                                                   \
+  TFJ(PromiseRace, 1, kIterable)                                               \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \
@@ -1111,6 +1113,7 @@ namespace internal {
   V(PromiseAll)                                      \
   V(PromiseConstructor)                              \
   V(PromiseHandle)                                   \
+  V(PromiseRace)                                     \
   V(PromiseResolve)                                  \
   V(PromiseResolveClosure)                           \
   V(RejectNativePromise)                             \

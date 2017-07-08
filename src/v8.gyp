@@ -2338,7 +2338,6 @@
           'js/typedarray.js',
           'js/collection.js',
           'js/weak-collection.js',
-          'js/promise.js',
           'js/messages.js',
           'js/templates.js',
           'js/spread.js',

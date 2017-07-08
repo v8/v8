@@ -996,6 +996,31 @@ void PromiseBuiltinsAssembler::InternalPromiseReject(Node* context,
   PromiseFulfill(context, promise, value, v8::Promise::kRejected);
 }
 
+void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
+    Node* context, Node* condition, const NodeGenerator& object) {
+  Label done(this);
+  GotoIfNot(condition, &done);
+  CallRuntime(Runtime::kSetProperty, context, object(),
+              HeapConstant(factory()->promise_forwarding_handler_symbol()),
+              TrueConstant(), SmiConstant(STRICT));
+  Goto(&done);
+  BIND(&done);
+}
+
+void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
+    Node* context, Node* condition, Node* promise,
+    const NodeGenerator& handled_by) {
+  Label done(this);
+  GotoIfNot(condition, &done);
+  GotoIf(TaggedIsSmi(promise), &done);
+  GotoIfNot(HasInstanceType(promise, JS_PROMISE_TYPE), &done);
+  CallRuntime(Runtime::kSetProperty, context, promise,
+              HeapConstant(factory()->promise_handled_by_symbol()),
+              handled_by(), SmiConstant(STRICT));
+  Goto(&done);
+  BIND(&done);
+}
+
 // ES#sec-promise-reject-functions
 // Promise Reject Functions
 TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
@@ -1832,16 +1857,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
-  {
-    Label did_set_forwarding_handler(this);
-    GotoIfNot(instrumenting, &did_set_forwarding_handler);
-    CallRuntime(Runtime::kSetProperty, context,
-                LoadObjectField(capability, JSPromiseCapability::kRejectOffset),
-                HeapConstant(factory()->promise_forwarding_handler_symbol()),
-                TrueConstant(), SmiConstant(STRICT));
-    Goto(&did_set_forwarding_handler);
-    BIND(&did_set_forwarding_handler);
-  }
+  SetForwardingHandlerIfTrue(
+      context, instrumenting,
+      LoadObjectField(capability, JSPromiseCapability::kRejectOffset));
 
   Node* const native_context = LoadNativeContext(context);
   Node* const array_map = LoadContextElement(
@@ -1935,17 +1953,10 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
     // For catch prediction, mark that rejections here are semantically
     // handled by the combined Promise.
-    Label did_set_handled_by(this);
-    GotoIfNot(instrumenting, &did_set_handled_by);
-    GotoIf(TaggedIsSmi(then_call), &did_set_handled_by);
-    GotoIfNot(HasInstanceType(then_call, JS_PROMISE_TYPE), &did_set_handled_by);
-    CallRuntime(
-        Runtime::kSetProperty, context, then_call,
-        HeapConstant(factory()->promise_handled_by_symbol()),
-        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset),
-        SmiConstant(STRICT));
-    Goto(&did_set_handled_by);
-    BIND(&did_set_handled_by);
+    SetPromiseHandledByIfTrue(context, instrumenting, then_call, [=]() {
+      // Load promiseCapability.[[Promise]]
+      return LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+    });
 
     // Set index to index + 1
     var_index.Bind(NumberInc(var_index.value()));
@@ -2144,6 +2155,121 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
 
   BIND(&already_called);
   Return(UndefinedConstant());
+}
+
+// ES#sec-promise.race
+// Promise.race ( iterable )
+TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
+  IteratorBuiltinsAssembler iter_assembler(state());
+  VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
+
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const context = Parameter(Descriptor::kContext);
+  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
+                       "Promise.race");
+
+  // Let promiseCapability be ? NewPromiseCapability(C).
+  // Don't fire debugEvent so that forwarding the rejection through all does not
+  // trigger redundant ExceptionEvents
+  Node* const debug_event = FalseConstant();
+  Node* const capability = NewPromiseCapability(context, receiver, debug_event);
+
+  Node* const resolve =
+      LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+  Node* const reject =
+      LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+
+  Node* const instrumenting = IsDebugActive();
+
+  Label close_iterator(this, Label::kDeferred);
+  Label reject_promise(this, Label::kDeferred);
+
+  // For catch prediction, don't treat the .then calls as handling it;
+  // instead, recurse outwards.
+  SetForwardingHandlerIfTrue(context, instrumenting, reject);
+
+  // Let iterator be GetIterator(iterable).
+  // IfAbruptRejectPromise(iterator, promiseCapability).
+  Node* const iterable = Parameter(Descriptor::kIterable);
+  Node* const iterator = iter_assembler.GetIterator(
+      context, iterable, &reject_promise, &var_exception);
+
+  // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
+  {
+    Label loop(this), break_loop(this);
+    Goto(&loop);
+    BIND(&loop);
+    {
+      Node* const native_context = LoadNativeContext(context);
+      Node* const fast_iterator_result_map = LoadContextElement(
+          native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+
+      // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
+      // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+      // ReturnIfAbrupt(next).
+      Node* const next = iter_assembler.IteratorStep(
+          context, iterator, &break_loop, fast_iterator_result_map,
+          &reject_promise, &var_exception);
+
+      // Let nextValue be IteratorValue(next).
+      // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to
+      //     true.
+      // ReturnIfAbrupt(nextValue).
+      Node* const next_value =
+          iter_assembler.IteratorValue(context, next, fast_iterator_result_map,
+                                       &reject_promise, &var_exception);
+
+      // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
+      Node* const promise_resolve =
+          GetProperty(context, receiver, factory()->resolve_string());
+      GotoIfException(promise_resolve, &close_iterator, &var_exception);
+
+      Node* const next_promise = CallJS(CodeFactory::Call(isolate()), context,
+                                        promise_resolve, receiver, next_value);
+      GotoIfException(next_promise, &close_iterator, &var_exception);
+
+      // Perform ? Invoke(nextPromise, "then", « resolveElement,
+      //                  resultCapability.[[Reject]] »).
+      Node* const then =
+          GetProperty(context, next_promise, factory()->then_string());
+      GotoIfException(then, &close_iterator, &var_exception);
+
+      Node* const then_call = CallJS(CodeFactory::Call(isolate()), context,
+                                     then, next_promise, resolve, reject);
+      GotoIfException(then_call, &close_iterator, &var_exception);
+
+      // For catch prediction, mark that rejections here are semantically
+      // handled by the combined Promise.
+      SetPromiseHandledByIfTrue(context, instrumenting, then_call, [=]() {
+        // Load promiseCapability.[[Promise]]
+        return LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+      });
+      Goto(&loop);
+    }
+
+    BIND(&break_loop);
+    Return(LoadObjectField(capability, JSPromiseCapability::kPromiseOffset));
+  }
+
+  BIND(&close_iterator);
+  {
+    CSA_ASSERT(this, IsNotTheHole(var_exception.value()));
+    iter_assembler.IteratorCloseOnException(context, iterator, &reject_promise,
+                                            &var_exception);
+  }
+
+  BIND(&reject_promise);
+  {
+    Node* const reject =
+        LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+    Callable callable = CodeFactory::Call(isolate());
+    CallJS(callable, context, reject, UndefinedConstant(),
+           var_exception.value());
+
+    Node* const promise =
+        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+    Return(promise);
+  }
 }
 
 }  // namespace internal
