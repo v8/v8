@@ -62,10 +62,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_MAP_TYPE);
     case Runtime::kInlineIsJSSet:
       return ReduceIsInstanceType(node, JS_SET_TYPE);
-    case Runtime::kInlineIsJSMapIterator:
-      return ReduceIsInstanceType(node, JS_MAP_ITERATOR_TYPE);
-    case Runtime::kInlineIsJSSetIterator:
-      return ReduceIsInstanceType(node, JS_SET_ITERATOR_TYPE);
     case Runtime::kInlineIsJSWeakMap:
       return ReduceIsInstanceType(node, JS_WEAK_MAP_TYPE);
     case Runtime::kInlineIsJSWeakSet:

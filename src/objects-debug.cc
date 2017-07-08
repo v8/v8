@@ -164,10 +164,13 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_TYPE:
       JSMap::cast(this)->JSMapVerify();
       break;
-    case JS_SET_ITERATOR_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
       JSSetIterator::cast(this)->JSSetIteratorVerify();
       break;
-    case JS_MAP_ITERATOR_TYPE:
+    case JS_MAP_KEY_ITERATOR_TYPE:
+    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
 
@@ -953,8 +956,7 @@ void JSSetIterator::JSSetIteratorVerify() {
   VerifyHeapPointer(table());
   Isolate* isolate = GetIsolate();
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(isolate));
-  CHECK(index()->IsSmi() || index()->IsUndefined(isolate));
-  CHECK(kind()->IsSmi() || kind()->IsUndefined(isolate));
+  CHECK(index()->IsSmi());
 }
 
 
@@ -964,8 +966,7 @@ void JSMapIterator::JSMapIteratorVerify() {
   VerifyHeapPointer(table());
   Isolate* isolate = GetIsolate();
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(isolate));
-  CHECK(index()->IsSmi() || index()->IsUndefined(isolate));
-  CHECK(kind()->IsSmi() || kind()->IsUndefined(isolate));
+  CHECK(index()->IsSmi());
 }
 
 

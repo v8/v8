@@ -277,8 +277,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IsJSProxy)                       \
   V(IsJSMap)                         \
   V(IsJSSet)                         \
-  V(IsJSMapIterator)                 \
-  V(IsJSSetIterator)                 \
   V(IsJSWeakMap)                     \
   V(IsJSWeakSet)                     \
   V(IsRegExp)                        \

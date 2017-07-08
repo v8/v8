@@ -487,6 +487,7 @@ class OrderedHashTable : public FixedArray {
   static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
   static const int kNumberOfBucketsIndex = kNumberOfDeletedElementsIndex + 1;
   static const int kHashTableStartIndex = kNumberOfBucketsIndex + 1;
+  static const int kRemovedHolesIndex = kHashTableStartIndex;
 
   static constexpr const int kNumberOfElementsOffset =
       FixedArray::OffsetOfElementAt(kNumberOfElementsIndex);
@@ -498,6 +499,8 @@ class OrderedHashTable : public FixedArray {
       FixedArray::OffsetOfElementAt(kNumberOfBucketsIndex);
   static constexpr const int kHashTableStartOffset =
       FixedArray::OffsetOfElementAt(kHashTableStartIndex);
+  static constexpr const int kRemovedHolesOffset =
+      FixedArray::OffsetOfElementAt(kRemovedHolesIndex);
 
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
@@ -536,8 +539,6 @@ class OrderedHashTable : public FixedArray {
   void SetRemovedIndexAt(int index, int removed_index) {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
-
-  static const int kRemovedHolesIndex = kHashTableStartIndex;
 };
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
@@ -856,19 +857,13 @@ class OrderedHashTableIterator : public JSObject {
   // [index]: The index into the data table.
   DECL_ACCESSORS(index, Object)
 
-  // [kind]: The kind of iteration this is. One of the [Kind] enum values.
-  DECL_ACCESSORS(kind, Object)
-
 #ifdef OBJECT_PRINT
   void OrderedHashTableIteratorPrint(std::ostream& os);  // NOLINT
 #endif
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kIndexOffset = kTableOffset + kPointerSize;
-  static const int kKindOffset = kIndexOffset + kPointerSize;
-  static const int kSize = kKindOffset + kPointerSize;
-
-  enum Kind { kKindKeys = 1, kKindValues = 2, kKindEntries = 3 };
+  static const int kSize = kIndexOffset + kPointerSize;
 
   // Whether the iterator has more elements. This needs to be called before
   // calling |CurrentKey| and/or |CurrentValue|.
