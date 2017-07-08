@@ -248,11 +248,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 
 bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
   switch (opcode) {
-#define CHECK_PREFIX(name, opcode) \
-  case k##name##Prefix:            \
-    return true;
+#define CHECK_PREFIX(name, opcode) case k##name##Prefix:
     FOREACH_PREFIX(CHECK_PREFIX)
 #undef CHECK_PREFIX
+    return true;
     default:
       return false;
   }
@@ -260,11 +259,10 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
 
 bool WasmOpcodes::IsControlOpcode(WasmOpcode opcode) {
   switch (opcode) {
-#define CHECK_OPCODE(name, opcode, _) \
-  case kExpr##name:                   \
-    return true;
+#define CHECK_OPCODE(name, opcode, _) case kExpr##name:
     FOREACH_CONTROL_OPCODE(CHECK_OPCODE)
 #undef CHECK_OPCODE
+    return true;
     default:
       return false;
   }
