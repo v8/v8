@@ -584,13 +584,13 @@ namespace internal {
   CPP(MapClear)                                                                \
   CPP(MapForEach)                                                              \
   /* ES #sec-map.prototype.entries */                                          \
-  TFJ(MapPrototypeEntries, 0)                                                  \
+  CPP(MapPrototypeEntries)                                                     \
   /* ES #sec-map.prototype.keys */                                             \
-  TFJ(MapPrototypeKeys, 0)                                                     \
+  CPP(MapPrototypeKeys)                                                        \
   /* ES #sec-map.prototype.values */                                           \
-  TFJ(MapPrototypeValues, 0)                                                   \
+  CPP(MapPrototypeValues)                                                      \
   /* ES #sec-%mapiteratorprototype%.next */                                    \
-  TFJ(MapIteratorPrototypeNext, 0)                                             \
+  CPP(MapIteratorPrototypeNext)                                                \
                                                                                \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
@@ -874,11 +874,11 @@ namespace internal {
   CPP(SetClear)                                                                \
   CPP(SetForEach)                                                              \
   /* ES #sec-set.prototype.entries */                                          \
-  TFJ(SetPrototypeEntries, 0)                                                  \
+  CPP(SetPrototypeEntries)                                                     \
   /* ES #sec-set.prototype.values */                                           \
-  TFJ(SetPrototypeValues, 0)                                                   \
+  CPP(SetPrototypeValues)                                                      \
   /* ES #sec-%setiteratorprototype%.next */                                    \
-  TFJ(SetIteratorPrototypeNext, 0)                                             \
+  CPP(SetIteratorPrototypeNext)                                                \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

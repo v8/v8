@@ -1822,8 +1822,19 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
 
   BIND(&return_result);
   {
-    Node* result =
-        AllocateJSIteratorResult(context, var_value.value(), var_done.value());
+    Node* native_context = LoadNativeContext(context);
+    Node* map =
+        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+    Node* result = Allocate(JSIteratorResult::kSize);
+    StoreMapNoWriteBarrier(result, map);
+    StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+    StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+    StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset,
+                                   var_value.value());
+    StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset,
+                                   var_done.value());
     Return(result);
   }
 

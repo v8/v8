@@ -3643,20 +3643,10 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
     // Setup SetIterator constructor.
     Handle<JSFunction> set_iterator_function =
-        InstallFunction(container, "SetIterator", JS_SET_VALUE_ITERATOR_TYPE,
+        InstallFunction(container, "SetIterator", JS_SET_ITERATOR_TYPE,
                         JSSetIterator::kSize, prototype, Builtins::kIllegal);
-    set_iterator_function->shared()->set_native(false);
     set_iterator_function->shared()->set_instance_class_name(*name);
-
-    Handle<Map> set_value_iterator_map(set_iterator_function->initial_map(),
-                                       isolate);
-    native_context->set_set_value_iterator_map(*set_value_iterator_map);
-
-    Handle<Map> set_key_value_iterator_map =
-        Map::Copy(set_value_iterator_map, "JS_SET_KEY_VALUE_ITERATOR_TYPE");
-    set_key_value_iterator_map->set_instance_type(
-        JS_SET_KEY_VALUE_ITERATOR_TYPE);
-    native_context->set_set_key_value_iterator_map(*set_key_value_iterator_map);
+    native_context->set_set_iterator_map(set_iterator_function->initial_map());
   }
 
   {  // -- M a p I t e r a t o r
@@ -3679,25 +3669,10 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
     // Setup MapIterator constructor.
     Handle<JSFunction> map_iterator_function =
-        InstallFunction(container, "MapIterator", JS_MAP_KEY_ITERATOR_TYPE,
+        InstallFunction(container, "MapIterator", JS_MAP_ITERATOR_TYPE,
                         JSMapIterator::kSize, prototype, Builtins::kIllegal);
-    map_iterator_function->shared()->set_native(false);
     map_iterator_function->shared()->set_instance_class_name(*name);
-
-    Handle<Map> map_key_iterator_map(map_iterator_function->initial_map(),
-                                     isolate);
-    native_context->set_map_key_iterator_map(*map_key_iterator_map);
-
-    Handle<Map> map_key_value_iterator_map =
-        Map::Copy(map_key_iterator_map, "JS_MAP_KEY_VALUE_ITERATOR_TYPE");
-    map_key_value_iterator_map->set_instance_type(
-        JS_MAP_KEY_VALUE_ITERATOR_TYPE);
-    native_context->set_map_key_value_iterator_map(*map_key_value_iterator_map);
-
-    Handle<Map> map_value_iterator_map =
-        Map::Copy(map_key_iterator_map, "JS_MAP_VALUE_ITERATOR_TYPE");
-    map_value_iterator_map->set_instance_type(JS_MAP_VALUE_ITERATOR_TYPE);
-    native_context->set_map_value_iterator_map(*map_value_iterator_map);
+    native_context->set_map_iterator_map(map_iterator_function->initial_map());
   }
 
   {  // -- S c r i p t

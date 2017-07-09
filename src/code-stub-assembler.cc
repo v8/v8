@@ -3138,14 +3138,6 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
   return var_value.value();
 }
 
-void CodeStubAssembler::ThrowIncompatibleMethodReceiver(Node* context,
-                                                        const char* method_name,
-                                                        Node* receiver) {
-  CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-              CStringConstant(method_name), receiver);
-  Unreachable();
-}
-
 Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
                                                 InstanceType instance_type,
                                                 char const* method_name) {
@@ -3163,7 +3155,11 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
-  ThrowIncompatibleMethodReceiver(context, method_name, value);
+  CallRuntime(
+      Runtime::kThrowIncompatibleMethodReceiver, context,
+      HeapConstant(factory()->NewStringFromAsciiChecked(method_name, TENURED)),
+      value);
+  Unreachable();
 
   BIND(&out);
   return var_value_map.value();
@@ -9154,58 +9150,6 @@ Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
   StoreObjectFieldNoWriteBarrier(
       iterator, JSArrayIterator::kIteratedObjectMapOffset, array_map);
   return iterator;
-}
-
-Node* CodeStubAssembler::AllocateJSIteratorResult(Node* context, Node* value,
-                                                  Node* done) {
-  CSA_ASSERT(this, IsBoolean(done));
-  Node* native_context = LoadNativeContext(context);
-  Node* map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
-  Node* result = Allocate(JSIteratorResult::kSize);
-  StoreMapNoWriteBarrier(result, map);
-  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, value);
-  StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);
-  return result;
-}
-
-Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
-                                                          Node* key,
-                                                          Node* value) {
-  Node* native_context = LoadNativeContext(context);
-  Node* length = SmiConstant(2);
-  int const elements_size = FixedArray::SizeFor(2);
-  Node* elements =
-      Allocate(elements_size + JSArray::kSize + JSIteratorResult::kSize);
-  StoreObjectFieldRoot(elements, FixedArray::kMapOffset,
-                       Heap::kFixedArrayMapRootIndex);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
-  StoreFixedArrayElement(elements, 0, key);
-  StoreFixedArrayElement(elements, 1, value);
-  Node* array_map = LoadContextElement(
-      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
-  Node* array = InnerAllocate(elements, elements_size);
-  StoreMapNoWriteBarrier(array, array_map);
-  StoreObjectFieldRoot(array, JSArray::kPropertiesOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
-  Node* iterator_map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
-  Node* result = InnerAllocate(array, JSArray::kSize);
-  StoreMapNoWriteBarrier(result, iterator_map);
-  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, array);
-  StoreObjectFieldRoot(result, JSIteratorResult::kDoneOffset,
-                       Heap::kFalseValueRootIndex);
-  return result;
 }
 
 Node* CodeStubAssembler::TypedArraySpeciesCreateByLength(Node* context,

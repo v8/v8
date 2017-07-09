@@ -98,10 +98,12 @@ namespace internal {
   F(SetGrow, 1, 1)                        \
   F(SetShrink, 1, 1)                      \
   F(SetIteratorClone, 1, 1)               \
+  F(SetIteratorDetails, 1, 1)             \
   F(MapInitialize, 1, 1)                  \
   F(MapShrink, 1, 1)                      \
   F(MapGrow, 1, 1)                        \
   F(MapIteratorClone, 1, 1)               \
+  F(MapIteratorDetails, 1, 1)             \
   F(GetWeakMapEntries, 2, 1)              \
   F(WeakCollectionInitialize, 1, 1)       \
   F(WeakCollectionGet, 3, 1)              \
@@ -111,6 +113,8 @@ namespace internal {
   F(GetWeakSetValues, 2, 1)               \
   F(IsJSMap, 1, 1)                        \
   F(IsJSSet, 1, 1)                        \
+  F(IsJSMapIterator, 1, 1)                \
+  F(IsJSSetIterator, 1, 1)                \
   F(IsJSWeakMap, 1, 1)                    \
   F(IsJSWeakSet, 1, 1)
 

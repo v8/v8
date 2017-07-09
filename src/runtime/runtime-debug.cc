@@ -147,18 +147,17 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
+  CHECK(iterator->kind()->IsSmi());
   const char* kind = NULL;
-  switch (iterator->map()->instance_type()) {
-    case JS_MAP_KEY_ITERATOR_TYPE:
+  switch (Smi::cast(iterator->kind())->value()) {
+    case IteratorType::kKindKeys:
       kind = "keys";
       break;
-    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
-    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
-      kind = "entries";
-      break;
-    case JS_MAP_VALUE_ITERATOR_TYPE:
-    case JS_SET_VALUE_ITERATOR_TYPE:
+    case IteratorType::kKindValues:
       kind = "values";
+      break;
+    case IteratorType::kKindEntries:
+      kind = "entries";
       break;
     default:
       UNREACHABLE();

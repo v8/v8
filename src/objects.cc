@@ -1324,12 +1324,9 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSSet::kSize;
     case JS_MAP_TYPE:
       return JSMap::kSize;
-    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
-    case JS_SET_VALUE_ITERATOR_TYPE:
+    case JS_SET_ITERATOR_TYPE:
       return JSSetIterator::kSize;
-    case JS_MAP_KEY_ITERATOR_TYPE:
-    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
-    case JS_MAP_VALUE_ITERATOR_TYPE:
+    case JS_MAP_ITERATOR_TYPE:
       return JSMapIterator::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
@@ -3048,11 +3045,8 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
-    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
-    case JS_SET_VALUE_ITERATOR_TYPE:
-    case JS_MAP_KEY_ITERATOR_TYPE:
-    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
-    case JS_MAP_VALUE_ITERATOR_TYPE:
+    case JS_SET_ITERATOR_TYPE:
+    case JS_MAP_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
 
     case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
@@ -12679,6 +12673,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_FUNCTION_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
+    case JS_MAP_ITERATOR_TYPE:
     case JS_MAP_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_OBJECT_TYPE:
@@ -12686,6 +12681,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_ARGUMENTS_TYPE:
     case JS_PROMISE_TYPE:
     case JS_REGEXP_TYPE:
+    case JS_SET_ITERATOR_TYPE:
     case JS_SET_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:

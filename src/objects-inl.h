@@ -92,12 +92,14 @@ TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
+TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
 TYPE_CHECKER(JSPromiseCapability, JS_PROMISE_CAPABILITY_TYPE)
 TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
+TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
 TYPE_CHECKER(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
@@ -286,18 +288,6 @@ bool HeapObject::IsJSObject() const {
 }
 
 bool HeapObject::IsJSProxy() const { return map()->IsJSProxyMap(); }
-
-bool HeapObject::IsJSMapIterator() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type >= JS_MAP_KEY_ITERATOR_TYPE &&
-          instance_type <= JS_MAP_VALUE_ITERATOR_TYPE);
-}
-
-bool HeapObject::IsJSSetIterator() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type == JS_SET_VALUE_ITERATOR_TYPE ||
-          instance_type == JS_SET_KEY_VALUE_ITERATOR_TYPE);
-}
 
 bool HeapObject::IsJSArrayIterator() const {
   InstanceType instance_type = map()->instance_type();
@@ -4839,6 +4829,7 @@ ACCESSORS(JSCollection, table, Object, kTableOffset)
 
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(table, Object, kTableOffset)
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Object, kIndexOffset)
+ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Object, kKindOffset)
 
 #undef ORDERED_HASH_TABLE_ITERATOR_ACCESSORS
 

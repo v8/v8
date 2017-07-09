@@ -400,11 +400,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_DATA_VIEW_TYPE)                                                         \
   V(JS_SET_TYPE)                                                               \
   V(JS_MAP_TYPE)                                                               \
-  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                                            \
-  V(JS_SET_VALUE_ITERATOR_TYPE)                                                \
-  V(JS_MAP_KEY_ITERATOR_TYPE)                                                  \
-  V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                                            \
-  V(JS_MAP_VALUE_ITERATOR_TYPE)                                                \
+  V(JS_SET_ITERATOR_TYPE)                                                      \
+  V(JS_MAP_ITERATOR_TYPE)                                                      \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_WEAK_SET_TYPE)                                                          \
   V(JS_PROMISE_CAPABILITY_TYPE)                                                \
@@ -760,11 +757,8 @@ enum InstanceType {
   JS_DATA_VIEW_TYPE,
   JS_SET_TYPE,
   JS_MAP_TYPE,
-  JS_SET_KEY_VALUE_ITERATOR_TYPE,
-  JS_SET_VALUE_ITERATOR_TYPE,
-  JS_MAP_KEY_ITERATOR_TYPE,
-  JS_MAP_KEY_VALUE_ITERATOR_TYPE,
-  JS_MAP_VALUE_ITERATOR_TYPE,
+  JS_SET_ITERATOR_TYPE,
+  JS_MAP_ITERATOR_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
   JS_PROMISE_CAPABILITY_TYPE,
