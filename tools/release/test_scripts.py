@@ -968,7 +968,7 @@ TBR=reviewer@chromium.org"""
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" "
-          "-f --bypass-hooks --private", ""),
+          "-f --bypass-hooks --gerrit --private", ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
@@ -1119,7 +1119,7 @@ deps = {
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
-          "--use-commit-queue --bypass-hooks", "", cwd=chrome_dir),
+          "--use-commit-queue --bypass-hooks --gerrit", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
