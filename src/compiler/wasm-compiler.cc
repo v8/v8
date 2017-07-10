@@ -3944,7 +3944,6 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
       func_body_(body),
       func_name_(name),
       counters_(isolate->counters()),
-      is_sync_(true),
       centry_stub_(centry_stub),
       func_index_(index) {}
 
@@ -3970,7 +3969,6 @@ WasmCompilationUnit::WasmCompilationUnit(
       func_body_(body),
       func_name_(name),
       counters_(async_counters.get()),
-      is_sync_(false),
       centry_stub_(centry_stub),
       func_index_(index) {}
 
@@ -4035,11 +4033,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
         &protected_instructions, module_env_->module->origin()));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
-    if (is_sync_)
-      // TODO(karlschimpf): Make this work when asynchronous.
-      // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-      counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
-          static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
+    counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
+        static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
 
     if (FLAG_trace_wasm_decode_time) {
       double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();

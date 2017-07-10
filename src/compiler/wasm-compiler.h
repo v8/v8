@@ -87,7 +87,6 @@ class WasmCompilationUnit final {
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
-  bool is_sync_;
   // The graph zone is deallocated at the end of ExecuteCompilation by virtue of
   // it being zone allocated.
   JSGraph* jsgraph_ = nullptr;

@@ -1336,9 +1336,9 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   bool is_sync) {
   size_t size = function_end - function_start;
   bool is_wasm = module_env->module_env.is_wasm();
-  auto size_counter = is_wasm ? counters->wasm_wasm_function_size_bytes()
-                              : counters->wasm_asm_function_size_bytes();
-  size_counter->AddSample(static_cast<int>(size));
+  auto size_histogram = is_wasm ? counters->wasm_wasm_function_size_bytes()
+                                : counters->wasm_asm_function_size_bytes();
+  size_histogram->AddSample(static_cast<int>(size));
   auto time_counter = is_wasm ? counters->wasm_decode_wasm_function_time()
                               : counters->wasm_decode_asm_function_time();
   TimedHistogramScope wasm_decode_function_time_scope(time_counter);

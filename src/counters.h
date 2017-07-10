@@ -1006,7 +1006,25 @@ class RuntimeCallTimerScope {
      13)                                                                      \
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,  \
      13)                                                                      \
-  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)
+  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)    \
+  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)   \
+  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51) \
+  HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)       \
+  HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)     \
+  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,   \
+     51)                                                                      \
+  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16, \
+     51)                                                                      \
+  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16, \
+     51)                                                                      \
+  HR(wasm_decode_asm_module_peak_memory_bytes,                                \
+     V8.WasmDecodeModulePeakMemoryBytes.asm, 1, GB, 51)                       \
+  HR(wasm_decode_wasm_module_peak_memory_bytes,                               \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm, 1, GB, 51)                      \
+  HR(asm_wasm_translation_peak_memory_bytes,                                  \
+     V8.AsmWasmTranslationPeakMemoryBytes, 1, GB, 51)                         \
+  HR(wasm_compile_function_peak_memory_bytes,                                 \
+     V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -1080,6 +1098,7 @@ class RuntimeCallTimerScope {
   HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
   HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)
 
+// Note: These use Histogram with options (min=1000, max=500000, buckets=50).
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
   HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
   HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)                    \
@@ -1087,25 +1106,11 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                  \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted)                \
-  HM(memory_heap_used, V8.MemoryHeapUsed)                          \
-  /* Asm/Wasm */                                                   \
-  HM(wasm_decode_asm_module_peak_memory_bytes,                     \
-     V8.WasmDecodeModulePeakMemoryBytes.asm)                       \
-  HM(wasm_decode_wasm_module_peak_memory_bytes,                    \
-     V8.WasmDecodeModulePeakMemoryBytes.wasm)                      \
-  HM(wasm_compile_function_peak_memory_bytes,                      \
-     V8.WasmCompileFunctionPeakMemoryBytes)                        \
-  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)    \
-  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)  \
-  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)  \
-  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)   \
-  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm) \
-  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)       \
-  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)     \
-  HM(asm_wasm_translation_peak_memory_bytes,                       \
-     V8.AsmWasmTranslationPeakMemoryBytes)
+// Note: These define both Histogram and AggregatedMemoryHistogram<Histogram>
+// histograms with options (min=4000, max=2000000, buckets=100).
+#define HISTOGRAM_MEMORY_LIST(HM)                   \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted) \
+  HM(memory_heap_used, V8.MemoryHeapUsed)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40

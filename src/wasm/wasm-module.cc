@@ -760,8 +760,7 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  constexpr bool is_sync = true;
-  ModuleCompiler helper(isolate, std::move(result.val), is_sync);
+  ModuleCompiler helper(isolate, std::move(result.val));
   return helper.CompileToModuleObject(thrower, bytes, asm_js_script,
                                       asm_js_offset_table_bytes);
 }
@@ -783,8 +782,7 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  constexpr bool is_sync = true;
-  ModuleCompiler helper(isolate, std::move(result.val), is_sync);
+  ModuleCompiler helper(isolate, std::move(result.val));
   return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
                                       Vector<const byte>());
 }

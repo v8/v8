@@ -27,8 +27,7 @@ class ModuleCompiler {
   // In {CompileToModuleObject}, it will transfer ownership to the generated
   // {WasmModuleWrapper}. If this method is not called, ownership may be
   // reclaimed by explicitely releasing the {module_} field.
-  ModuleCompiler(Isolate* isolate, std::unique_ptr<WasmModule> module,
-                 bool is_sync);
+  ModuleCompiler(Isolate* isolate, std::unique_ptr<WasmModule> module);
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
@@ -52,20 +51,12 @@ class ModuleCompiler {
     void AddUnit(ModuleEnv* module_env, const WasmFunction* function,
                  uint32_t buffer_offset, Vector<const uint8_t> bytes,
                  WasmName name) {
-      if (compiler_->is_sync_) {
-        units_.emplace_back(new compiler::WasmCompilationUnit(
-            compiler_->isolate_, module_env,
-            wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                               bytes.end()},
-            name, function->func_index, compiler_->centry_stub_));
-      } else {
-        units_.emplace_back(new compiler::WasmCompilationUnit(
-            compiler_->isolate_, module_env,
-            wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                               bytes.end()},
-            name, function->func_index, compiler_->centry_stub_,
-            compiler_->async_counters()));
-      }
+      units_.emplace_back(new compiler::WasmCompilationUnit(
+          compiler_->isolate_, module_env,
+          wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
+                             bytes.end()},
+          name, function->func_index, compiler_->centry_stub_,
+          compiler_->async_counters()));
     }
 
     void Commit() {
@@ -177,7 +168,6 @@ class ModuleCompiler {
   Isolate* isolate_;
   std::unique_ptr<WasmModule> module_;
   const std::shared_ptr<Counters> async_counters_;
-  bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
   base::Mutex compilation_units_mutex_;
