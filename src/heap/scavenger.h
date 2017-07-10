@@ -76,19 +76,22 @@ class Scavenger {
         is_logging_(is_logging),
         is_incremental_marking_(is_incremental_marking) {}
 
-  // Callback function passed to Heap::Iterate etc.  Copies an object if
-  // necessary, the object might be promoted to an old space.  The caller must
-  // ensure the precondition that the object is (a) a heap object and (b) in
-  // the heap's from space.
+  // Scavenges an object |object| referenced from slot |p|. |object| is required
+  // to be in from space.
   inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
+  // Potentially scavenges an object referenced from |slot_address| if it is
+  // indeed a HeapObject and resides in from space.
   inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
                                                    Address slot_address);
-  inline Heap* heap() { return heap_; }
-  inline PromotionList::View* promotion_list() { return &promotion_list_; }
-  inline CopiedRangesList* copied_list() { return &copied_list_; }
+
+  // Processes remaining work (=objects) after single objects have been
+  // manually scavenged using ScavengeObject or CheckAndScavengeObject.
+  void Process();
 
  private:
+  inline Heap* heap() { return heap_; }
+
   V8_INLINE HeapObject* MigrateObject(HeapObject* source, HeapObject* target,
                                       int size);
 
@@ -114,6 +117,8 @@ class Scavenger {
 
   inline void EvacuateShortcutCandidate(Map* map, HeapObject** slot,
                                         ConsString* object, int object_size);
+
+  void IterateAndScavengePromotedObject(HeapObject* target, int size);
 
   void RecordCopiedObject(HeapObject* obj);
 

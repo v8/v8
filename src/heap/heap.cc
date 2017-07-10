@@ -1772,7 +1772,7 @@ void Heap::Scavenge() {
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
-    DoScavenge(&scavenger);
+    scavenger.Process();
   }
 
   isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
@@ -1780,7 +1780,7 @@ void Heap::Scavenge() {
 
   isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
       &root_scavenge_visitor);
-  DoScavenge(&scavenger);
+  scavenger.Process();
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -1983,41 +1983,6 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
 
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
-
-void Heap::DoScavenge(Scavenger* scavenger) {
-  // Threshold when to switch processing the promotion list to avoid
-  // allocating too much backing store in the worklist.
-  const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
-  ScavengeVisitor scavenge_visitor(this, scavenger);
-  PromotionList::View* promotion_list = scavenger->promotion_list();
-  CopiedRangesList* copied_list = scavenger->copied_list();
-
-  bool done;
-  do {
-    done = true;
-    AddressRange range;
-    while ((promotion_list->LocalPushSegmentSize() <
-            kProcessPromotionListThreshold) &&
-           copied_list->Pop(&range)) {
-      for (Address current = range.first; current < range.second;) {
-        HeapObject* object = HeapObject::FromAddress(current);
-        int size = object->Size();
-        scavenge_visitor.Visit(object);
-        current += size;
-      }
-      done = false;
-    }
-    ObjectAndSize object_and_size;
-    while (promotion_list->Pop(&object_and_size)) {
-      HeapObject* target = object_and_size.first;
-      int size = object_and_size.second;
-      DCHECK(!target->IsMap());
-      IterateAndScavengePromotedObject(scavenger, target, size);
-      done = false;
-    }
-  } while (!done);
-}
-
 
 STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) ==
               0);  // NOLINT
@@ -4976,85 +4941,6 @@ void Heap::ZapFromSpace() {
          cursor < limit; cursor += kPointerSize) {
       Memory::Address_at(cursor) = kFromSpaceZapValue;
     }
-  }
-}
-
-class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
- public:
-  IterateAndScavengePromotedObjectsVisitor(Heap* heap, Scavenger* scavenger,
-                                           bool record_slots)
-      : heap_(heap), scavenger_(scavenger), record_slots_(record_slots) {}
-
-  inline void VisitPointers(HeapObject* host, Object** start,
-                            Object** end) override {
-    Address slot_address = reinterpret_cast<Address>(start);
-    Page* page = Page::FromAddress(slot_address);
-
-    while (slot_address < reinterpret_cast<Address>(end)) {
-      Object** slot = reinterpret_cast<Object**>(slot_address);
-      Object* target = *slot;
-
-      if (target->IsHeapObject()) {
-        if (heap_->InFromSpace(target)) {
-          scavenger_->ScavengeObject(reinterpret_cast<HeapObject**>(slot),
-                                     HeapObject::cast(target));
-          target = *slot;
-          if (heap_->InNewSpace(target)) {
-            SLOW_DCHECK(heap_->InToSpace(target));
-            SLOW_DCHECK(target->IsHeapObject());
-            RememberedSet<OLD_TO_NEW>::Insert(page, slot_address);
-          }
-          SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
-              HeapObject::cast(target)));
-        } else if (record_slots_ &&
-                   MarkCompactCollector::IsOnEvacuationCandidate(
-                       HeapObject::cast(target))) {
-          heap_->mark_compact_collector()->RecordSlot(host, slot, target);
-        }
-      }
-
-      slot_address += kPointerSize;
-    }
-  }
-
-  inline void VisitCodeEntry(JSFunction* host,
-                             Address code_entry_slot) override {
-    // Black allocation requires us to process objects referenced by
-    // promoted objects.
-    if (heap_->incremental_marking()->black_allocation()) {
-      Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
-      heap_->incremental_marking()->WhiteToGreyAndPush(code);
-    }
-  }
-
- private:
-  Heap* const heap_;
-  Scavenger* const scavenger_;
-  bool record_slots_;
-};
-
-void Heap::IterateAndScavengePromotedObject(Scavenger* scavenger,
-                                            HeapObject* target, int size) {
-  // We are not collecting slots on new space objects during mutation
-  // thus we have to scan for pointers to evacuation candidates when we
-  // promote objects. But we should not record any slots in non-black
-  // objects. Grey object's slots would be rescanned.
-  // White object might not survive until the end of collection
-  // it would be a violation of the invariant to record it's slots.
-  bool record_slots = false;
-  if (incremental_marking()->IsCompacting()) {
-    record_slots =
-        ObjectMarking::IsBlack(target, MarkingState::Internal(target));
-  }
-
-  IterateAndScavengePromotedObjectsVisitor visitor(this, scavenger,
-                                                   record_slots);
-  if (target->IsJSFunction()) {
-    // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
-    // this links are recorded during processing of weak lists.
-    JSFunction::BodyDescriptorWeak::IterateBody(target, size, &visitor);
-  } else {
-    target->IterateBody(target->map()->instance_type(), size, &visitor);
   }
 }
 

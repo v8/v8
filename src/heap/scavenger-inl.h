@@ -78,7 +78,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
     // Update slot to new target.
     *slot = target;
 
-    copied_list()->Insert(target, object_size);
+    copied_list_.Insert(target, object_size);
     heap()->IncrementSemiSpaceCopiedObjectSize(object_size);
     return true;
   }
@@ -105,7 +105,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
                                  reinterpret_cast<base::AtomicWord>(target));
 
     if (!ContainsOnlyData(static_cast<VisitorId>(map->visitor_id()))) {
-      promotion_list()->Push(ObjectAndSize(target, object_size));
+      promotion_list_.Push(ObjectAndSize(target, object_size));
     }
     heap()->IncrementPromotedObjectsSize(object_size);
     return true;
@@ -167,7 +167,7 @@ void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
     *slot = actual;
     // ThinStrings always refer to internalized strings, which are
     // always in old space.
-    DCHECK(!map->GetHeap()->InNewSpace(actual));
+    DCHECK(!heap()->InNewSpace(actual));
     object->set_map_word(MapWord::FromForwardingAddress(actual));
     return;
   }
@@ -228,7 +228,7 @@ void Scavenger::EvacuateObject(HeapObject** slot, Map* map,
 }
 
 void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
-  DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
+  DCHECK(heap()->InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
@@ -245,11 +245,11 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  object->GetHeap()->UpdateAllocationSite<Heap::kGlobal>(
-      object, object->GetHeap()->global_pretenuring_feedback_);
+  heap()->UpdateAllocationSite<Heap::kGlobal>(
+      object, heap()->global_pretenuring_feedback_);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
-  DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
+  DCHECK_NE(heap()->allocation_memento_map(), object->map());
   // Call the slow part of scavenge object.
   EvacuateObject(p, first_word.ToMap(), object);
 }

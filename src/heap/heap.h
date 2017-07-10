@@ -1128,10 +1128,6 @@ class Heap {
   // Iterates over all the other roots in the heap.
   void IterateWeakRoots(RootVisitor* v, VisitMode mode);
 
-  // Iterate pointers of promoted objects.
-  void IterateAndScavengePromotedObject(Scavenger* scavenger,
-                                        HeapObject* target, int size);
-
   // ===========================================================================
   // Store buffer API. =========================================================
   // ===========================================================================
@@ -1782,8 +1778,6 @@ class Heap {
   // Performs a minor collection in new generation.
   void Scavenge();
   void EvacuateYoungGeneration();
-
-  void DoScavenge(Scavenger* scavenger);
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
