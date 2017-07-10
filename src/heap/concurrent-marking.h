@@ -20,24 +20,40 @@ class Worklist;
 
 class ConcurrentMarking {
  public:
+  // When the scope is entered, the concurrent marking tasks
+  // are paused and are not looking at the heap objects.
+  class PauseScope {
+   public:
+    explicit PauseScope(ConcurrentMarking* concurrent_marking);
+    ~PauseScope();
+
+   private:
+    ConcurrentMarking* concurrent_marking_;
+  };
+
+  static const int kTasks = 4;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared_,
                     MarkingWorklist* bailout_);
 
-  void StartTask();
-  void WaitForTaskToComplete();
-  bool IsTaskPending() { return is_task_pending_; }
-  void EnsureTaskCompleted();
+  void Start();
+  bool IsRunning() { return pending_task_count_ > 0; }
+  void EnsureCompleted();
 
  private:
+  struct TaskLock {
+    base::Mutex lock;
+    char cache_line_padding[64];
+  };
   class Task;
-  void Run(int task_id);
+  void Run(int task_id, base::Mutex* lock);
   Heap* heap_;
-  base::Semaphore pending_task_semaphore_;
   MarkingWorklist* shared_;
   MarkingWorklist* bailout_;
-  bool is_task_pending_;
+  TaskLock task_lock_[kTasks];
+  base::Semaphore pending_task_semaphore_;
+  int pending_task_count_;
 };
 
 }  // namespace internal

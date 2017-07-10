@@ -28,8 +28,8 @@ TEST(ConcurrentMarking) {
   CHECK(shared.Pop(0, &object));
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &shared, &bailout);
-  concurrent_marking->StartTask();
-  concurrent_marking->WaitForTaskToComplete();
+  concurrent_marking->Start();
+  concurrent_marking->EnsureCompleted();
   delete concurrent_marking;
 }
 

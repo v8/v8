@@ -1176,7 +1176,7 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   DCHECK(array->map() != fixed_cow_array_map());
   Object** dst = array->data_start() + dst_index;
   Object** src = array->data_start() + src_index;
-  if (FLAG_concurrent_marking && concurrent_marking()->IsTaskPending()) {
+  if (FLAG_concurrent_marking && concurrent_marking()->IsRunning()) {
     if (dst < src) {
       for (int i = 0; i < len; i++) {
         base::AsAtomicWord::Relaxed_Store(
@@ -1647,6 +1647,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_EVACUATE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
+  ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   if (!FLAG_concurrent_marking) {
     DCHECK(fast_promotion_mode_);
     DCHECK(CanExpandOldGeneration(new_space()->Size()));
@@ -1696,6 +1697,7 @@ static bool IsLogging(Isolate* isolate) {
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
+  ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
   // trigger one during scavenge: scavenges allocation should always succeed.

@@ -592,8 +592,7 @@ void IncrementalMarking::StartMarking() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
   if (FLAG_concurrent_marking) {
-    ConcurrentMarking* concurrent_marking = heap_->concurrent_marking();
-    concurrent_marking->StartTask();
+    heap_->concurrent_marking()->Start();
   }
 
   // Ready to start incremental marking.
