@@ -2534,11 +2534,13 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field; upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ Ldr(x11, FieldMemOperand(allocation_site,
-                                AllocationSite::kTransitionInfoOffset));
+    __ Ldr(x11,
+           FieldMemOperand(allocation_site,
+                           AllocationSite::kTransitionInfoOrBoilerplateOffset));
     __ Add(x11, x11, Smi::FromInt(kFastElementsKindPackedToHoley));
-    __ Str(x11, FieldMemOperand(allocation_site,
-                                AllocationSite::kTransitionInfoOffset));
+    __ Str(x11,
+           FieldMemOperand(allocation_site,
+                           AllocationSite::kTransitionInfoOrBoilerplateOffset));
 
     __ Bind(&normal_sequence);
     int last_index =
@@ -2661,9 +2663,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // Get the elements kind and case on that.
   __ JumpIfRoot(allocation_site, Heap::kUndefinedValueRootIndex, &no_info);
 
-  __ Ldrsw(kind,
-           UntagSmiFieldMemOperand(allocation_site,
-                                   AllocationSite::kTransitionInfoOffset));
+  __ Ldrsw(kind, UntagSmiFieldMemOperand(
+                     allocation_site,
+                     AllocationSite::kTransitionInfoOrBoilerplateOffset));
   __ And(kind, kind, AllocationSite::ElementsKindBits::kMask);
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 

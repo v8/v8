@@ -795,15 +795,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // We don't know that we have a weak cell. We might have a private symbol
   // or an AllocationSite, but the memory is safe to examine.
-  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
-  // FixedArray.
-  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
-  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // AllocationSite::kTransitionInfoOrBoilerplateOffset - contains a Smi or
+  // pointer to FixedArray. WeakCell::kValueOffset - contains a JSFunction or
+  // Smi(0) Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
   // computed, meaning that it can't appear to be a pointer. If the low bit is
   // 0, then hash is computed, but the 0 bit prevents the field from appearing
   // to be a pointer.
   STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
-  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOrBoilerplateOffset ==
                     WeakCell::kValueOffset &&
                 WeakCell::kValueOffset == Symbol::kHashFieldSlot);
 
@@ -2275,8 +2274,9 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field...upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ add(FieldOperand(ebx, AllocationSite::kTransitionInfoOffset),
-           Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
+    __ add(
+        FieldOperand(ebx, AllocationSite::kTransitionInfoOrBoilerplateOffset),
+        Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
 
     __ bind(&normal_sequence);
     int last_index =
@@ -2388,7 +2388,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ j(equal, &no_info);
 
   // Only look at the lower 16 bits of the transition info.
-  __ mov(edx, FieldOperand(ebx, AllocationSite::kTransitionInfoOffset));
+  __ mov(edx,
+         FieldOperand(ebx, AllocationSite::kTransitionInfoOrBoilerplateOffset));
   __ SmiUntag(edx);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ and_(edx, Immediate(AllocationSite::ElementsKindBits::kMask));

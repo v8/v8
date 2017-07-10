@@ -15528,15 +15528,13 @@ void AllocationSite::ResetPretenureDecision() {
   set_memento_create_count(0);
 }
 
-
-PretenureFlag AllocationSite::GetPretenureMode() {
+PretenureFlag AllocationSite::GetPretenureMode() const {
   PretenureDecision mode = pretenure_decision();
   // Zombie objects "decide" to be untenured.
   return mode == kTenure ? TENURED : NOT_TENURED;
 }
 
-
-bool AllocationSite::IsNestedSite() {
+bool AllocationSite::IsNested() {
   DCHECK(FLAG_trace_track_allocation_sites);
   Object* current = GetHeap()->allocation_sites_list();
   while (current->IsAllocationSite()) {
@@ -15555,10 +15553,9 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
   Isolate* isolate = site->GetIsolate();
   bool result = false;
 
-  if (site->SitePointsToLiteral() && site->transition_info()->IsJSArray()) {
-    Handle<JSArray> transition_info =
-        handle(JSArray::cast(site->transition_info()));
-    ElementsKind kind = transition_info->GetElementsKind();
+  if (site->PointsToLiteral() && site->boilerplate()->IsJSArray()) {
+    Handle<JSArray> boilerplate(JSArray::cast(site->boilerplate()), isolate);
+    ElementsKind kind = boilerplate->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
     if (IsHoleyOrDictionaryElementsKind(kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
@@ -15567,27 +15564,25 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
       uint32_t length = 0;
-      CHECK(transition_info->length()->ToArrayLength(&length));
+      CHECK(boilerplate->length()->ToArrayLength(&length));
       if (length <= kMaximumArrayBytesToPretransition) {
         if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) {
           return true;
         }
         if (FLAG_trace_track_allocation_sites) {
-          bool is_nested = site->IsNestedSite();
-          PrintF(
-              "AllocationSite: JSArray %p boilerplate %s updated %s->%s\n",
-              reinterpret_cast<void*>(*site),
-              is_nested ? "(nested)" : "",
-              ElementsKindToString(kind),
-              ElementsKindToString(to_kind));
+          bool is_nested = site->IsNested();
+          PrintF("AllocationSite: JSArray %p boilerplate %supdated %s->%s\n",
+                 reinterpret_cast<void*>(*site), is_nested ? "(nested)" : " ",
+                 ElementsKindToString(kind), ElementsKindToString(to_kind));
         }
-        JSObject::TransitionElementsKind(transition_info, to_kind);
+        JSObject::TransitionElementsKind(boilerplate, to_kind);
         site->dependent_code()->DeoptimizeDependentCodeGroup(
             isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
         result = true;
       }
     }
   } else {
+    // The AllocationSite is for a constructed Array.
     ElementsKind kind = site->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
     if (IsHoleyOrDictionaryElementsKind(kind)) {

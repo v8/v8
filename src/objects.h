@@ -5779,20 +5779,32 @@ class AllocationSite: public Struct {
 
   const char* PretenureDecisionName(PretenureDecision decision);
 
-  DECL_ACCESSORS(transition_info, Object)
+  // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
+  // AllocationSite is for a constructed Array.
+  DECL_ACCESSORS(transition_info_or_boilerplate, Object)
+  DECL_ACCESSORS(boilerplate, JSObject)
+  DECL_INT_ACCESSORS(transition_info)
+
   // nested_site threads a list of sites that represent nested literals
   // walked in a particular order. So [[1, 2], 1, 2] will have one
   // nested_site, but [[1, 2], 3, [4]] will have a list of two.
   DECL_ACCESSORS(nested_site, Object)
+
+  // Bitfield containing pretenuring information.
   DECL_INT_ACCESSORS(pretenure_data)
+
   DECL_INT_ACCESSORS(pretenure_create_count)
   DECL_ACCESSORS(dependent_code, DependentCode)
+
+  // heap->allocation_site_list() points to the last AllocationSite which form
+  // a linked list through the weak_next property. The GC might remove elements
+  // from the list by updateing weak_next.
   DECL_ACCESSORS(weak_next, Object)
 
   inline void Initialize();
 
   // This method is expensive, it should only be called for reporting.
-  bool IsNestedSite();
+  bool IsNested();
 
   // transition_info bitfields, for constructed array transition info.
   class ElementsKindBits:       public BitField<ElementsKind, 0,  15> {};
@@ -5811,29 +5823,29 @@ class AllocationSite: public Struct {
 
   inline void IncrementMementoCreateCount();
 
-  PretenureFlag GetPretenureMode();
+  PretenureFlag GetPretenureMode() const;
 
   void ResetPretenureDecision();
 
-  inline PretenureDecision pretenure_decision();
+  inline PretenureDecision pretenure_decision() const;
   inline void set_pretenure_decision(PretenureDecision decision);
 
-  inline bool deopt_dependent_code();
+  inline bool deopt_dependent_code() const;
   inline void set_deopt_dependent_code(bool deopt);
 
-  inline int memento_found_count();
+  inline int memento_found_count() const;
   inline void set_memento_found_count(int count);
 
-  inline int memento_create_count();
+  inline int memento_create_count() const;
   inline void set_memento_create_count(int count);
 
   // The pretenuring decision is made during gc, and the zombie state allows
   // us to recognize when an allocation site is just being kept alive because
   // a later traversal of new space may discover AllocationMementos that point
   // to this AllocationSite.
-  inline bool IsZombie();
+  inline bool IsZombie() const;
 
-  inline bool IsMaybeTenure();
+  inline bool IsMaybeTenure() const;
 
   inline void MarkZombie();
 
@@ -5843,13 +5855,13 @@ class AllocationSite: public Struct {
 
   inline bool DigestPretenuringFeedback(bool maximum_size_scavenge);
 
-  inline ElementsKind GetElementsKind();
+  inline ElementsKind GetElementsKind() const;
   inline void SetElementsKind(ElementsKind kind);
 
-  inline bool CanInlineCall();
+  inline bool CanInlineCall() const;
   inline void SetDoNotInlineCall();
 
-  inline bool SitePointsToLiteral();
+  inline bool PointsToLiteral() const;
 
   template <AllocationSiteUpdateMode update_or_check =
                 AllocationSiteUpdateMode::kUpdate>
@@ -5864,8 +5876,9 @@ class AllocationSite: public Struct {
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
 
-  static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
-  static const int kNestedSiteOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kTransitionInfoOrBoilerplateOffset = HeapObject::kHeaderSize;
+  static const int kNestedSiteOffset =
+      kTransitionInfoOrBoilerplateOffset + kPointerSize;
   static const int kPretenureDataOffset = kNestedSiteOffset + kPointerSize;
   static const int kPretenureCreateCountOffset =
       kPretenureDataOffset + kPointerSize;
@@ -5876,7 +5889,8 @@ class AllocationSite: public Struct {
 
   // During mark compact we need to take special care for the dependent code
   // field.
-  static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
+  static const int kPointerFieldsBeginOffset =
+      kTransitionInfoOrBoilerplateOffset;
   static const int kPointerFieldsEndOffset = kWeakNextOffset;
 
   // Ignores weakness.
@@ -5889,7 +5903,7 @@ class AllocationSite: public Struct {
       BodyDescriptorWeak;
 
  private:
-  inline bool PretenuringDecisionMade();
+  inline bool PretenuringDecisionMade() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
 };
@@ -5902,9 +5916,9 @@ class AllocationMemento: public Struct {
 
   DECL_ACCESSORS(allocation_site, Object)
 
-  inline bool IsValid();
-  inline AllocationSite* GetAllocationSite();
-  inline Address GetAllocationSiteUnchecked();
+  inline bool IsValid() const;
+  inline AllocationSite* GetAllocationSite() const;
+  inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
   DECL_VERIFIER(AllocationMemento)

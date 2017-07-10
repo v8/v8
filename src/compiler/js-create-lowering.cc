@@ -998,8 +998,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
     Handle<Object> literal(feedback_vector->Get(slot), isolate());
     if (literal->IsAllocationSite()) {
       Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);
-      Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()),
-                                   isolate());
+      Handle<JSObject> boilerplate(site->boilerplate(), isolate());
       int max_properties = kMaxFastLiteralProperties;
       if (IsFastLiteral(boilerplate, kMaxFastLiteralDepth, &max_properties)) {
         AllocationSiteUsageContext site_context(isolate(), site, false);

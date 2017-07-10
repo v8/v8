@@ -6809,8 +6809,8 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
 
   StoreMap(site, AllocationSiteMapConstant());
   Node* kind = SmiConstant(GetInitialFastElementsKind());
-  StoreObjectFieldNoWriteBarrier(site, AllocationSite::kTransitionInfoOffset,
-                                 kind);
+  StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kTransitionInfoOrBoilerplateOffset, kind);
 
   // Unlike literals, constructed arrays don't have nested sites
   Node* zero = SmiConstant(0);

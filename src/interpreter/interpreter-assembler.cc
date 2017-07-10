@@ -567,8 +567,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(
   // Static checks to assert it is safe to examine the type feedback element.
   // We don't know that we have a weak cell. We might have a private symbol
   // or an AllocationSite, but the memory is safe to examine.
-  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
-  // FixedArray.
+  // AllocationSite::kTransitionInfoOrBoilerplateOffset - contains a Smi or
+  // pointer to FixedArray.
   // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
   // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
   // computed, meaning that it can't appear to be a pointer. If the low bit is
@@ -579,7 +579,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
 
   STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
-  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOrBoilerplateOffset ==
                     WeakCell::kValueOffset &&
                 WeakCell::kValueOffset == Symbol::kHashFieldSlot);
 

@@ -207,7 +207,8 @@ Node* ConstructorBuiltinsAssembler::NotHasBoilerplate(Node* literal_site) {
 
 Node* ConstructorBuiltinsAssembler::LoadAllocationSiteBoilerplate(Node* site) {
   CSA_ASSERT(this, IsAllocationSite(site));
-  return LoadObjectField(site, AllocationSite::kTransitionInfoOffset);
+  return LoadObjectField(site,
+                         AllocationSite::kTransitionInfoOrBoilerplateOffset);
 }
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {

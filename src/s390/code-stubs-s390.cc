@@ -2449,9 +2449,11 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field...upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ LoadP(r6, FieldMemOperand(r4, AllocationSite::kTransitionInfoOffset));
+    __ LoadP(r6, FieldMemOperand(
+                     r4, AllocationSite::kTransitionInfoOrBoilerplateOffset));
     __ AddSmiLiteral(r6, r6, Smi::FromInt(kFastElementsKindPackedToHoley), r0);
-    __ StoreP(r6, FieldMemOperand(r4, AllocationSite::kTransitionInfoOffset));
+    __ StoreP(r6, FieldMemOperand(
+                      r4, AllocationSite::kTransitionInfoOrBoilerplateOffset));
 
     __ bind(&normal_sequence);
     int last_index =
@@ -2555,7 +2557,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(r4, Heap::kUndefinedValueRootIndex);
   __ beq(&no_info);
 
-  __ LoadP(r5, FieldMemOperand(r4, AllocationSite::kTransitionInfoOffset));
+  __ LoadP(r5, FieldMemOperand(
+                   r4, AllocationSite::kTransitionInfoOrBoilerplateOffset));
   __ SmiUntag(r5);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ AndP(r5, Operand(AllocationSite::ElementsKindBits::kMask));

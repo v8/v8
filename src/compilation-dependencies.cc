@@ -140,10 +140,9 @@ void CompilationDependencies::AssumePrototypeMapsStable(
 void CompilationDependencies::AssumeTransitionStable(
     Handle<AllocationSite> site) {
   // Do nothing if the object doesn't have any useful element transitions left.
-  ElementsKind kind =
-      site->SitePointsToLiteral()
-          ? JSObject::cast(site->transition_info())->GetElementsKind()
-          : site->GetElementsKind();
+  ElementsKind kind = site->PointsToLiteral()
+                          ? site->boilerplate()->GetElementsKind()
+                          : site->GetElementsKind();
   if (AllocationSite::ShouldTrack(kind)) {
     Insert(DependentCode::kAllocationSiteTransitionChangedGroup, site);
   }

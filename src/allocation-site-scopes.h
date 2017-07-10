@@ -34,6 +34,8 @@ class AllocationSiteContext {
 
   void InitializeTraversal(Handle<AllocationSite> site) {
     top_ = site;
+    // {current_} is updated in place to not create unnecessary Handles, hence
+    // we initially need a separate handle.
     current_ = Handle<AllocationSite>::New(*top_, isolate());
   }
 
@@ -70,7 +72,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
                         Handle<JSObject> object) {
     // This assert ensures that we are pointing at the right sub-object in a
     // recursive walk of a nested literal.
-    DCHECK(object.is_null() || *object == scope_site->transition_info());
+    DCHECK(object.is_null() || *object == scope_site->boilerplate());
   }
 
   bool ShouldCreateMemento(Handle<JSObject> object) {

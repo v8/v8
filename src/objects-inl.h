@@ -1110,7 +1110,7 @@ FixedArrayBase* JSObject::elements() const {
 }
 
 void AllocationSite::Initialize() {
-  set_transition_info(Smi::kZero);
+  set_transition_info_or_boilerplate(Smi::kZero);
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::kZero);
   set_pretenure_data(0);
@@ -1119,16 +1119,15 @@ void AllocationSite::Initialize() {
                      SKIP_WRITE_BARRIER);
 }
 
+bool AllocationSite::IsZombie() const {
+  return pretenure_decision() == kZombie;
+}
 
-bool AllocationSite::IsZombie() { return pretenure_decision() == kZombie; }
-
-
-bool AllocationSite::IsMaybeTenure() {
+bool AllocationSite::IsMaybeTenure() const {
   return pretenure_decision() == kMaybeTenure;
 }
 
-
-bool AllocationSite::PretenuringDecisionMade() {
+bool AllocationSite::PretenuringDecisionMade() const {
   return pretenure_decision() != kUndecided;
 }
 
@@ -1139,39 +1138,29 @@ void AllocationSite::MarkZombie() {
   set_pretenure_decision(kZombie);
 }
 
-
-ElementsKind AllocationSite::GetElementsKind() {
-  DCHECK(!SitePointsToLiteral());
-  int value = Smi::cast(transition_info())->value();
-  return ElementsKindBits::decode(value);
+ElementsKind AllocationSite::GetElementsKind() const {
+  return ElementsKindBits::decode(transition_info());
 }
 
 
 void AllocationSite::SetElementsKind(ElementsKind kind) {
-  int value = Smi::cast(transition_info())->value();
-  set_transition_info(Smi::FromInt(ElementsKindBits::update(value, kind)),
-                      SKIP_WRITE_BARRIER);
+  set_transition_info(ElementsKindBits::update(transition_info(), kind));
 }
 
-
-bool AllocationSite::CanInlineCall() {
-  int value = Smi::cast(transition_info())->value();
-  return DoNotInlineBit::decode(value) == 0;
+bool AllocationSite::CanInlineCall() const {
+  return DoNotInlineBit::decode(transition_info()) == 0;
 }
 
 
 void AllocationSite::SetDoNotInlineCall() {
-  int value = Smi::cast(transition_info())->value();
-  set_transition_info(Smi::FromInt(DoNotInlineBit::update(value, true)),
-                      SKIP_WRITE_BARRIER);
+  set_transition_info(DoNotInlineBit::update(transition_info(), true));
 }
 
-
-bool AllocationSite::SitePointsToLiteral() {
-  // If transition_info is a smi, then it represents an ElementsKind
-  // for a constructed array. Otherwise, it must be a boilerplate
-  // for an object or array literal.
-  return transition_info()->IsJSArray() || transition_info()->IsJSObject();
+bool AllocationSite::PointsToLiteral() const {
+  Object* raw_value = transition_info_or_boilerplate();
+  DCHECK_EQ(!raw_value->IsSmi(),
+            raw_value->IsJSArray() || raw_value->IsJSObject());
+  return !raw_value->IsSmi();
 }
 
 
@@ -1190,36 +1179,27 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
   return type == JS_ARRAY_TYPE;
 }
 
-
-AllocationSite::PretenureDecision AllocationSite::pretenure_decision() {
-  int value = pretenure_data();
-  return PretenureDecisionBits::decode(value);
+AllocationSite::PretenureDecision AllocationSite::pretenure_decision() const {
+  return PretenureDecisionBits::decode(pretenure_data());
 }
-
 
 void AllocationSite::set_pretenure_decision(PretenureDecision decision) {
   int value = pretenure_data();
   set_pretenure_data(PretenureDecisionBits::update(value, decision));
 }
 
-
-bool AllocationSite::deopt_dependent_code() {
-  int value = pretenure_data();
-  return DeoptDependentCodeBit::decode(value);
+bool AllocationSite::deopt_dependent_code() const {
+  return DeoptDependentCodeBit::decode(pretenure_data());
 }
-
 
 void AllocationSite::set_deopt_dependent_code(bool deopt) {
   int value = pretenure_data();
   set_pretenure_data(DeoptDependentCodeBit::update(value, deopt));
 }
 
-
-int AllocationSite::memento_found_count() {
-  int value = pretenure_data();
-  return MementoFoundCountBits::decode(value);
+int AllocationSite::memento_found_count() const {
+  return MementoFoundCountBits::decode(pretenure_data());
 }
-
 
 inline void AllocationSite::set_memento_found_count(int count) {
   int value = pretenure_data();
@@ -1232,14 +1212,13 @@ inline void AllocationSite::set_memento_found_count(int count) {
   set_pretenure_data(MementoFoundCountBits::update(value, count));
 }
 
-
-int AllocationSite::memento_create_count() { return pretenure_create_count(); }
-
+int AllocationSite::memento_create_count() const {
+  return pretenure_create_count();
+}
 
 void AllocationSite::set_memento_create_count(int count) {
   set_pretenure_create_count(count);
 }
-
 
 bool AllocationSite::IncrementMementoFoundCount(int increment) {
   if (IsZombie()) return false;
@@ -1256,19 +1235,17 @@ inline void AllocationSite::IncrementMementoCreateCount() {
   set_memento_create_count(value + 1);
 }
 
-
-bool AllocationMemento::IsValid() {
+bool AllocationMemento::IsValid() const {
   return allocation_site()->IsAllocationSite() &&
          !AllocationSite::cast(allocation_site())->IsZombie();
 }
 
-
-AllocationSite* AllocationMemento::GetAllocationSite() {
+AllocationSite* AllocationMemento::GetAllocationSite() const {
   DCHECK(IsValid());
   return AllocationSite::cast(allocation_site());
 }
 
-Address AllocationMemento::GetAllocationSiteUnchecked() {
+Address AllocationMemento::GetAllocationSiteUnchecked() const {
   return reinterpret_cast<Address>(allocation_site());
 }
 
@@ -4541,7 +4518,28 @@ void TemplateList::set(int index, Object* value) {
   FixedArray::cast(this)->set(kFirstElementIndex + index, value);
 }
 
-ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
+ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
+          kTransitionInfoOrBoilerplateOffset)
+
+JSObject* AllocationSite::boilerplate() const {
+  DCHECK(PointsToLiteral());
+  return JSObject::cast(transition_info_or_boilerplate());
+}
+
+void AllocationSite::set_boilerplate(JSObject* object, WriteBarrierMode mode) {
+  set_transition_info_or_boilerplate(object, mode);
+}
+
+int AllocationSite::transition_info() const {
+  DCHECK(!PointsToLiteral());
+  return Smi::cast(transition_info_or_boilerplate())->value();
+}
+
+void AllocationSite::set_transition_info(int value) {
+  DCHECK(!PointsToLiteral());
+  set_transition_info_or_boilerplate(Smi::FromInt(value), SKIP_WRITE_BARRIER);
+}
+
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 SMI_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 SMI_ACCESSORS(AllocationSite, pretenure_create_count,

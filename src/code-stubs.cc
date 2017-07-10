@@ -590,15 +590,14 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   // Static checks to assert it is safe to examine the type feedback element.
   // We don't know that we have a weak cell. We might have a private symbol
   // or an AllocationSite, but the memory is safe to examine.
-  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
-  // FixedArray.
-  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
-  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // AllocationSite::kTransitionInfoOrBoilerplateOffset - contains a Smi or
+  // pointer to FixedArray. WeakCell::kValueOffset - contains a JSFunction or
+  // Smi(0) Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
   // computed, meaning that it can't appear to be a pointer. If the low bit is
   // 0, then hash is computed, but the 0 bit prevents the field from appearing
   // to be a pointer.
   STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
-  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOrBoilerplateOffset ==
                     WeakCell::kValueOffset &&
                 WeakCell::kValueOffset == Symbol::kHashFieldSlot);
 

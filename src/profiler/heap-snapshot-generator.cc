@@ -1469,8 +1469,9 @@ void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
 
 void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                                                      AllocationSite* site) {
-  SetInternalReference(site, entry, "transition_info", site->transition_info(),
-                       AllocationSite::kTransitionInfoOffset);
+  SetInternalReference(site, entry, "transition_info",
+                       site->transition_info_or_boilerplate(),
+                       AllocationSite::kTransitionInfoOrBoilerplateOffset);
   SetInternalReference(site, entry, "nested_site", site->nested_site(),
                        AllocationSite::kNestedSiteOffset);
   TagObject(site->dependent_code(), "(dependent code)");

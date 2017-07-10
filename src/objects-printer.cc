@@ -1454,13 +1454,13 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   os << "\n - pretenure decision: "
      << Brief(Smi::FromInt(pretenure_decision()));
   os << "\n - transition_info: ";
-  if (transition_info()->IsSmi()) {
+  if (!PointsToLiteral()) {
     ElementsKind kind = GetElementsKind();
     os << "Array allocation with ElementsKind " << ElementsKindToString(kind);
-  } else if (transition_info()->IsJSArray()) {
-    os << "Array literal " << Brief(transition_info());
+  } else if (boilerplate()->IsJSArray()) {
+    os << "Array literal with boilerplate " << Brief(boilerplate());
   } else {
-    os << "unknown transition_info " << Brief(transition_info());
+    os << "Object literal with boilerplate " << Brief(boilerplate());
   }
   os << "\n";
 }
