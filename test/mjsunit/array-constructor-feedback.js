@@ -180,7 +180,7 @@ function assertKind(expected, obj, name_opt) {
   %OptimizeFunctionOnNextCall(bar);
   a = bar(0);
   assertOptimized(bar);
-  assertFalse(isHoley(a));
+  assertTrue(isHoley(a));
   a = bar(1);  // ouch!
   assertOptimized(bar);
   assertTrue(isHoley(a));
@@ -188,9 +188,7 @@ function assertKind(expected, obj, name_opt) {
   assertTrue(isHoley(a));
   a = bar(0);
   assertOptimized(bar);
-  // Crankshafted functions don't use mementos, so feedback still
-  // indicates a packed array is desired.
-  assertFalse(isHoley(a));
+  assertTrue(isHoley(a));
 })();
 
 // Test: Make sure that crankshaft continues with feedback for large arrays.

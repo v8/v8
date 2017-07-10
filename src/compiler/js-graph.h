@@ -43,6 +43,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Canonicalized global constants.
   Node* AllocateInNewSpaceStubConstant();
   Node* AllocateInOldSpaceStubConstant();
+  Node* ArrayConstructorStubConstant();
   Node* ToNumberBuiltinConstant();
   Node* CEntryStubConstant(int result_size,
                            SaveFPRegsMode save_doubles = kDontSaveFPRegs,
@@ -165,6 +166,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   enum CachedNode {
     kAllocateInNewSpaceStubConstant,
     kAllocateInOldSpaceStubConstant,
+    kArrayConstructorStubConstant,
     kToNumberBuiltinConstant,
     kCEntryStub1Constant,
     kCEntryStub2Constant,

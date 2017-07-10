@@ -36,16 +36,12 @@ function assertHoley(obj, name_opt) {
   assertEquals(true, isHoley(obj), name_opt);
 }
 
-function assertNotHoley(obj, name_opt) {
-  assertEquals(false, isHoley(obj), name_opt);
-}
-
 function create_array(arg) {
   return new Array(arg);
 }
 
 obj = create_array(0);
-assertNotHoley(obj);
+assertHoley(obj);
 create_array(0);
 %OptimizeFunctionOnNextCall(create_array);
 obj = create_array(10);

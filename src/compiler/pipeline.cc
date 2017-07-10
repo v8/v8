@@ -1145,6 +1145,10 @@ struct ConcurrentOptimizationPrepPhase {
     data->jsgraph()->CEntryStubConstant(2);
     data->jsgraph()->CEntryStubConstant(3);
 
+    // TODO(turbofan): Remove this line once the Array constructor code
+    // is a proper builtin and no longer a CodeStub.
+    data->jsgraph()->ArrayConstructorStubConstant();
+
     // This is needed for escape analysis.
     NodeProperties::SetType(data->jsgraph()->FalseConstant(), Type::Boolean());
     NodeProperties::SetType(data->jsgraph()->TrueConstant(), Type::Boolean());

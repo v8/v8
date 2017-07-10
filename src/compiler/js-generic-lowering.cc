@@ -393,13 +393,21 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
   Handle<AllocationSite> const site = p.site();
-  Node* new_target = node->InputAt(1);
+  ArrayConstructorDescriptor descriptor(isolate());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, arity + 1,
+      CallDescriptor::kNeedsFrameState, node->op()->properties(),
+      MachineType::AnyTagged());
+  Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
+  Node* stub_arity = jsgraph()->Int32Constant(arity);
   Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
                                    : jsgraph()->HeapConstant(site);
-  node->RemoveInput(1);
-  node->InsertInput(zone(), 1 + arity, new_target);
-  node->InsertInput(zone(), 2 + arity, type_info);
-  ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, type_info);
+  node->InsertInput(zone(), 5, receiver);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 

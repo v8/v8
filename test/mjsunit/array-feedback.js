@@ -84,7 +84,7 @@ function assertKind(expected, obj, name_opt) {
   create1(0);
   create1(0);
   a = create1(0);
-  assertFalse(isHoley(a));
+  assertTrue(isHoley(a));
   assertKind(elements_kind.fast_smi_only, a);
   a[0] = "hello";
   b = create1(10);

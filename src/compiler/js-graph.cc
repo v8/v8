@@ -26,6 +26,11 @@ Node* JSGraph::AllocateInOldSpaceStubConstant() {
                 HeapConstant(isolate()->builtins()->AllocateInOldSpace()));
 }
 
+Node* JSGraph::ArrayConstructorStubConstant() {
+  return CACHED(kArrayConstructorStubConstant,
+                HeapConstant(ArrayConstructorStub(isolate()).GetCode()));
+}
+
 Node* JSGraph::ToNumberBuiltinConstant() {
   return CACHED(kToNumberBuiltinConstant,
                 HeapConstant(isolate()->builtins()->ToNumber()));

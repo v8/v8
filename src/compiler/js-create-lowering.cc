@@ -731,11 +731,15 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
   Type* new_target_type = NodeProperties::GetType(new_target);
+  Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
+                                   : jsgraph()->HeapConstant(site);
 
-  ElementsKind elements_kind = site->GetElementsKind();
+  ElementsKind elements_kind =
+      site.is_null() ? GetInitialFastElementsKind() : site->GetElementsKind();
   AllocationSiteOverrideMode override_mode =
-      AllocationSite::ShouldTrack(elements_kind) ? DISABLE_ALLOCATION_SITES
-                                                 : DONT_OVERRIDE;
+      (site.is_null() || AllocationSite::ShouldTrack(elements_kind))
+          ? DISABLE_ALLOCATION_SITES
+          : DONT_OVERRIDE;
 
   // The Array constructor can only trigger an observable side-effect
   // if the new.target may be a proxy.
@@ -748,137 +752,37 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
                                         override_mode);
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
-        CallDescriptor::kNeedsFrameState, properties);
+        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
+        arity + 1, CallDescriptor::kNeedsFrameState, properties);
     node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(0));
+    node->InsertInput(graph()->zone(), 2, type_info);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(node, common()->Call(desc));
-    return Changed(node);
   } else if (arity == 1) {
-    AllocationSiteOverrideMode override_mode =
-        AllocationSite::ShouldTrack(elements_kind) ? DISABLE_ALLOCATION_SITES
-                                                   : DONT_OVERRIDE;
-
-    if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
-      ArraySingleArgumentConstructorStub stub(isolate(), elements_kind,
-                                              override_mode);
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState, properties);
-      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(1));
-      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-      NodeProperties::ChangeOp(node, common()->Call(desc));
-      return Changed(node);
-    }
-
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* control = NodeProperties::GetControlInput(node);
-    Node* length = NodeProperties::GetValueInput(node, 2);
-    Node* equal = graph()->NewNode(simplified()->ReferenceEqual(), length,
-                                   jsgraph()->ZeroConstant());
-
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), equal, control);
-    Node* call_holey;
-    Node* call_packed;
-    Node* success_holey;
-    Node* success_packed;
-    Node* context = NodeProperties::GetContextInput(node);
-    Node* frame_state = NodeProperties::GetFrameStateInput(node);
-    Node* if_equal = graph()->NewNode(common()->IfTrue(), branch);
-    {
-      ArraySingleArgumentConstructorStub stub(isolate(), elements_kind,
-                                              override_mode);
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState, properties);
-
-      Node* inputs[] = {jsgraph()->HeapConstant(stub.GetCode()),
-                        node->InputAt(1),
-                        jsgraph()->HeapConstant(site),
-                        jsgraph()->Constant(1),
-                        jsgraph()->UndefinedConstant(),
-                        length,
-                        context,
-                        frame_state,
-                        effect,
-                        if_equal};
-
-      success_holey = call_holey =
-          graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-    }
-    Node* if_not_equal = graph()->NewNode(common()->IfFalse(), branch);
-    {
-      // Require elements kind to "go holey."
-      ArraySingleArgumentConstructorStub stub(
-          isolate(), GetHoleyElementsKind(elements_kind), override_mode);
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState, properties);
-
-      Node* inputs[] = {jsgraph()->HeapConstant(stub.GetCode()),
-                        node->InputAt(1),
-                        jsgraph()->HeapConstant(site),
-                        jsgraph()->Constant(1),
-                        jsgraph()->UndefinedConstant(),
-                        length,
-                        context,
-                        frame_state,
-                        effect,
-                        if_not_equal};
-
-      success_packed = call_packed =
-          graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-    }
-
-    // Update potential {IfException} uses of {node} to point to the above two
-    // stub call nodes instead, by introducing a merge of two exception cases.
-    Node* on_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-      Node* exception_holey =
-          graph()->NewNode(common()->IfException(), call_holey, call_holey);
-      Node* exception_packed =
-          graph()->NewNode(common()->IfException(), call_packed, call_packed);
-      Node* exception_merge = graph()->NewNode(
-          common()->Merge(2), exception_holey, exception_packed);
-      Node* exception_effect =
-          graph()->NewNode(common()->EffectPhi(2), exception_holey,
-                           exception_packed, exception_merge);
-      Node* exception_value =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           exception_holey, exception_packed, exception_merge);
-      ReplaceWithValue(on_exception, exception_value, exception_effect,
-                       exception_merge);
-      success_holey = graph()->NewNode(common()->IfSuccess(), call_holey);
-      success_packed = graph()->NewNode(common()->IfSuccess(), call_packed);
-    }
-
-    Node* merge =
-        graph()->NewNode(common()->Merge(2), success_holey, success_packed);
-    Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), call_holey,
-                                        call_packed, merge);
-    Node* phi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         call_holey, call_packed, merge);
-
-    ReplaceWithValue(node, phi, effect_phi, merge);
-    return Changed(node);
+    // Require elements kind to "go holey".
+    ArraySingleArgumentConstructorStub stub(
+        isolate(), GetHoleyElementsKind(elements_kind), override_mode);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
+        arity + 1, CallDescriptor::kNeedsFrameState, properties);
+    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+    node->InsertInput(graph()->zone(), 2, type_info);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(node, common()->Call(desc));
+  } else {
+    DCHECK_GT(arity, 1);
+    ArrayNArgumentsConstructorStub stub(isolate());
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
+        arity + 1, CallDescriptor::kNeedsFrameState);
+    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+    node->InsertInput(graph()->zone(), 2, type_info);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(node, common()->Call(desc));
   }
-
-  DCHECK(arity > 1);
-  ArrayNArgumentsConstructorStub stub(isolate());
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), arity + 1,
-      CallDescriptor::kNeedsFrameState);
-  node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-  node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-  node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-  node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-  NodeProperties::ChangeOp(node, common()->Call(desc));
   return Changed(node);
 }
 
@@ -893,38 +797,38 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
 
   // Check if we have a feedback {site} on the {node}.
   Handle<AllocationSite> site = p.site();
-  if (p.site().is_null()) return NoChange();
-
-  // Attempt to inline calls to the Array constructor for the relevant cases
-  // where either no arguments are provided, or exactly one unsigned number
-  // argument is given.
-  if (site->CanInlineCall()) {
-    if (p.arity() == 0) {
-      Node* length = jsgraph()->ZeroConstant();
-      int capacity = JSArray::kPreallocatedArrayElements;
-      return ReduceNewArray(node, length, capacity, site);
-    } else if (p.arity() == 1) {
-      Node* length = NodeProperties::GetValueInput(node, 2);
-      Type* length_type = NodeProperties::GetType(length);
-      if (!length_type->Maybe(Type::Number())) {
-        // Handle the single argument case, where we know that the value
-        // cannot be a valid Array length.
-        return ReduceNewArray(node, {length}, site);
-      }
-      if (length_type->Is(Type::SignedSmall()) && length_type->Min() >= 0 &&
-          length_type->Max() <= kElementLoopUnrollLimit &&
-          length_type->Min() == length_type->Max()) {
-        int capacity = static_cast<int>(length_type->Max());
+  if (!site.is_null()) {
+    // Attempt to inline calls to the Array constructor for the relevant cases
+    // where either no arguments are provided, or exactly one unsigned number
+    // argument is given.
+    if (site->CanInlineCall()) {
+      if (p.arity() == 0) {
+        Node* length = jsgraph()->ZeroConstant();
+        int capacity = JSArray::kPreallocatedArrayElements;
         return ReduceNewArray(node, length, capacity, site);
+      } else if (p.arity() == 1) {
+        Node* length = NodeProperties::GetValueInput(node, 2);
+        Type* length_type = NodeProperties::GetType(length);
+        if (!length_type->Maybe(Type::Number())) {
+          // Handle the single argument case, where we know that the value
+          // cannot be a valid Array length.
+          return ReduceNewArray(node, {length}, site);
+        }
+        if (length_type->Is(Type::SignedSmall()) && length_type->Min() >= 0 &&
+            length_type->Max() <= kElementLoopUnrollLimit &&
+            length_type->Min() == length_type->Max()) {
+          int capacity = static_cast<int>(length_type->Max());
+          return ReduceNewArray(node, length, capacity, site);
+        }
+      } else if (p.arity() <= JSArray::kInitialMaxFastElementArray) {
+        std::vector<Node*> values;
+        values.reserve(p.arity());
+        for (size_t i = 0; i < p.arity(); ++i) {
+          values.push_back(
+              NodeProperties::GetValueInput(node, static_cast<int>(2 + i)));
+        }
+        return ReduceNewArray(node, values, site);
       }
-    } else if (p.arity() <= JSArray::kInitialMaxFastElementArray) {
-      std::vector<Node*> values;
-      values.reserve(p.arity());
-      for (size_t i = 0; i < p.arity(); ++i) {
-        values.push_back(
-            NodeProperties::GetValueInput(node, static_cast<int>(2 + i)));
-      }
-      return ReduceNewArray(node, values, site);
     }
   }
 

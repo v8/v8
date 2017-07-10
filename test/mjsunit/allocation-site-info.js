@@ -81,7 +81,7 @@ assertNotHoley(obj);
 assertKind(elements_kind.fast_smi_only, obj);
 
 obj = new Array(0);
-assertNotHoley(obj);
+assertHoley(obj);
 assertKind(elements_kind.fast_smi_only, obj);
 
 obj = new Array(2);
