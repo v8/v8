@@ -2238,7 +2238,8 @@ TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
-  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow);
+  // TODO(kschimpf): Need to fix throw to use declared exception.
+  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow);
 
   EXPECT_FAILURE(i_d, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
   EXPECT_FAILURE(i_f, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
@@ -2257,7 +2258,8 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
-  EXPECT_VERIFIES(v_i, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
+  // TODO(kschimpf): Need to fix catch to use declared exception.
+  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
 
   // Missing catch.
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);

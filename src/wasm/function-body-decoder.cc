@@ -44,6 +44,10 @@ namespace wasm {
     break;                                                               \
   }
 
+#define PROTOTYPE_NOT_FUNCTIONAL(opcode)            \
+  errorf(pc_, "Prototype still not functional: %s", \
+         WasmOpcodes::OpcodeName(opcode));
+
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -801,8 +805,16 @@ class WasmFullDecoder : public WasmDecoder {
             len = 1 + operand.length;
             break;
           }
-          case kExprThrow: {
+          case kExprRethrow: {
+            // TODO(kschimpf): Implement.
             CHECK_PROTOTYPE_OPCODE(eh);
+            PROTOTYPE_NOT_FUNCTIONAL(opcode);
+            break;
+          }
+          case kExprThrow: {
+            // TODO(kschimpf): Fix to use type signature of exception.
+            CHECK_PROTOTYPE_OPCODE(eh);
+            PROTOTYPE_NOT_FUNCTIONAL(opcode);
             Value value = Pop(0, kWasmI32);
             BUILD(Throw, value.node);
             // TODO(titzer): Throw should end control, but currently we build a
@@ -824,7 +836,9 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprCatch: {
+            // TODO(kschimpf): Fix to use type signature of exception.
             CHECK_PROTOTYPE_OPCODE(eh);
+            PROTOTYPE_NOT_FUNCTIONAL(opcode);
             LocalIndexOperand<true> operand(this, pc_);
             len = 1 + operand.length;
 
@@ -861,6 +875,12 @@ class WasmFullDecoder : public WasmDecoder {
               }
             }
 
+            break;
+          }
+          case kExprCatchAll: {
+            // TODO(kschimpf): Implement.
+            CHECK_PROTOTYPE_OPCODE(eh);
+            PROTOTYPE_NOT_FUNCTIONAL(opcode);
             break;
           }
           case kExprLoop: {

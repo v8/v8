@@ -146,7 +146,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // Non-standard opcodes.
     CASE_OP(Try, "try")
     CASE_OP(Throw, "throw")
+    CASE_OP(Rethrow, "rethrow")
     CASE_OP(Catch, "catch")
+    CASE_OP(CatchAll, "catch_all")
 
     // asm.js-only opcodes.
     CASE_F64_OP(Acos, "acos")
