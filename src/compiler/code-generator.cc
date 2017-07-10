@@ -193,7 +193,11 @@ void CodeGenerator::AssembleCode() {
   // Assemble all eager deoptimization exits.
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     tasm()->bind(exit->label());
-    AssembleDeoptimizerCall(exit->deoptimization_id(), exit->pos());
+    int trampoline_pc = tasm()->pc_offset();
+    int deoptimization_id = exit->deoptimization_id();
+    DeoptimizationState* ds = deoptimization_states_[deoptimization_id];
+    ds->set_trampoline_pc(trampoline_pc);
+    AssembleDeoptimizerCall(deoptimization_id, exit->pos());
   }
 
   // Ensure there is space for lazy deoptimization in the code.
@@ -599,10 +603,11 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   for (int i = 0; i < deopt_count; i++) {
     DeoptimizationState* deoptimization_state = deoptimization_states_[i];
     data->SetBytecodeOffset(i, deoptimization_state->bailout_id());
-    CHECK(deoptimization_states_[i]);
+    CHECK(deoptimization_state);
     data->SetTranslationIndex(
-        i, Smi::FromInt(deoptimization_states_[i]->translation_id()));
-    data->SetArgumentsStackHeight(i, Smi::kZero);
+        i, Smi::FromInt(deoptimization_state->translation_id()));
+    data->SetTrampolinePc(i,
+                          Smi::FromInt(deoptimization_state->trampoline_pc()));
     data->SetPc(i, Smi::FromInt(deoptimization_state->pc_offset()));
   }
 
@@ -641,6 +646,11 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     int pc_offset = tasm()->pc_offset();
     int deopt_state_id = BuildTranslation(instr, pc_offset, frame_state_offset,
                                           descriptor->state_combine());
+
+    DeoptimizationExit* const exit = new (zone())
+        DeoptimizationExit(deopt_state_id, current_source_position_);
+    deoptimization_exits_.push_back(exit);
+
     // If the pre-call frame state differs from the post-call one, produce the
     // pre-call frame state, too.
     // TODO(jarin) We might want to avoid building the pre-call frame state
@@ -978,7 +988,6 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
   }
 }
 
-
 void CodeGenerator::MarkLazyDeoptSite() {
   last_lazy_deopt_pc_ = tasm()->pc_offset();
 }
@@ -987,6 +996,7 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
     Instruction* instr, size_t frame_state_offset) {
   int const deoptimization_id = BuildTranslation(
       instr, -1, frame_state_offset, OutputFrameStateCombine::Ignore());
+
   DeoptimizationExit* const exit = new (zone())
       DeoptimizationExit(deoptimization_id, current_source_position_);
   deoptimization_exits_.push_back(exit);
@@ -997,7 +1007,6 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
     : frame_(gen->frame()), tasm_(gen->tasm()), next_(gen->ools_) {
   gen->ools_ = this;
 }
-
 
 OutOfLineCode::~OutOfLineCode() {}
 

@@ -421,6 +421,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code* code) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (code == nullptr) code = function->code();
+
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also
     // refer to that code. The code cannot be shared across native contexts,
@@ -1064,10 +1065,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
-  }
-
-  // Set the continuation for the topmost frame.
-  if (is_topmost) {
+    // Set the continuation for the topmost frame.
     Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     if (bailout_type_ == LAZY) {
       continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
@@ -2035,8 +2033,8 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   unsigned result = fixed_size_above_fp + fp_to_sp_delta_;
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();
-    unsigned outgoing_size =
-        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
+    unsigned outgoing_size = 0;
+    //        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
     CHECK_EQ(fixed_size_above_fp + (stack_slots * kPointerSize) -
                  CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
              result);
@@ -2064,16 +2062,6 @@ unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
 // static
 unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo* shared) {
   return (shared->internal_formal_parameter_count() + 1) * kPointerSize;
-}
-
-
-// static
-unsigned Deoptimizer::ComputeOutgoingArgumentSize(Code* code,
-                                                  unsigned bailout_id) {
-  DeoptimizationInputData* data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  unsigned height = data->ArgumentsStackHeight(bailout_id)->value();
-  return height * kPointerSize;
 }
 
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,

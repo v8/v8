@@ -3481,7 +3481,7 @@ class DeoptimizationInputData: public FixedArray {
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
   static const int kTranslationIndexOffset = 1;
-  static const int kArgumentsStackHeightOffset = 2;
+  static const int kTrampolinePcOffset = 2;
   static const int kPcOffset = 3;
   static const int kDeoptEntrySize = 4;
 
@@ -3509,7 +3509,7 @@ class DeoptimizationInputData: public FixedArray {
 
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
-  DECL_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+  DECL_ENTRY_ACCESSORS(TrampolinePc, Smi)
   DECL_ENTRY_ACCESSORS(Pc, Smi)
 
 #undef DECL_ENTRY_ACCESSORS

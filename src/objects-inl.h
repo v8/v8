@@ -2618,7 +2618,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
-DEFINE_DEOPT_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(TrampolinePc, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
 BailoutId DeoptimizationInputData::BytecodeOffset(int i) {

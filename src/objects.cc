@@ -14310,26 +14310,26 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
-    os << " index  bytecode-offset    argc     pc";
+    os << " index  bytecode-offset  trampoline_pc     pc";
     if (FLAG_print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << BytecodeOffset(i).ToInt() << "  " << std::setw(6)
-       << ArgumentsStackHeight(i)->value() << " ";
+       << BytecodeOffset(i).ToInt() << "  " << std::setw(13) << std::hex
+       << TrampolinePc(i)->value() << " " << std::setw(6);
     int pc_value = Pc(i)->value();
     if (pc_value != -1) {
-      os << std::setw(6) << std::hex << pc_value;
+      os << pc_value << std::dec;
     } else {
-      os << std::setw(6) << "NA";
+      os << "NA";
     }
-    os << std::dec;
 
     if (!FLAG_print_code_verbose) {
       os << "\n";
       continue;
     }
+
     // Print details of the frame translation.
     int translation_index = TranslationIndex(i)->value();
     TranslationIterator iterator(TranslationByteArray(), translation_index);
@@ -14345,7 +14345,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
     while (iterator.HasNext() &&
            Translation::BEGIN !=
            (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
-      os << std::setw(40) << "    " << Translation::StringFor(opcode) << " ";
+      os << std::setw(47) << "    " << Translation::StringFor(opcode) << " ";
 
       switch (opcode) {
         case Translation::BEGIN:
