@@ -1127,3 +1127,17 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
   DCHECK_EQ(Code::WASM_FUNCTION, ret->kind());
   return handle(ret, isolate);
 }
+
+const char* wasm::ExternalKindName(WasmExternalKind kind) {
+  switch (kind) {
+    case kExternalFunction:
+      return "function";
+    case kExternalTable:
+      return "table";
+    case kExternalMemory:
+      return "memory";
+    case kExternalGlobal:
+      return "global";
+  }
+  return "unknown";
+}

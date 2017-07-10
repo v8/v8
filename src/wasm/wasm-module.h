@@ -512,6 +512,8 @@ class LazyCompilationOrchestrator {
                            int exported_func_index, bool patch_caller);
 };
 
+const char* ExternalKindName(WasmExternalKind);
+
 namespace testing {
 void ValidateInstancesChain(Isolate* isolate,
                             Handle<WasmModuleObject> module_obj,

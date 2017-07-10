@@ -38,3 +38,21 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addGlobal(kWasmI64, false).exportAs('g');
   assertThrows(() => builder.instantiate(), WebAssembly.LinkError);
 })();
+
+(function duplicateGlobalExportName() {
+  var builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI64, false).exportAs('g');
+  builder.addGlobal(kWasmI64, false).exportAs('g');
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      /Duplicate export name 'g' for global 0 and global 1/);
+})();
+
+(function exportNameClashWithFunction() {
+  var builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI64, false).exportAs('foo');
+  builder.addFunction('f', kSig_v_v).addBody([]).exportAs('foo');
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      /Duplicate export name 'foo' for global 0 and function 0/);
+})();
