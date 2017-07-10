@@ -127,25 +127,34 @@ int WasmExecutionFuzzer::FuzzWasmModule(
       SyncCompile(i_isolate, &interpreter_thrower, wire_bytes);
   // Clear the flag so that the WebAssembly code is not printed twice.
   FLAG_wasm_code_fuzzer_gen_test = false;
-  if (compiled_module.is_null()) {
-    if (generate_test) {
-      OFStream os(stdout);
-      os << "            ])" << std::endl;
-      os << "            .exportFunc();" << std::endl;
-      os << "  assertThrows(function() { builder.instantiate(); });"
-         << std::endl;
-      os << "})();" << std::endl;
-    }
-    return 0;
-  }
+  bool compiles = !compiled_module.is_null();
+
   if (generate_test) {
     OFStream os(stdout);
-    os << "            ])" << std::endl;
-    os << "            .exportFunc();" << std::endl;
-    os << "  var module = builder.instantiate();" << std::endl;
-    os << "  module.exports.test(1, 2, 3);" << std::endl;
+    os << "            ])" << std::endl
+       << "            .exportFunc();" << std::endl;
+    if (compiles) {
+      os << "  var module = builder.instantiate();" << std::endl
+         << "  module.exports.test(1, 2, 3);" << std::endl;
+    } else {
+      OFStream os(stdout);
+      os << "  assertThrows(function() { builder.instantiate(); });"
+         << std::endl;
+    }
     os << "})();" << std::endl;
   }
+
+  bool validates = wasm::SyncValidate(i_isolate, wire_bytes);
+
+  if (compiles != validates) {
+    uint32_t hash = StringHasher::HashSequentialString(
+        data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED);
+    V8_Fatal(__FILE__, __LINE__,
+             "compiles != validates (%d vs %d); WasmCodeFuzzerHash=%x",
+             compiles, validates, hash);
+  }
+
+  if (!compiles) return 0;
 
   int32_t result_interpreted;
   bool possible_nondeterminism = false;
