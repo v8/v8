@@ -370,7 +370,7 @@ def load_objects_from_file(objfilename, checktypes):
         # do so without the embedded newlines.
         #
         for line in objfile:
-                if (line.startswith('enum InstanceType {')):
+                if (line.startswith('enum InstanceType : uint8_t {')):
                         in_insttype = True;
                         continue;
 

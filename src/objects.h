@@ -615,7 +615,7 @@ static inline bool IsShortcutCandidate(int type) {
   return ((type & kShortcutTypeMask) == kShortcutTypeTag);
 }
 
-enum InstanceType {
+enum InstanceType : uint8_t {
   // String types.
   INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kSeqStringTag |
                              kInternalizedTag,  // FIRST_PRIMITIVE_TYPE
