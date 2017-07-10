@@ -15851,23 +15851,28 @@ bool JSObject::WasConstructedFromApiFunction() {
   auto instance_type = map()->instance_type();
   bool is_api_object = instance_type == JS_API_OBJECT_TYPE ||
                        instance_type == JS_SPECIAL_API_OBJECT_TYPE;
+  bool is_wasm_object =
+      instance_type == WASM_MEMORY_TYPE || instance_type == WASM_MODULE_TYPE ||
+      instance_type == WASM_INSTANCE_TYPE || instance_type == WASM_TABLE_TYPE;
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     Object* maybe_constructor = map()->GetConstructor();
     if (maybe_constructor->IsJSFunction()) {
       JSFunction* constructor = JSFunction::cast(maybe_constructor);
-      if (constructor->shared()->IsApiFunction()) {
-        DCHECK(is_api_object);
-      } else {
-        DCHECK(!is_api_object);
-      }
+      DCHECK_EQ(constructor->shared()->IsApiFunction(),
+                is_api_object || is_wasm_object);
     } else if (maybe_constructor->IsFunctionTemplateInfo()) {
-      DCHECK(is_api_object);
+      DCHECK(is_api_object || is_wasm_object);
     } else {
       return false;
     }
   }
 #endif
+  // TODO(titzer): Clean this up somehow. WebAssembly objects should not be
+  // considered "constructed from API functions" even though they have
+  // function template info, since that would make the V8 GC identify them to
+  // the embedder, e.g. the Oilpan GC.
+  USE(is_wasm_object);
   return is_api_object;
 }
 
