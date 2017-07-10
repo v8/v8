@@ -501,7 +501,7 @@ void TestEntryToIndex() {
        entry = entry * 1.01 + 1) {
     Handle<Object> result =
         ft.Call(handle(Smi::FromInt(entry), isolate)).ToHandleChecked();
-    CHECK_EQ(Dictionary::EntryToIndex(entry), Smi::cast(*result)->value());
+    CHECK_EQ(Dictionary::EntryToIndex(entry), Smi::ToInt(*result));
   }
 }
 
@@ -1826,7 +1826,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
 
     CHECK_EQ(kind_, array->GetElementsKind());
     CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
-    CHECK_EQ(result_size, Smi::cast(array->length())->value());
+    CHECK_EQ(result_size, Smi::ToInt(array->length()));
     Object* obj = *JSObject::GetElement(isolate, array, 2).ToHandleChecked();
     CHECK_EQ(result_size < 3 ? isolate->heap()->undefined_value() : o1, obj);
     obj = *JSObject::GetElement(isolate, array, 3).ToHandleChecked();

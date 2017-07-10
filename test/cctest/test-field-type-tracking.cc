@@ -555,7 +555,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), 0);
   Object* the_value = obj->RawFastPropertyAt(index);
   CHECK(the_value->IsSmi());
-  CHECK_EQ(42, Smi::cast(the_value)->value());
+  CHECK_EQ(42, Smi::ToInt(the_value));
 }
 
 

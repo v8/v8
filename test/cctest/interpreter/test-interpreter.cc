@@ -1477,7 +1477,7 @@ TEST(InterpreterJumps) {
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+  CHECK_EQ(Smi::ToInt(*return_value), 7);
 }
 
 TEST(InterpreterConditionalJumps) {
@@ -1526,7 +1526,7 @@ TEST(InterpreterConditionalJumps) {
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+  CHECK_EQ(Smi::ToInt(*return_value), 7);
 }
 
 TEST(InterpreterConditionalJumps2) {
@@ -1576,7 +1576,7 @@ TEST(InterpreterConditionalJumps2) {
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+  CHECK_EQ(Smi::ToInt(*return_value), 7);
 }
 
 TEST(InterpreterJumpConstantWith16BitOperand) {

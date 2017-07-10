@@ -96,8 +96,8 @@ Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
 
   RETURN_RESULT_OR_FAILURE(
       isolate, ErrorUtils::MakeGenericError(isolate, constructor,
-                                            Smi::cast(*template_index)->value(),
-                                            arg0, arg1, arg2, SKIP_NONE));
+                                            Smi::ToInt(*template_index), arg0,
+                                            arg1, arg2, SKIP_NONE));
 }
 
 }  // namespace

@@ -317,8 +317,7 @@ bool SharedFunctionInfo::HasBuiltinFunctionId() {
 
 BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
   DCHECK(HasBuiltinFunctionId());
-  return static_cast<BuiltinFunctionId>(
-      Smi::cast(function_identifier())->value());
+  return static_cast<BuiltinFunctionId>(Smi::ToInt(function_identifier()));
 }
 
 void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {

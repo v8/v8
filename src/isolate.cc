@@ -1213,7 +1213,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Gather information from the handler.
         Code* code = frame->LookupCode();
         return FoundHandler(
-            nullptr, code, Smi::cast(code->handler_table()->get(0))->value(),
+            nullptr, code, Smi::ToInt(code->handler_table()->get(0)),
             handler->address() + StackHandlerConstants::kSize, 0);
       }
 
@@ -3050,7 +3050,7 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   PropertyCell* no_elements_cell = heap()->array_protector();
   bool cell_reports_intact =
       no_elements_cell->value()->IsSmi() &&
-      Smi::cast(no_elements_cell->value())->value() == kProtectorValid;
+      Smi::ToInt(no_elements_cell->value()) == kProtectorValid;
 
 #ifdef DEBUG
   Map* root_array_map =
@@ -3108,8 +3108,7 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   Cell* is_concat_spreadable_cell = heap()->is_concat_spreadable_protector();
   bool is_is_concat_spreadable_set =
-      Smi::cast(is_concat_spreadable_cell->value())->value() ==
-      kProtectorInvalid;
+      Smi::ToInt(is_concat_spreadable_cell->value()) == kProtectorInvalid;
 #ifdef DEBUG
   Map* root_array_map = get_initial_js_array_map(GetInitialFastElementsKind());
   if (root_array_map == NULL) {
@@ -3674,7 +3673,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+    int mark_sweeps = Smi::ToInt(detached_contexts->get(i));
     DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
     WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
     if (!cell->cleared()) {
@@ -3688,7 +3687,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+      int mark_sweeps = Smi::ToInt(detached_contexts->get(i));
       DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
       if (mark_sweeps > 3) {

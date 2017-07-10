@@ -519,7 +519,7 @@ MUST_USE_RESULT static Object* ConvertCase(
   if (answer->IsException(isolate) || answer->IsString()) return answer;
 
   DCHECK(answer->IsSmi());
-  length = Smi::cast(answer)->value();
+  length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, isolate->factory()->NewRawOneByteString(length));

@@ -727,7 +727,7 @@ void IncrementalMarking::RetainMaps() {
     DCHECK(retained_maps->Get(i)->IsWeakCell());
     WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
     if (cell->cleared()) continue;
-    int age = Smi::cast(retained_maps->Get(i + 1))->value();
+    int age = Smi::ToInt(retained_maps->Get(i + 1));
     int new_age;
     Map* map = Map::cast(cell->value());
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&

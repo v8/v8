@@ -375,7 +375,7 @@ void wasm::UpdateDispatchTables(Isolate* isolate,
                                 WasmFunction* function, Handle<Code> code) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
-    int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
+    int table_index = Smi::ToInt(dispatch_tables->get(i + 1));
     Handle<FixedArray> function_table(
         FixedArray::cast(dispatch_tables->get(i + 2)), isolate);
     Handle<FixedArray> signature_table(
@@ -893,7 +893,7 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
     exp_deopt_data = handle(lazy_compile_code->deoptimization_data(), isolate);
     auto* weak_cell = WeakCell::cast(exp_deopt_data->get(0));
     instance = handle(WasmInstanceObject::cast(weak_cell->value()), isolate);
-    func_index = Smi::cast(exp_deopt_data->get(1))->value();
+    func_index = Smi::ToInt(exp_deopt_data->get(1));
   }
   it.Advance();
   // Third frame: The calling wasm code or js-to-wasm wrapper.
@@ -928,7 +928,7 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
     for (int idx = 2, end = exp_deopt_data->length(); idx < end; idx += 2) {
       if (exp_deopt_data->get(idx)->IsUndefined(isolate)) break;
       FixedArray* exp_table = FixedArray::cast(exp_deopt_data->get(idx));
-      int exp_index = Smi::cast(exp_deopt_data->get(idx + 1))->value();
+      int exp_index = Smi::ToInt(exp_deopt_data->get(idx + 1));
       DCHECK(exp_table->get(exp_index) == *lazy_compile_code);
       exp_table->set(exp_index, *compiled_code);
     }
@@ -1056,8 +1056,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     SourcePositionTableIterator source_pos_iterator(
         caller->SourcePositionTable());
     DCHECK_EQ(2, caller->deoptimization_data()->length());
-    int caller_func_index =
-        Smi::cast(caller->deoptimization_data()->get(1))->value();
+    int caller_func_index = Smi::ToInt(caller->deoptimization_data()->get(1));
     const byte* func_bytes =
         module_bytes->GetChars() +
         compiled_module->module()->functions[caller_func_index].code.offset();
@@ -1098,10 +1097,9 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
       DCHECK_GT(non_compiled_functions.size(), idx);
       int called_func_index = non_compiled_functions[idx].func_index;
       // Check that the callee agrees with our assumed called_func_index.
-      DCHECK_IMPLIES(
-          callee->deoptimization_data()->length() > 0,
-          Smi::cast(callee->deoptimization_data()->get(1))->value() ==
-              called_func_index);
+      DCHECK_IMPLIES(callee->deoptimization_data()->length() > 0,
+                     Smi::ToInt(callee->deoptimization_data()->get(1)) ==
+                         called_func_index);
       if (is_js_to_wasm) {
         DCHECK_EQ(func_to_return_idx, called_func_index);
       } else {

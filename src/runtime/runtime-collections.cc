@@ -82,7 +82,7 @@ RUNTIME_FUNCTION(Runtime_SetIteratorClone) {
   return *isolate->factory()->NewJSSetIterator(
       handle(holder->map(), isolate),
       handle(OrderedHashSet::cast(holder->table()), isolate),
-      Smi::cast(holder->index())->value());
+      Smi::ToInt(holder->index()));
 }
 
 
@@ -122,7 +122,7 @@ RUNTIME_FUNCTION(Runtime_MapIteratorClone) {
   return *isolate->factory()->NewJSMapIterator(
       handle(holder->map(), isolate),
       handle(OrderedHashMap::cast(holder->table()), isolate),
-      Smi::cast(holder->index())->value());
+      Smi::ToInt(holder->index()));
 }
 
 RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {

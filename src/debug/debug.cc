@@ -2243,9 +2243,8 @@ void Debug::PrintBreakLocation() {
     int column = Script::GetColumnNumber(script, source_position) -
                  (line == 0 ? script->column_offset() : 0);
     Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-    int line_start =
-        line == 0 ? 0 : Smi::cast(line_ends->get(line - 1))->value() + 1;
-    int line_end = Smi::cast(line_ends->get(line))->value();
+    int line_start = line == 0 ? 0 : Smi::ToInt(line_ends->get(line - 1)) + 1;
+    int line_end = Smi::ToInt(line_ends->get(line));
     DisallowHeapAllocation no_gc;
     String::FlatContent content = source->GetFlatContent();
     if (content.IsOneByte()) {

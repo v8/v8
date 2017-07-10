@@ -547,7 +547,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
       CHECK(accessor->HasElement(holder, i, arg_elements));
       continue;
     }
-    int mappedIndex = Smi::cast(mapped)->value();
+    int mappedIndex = Smi::ToInt(mapped);
     nofMappedParameters++;
     CHECK_LE(maxMappedIndex, mappedIndex);
     maxMappedIndex = mappedIndex;
@@ -608,32 +608,32 @@ void JSDate::JSDateVerify() {
         cache_stamp()->IsNaN());
 
   if (month()->IsSmi()) {
-    int month = Smi::cast(this->month())->value();
+    int month = Smi::ToInt(this->month());
     CHECK(0 <= month && month <= 11);
   }
   if (day()->IsSmi()) {
-    int day = Smi::cast(this->day())->value();
+    int day = Smi::ToInt(this->day());
     CHECK(1 <= day && day <= 31);
   }
   if (hour()->IsSmi()) {
-    int hour = Smi::cast(this->hour())->value();
+    int hour = Smi::ToInt(this->hour());
     CHECK(0 <= hour && hour <= 23);
   }
   if (min()->IsSmi()) {
-    int min = Smi::cast(this->min())->value();
+    int min = Smi::ToInt(this->min());
     CHECK(0 <= min && min <= 59);
   }
   if (sec()->IsSmi()) {
-    int sec = Smi::cast(this->sec())->value();
+    int sec = Smi::ToInt(this->sec());
     CHECK(0 <= sec && sec <= 59);
   }
   if (weekday()->IsSmi()) {
-    int weekday = Smi::cast(this->weekday())->value();
+    int weekday = Smi::ToInt(this->weekday());
     CHECK(0 <= weekday && weekday <= 6);
   }
   if (cache_stamp()->IsSmi()) {
-    CHECK(Smi::cast(cache_stamp())->value() <=
-          Smi::cast(isolate->date_cache()->stamp())->value());
+    CHECK(Smi::ToInt(cache_stamp()) <=
+          Smi::ToInt(isolate->date_cache()->stamp()));
   }
 }
 
@@ -784,7 +784,7 @@ void Oddball::OddballVerify() {
           number == heap->hole_nan_value());
   } else {
     CHECK(number->IsSmi());
-    int value = Smi::cast(number)->value();
+    int value = Smi::ToInt(number);
     // Hidden oddballs have negative smis.
     const int kLeastHiddenOddballNumber = -7;
     CHECK_LE(value, 1);
@@ -907,7 +907,7 @@ void JSArray::JSArrayVerify() {
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
   if (length()->IsSmi() && HasFastElements()) {
-    int size = Smi::cast(length())->value();
+    int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
     // properly initialized yet.
     CHECK(size <= elements()->length() ||
@@ -1103,12 +1103,12 @@ void JSRegExp::JSRegExpVerify() {
       // Smi : Not compiled yet (-1).
       // Code/ByteArray: Compiled code.
       CHECK(
-          (one_byte_data->IsSmi() && Smi::cast(one_byte_data)->value() ==
-                                         JSRegExp::kUninitializedValue) ||
+          (one_byte_data->IsSmi() &&
+           Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
           (is_native ? one_byte_data->IsCode() : one_byte_data->IsByteArray()));
       Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data->IsSmi() &&
-             Smi::cast(uc16_data)->value() == JSRegExp::kUninitializedValue) ||
+             Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
             (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
 
       CHECK(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());

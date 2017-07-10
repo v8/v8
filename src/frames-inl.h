@@ -111,7 +111,7 @@ inline Object* BuiltinExitFrame::receiver_slot_object() const {
   // fp[2 + argc - 1]: receiver.
   Object* argc_slot = argc_slot_object();
   DCHECK(argc_slot->IsSmi());
-  int argc = Smi::cast(argc_slot)->value();
+  int argc = Smi::ToInt(argc_slot);
 
   const int receiverOffset =
       BuiltinExitFrameConstants::kNewTargetOffset + (argc - 1) * kPointerSize;

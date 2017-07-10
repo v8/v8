@@ -32,7 +32,7 @@ namespace internal {
 
 AllocationSpace AllocationResult::RetrySpace() {
   DCHECK(IsRetry());
-  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+  return static_cast<AllocationSpace>(Smi::ToInt(object_));
 }
 
 HeapObject* AllocationResult::ToObjectChecked() {

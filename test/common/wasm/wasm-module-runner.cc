@@ -141,7 +141,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
   }
   Handle<Object> result = retval.ToHandleChecked();
   if (result->IsSmi()) {
-    return Smi::cast(*result)->value();
+    return Smi::ToInt(*result);
   }
   if (result->IsHeapNumber()) {
     return static_cast<int32_t>(HeapNumber::cast(*result)->value());

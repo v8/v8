@@ -437,7 +437,7 @@ class LineEndsWrapper {
   int string_len_;
 
   int GetPosAfterNewLine(int index) {
-    return Smi::cast(ends_array_->get(index))->value() + 1;
+    return Smi::ToInt(ends_array_->get(index)) + 1;
   }
 };
 
@@ -603,7 +603,7 @@ static Handle<SharedFunctionInfo> UnwrapSharedFunctionInfoFromJSValue(
 static int GetArrayLength(Handle<JSArray> array) {
   Object* length = array->length();
   CHECK(length->IsSmi());
-  return Smi::cast(length)->value();
+  return Smi::ToInt(length);
 }
 
 void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
@@ -1243,8 +1243,7 @@ class MultipleFunctionTarget {
       Handle<Object> old_element =
           JSReceiver::GetElement(isolate, result_, i).ToHandleChecked();
       if (!old_element->IsSmi() ||
-          Smi::cast(*old_element)->value() ==
-              LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH) {
+          Smi::ToInt(*old_element) == LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH) {
         SetElementSloppy(result_, i,
                          Handle<Smi>(Smi::FromInt(status), isolate));
       }

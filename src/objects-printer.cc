@@ -30,8 +30,8 @@ void Object::Print() {
 
 void Object::Print(std::ostream& os) {  // NOLINT
   if (IsSmi()) {
-    os << "Smi: " << std::hex << "0x" << Smi::cast(this)->value();
-    os << std::dec << " (" << Smi::cast(this)->value() << ")\n";
+    os << "Smi: " << std::hex << "0x" << Smi::ToInt(this);
+    os << std::dec << " (" << Smi::ToInt(this) << ")\n";
   } else {
     HeapObject::cast(this)->HeapObjectPrint(os);
   }
@@ -891,15 +891,14 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
     ScopedVector<char> buf(100);
-    SNPrintF(
-        buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
-        weekdays[weekday()->IsSmi() ? Smi::cast(weekday())->value() + 1 : 0],
-        year()->IsSmi() ? Smi::cast(year())->value() : -1,
-        month()->IsSmi() ? Smi::cast(month())->value() : -1,
-        day()->IsSmi() ? Smi::cast(day())->value() : -1,
-        hour()->IsSmi() ? Smi::cast(hour())->value() : -1,
-        min()->IsSmi() ? Smi::cast(min())->value() : -1,
-        sec()->IsSmi() ? Smi::cast(sec())->value() : -1);
+    SNPrintF(buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
+             weekdays[weekday()->IsSmi() ? Smi::ToInt(weekday()) + 1 : 0],
+             year()->IsSmi() ? Smi::ToInt(year()) : -1,
+             month()->IsSmi() ? Smi::ToInt(month()) : -1,
+             day()->IsSmi() ? Smi::ToInt(day()) : -1,
+             hour()->IsSmi() ? Smi::ToInt(hour()) : -1,
+             min()->IsSmi() ? Smi::ToInt(min()) : -1,
+             sec()->IsSmi() ? Smi::ToInt(sec()) : -1);
     os << buf.start();
   }
   JSObjectPrintBody(os, this);
@@ -1551,7 +1550,7 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
     os << "<all tagged>";
   } else if (IsSmi()) {
     os << "fast";
-    PrintBitMask(os, static_cast<uint32_t>(Smi::cast(this)->value()));
+    PrintBitMask(os, static_cast<uint32_t>(Smi::ToInt(this)));
   } else if (IsOddball() &&
              IsUninitialized(HeapObject::cast(this)->GetIsolate())) {
     os << "<uninitialized>";

@@ -1606,6 +1606,9 @@ class Smi: public Object {
     return Smi::FromInt(static_cast<uint32_t>(value()));
   }
 
+  // Convert a Smi object to an int.
+  static inline int ToInt(const Object* object);
+
   // Convert a value to a Smi object.
   static inline Smi* FromInt(int value) {
     DCHECK(Smi::IsValid(value));

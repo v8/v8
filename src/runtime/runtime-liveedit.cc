@@ -223,7 +223,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   CHECK(new_shared_array->length() == old_shared_array->length());
   CHECK(old_shared_array->HasFastElements());
   CHECK(new_shared_array->HasFastElements());
-  int array_length = Smi::cast(old_shared_array->length())->value();
+  int array_length = Smi::ToInt(old_shared_array->length());
   for (int i = 0; i < array_length; i++) {
     Handle<Object> old_element;
     Handle<Object> new_element;

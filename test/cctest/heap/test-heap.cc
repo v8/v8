@@ -5198,7 +5198,7 @@ TEST(PreprocessStackTrace) {
   CHECK(pos->IsSmi());
 
   Handle<JSArray> stack_trace_array = Handle<JSArray>::cast(stack_trace);
-  int array_length = Smi::cast(stack_trace_array->length())->value();
+  int array_length = Smi::ToInt(stack_trace_array->length());
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();

@@ -139,7 +139,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
   int length = declarations->length();
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
-    FeedbackSlot slot(Smi::cast(declarations->get(i + 1))->value());
+    FeedbackSlot slot(Smi::ToInt(declarations->get(i + 1)));
     Handle<Object> possibly_literal_slot(declarations->get(i + 2), isolate);
     Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
@@ -153,7 +153,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackSlot literals_slot(Smi::cast(*possibly_literal_slot)->value());
+      FeedbackSlot literals_slot(Smi::ToInt(*possibly_literal_slot));
       Handle<Cell> literals(Cell::cast(feedback_vector->Get(literals_slot)),
                             isolate);
       Handle<JSFunction> function =

@@ -1077,7 +1077,7 @@ class CodeMap {
         imported_functions_ =
             isolate->global_handles()->Create(*new_imported_functions);
       }
-      int this_idx = Smi::cast(imported_functions_->get(0))->value() + 1;
+      int this_idx = Smi::ToInt(imported_functions_->get(0)) + 1;
       if (this_idx == imported_functions_->length()) {
         Handle<FixedArray> new_imported_functions =
             isolate->factory()->CopyFixedArrayAndGrow(imported_functions_,
@@ -2144,7 +2144,7 @@ class ThreadImpl {
         // TODO(wasm): Implement calling functions of other instances/modules.
         UNIMPLEMENTED();
       }
-      int target_func_idx = Smi::cast(deopt_data->get(1))->value();
+      int target_func_idx = Smi::ToInt(deopt_data->get(1));
       DCHECK_LE(0, target_func_idx);
       return {ExternalCallResult::INTERNAL,
               codemap()->GetCode(target_func_idx)};
@@ -2264,8 +2264,7 @@ class ThreadImpl {
       if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
         return {ExternalCallResult::INVALID_FUNC};
       }
-      int found_sig =
-          Smi::cast(sig_table->get(static_cast<int>(entry_index)))->value();
+      int found_sig = Smi::ToInt(sig_table->get(static_cast<int>(entry_index)));
       if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
         return {ExternalCallResult::SIGNATURE_MISMATCH};
       }

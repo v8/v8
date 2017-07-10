@@ -550,8 +550,7 @@ void AstPrinter::PrintLiteral(MaybeHandle<Object> maybe_value, bool quote) {
     if (object->IsJSFunction()) {
       Print("JS-Function");
     } else if (object->IsJSArray()) {
-      Print("JS-array[%u]",
-            Smi::cast(JSArray::cast(object)->length())->value());
+      Print("JS-array[%u]", Smi::ToInt(JSArray::cast(object)->length()));
     } else if (object->IsJSObject()) {
       Print("JS-Object");
     } else {

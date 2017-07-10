@@ -250,7 +250,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       DCHECK_EQ(kData, details.kind());
 
       v8::Intrinsic intrinsic =
-          static_cast<v8::Intrinsic>(Smi::cast(properties->get(i++))->value());
+          static_cast<v8::Intrinsic>(Smi::ToInt(properties->get(i++)));
       auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
       RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
@@ -356,7 +356,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         bool is_hidden_prototype,
                                         bool is_prototype) {
   Handle<JSFunction> constructor;
-  int serial_number = Smi::cast(info->serial_number())->value();
+  int serial_number = Smi::ToInt(info->serial_number());
   if (!new_target.is_null()) {
     if (IsSimpleInstantiation(isolate, *info, *new_target)) {
       constructor = Handle<JSFunction>::cast(new_target);
@@ -446,7 +446,7 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
                                             Handle<Name> name) {
-  int serial_number = Smi::cast(data->serial_number())->value();
+  int serial_number = Smi::ToInt(data->serial_number());
   if (serial_number) {
     Handle<JSObject> result;
     if (ProbeInstantiationsCache(isolate, serial_number,

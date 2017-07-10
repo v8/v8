@@ -23,11 +23,7 @@ ScriptContextTable* ScriptContextTable::cast(Object* context) {
   return reinterpret_cast<ScriptContextTable*>(context);
 }
 
-
-int ScriptContextTable::used() const {
-  return Smi::cast(get(kUsedSlot))->value();
-}
-
+int ScriptContextTable::used() const { return Smi::ToInt(get(kUsedSlot)); }
 
 void ScriptContextTable::set_used(int used) {
   set(kUsedSlot, Smi::FromInt(used));

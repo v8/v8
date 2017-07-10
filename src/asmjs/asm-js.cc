@@ -277,7 +277,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Requires standard library");
       return MaybeHandle<Object>();
     }
-    int member_id = Smi::cast(stdlib_uses->get(i))->value();
+    int member_id = Smi::ToInt(stdlib_uses->get(i));
     wasm::AsmJsParser::StandardMember member =
         static_cast<wasm::AsmJsParser::StandardMember>(member_id);
     if (!IsStdlibMemberValid(isolate, stdlib, member,

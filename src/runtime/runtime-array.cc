@@ -632,7 +632,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
                                        Object::ToInteger(isolate, from_index));
 
     if (V8_LIKELY(from_index->IsSmi())) {
-      int start_from = Smi::cast(*from_index)->value();
+      int start_from = Smi::ToInt(*from_index);
       if (start_from < 0) {
         index = std::max<int64_t>(len + start_from, 0);
       } else {

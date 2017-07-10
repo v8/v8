@@ -543,7 +543,7 @@ String* ScopeInfo::StackLocalName(int var) {
 int ScopeInfo::StackLocalIndex(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, StackLocalCount());
-  int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
+  int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
   return first_slot_index + var;
 }
 
@@ -558,7 +558,7 @@ VariableMode ScopeInfo::ContextLocalMode(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::cast(get(info_index))->value();
+  int value = Smi::ToInt(get(info_index));
   return VariableModeField::decode(value);
 }
 
@@ -566,7 +566,7 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::cast(get(info_index))->value();
+  int value = Smi::ToInt(get(info_index));
   return InitFlagField::decode(value);
 }
 
@@ -574,7 +574,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::cast(get(info_index))->value();
+  int value = Smi::ToInt(get(info_index));
   return MaybeAssignedFlagField::decode(value);
 }
 
@@ -590,7 +590,7 @@ bool ScopeInfo::VariableIsSynthetic(String* name) {
 int ScopeInfo::StackSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
-    int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
+    int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
     int start = StackLocalNamesIndex();
     int end = start + StackLocalCount();
     for (int i = start; i < end; ++i) {
@@ -610,7 +610,7 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   DCHECK_NOT_NULL(init_flag);
   DCHECK_NOT_NULL(maybe_assigned_flag);
 
-  int module_vars_count = Smi::cast(get(ModuleVariableCountIndex()))->value();
+  int module_vars_count = Smi::ToInt(get(ModuleVariableCountIndex()));
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
     String* var_name = String::cast(get(entry + kModuleVariableNameOffset));
@@ -689,7 +689,7 @@ int ScopeInfo::ParameterIndex(String* name) {
 
 int ScopeInfo::ReceiverContextSlotIndex() {
   if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT)
-    return Smi::cast(get(ReceiverInfoIndex()))->value();
+    return Smi::ToInt(get(ReceiverInfoIndex()));
   return -1;
 }
 
@@ -698,7 +698,7 @@ int ScopeInfo::FunctionContextSlotIndex(String* name) {
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
         FunctionName() == name) {
-      return Smi::cast(get(FunctionNameInfoIndex() + 1))->value();
+      return Smi::ToInt(get(FunctionNameInfoIndex() + 1));
     }
   }
   return -1;
@@ -752,17 +752,16 @@ void ScopeInfo::ModuleVariable(int i, String** name, int* index,
                                InitializationFlag* init_flag,
                                MaybeAssignedFlag* maybe_assigned_flag) {
   DCHECK_LE(0, i);
-  DCHECK_LT(i, Smi::cast(get(ModuleVariableCountIndex()))->value());
+  DCHECK_LT(i, Smi::ToInt(get(ModuleVariableCountIndex())));
 
   int entry = ModuleVariablesIndex() + i * kModuleVariableEntryLength;
-  int properties =
-      Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
+  int properties = Smi::ToInt(get(entry + kModuleVariablePropertiesOffset));
 
   if (name != nullptr) {
     *name = String::cast(get(entry + kModuleVariableNameOffset));
   }
   if (index != nullptr) {
-    *index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+    *index = Smi::ToInt(get(entry + kModuleVariableIndexOffset));
     DCHECK_NE(*index, 0);
   }
   if (mode != nullptr) {

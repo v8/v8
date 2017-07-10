@@ -130,7 +130,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 
   PropertyCell* species_cell = heap()->species_protector();
   return species_cell->value()->IsSmi() &&
-         Smi::cast(species_cell->value())->value() == kProtectorValid;
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsStringLengthOverflowIntact() {

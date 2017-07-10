@@ -4328,7 +4328,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     // Verification of important array prototype properties.
     Object* length = proto->length();
     CHECK(length->IsSmi());
-    CHECK(Smi::cast(length)->value() == 0);
+    CHECK(Smi::ToInt(length) == 0);
     CHECK(proto->HasSmiOrObjectElements());
     // This is necessary to enable fast checks for absence of elements
     // on Array.prototype and below.
@@ -4892,7 +4892,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<GlobalDictionary>(from->global_dictionary());
     Handle<FixedArray> indices = GlobalDictionary::IterationIndices(properties);
     for (int i = 0; i < indices->length(); i++) {
-      int index = Smi::cast(indices->get(i))->value();
+      int index = Smi::ToInt(indices->get(i));
       // If the property is already there we skip it.
       Handle<PropertyCell> cell(properties->CellAt(index));
       Handle<Name> key(cell->name(), isolate());
@@ -4913,7 +4913,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     Handle<FixedArray> key_indices =
         NameDictionary::IterationIndices(properties);
     for (int i = 0; i < key_indices->length(); i++) {
-      int key_index = Smi::cast(key_indices->get(i))->value();
+      int key_index = Smi::ToInt(key_indices->get(i));
       Object* raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(isolate(), raw_key));
       DCHECK(raw_key->IsName());
@@ -5018,7 +5018,7 @@ Genesis::Genesis(
       // proxy of the correct size.
       Object* size = isolate->heap()->serialized_global_proxy_sizes()->get(
           static_cast<int>(context_snapshot_index) - 1);
-      instance_size = Smi::cast(size)->value();
+      instance_size = Smi::ToInt(size);
     } else {
       instance_size = JSGlobalProxy::SizeWithEmbedderFields(
           global_proxy_template.IsEmpty()

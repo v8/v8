@@ -112,7 +112,7 @@ class TransitionArray: public FixedArray {
   static int NumberOfPrototypeTransitions(FixedArray* proto_transitions) {
     if (proto_transitions->length() == 0) return 0;
     Object* raw = proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-    return Smi::cast(raw)->value();
+    return Smi::ToInt(raw);
   }
   static int NumberOfPrototypeTransitionsForTest(Map* map);
 
@@ -267,7 +267,7 @@ class TransitionArray: public FixedArray {
 
   int number_of_transitions() {
     if (length() < kFirstIndex) return 0;
-    return Smi::cast(get(kTransitionLengthIndex))->value();
+    return Smi::ToInt(get(kTransitionLengthIndex));
   }
 
   static inline PropertyDetails GetSimpleTargetDetails(Map* transition) {

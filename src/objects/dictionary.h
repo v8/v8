@@ -134,7 +134,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   }
 
   int NextEnumerationIndex() {
-    return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
+    return Smi::ToInt(this->get(kNextEnumerationIndexIndex));
   }
 
   // Creates a new dictionary.

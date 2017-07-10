@@ -193,7 +193,7 @@ class ObjectHashTableTest: public ObjectHashTable {
 
   int lookup(int key) {
     Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
-    return Smi::cast(Lookup(key_obj))->value();
+    return Smi::ToInt(Lookup(key_obj));
   }
 
   int capacity() {

@@ -735,7 +735,7 @@ bool Object::FitsRepresentation(Representation representation) {
 
 bool Object::ToUint32(uint32_t* value) const {
   if (IsSmi()) {
-    int num = Smi::cast(this)->value();
+    int num = Smi::ToInt(this);
     if (num < 0) return false;
     *value = static_cast<uint32_t>(num);
     return true;
@@ -809,7 +809,7 @@ MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
 // static
 MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
   if (input->IsSmi()) {
-    int value = std::max(Smi::cast(*input)->value(), 0);
+    int value = std::max(Smi::ToInt(*input), 0);
     return handle(Smi::FromInt(value), isolate);
   }
   return ConvertToLength(isolate, input);
@@ -818,7 +818,7 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
 // static
 MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
                                     MessageTemplate::Template error_index) {
-  if (input->IsSmi() && Smi::cast(*input)->value() >= 0) return input;
+  if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   return ConvertToIndex(isolate, input, error_index);
 }
 
@@ -917,6 +917,7 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
   return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
 }
 
+int Smi::ToInt(const Object* object) { return Smi::cast(object)->value(); }
 
 MapWord MapWord::FromMap(const Map* map) {
   return MapWord(reinterpret_cast<uintptr_t>(map));
@@ -1389,11 +1390,7 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
-
-byte Oddball::kind() const {
-  return Smi::cast(READ_FIELD(this, kKindOffset))->value();
-}
-
+byte Oddball::kind() const { return Smi::ToInt(READ_FIELD(this, kKindOffset)); }
 
 void Oddball::set_kind(byte value) {
   WRITE_FIELD(this, kKindOffset, Smi::FromInt(value));
@@ -1603,7 +1600,7 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
     // and stores to the stack silently clear the signalling bit).
     uint64_t bits;
     if (value->IsSmi()) {
-      bits = bit_cast<uint64_t>(static_cast<double>(Smi::cast(value)->value()));
+      bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
     } else {
       DCHECK(value->IsHeapNumber());
       bits = HeapNumber::cast(value)->value_as_bits();
@@ -1848,7 +1845,7 @@ int WeakFixedArray::Length() const {
 
 
 int WeakFixedArray::last_used_index() const {
-  return Smi::cast(FixedArray::cast(this)->get(kLastUsedIndexIndex))->value();
+  return Smi::ToInt(FixedArray::cast(this)->get(kLastUsedIndexIndex));
 }
 
 
@@ -1873,7 +1870,7 @@ T* WeakFixedArray::Iterator::Next() {
 
 int ArrayList::Length() const {
   if (FixedArray::cast(this)->length() == 0) return 0;
-  return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();
+  return Smi::ToInt(FixedArray::cast(this)->get(kLengthIndex));
 }
 
 
@@ -1904,7 +1901,7 @@ void ArrayList::Clear(int index, Object* undefined) {
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);
   Object* obj = get(kNumberOfCapturesIndex);
-  return Smi::cast(obj)->value();
+  return Smi::ToInt(obj);
 }
 
 void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
@@ -1936,7 +1933,7 @@ void RegExpMatchInfo::SetLastInput(Object* value) {
 int RegExpMatchInfo::Capture(int i) {
   DCHECK_LT(i, NumberOfCaptureRegisters());
   Object* obj = get(kFirstCaptureIndex + i);
-  return Smi::cast(obj)->value();
+  return Smi::ToInt(obj);
 }
 
 void RegExpMatchInfo::SetCapture(int i, int value) {
@@ -2034,7 +2031,7 @@ bool DescriptorArray::IsEmpty() {
 int DescriptorArray::number_of_descriptors() {
   DCHECK(length() >= kFirstIndex || IsEmpty());
   int len = length();
-  return len == 0 ? 0 : Smi::cast(get(kDescriptorLengthIndex))->value();
+  return len == 0 ? 0 : Smi::ToInt(get(kDescriptorLengthIndex));
 }
 
 
@@ -2392,17 +2389,14 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
 }
 
 int HashTableBase::NumberOfElements() const {
-  return Smi::cast(get(kNumberOfElementsIndex))->value();
+  return Smi::ToInt(get(kNumberOfElementsIndex));
 }
 
 int HashTableBase::NumberOfDeletedElements() const {
-  return Smi::cast(get(kNumberOfDeletedElementsIndex))->value();
+  return Smi::ToInt(get(kNumberOfDeletedElementsIndex));
 }
 
-int HashTableBase::Capacity() const {
-  return Smi::cast(get(kCapacityIndex))->value();
-}
-
+int HashTableBase::Capacity() const { return Smi::ToInt(get(kCapacityIndex)); }
 
 void HashTableBase::ElementAdded() {
   SetNumberOfElements(NumberOfElements() + 1);
@@ -2486,7 +2480,7 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
   Object* hash = key->GetHash();
   if (!hash->IsSmi()) return false;
-  return FindEntry(isolate, key, Smi::cast(hash)->value()) != kNotFound;
+  return FindEntry(isolate, key, Smi::ToInt(hash)) != kNotFound;
 }
 
 bool StringSetShape::IsMatch(String* key, Object* value) {
@@ -2522,8 +2516,7 @@ uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
 bool SeededNumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
-  return 0 !=
-      (Smi::cast(max_index_object)->value() & kRequiresSlowElementsMask);
+  return 0 != (Smi::ToInt(max_index_object) & kRequiresSlowElementsMask);
 }
 
 
@@ -2531,7 +2524,7 @@ uint32_t SeededNumberDictionary::max_number_key() {
   DCHECK(!requires_slow_elements());
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return 0;
-  uint32_t value = static_cast<uint32_t>(Smi::cast(max_index_object)->value());
+  uint32_t value = static_cast<uint32_t>(Smi::ToInt(max_index_object));
   return value >> kRequiresSlowElementsTagSize;
 }
 
@@ -2613,20 +2606,20 @@ int DeoptimizationInputData::DeoptCount() {
 
 
 int HandlerTable::GetRangeStart(int index) const {
-  return Smi::cast(get(index * kRangeEntrySize + kRangeStartIndex))->value();
+  return Smi::ToInt(get(index * kRangeEntrySize + kRangeStartIndex));
 }
 
 int HandlerTable::GetRangeEnd(int index) const {
-  return Smi::cast(get(index * kRangeEntrySize + kRangeEndIndex))->value();
+  return Smi::ToInt(get(index * kRangeEntrySize + kRangeEndIndex));
 }
 
 int HandlerTable::GetRangeHandler(int index) const {
   return HandlerOffsetField::decode(
-      Smi::cast(get(index * kRangeEntrySize + kRangeHandlerIndex))->value());
+      Smi::ToInt(get(index * kRangeEntrySize + kRangeHandlerIndex)));
 }
 
 int HandlerTable::GetRangeData(int index) const {
-  return Smi::cast(get(index * kRangeEntrySize + kRangeDataIndex))->value();
+  return Smi::ToInt(get(index * kRangeEntrySize + kRangeDataIndex));
 }
 
 void HandlerTable::SetRangeStart(int index, int value) {
@@ -3040,7 +3033,7 @@ template <class Traits>
 void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   ElementType cast_value = Traits::defaultValue();
   if (value->IsSmi()) {
-    int int_value = Smi::cast(value)->value();
+    int int_value = Smi::ToInt(value);
     cast_value = from(int_value);
   } else if (value->IsHeapNumber()) {
     double double_value = HeapNumber::cast(value)->value();
@@ -3575,9 +3568,7 @@ void DependentCode::set_next_link(DependentCode* next) {
   set(kNextLinkIndex, next);
 }
 
-
-int DependentCode::flags() { return Smi::cast(get(kFlagsIndex))->value(); }
-
+int DependentCode::flags() { return Smi::ToInt(get(kFlagsIndex)); }
 
 void DependentCode::set_flags(int flags) {
   set(kFlagsIndex, Smi::FromInt(flags));
@@ -4487,27 +4478,27 @@ ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
 int ObjectTemplateInfo::embedder_field_count() const {
   Object* value = data();
   DCHECK(value->IsSmi());
-  return EmbedderFieldCount::decode(Smi::cast(value)->value());
+  return EmbedderFieldCount::decode(Smi::ToInt(value));
 }
 
 void ObjectTemplateInfo::set_embedder_field_count(int count) {
-  return set_data(Smi::FromInt(
-      EmbedderFieldCount::update(Smi::cast(data())->value(), count)));
+  return set_data(
+      Smi::FromInt(EmbedderFieldCount::update(Smi::ToInt(data()), count)));
 }
 
 bool ObjectTemplateInfo::immutable_proto() const {
   Object* value = data();
   DCHECK(value->IsSmi());
-  return IsImmutablePrototype::decode(Smi::cast(value)->value());
+  return IsImmutablePrototype::decode(Smi::ToInt(value));
 }
 
 void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
   return set_data(Smi::FromInt(
-      IsImmutablePrototype::update(Smi::cast(data())->value(), immutable)));
+      IsImmutablePrototype::update(Smi::ToInt(data()), immutable)));
 }
 
 int TemplateList::length() const {
-  return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();
+  return Smi::ToInt(FixedArray::cast(this)->get(kLengthIndex));
 }
 
 Object* TemplateList::get(int index) const {
@@ -5290,7 +5281,7 @@ int JSRegExp::CaptureCount() {
     case ATOM:
       return 0;
     case IRREGEXP:
-      return Smi::cast(DataAt(kIrregexpCaptureCountIndex))->value();
+      return Smi::ToInt(DataAt(kIrregexpCaptureCountIndex));
     default:
       UNREACHABLE();
   }
@@ -5952,11 +5943,11 @@ bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
 }
 
 uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
-  return Smi::cast(key->GetHash())->value();
+  return Smi::ToInt(key->GetHash());
 }
 
 uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
-  return Smi::cast(other->GetHash())->value();
+  return Smi::ToInt(other->GetHash());
 }
 
 
@@ -6076,13 +6067,13 @@ bool JSArray::HasArrayPrototype(Isolate* isolate) {
 
 
 int TypeFeedbackInfo::ic_total_count() {
-  int current = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  int current = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
   return ICTotalCountField::decode(current);
 }
 
 
 void TypeFeedbackInfo::set_ic_total_count(int count) {
-  int value = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  int value = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
   value = ICTotalCountField::update(value,
                                     ICTotalCountField::decode(count));
   WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(value));
@@ -6090,14 +6081,14 @@ void TypeFeedbackInfo::set_ic_total_count(int count) {
 
 
 int TypeFeedbackInfo::ic_with_type_info_count() {
-  int current = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int current = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
   return ICsWithTypeInfoCountField::decode(current);
 }
 
 
 void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
   if (delta == 0) return;
-  int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int value = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
   int new_count = ICsWithTypeInfoCountField::decode(value) + delta;
   // We can get negative count here when the type-feedback info is
   // shared between two code objects. The can only happen when
@@ -6113,7 +6104,7 @@ void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
 
 
 int TypeFeedbackInfo::ic_generic_count() {
-  return Smi::cast(READ_FIELD(this, kStorage3Offset))->value();
+  return Smi::ToInt(READ_FIELD(this, kStorage3Offset));
 }
 
 
@@ -6135,7 +6126,7 @@ void TypeFeedbackInfo::initialize_storage() {
 
 
 void TypeFeedbackInfo::change_own_type_change_checksum() {
-  int value = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  int value = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
   int checksum = OwnTypeChangeChecksum::decode(value);
   checksum = (checksum + 1) % (1 << kTypeChangeChecksumBits);
   value = OwnTypeChangeChecksum::update(value, checksum);
@@ -6147,7 +6138,7 @@ void TypeFeedbackInfo::change_own_type_change_checksum() {
 
 
 void TypeFeedbackInfo::set_inlined_type_change_checksum(int checksum) {
-  int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int value = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
   int mask = (1 << kTypeChangeChecksumBits) - 1;
   value = InlinedTypeChangeChecksum::update(value, checksum & mask);
   // Ensure packed bit field is in Smi range.
@@ -6158,13 +6149,13 @@ void TypeFeedbackInfo::set_inlined_type_change_checksum(int checksum) {
 
 
 int TypeFeedbackInfo::own_type_change_checksum() {
-  int value = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  int value = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
   return OwnTypeChangeChecksum::decode(value);
 }
 
 
 bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
-  int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int value = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
   int mask = (1 << kTypeChangeChecksumBits) - 1;
   return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
 }
@@ -6185,7 +6176,7 @@ Relocatable::~Relocatable() {
 template<class Derived, class TableType>
 Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   TableType* table(TableType::cast(this->table()));
-  int index = Smi::cast(this->index())->value();
+  int index = Smi::ToInt(this->index());
   Object* key = table->KeyAt(index);
   DCHECK(!key->IsTheHole(table->GetIsolate()));
   return key;
@@ -6194,7 +6185,7 @@ Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
 
 Object* JSMapIterator::CurrentValue() {
   OrderedHashMap* table(OrderedHashMap::cast(this->table()));
-  int index = Smi::cast(this->index())->value();
+  int index = Smi::ToInt(this->index());
   Object* value = table->ValueAt(index);
   DCHECK(!value->IsTheHole(table->GetIsolate()));
   return value;

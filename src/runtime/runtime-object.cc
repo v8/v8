@@ -99,7 +99,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver_obj);
       ElementsKind elements_kind = js_object->GetElementsKind();
       if (IsDoubleElementsKind(elements_kind)) {
-        if (Smi::cast(*key_obj)->value() >= js_object->elements()->length()) {
+        if (Smi::ToInt(*key_obj) >= js_object->elements()->length()) {
           elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
                                                              : PACKED_ELEMENTS;
           JSObject::TransitionElementsKind(js_object, elements_kind);

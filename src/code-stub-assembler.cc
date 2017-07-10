@@ -8186,7 +8186,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   // if (!lhs->IsSmi()) {
   //   if (lhs->IsHeapNumber()) {
   //     if (rhs->IsSmi()) {
-  //       return Smi::cast(rhs)->value() == HeapNumber::cast(lhs)->value();
+  //       return Smi::ToInt(rhs) == HeapNumber::cast(lhs)->value();
   //     } else if (rhs->IsHeapNumber()) {
   //       return HeapNumber::cast(rhs)->value() ==
   //       HeapNumber::cast(lhs)->value();
@@ -8213,7 +8213,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   //     return false;
   //   } else {
   //     if (rhs->IsHeapNumber()) {
-  //       return Smi::cast(lhs)->value() == HeapNumber::cast(rhs)->value();
+  //       return Smi::ToInt(lhs) == HeapNumber::cast(rhs)->value();
   //     } else {
   //       return false;
   //     }

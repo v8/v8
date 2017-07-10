@@ -65,7 +65,7 @@
   int holder::name() const {                                   \
     DCHECK(condition);                                         \
     Object* value = READ_FIELD(this, offset);                  \
-    return Smi::cast(value)->value();                          \
+    return Smi::ToInt(value);                                  \
   }                                                            \
   void holder::set_##name(int value) {                         \
     DCHECK(condition);                                         \
@@ -78,7 +78,7 @@
 #define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)    \
   int holder::synchronized_##name() const {                 \
     Object* value = ACQUIRE_READ_FIELD(this, offset);       \
-    return Smi::cast(value)->value();                       \
+    return Smi::ToInt(value);                               \
   }                                                         \
   void holder::synchronized_set_##name(int value) {         \
     RELEASE_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
@@ -87,7 +87,7 @@
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)         \
   int holder::relaxed_read_##name() const {                 \
     Object* value = RELAXED_READ_FIELD(this, offset);       \
-    return Smi::cast(value)->value();                       \
+    return Smi::ToInt(value);                               \
   }                                                         \
   void holder::relaxed_write_##name(int value) {            \
     RELAXED_WRITE_FIELD(this, offset, Smi::FromInt(value)); \

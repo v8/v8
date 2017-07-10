@@ -260,7 +260,7 @@ JumpTableTargetOffsets::iterator::iterator(
 JumpTableTargetOffset JumpTableTargetOffsets::iterator::operator*() {
   DCHECK_LT(table_offset_, table_end_);
   DCHECK(current_->IsSmi());
-  return {index_, accessor_->GetAbsoluteOffset(Smi::cast(*current_)->value())};
+  return {index_, accessor_->GetAbsoluteOffset(Smi::ToInt(*current_))};
 }
 
 JumpTableTargetOffsets::iterator& JumpTableTargetOffsets::iterator::

@@ -39,7 +39,7 @@ int LookupNamedCapture(std::function<bool(String*)> name_matches,
     String* capture_name = String::cast(capture_name_map->get(name_ix));
     if (!name_matches(capture_name)) continue;
 
-    maybe_capture_index = Smi::cast(capture_name_map->get(index_ix))->value();
+    maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
     break;
   }
 
@@ -1140,7 +1140,7 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const int index_ix = i * 2 + 1;
 
     Handle<String> capture_name(String::cast(capture_map->get(name_ix)));
-    const int capture_ix = Smi::cast(capture_map->get(index_ix))->value();
+    const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
     DCHECK(1 <= capture_ix && capture_ix <= capture_count);
 
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
@@ -1177,7 +1177,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
       int capture_registers = (capture_count + 1) * 2;
       int32_t* last_match = NewArray<int32_t>(capture_registers);
       for (int i = 0; i < capture_registers; i++) {
-        last_match[i] = Smi::cast(last_match_cache->get(i))->value();
+        last_match[i] = Smi::ToInt(last_match_cache->get(i));
       }
       Handle<FixedArray> cached_fixed_array =
           Handle<FixedArray>(FixedArray::cast(cached_answer));

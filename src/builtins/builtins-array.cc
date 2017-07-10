@@ -24,7 +24,7 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
   // This is an extended version of ECMA-262 7.1.11 handling signed values
   // Try to convert object to a number and clamp values to [kMinInt, kMaxInt]
   if (object->IsSmi()) {
-    *out = Smi::cast(object)->value();
+    *out = Smi::ToInt(object);
     return true;
   } else if (object->IsHeapNumber()) {
     double value = HeapNumber::cast(object)->value();
@@ -60,7 +60,7 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
   Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
-  *out = Max(0, Smi::cast(len_obj)->value());
+  *out = Max(0, Smi::ToInt(len_obj));
 
   FixedArray* parameters = FixedArray::cast(object->elements());
   if (object->HasSloppyArgumentsElements()) {
@@ -173,11 +173,11 @@ BUILTIN(ArrayPush) {
   // Fast Elements Path
   int to_add = args.length() - 1;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  int len = Smi::cast(array->length())->value();
+  int len = Smi::ToInt(array->length());
   if (to_add == 0) return Smi::FromInt(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
-  DCHECK_LE(to_add, Smi::kMaxValue - Smi::cast(array->length())->value());
+  DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_push(), args);
@@ -197,7 +197,7 @@ BUILTIN(ArrayPop) {
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  uint32_t len = static_cast<uint32_t>(Smi::cast(array->length())->value());
+  uint32_t len = static_cast<uint32_t>(Smi::ToInt(array->length()));
   if (len == 0) return isolate->heap()->undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
@@ -228,7 +228,7 @@ BUILTIN(ArrayShift) {
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  int len = Smi::cast(array->length())->value();
+  int len = Smi::ToInt(array->length());
   if (len == 0) return heap->undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
@@ -250,7 +250,7 @@ BUILTIN(ArrayUnshift) {
   if (to_add == 0) return array->length();
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
-  DCHECK_LE(to_add, Smi::kMaxValue - Smi::cast(array->length())->value());
+  DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
@@ -279,7 +279,7 @@ BUILTIN(ArraySlice) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
-    len = Smi::cast(array->length())->value();
+    len = Smi::ToInt(array->length());
   } else if (receiver->IsJSObject() &&
              GetSloppyArgumentsLength(isolate, Handle<JSObject>::cast(receiver),
                                       &len)) {
@@ -352,7 +352,7 @@ BUILTIN(ArraySplice) {
       return CallJsIntrinsic(isolate, isolate->array_splice(), args);
     }
   }
-  int len = Smi::cast(array->length())->value();
+  int len = Smi::ToInt(array->length());
   // clip relative start to [0, len]
   int actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
                                           : Min(relative_start, len);
@@ -1019,7 +1019,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj((*args)[i], isolate);
         if (obj->IsSmi()) {
-          double_storage->set(j, Smi::cast(*obj)->value());
+          double_storage->set(j, Smi::ToInt(*obj));
           j++;
         } else if (obj->IsNumber()) {
           double_storage->set(j, obj->Number());
@@ -1061,7 +1061,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
                   failure = true;
                   break;
                 }
-                int32_t int_value = Smi::cast(element)->value();
+                int32_t int_value = Smi::ToInt(element);
                 double_storage->set(j, int_value);
                 j++;
               }
@@ -1180,7 +1180,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       }
       // The Array length is guaranted to be <= kHalfOfMaxInt thus we won't
       // overflow.
-      result_len += Smi::cast(array->length())->value();
+      result_len += Smi::ToInt(array->length());
       DCHECK(result_len >= 0);
       // Throw an Error if we overflow the FixedArray limits
       if (FixedDoubleArray::kMaxLength < result_len ||

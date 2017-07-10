@@ -2138,7 +2138,7 @@ Location Module::GetModuleRequestLocation(int i) const {
   i::Handle<i::FixedArray> module_request_positions(
       self->info()->module_request_positions(), isolate);
   CHECK_LT(i, module_request_positions->length());
-  int position = i::Smi::cast(module_request_positions->get(i))->value();
+  int position = i::Smi::ToInt(module_request_positions->get(i));
   i::Handle<i::Script> script(self->script(), isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
@@ -3634,7 +3634,7 @@ bool Value::IsInt32() const {
 
 bool Value::IsUint32() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsSmi()) return i::Smi::cast(*obj)->value() >= 0;
+  if (obj->IsSmi()) return i::Smi::ToInt(*obj) >= 0;
   if (obj->IsNumber()) {
     double value = obj->Number();
     return !i::IsMinusZero(value) &&
@@ -4112,7 +4112,7 @@ int64_t Value::IntegerValue() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) {
     if (obj->IsSmi()) {
-      return i::Smi::cast(*obj)->value();
+      return i::Smi::ToInt(*obj);
     } else {
       return static_cast<int64_t>(obj->Number());
     }
@@ -4130,7 +4130,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   i::Handle<i::Object> num;
   has_pending_exception = !i::Object::ToInt32(isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int32_t);
-  return Just(num->IsSmi() ? i::Smi::cast(*num)->value()
+  return Just(num->IsSmi() ? i::Smi::ToInt(*num)
                            : static_cast<int32_t>(num->Number()));
 }
 
@@ -4151,7 +4151,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   i::Handle<i::Object> num;
   has_pending_exception = !i::Object::ToUint32(isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(uint32_t);
-  return Just(num->IsSmi() ? static_cast<uint32_t>(i::Smi::cast(*num)->value())
+  return Just(num->IsSmi() ? static_cast<uint32_t>(i::Smi::ToInt(*num))
                            : static_cast<uint32_t>(num->Number()));
 }
 
@@ -4166,7 +4166,7 @@ uint32_t Value::Uint32Value() const {
 MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   if (self->IsSmi()) {
-    if (i::Smi::cast(*self)->value() >= 0) return Utils::Uint32ToLocal(self);
+    if (i::Smi::ToInt(*self) >= 0) return Utils::Uint32ToLocal(self);
     return Local<Uint32>();
   }
   PREPARE_FOR_EXECUTION(context, Object, ToArrayIndex, Uint32);
@@ -4192,7 +4192,7 @@ MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
 Local<Uint32> Value::ToArrayIndex() const {
   auto self = Utils::OpenHandle(this);
   if (self->IsSmi()) {
-    if (i::Smi::cast(*self)->value() >= 0) return Utils::Uint32ToLocal(self);
+    if (i::Smi::ToInt(*self) >= 0) return Utils::Uint32ToLocal(self);
     return Local<Uint32>();
   }
   auto context = ContextFromHeapObject(self);
@@ -6198,7 +6198,7 @@ bool Boolean::Value() const {
 int64_t Integer::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
-    return i::Smi::cast(*obj)->value();
+    return i::Smi::ToInt(*obj);
   } else {
     return static_cast<int64_t>(obj->Number());
   }
@@ -6208,7 +6208,7 @@ int64_t Integer::Value() const {
 int32_t Int32::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
-    return i::Smi::cast(*obj)->value();
+    return i::Smi::ToInt(*obj);
   } else {
     return static_cast<int32_t>(obj->Number());
   }
@@ -6218,7 +6218,7 @@ int32_t Int32::Value() const {
 uint32_t Uint32::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
-    return i::Smi::cast(*obj)->value();
+    return i::Smi::ToInt(*obj);
   } else {
     return static_cast<uint32_t>(obj->Number());
   }
@@ -7202,8 +7202,7 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
   DCHECK_EQ(1, date_cache_version->length());
   CHECK(date_cache_version->get(0)->IsSmi());
   date_cache_version->set(
-      0,
-      i::Smi::FromInt(i::Smi::cast(date_cache_version->get(0))->value() + 1));
+      0, i::Smi::FromInt(i::Smi::ToInt(date_cache_version->get(0)) + 1));
 }
 
 
@@ -7269,7 +7268,7 @@ uint32_t v8::Array::Length() const {
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
   i::Object* length = obj->length();
   if (length->IsSmi()) {
-    return i::Smi::cast(length)->value();
+    return i::Smi::ToInt(length);
   } else {
     return static_cast<uint32_t>(length->Number());
   }
@@ -9309,7 +9308,7 @@ void debug::SetContextId(Local<Context> context, int id) {
 
 int debug::GetContextId(Local<Context> context) {
   i::Object* value = Utils::OpenHandle(*context)->debug_context_id();
-  return (value->IsSmi()) ? i::Smi::cast(value)->value() : 0;
+  return (value->IsSmi()) ? i::Smi::ToInt(value) : 0;
 }
 
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
@@ -9489,7 +9488,7 @@ Maybe<int> debug::Script::ContextId() const {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Object* value = script->context_data();
-  if (value->IsSmi()) return Just(i::Smi::cast(value)->value());
+  if (value->IsSmi()) return Just(i::Smi::ToInt(value));
   return Nothing<int>();
 }
 
@@ -9513,7 +9512,7 @@ bool debug::Script::IsModule() const {
 
 namespace {
 int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
-  return i::Smi::cast(array->get(index))->value();
+  return i::Smi::ToInt(array->get(index));
 }
 
 bool CompareBreakLocation(const i::BreakLocation& loc1,
@@ -9788,15 +9787,14 @@ v8::MaybeLocal<v8::Array> debug::EntriesPreview(Isolate* v8_isolate,
     *is_key_value = kind == MapAsArrayKind::kEntries;
     if (!iterator->HasMore()) return v8::Array::New(v8_isolate);
     return Utils::ToLocal(MapAsArray(isolate, iterator->table(),
-                                     i::Smi::cast(iterator->index())->value(),
-                                     kind));
+                                     i::Smi::ToInt(iterator->index()), kind));
   }
   if (object->IsJSSetIterator()) {
     i::Handle<i::JSSetIterator> it = i::Handle<i::JSSetIterator>::cast(object);
     *is_key_value = false;
     if (!it->HasMore()) return v8::Array::New(v8_isolate);
     return Utils::ToLocal(
-        SetAsArray(isolate, it->table(), i::Smi::cast(it->index())->value()));
+        SetAsArray(isolate, it->table(), i::Smi::ToInt(it->index())));
   }
   return v8::MaybeLocal<v8::Array>();
 }

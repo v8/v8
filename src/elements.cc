@@ -313,7 +313,7 @@ static void CopySmiToDoubleElements(FixedArrayBase* from_base,
     if (hole_or_smi == the_hole) {
       to->set_the_hole(to_start);
     } else {
-      to->set(to_start, Smi::cast(hole_or_smi)->value());
+      to->set(to_start, Smi::ToInt(hole_or_smi));
     }
   }
 }
@@ -353,7 +353,7 @@ static void CopyPackedSmiToDoubleElements(FixedArrayBase* from_base,
        from_start < from_end; from_start++, to_start++) {
     Object* smi = from->get(from_start);
     DCHECK(!smi->IsTheHole(from->GetIsolate()));
-    to->set(to_start, Smi::cast(smi)->value());
+    to->set(to_start, Smi::ToInt(smi));
   }
 }
 
@@ -555,7 +555,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (holder->IsJSArray()) {
       Object* length_obj = JSArray::cast(holder)->length();
       if (length_obj->IsSmi()) {
-        length = Smi::cast(length_obj)->value();
+        length = Smi::ToInt(length_obj);
       }
     } else {
       length = fixed_array_base->length();
@@ -585,7 +585,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   static void TryTransitionResultArrayToPacked(Handle<JSArray> array) {
     if (!IsHoleyOrDictionaryElementsKind(kind())) return;
     Handle<FixedArrayBase> backing_store(array->elements());
-    int length = Smi::cast(array->length())->value();
+    int length = Smi::ToInt(array->length());
     if (!Subclass::IsPackedImpl(*array, *backing_store, 0, length)) {
       return;
     }
@@ -806,7 +806,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (receiver->IsJSArray()) {
       DCHECK(JSArray::cast(receiver)->length()->IsSmi());
       return static_cast<uint32_t>(
-          Smi::cast(JSArray::cast(receiver)->length())->value());
+          Smi::ToInt(JSArray::cast(receiver)->length()));
     }
     return Subclass::GetCapacityImpl(receiver, elements);
   }
@@ -845,7 +845,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     int packed_size = kPackedSizeNotKnown;
     if (IsFastPackedElementsKind(from_kind) && object->IsJSArray()) {
-      packed_size = Smi::cast(JSArray::cast(*object)->length())->value();
+      packed_size = Smi::ToInt(JSArray::cast(*object)->length());
     }
 
     Subclass::CopyElementsImpl(*old_elements, src_index, *new_elements,
@@ -981,8 +981,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     bool is_packed = IsFastPackedElementsKind(from_kind) &&
         from_holder->IsJSArray();
     if (is_packed) {
-      packed_size =
-          Smi::cast(JSArray::cast(from_holder)->length())->value();
+      packed_size = Smi::ToInt(JSArray::cast(from_holder)->length());
       if (copy_size >= 0 && packed_size > copy_size) {
         packed_size = copy_size;
       }
@@ -1812,7 +1811,7 @@ class DictionaryElementsAccessor
       if (k->Number() > SeededNumberDictionary::kRequiresSlowElementsLimit) {
         requires_slow_elements = true;
       } else {
-        max_key = Max(max_key, Smi::cast(k)->value());
+        max_key = Max(max_key, Smi::ToInt(k));
       }
     }
     if (requires_slow_elements) {
@@ -2117,7 +2116,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                     Arguments* args, uint32_t add_count) {
     Isolate* isolate = receiver->GetIsolate();
     Heap* heap = isolate->heap();
-    uint32_t length = Smi::cast(receiver->length())->value();
+    uint32_t length = Smi::ToInt(receiver->length());
     uint32_t new_length = length - delete_count + add_count;
 
     ElementsKind kind = KindTraits::Kind;
@@ -2435,8 +2434,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       JSObject::EnsureWritableFastElements(receiver);
     }
     Handle<FixedArrayBase> backing_store(receiver->elements(), isolate);
-    uint32_t length =
-        static_cast<uint32_t>(Smi::cast(receiver->length())->value());
+    uint32_t length = static_cast<uint32_t>(Smi::ToInt(receiver->length()));
     DCHECK(length > 0);
     int new_length = length - 1;
     int remove_index = remove_position == AT_START ? 0 : new_length;
@@ -2458,7 +2456,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                Handle<FixedArrayBase> backing_store,
                                Arguments* args, uint32_t add_size,
                                Where add_position) {
-    uint32_t length = Smi::cast(receiver->length())->value();
+    uint32_t length = Smi::ToInt(receiver->length());
     DCHECK(0 < add_size);
     uint32_t elms_len = backing_store->length();
     // Check we do not overflow the new_length.
@@ -2910,7 +2908,7 @@ class TypedElementsAccessor
 
     ctype value;
     if (obj_value->IsSmi()) {
-      value = BackingStore::from(Smi::cast(*obj_value)->value());
+      value = BackingStore::from(Smi::ToInt(*obj_value));
     } else {
       DCHECK(obj_value->IsHeapNumber());
       value = BackingStore::from(HeapNumber::cast(*obj_value)->value());
@@ -3252,7 +3250,7 @@ class TypedElementsAccessor
       for (uint32_t i = 0; i < length; i++) {
         Object* elem = source_store->get(i);
         DCHECK(elem->IsSmi());
-        int int_value = Smi::cast(elem)->value();
+        int int_value = Smi::ToInt(elem);
         dest->set(i, dest->from(int_value));
       }
       return true;
@@ -3264,7 +3262,7 @@ class TypedElementsAccessor
         } else {
           Object* elem = source_store->get(i);
           DCHECK(elem->IsSmi());
-          int int_value = Smi::cast(elem)->value();
+          int int_value = Smi::ToInt(elem);
           dest->set(i, dest->from(int_value));
         }
       }
@@ -3382,7 +3380,7 @@ class SloppyArgumentsElementsAccessor
       Object* probe = elements->get_mapped_entry(entry);
       DCHECK(!probe->IsTheHole(isolate));
       Context* context = elements->context();
-      int context_entry = Smi::cast(probe)->value();
+      int context_entry = Smi::ToInt(probe);
       DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       return handle(context->get(context_entry), isolate);
     } else {
@@ -3418,7 +3416,7 @@ class SloppyArgumentsElementsAccessor
       Object* probe = elements->get_mapped_entry(entry);
       DCHECK(!probe->IsTheHole(store->GetIsolate()));
       Context* context = elements->context();
-      int context_entry = Smi::cast(probe)->value();
+      int context_entry = Smi::ToInt(probe);
       DCHECK(!context->get(context_entry)->IsTheHole(store->GetIsolate()));
       context->set(context_entry, value);
     } else {
@@ -3770,7 +3768,7 @@ class SlowSloppyArgumentsElementsAccessor
       Object* probe = elements->get_mapped_entry(entry);
       DCHECK(!probe->IsTheHole(isolate));
       Context* context = elements->context();
-      int context_entry = Smi::cast(probe)->value();
+      int context_entry = Smi::ToInt(probe);
       DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       context->set(context_entry, *value);
 

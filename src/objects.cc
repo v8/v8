@@ -422,7 +422,7 @@ MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
                                             Handle<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
   if (input->IsSmi()) {
-    int value = std::max(Smi::cast(*input)->value(), 0);
+    int value = std::max(Smi::ToInt(*input), 0);
     return handle(Smi::FromInt(value), isolate);
   }
   double len = DoubleToInteger(input->Number());
@@ -440,7 +440,7 @@ MaybeHandle<Object> Object::ConvertToIndex(
     MessageTemplate::Template error_index) {
   if (input->IsUndefined(isolate)) return handle(Smi::kZero, isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
-  if (input->IsSmi() && Smi::cast(*input)->value() >= 0) return input;
+  if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   double len = DoubleToInteger(input->Number()) + 0.0;
   auto js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
@@ -450,7 +450,7 @@ MaybeHandle<Object> Object::ConvertToIndex(
 }
 
 bool Object::BooleanValue() {
-  if (IsSmi()) return Smi::cast(this)->value() != 0;
+  if (IsSmi()) return Smi::ToInt(this) != 0;
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (IsBoolean()) return IsTrue(isolate);
@@ -1158,7 +1158,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
 
 bool Object::ToInt32(int32_t* value) {
   if (IsSmi()) {
-    *value = Smi::cast(this)->value();
+    *value = Smi::ToInt(this);
     return true;
   }
   if (IsHeapNumber()) {
@@ -2260,7 +2260,7 @@ Object* GetSimpleHash(Object* object) {
   // The object is either a Smi, a HeapNumber, a name, an odd-ball, a real JS
   // object, or a Harmony proxy.
   if (object->IsSmi()) {
-    uint32_t hash = ComputeIntegerHash(Smi::cast(object)->value());
+    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object->IsHeapNumber()) {
@@ -5991,7 +5991,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   // Compute the length of the instance descriptor.
   for (int i = 0; i < instance_descriptor_length; i++) {
-    int index = Smi::cast(iteration_order->get(i))->value();
+    int index = Smi::ToInt(iteration_order->get(i));
     DCHECK(dictionary->IsKey(isolate, dictionary->KeyAt(index)));
 
     PropertyKind kind = dictionary->DetailsAt(index).kind();
@@ -6056,7 +6056,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   // Fill in the instance descriptor and the fields.
   int current_offset = 0;
   for (int i = 0; i < instance_descriptor_length; i++) {
-    int index = Smi::cast(iteration_order->get(i))->value();
+    int index = Smi::ToInt(iteration_order->get(i));
     Name* k = dictionary->NameAt(index);
     // Dictionary keys are internalized upon insertion.
     // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
@@ -7543,9 +7543,8 @@ bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             Object* object) {
   Isolate* isolate = elements->GetIsolate();
   if (IsObjectElementsKind(kind) || kind == FAST_STRING_WRAPPER_ELEMENTS) {
-    int length = IsJSArray()
-        ? Smi::cast(JSArray::cast(this)->length())->value()
-        : elements->length();
+    int length = IsJSArray() ? Smi::ToInt(JSArray::cast(this)->length())
+                             : elements->length();
     for (int i = 0; i < length; ++i) {
       Object* element = elements->get(i);
       if (!element->IsTheHole(isolate) && element == object) return true;
@@ -8125,10 +8124,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   if (!object->HasFixedTypedArrayElements() &&
       !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
-    int length =
-        object->IsJSArray()
-            ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
-            : object->elements()->length();
+    int length = object->IsJSArray()
+                     ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
+                     : object->elements()->length();
     new_element_dictionary =
         length == 0 ? isolate->factory()->empty_slow_element_dictionary()
                     : object->GetElementsAccessor()->Normalize(object);
@@ -8304,7 +8302,7 @@ bool JSObject::HasEnumerableElements() {
     case PACKED_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       int length = object->IsJSArray()
-                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       ? Smi::ToInt(JSArray::cast(object)->length())
                        : object->elements()->length();
       return length > 0;
     }
@@ -8312,7 +8310,7 @@ bool JSObject::HasEnumerableElements() {
     case HOLEY_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(object->elements());
       int length = object->IsJSArray()
-                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       ? Smi::ToInt(JSArray::cast(object)->length())
                        : elements->length();
       Isolate* isolate = GetIsolate();
       for (int i = 0; i < length; i++) {
@@ -8322,7 +8320,7 @@ bool JSObject::HasEnumerableElements() {
     }
     case HOLEY_DOUBLE_ELEMENTS: {
       int length = object->IsJSArray()
-                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       ? Smi::ToInt(JSArray::cast(object)->length())
                        : object->elements()->length();
       // Zero-length arrays would use the empty FixedArray...
       if (length == 0) return false;
@@ -9860,7 +9858,7 @@ class CodeCache : public AllStatic {
 
   static inline int GetLinearUsage(FixedArray* linear_cache) {
     DCHECK_GT(linear_cache->length(), kEntrySize);
-    return Smi::cast(linear_cache->get(kLinearUsageIndex))->value();
+    return Smi::ToInt(linear_cache->get(kLinearUsageIndex));
   }
 };
 
@@ -10372,12 +10370,12 @@ int HandlerTable::LookupRange(int pc_offset, int* data_out,
   int innermost_end = std::numeric_limits<int>::max();
 #endif
   for (int i = 0; i < length(); i += kRangeEntrySize) {
-    int start_offset = Smi::cast(get(i + kRangeStartIndex))->value();
-    int end_offset = Smi::cast(get(i + kRangeEndIndex))->value();
-    int handler_field = Smi::cast(get(i + kRangeHandlerIndex))->value();
+    int start_offset = Smi::ToInt(get(i + kRangeStartIndex));
+    int end_offset = Smi::ToInt(get(i + kRangeEndIndex));
+    int handler_field = Smi::ToInt(get(i + kRangeHandlerIndex));
     int handler_offset = HandlerOffsetField::decode(handler_field);
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    int handler_data = Smi::cast(get(i + kRangeDataIndex))->value();
+    int handler_data = Smi::ToInt(get(i + kRangeDataIndex));
     if (pc_offset >= start_offset && pc_offset < end_offset) {
       DCHECK_GE(start_offset, innermost_start);
       DCHECK_LT(end_offset, innermost_end);
@@ -10397,8 +10395,8 @@ int HandlerTable::LookupRange(int pc_offset, int* data_out,
 // TODO(turbofan): Make sure table is sorted and use binary search.
 int HandlerTable::LookupReturn(int pc_offset) {
   for (int i = 0; i < length(); i += kReturnEntrySize) {
-    int return_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
-    int handler_field = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    int return_offset = Smi::ToInt(get(i + kReturnOffsetIndex));
+    int handler_field = Smi::ToInt(get(i + kReturnHandlerIndex));
     if (pc_offset == return_offset) {
       return HandlerOffsetField::decode(handler_field);
     }
@@ -12872,7 +12870,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     DCHECK(context->IsNativeContext());
     Handle<Object> maybe_index = JSReceiver::GetDataProperty(
         constructor, isolate->factory()->native_context_index_symbol());
-    int index = maybe_index->IsSmi() ? Smi::cast(*maybe_index)->value()
+    int index = maybe_index->IsSmi() ? Smi::ToInt(*maybe_index)
                                      : Context::OBJECT_FUNCTION_INDEX;
     Handle<JSFunction> realm_constructor(JSFunction::cast(context->get(index)));
     prototype = handle(realm_constructor->prototype(), isolate);
@@ -13131,7 +13129,7 @@ bool GetPositionInfoSlow(const Script* script, int position,
 }
 }  // namespace
 
-#define SMI_VALUE(x) (Smi::cast(x)->value())
+#define SMI_VALUE(x) (Smi::ToInt(x))
 bool Script::GetPositionInfo(int position, PositionInfo* info,
                              OffsetFlag offset_flag) const {
   DisallowHeapAllocation no_allocation;
@@ -13431,7 +13429,7 @@ DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
 
 int SharedFunctionInfo::debugger_hints() const {
   if (HasDebugInfo()) return GetDebugInfo()->debugger_hints();
-  return Smi::cast(debug_info())->value();
+  return Smi::ToInt(debug_info());
 }
 
 void SharedFunctionInfo::set_debugger_hints(int value) {
@@ -14525,12 +14523,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
   os << "   from   to       hdlr\n";
   for (int i = 0; i < length(); i += kRangeEntrySize) {
-    int pc_start = Smi::cast(get(i + kRangeStartIndex))->value();
-    int pc_end = Smi::cast(get(i + kRangeEndIndex))->value();
-    int handler_field = Smi::cast(get(i + kRangeHandlerIndex))->value();
+    int pc_start = Smi::ToInt(get(i + kRangeStartIndex));
+    int pc_end = Smi::ToInt(get(i + kRangeEndIndex));
+    int handler_field = Smi::ToInt(get(i + kRangeHandlerIndex));
     int handler_offset = HandlerOffsetField::decode(handler_field);
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    int data = Smi::cast(get(i + kRangeDataIndex))->value();
+    int data = Smi::ToInt(get(i + kRangeDataIndex));
     os << "  (" << std::setw(4) << pc_start << "," << std::setw(4) << pc_end
        << ")  ->  " << std::setw(4) << handler_offset
        << " (prediction=" << prediction << ", data=" << data << ")\n";
@@ -14541,8 +14539,8 @@ void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
 void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
   os << "   off      hdlr (c)\n";
   for (int i = 0; i < length(); i += kReturnEntrySize) {
-    int pc_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
-    int handler_field = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    int pc_offset = Smi::ToInt(get(i + kReturnOffsetIndex));
+    int handler_field = Smi::ToInt(get(i + kReturnHandlerIndex));
     int handler_offset = HandlerOffsetField::decode(handler_field);
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
     os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
@@ -15424,7 +15422,7 @@ static bool ShouldConvertToFastElements(JSObject* object,
   if (object->IsJSArray()) {
     Object* length = JSArray::cast(object)->length();
     if (!length->IsSmi()) return false;
-    *new_capacity = static_cast<uint32_t>(Smi::cast(length)->value());
+    *new_capacity = static_cast<uint32_t>(Smi::ToInt(length));
   } else if (object->IsJSSloppyArgumentsObject()) {
     return false;
   } else {
@@ -15731,9 +15729,8 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 template <typename BackingStore>
 static int HoleyElementsUsage(JSObject* object, BackingStore* store) {
   Isolate* isolate = store->GetIsolate();
-  int limit = object->IsJSArray()
-                  ? Smi::cast(JSArray::cast(object)->length())->value()
-                  : store->length();
+  int limit = object->IsJSArray() ? Smi::ToInt(JSArray::cast(object)->length())
+                                  : store->length();
   int used = 0;
   for (int i = 0; i < limit; ++i) {
     if (!store->is_the_hole(isolate, i)) ++used;
@@ -15747,7 +15744,7 @@ int JSObject::GetFastElementsUsage() {
     case PACKED_SMI_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS:
     case PACKED_ELEMENTS:
-      return IsJSArray() ? Smi::cast(JSArray::cast(this)->length())->value()
+      return IsJSArray() ? Smi::ToInt(JSArray::cast(this)->length())
                          : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = SloppyArgumentsElements::cast(store)->arguments();
@@ -15931,11 +15928,11 @@ class StringSharedKey : public HashTableKey {
     FixedArray* other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != *shared_) return false;
-    int language_unchecked = Smi::cast(other_array->get(2))->value();
+    int language_unchecked = Smi::ToInt(other_array->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
     if (language_mode != language_mode_) return false;
-    int position = Smi::cast(other_array->get(3))->value();
+    int position = Smi::ToInt(other_array->get(3));
     if (position != position_) return false;
     String* source = String::cast(other_array->get(1));
     return source->Equals(*source_);
@@ -17565,7 +17562,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
     // Iterate over the dictionary using the enumeration order and update
     // the dictionary with new enumeration indices.
     for (int i = 0; i < length; i++) {
-      int index = Smi::cast(iteration_order->get(i))->value();
+      int index = Smi::ToInt(iteration_order->get(i));
       DCHECK(dictionary->IsKey(dictionary->GetIsolate(),
                                dictionary->KeyAt(index)));
 
@@ -17790,7 +17787,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
           storage->GetFirstElementAddress());
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
-    int index = Smi::cast(raw_storage->get(i))->value();
+    int index = Smi::ToInt(raw_storage->get(i));
     raw_storage->set(i, raw_dictionary->NameAt(index));
   }
 }
@@ -17867,7 +17864,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
 
   bool has_seen_symbol = false;
   for (int i = 0; i < array_size; i++) {
-    int index = Smi::cast(array->get(i))->value();
+    int index = Smi::ToInt(array->get(i));
     Object* key = dictionary->NameAt(index);
     if (key->IsSymbol()) {
       has_seen_symbol = true;
@@ -17877,7 +17874,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
   }
   if (has_seen_symbol) {
     for (int i = 0; i < array_size; i++) {
-      int index = Smi::cast(array->get(i))->value();
+      int index = Smi::ToInt(array->get(i));
       Object* key = dictionary->NameAt(index);
       if (!key->IsSymbol()) continue;
       keys->AddKey(key, DO_NOT_CONVERT);
@@ -17923,7 +17920,7 @@ Object* ObjectHashTable::Lookup(Handle<Object> key) {
   if (hash->IsUndefined(isolate)) {
     return isolate->heap()->the_hole_value();
   }
-  return Lookup(isolate, key, Smi::cast(hash)->value());
+  return Lookup(isolate, key, Smi::ToInt(hash));
 }
 
 Object* ObjectHashTable::ValueAt(int entry) {
@@ -18003,7 +18000,7 @@ Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
     return table;
   }
 
-  return Remove(table, key, was_present, Smi::cast(hash)->value());
+  return Remove(table, key, was_present, Smi::ToInt(hash));
 }
 
 
@@ -18237,7 +18234,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     }
 
     Object* hash = key->GetHash();
-    int bucket = Smi::cast(hash)->value() & (new_buckets - 1);
+    int bucket = Smi::ToInt(hash) & (new_buckets - 1);
     Object* chain_entry = new_table->get(kHashTableStartIndex + bucket);
     new_table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
     int new_index = new_table->EntryToIndex(new_entry);
@@ -18492,7 +18489,7 @@ bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
   Object* hash = key->GetHash();
 
   if (hash->IsUndefined(isolate)) return false;
-  int entry = HashToFirstEntry(Smi::cast(hash)->value());
+  int entry = HashToFirstEntry(Smi::ToInt(hash));
 
   // Walk the chain in the bucket to find the key.
   while (entry != kNotFound) {
@@ -18522,7 +18519,7 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Handle<Derived> table,
       Object* key = table->KeyAt(old_entry);
       if (key->IsTheHole(isolate)) continue;
 
-      int hash = Smi::cast(key->GetHash())->value();
+      int hash = Smi::ToInt(key->GetHash());
       int bucket = new_table->HashToBucket(hash);
       int chain = new_table->GetFirstEntry(bucket);
 
@@ -18591,7 +18588,7 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
   TableType* table = TableType::cast(this->table());
   if (!table->IsObsolete()) return;
 
-  int index = Smi::cast(this->index())->value();
+  int index = Smi::ToInt(this->index());
   while (table->IsObsolete()) {
     TableType* next_table = table->NextTable();
 
@@ -18627,7 +18624,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   Transition();
 
   TableType* table = TableType::cast(this->table());
-  int index = Smi::cast(this->index())->value();
+  int index = Smi::ToInt(this->index());
   int used_capacity = table->UsedCapacity();
 
   while (index < used_capacity && table->KeyAt(index)->IsTheHole(isolate)) {
@@ -19316,9 +19313,9 @@ int JSGeneratorObject::source_position() const {
   const JSAsyncGeneratorObject* async =
       IsJSAsyncGeneratorObject() ? JSAsyncGeneratorObject::cast(this) : nullptr;
   if (async != nullptr && async->awaited_promise()->IsJSPromise()) {
-    code_offset = Smi::cast(async->await_input_or_debug_pos())->value();
+    code_offset = Smi::ToInt(async->await_input_or_debug_pos());
   } else {
-    code_offset = Smi::cast(input_or_debug_pos())->value();
+    code_offset = Smi::ToInt(input_or_debug_pos());
   }
 
   // The stored bytecode offset is relative to a different base than what

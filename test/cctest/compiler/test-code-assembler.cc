@@ -550,13 +550,13 @@ TEST(GotoIfExceptionMultiple) {
   result = ft.Call(isolate->factory()->to_string_tag_symbol(),
                    isolate->factory()->undefined_value())
                .ToHandleChecked();
-  CHECK_EQ(7, Smi::cast(*result)->value());
+  CHECK_EQ(7, Smi::ToInt(*result));
 
   // First handler throws, second handler returns a number.
   result = ft.Call(isolate->factory()->to_string_tag_symbol(),
                    isolate->factory()->to_primitive_symbol())
                .ToHandleChecked();
-  CHECK_EQ(7 & ~2, Smi::cast(*result)->value());
+  CHECK_EQ(7 & ~2, Smi::ToInt(*result));
 
   // First handler throws, second handler throws, third handler returns thrown
   // value.

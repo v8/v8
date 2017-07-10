@@ -1557,7 +1557,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line == 0) return 0;
   // If line == line_count, we return the first position beyond the last line.
   if (line > line_count) return -1;
-  return Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+  return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
 }  // namespace
@@ -1792,8 +1792,8 @@ RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   }
 
   const int start =
-      (line == 0) ? 0 : Smi::cast(line_ends_array->get(line - 1))->value() + 1;
-  const int end = Smi::cast(line_ends_array->get(line))->value();
+      (line == 0) ? 0 : Smi::ToInt(line_ends_array->get(line - 1)) + 1;
+  const int end = Smi::ToInt(line_ends_array->get(line));
 
   Handle<String> source =
       handle(String::cast(script_handle->source()), isolate);

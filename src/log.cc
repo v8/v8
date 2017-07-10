@@ -1349,7 +1349,7 @@ void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
   msg.AppendAddress(reinterpret_cast<Address>(map));
   msg.Append(",");
   if (key->IsSmi()) {
-    msg.Append("%d", Smi::cast(key)->value());
+    msg.Append("%d", Smi::ToInt(key));
   } else if (key->IsNumber()) {
     msg.Append("%lf", key->Number());
   } else if (key->IsString()) {

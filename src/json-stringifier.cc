@@ -216,7 +216,7 @@ MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
 
 Handle<JSReceiver> JsonStringifier::CurrentHolder(
     Handle<Object> value, Handle<Object> initial_holder) {
-  int length = Smi::cast(stack_->length())->value();
+  int length = Smi::ToInt(stack_->length());
   if (length == 0) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
@@ -237,7 +237,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object) {
     return EXCEPTION;
   }
 
-  int length = Smi::cast(stack_->length())->value();
+  int length = Smi::ToInt(stack_->length());
   {
     DisallowHeapAllocation no_allocation;
     FixedArray* elements = FixedArray::cast(stack_->elements());
@@ -257,7 +257,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object) {
 }
 
 void JsonStringifier::StackPop() {
-  int length = Smi::cast(stack_->length())->value();
+  int length = Smi::ToInt(stack_->length());
   stack_->set_length(Smi::FromInt(length - 1));
 }
 

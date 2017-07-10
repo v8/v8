@@ -113,8 +113,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
     return new_layout_descriptor;
   } else {
     // Fast layout.
-    uint32_t value =
-        static_cast<uint32_t>(Smi::cast(*layout_descriptor)->value());
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(*layout_descriptor));
     new_layout_descriptor->set_layout_word(0, value);
     return new_layout_descriptor;
   }
@@ -139,9 +138,8 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
   }
   uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
-  uint32_t value = IsSlowLayout()
-                       ? get_layout_word(layout_word_index)
-                       : static_cast<uint32_t>(Smi::cast(this)->value());
+  uint32_t value = IsSlowLayout() ? get_layout_word(layout_word_index)
+                                  : static_cast<uint32_t>(Smi::ToInt(this));
 
   bool is_tagged = (value & layout_mask) == 0;
   if (!is_tagged) value = ~value;  // Count set bits instead of cleared bits.

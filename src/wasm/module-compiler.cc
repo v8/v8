@@ -461,8 +461,7 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
   DCHECK_IMPLIES(!instance.is_null(),
                  WeakCell::cast(code->deoptimization_data()->get(0))->value() ==
                      *instance);
-  DCHECK_EQ(func_index,
-            Smi::cast(code->deoptimization_data()->get(1))->value());
+  DCHECK_EQ(func_index, Smi::ToInt(code->deoptimization_data()->get(1)));
   return code;
 }
 
@@ -1004,7 +1003,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     int deopt_len = code->deoptimization_data()->length();
     if (deopt_len == 0) continue;
     DCHECK_LE(2, deopt_len);
-    DCHECK_EQ(i, Smi::cast(code->deoptimization_data()->get(1))->value());
+    DCHECK_EQ(i, Smi::ToInt(code->deoptimization_data()->get(1)));
     code->deoptimization_data()->set(0, *weak_link);
     // Entries [2, deopt_len) encode information about table exports of this
     // function. This is rebuilt in {LoadTableSegments}, so reset it here.

@@ -815,7 +815,7 @@ void Heap::PreprocessStackTraces() {
       // a stack trace that has already been preprocessed. Guard against this.
       if (!maybe_code->IsAbstractCode()) break;
       AbstractCode* abstract_code = AbstractCode::cast(maybe_code);
-      int offset = Smi::cast(elements->get(j + 3))->value();
+      int offset = Smi::ToInt(elements->get(j + 3));
       int pos = abstract_code->SourcePosition(offset);
       elements->set(j + 2, Smi::FromInt(pos));
     }

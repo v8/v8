@@ -4919,7 +4919,7 @@ TEST(DebugScriptLineEndsAreAscending) {
 
     int prev_end = -1;
     for (int j = 0; j < ends->length(); j++) {
-      const int curr_end = v8::internal::Smi::cast(ends->get(j))->value();
+      const int curr_end = v8::internal::Smi::ToInt(ends->get(j));
       CHECK_GT(curr_end, prev_end);
       prev_end = curr_end;
     }

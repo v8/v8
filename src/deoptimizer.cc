@@ -3766,7 +3766,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       CHECK(iterated_string->IsString());
       object->set_string(String::cast(*iterated_string));
       CHECK(next_index->IsSmi());
-      object->set_index(Smi::cast(*next_index)->value());
+      object->set_index(Smi::ToInt(*next_index));
       return object;
     }
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE: {
@@ -3830,8 +3830,8 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_context(Context::cast(*context));
       object->set_receiver(*receiver);
       object->set_input_or_debug_pos(*input_or_debug_pos);
-      object->set_resume_mode(Smi::cast(*resume_mode)->value());
-      object->set_continuation(Smi::cast(*continuation_offset)->value());
+      object->set_resume_mode(Smi::ToInt(*resume_mode));
+      object->set_continuation(Smi::ToInt(*continuation_offset));
       object->set_register_file(FixedArray::cast(*register_file));
       int in_object_properties = map->GetInObjectProperties();
       for (int i = 0; i < in_object_properties; ++i) {
@@ -3853,7 +3853,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> first = materializer.FieldAt(value_index);
       Handle<Object> second = materializer.FieldAt(value_index);
       object->set_map(*map);
-      object->set_length(Smi::cast(*string_length)->value());
+      object->set_length(Smi::ToInt(*string_length));
       object->set_first(String::cast(*first));
       object->set_second(String::cast(*second));
       CHECK(hash->IsNumber());  // The {Name::kEmptyHashField} value.

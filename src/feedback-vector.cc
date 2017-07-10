@@ -37,13 +37,13 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind) {
 
 FeedbackSlotKind FeedbackMetadata::GetKind(FeedbackSlot slot) const {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
-  int data = Smi::cast(get(index))->value();
+  int data = Smi::ToInt(get(index));
   return VectorICComputer::decode(data, slot.ToInt());
 }
 
 void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
-  int data = Smi::cast(get(index))->value();
+  int data = Smi::ToInt(get(index));
   int new_data = VectorICComputer::encode(data, slot.ToInt(), kind);
   set(index, Smi::FromInt(new_data));
 }
@@ -631,7 +631,7 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 int CallICNexus::ExtractCallCount() {
   Object* call_count = GetFeedbackExtra();
   CHECK(call_count->IsSmi());
-  int value = Smi::cast(call_count)->value();
+  int value = Smi::ToInt(call_count);
   return value;
 }
 
@@ -874,7 +874,7 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
 IcCheckType KeyedLoadICNexus::GetKeyType() const {
   Object* feedback = GetFeedback();
   if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
-    return static_cast<IcCheckType>(Smi::cast(GetFeedbackExtra())->value());
+    return static_cast<IcCheckType>(Smi::ToInt(GetFeedbackExtra()));
   }
   return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
 }
@@ -882,7 +882,7 @@ IcCheckType KeyedLoadICNexus::GetKeyType() const {
 IcCheckType KeyedStoreICNexus::GetKeyType() const {
   Object* feedback = GetFeedback();
   if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
-    return static_cast<IcCheckType>(Smi::cast(GetFeedbackExtra())->value());
+    return static_cast<IcCheckType>(Smi::ToInt(GetFeedbackExtra()));
   }
   return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
 }
@@ -910,12 +910,12 @@ InlineCacheState CompareICNexus::StateFromFeedback() const {
 }
 
 BinaryOperationHint BinaryOpICNexus::GetBinaryOperationFeedback() const {
-  int feedback = Smi::cast(GetFeedback())->value();
+  int feedback = Smi::ToInt(GetFeedback());
   return BinaryOperationHintFromFeedback(feedback);
 }
 
 CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
-  int feedback = Smi::cast(GetFeedback())->value();
+  int feedback = Smi::ToInt(GetFeedback());
   return CompareOperationHintFromFeedback(feedback);
 }
 
@@ -999,7 +999,7 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
       Handle<ArrayList> position_specific_types(
           ArrayList::cast(feedback->get(value_index)));
 
-      int position = Smi::cast(key)->value();
+      int position = Smi::ToInt(key);
       JSObject::AddDataElement(type_profile, position,
                                isolate->factory()->NewJSArrayWithElements(
                                    position_specific_types->Elements()),

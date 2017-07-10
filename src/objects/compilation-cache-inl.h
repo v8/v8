@@ -48,10 +48,10 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
     DCHECK_EQ(4, val->length());
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(val->get(0));
     String* source = String::cast(val->get(1));
-    int language_unchecked = Smi::cast(val->get(2))->value();
+    int language_unchecked = Smi::ToInt(val->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    int position = Smi::cast(val->get(3))->value();
+    int position = Smi::ToInt(val->get(3));
     return StringSharedHash(source, shared, language_mode, position);
   }
   DCHECK_LT(2, val->length());

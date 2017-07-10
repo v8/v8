@@ -347,13 +347,11 @@ class WasmCompiledModule : public FixedArray {
 #define WCM_WASM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj), private)
 
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                         \
- public:                                                           \
-  TYPE NAME() const {                                              \
-    return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
-  }                                                                \
-                                                                   \
- private:                                                          \
+#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                                     \
+ public:                                                                       \
+  TYPE NAME() const { return static_cast<TYPE>(Smi::ToInt(get(kID_##NAME))); } \
+                                                                               \
+ private:                                                                      \
   void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
 
 #define WCM_WEAK_LINK(TYPE, NAME)                                          \

@@ -47,7 +47,7 @@ bool FeedbackMetadata::is_empty() const {
 int FeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
   DCHECK(length() > kReservedIndexCount);
-  return Smi::cast(get(kSlotsCountIndex))->value();
+  return Smi::ToInt(get(kSlotsCountIndex));
 }
 
 // static
@@ -106,7 +106,7 @@ SharedFunctionInfo* FeedbackVector::shared_function_info() const {
 }
 
 int FeedbackVector::invocation_count() const {
-  return Smi::cast(get(kInvocationCountIndex))->value();
+  return Smi::ToInt(get(kInvocationCountIndex));
 }
 
 void FeedbackVector::clear_invocation_count() {
@@ -140,7 +140,7 @@ bool FeedbackVector::has_optimization_marker() const {
 }
 
 int FeedbackVector::profiler_ticks() const {
-  return Smi::cast(get(kProfilerTicksIndex))->value();
+  return Smi::ToInt(get(kProfilerTicksIndex));
 }
 
 void FeedbackVector::set_profiler_ticks(int ticks) {
@@ -254,7 +254,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
         // from service.
         if (code_is_interpreted) {
-          int const feedback = Smi::cast(obj)->value();
+          int const feedback = Smi::ToInt(obj);
           BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
           if (hint == BinaryOperationHint::kAny) {
             gen++;
@@ -271,7 +271,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
         // from service.
         if (code_is_interpreted) {
-          int const feedback = Smi::cast(obj)->value();
+          int const feedback = Smi::ToInt(obj);
           CompareOperationHint hint =
               CompareOperationHintFromFeedback(feedback);
           if (hint == CompareOperationHint::kAny) {

@@ -2860,7 +2860,7 @@ void GlobalProxyIdentityHash(bool set_in_js) {
     CompileRun("var m = new Set(); m.add(global);");
     i::Object* original_hash = i_global_proxy->GetHash();
     CHECK(original_hash->IsSmi());
-    hash1 = i::Smi::cast(original_hash)->value();
+    hash1 = i::Smi::ToInt(original_hash);
   } else {
     hash1 = i::Object::GetOrCreateHash(i_isolate, i_global_proxy)->value();
   }
@@ -16166,7 +16166,7 @@ static void CheckElementValue(i::Isolate* isolate,
                               int offset) {
   i::Object* element =
       *i::Object::GetElement(isolate, obj, offset).ToHandleChecked();
-  CHECK_EQ(expected, i::Smi::cast(element)->value());
+  CHECK_EQ(expected, i::Smi::ToInt(element));
 }
 
 

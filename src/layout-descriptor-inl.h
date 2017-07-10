@@ -83,7 +83,7 @@ LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
     set_layout_word(layout_word_index, value);
     return this;
   } else {
-    uint32_t value = static_cast<uint32_t>(Smi::cast(this)->value());
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(this));
     if (tagged) {
       value &= ~layout_mask;
     } else {
@@ -110,7 +110,7 @@ bool LayoutDescriptor::IsTagged(int field_index) {
     uint32_t value = get_layout_word(layout_word_index);
     return (value & layout_mask) == 0;
   } else {
-    uint32_t value = static_cast<uint32_t>(Smi::cast(this)->value());
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(this));
     return (value & layout_mask) == 0;
   }
 }

@@ -292,21 +292,21 @@ int CoverageInfo::StartSourcePosition(int slot_index) const {
   DCHECK(FLAG_block_coverage);
   DCHECK_LT(slot_index, SlotCount());
   const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  return Smi::cast(get(slot_start + kSlotStartSourcePositionIndex))->value();
+  return Smi::ToInt(get(slot_start + kSlotStartSourcePositionIndex));
 }
 
 int CoverageInfo::EndSourcePosition(int slot_index) const {
   DCHECK(FLAG_block_coverage);
   DCHECK_LT(slot_index, SlotCount());
   const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  return Smi::cast(get(slot_start + kSlotEndSourcePositionIndex))->value();
+  return Smi::ToInt(get(slot_start + kSlotEndSourcePositionIndex));
 }
 
 int CoverageInfo::BlockCount(int slot_index) const {
   DCHECK(FLAG_block_coverage);
   DCHECK_LT(slot_index, SlotCount());
   const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  return Smi::cast(get(slot_start + kSlotBlockCountIndex))->value();
+  return Smi::ToInt(get(slot_start + kSlotBlockCountIndex));
 }
 
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {

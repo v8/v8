@@ -694,7 +694,7 @@ int BuiltinExitFrame::ComputeParametersCount() const {
   DCHECK(argc_slot->IsSmi());
   // Argc also counts the receiver, target, new target, and argc itself as args,
   // therefore the real argument count is argc - 4.
-  int argc = Smi::cast(argc_slot)->value() - 4;
+  int argc = Smi::ToInt(argc_slot) - 4;
   DCHECK(argc >= 0);
   return argc;
 }
@@ -1159,7 +1159,7 @@ int JavaScriptFrame::ComputeParametersCount() const {
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   Object* argc_object =
       Memory::Object_at(fp() + BuiltinContinuationFrameConstants::kArgCOffset);
-  return Smi::cast(argc_object)->value();
+  return Smi::ToInt(argc_object);
 }
 
 namespace {
@@ -1275,7 +1275,7 @@ uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
   FixedArray* deopt_data = code()->deoptimization_data();
   DCHECK_EQ(2, deopt_data->length());
   DCHECK(deopt_data->get(1)->IsSmi());
-  int val = Smi::cast(deopt_data->get(1))->value();
+  int val = Smi::ToInt(deopt_data->get(1));
   DCHECK_LE(0, val);
   return static_cast<uint32_t>(val);
 }
@@ -1598,7 +1598,7 @@ int InterpretedFrame::GetBytecodeOffset() const {
   DCHECK_EQ(
       InterpreterFrameConstants::kBytecodeOffsetFromFp,
       InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
-  int raw_offset = Smi::cast(GetExpression(index))->value();
+  int raw_offset = Smi::ToInt(GetExpression(index));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -1609,7 +1609,7 @@ int InterpretedFrame::GetBytecodeOffset(Address fp) {
       InterpreterFrameConstants::kBytecodeOffsetFromFp,
       InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   Address expression_offset = fp + offset - index * kPointerSize;
-  int raw_offset = Smi::cast(Memory::Object_at(expression_offset))->value();
+  int raw_offset = Smi::ToInt(Memory::Object_at(expression_offset));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -1667,12 +1667,12 @@ void InterpretedFrame::Summarize(List<FrameSummary>* functions,
 }
 
 int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
-  return Smi::cast(GetExpression(0))->value();
+  return Smi::ToInt(GetExpression(0));
 }
 
 int ArgumentsAdaptorFrame::GetLength(Address fp) {
   const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
-  return Smi::cast(Memory::Object_at(fp + offset))->value();
+  return Smi::ToInt(Memory::Object_at(fp + offset));
 }
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
@@ -1681,7 +1681,7 @@ Code* ArgumentsAdaptorFrame::unchecked_code() const {
 }
 
 int BuiltinFrame::GetNumberOfIncomingArguments() const {
-  return Smi::cast(GetExpression(0))->value();
+  return Smi::ToInt(GetExpression(0));
 }
 
 void BuiltinFrame::PrintFrameKind(StringStream* accumulator) const {

@@ -41,7 +41,7 @@ Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
 }
 
 int CompileTimeValue::GetLiteralTypeFlags(Handle<FixedArray> value) {
-  return Smi::cast(value->get(kLiteralTypeSlot))->value();
+  return Smi::ToInt(value->get(kLiteralTypeSlot));
 }
 
 Handle<HeapObject> CompileTimeValue::GetElements(Handle<FixedArray> value) {

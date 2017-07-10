@@ -214,7 +214,7 @@ class ScopeInfo : public FixedArray {
   inline void Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
   inline int name() {                                                     \
     if (length() > 0) {                                                   \
-      return Smi::cast(get(k##name))->value();                            \
+      return Smi::ToInt(get(k##name));                                    \
     } else {                                                              \
       return 0;                                                           \
     }                                                                     \

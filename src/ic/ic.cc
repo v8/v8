@@ -2290,9 +2290,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = receiver->IsJSArgumentsObject();
     if (!is_arguments) {
-      key_is_valid_index = key->IsSmi() && Smi::cast(*key)->value() >= 0;
+      key_is_valid_index = key->IsSmi() && Smi::ToInt(*key) >= 0;
       if (key_is_valid_index) {
-        uint32_t index = static_cast<uint32_t>(Smi::cast(*key)->value());
+        uint32_t index = static_cast<uint32_t>(Smi::ToInt(*key));
         store_mode = GetStoreMode(receiver, index, value);
       }
     }
