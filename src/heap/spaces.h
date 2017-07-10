@@ -736,7 +736,7 @@ inline intptr_t MarkingState::live_bytes<AccessMode::ATOMIC>() const {
 }
 
 // -----------------------------------------------------------------------------
-// A page is a memory chunk of a size 1MB. Large object pages may be larger.
+// A page is a memory chunk of a size 512K. Large object pages may be larger.
 //
 // The only way to get a page pointer is by calling factory methods:
 //   Page* p = Page::FromAddress(addr); or
