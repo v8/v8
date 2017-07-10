@@ -3183,8 +3183,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret();
       } else {
         gen_->AssembleSourcePosition(instr_);
-        __ Call(handle(tasm()->isolate()->builtins()->builtin(trap_id),
-                       tasm()->isolate()),
+        __ Call(tasm()->isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
