@@ -77,7 +77,8 @@ class WasmTableObject : public JSObject {
   DECL_CAST(WasmTableObject)
 
   DECL_ACCESSORS(functions, FixedArray)
-  DECL_INT_ACCESSORS(maximum_length)
+  // TODO(titzer): introduce DECL_I64_ACCESSORS macro
+  DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
 
   enum {  // --
@@ -93,7 +94,7 @@ class WasmTableObject : public JSObject {
   DEF_OFFSET(DispatchTables)
 
   inline uint32_t current_length() { return functions()->length(); }
-  inline bool has_maximum_length() { return maximum_length() >= 0; }
+  inline bool has_maximum_length() { return maximum_length()->Number() >= 0; }
   void grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
@@ -680,7 +681,7 @@ ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
 
 // WasmTableObject
 ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
-SMI_ACCESSORS(WasmTableObject, maximum_length, kMaximumLengthOffset)
+ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
 ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 
 // WasmMemoryObject

@@ -184,7 +184,8 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   }
   table_obj->set_functions(**js_functions);
   DCHECK_EQ(maximum, static_cast<int>(maximum));
-  table_obj->set_maximum_length(static_cast<int>(maximum));
+  Handle<Object> max = isolate->factory()->NewNumber(maximum);
+  table_obj->set_maximum_length(*max);
 
   Handle<FixedArray> dispatch_tables = isolate->factory()->NewFixedArray(0);
   table_obj->set_dispatch_tables(*dispatch_tables);

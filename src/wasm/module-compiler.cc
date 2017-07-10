@@ -1340,7 +1340,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
 
         if (table.has_max) {
           int64_t imported_max_size =
-              table_instance.table_object->maximum_length();
+              table_instance.table_object->maximum_length()->Number();
           if (imported_max_size < 0) {
             thrower_->LinkError(
                 "table import %d has no maximum length, expected %d", index,
