@@ -73,6 +73,7 @@ class Scavenger {
       : heap_(heap),
         promotion_list_(promotion_list, task_id),
         copied_list_(copied_list, task_id),
+        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         is_logging_(is_logging),
         is_incremental_marking_(is_incremental_marking) {}
 
@@ -89,7 +90,12 @@ class Scavenger {
   // manually scavenged using ScavengeObject or CheckAndScavengeObject.
   void Process();
 
+  // Finalize the Scavenger. Needs to be called from the main thread.
+  void Finalize();
+
  private:
+  static const int kInitialLocalPretenuringFeedbackCapacity = 256;
+
   inline Heap* heap() { return heap_; }
 
   V8_INLINE HeapObject* MigrateObject(HeapObject* source, HeapObject* target,
@@ -125,6 +131,7 @@ class Scavenger {
   Heap* const heap_;
   PromotionList::View promotion_list_;
   CopiedRangesList copied_list_;
+  base::HashMap local_pretenuring_feedback_;
   bool is_logging_;
   bool is_incremental_marking_;
 };

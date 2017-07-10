@@ -1782,6 +1782,8 @@ void Heap::Scavenge() {
       &root_scavenge_visitor);
   scavenger.Process();
 
+  scavenger.Finalize();
+
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
 

@@ -245,8 +245,8 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  heap()->UpdateAllocationSite<Heap::kGlobal>(
-      object, heap()->global_pretenuring_feedback_);
+  heap()->UpdateAllocationSite<Heap::kCached>(object,
+                                              &local_pretenuring_feedback_);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   DCHECK_NE(heap()->allocation_memento_map(), object->map());
