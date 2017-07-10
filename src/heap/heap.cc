@@ -2910,10 +2910,8 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
 }
 
 bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
-  bool can_be = !RootCanBeWrittenAfterInitialization(root_index) &&
-                !InNewSpace(root(root_index));
-  DCHECK_IMPLIES(can_be, IsImmovable(HeapObject::cast(root(root_index))));
-  return can_be;
+  return !RootCanBeWrittenAfterInitialization(root_index) &&
+         !InNewSpace(root(root_index));
 }
 
 int Heap::FullSizeNumberStringCacheLength() {
