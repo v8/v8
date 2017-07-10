@@ -104,7 +104,6 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
   void Continue(Statement* stmt) { PerformCommand(CMD_CONTINUE, stmt); }
   void ReturnAccumulator() { PerformCommand(CMD_RETURN, nullptr); }
   void AsyncReturnAccumulator() { PerformCommand(CMD_ASYNC_RETURN, nullptr); }
-  void ReThrowAccumulator() { PerformCommand(CMD_RETHROW, nullptr); }
 
   class DeferredCommands;
 
