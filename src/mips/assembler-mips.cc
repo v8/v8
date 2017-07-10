@@ -1995,7 +1995,7 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     offset_high += (offset_low < 0)
                        ? 1
                        : 0;  // Account for offset sign extension in load/store.
-    aui(at, src.rm(), offset_high);
+    aui(at, src.rm(), static_cast<uint16_t>(offset_high));
     if (two_accesses && !is_int16(static_cast<int32_t>(
                             offset_low + second_access_add_to_offset))) {
       // Avoid overflow in the 16-bit offset of the load/store instruction when

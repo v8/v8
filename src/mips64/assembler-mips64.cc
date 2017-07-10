@@ -2143,15 +2143,15 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     src.offset_ += kMinOffsetForSimpleAdjustment;
   } else if (kArchVariant == kMips64r6) {
     // On r6 take advantage of the daui instruction, e.g.:
-    //    daui   AT, base, offset_high
-    //   [dahi   AT, 1]                       // When `offset` is close to +2GB.
-    //    lw     reg_lo, offset_low(AT)
-    //   [lw     reg_hi, (offset_low+4)(AT)]  // If misaligned 64-bit load.
+    //    daui   at, base, offset_high
+    //   [dahi   at, 1]                       // When `offset` is close to +2GB.
+    //    lw     reg_lo, offset_low(at)
+    //   [lw     reg_hi, (offset_low+4)(at)]  // If misaligned 64-bit load.
     // or when offset_low+4 overflows int16_t:
-    //    daui   AT, base, offset_high
-    //    daddiu AT, AT, 8
-    //    lw     reg_lo, (offset_low-8)(AT)
-    //    lw     reg_hi, (offset_low-4)(AT)
+    //    daui   at, base, offset_high
+    //    daddiu at, at, 8
+    //    lw     reg_lo, (offset_low-8)(at)
+    //    lw     reg_hi, (offset_low-4)(at)
     int16_t offset_low = static_cast<uint16_t>(src.offset());
     int32_t offset_low32 = offset_low;
     int16_t offset_high = static_cast<uint16_t>(src.offset() >> 16);
@@ -2162,7 +2162,7 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
       offset_high++;
       overflow_hi16 = (offset_high == -32768);
     }
-    daui(at, src.rm(), offset_high);
+    daui(at, src.rm(), static_cast<uint16_t>(offset_high));
 
     if (overflow_hi16) {
       dahi(at, 1);

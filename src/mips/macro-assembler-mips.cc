@@ -1335,7 +1335,7 @@ void MacroAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
     DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
     DCHECK(!src.rm().is(at));
     lw(at, MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
-    mthc1(at, fd);
+    Mthc1(at, fd);
   }
 }
 
@@ -1355,9 +1355,9 @@ void MacroAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
     DCHECK(IsFp64Mode() || IsFpxxMode());
     // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
     DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    DCHECK(!src.rm().is(at));
-    mfhc1(at, fd);
-    sw(at, MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
+    DCHECK(!src.rm().is(t8));
+    Mfhc1(t8, fd);
+    sw(t8, MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
   }
 }
 
