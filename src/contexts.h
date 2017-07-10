@@ -291,7 +291,9 @@ enum ContextLookupFlags {
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
-  V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
+  V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
+  V(MAP_KEY_VALUE_ITERATOR_MAP_INDEX, Map, map_key_value_iterator_map)         \
+  V(MAP_VALUE_ITERATOR_MAP_INDEX, Map, map_value_iterator_map)                 \
   V(MATH_RANDOM_INDEX_INDEX, Smi, math_random_index)                           \
   V(MATH_RANDOM_CACHE_INDEX, Object, math_random_cache)                        \
   V(MESSAGE_LISTENERS_INDEX, TemplateList, message_listeners)                  \
@@ -332,7 +334,8 @@ enum ContextLookupFlags {
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function)                        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
   V(SELF_WEAK_CELL_INDEX, WeakCell, self_weak_cell)                            \
-  V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
+  V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \
+  V(SET_KEY_VALUE_ITERATOR_MAP_INDEX, Map, set_key_value_iterator_map)         \
   V(SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction, shared_array_buffer_fun)        \
   V(SLOPPY_ARGUMENTS_MAP_INDEX, Map, sloppy_arguments_map)                     \
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \

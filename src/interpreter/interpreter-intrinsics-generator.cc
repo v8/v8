@@ -202,19 +202,9 @@ Node* IntrinsicsGenerator::IsJSMap(Node* input, Node* arg_count,
   return IsInstanceType(input, JS_MAP_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSMapIterator(Node* input, Node* arg_count,
-                                           Node* context) {
-  return IsInstanceType(input, JS_MAP_ITERATOR_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsJSSet(Node* input, Node* arg_count,
                                    Node* context) {
   return IsInstanceType(input, JS_SET_TYPE);
-}
-
-Node* IntrinsicsGenerator::IsJSSetIterator(Node* input, Node* arg_count,
-                                           Node* context) {
-  return IsInstanceType(input, JS_SET_ITERATOR_TYPE);
 }
 
 Node* IntrinsicsGenerator::IsJSWeakMap(Node* input, Node* arg_count,

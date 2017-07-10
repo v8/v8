@@ -85,6 +85,43 @@
 })();
 
 
+(function TestSetIteratorMutations2() {
+  var s = new Set;
+  s.add(1);
+  s.add(2);
+  var i = s.values();
+  assertEquals({value: 1, done: false}, i.next());
+  s.delete(2);
+  s.delete(1);
+  s.add(2);
+  assertEquals({value: 2, done: false}, i.next());
+  assertEquals({value: undefined, done: true}, i.next());
+})();
+
+
+(function TestSetIteratorMutations3() {
+  var s = new Set;
+  s.add(1);
+  s.add(2);
+  var i = s.values();
+  assertEquals({value: 1, done: false}, i.next());
+  s.delete(2);
+  s.delete(1);
+  for (var x = 2; x < 500; ++x) s.add(x);
+  for (var x = 2; x < 500; ++x) s.delete(x);
+  for (var x = 2; x < 1000; ++x) s.add(x);
+  assertEquals({value: 2, done: false}, i.next());
+  for (var x = 1001; x < 2000; ++x) s.add(x);
+  s.delete(3);
+  for (var x = 6; x < 2000; ++x) s.delete(x);
+  assertEquals({value: 4, done: false}, i.next());
+  s.delete(5);
+  assertEquals({value: undefined, done: true}, i.next());
+  s.add(4);
+  assertEquals({value: undefined, done: true}, i.next());
+})();
+
+
 (function TestSetInvalidReceiver() {
   assertThrows(function() {
     Set.prototype.values.call({});

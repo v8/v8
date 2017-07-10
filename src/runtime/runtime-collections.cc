@@ -80,24 +80,9 @@ RUNTIME_FUNCTION(Runtime_SetIteratorClone) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
   return *isolate->factory()->NewJSSetIterator(
+      handle(holder->map(), isolate),
       handle(OrderedHashSet::cast(holder->table()), isolate),
-      Smi::cast(holder->index())->value(),
-      static_cast<JSSetIterator::Kind>(Smi::cast(holder->kind())->value()));
-}
-
-// The array returned contains the following information:
-// 0: HasMore flag
-// 1: Iteration index
-// 2: Iteration kind
-RUNTIME_FUNCTION(Runtime_SetIteratorDetails) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
-  Handle<FixedArray> details = isolate->factory()->NewFixedArray(4);
-  details->set(0, isolate->heap()->ToBoolean(holder->HasMore()));
-  details->set(1, holder->index());
-  details->set(2, holder->kind());
-  return *isolate->factory()->NewJSArrayWithElements(details);
+      Smi::cast(holder->index())->value());
 }
 
 
@@ -135,27 +120,10 @@ RUNTIME_FUNCTION(Runtime_MapIteratorClone) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
   return *isolate->factory()->NewJSMapIterator(
+      handle(holder->map(), isolate),
       handle(OrderedHashMap::cast(holder->table()), isolate),
-      Smi::cast(holder->index())->value(),
-      static_cast<JSMapIterator::Kind>(Smi::cast(holder->kind())->value()));
+      Smi::cast(holder->index())->value());
 }
-
-
-// The array returned contains the following information:
-// 0: HasMore flag
-// 1: Iteration index
-// 2: Iteration kind
-RUNTIME_FUNCTION(Runtime_MapIteratorDetails) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
-  Handle<FixedArray> details = isolate->factory()->NewFixedArray(4);
-  details->set(0, isolate->heap()->ToBoolean(holder->HasMore()));
-  details->set(1, holder->index());
-  details->set(2, holder->kind());
-  return *isolate->factory()->NewJSArrayWithElements(details);
-}
-
 
 RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   HandleScope scope(isolate);
@@ -258,20 +226,6 @@ RUNTIME_FUNCTION(Runtime_IsJSSet) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSSet());
-}
-
-RUNTIME_FUNCTION(Runtime_IsJSMapIterator) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSMapIterator());
-}
-
-RUNTIME_FUNCTION(Runtime_IsJSSetIterator) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSSetIterator());
 }
 
 RUNTIME_FUNCTION(Runtime_IsJSWeakMap) {
