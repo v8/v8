@@ -547,8 +547,8 @@ void MacroAssembler::Addu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     addu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
-      addiu(rd, rs, rt.imm32_);
+    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      addiu(rd, rs, rt.immediate());
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -563,12 +563,13 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     subu(rd, rs, rt.rm());
   } else {
-    if (is_int16(-rt.imm32_) && !MustUseReg(rt.rmode_)) {
-      addiu(rd, rs, -rt.imm32_);  // No subiu instr, use addiu(x, y, -imm).
-    } else if (!(-rt.imm32_ & kHiMask) && !MustUseReg(rt.rmode_)) {  // Use load
+    if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      addiu(rd, rs, -rt.immediate());  // No subiu instr, use addiu(x, y, -imm).
+    } else if (!(-rt.immediate() & kHiMask) &&
+               !MustUseReg(rt.rmode_)) {  // Use load
       // -imm and addu for cases where loading -imm generates one instruction.
       DCHECK(!rs.is(at));
-      li(at, -rt.imm32_);
+      li(at, -rt.immediate());
       addu(rd, rs, at);
     } else {
       // li handles the relocation.
@@ -884,8 +885,8 @@ void MacroAssembler::And(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     and_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
-      andi(rd, rs, rt.imm32_);
+    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      andi(rd, rs, rt.immediate());
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -900,8 +901,8 @@ void MacroAssembler::Or(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     or_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
-      ori(rd, rs, rt.imm32_);
+    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      ori(rd, rs, rt.immediate());
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -916,8 +917,8 @@ void MacroAssembler::Xor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     xor_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
-      xori(rd, rs, rt.imm32_);
+    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      xori(rd, rs, rt.immediate());
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -953,8 +954,8 @@ void MacroAssembler::Slt(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     slt(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
-      slti(rd, rs, rt.imm32_);
+    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      slti(rd, rs, rt.immediate());
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -970,12 +971,13 @@ void MacroAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
     sltu(rd, rs, rt.rm());
   } else {
     const uint32_t int16_min = std::numeric_limits<int16_t>::min();
-    if (is_uint15(rt.imm32_) && !MustUseReg(rt.rmode_)) {
+    if (is_uint15(rt.immediate()) && !MustUseReg(rt.rmode_)) {
       // Imm range is: [0, 32767].
-      sltiu(rd, rs, rt.imm32_);
-    } else if (is_uint15(rt.imm32_ - int16_min) && !MustUseReg(rt.rmode_)) {
+      sltiu(rd, rs, rt.immediate());
+    } else if (is_uint15(rt.immediate() - int16_min) &&
+               !MustUseReg(rt.rmode_)) {
       // Imm range is: [max_unsigned-32767,max_unsigned].
-      sltiu(rd, rs, static_cast<uint16_t>(rt.imm32_));
+      sltiu(rd, rs, static_cast<uint16_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -991,7 +993,7 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     if (rt.is_reg()) {
       rotrv(rd, rs, rt.rm());
     } else {
-      rotr(rd, rs, rt.imm32_ & 0x1f);
+      rotr(rd, rs, rt.immediate() & 0x1f);
     }
   } else {
     if (rt.is_reg()) {
@@ -1000,11 +1002,11 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
       srlv(rd, rs, rt.rm());
       or_(rd, rd, at);
     } else {
-      if (rt.imm32_ == 0) {
+      if (rt.immediate() == 0) {
         srl(rd, rs, 0);
       } else {
-        srl(at, rs, rt.imm32_ & 0x1f);
-        sll(rd, rs, (0x20 - (rt.imm32_ & 0x1f)) & 0x1f);
+        srl(at, rs, rt.immediate() & 0x1f);
+        sll(rd, rs, (0x20 - (rt.immediate() & 0x1f)) & 0x1f);
         or_(rd, rd, at);
       }
     }
@@ -1371,24 +1373,33 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
     // Normal load of an immediate value which does not need Relocation Info.
-    if (is_int16(j.imm32_)) {
-      addiu(rd, zero_reg, j.imm32_);
-    } else if (!(j.imm32_ & kHiMask)) {
-      ori(rd, zero_reg, j.imm32_);
+    if (is_int16(j.immediate())) {
+      addiu(rd, zero_reg, j.immediate());
+    } else if (!(j.immediate() & kHiMask)) {
+      ori(rd, zero_reg, j.immediate());
     } else {
-      lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
-      if (j.imm32_ & kImm16Mask) {
-        ori(rd, rd, (j.imm32_ & kImm16Mask));
+      lui(rd, (j.immediate() >> kLuiShift) & kImm16Mask);
+      if (j.immediate() & kImm16Mask) {
+        ori(rd, rd, (j.immediate() & kImm16Mask));
       }
     }
   } else {
+    int32_t immediate;
+    if (j.IsHeapObjectRequest()) {
+      RequestHeapObject(j.heap_object_request());
+      immediate = 0;
+    } else {
+      immediate = j.immediate();
+    }
+
     if (MustUseReg(j.rmode_)) {
-      RecordRelocInfo(j.rmode_, j.imm32_);
+      RecordRelocInfo(j.rmode_, immediate);
     }
     // We always need the same number of instructions as we may need to patch
     // this code to load another value which may need 2 instructions to load.
-    lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
-    ori(rd, rd, (j.imm32_ & kImm16Mask));
+
+    lui(rd, (immediate >> kLuiShift) & kImm16Mask);
+    ori(rd, rd, (immediate & kImm16Mask));
   }
 }
 
@@ -4823,6 +4834,16 @@ void MacroAssembler::CallStub(CodeStub* stub,
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub, Condition cond,
+                                     Register r1, const Operand& r2,
+                                     BranchDelaySlot bd) {
+  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  li(at, Operand::EmbeddedCode(stub));
+  Call(at);
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub,
                                   Condition cond,
@@ -5135,6 +5156,19 @@ void MacroAssembler::MulBranchOvf(Register dst, Register left, Register right,
   }
 
   BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
+}
+
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles,
+                                        BranchDelaySlot bd) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  PrepareCEntryArgs(f->nargs);
+  PrepareCEntryFunction(ExternalReference(f, isolate()));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,

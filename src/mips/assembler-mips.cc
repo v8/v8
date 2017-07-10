@@ -38,6 +38,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/mips/assembler-mips-inl.h"
 
 namespace v8 {
@@ -231,15 +232,30 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    imm32_ = reinterpret_cast<intptr_t>(handle.location());
+    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // No relocation needed.
-    imm32_ = reinterpret_cast<intptr_t>(obj);
+    value_.immediate = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE32;
   }
 }
 
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(value);
+  return result;
+}
+
+Operand Operand::EmbeddedCode(CodeStub* stub) {
+  Operand result(0, RelocInfo::CODE_TARGET);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(stub);
+  return result;
+}
 
 MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
   offset_ = offset;
@@ -251,6 +267,24 @@ MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
   offset_ = unit * multiplier + offset_addend;
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        object = request.code_stub()->GetCode();
+        break;
+    }
+    Address pc = buffer_ + request.offset();
+    set_target_value_at(isolate, pc,
+                        reinterpret_cast<uint32_t>(object.location()));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
@@ -311,6 +345,9 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitForbiddenSlotInstruction();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
+
+  AllocateAndInstallRequestedHeapObjects(isolate);
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -3842,15 +3879,14 @@ void Assembler::QuietNaN(HeapObject* object) {
 // There is an optimization below, which emits a nop when the address
 // fits in just 16 bits. This is unlikely to help, and should be benchmarked,
 // and possibly removed.
-void Assembler::set_target_address_at(Isolate* isolate, Address pc,
-                                      Address target,
-                                      ICacheFlushMode icache_flush_mode) {
+void Assembler::set_target_value_at(Isolate* isolate, Address pc,
+                                    uint32_t target,
+                                    ICacheFlushMode icache_flush_mode) {
   DCHECK_IMPLIES(isolate == nullptr, icache_flush_mode == SKIP_ICACHE_FLUSH);
 
   Instr instr2 = instr_at(pc + kInstrSize);
   uint32_t rt_code = GetRtField(instr2);
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
-  uint32_t itarget = reinterpret_cast<uint32_t>(target);
 
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction, using instr pair.
@@ -3861,7 +3897,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
   if (IsJicOrJialc(instr2)) {
     // Must use 2 instructions to insure patchable code => use lui and jic
     uint32_t lui_offset, jic_offset;
-    Assembler::UnpackTargetAddressUnsigned(itarget, lui_offset, jic_offset);
+    Assembler::UnpackTargetAddressUnsigned(target, lui_offset, jic_offset);
 
     *p &= ~kImm16Mask;
     *(p + 1) &= ~kImm16Mask;
@@ -3873,8 +3909,8 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     // Must use 2 instructions to insure patchable code => just use lui and ori.
     // lui rt, upper-16.
     // ori rt rt, lower-16.
-    *p = LUI | rt_code | ((itarget & kHiMask) >> kLuiShift);
-    *(p + 1) = ORI | rt_code | (rt_code << 5) | (itarget & kImm16Mask);
+    *p = LUI | rt_code | ((target & kHiMask) >> kLuiShift);
+    *(p + 1) = ORI | rt_code | (rt_code << 5) | (target & kImm16Mask);
   }
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {

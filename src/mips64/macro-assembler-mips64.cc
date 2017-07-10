@@ -564,8 +564,8 @@ void MacroAssembler::Addu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     addu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      addiu(rd, rs, static_cast<int32_t>(rt.imm64_));
+    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      addiu(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -580,8 +580,8 @@ void MacroAssembler::Daddu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     daddu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      daddiu(rd, rs, static_cast<int32_t>(rt.imm64_));
+    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      daddiu(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -596,16 +596,16 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     subu(rd, rs, rt.rm());
   } else {
-    DCHECK(is_int32(rt.imm64_));
-    if (is_int16(-rt.imm64_) && !MustUseReg(rt.rmode_)) {
+    DCHECK(is_int32(rt.immediate()));
+    if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode_)) {
       addiu(rd, rs,
             static_cast<int32_t>(
-                -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
+                -rt.immediate()));  // No subiu instr, use addiu(x, y, -imm).
     } else {
       DCHECK(!rs.is(at));
-      if (-rt.imm64_ >> 16 == 0 && !MustUseReg(rt.rmode_)) {
+      if (-rt.immediate() >> 16 == 0 && !MustUseReg(rt.rmode_)) {
         // Use load -imm and addu when loading -imm generates one instruction.
-        li(at, -rt.imm64_);
+        li(at, -rt.immediate());
         addu(rd, rs, at);
       } else {
         // li handles the relocation.
@@ -620,18 +620,18 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
 void MacroAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     dsubu(rd, rs, rt.rm());
-  } else if (is_int16(-rt.imm64_) && !MustUseReg(rt.rmode_)) {
+  } else if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode_)) {
     daddiu(rd, rs,
            static_cast<int32_t>(
-               -rt.imm64_));  // No dsubiu instr, use daddiu(x, y, -imm).
+               -rt.immediate()));  // No dsubiu instr, use daddiu(x, y, -imm).
   } else {
     DCHECK(!rs.is(at));
-    int li_count = InstrCountForLi64Bit(rt.imm64_);
-    int li_neg_count = InstrCountForLi64Bit(-rt.imm64_);
+    int li_count = InstrCountForLi64Bit(rt.immediate());
+    int li_neg_count = InstrCountForLi64Bit(-rt.immediate());
     if (li_neg_count < li_count && !MustUseReg(rt.rmode_)) {
       // Use load -imm and daddu when loading -imm generates one instruction.
-      DCHECK(rt.imm64_ != std::numeric_limits<int32_t>::min());
-      li(at, Operand(-rt.imm64_));
+      DCHECK(rt.immediate() != std::numeric_limits<int32_t>::min());
+      li(at, Operand(-rt.immediate()));
       Daddu(rd, rs, at);
     } else {
       // li handles the relocation.
@@ -1027,8 +1027,8 @@ void MacroAssembler::And(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     and_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      andi(rd, rs, static_cast<int32_t>(rt.imm64_));
+    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      andi(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1043,8 +1043,8 @@ void MacroAssembler::Or(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     or_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      ori(rd, rs, static_cast<int32_t>(rt.imm64_));
+    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      ori(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1059,8 +1059,8 @@ void MacroAssembler::Xor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     xor_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      xori(rd, rs, static_cast<int32_t>(rt.imm64_));
+    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      xori(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1096,8 +1096,8 @@ void MacroAssembler::Slt(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     slt(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      slti(rd, rs, static_cast<int32_t>(rt.imm64_));
+    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode_)) {
+      slti(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1113,12 +1113,13 @@ void MacroAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
     sltu(rd, rs, rt.rm());
   } else {
     const uint64_t int16_min = std::numeric_limits<int16_t>::min();
-    if (is_uint15(rt.imm64_) && !MustUseReg(rt.rmode_)) {
+    if (is_uint15(rt.immediate()) && !MustUseReg(rt.rmode_)) {
       // Imm range is: [0, 32767].
-      sltiu(rd, rs, static_cast<int32_t>(rt.imm64_));
-    } else if (is_uint15(rt.imm64_ - int16_min) && !MustUseReg(rt.rmode_)) {
+      sltiu(rd, rs, static_cast<int32_t>(rt.immediate()));
+    } else if (is_uint15(rt.immediate() - int16_min) &&
+               !MustUseReg(rt.rmode_)) {
       // Imm range is: [max_unsigned-32767,max_unsigned].
-      sltiu(rd, rs, static_cast<uint16_t>(rt.imm64_));
+      sltiu(rd, rs, static_cast<uint16_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1133,7 +1134,7 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     rotrv(rd, rs, rt.rm());
   } else {
-    int64_t ror_value = rt.imm64_ % 32;
+    int64_t ror_value = rt.immediate() % 32;
     if (ror_value < 0) {
       ror_value += 32;
     }
@@ -1146,7 +1147,7 @@ void MacroAssembler::Dror(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     drotrv(rd, rs, rt.rm());
   } else {
-    int64_t dror_value = rt.imm64_ % 64;
+    int64_t dror_value = rt.immediate() % 64;
     if (dror_value < 0) dror_value += 64;
     if (dror_value <= 31) {
       drotr(rd, rs, dror_value);
@@ -1610,14 +1611,14 @@ static inline int InstrCountForLiLower32Bit(int64_t value) {
 }
 
 void MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
-  if (is_int16(static_cast<int32_t>(j.imm64_))) {
-    daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
-  } else if (!(j.imm64_ & kUpper16MaskOf64)) {
-    ori(rd, zero_reg, j.imm64_ & kImm16Mask);
+  if (is_int16(static_cast<int32_t>(j.immediate()))) {
+    daddiu(rd, zero_reg, (j.immediate() & kImm16Mask));
+  } else if (!(j.immediate() & kUpper16MaskOf64)) {
+    ori(rd, zero_reg, j.immediate() & kImm16Mask);
   } else {
-    lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-    if (j.imm64_ & kImm16Mask) {
-      ori(rd, rd, j.imm64_ & kImm16Mask);
+    lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
+    if (j.immediate() & kImm16Mask) {
+      ori(rd, rd, j.immediate() & kImm16Mask);
     }
   }
 }
@@ -1731,57 +1732,59 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
   DCHECK(mode == OPTIMIZE_SIZE);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   // Normal load of an immediate value which does not need Relocation Info.
-  if (is_int32(j.imm64_)) {
+  if (is_int32(j.immediate())) {
     LiLower32BitHelper(rd, j);
   } else {
-    int bit31 = j.imm64_ >> 31 & 0x1;
-    if ((j.imm64_ & kUpper16MaskOf64) == 0 && is_int16(j.imm64_ >> 32) &&
-        kArchVariant == kMips64r6) {
+    int bit31 = j.immediate() >> 31 & 0x1;
+    if ((j.immediate() & kUpper16MaskOf64) == 0 &&
+        is_int16(j.immediate() >> 32) && kArchVariant == kMips64r6) {
       // 64-bit value which consists of an unsigned 16-bit value in its
       // least significant 32-bits, and a signed 16-bit value in its
       // most significant 32-bits.
-      ori(rd, zero_reg, j.imm64_ & kImm16Mask);
-      dahi(rd, j.imm64_ >> 32 & kImm16Mask);
-    } else if ((j.imm64_ & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
+      ori(rd, zero_reg, j.immediate() & kImm16Mask);
+      dahi(rd, j.immediate() >> 32 & kImm16Mask);
+    } else if ((j.immediate() & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
                kArchVariant == kMips64r6) {
       // 64-bit value which consists of an unsigned 16-bit value in its
       // least significant 48-bits, and a signed 16-bit value in its
       // most significant 16-bits.
-      ori(rd, zero_reg, j.imm64_ & kImm16Mask);
-      dati(rd, j.imm64_ >> 48 & kImm16Mask);
-    } else if ((j.imm64_ & kImm16Mask) == 0 &&
-               is_int16((j.imm64_ >> 32) + bit31) &&
+      ori(rd, zero_reg, j.immediate() & kImm16Mask);
+      dati(rd, j.immediate() >> 48 & kImm16Mask);
+    } else if ((j.immediate() & kImm16Mask) == 0 &&
+               is_int16((j.immediate() >> 32) + bit31) &&
                kArchVariant == kMips64r6) {
       // 16 LSBs (Least Significant Bits) all set to zero.
       // 48 MSBs (Most Significant Bits) hold a signed 32-bit value.
-      lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-      dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
-    } else if ((j.imm64_ & kImm16Mask) == 0 &&
-               ((j.imm64_ >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+      lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
+      dahi(rd, ((j.immediate() >> 32) + bit31) & kImm16Mask);
+    } else if ((j.immediate() & kImm16Mask) == 0 &&
+               ((j.immediate() >> 31) & 0x1ffff) ==
+                   ((0x20000 - bit31) & 0x1ffff) &&
                kArchVariant == kMips64r6) {
       // 16 LSBs all set to zero.
       // 48 MSBs hold a signed value which can't be represented by signed
       // 32-bit number, and the middle 16 bits are all zero, or all one.
-      lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-      dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
-    } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
-               is_int16((j.imm64_ >> 32) + bit31) &&
+      lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
+      dati(rd, ((j.immediate() >> 48) + bit31) & kImm16Mask);
+    } else if (is_int16(static_cast<int32_t>(j.immediate())) &&
+               is_int16((j.immediate() >> 32) + bit31) &&
                kArchVariant == kMips64r6) {
       // 32 LSBs contain a signed 16-bit number.
       // 32 MSBs contain a signed 16-bit number.
-      daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
-      dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
-    } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
-               ((j.imm64_ >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+      daddiu(rd, zero_reg, j.immediate() & kImm16Mask);
+      dahi(rd, ((j.immediate() >> 32) + bit31) & kImm16Mask);
+    } else if (is_int16(static_cast<int32_t>(j.immediate())) &&
+               ((j.immediate() >> 31) & 0x1ffff) ==
+                   ((0x20000 - bit31) & 0x1ffff) &&
                kArchVariant == kMips64r6) {
       // 48 LSBs contain an unsigned 16-bit number.
       // 16 MSBs contain a signed 16-bit number.
-      daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
-      dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
-    } else if (base::bits::IsPowerOfTwo64(j.imm64_ + 1)) {
+      daddiu(rd, zero_reg, j.immediate() & kImm16Mask);
+      dati(rd, ((j.immediate() >> 48) + bit31) & kImm16Mask);
+    } else if (base::bits::IsPowerOfTwo64(j.immediate() + 1)) {
       // 64-bit values which have their "n" MSBs set to one, and their
       // "64-n" LSBs set to zero. "n" must meet the restrictions 0 < n < 64.
-      int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.imm64_ + 1);
+      int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.immediate() + 1);
       daddiu(rd, zero_reg, -1);
       if (shift_cnt < 32) {
         dsrl(rd, rd, shift_cnt);
@@ -1789,9 +1792,9 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
         dsrl32(rd, rd, shift_cnt & 31);
       }
     } else {
-      int shift_cnt = base::bits::CountTrailingZeros64(j.imm64_);
-      int rep32_count = InstrCountForLoadReplicatedConst32(j.imm64_);
-      int64_t tmp = j.imm64_ >> shift_cnt;
+      int shift_cnt = base::bits::CountTrailingZeros64(j.immediate());
+      int rep32_count = InstrCountForLoadReplicatedConst32(j.immediate());
+      int64_t tmp = j.immediate() >> shift_cnt;
       if (is_uint16(tmp)) {
         // Value can be computed by loading a 16-bit unsigned value, and
         // then shifting left.
@@ -1828,8 +1831,8 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
           dsll32(rd, rd, shift_cnt & 31);
         }
       } else {
-        shift_cnt = 16 + base::bits::CountTrailingZeros64(j.imm64_ >> 16);
-        tmp = j.imm64_ >> shift_cnt;
+        shift_cnt = 16 + base::bits::CountTrailingZeros64(j.immediate() >> 16);
+        tmp = j.immediate() >> shift_cnt;
         if (is_uint16(tmp)) {
           // Value can be computed by loading a 16-bit unsigned value,
           // shifting left, and "or"ing in another 16-bit unsigned value.
@@ -1839,7 +1842,7 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
           } else {
             dsll32(rd, rd, shift_cnt & 31);
           }
-          ori(rd, rd, j.imm64_ & kImm16Mask);
+          ori(rd, rd, j.immediate() & kImm16Mask);
         } else if (is_int16(tmp)) {
           // Value can be computed by loading a 16-bit signed value,
           // shifting left, and "or"ing in a 16-bit unsigned value.
@@ -1849,7 +1852,7 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
           } else {
             dsll32(rd, rd, shift_cnt & 31);
           }
-          ori(rd, rd, j.imm64_ & kImm16Mask);
+          ori(rd, rd, j.immediate() & kImm16Mask);
         } else if (rep32_count < 4) {
           // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
           // value in the 32 LSBs requires 2 MIPS instructions to load.
@@ -1859,7 +1862,7 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
           // Loads with 3-4 instructions.
           // Catch-all case to get any other 64-bit values which aren't
           // handled by special cases above.
-          int64_t imm = j.imm64_;
+          int64_t imm = j.immediate();
           LiLower32BitHelper(rd, j);
           imm = (imm >> 32) + bit31;
           if (imm & kImm16Mask) {
@@ -1870,27 +1873,27 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
             dati(rd, imm & kImm16Mask);
           }
         } else {
-          if (is_int48(j.imm64_)) {
-            Operand k = Operand(j.imm64_ >> 16);
+          if (is_int48(j.immediate())) {
+            Operand k = Operand(j.immediate() >> 16);
             LiLower32BitHelper(rd, k);
             dsll(rd, rd, 16);
-            if (j.imm64_ & kImm16Mask) {
-              ori(rd, rd, j.imm64_ & kImm16Mask);
+            if (j.immediate() & kImm16Mask) {
+              ori(rd, rd, j.immediate() & kImm16Mask);
             }
           } else {
-            Operand k = Operand(j.imm64_ >> 32);
+            Operand k = Operand(j.immediate() >> 32);
             LiLower32BitHelper(rd, k);
-            if ((j.imm64_ >> 16) & kImm16Mask) {
+            if ((j.immediate() >> 16) & kImm16Mask) {
               dsll(rd, rd, 16);
-              ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+              ori(rd, rd, (j.immediate() >> 16) & kImm16Mask);
               dsll(rd, rd, 16);
-              if (j.imm64_ & kImm16Mask) {
-                ori(rd, rd, j.imm64_ & kImm16Mask);
+              if (j.immediate() & kImm16Mask) {
+                ori(rd, rd, j.immediate() & kImm16Mask);
               }
             } else {
               dsll32(rd, rd, 0);
-              if (j.imm64_ & kImm16Mask) {
-                ori(rd, rd, j.imm64_ & kImm16Mask);
+              if (j.immediate() & kImm16Mask) {
+                ori(rd, rd, j.immediate() & kImm16Mask);
               }
             }
           }
@@ -1904,39 +1907,47 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   DCHECK(!j.is_reg());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
-    int li_count = InstrCountForLi64Bit(j.imm64_);
-    int li_neg_count = InstrCountForLi64Bit(-j.imm64_);
-    int li_not_count = InstrCountForLi64Bit(~j.imm64_);
+    int li_count = InstrCountForLi64Bit(j.immediate());
+    int li_neg_count = InstrCountForLi64Bit(-j.immediate());
+    int li_not_count = InstrCountForLi64Bit(~j.immediate());
     // Loading -MIN_INT64 could cause problems, but loading MIN_INT64 takes only
     // two instructions so no need to check for this.
     if (li_neg_count <= li_not_count && li_neg_count < li_count - 1) {
-      DCHECK(j.imm64_ != std::numeric_limits<int64_t>::min());
-      li_optimized(rd, Operand(-j.imm64_), mode);
+      DCHECK(j.immediate() != std::numeric_limits<int64_t>::min());
+      li_optimized(rd, Operand(-j.immediate()), mode);
       Dsubu(rd, zero_reg, rd);
     } else if (li_neg_count > li_not_count && li_not_count < li_count - 1) {
-      DCHECK(j.imm64_ != std::numeric_limits<int64_t>::min());
-      li_optimized(rd, Operand(~j.imm64_), mode);
+      DCHECK(j.immediate() != std::numeric_limits<int64_t>::min());
+      li_optimized(rd, Operand(~j.immediate()), mode);
       nor(rd, rd, rd);
     } else {
       li_optimized(rd, j, mode);
     }
   } else if (MustUseReg(j.rmode_)) {
-    RecordRelocInfo(j.rmode_, j.imm64_);
-    lui(rd, (j.imm64_ >> 32) & kImm16Mask);
-    ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+    int64_t immediate;
+    if (j.IsHeapObjectRequest()) {
+      RequestHeapObject(j.heap_object_request());
+      immediate = 0;
+    } else {
+      immediate = j.immediate();
+    }
+
+    RecordRelocInfo(j.rmode_, immediate);
+    lui(rd, (immediate >> 32) & kImm16Mask);
+    ori(rd, rd, (immediate >> 16) & kImm16Mask);
     dsll(rd, rd, 16);
-    ori(rd, rd, j.imm64_ & kImm16Mask);
+    ori(rd, rd, immediate & kImm16Mask);
   } else if (mode == ADDRESS_LOAD)  {
     // We always need the same number of instructions as we may need to patch
     // this code to load another value which may need all 4 instructions.
-    lui(rd, (j.imm64_ >> 32) & kImm16Mask);
-    ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+    lui(rd, (j.immediate() >> 32) & kImm16Mask);
+    ori(rd, rd, (j.immediate() >> 16) & kImm16Mask);
     dsll(rd, rd, 16);
-    ori(rd, rd, j.imm64_ & kImm16Mask);
+    ori(rd, rd, j.immediate() & kImm16Mask);
   } else {  // mode == CONSTANT_SIZE - always emit the same instruction
             // sequence.
     if (kArchVariant == kMips64r6) {
-      int64_t imm = j.imm64_;
+      int64_t imm = j.immediate();
       lui(rd, imm >> kLuiShift & kImm16Mask);
       ori(rd, rd, (imm & kImm16Mask));
       imm = (imm >> 32) + ((imm >> 31) & 0x1);
@@ -1944,12 +1955,12 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       imm = (imm >> 16) + ((imm >> 15) & 0x1);
       dati(rd, imm & kImm16Mask & kImm16Mask);
     } else {
-      lui(rd, (j.imm64_ >> 48) & kImm16Mask);
-      ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
+      lui(rd, (j.immediate() >> 48) & kImm16Mask);
+      ori(rd, rd, (j.immediate() >> 32) & kImm16Mask);
       dsll(rd, rd, 16);
-      ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+      ori(rd, rd, (j.immediate() >> 16) & kImm16Mask);
       dsll(rd, rd, 16);
-      ori(rd, rd, j.imm64_ & kImm16Mask);
+      ori(rd, rd, j.immediate() & kImm16Mask);
     }
   }
 }
@@ -5168,6 +5179,16 @@ void MacroAssembler::CallStub(CodeStub* stub,
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub, Condition cond,
+                                     Register r1, const Operand& r2,
+                                     BranchDelaySlot bd) {
+  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  li(at, Operand::EmbeddedCode(stub));
+  Call(at);
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub,
                                   Condition cond,
@@ -5631,6 +5652,19 @@ void MacroAssembler::MulBranchOvf(Register dst, Register left, Register right,
   xor_(overflow_dst, overflow_dst, scratch);
 
   BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
+}
+
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles,
+                                        BranchDelaySlot bd) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  PrepareCEntryArgs(f->nargs);
+  PrepareCEntryFunction(ExternalReference(f, isolate()));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,

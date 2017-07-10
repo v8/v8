@@ -37,6 +37,7 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/mips64/assembler-mips64-inl.h"
 
 namespace v8 {
@@ -211,15 +212,30 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    imm64_ = reinterpret_cast<intptr_t>(handle.location());
+    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // No relocation needed.
-    imm64_ = reinterpret_cast<intptr_t>(obj);
+    value_.immediate = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE64;
   }
 }
 
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(value);
+  return result;
+}
+
+Operand Operand::EmbeddedCode(CodeStub* stub) {
+  Operand result(0, RelocInfo::CODE_TARGET);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(stub);
+  return result;
+}
 
 MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
   offset_ = offset;
@@ -232,6 +248,24 @@ MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
   offset_ = unit * multiplier + offset_addend;
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        object = request.code_stub()->GetCode();
+        break;
+    }
+    Address pc = buffer_ + request.offset();
+    set_target_value_at(isolate, pc,
+                        reinterpret_cast<uint64_t>(object.location()));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
@@ -291,6 +325,9 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitForbiddenSlotInstruction();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
+
+  AllocateAndInstallRequestedHeapObjects(isolate);
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -4156,18 +4193,17 @@ void Assembler::QuietNaN(HeapObject* object) {
 // There is an optimization below, which emits a nop when the address
 // fits in just 16 bits. This is unlikely to help, and should be benchmarked,
 // and possibly removed.
-void Assembler::set_target_address_at(Isolate* isolate, Address pc,
-                                      Address target,
-                                      ICacheFlushMode icache_flush_mode) {
-// There is an optimization where only 4 instructions are used to load address
-// in code on MIP64 because only 48-bits of address is effectively used.
-// It relies on fact the upper [63:48] bits are not used for virtual address
-// translation and they have to be set according to value of bit 47 in order
-// get canonical address.
+void Assembler::set_target_value_at(Isolate* isolate, Address pc,
+                                    uint64_t target,
+                                    ICacheFlushMode icache_flush_mode) {
+  // There is an optimization where only 4 instructions are used to load address
+  // in code on MIP64 because only 48-bits of address is effectively used.
+  // It relies on fact the upper [63:48] bits are not used for virtual address
+  // translation and they have to be set according to value of bit 47 in order
+  // get canonical address.
   Instr instr1 = instr_at(pc + kInstrSize);
   uint32_t rt_code = GetRt(instr1);
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
-  uint64_t itarget = reinterpret_cast<uint64_t>(target);
 
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction.
@@ -4182,11 +4218,11 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
   // ori rt, rt, lower-16.
   // dsll rt, rt, 16.
   // ori rt rt, lower-16.
-  *p = LUI | (rt_code << kRtShift) | ((itarget >> 32) & kImm16Mask);
-  *(p + 1) = ORI | (rt_code << kRtShift) | (rt_code << kRsShift)
-      | ((itarget >> 16) & kImm16Mask);
-  *(p + 3) = ORI | (rt_code << kRsShift) | (rt_code << kRtShift)
-      | (itarget & kImm16Mask);
+  *p = LUI | (rt_code << kRtShift) | ((target >> 32) & kImm16Mask);
+  *(p + 1) = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
+             ((target >> 16) & kImm16Mask);
+  *(p + 3) = ORI | (rt_code << kRsShift) | (rt_code << kRtShift) |
+             (target & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);

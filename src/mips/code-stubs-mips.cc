@@ -2372,11 +2372,9 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
                                                      Zone* zone) {
-  UNIMPLEMENTED_MIPS();
   if (masm->isolate()->function_entry_hook() != NULL) {
-    ProfileEntryHookStub stub(masm->isolate());
     __ push(ra);
-    __ CallStub(&stub);
+    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     __ pop(ra);
   }
 }

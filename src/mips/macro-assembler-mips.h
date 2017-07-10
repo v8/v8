@@ -1299,6 +1299,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void CallStub(CodeStub* stub,
                 COND_ARGS);
 
+  void CallStubDelayed(CodeStub* stub, COND_ARGS);
+
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub, COND_ARGS);
 
@@ -1307,6 +1309,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void CallJSExitStub(CodeStub* stub);
 
   // Call a runtime routine.
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                          BranchDelaySlot bd = PROTECT);
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs,
                    BranchDelaySlot bd = PROTECT);

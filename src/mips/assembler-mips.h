@@ -426,6 +426,9 @@ class Operand BASE_EMBEDDED {
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
 
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
+
   // Register.
   INLINE(explicit Operand(Register rm));
 
@@ -434,7 +437,23 @@ class Operand BASE_EMBEDDED {
 
   inline int32_t immediate() const {
     DCHECK(!is_reg());
-    return imm32_;
+    DCHECK(!IsHeapObjectRequest());
+    return value_.immediate;
+  }
+
+  bool IsImmediate() const { return !rm_.is_valid(); }
+
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(IsHeapObjectRequest());
+    return value_.heap_object_request;
+  }
+
+  bool IsHeapObjectRequest() const {
+    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_object_request_,
+                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                       rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
   }
 
   Register rm() const { return rm_; }
@@ -443,7 +462,12 @@ class Operand BASE_EMBEDDED {
 
  private:
   Register rm_;
-  int32_t imm32_;  // Valid if rm_ == no_reg.
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    int32_t immediate;                      // otherwise
+  } value_;                                 // valid if rm_ == no_reg
+  bool is_heap_object_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -567,9 +591,12 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
-  static void set_target_address_at(
-      Isolate* isolate, Address pc, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  INLINE(static void set_target_address_at)
+  (Isolate* isolate, Address pc, Address target,
+   ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
+    set_target_value_at(isolate, pc, reinterpret_cast<uint32_t>(target),
+                        icache_flush_mode);
+  }
   // On MIPS there is no Constant Pool so we skip that parameter.
   INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
     return target_address_at(pc);
@@ -583,6 +610,10 @@ class Assembler : public AssemblerBase {
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+
+  static void set_target_value_at(
+      Isolate* isolate, Address pc, uint32_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -2242,6 +2273,7 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
+  friend class MacroAssembler;
 };
 
 
