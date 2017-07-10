@@ -112,6 +112,20 @@ struct WasmGlobal {
   bool exported;         // true if exported.
 };
 
+// Note: An exception signature only uses the params portion of a
+// function signature.
+typedef FunctionSig WasmExceptionSig;
+
+struct WasmException {
+  explicit WasmException(const WasmExceptionSig* sig = &empty_sig_)
+      : sig(sig) {}
+
+  const WasmExceptionSig* sig;  // type signature of the exception.
+
+ private:
+  static const WasmExceptionSig empty_sig_;
+};
+
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
   WasmInitExpr dest_addr;  // destination memory address of the data.
@@ -169,20 +183,21 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool mem_export = false;        // true if the memory is exported
   int start_function_index = -1;  // start function, >= 0 if any
 
-  std::vector<WasmGlobal> globals;             // globals in this module.
-  uint32_t globals_size = 0;                   // size of globals table.
-  uint32_t num_imported_functions = 0;         // number of imported functions.
-  uint32_t num_declared_functions = 0;         // number of declared functions.
-  uint32_t num_exported_functions = 0;         // number of exported functions.
-  WireBytesRef name = {0, 0};                  // module name, if any.
+  std::vector<WasmGlobal> globals;
+  uint32_t globals_size = 0;
+  uint32_t num_imported_functions = 0;
+  uint32_t num_declared_functions = 0;
+  uint32_t num_exported_functions = 0;
+  WireBytesRef name = {0, 0};
   // TODO(wasm): Add url here, for spec'ed location information.
-  std::vector<FunctionSig*> signatures;        // signatures in this module.
-  std::vector<WasmFunction> functions;         // functions in this module.
-  std::vector<WasmDataSegment> data_segments;  // data segments in this module.
-  std::vector<WasmIndirectFunctionTable> function_tables;  // function tables.
-  std::vector<WasmImport> import_table;        // import table.
-  std::vector<WasmExport> export_table;        // export table.
-  std::vector<WasmTableInit> table_inits;      // initializations of tables
+  std::vector<FunctionSig*> signatures;
+  std::vector<WasmFunction> functions;
+  std::vector<WasmDataSegment> data_segments;
+  std::vector<WasmIndirectFunctionTable> function_tables;
+  std::vector<WasmImport> import_table;
+  std::vector<WasmExport> export_table;
+  std::vector<WasmException> exceptions;
+  std::vector<WasmTableInit> table_inits;
 
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);

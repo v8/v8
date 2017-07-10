@@ -213,6 +213,9 @@ void RecordLazyCodeStats(Code* code, Counters* counters) {
 
 }  // namespace
 
+// static
+const WasmExceptionSig wasm::WasmException::empty_sig_(0, 0, nullptr);
+
 Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
                                              void* allocation_base,
                                              size_t allocation_length,
