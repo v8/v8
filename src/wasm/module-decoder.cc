@@ -680,8 +680,11 @@ class ModuleDecoder : public Decoder {
       WasmFunction* function =
           &module_->functions[i + module_->num_imported_functions];
       uint32_t size = consume_u32v("body size");
-      function->code_start_offset = pc_offset();
-      function->code_end_offset = pc_offset() + size;
+      uint32_t offset = pc_offset();
+      consume_bytes(size, "function body");
+      if (failed()) break;
+      function->code_start_offset = offset;
+      function->code_end_offset = offset + size;
       if (verify_functions) {
         ModuleBytesEnv module_env(module_.get(), nullptr,
                                   ModuleWireBytes(start_, end_));
@@ -689,7 +692,6 @@ class ModuleDecoder : public Decoder {
                            i + module_->num_imported_functions, &module_env,
                            function);
       }
-      consume_bytes(size, "function body");
     }
   }
 
