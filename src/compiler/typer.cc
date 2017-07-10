@@ -73,6 +73,8 @@ class Typer::Visitor : public Reducer {
         induction_vars_(induction_vars),
         weakened_nodes_(typer->zone()) {}
 
+  const char* reducer_name() const override { return "Typer"; }
+
   Reduction Reduce(Node* node) override {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
     switch (node->opcode()) {

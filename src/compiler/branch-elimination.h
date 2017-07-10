@@ -23,6 +23,8 @@ class V8_EXPORT_PRIVATE BranchElimination final
   BranchElimination(Editor* editor, JSGraph* js_graph, Zone* zone);
   ~BranchElimination() final;
 
+  const char* reducer_name() const override { return "BranchElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

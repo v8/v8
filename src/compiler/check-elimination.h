@@ -24,6 +24,8 @@ class V8_EXPORT_PRIVATE CheckElimination final
       : AdvancedReducer(editor), jsgraph_(jsgraph) {}
   ~CheckElimination() final {}
 
+  const char* reducer_name() const override { return "CheckElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

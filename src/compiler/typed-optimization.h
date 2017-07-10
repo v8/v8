@@ -39,6 +39,8 @@ class V8_EXPORT_PRIVATE TypedOptimization final
                     Flags flags, JSGraph* jsgraph);
   ~TypedOptimization();
 
+  const char* reducer_name() const override { return "TypedOptimization"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

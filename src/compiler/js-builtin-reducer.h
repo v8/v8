@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                    Handle<Context> native_context);
   ~JSBuiltinReducer() final {}
 
+  const char* reducer_name() const override { return "JSBuiltinReducer"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

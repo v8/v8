@@ -42,6 +42,8 @@ class JSCallReducer final : public AdvancedReducer {
         native_context_(native_context),
         dependencies_(dependencies) {}
 
+  const char* reducer_name() const override { return "JSCallReducer"; }
+
   Reduction Reduce(Node* node) final;
 
   // Processes the waitlist gathered while the reducer was running,

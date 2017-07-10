@@ -31,6 +31,8 @@ class JSInliner final : public AdvancedReducer {
         jsgraph_(jsgraph),
         source_positions_(source_positions) {}
 
+  const char* reducer_name() const override { return "JSInliner"; }
+
   // Reducer interface, eagerly inlines everything.
   Reduction Reduce(Node* node) final;
 

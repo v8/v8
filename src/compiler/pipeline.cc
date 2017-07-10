@@ -485,6 +485,8 @@ class SourcePositionWrapper final : public Reducer {
       : reducer_(reducer), table_(table) {}
   ~SourcePositionWrapper() final {}
 
+  const char* reducer_name() const override { return reducer_->reducer_name(); }
+
   Reduction Reduce(Node* node) final {
     SourcePosition const pos = table_->GetSourcePosition(node);
     SourcePositionTable::Scope position(table_, pos);
@@ -994,6 +996,7 @@ struct UntyperPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     class RemoveTypeReducer final : public Reducer {
      public:
+      const char* reducer_name() const override { return "RemoveTypeReducer"; }
       Reduction Reduce(Node* node) final {
         if (NodeProperties::IsTyped(node)) {
           NodeProperties::RemoveType(node);

@@ -32,6 +32,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final {}
 
+  const char* reducer_name() const override { return "LoadElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

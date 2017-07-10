@@ -50,6 +50,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                 CompilationDependencies* dependencies,
                                 Zone* zone);
 
+  const char* reducer_name() const override {
+    return "JSNativeContextSpecialization";
+  }
+
   Reduction Reduce(Node* node) final;
 
  private:

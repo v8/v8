@@ -24,6 +24,8 @@ class V8_EXPORT_PRIVATE TailCallOptimization final : public Reducer {
   TailCallOptimization(CommonOperatorBuilder* common, Graph* graph)
       : common_(common), graph_(graph) {}
 
+  const char* reducer_name() const override { return "TailCallOptimization"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

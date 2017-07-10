@@ -40,6 +40,10 @@ class JSContextSpecialization final : public AdvancedReducer {
         outer_(outer),
         closure_(closure) {}
 
+  const char* reducer_name() const override {
+    return "JSContextSpecialization";
+  }
+
   Reduction Reduce(Node* node) final;
 
  private:

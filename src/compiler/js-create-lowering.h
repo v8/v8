@@ -44,6 +44,8 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
         zone_(zone) {}
   ~JSCreateLowering() final {}
 
+  const char* reducer_name() const override { return "JSCreateLowering"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

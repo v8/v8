@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
                   Flags flags, JSGraph* jsgraph, Zone* zone);
   ~JSTypedLowering() final {}
 
+  const char* reducer_name() const override { return "JSTypedLowering"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

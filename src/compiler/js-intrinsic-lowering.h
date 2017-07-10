@@ -37,6 +37,8 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
                       DeoptimizationMode mode);
   ~JSIntrinsicLowering() final {}
 
+  const char* reducer_name() const override { return "JSIntrinsicLowering"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
