@@ -154,8 +154,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
     if (!sigsetjmp(continuation_, save_sigs)) {
       switch (action) {
         case MemoryAction::kRead: {
-          // static_cast to remove the reference and force a memory read.
-          USE(static_cast<int>(*buffer));
+          USE(*buffer);
           break;
         }
         case MemoryAction::kWrite: {

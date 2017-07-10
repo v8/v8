@@ -190,8 +190,9 @@ V8_INLINE Dest bit_cast(Source const& source) {
 
 // The USE(x) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
-template <typename... Ts>
-inline void USE(Ts&&...) {}
+template <typename T>
+inline void USE(T) { }
+
 
 #define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
