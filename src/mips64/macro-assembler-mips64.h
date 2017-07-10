@@ -285,7 +285,7 @@ class MacroAssembler: public Assembler {
 
   void Call(Label* target);
 
-  inline void Move(Register dst, Handle<Object> handle) { li(dst, handle); }
+  inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
   inline void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
@@ -735,7 +735,7 @@ class MacroAssembler: public Assembler {
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }
-  void li(Register dst, Handle<Object> value, LiFlags mode = OPTIMIZE_SIZE);
+  void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
@@ -751,10 +751,8 @@ class MacroAssembler: public Assembler {
     Sd(src, MemOperand(sp, 0));
   }
   void Push(Register src) { push(src); }
-
-  // Push a handle.
-  void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+  void Push(Handle<HeapObject> handle);
+  void Push(Smi* smi);
   void PushObject(Handle<Object> handle);
 
   // Push two registers. Pushes leftmost register first (to highest address).
@@ -1520,7 +1518,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     const char* name;
   };
 
-  Handle<Object> CodeObject() {
+  Handle<HeapObject> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -1883,7 +1881,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   bool has_double_zero_reg_set_;
   Isolate* isolate_;
   // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
+  Handle<HeapObject> code_object_;
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.

@@ -37,7 +37,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
       isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -1597,7 +1597,7 @@ void MacroAssembler::Sdc1(FPURegister fs, const MemOperand& src) {
   sdc1(fs, tmp);
 }
 
-void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
+void MacroAssembler::li(Register dst, Handle<HeapObject> value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
@@ -4345,14 +4345,22 @@ void MacroAssembler::Call(Label* target) {
   BranchAndLink(target);
 }
 
+void MacroAssembler::Push(Smi* smi) {
+  li(at, Operand(smi));
+  push(at);
+}
 
-void MacroAssembler::Push(Handle<Object> handle) {
+void MacroAssembler::Push(Handle<HeapObject> handle) {
   li(at, Operand(handle));
   push(at);
 }
 
 void MacroAssembler::PushObject(Handle<Object> handle) {
-  li(at, Operand(handle));
+  if (handle->IsHeapObject()) {
+    li(at, Operand(Handle<HeapObject>::cast(handle)));
+  } else {
+    li(at, Operand(Smi::cast(*handle)));
+  }
   push(at);
 }
 
@@ -5792,9 +5800,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
     return;
   }
 #endif
-
-  // Check if Abort() has already been initialized.
-  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
   Move(a0, Smi::FromInt(static_cast<int>(reason)));
 

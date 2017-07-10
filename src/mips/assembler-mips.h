@@ -423,7 +423,7 @@ class Operand BASE_EMBEDDED {
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
   INLINE(explicit Operand(Context** cpp));
-  explicit Operand(Handle<Object> handle);
+  explicit Operand(Handle<HeapObject> handle);
   INLINE(explicit Operand(Smi* value));
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
