@@ -2596,6 +2596,8 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   }
 
   Bind(&done);
+  // Keep our invariant that the upper 32 bits are zero.
+  Uxtw(result.W(), result.W());
 }
 
 
