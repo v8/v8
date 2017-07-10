@@ -64,6 +64,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceFunctionBind(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
+  Reduction ReduceMapHas(Node* node);
+  Reduction ReduceMapGet(Node* node);
   Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathAcos(Node* node);
   Reduction ReduceMathAcosh(Node* node);

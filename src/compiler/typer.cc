@@ -2019,6 +2019,14 @@ Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeLookupHashStorageIndex(Node* node) {
+  return Type::SignedSmall();
+}
+
+Type* Typer::Visitor::TypeLoadHashMapValue(Node* node) {
+  return Type::NonInternal();
+}
+
 // Heap constants.
 
 Type* Typer::Visitor::TypeConstant(Handle<Object> value) {

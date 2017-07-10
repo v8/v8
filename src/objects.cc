@@ -18278,13 +18278,21 @@ bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
   return true;
 }
 
-Object* OrderedHashMap::Get(Isolate* isolate, OrderedHashMap* table,
-                            Object* key) {
-  DCHECK(table->IsOrderedHashMap());
+Object* OrderedHashMap::GetHash(Isolate* isolate, Object* key) {
   DisallowHeapAllocation no_gc;
-  int entry = table->FindEntry(isolate, key);
-  if (entry == kNotFound) return isolate->heap()->undefined_value();
-  return table->ValueAt(entry);
+
+  // This special cases for Smi, so that we avoid the HandleScope
+  // creation below.
+  if (key->IsSmi()) {
+    return Smi::FromInt(ComputeIntegerHash(Smi::cast(key)->value()));
+  }
+  HandleScope scope(isolate);
+  Object* hash = key->GetHash();
+  // If the object does not have an identity hash, it was never used as a key
+  if (hash->IsUndefined(isolate)) return Smi::FromInt(-1);
+  DCHECK(hash->IsSmi());
+  DCHECK(Smi::cast(hash)->value() >= 0);
+  return hash;
 }
 
 Handle<OrderedHashMap> OrderedHashMap::Add(Handle<OrderedHashMap> table,

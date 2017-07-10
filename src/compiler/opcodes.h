@@ -361,7 +361,9 @@
   V(ArrayBufferWasNeutered)         \
   V(EnsureWritableFastElements)     \
   V(MaybeGrowFastElements)          \
-  V(TransitionElementsKind)
+  V(TransitionElementsKind)         \
+  V(LookupHashStorageIndex)         \
+  V(LoadHashMapValue)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

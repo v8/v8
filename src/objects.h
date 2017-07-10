@@ -4642,6 +4642,7 @@ class ContextExtension : public Struct {
   V(Map.prototype, forEach, MapForEach)                     \
   V(Map.prototype, has, MapHas)                             \
   V(Map.prototype, keys, MapKeys)                           \
+  V(Map.prototype, get, MapGet)                             \
   V(Map.prototype, set, MapSet)                             \
   V(Map.prototype, values, MapValues)                       \
   V(Set.prototype, add, SetAdd)                             \

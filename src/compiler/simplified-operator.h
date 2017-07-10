@@ -385,6 +385,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToLowerCaseIntl();
   const Operator* StringToUpperCaseIntl();
 
+  const Operator* LookupHashStorageIndex();
+  const Operator* LoadHashMapValue();
+
   const Operator* SpeculativeToNumber(NumberOperationHint hint);
 
   const Operator* PlainPrimitiveToNumber();

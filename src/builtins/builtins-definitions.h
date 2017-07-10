@@ -576,6 +576,7 @@ namespace internal {
       LoadGlobal)                                                              \
                                                                                \
   /* Map */                                                                    \
+  TFS(MapLookupHashIndex, kTable, kKey)                                        \
   TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(MapGet, 1, kKey)                                                         \
   TFJ(MapHas, 1, kKey)                                                         \

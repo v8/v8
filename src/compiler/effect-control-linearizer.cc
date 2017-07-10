@@ -823,6 +823,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStoreTypedElement:
       LowerStoreTypedElement(node);
       break;
+    case IrOpcode::kLookupHashStorageIndex:
+      result = LowerLookupHashStorageIndex(node);
+      break;
+    case IrOpcode::kLoadHashMapValue:
+      result = LowerLoadHashMapValue(node);
+      break;
     case IrOpcode::kFloat64RoundUp:
       if (!LowerFloat64RoundUp(node).To(&result)) {
         return false;
@@ -3132,6 +3138,29 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
   }
   __ Bind(&done);
   return Just(done.PhiAt(0));
+}
+
+Node* EffectControlLinearizer::LowerLookupHashStorageIndex(Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+
+  {
+    Callable const callable =
+        Builtins::CallableFor(isolate(), Builtins::kMapLookupHashIndex);
+    Operator::Properties const properties = node->op()->properties();
+    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+        properties);
+    return __ Call(desc, __ HeapConstant(callable.code()), table, key,
+                   __ NoContextConstant());
+  }
+}
+
+Node* EffectControlLinearizer::LowerLoadHashMapValue(Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* index = NodeProperties::GetValueInput(node, 1);
+  return __ LoadElement(AccessBuilder::ForFixedArrayElement(), table, index);
 }
 
 #undef __

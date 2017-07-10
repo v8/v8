@@ -2867,6 +2867,16 @@ class RepresentationSelector {
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
 
+      case IrOpcode::kLookupHashStorageIndex:
+        VisitInputs(node);
+        return SetOutput(node, MachineRepresentation::kTaggedSigned);
+
+      case IrOpcode::kLoadHashMapValue:
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // table
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // index
+        ProcessRemainingInputs(node, 2);
+        return SetOutput(node, MachineRepresentation::kTagged);
+
       // Operators with all inputs tagged and no or tagged output have uniform
       // handling.
       case IrOpcode::kEnd:

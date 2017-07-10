@@ -63,6 +63,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* ZeroConstant();
   Node* OneConstant();
   Node* NaNConstant();
+  Node* MinusOneConstant();
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
@@ -183,6 +184,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kNullConstant,
     kZeroConstant,
     kOneConstant,
+    kMinusOneConstant,
     kNaNConstant,
     kEmptyStateValues,
     kSingleDeadTypedStateValues,

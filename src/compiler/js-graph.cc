@@ -130,6 +130,9 @@ Node* JSGraph::OneConstant() {
   return CACHED(kOneConstant, NumberConstant(1.0));
 }
 
+Node* JSGraph::MinusOneConstant() {
+  return CACHED(kMinusOneConstant, NumberConstant(-1.0));
+}
 
 Node* JSGraph::NaNConstant() {
   return CACHED(kNaNConstant,

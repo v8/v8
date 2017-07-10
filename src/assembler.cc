@@ -1510,8 +1510,9 @@ ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::orderedhashmap_get_raw(Isolate* isolate) {
-  auto f = OrderedHashMap::Get;
+ExternalReference ExternalReference::orderedhashmap_gethash_raw(
+    Isolate* isolate) {
+  auto f = OrderedHashMap::GetHash;
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 

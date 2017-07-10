@@ -555,10 +555,11 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
-  static Object* Get(Isolate* isolate, OrderedHashMap* table, Object* key);
   static Handle<OrderedHashMap> Add(Handle<OrderedHashMap> table,
                                     Handle<Object> key, Handle<Object> value);
   Object* ValueAt(int entry);
+
+  static Object* GetHash(Isolate* isolate, Object* key);
 
   static const int kValueOffset = 1;
 };
