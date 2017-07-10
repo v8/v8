@@ -189,7 +189,7 @@ class DeletePropertyBaseAssembler : public CodeStubAssembler {
     StoreValueByKeyIndex<NameDictionary>(properties, key_index, filler,
                                          SKIP_WRITE_BARRIER);
     StoreDetailsByKeyIndex<NameDictionary>(properties, key_index,
-                                           SmiConstant(Smi::kZero));
+                                           SmiConstant(0));
 
     // Update bookkeeping information (see NameDictionary::ElementRemoved).
     Node* nof = GetNumberOfElements<NameDictionary>(properties);

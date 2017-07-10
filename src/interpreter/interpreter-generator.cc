@@ -1413,7 +1413,7 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
     BIND(&if_issmi);
     {
       // Try fast Smi addition first.
-      Node* one = SmiConstant(Smi::FromInt(1));
+      Node* one = SmiConstant(1);
       Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(value),
                                          BitcastTaggedToWord(one));
       Node* overflow = Projection(1, pair);
@@ -1538,7 +1538,7 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
     BIND(&if_issmi);
     {
       // Try fast Smi subtraction first.
-      Node* one = SmiConstant(Smi::FromInt(1));
+      Node* one = SmiConstant(1);
       Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(value),
                                          BitcastTaggedToWord(one));
       Node* overflow = Projection(1, pair);
@@ -3236,7 +3236,7 @@ IGNITION_HANDLER(ForInContinue, InterpreterAssembler) {
 IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
   Node* index_reg = BytecodeOperandReg(0);
   Node* index = LoadRegister(index_reg);
-  Node* one = SmiConstant(Smi::FromInt(1));
+  Node* one = SmiConstant(1);
   Node* result = SmiAdd(index, one);
   SetAccumulator(result);
   Dispatch();

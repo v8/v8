@@ -2169,7 +2169,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     GotoIfNot(SmiBelow(index, length), &set_done);
 
-    Node* one = SmiConstant(Smi::FromInt(1));
+    Node* one = SmiConstant(1);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
                                    SmiAdd(index, one));
 
@@ -2221,7 +2221,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&holey_object_values);
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
-      Node* invalid = SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
+      Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
       Node* cell = LoadRoot(Heap::kArrayProtectorRootIndex);
       Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
       GotoIf(WordEqual(cell_value, invalid), &generic_values);
@@ -2236,7 +2236,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&holey_double_values);
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
-      Node* invalid = SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
+      Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
       Node* cell = LoadRoot(Heap::kArrayProtectorRootIndex);
       Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
       GotoIf(WordEqual(cell_value, invalid), &generic_values);
@@ -2294,8 +2294,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                        Int32Constant(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)),
                    &done);
 
-            Node* invalid =
-                SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
+            Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
             Node* cell = LoadRoot(Heap::kFastArrayIterationProtectorRootIndex);
             StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset, invalid);
             Goto(&done);
@@ -2489,7 +2488,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                          Heap::kEmptyFixedArrayRootIndex);
     StoreObjectFieldNoWriteBarrier(entry, JSArray::kElementsOffset, elements);
     StoreObjectFieldNoWriteBarrier(entry, JSArray::kLengthOffset,
-                                   SmiConstant(Smi::FromInt(2)));
+                                   SmiConstant(2));
 
     var_value.Bind(entry);
     Goto(&allocate_iterator_result);

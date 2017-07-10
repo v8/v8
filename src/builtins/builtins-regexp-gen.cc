@@ -52,7 +52,7 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(Node* context, Node* regexp,
   // Store through runtime.
   // TODO(ishell): Use SetPropertyStub here once available.
   Node* const name = HeapConstant(isolate()->factory()->lastIndex_string());
-  Node* const language_mode = SmiConstant(Smi::FromInt(STRICT));
+  Node* const language_mode = SmiConstant(STRICT);
   CallRuntime(Runtime::kSetProperty, context, regexp, name, value,
               language_mode);
 }
@@ -587,7 +587,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     Label* if_didnotmatch, const bool is_fastpath) {
   Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
 
   if (is_fastpath) {
     CSA_ASSERT(this, IsFastRegExpNoPrototype(context, regexp));
@@ -755,7 +755,7 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
   {
-    Node* const message_id = SmiConstant(Smi::FromInt(msg_template));
+    Node* const message_id = SmiConstant(msg_template);
     Node* const method_name_str = HeapConstant(
         isolate()->factory()->NewStringFromAsciiChecked(method_name, TENURED));
 
@@ -1413,8 +1413,7 @@ TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
 
     BIND(&if_isnotprototype);
     {
-      Node* const message_id =
-          SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonRegExp));
+      Node* const message_id = SmiConstant(MessageTemplate::kRegExpNonRegExp);
       Node* const method_name_str =
           HeapConstant(isolate->factory()->NewStringFromAsciiChecked(
               "RegExp.prototype.source"));
@@ -1427,9 +1426,9 @@ TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
 Node* RegExpBuiltinsAssembler::FastFlagGetter(Node* const regexp,
                                               JSRegExp::Flag flag) {
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
   Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
-  Node* const mask = SmiConstant(Smi::FromInt(flag));
+  Node* const mask = SmiConstant(flag);
   Node* const is_flag_set = WordNotEqual(SmiAnd(flags, mask), smi_zero);
 
   return is_flag_set;
@@ -1533,7 +1532,7 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
     BIND(&if_isprototype);
     {
       if (counter != -1) {
-        Node* const counter_smi = SmiConstant(Smi::FromInt(counter));
+        Node* const counter_smi = SmiConstant(counter);
         CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
       }
       Return(UndefinedConstant());
@@ -1541,8 +1540,7 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
 
     BIND(&if_isnotprototype);
     {
-      Node* const message_id =
-          SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonRegExp));
+      Node* const message_id = SmiConstant(MessageTemplate::kRegExpNonRegExp);
       Node* const method_name_str = HeapConstant(
           isolate->factory()->NewStringFromAsciiChecked(method_name));
       CallRuntime(Runtime::kThrowTypeError, context, message_id,
@@ -1932,7 +1930,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 
   Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
 
   Node* const is_global =
       FlagGetter(context, regexp, JSRegExp::kGlobal, is_fastpath);
@@ -2110,7 +2108,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
   Node* const previous_last_index = FastLoadLastIndex(regexp);
 
   // Ensure last index is 0.
-  FastStoreLastIndex(regexp, SmiConstant(Smi::kZero));
+  FastStoreLastIndex(regexp, SmiConstant(0));
 
   // Call exec.
   Label if_didnotmatch(this);
@@ -2143,7 +2141,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   Isolate* const isolate = this->isolate();
 
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
 
   // Grab the initial value of last index.
   Node* const previous_last_index = SlowLoadLastIndex(context, regexp);
@@ -2589,7 +2587,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
   Node* const undefined = UndefinedConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const int_one = IntPtrConstant(1);
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
 
   Node* const native_context = LoadNativeContext(context);
 
@@ -2639,7 +2637,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
   Label if_hasexplicitcaptures(this), if_noexplicitcaptures(this),
       create_result(this);
-  Branch(SmiEqual(num_capture_registers, SmiConstant(Smi::FromInt(2))),
+  Branch(SmiEqual(num_capture_registers, SmiConstant(2)),
          &if_noexplicitcaptures, &if_hasexplicitcaptures);
 
   BIND(&if_noexplicitcaptures);
@@ -2795,7 +2793,7 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   // string replacement.
 
   Node* const int_zero = IntPtrConstant(0);
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
 
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
   CSA_ASSERT(this, IsString(replace_string));

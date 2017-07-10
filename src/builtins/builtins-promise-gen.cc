@@ -34,7 +34,7 @@ void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
                                  SmiConstant(0));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
     int offset = JSPromise::kSize + i * kPointerSize;
-    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::kZero));
+    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(0));
   }
 }
 
@@ -69,7 +69,7 @@ Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(Node* context,
                                  SmiConstant(0));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
     int offset = JSPromise::kSize + i * kPointerSize;
-    StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(Smi::kZero));
+    StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(0));
   }
 
   Label out(this);

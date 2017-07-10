@@ -917,17 +917,16 @@ TF_STUB(ArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Node* array =
       AllocateJSArray(elements_kind, array_map,
                       IntPtrConstant(JSArray::kPreallocatedArrayElements),
-                      SmiConstant(Smi::kZero), allocation_site);
+                      SmiConstant(0), allocation_site);
   Return(array);
 }
 
 TF_STUB(InternalArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Node* array_map = LoadObjectField(Parameter(Descriptor::kFunction),
                                     JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array =
-      AllocateJSArray(stub->elements_kind(), array_map,
-                      IntPtrConstant(JSArray::kPreallocatedArrayElements),
-                      SmiConstant(Smi::kZero));
+  Node* array = AllocateJSArray(
+      stub->elements_kind(), array_map,
+      IntPtrConstant(JSArray::kPreallocatedArrayElements), SmiConstant(0));
   Return(array);
 }
 
@@ -958,11 +957,10 @@ void ArrayConstructorAssembler::GenerateConstructor(
 
   if (IsFastPackedElementsKind(elements_kind)) {
     Label abort(this, Label::kDeferred);
-    Branch(SmiEqual(array_size, SmiConstant(Smi::kZero)), &small_smi_size,
-           &abort);
+    Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
-    Node* reason = SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
+    Node* reason = SmiConstant(kAllocatingNonEmptyPackedArray);
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
@@ -971,8 +969,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /
         element_size;
-    Branch(SmiAboveOrEqual(array_size,
-                           SmiConstant(Smi::FromInt(max_fast_elements))),
+    Branch(SmiAboveOrEqual(array_size, SmiConstant(max_fast_elements)),
            &call_runtime, &small_smi_size);
   }
 

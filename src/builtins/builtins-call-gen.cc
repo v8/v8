@@ -200,7 +200,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
     Branch(
         WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
+                  SmiConstant(Isolate::kProtectorValid)),
         &if_done, &if_runtime);
   }
 
@@ -337,7 +337,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
   GotoIfNot(
       WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
+                SmiConstant(Isolate::kProtectorValid)),
       &if_runtime);
 
   // Check that the map of the initial array iterator hasn't changed.
@@ -368,7 +368,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
     Branch(
         WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
+                  SmiConstant(Isolate::kProtectorValid)),
         &if_done, &if_runtime);
   }
 

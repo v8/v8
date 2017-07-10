@@ -273,8 +273,8 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
   // Check if {radix} is treated as 10 (i.e. undefined, 0 or 10).
   Label if_radix10(this), if_generic(this, Label::kDeferred);
   GotoIf(WordEqual(radix, UndefinedConstant()), &if_radix10);
-  GotoIf(WordEqual(radix, SmiConstant(Smi::FromInt(10))), &if_radix10);
-  GotoIf(WordEqual(radix, SmiConstant(Smi::FromInt(0))), &if_radix10);
+  GotoIf(WordEqual(radix, SmiConstant(10)), &if_radix10);
+  GotoIf(WordEqual(radix, SmiConstant(0)), &if_radix10);
   Goto(&if_generic);
 
   BIND(&if_radix10);

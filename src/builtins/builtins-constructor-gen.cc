@@ -166,7 +166,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
     // Cell is empty or code is marked for deopt, clear the optimized code slot.
     BIND(&clear_optimized_code);
     StoreFixedArrayElement(literals, FeedbackVector::kOptimizedCodeIndex,
-                           SmiConstant(Smi::kZero), SKIP_WRITE_BARRIER);
+                           SmiConstant(0), SKIP_WRITE_BARRIER);
     Goto(&optimized_code_ok);
 
     BIND(&optimized_code_ok);
@@ -464,7 +464,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
   allocation_site =
       allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
 
-  Node* zero = SmiConstant(Smi::kZero);
+  Node* zero = SmiConstant(0);
   GotoIf(SmiEqual(capacity, zero), &zero_capacity);
 
   Node* elements_map = LoadMap(boilerplate_elements);
@@ -541,11 +541,10 @@ void ConstructorBuiltinsAssembler::CreateFastCloneShallowArrayBuiltin(
   BIND(&call_runtime);
   {
     Comment("call runtime");
-    Node* flags =
-        SmiConstant(Smi::FromInt(ArrayLiteral::kShallowElements |
-                                 (allocation_site_mode == TRACK_ALLOCATION_SITE
-                                      ? 0
-                                      : ArrayLiteral::kDisableMementos)));
+    Node* flags = SmiConstant(ArrayLiteral::kShallowElements |
+                              (allocation_site_mode == TRACK_ALLOCATION_SITE
+                                   ? 0
+                                   : ArrayLiteral::kDisableMementos));
     Return(CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
                        literal_index, constant_elements, flags));
   }
@@ -647,8 +646,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
         memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
     Node* memento_create_count = LoadObjectField(
         allocation_site, AllocationSite::kPretenureCreateCountOffset);
-    memento_create_count =
-        SmiAdd(memento_create_count, SmiConstant(Smi::FromInt(1)));
+    memento_create_count = SmiAdd(memento_create_count, SmiConstant(1));
     StoreObjectFieldNoWriteBarrier(allocation_site,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    memento_create_count);

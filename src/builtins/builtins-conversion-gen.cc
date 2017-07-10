@@ -337,7 +337,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
     Return(NumberConstant(kMaxSafeInteger));
 
     BIND(&return_zero);
-    Return(SmiConstant(Smi::kZero));
+    Return(SmiConstant(0));
   }
 }
 

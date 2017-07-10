@@ -249,7 +249,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
       GotoIfNot(
           WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                    SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
+                    SmiConstant(Isolate::kProtectorValid)),
           miss);
       exit_point->Return(UndefinedConstant());
     }
@@ -407,8 +407,7 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   GotoIf(WordEqual(validity_cell, IntPtrConstant(0)),
          &validity_cell_check_done);
   Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-  GotoIf(WordNotEqual(cell_value,
-                      SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+  GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
          miss);
   Goto(&validity_cell_check_done);
 
@@ -711,8 +710,7 @@ void AccessorAssembler::HandleStoreICElementHandlerCase(
   Comment("HandleStoreICElementHandlerCase");
   Node* validity_cell = LoadObjectField(handler, Tuple2::kValue1Offset);
   Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-  GotoIf(WordNotEqual(cell_value,
-                      SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+  GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
          miss);
 
   Node* code_handler = LoadObjectField(handler, Tuple2::kValue2Offset);
@@ -741,8 +739,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   GotoIf(WordEqual(validity_cell, IntPtrConstant(0)),
          &validity_cell_check_done);
   Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-  GotoIf(WordNotEqual(cell_value,
-                      SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+  GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
          miss);
   Goto(&validity_cell_check_done);
 

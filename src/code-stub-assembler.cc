@@ -173,7 +173,7 @@ Node* CodeStubAssembler::StaleRegisterConstant() {
 
 Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   if (mode == SMI_PARAMETERS) {
-    return SmiConstant(Smi::FromInt(value));
+    return SmiConstant(value);
   } else {
     DCHECK_EQ(INTPTR_PARAMETERS, mode);
     return IntPtrConstant(value);
@@ -441,7 +441,7 @@ Node* CodeStubAssembler::SmiFromWord32(Node* value) {
 Node* CodeStubAssembler::SmiTag(Node* value) {
   int32_t constant_value;
   if (ToInt32Constant(value, constant_value) && Smi::IsValid(constant_value)) {
-    return SmiConstant(Smi::FromInt(constant_value));
+    return SmiConstant(constant_value);
   }
   return BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
 }
@@ -1751,7 +1751,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
   StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
-                                 SmiConstant(Smi::FromInt(length)));
+                                 SmiConstant(length));
   // Initialize both used and unused parts of hash field slot at once.
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
@@ -1763,7 +1763,7 @@ Node* CodeStubAssembler::IsZeroOrFixedArray(Node* object) {
   Label out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(1));
 
-  GotoIf(WordEqual(object, SmiConstant(Smi::kZero)), &out);
+  GotoIf(WordEqual(object, SmiConstant(0)), &out);
   GotoIf(IsFixedArray(object), &out);
 
   var_result.Bind(Int32Constant(0));
@@ -1838,7 +1838,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
   StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
-                                 SmiConstant(Smi::FromInt(length)));
+                                 SmiConstant(length));
   // Initialize both used and unused parts of hash field slot at once.
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
@@ -2044,8 +2044,7 @@ Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
   CSA_ASSERT(this, IsString(input));
 
 #ifdef DEBUG
-  Node* const max_length =
-      SmiConstant(Smi::FromInt(JSArray::kInitialMaxFastElementArray));
+  Node* const max_length = SmiConstant(JSArray::kInitialMaxFastElementArray);
   CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
 #endif  // DEBUG
 
@@ -2713,7 +2712,7 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base_allocation,
   if (FLAG_allocation_site_pretenuring) {
     Node* count = LoadObjectField(allocation_site,
                                   AllocationSite::kPretenureCreateCountOffset);
-    Node* incremented_count = SmiAdd(count, SmiConstant(Smi::FromInt(1)));
+    Node* incremented_count = SmiAdd(count, SmiConstant(1));
     StoreObjectFieldNoWriteBarrier(allocation_site,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    incremented_count);
@@ -3671,7 +3670,7 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(Node* context, Node* from,
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
   Variable var_result(this, MachineRepresentation::kTagged);
 
-  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const smi_zero = SmiConstant(0);
 
   Branch(IsOneByteStringInstanceType(from_instance_type), &one_byte_sequential,
          &two_byte_sequential);
@@ -3741,7 +3740,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // A real substring (substr_length < string_length).
 
   Label single_char(this);
-  GotoIf(SmiEqual(substr_length, SmiConstant(Smi::FromInt(1))), &single_char);
+  GotoIf(SmiEqual(substr_length, SmiConstant(1)), &single_char);
 
   // TODO(jgruber): Add an additional case for substring of length == 0?
 
@@ -3760,8 +3759,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
       Label next(this);
 
       // Short slice.  Copy instead of slicing.
-      GotoIf(SmiLessThan(substr_length,
-                         SmiConstant(Smi::FromInt(SlicedString::kMinLength))),
+      GotoIf(SmiLessThan(substr_length, SmiConstant(SlicedString::kMinLength)),
              &next);
 
       // Allocate new sliced string.
@@ -3837,7 +3835,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     }
 
     // Equal length - check if {from, to} == {0, str.length}.
-    GotoIf(SmiAbove(from, SmiConstant(Smi::kZero)), &runtime);
+    GotoIf(SmiAbove(from, SmiConstant(0)), &runtime);
 
     // Return the original string (substr_length == string_length).
 
@@ -4145,11 +4143,10 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
     // One-byte sequential string case
     Node* new_string =
         AllocateSeqOneByteString(context, new_length, SMI_PARAMETERS);
-    CopyStringCharacters(var_left.value(), new_string, SmiConstant(Smi::kZero),
-                         SmiConstant(Smi::kZero), left_length,
-                         String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING,
-                         SMI_PARAMETERS);
-    CopyStringCharacters(var_right.value(), new_string, SmiConstant(Smi::kZero),
+    CopyStringCharacters(var_left.value(), new_string, SmiConstant(0),
+                         SmiConstant(0), left_length, String::ONE_BYTE_ENCODING,
+                         String::ONE_BYTE_ENCODING, SMI_PARAMETERS);
+    CopyStringCharacters(var_right.value(), new_string, SmiConstant(0),
                          left_length, right_length, String::ONE_BYTE_ENCODING,
                          String::ONE_BYTE_ENCODING, SMI_PARAMETERS);
     result.Bind(new_string);
@@ -4160,14 +4157,13 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
       // Two-byte sequential string case
       new_string =
           AllocateSeqTwoByteString(context, new_length, SMI_PARAMETERS);
-      CopyStringCharacters(var_left.value(), new_string,
-                           SmiConstant(Smi::kZero), SmiConstant(Smi::kZero),
-                           left_length, String::TWO_BYTE_ENCODING,
-                           String::TWO_BYTE_ENCODING, SMI_PARAMETERS);
-      CopyStringCharacters(var_right.value(), new_string,
-                           SmiConstant(Smi::kZero), left_length, right_length,
+      CopyStringCharacters(var_left.value(), new_string, SmiConstant(0),
+                           SmiConstant(0), left_length,
                            String::TWO_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
                            SMI_PARAMETERS);
+      CopyStringCharacters(var_right.value(), new_string, SmiConstant(0),
+                           left_length, right_length, String::TWO_BYTE_ENCODING,
+                           String::TWO_BYTE_ENCODING, SMI_PARAMETERS);
       result.Bind(new_string);
       Goto(&done_native);
     }
@@ -4606,7 +4602,7 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
 
     BIND(&return_zero);
     {
-      var_result.Bind(SmiConstant(Smi::kZero));
+      var_result.Bind(SmiConstant(0));
       Goto(&out);
     }
   }
@@ -4807,7 +4803,7 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     }
 
     BIND(&return_zero);
-    var_arg.Bind(SmiConstant(Smi::kZero));
+    var_arg.Bind(SmiConstant(0));
     Goto(&out);
   }
 
@@ -8852,7 +8848,7 @@ Node* CodeStubAssembler::NumberInc(Node* value) {
   BIND(&if_issmi);
   {
     // Try fast Smi addition first.
-    Node* one = SmiConstant(Smi::FromInt(1));
+    Node* one = SmiConstant(1);
     Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(value),
                                        BitcastTaggedToWord(one));
     Node* overflow = Projection(1, pair);
@@ -8903,7 +8899,7 @@ Node* CodeStubAssembler::NumberDec(Node* value) {
   BIND(&if_issmi);
   {
     // Try fast Smi addition first.
-    Node* one = SmiConstant(Smi::FromInt(1));
+    Node* one = SmiConstant(1);
     Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(value),
                                        BitcastTaggedToWord(one));
     Node* overflow = Projection(1, pair);
@@ -9067,11 +9063,10 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
           // here, and take the slow path if any fail.
           Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
           DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-          GotoIfNot(
-              WordEqual(
-                  LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
-              &if_isslow);
+          GotoIfNot(WordEqual(LoadObjectField(protector_cell,
+                                              PropertyCell::kValueOffset),
+                              SmiConstant(Isolate::kProtectorValid)),
+                    &if_isslow);
 
           Node* native_context = LoadNativeContext(context);
 
@@ -9157,7 +9152,7 @@ Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
   StoreObjectFieldNoWriteBarrier(iterator,
                                  JSArrayIterator::kIteratedObjectOffset, array);
   StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                 SmiConstant(Smi::FromInt(0)));
+                                 SmiConstant(0));
   StoreObjectFieldNoWriteBarrier(
       iterator, JSArrayIterator::kIteratedObjectMapOffset, array_map);
   return iterator;

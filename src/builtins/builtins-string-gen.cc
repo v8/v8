@@ -126,7 +126,7 @@ void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
     Node* context, Variable* var_start, Node* start, Node* string_length) {
   Node* const start_int =
       ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
-  Node* const zero = SmiConstant(Smi::kZero);
+  Node* const zero = SmiConstant(0);
 
   Label done(this);
   Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
@@ -1492,7 +1492,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   VARIABLE(var_start, MachineRepresentation::kTagged);
   VARIABLE(var_length, MachineRepresentation::kTagged);
 
-  Node* const zero = SmiConstant(Smi::kZero);
+  Node* const zero = SmiConstant(0);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   Node* const string =
@@ -1593,7 +1593,7 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
 
     BIND(&if_isoutofbounds);
     {
-      Node* const zero = SmiConstant(Smi::kZero);
+      Node* const zero = SmiConstant(0);
       var_result.Bind(
           SelectTaggedConstant(SmiLessThan(value_int, zero), zero, limit));
       Goto(&out);
@@ -1606,7 +1606,7 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
     CSA_ASSERT(this, IsHeapNumber(value_int));
 
     Node* const float_zero = Float64Constant(0.);
-    Node* const smi_zero = SmiConstant(Smi::kZero);
+    Node* const smi_zero = SmiConstant(0);
     Node* const value_float = LoadHeapNumberValue(value_int);
     var_result.Bind(SelectTaggedConstant(
         Float64LessThan(value_float, float_zero), smi_zero, limit));
@@ -1711,7 +1711,7 @@ TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kStringOffset,
                                  string);
-  Node* index = SmiConstant(Smi::kZero);
+  Node* index = SmiConstant(0);
   StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,
                                  index);
   Return(iterator);
@@ -1731,7 +1731,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
   GotoIf(Word32NotEqual(Word32And(var_result.value(), Int32Constant(0xFC00)),
                         Int32Constant(0xD800)),
          &return_result);
-  Node* next_index = SmiAdd(index, SmiConstant(Smi::FromInt(1)));
+  Node* next_index = SmiAdd(index, SmiConstant(1));
 
   GotoIfNot(SmiLessThan(next_index, length), &return_result);
   var_trail.Bind(StringCharCodeAt(string, next_index));
@@ -1850,8 +1850,7 @@ Node* StringBuiltinsAssembler::ConcatenateSequentialStrings(
   }
 
   VARIABLE(current_arg, MachineType::PointerRepresentation(), first_arg_ptr);
-  VARIABLE(str_index, MachineRepresentation::kTaggedSigned,
-           SmiConstant(Smi::kZero));
+  VARIABLE(str_index, MachineRepresentation::kTaggedSigned, SmiConstant(0));
 
   Label loop(this, {&current_arg, &str_index}), done(this);
 
@@ -1874,9 +1873,9 @@ Node* StringBuiltinsAssembler::ConcatenateSequentialStrings(
       CSA_ASSERT(this, IsSequentialStringInstanceType(
                            LoadInstanceType(current_string.value())));
       Node* current_length = LoadStringLength(current_string.value());
-      CopyStringCharacters(current_string.value(), result,
-                           SmiConstant(Smi::kZero), str_index.value(),
-                           current_length, encoding, encoding, SMI_PARAMETERS);
+      CopyStringCharacters(current_string.value(), result, SmiConstant(0),
+                           str_index.value(), current_length, encoding,
+                           encoding, SMI_PARAMETERS);
       str_index.Bind(SmiAdd(str_index.value(), current_length));
       current_arg.Bind(
           IntPtrSub(current_arg.value(), IntPtrConstant(kPointerSize)));
@@ -1911,8 +1910,7 @@ Node* StringBuiltinsAssembler::ConcatenateStrings(Node* context,
   VARIABLE(current_arg, MachineType::PointerRepresentation(), first_arg_ptr);
   VARIABLE(current_string, MachineRepresentation::kTagged,
            Load(MachineType::AnyTagged(), current_arg.value()));
-  VARIABLE(total_length, MachineRepresentation::kTaggedSigned,
-           SmiConstant(Smi::kZero));
+  VARIABLE(total_length, MachineRepresentation::kTaggedSigned, SmiConstant(0));
   VARIABLE(result, MachineRepresentation::kTagged);
 
   Node* string_encoding = Word32And(LoadInstanceType(current_string.value()),
@@ -2057,7 +2055,7 @@ Node* StringBuiltinsAssembler::ConcatenateStrings(Node* context,
       Node* string_length = LoadStringLength(current_string);
 
       // Skip concatenating empty string.
-      GotoIf(SmiEqual(string_length, SmiConstant(Smi::kZero)), &done_cons);
+      GotoIf(SmiEqual(string_length, SmiConstant(0)), &done_cons);
 
       total_length.Bind(SmiAdd(total_length.value(), string_length));
 

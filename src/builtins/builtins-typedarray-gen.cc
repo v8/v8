@@ -112,7 +112,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(Node* holder, Node* length,
   StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
   for (int offset = JSTypedArray::kSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
-    StoreObjectField(holder, offset, SmiConstant(Smi::kZero));
+    StoreObjectField(holder, offset, SmiConstant(0));
   }
 }
 
@@ -227,7 +227,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     //  - Set backing_store to null/Smi(0).
     //  - Set all embedder fields to Smi(0).
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
-                                   SmiConstant(Smi::kZero));
+                                   SmiConstant(0));
     int32_t bitfield_value = (1 << JSArrayBuffer::IsExternal::kShift) |
                              (1 << JSArrayBuffer::IsNeuterable::kShift);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
@@ -237,10 +237,10 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                    byte_length);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                   SmiConstant(Smi::kZero));
+                                   SmiConstant(0));
     for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
       int offset = JSArrayBuffer::kSize + i * kPointerSize;
-      StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(Smi::kZero));
+      StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
     }
 
     StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
@@ -701,8 +701,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   Goto(&throw_typeerror);
 
   BIND(&if_receiverisneutered);
-  var_message.Bind(
-      SmiConstant(Smi::FromInt(MessageTemplate::kDetachedOperation)));
+  var_message.Bind(SmiConstant(MessageTemplate::kDetachedOperation));
   Goto(&throw_typeerror);
 
   BIND(&throw_typeerror);
