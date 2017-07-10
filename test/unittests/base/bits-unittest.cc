@@ -126,7 +126,7 @@ TEST(Bits, RoundUpToPowerOfTwo32) {
 
 TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo32)) {
   ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo32(0x80000001u); },
-                            "Check failed:.* << 31");
+                            ".*heck failed:.* << 31");
 }
 
 TEST(Bits, RoundUpToPowerOfTwo64) {
@@ -143,7 +143,7 @@ TEST(Bits, RoundUpToPowerOfTwo64) {
 
 TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo64)) {
   ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo64((uint64_t{1} << 63) + 1); },
-                            "Check failed:.* << 63");
+                            ".*heck failed:.* << 63");
 }
 
 

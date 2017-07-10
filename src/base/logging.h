@@ -56,6 +56,14 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 
 #ifdef DEBUG
 
+#define DCHECK_WITH_MSG(condition, message)                             \
+  do {                                                                  \
+    if (V8_UNLIKELY(!(condition))) {                                    \
+      V8_Fatal(__FILE__, __LINE__, "Debug check failed: %s.", message); \
+    }                                                                   \
+  } while (0)
+#define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
+
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use CHECK_EQ et al below.
 #define CHECK_OP(name, op, lhs, rhs)                                     \
@@ -66,6 +74,16 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
       V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str());  \
       delete _msg;                                                       \
     }                                                                    \
+  } while (0)
+
+#define DCHECK_OP(name, op, lhs, rhs)                                         \
+  do {                                                                        \
+    if (std::string* _msg =                                                   \
+            ::v8::base::Check##name##Impl<decltype(lhs), decltype(rhs)>(      \
+                (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
+      V8_Fatal(__FILE__, __LINE__, "Debug check failed: %s.", _msg->c_str()); \
+      delete _msg;                                                            \
+    }                                                                         \
   } while (0)
 
 #else
@@ -261,16 +279,16 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 // The DCHECK macro is equivalent to CHECK except that it only
 // generates code in debug builds.
 #ifdef DEBUG
-#define DCHECK(condition)      CHECK(condition)
-#define DCHECK_EQ(v1, v2)      CHECK_EQ(v1, v2)
-#define DCHECK_NE(v1, v2)      CHECK_NE(v1, v2)
-#define DCHECK_GT(v1, v2)      CHECK_GT(v1, v2)
-#define DCHECK_GE(v1, v2)      CHECK_GE(v1, v2)
-#define DCHECK_LT(v1, v2)      CHECK_LT(v1, v2)
-#define DCHECK_LE(v1, v2)      CHECK_LE(v1, v2)
-#define DCHECK_NULL(val)       CHECK_NULL(val)
-#define DCHECK_NOT_NULL(val)   CHECK_NOT_NULL(val)
-#define DCHECK_IMPLIES(v1, v2) CHECK_IMPLIES(v1, v2)
+#define DCHECK_EQ(lhs, rhs) DCHECK_OP(EQ, ==, lhs, rhs)
+#define DCHECK_NE(lhs, rhs) DCHECK_OP(NE, !=, lhs, rhs)
+#define DCHECK_GT(lhs, rhs) DCHECK_OP(GT, >, lhs, rhs)
+#define DCHECK_GE(lhs, rhs) DCHECK_OP(GE, >=, lhs, rhs)
+#define DCHECK_LT(lhs, rhs) DCHECK_OP(LT, <, lhs, rhs)
+#define DCHECK_LE(lhs, rhs) DCHECK_OP(LE, <=, lhs, rhs)
+#define DCHECK_NULL(val) DCHECK((val) == nullptr)
+#define DCHECK_NOT_NULL(val) DCHECK((val) != nullptr)
+#define DCHECK_IMPLIES(lhs, rhs) \
+  DCHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
 #else
 #define DCHECK(condition)      ((void) 0)
 #define DCHECK_EQ(v1, v2)      ((void) 0)
