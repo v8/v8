@@ -3924,7 +3924,7 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleBytesEnv* module_env,
                                          const wasm::WasmFunction* function,
-                                         Handle<Code> centry_stub, bool is_sync)
+                                         Handle<Code> centry_stub)
     : WasmCompilationUnit(
           isolate, &module_env->module_env,
           wasm::FunctionBody{
@@ -3932,29 +3932,51 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
               module_env->wire_bytes.start() + function->code.offset(),
               module_env->wire_bytes.start() + function->code.end_offset()},
           module_env->wire_bytes.GetNameOrNull(function), function->func_index,
-          centry_stub, is_sync) {}
+          centry_stub) {}
 
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleEnv* module_env,
                                          wasm::FunctionBody body,
                                          wasm::WasmName name, int index,
-                                         Handle<Code> centry_stub, bool is_sync)
+                                         Handle<Code> centry_stub)
     : isolate_(isolate),
       module_env_(module_env),
       func_body_(body),
       func_name_(name),
-      is_sync_(is_sync),
+      counters_(isolate->counters()),
+      is_sync_(true),
+      centry_stub_(centry_stub),
+      func_index_(index) {}
+
+WasmCompilationUnit::WasmCompilationUnit(
+    Isolate* isolate, wasm::ModuleBytesEnv* module_env,
+    const wasm::WasmFunction* function, Handle<Code> centry_stub,
+    const std::shared_ptr<Counters>& async_counters)
+    : WasmCompilationUnit(
+          isolate, &module_env->module_env,
+          wasm::FunctionBody{
+              function->sig, function->code.offset(),
+              module_env->wire_bytes.start() + function->code.offset(),
+              module_env->wire_bytes.start() + function->code.end_offset()},
+          module_env->wire_bytes.GetNameOrNull(function), function->func_index,
+          centry_stub, async_counters) {}
+
+WasmCompilationUnit::WasmCompilationUnit(
+    Isolate* isolate, wasm::ModuleEnv* module_env, wasm::FunctionBody body,
+    wasm::WasmName name, int index, Handle<Code> centry_stub,
+    const std::shared_ptr<Counters>& async_counters)
+    : isolate_(isolate),
+      module_env_(module_env),
+      func_body_(body),
+      func_name_(name),
+      counters_(async_counters.get()),
+      is_sync_(false),
       centry_stub_(centry_stub),
       func_index_(index) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
-  // TODO(karlschimpf): Make this work when asynchronous.
-  // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-  base::Optional<HistogramTimerScope> wasm_compile_function_time_scope;
-  if (is_sync_) {
-    wasm_compile_function_time_scope.emplace(
-        isolate_->counters()->wasm_compile_function_time());
-  }
+  TimedHistogramScope wasm_compile_function_time_scope(
+      counters()->wasm_compile_function_time());
 
   if (FLAG_trace_wasm_compiler) {
     if (func_name_.start() != nullptr) {
@@ -4016,10 +4038,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
     if (is_sync_)
       // TODO(karlschimpf): Make this work when asynchronous.
       // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-      isolate_->counters()
-          ->wasm_compile_function_peak_memory_bytes()
-          ->AddSample(
-              static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
+      counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
+          static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
 
     if (FLAG_trace_wasm_decode_time) {
       double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();

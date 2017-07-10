@@ -47,12 +47,24 @@ typedef compiler::JSGraph TFGraph;
 namespace compiler {
 class WasmCompilationUnit final {
  public:
+  // Use the following constructors if you know you are running on the
+  // foreground thread.
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
                       const wasm::WasmFunction* function,
-                      Handle<Code> centry_stub, bool is_sync = true);
+                      Handle<Code> centry_stub);
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
                       wasm::FunctionBody body, wasm::WasmName name, int index,
-                      Handle<Code> centry_stub, bool is_sync = true);
+                      Handle<Code> centry_stub);
+  // Use the following constructors if the compilation may run on a background
+  // thread.
+  WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
+                      const wasm::WasmFunction* function,
+                      Handle<Code> centry_stub,
+                      const std::shared_ptr<Counters>& async_counters);
+  WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
+                      wasm::FunctionBody body, wasm::WasmName name, int index,
+                      Handle<Code> centry_stub,
+                      const std::shared_ptr<Counters>& async_counters);
 
   int func_index() const { return func_index_; }
 
@@ -74,6 +86,7 @@ class WasmCompilationUnit final {
   wasm::ModuleEnv* module_env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
+  Counters* counters_;
   bool is_sync_;
   // The graph zone is deallocated at the end of ExecuteCompilation by virtue of
   // it being zone allocated.
@@ -89,6 +102,8 @@ class WasmCompilationUnit final {
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
   size_t memory_cost_ = 0;
+
+  Counters* counters() { return counters_; }
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

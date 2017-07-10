@@ -52,12 +52,20 @@ class ModuleCompiler {
     void AddUnit(ModuleEnv* module_env, const WasmFunction* function,
                  uint32_t buffer_offset, Vector<const uint8_t> bytes,
                  WasmName name) {
-      constexpr bool is_sync = true;
-      units_.emplace_back(new compiler::WasmCompilationUnit(
-          compiler_->isolate_, module_env,
-          wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                             bytes.end()},
-          name, function->func_index, compiler_->centry_stub_, is_sync));
+      if (compiler_->is_sync_) {
+        units_.emplace_back(new compiler::WasmCompilationUnit(
+            compiler_->isolate_, module_env,
+            wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
+                               bytes.end()},
+            name, function->func_index, compiler_->centry_stub_));
+      } else {
+        units_.emplace_back(new compiler::WasmCompilationUnit(
+            compiler_->isolate_, module_env,
+            wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
+                               bytes.end()},
+            name, function->func_index, compiler_->centry_stub_,
+            compiler_->async_counters()));
+      }
     }
 
     void Commit() {
