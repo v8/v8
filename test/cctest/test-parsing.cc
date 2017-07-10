@@ -7129,6 +7129,10 @@ TEST(ObjectSpreadNegativeTests) {
     "{ ...var z = y}",
     "{ ...var}",
     "{ ...foo bar}",
+    "{* ...foo}",
+    "{get ...foo}",
+    "{set ...foo}",
+    "{async ...foo}",
     NULL};
 
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
