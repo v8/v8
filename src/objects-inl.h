@@ -1569,7 +1569,11 @@ void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
 
 void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
                                                 uint64_t bits) {
-  WRITE_UINT64_FIELD(this, index.offset(), bits);
+  // Double unboxing is enabled only on 64-bit platforms.
+  DCHECK_EQ(kDoubleSize, kPointerSize);
+  Address field_addr = FIELD_ADDR(this, index.offset());
+  base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(field_addr),
+                      static_cast<base::AtomicWord>(bits));
 }
 
 void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
