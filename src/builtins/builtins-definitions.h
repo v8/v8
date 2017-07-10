@@ -791,8 +791,9 @@ namespace internal {
   TFJ(PromiseRace, 1, kIterable)                                               \
                                                                                \
   /* Proxy */                                                                  \
-  CPP(ProxyConstructor)                                                        \
-  CPP(ProxyConstructor_ConstructStub)                                          \
+  TFJ(ProxyConstructor, 0)                                                     \
+  TFJ(ProxyConstructor_ConstructStub,                                          \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply)                                                            \

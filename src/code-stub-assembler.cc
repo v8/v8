@@ -3070,7 +3070,7 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
                                    ? &done_loop
                                    : &done_throw);
 
-    // Load the mape of the {value}.
+    // Load the map of the {value}.
     Node* value_map = LoadMap(value);
 
     // Load the instance type of the {value}.
@@ -3296,6 +3296,13 @@ Node* CodeStubAssembler::IsJSObjectMap(Node* map) {
 
 Node* CodeStubAssembler::IsJSObject(Node* object) {
   return IsJSObjectMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsJSProxy(Node* object) {
+  Node* object_map = LoadMap(object);
+  Node* object_instance_type = LoadMapInstanceType(object_map);
+
+  return InstanceTypeEqual(object_instance_type, JS_PROXY_TYPE);
 }
 
 Node* CodeStubAssembler::IsJSGlobalProxy(Node* object) {

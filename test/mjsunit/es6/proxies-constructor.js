@@ -47,3 +47,50 @@
 
   assertThrows(function(){ new Proxy({}, revocable.proxy); }, TypeError);
 })();
+
+
+(function testConstructionWithoutArguments() {
+  assertThrows(function(){ new Proxy(); }, TypeError);
+
+  assertThrows(function(){ new Proxy(42); }, TypeError);
+
+  assertThrows(function(){ new Proxy({}); }, TypeError);
+})();
+
+
+(function testConstructionFromArray() {
+  var p = new Proxy([42], {});
+  assertTrue(p instanceof Array);
+  assertEquals(p[0], 42);
+})();
+
+
+(function testConstructionFromObject() {
+  var p = new Proxy({
+    prop: 42
+  }, {});
+  assertTrue(p instanceof Object);
+  assertEquals(p.prop, 42);
+})();
+
+
+(function testConstructionFromCallable() {
+  var p = new Proxy(() => { return 42; }, {});
+  assertTrue(p instanceof Function);
+  assertEquals(p(), 42);
+})();
+
+
+(function testConstructionFromConstructor() {
+  class foo {};
+  var p = new Proxy(foo, {});
+  assertTrue(p instanceof Function);
+  assertTrue(new p() instanceof foo);
+})();
+
+
+(function testConstructionFromProxy() {
+  var q = new Proxy({}, {});
+  var p = new Proxy(q, {});
+  assertTrue(p instanceof Object);
+})();

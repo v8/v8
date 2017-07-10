@@ -805,6 +805,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSGlobalProxy(Node* object);
   Node* IsJSObjectMap(Node* map);
   Node* IsJSObject(Node* object);
+  Node* IsJSProxy(Node* object);
   Node* IsJSReceiverInstanceType(Node* instance_type);
   Node* IsJSReceiverMap(Node* map);
   Node* IsJSReceiver(Node* object);
