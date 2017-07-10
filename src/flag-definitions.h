@@ -564,8 +564,8 @@ DEFINE_BOOL(experimental_wasm_eh, false,
             "enable prototype exception handling opcodes for wasm")
 DEFINE_BOOL(experimental_wasm_mv, false,
             "enable prototype multi-value support for wasm")
-DEFINE_BOOL(experimental_wasm_atomics, false,
-            "enable prototype atomic opcodes for wasm")
+DEFINE_BOOL(experimental_wasm_threads, false,
+            "enable prototype threads for wasm")
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,

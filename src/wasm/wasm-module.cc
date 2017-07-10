@@ -216,17 +216,16 @@ void RecordLazyCodeStats(Code* code, Counters* counters) {
 // static
 const WasmExceptionSig wasm::WasmException::empty_sig_(0, 0, nullptr);
 
-Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
-                                             void* allocation_base,
-                                             size_t allocation_length,
-                                             void* backing_store, size_t size,
-                                             bool is_external,
-                                             bool enable_guard_regions) {
-  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+Handle<JSArrayBuffer> wasm::SetupArrayBuffer(
+    Isolate* isolate, void* allocation_base, size_t allocation_length,
+    void* backing_store, size_t size, bool is_external,
+    bool enable_guard_regions, SharedFlag shared) {
+  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer(shared);
   DCHECK_GE(kMaxInt, size);
+  if (shared == SharedFlag::kShared) DCHECK(FLAG_experimental_wasm_threads);
   JSArrayBuffer::Setup(buffer, isolate, is_external, allocation_base,
-                       allocation_length, backing_store,
-                       static_cast<int>(size));
+                       allocation_length, backing_store, static_cast<int>(size),
+                       shared);
   buffer->set_is_neuterable(false);
   buffer->set_is_wasm_buffer(true);
   buffer->set_has_guard_region(enable_guard_regions);
@@ -234,7 +233,8 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
 }
 
 Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
-                                           bool enable_guard_regions) {
+                                           bool enable_guard_regions,
+                                           SharedFlag shared) {
   // Check against kMaxInt, since the byte length is stored as int in the
   // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
   // line, and we don't want to fail a CHECK then.
@@ -265,7 +265,7 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
 
   constexpr bool is_external = false;
   return SetupArrayBuffer(isolate, allocation_base, allocation_length, memory,
-                          size, is_external, enable_guard_regions);
+                          size, is_external, enable_guard_regions, shared);
 }
 
 void wasm::UnpackAndRegisterProtectedInstructions(

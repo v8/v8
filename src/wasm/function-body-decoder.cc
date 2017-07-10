@@ -1326,7 +1326,7 @@ class WasmFullDecoder : public WasmDecoder {
               error("Atomics are allowed only in AsmJs modules");
               break;
             }
-            CHECK_PROTOTYPE_OPCODE(atomics);
+            CHECK_PROTOTYPE_OPCODE(threads);
             len = 2;
             byte atomic_opcode = read_u8<true>(pc_ + 1, "atomic index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);

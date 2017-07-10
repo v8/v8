@@ -430,14 +430,14 @@ Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
 // Returns nullptr on failing to get owning instance.
 WasmInstanceObject* GetOwningWasmInstance(Code* code);
 
-Handle<JSArrayBuffer> NewArrayBuffer(Isolate*, size_t size,
-                                     bool enable_guard_regions);
+Handle<JSArrayBuffer> NewArrayBuffer(
+    Isolate*, size_t size, bool enable_guard_regions,
+    SharedFlag shared = SharedFlag::kNotShared);
 
-Handle<JSArrayBuffer> SetupArrayBuffer(Isolate*, void* allocation_base,
-                                       size_t allocation_length,
-                                       void* backing_store, size_t size,
-                                       bool is_external,
-                                       bool enable_guard_regions);
+Handle<JSArrayBuffer> SetupArrayBuffer(
+    Isolate*, void* allocation_base, size_t allocation_length,
+    void* backing_store, size_t size, bool is_external,
+    bool enable_guard_regions, SharedFlag shared = SharedFlag::kNotShared);
 
 void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
                                    Handle<JSArrayBuffer> buffer,
@@ -494,7 +494,16 @@ const bool kGuardRegionsSupported = false;
 #endif
 
 inline bool EnableGuardRegions() {
-  return FLAG_wasm_guard_pages && kGuardRegionsSupported;
+  return FLAG_wasm_guard_pages && kGuardRegionsSupported &&
+         !FLAG_experimental_wasm_threads;
+}
+
+inline SharedFlag IsShared(Handle<JSArrayBuffer> buffer) {
+  if (!buffer.is_null() && buffer->is_shared()) {
+    DCHECK(FLAG_experimental_wasm_threads);
+    return SharedFlag::kShared;
+  }
+  return SharedFlag::kNotShared;
 }
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
