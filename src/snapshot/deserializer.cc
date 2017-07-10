@@ -116,15 +116,17 @@ void Deserializer::Deserialize(Isolate* isolate) {
         isolate_->heap()->undefined_value());
   }
 
-  // If needed, print the dissassembly of deserialized code objects.
-  PrintDisassembledCodeObjects();
-
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
   LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
 
   isolate_->builtins()->MarkInitialized();
+
+  // If needed, print the dissassembly of deserialized code objects.
+  // Needs to be called after the builtins are marked as initialized, in order
+  // to display the builtin names.
+  PrintDisassembledCodeObjects();
 }
 
 MaybeHandle<Object> Deserializer::DeserializePartial(
