@@ -126,10 +126,9 @@ class Genesis BASE_EMBEDDED {
   void CreateRoots();
   // Creates the empty function.  Used for creating a context from scratch.
   Handle<JSFunction> CreateEmptyFunction(Isolate* isolate);
-  // Creates the ThrowTypeError function. ECMA 5th Ed. 13.2.3
-  Handle<JSFunction> GetRestrictedFunctionPropertiesThrower();
-  Handle<JSFunction> GetStrictArgumentsPoisonFunction();
-  Handle<JSFunction> GetThrowTypeErrorIntrinsic(Builtins::Name builtin_name);
+  // Returns the %ThrowTypeError% intrinsic function.
+  // See ES#sec-%throwtypeerror% for details.
+  Handle<JSFunction> GetThrowTypeErrorIntrinsic();
 
   void CreateSloppyModeFunctionMaps(Handle<JSFunction> empty);
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
@@ -249,8 +248,8 @@ class Genesis BASE_EMBEDDED {
   Handle<Context> native_context_;
   Handle<JSGlobalProxy> global_proxy_;
 
-  Handle<JSFunction> strict_poison_function_;
-  Handle<JSFunction> restricted_function_properties_thrower_;
+  // %ThrowTypeError%. See ES#sec-%throwtypeerror% for details.
+  Handle<JSFunction> restricted_properties_thrower_;
 
   BootstrapperActive active_;
   friend class Bootstrapper;
@@ -546,12 +545,12 @@ void Genesis::CreateSloppyModeFunctionMaps(Handle<JSFunction> empty) {
   native_context()->set_sloppy_function_map(*map);
 }
 
-// Creates the %ThrowTypeError% function.
-Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
-    Builtins::Name builtin_name) {
-  Handle<String> name =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("ThrowTypeError"));
-  Handle<Code> code(isolate()->builtins()->builtin(builtin_name));
+Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
+  if (!restricted_properties_thrower_.is_null()) {
+    return restricted_properties_thrower_;
+  }
+  Handle<String> name(factory()->empty_string());
+  Handle<Code> code(builtins()->StrictPoisonPillThrower());
   Handle<JSFunction> function =
       factory()->NewFunctionWithoutPrototype(name, code, STRICT);
   function->shared()->DontAdaptArguments();
@@ -575,28 +574,9 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
     DCHECK(false);
   }
 
+  restricted_properties_thrower_ = function;
   return function;
 }
-
-
-// ECMAScript 5th Edition, 13.2.3
-Handle<JSFunction> Genesis::GetRestrictedFunctionPropertiesThrower() {
-  if (restricted_function_properties_thrower_.is_null()) {
-    restricted_function_properties_thrower_ = GetThrowTypeErrorIntrinsic(
-        Builtins::kRestrictedFunctionPropertiesThrower);
-  }
-  return restricted_function_properties_thrower_;
-}
-
-
-Handle<JSFunction> Genesis::GetStrictArgumentsPoisonFunction() {
-  if (strict_poison_function_.is_null()) {
-    strict_poison_function_ = GetThrowTypeErrorIntrinsic(
-        Builtins::kRestrictedStrictArgumentsPropertiesThrower);
-  }
-  return strict_poison_function_;
-}
-
 
 void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   Factory* factory = isolate_->factory();
@@ -885,19 +865,20 @@ void Genesis::CreateJSProxyMaps() {
   native_context()->set_proxy_constructor_map(*proxy_constructor_map);
 }
 
-static void ReplaceAccessors(Handle<Map> map,
-                             Handle<String> name,
-                             PropertyAttributes attributes,
-                             Handle<AccessorPair> accessor_pair) {
+namespace {
+void ReplaceAccessors(Handle<Map> map, Handle<String> name,
+                      PropertyAttributes attributes,
+                      Handle<AccessorPair> accessor_pair) {
   DescriptorArray* descriptors = map->instance_descriptors();
   int idx = descriptors->SearchWithCache(map->GetIsolate(), *name, *map);
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
   descriptors->Replace(idx, &d);
 }
+}  // namespace
 
 void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
   PropertyAttributes rw_attribs = static_cast<PropertyAttributes>(DONT_ENUM);
-  Handle<JSFunction> thrower = GetRestrictedFunctionPropertiesThrower();
+  Handle<JSFunction> thrower = GetThrowTypeErrorIntrinsic();
   Handle<AccessorPair> accessors = factory()->NewAccessorPair();
   accessors->set_getter(*thrower);
   accessors->set_setter(*thrower);
@@ -3221,7 +3202,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Create the ThrowTypeError function.
     Handle<AccessorPair> callee = factory->NewAccessorPair();
 
-    Handle<JSFunction> poison = GetStrictArgumentsPoisonFunction();
+    Handle<JSFunction> poison = GetThrowTypeErrorIntrinsic();
 
     // Install the ThrowTypeError function.
     callee->set_getter(*poison);

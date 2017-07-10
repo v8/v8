@@ -157,9 +157,6 @@
   'built-ins/DataView/prototype/setUint8/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint8/detached-buffer-before-outofrange-byteoffset': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4034
-  'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
 

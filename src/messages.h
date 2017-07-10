@@ -464,9 +464,6 @@ class ErrorUtils : public AllStatic {
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
-  T(RestrictedFunctionProperties,                                              \
-    "'caller' and 'arguments' are restricted function properties and cannot "  \
-    "be accessed in this context.")                                            \
   T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
   T(SharedArrayBufferTooShort,                                                 \
     "Derived SharedArrayBuffer constructor created a buffer which was too "    \

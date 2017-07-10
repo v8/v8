@@ -264,8 +264,7 @@ namespace internal {
   /* Special internal builtins */                                              \
   CPP(EmptyFunction)                                                           \
   CPP(Illegal)                                                                 \
-  CPP(RestrictedFunctionPropertiesThrower)                                     \
-  CPP(RestrictedStrictArgumentsPropertiesThrower)                              \
+  CPP(StrictPoisonPillThrower)                                                 \
   CPP(UnsupportedThrower)                                                      \
   TFJ(ReturnReceiver, 0)                                                       \
                                                                                \

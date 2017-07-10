@@ -23,17 +23,7 @@ BUILTIN(UnsupportedThrower) {
                                  NewError(MessageTemplate::kUnsupported));
 }
 
-// -----------------------------------------------------------------------------
-// Throwers for restricted function properties and strict arguments object
-// properties
-
-BUILTIN(RestrictedFunctionPropertiesThrower) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kRestrictedFunctionProperties));
-}
-
-BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
+BUILTIN(StrictPoisonPillThrower) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
