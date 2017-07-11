@@ -267,13 +267,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
-#define CREATE_OOL_CLASS(ool_name, masm_ool_name, T)                 \
+#define CREATE_OOL_CLASS(ool_name, tasm_ool_name, T)                 \
   class ool_name final : public OutOfLineCode {                      \
    public:                                                           \
     ool_name(CodeGenerator* gen, T dst, T src1, T src2)              \
         : OutOfLineCode(gen), dst_(dst), src1_(src1), src2_(src2) {} \
                                                                      \
-    void Generate() final { __ masm_ool_name(dst_, src1_, src2_); }  \
+    void Generate() final { __ tasm_ool_name(dst_, src1_, src2_); }  \
                                                                      \
    private:                                                          \
     T const dst_;                                                    \
@@ -573,7 +573,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void AdjustStackPointerForTailCall(MacroAssembler* masm,
+void AdjustStackPointerForTailCall(TurboAssembler* tasm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
@@ -581,10 +581,10 @@ void AdjustStackPointerForTailCall(MacroAssembler* masm,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    masm->Subu(sp, sp, stack_slot_delta * kPointerSize);
+    tasm->Subu(sp, sp, stack_slot_delta * kPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    masm->Addu(sp, sp, -stack_slot_delta * kPointerSize);
+    tasm->Addu(sp, sp, -stack_slot_delta * kPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -746,7 +746,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArchTruncateDoubleToI:
-      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
+                                  i.InputDoubleRegister(0));
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
@@ -2746,11 +2747,11 @@ static bool convertCondition(FlagsCondition condition, Condition& cc) {
   return false;
 }
 
-void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
+void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Instruction* instr, FlagsCondition condition,
                             Label* tlabel, Label* flabel, bool fallthru) {
 #undef __
-#define __ masm->
+#define __ tasm->
 
   Condition cc = kNoCondition;
   // MIPS does not have condition code flags, so compare and branch are

@@ -471,7 +471,7 @@ class Operand BASE_EMBEDDED {
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
-  friend class MacroAssembler;
+  // friend class MacroAssembler;
 };
 
 
@@ -2263,7 +2263,11 @@ class Assembler : public AssemblerBase {
   // associated with each request). That is, for each request, it will patch the
   // dummy heap object handle that we emitted during code assembly with the
   // actual heap object handle.
+ protected:
+  // TODO(neis): Make private if its use can be moved out of TurboAssembler.
   void RequestHeapObject(HeapObjectRequest request);
+
+ private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   std::forward_list<HeapObjectRequest> heap_object_requests_;
@@ -2273,7 +2277,6 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
-  friend class MacroAssembler;
 };
 
 

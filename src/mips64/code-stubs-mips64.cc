@@ -2373,12 +2373,12 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Fall through when we need to inform the incremental marker.
 }
 
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
-  if (masm->isolate()->function_entry_hook() != NULL) {
-    __ push(ra);
-    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    __ pop(ra);
+  if (tasm->isolate()->function_entry_hook() != NULL) {
+    tasm->push(ra);
+    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
+    tasm->pop(ra);
   }
 }
 
