@@ -38,6 +38,7 @@ namespace internal {
   V(Map)                   \
   V(NativeContext)         \
   V(Oddball)               \
+  V(PropertyArray)         \
   V(PropertyCell)          \
   V(SeqOneByteString)      \
   V(SeqTwoByteString)      \

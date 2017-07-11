@@ -100,6 +100,7 @@ using v8::MemoryPressureLevel;
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
+  V(Map, property_array_map, PropertyArrayMap)                                 \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -151,6 +152,7 @@ using v8::MemoryPressureLevel;
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, stale_register_map, StaleRegisterMap)                                 \
   /* Canonical empty values */                                                 \
+  V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
@@ -192,7 +194,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   /* Lists and dictionaries */                                                 \
-  V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
+  V(NameDictionary, empty_property_dictionary, EmptyPropertiesDictionary)      \
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                    \
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
@@ -315,6 +317,7 @@ using v8::MemoryPressureLevel;
   V(OnePointerFillerMap)                \
   V(OptimizedOut)                       \
   V(OrderedHashTableMap)                \
+  V(PropertyArrayMap)                   \
   V(SmallOrderedHashMapMap)             \
   V(SmallOrderedHashSetMap)             \
   V(ScopeInfoMap)                       \
@@ -1653,8 +1656,7 @@ class Heap {
   inline void UpdateOldSpaceLimits();
 
   // Initializes a JSObject based on its map.
-  void InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
-                                 Map* map);
+  void InitializeJSObjectFromMap(JSObject* obj, Object* properties, Map* map);
 
   // Initializes JSObject body starting at given offset.
   void InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset);
@@ -1940,6 +1942,10 @@ class Heap {
   MUST_USE_RESULT inline AllocationResult AllocateFixedArray(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates a property array initialized with undefined values
+  MUST_USE_RESULT AllocationResult
+  AllocatePropertyArray(int length, PretenureFlag pretenure = NOT_TENURED);
+
   MUST_USE_RESULT AllocationResult AllocateSmallOrderedHashSet(
       int length, PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT AllocationResult AllocateSmallOrderedHashMap(
@@ -2015,8 +2021,13 @@ class Heap {
   MUST_USE_RESULT inline AllocationResult CopyFixedArray(FixedArray* src);
 
   // Make a copy of src, also grow the copy, and return the copy.
-  MUST_USE_RESULT AllocationResult
-  CopyFixedArrayAndGrow(FixedArray* src, int grow_by, PretenureFlag pretenure);
+  template <typename T>
+  MUST_USE_RESULT AllocationResult CopyArrayAndGrow(T* src, int grow_by,
+                                                    PretenureFlag pretenure);
+
+  // Make a copy of src, also grow the copy, and return the copy.
+  MUST_USE_RESULT AllocationResult CopyPropertyArrayAndGrow(
+      PropertyArray* src, int grow_by, PretenureFlag pretenure);
 
   // Make a copy of src, also grow the copy, and return the copy.
   MUST_USE_RESULT AllocationResult CopyFixedArrayUpTo(FixedArray* src,
@@ -2024,8 +2035,15 @@ class Heap {
                                                       PretenureFlag pretenure);
 
   // Make a copy of src, set the map, and return the copy.
-  MUST_USE_RESULT AllocationResult
-      CopyFixedArrayWithMap(FixedArray* src, Map* map);
+  template <typename T>
+  MUST_USE_RESULT AllocationResult CopyArrayWithMap(T* src, Map* map);
+
+  // Make a copy of src, set the map, and return the copy.
+  MUST_USE_RESULT AllocationResult CopyFixedArrayWithMap(FixedArray* src,
+                                                         Map* map);
+
+  // Make a copy of src, set the map, and return the copy.
+  MUST_USE_RESULT AllocationResult CopyPropertyArray(PropertyArray* src);
 
   // Make a copy of src and return it.
   MUST_USE_RESULT inline AllocationResult CopyFixedDoubleArray(

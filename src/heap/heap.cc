@@ -2350,6 +2350,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
+    ALLOCATE_VARSIZE_MAP(PROPERTY_ARRAY_TYPE, property_array)
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_MAP_TYPE, small_ordered_hash_map)
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_SET_TYPE, small_ordered_hash_set)
 
@@ -2435,6 +2436,12 @@ bool Heap::CreateInitialMaps() {
       ByteArray* byte_array;
       if (!AllocateByteArray(0, TENURED).To(&byte_array)) return false;
       set_empty_byte_array(byte_array);
+    }
+
+    {
+      PropertyArray* property_array;
+      if (!AllocatePropertyArray(0, TENURED).To(&property_array)) return false;
+      set_empty_property_array(property_array);
     }
 
 #define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
@@ -2721,14 +2728,14 @@ void Heap::CreateInitialObjects() {
 #undef SYMBOL_INIT
   }
 
-  Handle<NameDictionary> empty_properties_dictionary =
+  Handle<NameDictionary> empty_property_dictionary =
       NameDictionary::New(isolate(), 1, TENURED, USE_CUSTOM_MINIMUM_CAPACITY);
-  DCHECK(!empty_properties_dictionary->HasSufficientCapacityToAdd(1));
-  set_empty_properties_dictionary(*empty_properties_dictionary);
+  DCHECK(!empty_property_dictionary->HasSufficientCapacityToAdd(1));
+  set_empty_property_dictionary(*empty_property_dictionary);
 
-  set_public_symbol_table(*empty_properties_dictionary);
-  set_api_symbol_table(*empty_properties_dictionary);
-  set_api_private_symbol_table(*empty_properties_dictionary);
+  set_public_symbol_table(*empty_property_dictionary);
+  set_api_symbol_table(*empty_property_dictionary);
+  set_api_private_symbol_table(*empty_property_dictionary);
 
   set_number_string_cache(
       *factory->NewFixedArray(kInitialNumberStringCacheSize * 2, TENURED));
@@ -3499,8 +3506,7 @@ AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
   return result;
 }
 
-
-void Heap::InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
+void Heap::InitializeJSObjectFromMap(JSObject* obj, Object* properties,
                                      Map* map) {
   obj->set_properties(properties);
   obj->initialize_elements();
@@ -3628,7 +3634,6 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   SLOW_DCHECK(JSObject::cast(clone)->GetElementsKind() ==
               source->GetElementsKind());
   FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
-  FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
     FixedArrayBase* elem = nullptr;
@@ -3645,8 +3650,21 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     }
     JSObject::cast(clone)->set_elements(elem, SKIP_WRITE_BARRIER);
   }
+
   // Update properties if necessary.
-  if (properties->length() > 0) {
+  if (source->HasFastProperties()) {
+    if (source->property_array()->length() > 0) {
+      PropertyArray* properties = source->property_array();
+      PropertyArray* prop = nullptr;
+      {
+        // TODO(gsathya): Do not copy hash code.
+        AllocationResult allocation = CopyPropertyArray(properties);
+        if (!allocation.To(&prop)) return allocation;
+      }
+      JSObject::cast(clone)->set_properties(prop, SKIP_WRITE_BARRIER);
+    }
+  } else {
+    FixedArray* properties = FixedArray::cast(source->property_dictionary());
     FixedArray* prop = nullptr;
     {
       AllocationResult allocation = CopyFixedArray(properties);
@@ -3865,9 +3883,9 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
   return AllocateFixedTypedArray(0, array_type, false, TENURED);
 }
 
-
-AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
-                                             PretenureFlag pretenure) {
+template <typename T>
+AllocationResult Heap::CopyArrayAndGrow(T* src, int grow_by,
+                                        PretenureFlag pretenure) {
   int old_len = src->length();
   int new_len = old_len + grow_by;
   DCHECK(new_len >= old_len);
@@ -3877,8 +3895,8 @@ AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
     if (!allocation.To(&obj)) return allocation;
   }
 
-  obj->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
-  FixedArray* result = FixedArray::cast(obj);
+  obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
+  T* result = T::cast(obj);
   result->set_length(new_len);
 
   // Copy the content.
@@ -3888,6 +3906,12 @@ AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
   MemsetPointer(result->data_start() + old_len, undefined_value(), grow_by);
   return result;
 }
+
+template AllocationResult Heap::CopyArrayAndGrow(FixedArray* src, int grow_by,
+                                                 PretenureFlag pretenure);
+template AllocationResult Heap::CopyArrayAndGrow(PropertyArray* src,
+                                                 int grow_by,
+                                                 PretenureFlag pretenure);
 
 AllocationResult Heap::CopyFixedArrayUpTo(FixedArray* src, int new_len,
                                           PretenureFlag pretenure) {
@@ -3912,7 +3936,8 @@ AllocationResult Heap::CopyFixedArrayUpTo(FixedArray* src, int new_len,
   return result;
 }
 
-AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
+template <typename T>
+AllocationResult Heap::CopyArrayWithMap(T* src, Map* map) {
   int len = src->length();
   HeapObject* obj = nullptr;
   {
@@ -3921,14 +3946,14 @@ AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   }
   obj->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
 
-  FixedArray* result = FixedArray::cast(obj);
+  T* result = T::cast(obj);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
 
   // Eliminate the write barrier if possible.
   if (mode == SKIP_WRITE_BARRIER) {
     CopyBlock(obj->address() + kPointerSize, src->address() + kPointerSize,
-              FixedArray::SizeFor(len) - kPointerSize);
+              T::SizeFor(len) - kPointerSize);
     return obj;
   }
 
@@ -3938,6 +3963,16 @@ AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   return result;
 }
 
+template AllocationResult Heap::CopyArrayWithMap(FixedArray* src, Map* map);
+template AllocationResult Heap::CopyArrayWithMap(PropertyArray* src, Map* map);
+
+AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
+  return CopyArrayWithMap(src, map);
+}
+
+AllocationResult Heap::CopyPropertyArray(PropertyArray* src) {
+  return CopyArrayWithMap(src, property_array_map());
+}
 
 AllocationResult Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
                                                    Map* map) {
@@ -3995,6 +4030,22 @@ AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
   return array;
 }
 
+AllocationResult Heap::AllocatePropertyArray(int length,
+                                             PretenureFlag pretenure) {
+  DCHECK(length >= 0);
+  DCHECK(!InNewSpace(undefined_value()));
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRawFixedArray(length, pretenure);
+    if (!allocation.To(&result)) return allocation;
+  }
+
+  result->set_map_after_allocation(property_array_map(), SKIP_WRITE_BARRIER);
+  PropertyArray* array = PropertyArray::cast(result);
+  array->set_length(length);
+  MemsetPointer(array->data_start(), undefined_value(), length);
+  return result;
+}
 
 AllocationResult Heap::AllocateUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();

@@ -56,7 +56,7 @@ bool EQUALS(Handle<T> left, M right) {
 
 template <typename T, typename M>
 bool EQUALS(T left, Handle<M> right) {
-  return EQUALS(handle(left), right);
+  return EQUALS(handle(left, right->GetIsolate()), right);
 }
 
 }  // namespace
@@ -89,7 +89,7 @@ TEST(JSObjectAddingProperties) {
       .Check();
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
-  CHECK_LE(1, object->properties()->length());
+  CHECK_LE(1, object->property_array()->length());
   CHECK(EQUALS(object->elements(), empty_fixed_array));
 }
 
@@ -134,7 +134,7 @@ TEST(JSObjectInObjectAddingProperties) {
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
   // there must be at least 1 element in the properies store
-  CHECK_LE(1, object->properties()->length());
+  CHECK_LE(1, object->property_array()->length());
   CHECK(EQUALS(object->elements(), empty_fixed_array));
 }
 
@@ -217,7 +217,7 @@ TEST(JSArrayAddingProperties) {
   // No change in elements_kind but added property => new map
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
-  CHECK_LE(1, array->properties()->length());
+  CHECK_LE(1, array->property_array()->length());
   CHECK(EQUALS(array->elements(), empty_fixed_array));
   CHECK_EQ(0, Smi::ToInt(array->length()));
 }

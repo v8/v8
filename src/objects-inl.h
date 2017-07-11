@@ -119,6 +119,7 @@ TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
 TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
+TYPE_CHECKER(PropertyArray, PROPERTY_ARRAY_TYPE)
 
 #define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
   TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
@@ -562,6 +563,7 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
+CAST_ACCESSOR(PropertyArray)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
@@ -1086,8 +1088,17 @@ inline Object* OrderedHashMap::ValueAt(int entry) {
   return get(EntryToIndex(entry) + kValueOffset);
 }
 
-ACCESSORS(JSReceiver, properties, FixedArray, kPropertiesOffset)
+void JSReceiver::set_properties(Object* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  DCHECK_NE(value, heap->empty_property_array());
 
+  WRITE_FIELD(this, kPropertiesOffset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, kPropertiesOffset, value, mode);
+}
+
+Object* JSReceiver::properties() const {
+  return Object::cast(READ_FIELD(this, kPropertiesOffset));
+}
 
 Object** FixedArray::GetFirstElementAddress() {
   return reinterpret_cast<Object**>(FIELD_ADDR(this, OffsetOfElementAt(0)));
@@ -1542,7 +1553,7 @@ Object* JSObject::RawFastPropertyAt(FieldIndex index) {
   if (index.is_inobject()) {
     return READ_FIELD(this, index.offset());
   } else {
-    return properties()->get(index.outobject_array_index());
+    return property_array()->get(index.outobject_array_index());
   }
 }
 
@@ -1563,7 +1574,7 @@ void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
     WRITE_FIELD(this, offset, value);
     WRITE_BARRIER(GetHeap(), this, offset, value);
   } else {
-    properties()->set(index.outobject_array_index(), value);
+    property_array()->set(index.outobject_array_index(), value);
   }
 }
 
@@ -1712,6 +1723,12 @@ Object* FixedArray::get(int index) const {
   return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
+Object* PropertyArray::get(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LE(index, this->length());
+  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+}
+
 Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
   return handle(array->get(index), isolate);
 }
@@ -1734,13 +1751,12 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedArray::set(int index, Smi* value) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map());
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK_NE(map(), GetHeap()->fixed_cow_array_map());
+  DCHECK_LT(index, this->length());
   DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
 }
-
 
 void FixedArray::set(int index, Object* value) {
   DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
@@ -1752,6 +1768,14 @@ void FixedArray::set(int index, Object* value) {
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
+void PropertyArray::set(int index, Object* value) {
+  DCHECK(IsPropertyArray());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kHeaderSize + index * kPointerSize;
+  RELAXED_WRITE_FIELD(this, offset, value);
+  WRITE_BARRIER(GetHeap(), this, offset, value);
+}
 
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
@@ -1822,7 +1846,6 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
     set_the_hole(i);
   }
 }
-
 
 Object* WeakFixedArray::Get(int index) const {
   Object* raw = FixedArray::cast(this)->get(index + kFirstIndex);
@@ -1976,6 +1999,13 @@ void FixedArray::set(int index,
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
+void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kHeaderSize + index * kPointerSize;
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
 
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
@@ -2020,6 +2050,9 @@ Object** FixedArray::data_start() {
   return HeapObject::RawField(this, kHeaderSize);
 }
 
+Object** PropertyArray::data_start() {
+  return HeapObject::RawField(this, kHeaderSize);
+}
 
 Object** FixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawField(this, OffsetOfElementAt(index));
@@ -2678,6 +2711,9 @@ const HashTable<Derived, Shape>* HashTable<Derived, Shape>::cast(
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
+SMI_ACCESSORS(PropertyArray, length, kLengthOffset)
+SYNCHRONIZED_SMI_ACCESSORS(PropertyArray, length, kLengthOffset)
+
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
@@ -3204,6 +3240,10 @@ int HeapObject::SizeFromMap(Map* map) const {
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
     return reinterpret_cast<const SmallOrderedHashSet*>(this)->Size();
+  }
+  if (instance_type == PROPERTY_ARRAY_TYPE) {
+    return PropertyArray::SizeFor(
+        reinterpret_cast<const PropertyArray*>(this)->synchronized_length());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
     return reinterpret_cast<const SmallOrderedHashMap*>(this)->Size();
@@ -5451,8 +5491,12 @@ bool JSObject::HasIndexedInterceptor() {
   return map()->has_indexed_interceptor();
 }
 
+void JSGlobalObject::set_global_dictionary(GlobalDictionary* dictionary) {
+  DCHECK(IsJSGlobalObject());
+  return set_properties(dictionary);
+}
 
-GlobalDictionary* JSObject::global_dictionary() {
+GlobalDictionary* JSGlobalObject::global_dictionary() {
   DCHECK(!HasFastProperties());
   DCHECK(IsJSGlobalObject());
   return GlobalDictionary::cast(properties());
@@ -5560,26 +5604,36 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 
 void JSReceiver::initialize_properties() {
   DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
-  DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_properties_dictionary()));
+  DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
     WRITE_FIELD(this, kPropertiesOffset,
-                GetHeap()->empty_properties_dictionary());
+                GetHeap()->empty_property_dictionary());
   } else {
     WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
   }
 }
 
-
-bool JSReceiver::HasFastProperties() {
+bool JSReceiver::HasFastProperties() const {
   DCHECK_EQ(properties()->IsDictionary(), map()->is_dictionary_map());
-  return !properties()->IsDictionary();
+  return !map()->is_dictionary_map();
 }
 
-
-NameDictionary* JSReceiver::property_dictionary() {
-  DCHECK(!HasFastProperties());
+NameDictionary* JSReceiver::property_dictionary() const {
   DCHECK(!IsJSGlobalObject());
   return NameDictionary::cast(properties());
+}
+
+// TODO(gsathya): Pass isolate directly to this function and access
+// the heap from this.
+PropertyArray* JSReceiver::property_array() const {
+  DCHECK(HasFastProperties());
+
+  Object* prop = properties();
+  if (prop->IsSmi() || prop == GetHeap()->empty_fixed_array()) {
+    return GetHeap()->empty_property_array();
+  }
+
+  return PropertyArray::cast(prop);
 }
 
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,

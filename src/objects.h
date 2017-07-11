@@ -129,6 +129,7 @@
 //     - HeapNumber
 //     - Cell
 //     - PropertyCell
+//     - PropertyArray
 //     - Code
 //     - AbstractCode, a wrapper around Code or BytecodeArray
 //     - Map
@@ -367,6 +368,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ASYNC_GENERATOR_REQUEST_TYPE)                                              \
   V(PREPARSED_SCOPE_DATA_TYPE)                                                 \
   V(FIXED_ARRAY_TYPE)                                                          \
+  V(PROPERTY_ARRAY_TYPE)                                                       \
   V(TRANSITION_ARRAY_TYPE)                                                     \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
   V(CELL_TYPE)                                                                 \
@@ -378,7 +380,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   /* version 6.0 branch, or replace them when there is demand for new types.*/ \
   V(PADDING_TYPE_1)                                                            \
   V(PADDING_TYPE_2)                                                            \
-  V(PADDING_TYPE_3)                                                            \
                                                                                \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
@@ -719,6 +720,7 @@ enum InstanceType : uint8_t {
   ASYNC_GENERATOR_REQUEST_TYPE,
   PREPARSED_SCOPE_DATA_TYPE,
   FIXED_ARRAY_TYPE,
+  PROPERTY_ARRAY_TYPE,
   TRANSITION_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   CELL_TYPE,
@@ -731,7 +733,6 @@ enum InstanceType : uint8_t {
   // version 6.0 branch, or replace them when there is demand for new types.
   PADDING_TYPE_1,
   PADDING_TYPE_2,
-  PADDING_TYPE_3,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -957,6 +958,7 @@ class ConsString;
 class ElementsAccessor;
 class FindAndReplacePattern;
 class FixedArrayBase;
+class PropertyArray;
 class FunctionLiteral;
 class JSGlobalObject;
 class KeyAccumulator;
@@ -1103,6 +1105,7 @@ template <class C> inline bool Is(Object* obj);
   V(ObjectHashTable)                   \
   V(Oddball)                           \
   V(OrderedHashTable)                  \
+  V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(RegExpMatchInfo)                   \
   V(ScopeInfo)                         \
@@ -1944,14 +1947,34 @@ enum class AllocationSiteUpdateMode { kUpdate, kCheckOnly };
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
  public:
-  // [properties]: Backing storage for properties.
-  // properties is a FixedArray in the fast case and a Dictionary in the
-  // slow case.
-  DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
-  inline void initialize_properties();
-  inline bool HasFastProperties();
+  // Returns true if there is no slow (ie, dictionary) backing store.
+  inline bool HasFastProperties() const;
+
+  // Returns the properties array backing store if it
+  // exists. Otherwise, returns an empty_property_array when there's a
+  // Smi (hash code) or an empty_fixed_array for a fast properties
+  // map.
+  inline PropertyArray* property_array() const;
+
   // Gets slow properties for non-global objects.
-  inline NameDictionary* property_dictionary();
+  inline NameDictionary* property_dictionary() const;
+
+  // There are four possible value for the properties offset.
+  // 1) EmptyFixedArray -- This is the standard placeholder.
+  //
+  // 2) TODO(gsathya): Smi -- This is the hash code of the object.
+  //
+  // 3) PropertyArray - This is similar to a FixedArray but stores
+  // the hash code of the object in its length field. This is a fast
+  // backing store.
+  //
+  // 4) NameDictionary - This is the dictionary-mode backing store.
+  //
+  // This is used only in the deoptimizer and heap. Please use the
+  // above typed getters and setters to access the properties.
+  DECL_ACCESSORS(properties, Object)
+
+  inline void initialize_properties();
 
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
@@ -2153,9 +2176,6 @@ class JSObject: public JSReceiver {
   static MUST_USE_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site = Handle<AllocationSite>::null());
-
-  // Gets global object properties.
-  inline GlobalDictionary* global_dictionary();
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSObject> object);
 
@@ -3015,6 +3035,48 @@ class ArrayList : public FixedArray {
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
+};
+
+class PropertyArray : public HeapObject {
+ public:
+  // [length]: length of the array.
+  inline int length() const;
+  inline void set_length(int length);
+
+  // Get and set the length using acquire loads and release stores.
+  inline int synchronized_length() const;
+  inline void synchronized_set_length(int value);
+
+  inline Object* get(int index) const;
+
+  // Setter that doesn't need write barrier.
+  inline void set(int index, Object* value);
+  // Setter with explicit barrier mode.
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+
+  // Gives access to raw memory which stores the array's data.
+  inline Object** data_start();
+
+  // Garbage collection support.
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kPointerSize;
+  }
+
+  DECL_CAST(PropertyArray)
+  DECL_PRINTER(PropertyArray)
+  DECL_VERIFIER(PropertyArray)
+
+  // Layout description.
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+
+  // Garbage collection support.
+  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyArray);
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
@@ -5293,6 +5355,9 @@ class JSGlobalObject : public JSObject {
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)
 
+  // Gets global object properties.
+  inline GlobalDictionary* global_dictionary();
+  inline void set_global_dictionary(GlobalDictionary* dictionary);
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);

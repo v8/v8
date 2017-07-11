@@ -2003,7 +2003,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   uint32_t hash = name->Hash();
 
   if (object->IsJSGlobalObject()) {
-    Handle<GlobalDictionary> dictionary(object->global_dictionary());
+    Handle<JSGlobalObject> global_obj(JSGlobalObject::cast(*object));
+    Handle<GlobalDictionary> dictionary(global_obj->global_dictionary());
     int entry = dictionary->FindEntry(isolate, name, hash);
 
     if (entry == GlobalDictionary::kNotFound) {
@@ -2015,7 +2016,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
       details = details.set_cell_type(cell_type);
       value = cell;
       dictionary = GlobalDictionary::Add(dictionary, name, value, details);
-      object->set_properties(*dictionary);
+      global_obj->set_global_dictionary(*dictionary);
     } else {
       Handle<PropertyCell> cell =
           PropertyCell::PrepareForValue(dictionary, entry, value, details);
@@ -2984,6 +2985,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FIXED_DOUBLE_ARRAY_TYPE:
       return kVisitFixedDoubleArray;
 
+    case PROPERTY_ARRAY_TYPE:
+      return kVisitPropertyArray;
+
     case ODDBALL_TYPE:
       return kVisitOddball;
 
@@ -3281,6 +3285,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case TRANSITION_ARRAY_TYPE:
       os << "<TransitionArray[" << TransitionArray::cast(this)->length()
          << "]>";
+      break;
+    case PROPERTY_ARRAY_TYPE:
+      os << "<PropertyArray[" << PropertyArray::cast(this)->length() << "]>";
       break;
     case FREE_SPACE_TYPE:
       os << "<FreeSpace[" << FreeSpace::cast(this)->size() << "]>";
@@ -3768,9 +3775,10 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
     PropertyDetails details = new_map->GetLastDescriptorDetails();
     int target_index = details.field_index() - new_map->GetInObjectProperties();
+    int property_array_length = object->property_array()->length();
     bool have_space = old_map->unused_property_fields() > 0 ||
                       (details.location() == kField && target_index >= 0 &&
-                       object->properties()->length() > target_index);
+                       property_array_length > target_index);
     // Either new_map adds an kDescriptor property, or a kField property for
     // which there is still space, and which does not require a mutable double
     // box (an out-of-object double).
@@ -3797,9 +3805,9 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     // This migration is a transition from a map that has run out of property
     // space. Extend the backing store.
     int grow_by = new_map->unused_property_fields() + 1;
-    Handle<FixedArray> old_storage = handle(object->properties(), isolate);
-    Handle<FixedArray> new_storage =
-        isolate->factory()->CopyFixedArrayAndGrow(old_storage, grow_by);
+    Handle<PropertyArray> old_storage(object->property_array());
+    Handle<PropertyArray> new_storage =
+        isolate->factory()->CopyPropertyArrayAndGrow(old_storage, grow_by);
 
     // Properly initialize newly added property.
     Handle<Object> value;
@@ -3837,8 +3845,11 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
+  Handle<PropertyArray> array = isolate->factory()->NewPropertyArray(external);
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
+  // We use this array to temporarily store the inobject properties.
+  Handle<FixedArray> inobject_props =
+      isolate->factory()->NewFixedArray(inobject);
 
   Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
   Handle<DescriptorArray> new_descriptors(new_map->instance_descriptors());
@@ -3893,9 +3904,12 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       }
     }
     DCHECK(!(representation.IsDouble() && value->IsSmi()));
-    int target_index = new_descriptors->GetFieldIndex(i) - inobject;
-    if (target_index < 0) target_index += total_size;
-    array->set(target_index, *value);
+    int target_index = new_descriptors->GetFieldIndex(i);
+    if (target_index < inobject) {
+      inobject_props->set(target_index, *value);
+    } else {
+      array->set(target_index - inobject, *value);
+    }
   }
 
   for (int i = old_nof; i < new_nof; i++) {
@@ -3908,9 +3922,12 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     } else {
       value = isolate->factory()->uninitialized_value();
     }
-    int target_index = new_descriptors->GetFieldIndex(i) - inobject;
-    if (target_index < 0) target_index += total_size;
-    array->set(target_index, *value);
+    int target_index = new_descriptors->GetFieldIndex(i);
+    if (target_index < inobject) {
+      inobject_props->set(target_index, *value);
+    } else {
+      array->set(target_index - inobject, *value);
+    }
   }
 
   // From here on we cannot fail and we shouldn't GC anymore.
@@ -3925,7 +3942,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int limit = Min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
-    Object* value = array->get(external + i);
+    Object* value = inobject_props->get(i);
     // Can't use JSObject::FastPropertyAtPut() because proper map was not set
     // yet.
     if (new_map->IsUnboxedDoubleField(index)) {
@@ -3946,11 +3963,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     }
   }
 
-
-  // If there are properties in the new backing store, trim it to the correct
-  // size and install the backing store into the object.
   if (external > 0) {
-    heap->RightTrimFixedArray(*array, inobject);
     object->set_properties(*array);
   }
 
@@ -6049,9 +6062,9 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     unused_property_fields = inobject_props - number_of_fields;
   }
 
-  // Allocate the fixed array for the fields.
-  Handle<FixedArray> fields = factory->NewFixedArray(
-      number_of_allocated_fields);
+  // Allocate the property array for the fields.
+  Handle<PropertyArray> fields =
+      factory->NewPropertyArray(number_of_allocated_fields);
 
   // Fill in the instance descriptor and the fields.
   int current_offset = 0;
@@ -6296,7 +6309,7 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
   if (object->IsJSGlobalObject()) {
     // If we have a global object, invalidate the cell and swap in a new one.
     Handle<GlobalDictionary> dictionary(
-        JSObject::cast(*object)->global_dictionary());
+        JSGlobalObject::cast(*object)->global_dictionary());
     DCHECK_NE(GlobalDictionary::kNotFound, entry);
 
     auto cell = PropertyCell::InvalidateEntry(dictionary, entry);
@@ -8179,8 +8192,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
     if (attrs != NONE) {
       if (object->IsJSGlobalObject()) {
-        Handle<GlobalDictionary> dictionary(object->global_dictionary(),
-                                            isolate);
+        Handle<GlobalDictionary> dictionary(
+            JSGlobalObject::cast(*object)->global_dictionary(), isolate);
         ApplyAttributesToDictionary(isolate, dictionary, attrs);
       } else {
         Handle<NameDictionary> dictionary(object->property_dictionary(),
@@ -8233,6 +8246,7 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
   Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }
+
 // static
 MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
                                             ToPrimitiveHint hint) {
@@ -8694,7 +8708,8 @@ Object* JSObject::SlowReverseLookup(Object* value) {
     }
     return GetHeap()->undefined_value();
   } else if (IsJSGlobalObject()) {
-    return global_dictionary()->SlowReverseLookup(value);
+    return JSGlobalObject::cast(this)->global_dictionary()->SlowReverseLookup(
+        value);
   } else {
     return property_dictionary()->SlowReverseLookup(value);
   }

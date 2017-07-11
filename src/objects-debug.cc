@@ -87,6 +87,9 @@ void HeapObject::HeapObjectVerify() {
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayVerify();
       break;
+    case PROPERTY_ARRAY_TYPE:
+      PropertyArray::cast(this)->PropertyArrayVerify();
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
@@ -341,13 +344,13 @@ bool JSObject::ElementsAreSafeToExamine() {
 
 
 void JSObject::JSObjectVerify() {
-  VerifyHeapPointer(properties());
+  VerifyPointer(properties());
   VerifyHeapPointer(elements());
 
   CHECK_IMPLIES(HasSloppyArgumentsElements(), IsJSArgumentsObject());
   if (HasFastProperties()) {
     int actual_unused_property_fields = map()->GetInObjectProperties() +
-                                        properties()->length() -
+                                        property_array()->length() -
                                         map()->NextFreePropertyIndex();
     if (map()->unused_property_fields() != actual_unused_property_fields) {
       // There are two reasons why this can happen:
@@ -458,6 +461,12 @@ void FixedArray::FixedArrayVerify() {
   }
 }
 
+void PropertyArray::PropertyArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    Object* e = get(i);
+    VerifyPointer(e);
+  }
+}
 
 void FixedDoubleArray::FixedDoubleArrayVerify() {
   for (int i = 0; i < length(); i++) {
@@ -758,7 +767,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   JSObjectVerify();
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
-  CHECK_EQ(0, properties()->length());
+  CHECK_EQ(GetHeap()->empty_fixed_array(), properties());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -766,7 +775,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
 void JSGlobalObject::JSGlobalObjectVerify() {
   CHECK(IsJSGlobalObject());
   // Do not check the dummy global object for the builtins.
-  if (GlobalDictionary::cast(properties())->NumberOfElements() == 0 &&
+  if (global_dictionary()->NumberOfElements() == 0 &&
       elements()->length() == 0) {
     return;
   }
@@ -1442,7 +1451,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
   } else if (IsJSGlobalObject()) {
-    GlobalDictionary* dict = global_dictionary();
+    GlobalDictionary* dict = JSGlobalObject::cast(this)->global_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();

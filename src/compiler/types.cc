@@ -298,6 +298,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
+    case PROPERTY_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
@@ -337,7 +338,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PREPARSED_SCOPE_DATA_TYPE:
     case PADDING_TYPE_1:
     case PADDING_TYPE_2:
-    case PADDING_TYPE_3:
       UNREACHABLE();
   }
   UNREACHABLE();

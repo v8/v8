@@ -223,7 +223,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   }
 
   if (holder->IsJSGlobalObject()) {
-    Handle<GlobalDictionary> dictionary(holder->global_dictionary());
+    Handle<GlobalDictionary> dictionary(
+        JSGlobalObject::cast(*holder)->global_dictionary());
     Handle<PropertyCell> cell(dictionary->CellAt(dictionary_entry()));
     property_details_ = cell->property_details();
     PropertyCell::PrepareForValue(dictionary, dictionary_entry(), value,
@@ -289,7 +290,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   if (!IsElement() && !holder->HasFastProperties()) {
     PropertyDetails details(kData, attributes, PropertyCellType::kMutable);
     if (holder->IsJSGlobalObject()) {
-      Handle<GlobalDictionary> dictionary(holder->global_dictionary());
+      Handle<GlobalDictionary> dictionary(
+          JSGlobalObject::cast(*holder)->global_dictionary());
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
           dictionary, dictionary_entry(), value, details);
@@ -596,7 +598,7 @@ Handle<Object> LookupIterator::FetchValue() const {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
     return accessor->Get(holder, number_);
   } else if (holder_->IsJSGlobalObject()) {
-    Handle<JSObject> holder = GetHolder<JSObject>();
+    Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
     result = holder->global_dictionary()->ValueAt(number_);
   } else if (!holder_->HasFastProperties()) {
     result = holder_->property_dictionary()->ValueAt(number_);
@@ -745,7 +747,8 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
       DCHECK_EQ(kConst, property_details_.constness());
     }
   } else if (holder->IsJSGlobalObject()) {
-    GlobalDictionary* dictionary = JSObject::cast(*holder)->global_dictionary();
+    GlobalDictionary* dictionary =
+        JSGlobalObject::cast(*holder)->global_dictionary();
     dictionary->CellAt(dictionary_entry())->set_value(*value);
   } else {
     NameDictionary* dictionary = holder->property_dictionary();
@@ -823,7 +826,8 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
     // Fall through.
     case INTERCEPTOR:
       if (!is_element && map->IsJSGlobalObjectMap()) {
-        GlobalDictionary* dict = JSObject::cast(holder)->global_dictionary();
+        GlobalDictionary* dict =
+            JSGlobalObject::cast(holder)->global_dictionary();
         int number = dict->FindEntry(name_);
         if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
         number_ = static_cast<uint32_t>(number);

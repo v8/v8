@@ -67,7 +67,8 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       DisallowHeapAllocation no_allocation;
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
-        GlobalDictionary* dictionary = receiver->global_dictionary();
+        GlobalDictionary* dictionary =
+            JSGlobalObject::cast(*receiver)->global_dictionary();
         int entry = dictionary->FindEntry(key);
         if (entry != GlobalDictionary::kNotFound) {
           PropertyCell* cell = dictionary->CellAt(entry);
@@ -663,7 +664,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
     CHECK(field_index.property_index() <
           object->map()->GetInObjectProperties());
   } else {
-    CHECK(field_index.outobject_array_index() < object->properties()->length());
+    CHECK(field_index.outobject_array_index() <
+          object->property_dictionary()->length());
   }
   return *JSObject::FastPropertyAt(object, Representation::Double(),
                                    field_index);

@@ -3416,7 +3416,8 @@ void LargeObjectSpace::Verify() {
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
-          object->IsByteArray() || object->IsFreeSpace());
+          object->IsPropertyArray() || object->IsByteArray() ||
+          object->IsFreeSpace());
 
     // The object itself should look OK.
     object->ObjectVerify();
@@ -3437,6 +3438,16 @@ void LargeObjectSpace::Verify() {
           HeapObject* element_object = HeapObject::cast(element);
           CHECK(heap()->Contains(element_object));
           CHECK(element_object->map()->IsMap());
+        }
+      }
+    } else if (object->IsPropertyArray()) {
+      PropertyArray* array = PropertyArray::cast(object);
+      for (int j = 0; j < array->length(); j++) {
+        Object* property = array->get(j);
+        if (property->IsHeapObject()) {
+          HeapObject* property_object = HeapObject::cast(property);
+          CHECK(heap()->Contains(property_object));
+          CHECK(property_object->map()->IsMap());
         }
       }
     }

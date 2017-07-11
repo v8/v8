@@ -1066,9 +1066,8 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
 
   // Grow properties array.
-  ElementsKind kind = PACKED_ELEMENTS;
   DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
-         FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
+         FixedArrayBase::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
   // The size of a new properties backing store is guaranteed to be small
   // enough that the new backing store will be allocated in new space.
   CSA_ASSERT(this,
@@ -1078,15 +1077,14 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
                      kMaxNumberOfDescriptors + JSObject::kFieldsAdded, mode),
                  mode));
 
-  Node* new_properties = AllocateFixedArray(kind, new_capacity, mode);
+  Node* new_properties = AllocatePropertyArray(new_capacity, mode);
 
-  FillFixedArrayWithValue(kind, new_properties, length, new_capacity,
-                          Heap::kUndefinedValueRootIndex, mode);
+  FillPropertyArrayWithUndefined(new_properties, length, new_capacity, mode);
 
   // |new_properties| is guaranteed to be in new space, so we can skip
   // the write barrier.
-  CopyFixedArrayElements(kind, properties, new_properties, length,
-                         SKIP_WRITE_BARRIER, mode);
+  CopyPropertyArrayValues(properties, new_properties, length,
+                          SKIP_WRITE_BARRIER, mode);
 
   StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
   Comment("] Extend storage");

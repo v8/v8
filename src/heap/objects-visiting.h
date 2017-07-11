@@ -32,6 +32,7 @@ namespace internal {
   V(JSWeakCollection)            \
   V(Map)                         \
   V(Oddball)                     \
+  V(PropertyArray)               \
   V(PropertyCell)                \
   V(SeqOneByteString)            \
   V(SeqTwoByteString)            \

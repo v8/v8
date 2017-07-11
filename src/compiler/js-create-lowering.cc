@@ -169,8 +169,10 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
   }
 
   // TODO(turbofan): Do we want to support out-of-object properties?
-  Handle<FixedArray> properties(boilerplate->properties(), isolate);
-  if (properties->length() > 0) return false;
+  if (!(boilerplate->HasFastProperties() &&
+        boilerplate->property_array()->length() == 0)) {
+    return false;
+  }
 
   // Check the in-object properties.
   Handle<DescriptorArray> descriptors(

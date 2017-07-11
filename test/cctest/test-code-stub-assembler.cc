@@ -1442,10 +1442,11 @@ TEST(AllocateJSObjectFromMap) {
                                           "object")));
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
-    Handle<JSObject> result = Handle<JSObject>::cast(
-        ft.Call(handle(object->map()), handle(object->properties()),
-                handle(object->elements()))
-            .ToHandleChecked());
+    Handle<JSObject> result =
+        Handle<JSObject>::cast(ft.Call(handle(object->map(), isolate),
+                                       handle(object->properties(), isolate),
+                                       handle(object->elements(), isolate))
+                                   .ToHandleChecked());
     VERIFY(result, object->map(), object->properties(), object->elements());
     CHECK(!result->HasFastProperties());
 #ifdef VERIFY_HEAP

@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* EmptyFixedArrayConstant();
   Node* EmptyStringConstant();
   Node* FixedArrayMapConstant();
+  Node* PropertyArrayMapConstant();
   Node* FixedDoubleArrayMapConstant();
   Node* HeapNumberMapConstant();
   Node* OptimizedOutConstant();
@@ -176,6 +177,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kEmptyStringConstant,
     kFixedArrayMapConstant,
     kFixedDoubleArrayMapConstant,
+    kPropertyArrayMapConstant,
     kHeapNumberMapConstant,
     kOptimizedOutConstant,
     kStaleRegisterConstant,

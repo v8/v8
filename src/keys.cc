@@ -599,7 +599,8 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       }
     } else if (object->IsJSGlobalObject()) {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
-          isolate_, mode_, this, object, object->global_dictionary());
+          isolate_, mode_, this, object,
+          JSGlobalObject::cast(*object)->global_dictionary());
     } else {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object, object->property_dictionary());
@@ -620,7 +621,8 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       }
     } else if (object->IsJSGlobalObject()) {
       GlobalDictionary::CollectKeysTo(
-          handle(object->global_dictionary(), isolate_), this);
+          handle(JSGlobalObject::cast(*object)->global_dictionary(), isolate_),
+          this);
     } else {
       NameDictionary::CollectKeysTo(
           handle(object->property_dictionary(), isolate_), this);
@@ -697,7 +699,7 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
   } else if (object->IsJSGlobalObject()) {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
-        object->global_dictionary());
+        JSGlobalObject::cast(*object)->global_dictionary());
   } else {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,

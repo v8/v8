@@ -82,6 +82,11 @@ Node* JSGraph::FixedArrayMapConstant() {
                 HeapConstant(factory()->fixed_array_map()));
 }
 
+Node* JSGraph::PropertyArrayMapConstant() {
+  return CACHED(kPropertyArrayMapConstant,
+                HeapConstant(factory()->property_array_map()));
+}
+
 Node* JSGraph::FixedDoubleArrayMapConstant() {
   return CACHED(kFixedDoubleArrayMapConstant,
                 HeapConstant(factory()->fixed_double_array_map()));

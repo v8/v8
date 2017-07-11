@@ -2298,10 +2298,10 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* new_properties = effect = graph()->NewNode(
       simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
-      jsgraph()->Constant(FixedArray::SizeFor(new_length)), effect, control);
-  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
-                            new_properties, jsgraph()->FixedArrayMapConstant(),
-                            effect, control);
+      jsgraph()->Constant(PropertyArray::SizeFor(new_length)), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForMap()), new_properties,
+      jsgraph()->PropertyArrayMapConstant(), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
       new_properties, jsgraph()->Constant(new_length), effect, control);

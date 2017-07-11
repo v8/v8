@@ -643,6 +643,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            ParameterMode mode = INTPTR_PARAMETERS,
                            AllocationFlags flags = kNone);
 
+  Node* AllocatePropertyArray(Node* capacity,
+                              ParameterMode mode = INTPTR_PARAMETERS,
+                              AllocationFlags flags = kNone);
   // Perform CreateArrayIterator (ES6 #sec-createarrayiterator).
   Node* CreateArrayIterator(Node* array, Node* array_map, Node* array_type,
                             Node* context, IterationKind mode);
@@ -658,6 +661,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                Node* to_index,
                                Heap::RootListIndex value_root_index,
                                ParameterMode mode = INTPTR_PARAMETERS);
+
+  void FillPropertyArrayWithUndefined(Node* array, Node* from_index,
+                                      Node* to_index,
+                                      ParameterMode mode = INTPTR_PARAMETERS);
+
+  void CopyPropertyArrayValues(
+      Node* from_array, Node* to_array, Node* length,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTPTR_PARAMETERS);
 
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
@@ -824,6 +836,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsNativeContext(Node* object);
   Node* IsOneByteStringInstanceType(Node* instance_type);
   Node* IsPrivateSymbol(Node* object);
+  Node* IsPropertyArray(Node* object);
   Node* IsPropertyCell(Node* object);
   Node* IsSequentialStringInstanceType(Node* instance_type);
   inline Node* IsSharedFunctionInfo(Node* object) {
@@ -1402,6 +1415,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                     ParameterMode mode) {
     return GetArrayAllocationSize(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
+  }
+
+  Node* GetPropertyArrayAllocationSize(Node* element_count,
+                                       ParameterMode mode) {
+    return GetArrayAllocationSize(element_count, PACKED_ELEMENTS, mode,
+                                  PropertyArray::kHeaderSize);
   }
 
   void GotoIfFixedArraySizeDoesntFitInNewSpace(Node* element_count,

@@ -45,6 +45,8 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(int size,
                                    PretenureFlag pretenure = NOT_TENURED);
+  Handle<PropertyArray> NewPropertyArray(int size,
+                                         PretenureFlag pretenure = NOT_TENURED);
   // Tries allocating a fixed array initialized with undefined values.
   // In case of an allocation failure (OOM) an empty handle is returned.
   // The caller has to manually signal an
@@ -401,6 +403,10 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
       Handle<FixedArray> array, int grow_by,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<PropertyArray> CopyPropertyArrayAndGrow(
+      Handle<PropertyArray> array, int grow_by,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedArray> CopyFixedArrayUpTo(Handle<FixedArray> array, int new_len,

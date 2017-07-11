@@ -82,6 +82,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
       break;
+    case PROPERTY_ARRAY_TYPE:
+      PropertyArray::cast(this)->PropertyArrayPrint(os);
+      break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayPrint(os);
       break;
@@ -316,7 +319,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
     }
     return i > 0;
   } else if (IsJSGlobalObject()) {
-    global_dictionary()->Print(os);
+    JSGlobalObject::cast(this)->global_dictionary()->Print(os);
   } else {
     property_dictionary()->Print(os);
   }
@@ -646,6 +649,18 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+// TODO(gsathya): Templatize PrintFixedArrayElements to print this as
+// well.
+void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PropertyArray");
+  os << "\n - map = " << Brief(map());
+  os << "\n - length: " << length();
+  for (int i = 0; i < length(); i++) {
+    os << "\n" << i << " : " << std::setw(8) << Brief(get(i));
+  }
+
+  os << "\n";
+}
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");

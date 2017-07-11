@@ -2173,7 +2173,9 @@ void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
     StoreObjectFieldRoot(object, JSObject::kPropertiesOffset,
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
-    CSA_ASSERT(this, IsFixedArray(properties));
+    CSA_ASSERT(this, Word32Or(Word32Or(IsPropertyArray(properties),
+                                       IsDictionary(properties)),
+                              IsEmptyFixedArray(properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOffset,
                                    properties);
   }
@@ -2342,6 +2344,43 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
   StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
                                  ParameterToTagged(capacity_node, mode));
   return array;
+}
+
+Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
+                                               ParameterMode mode,
+                                               AllocationFlags flags) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
+  CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
+                                          IntPtrOrSmiConstant(0, mode), mode));
+  Node* total_size = GetPropertyArrayAllocationSize(capacity_node, mode);
+
+  Node* array = Allocate(total_size, flags);
+  Heap::RootListIndex map_index = Heap::kPropertyArrayMapRootIndex;
+  DCHECK(Heap::RootIsImmortalImmovable(map_index));
+  StoreMapNoWriteBarrier(array, map_index);
+  StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
+                                 ParameterToTagged(capacity_node, mode));
+  return array;
+}
+
+void CodeStubAssembler::FillPropertyArrayWithUndefined(Node* array,
+                                                       Node* from_node,
+                                                       Node* to_node,
+                                                       ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
+  CSA_SLOW_ASSERT(this, IsPropertyArray(array));
+  STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
+  ElementsKind kind = PACKED_ELEMENTS;
+  Node* value = LoadRoot(Heap::kUndefinedValueRootIndex);
+
+  BuildFastFixedArrayForEach(array, kind, from_node, to_node,
+                             [this, value](Node* array, Node* offset) {
+                               StoreNoWriteBarrier(
+                                   MachineRepresentation::kTagged, array,
+                                   offset, value);
+                             },
+                             mode);
 }
 
 void CodeStubAssembler::FillFixedArrayWithValue(
@@ -2522,8 +2561,37 @@ void CodeStubAssembler::CopyFixedArrayElements(
   }
 
   BIND(&done);
-  IncrementCounter(isolate()->counters()->inlined_copied_elements(), 1);
   Comment("] CopyFixedArrayElements");
+}
+
+void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
+                                                Node* to_array,
+                                                Node* property_count,
+                                                WriteBarrierMode barrier_mode,
+                                                ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(property_count, mode));
+  CSA_SLOW_ASSERT(this, Word32Or(IsPropertyArray(from_array),
+                                 IsEmptyFixedArray(from_array)));
+  CSA_SLOW_ASSERT(this, IsPropertyArray(to_array));
+  Comment("[ CopyPropertyArrayValues");
+
+  bool needs_write_barrier = barrier_mode == UPDATE_WRITE_BARRIER;
+  Node* start = IntPtrOrSmiConstant(0, mode);
+  ElementsKind kind = PACKED_ELEMENTS;
+  BuildFastFixedArrayForEach(
+      from_array, kind, start, property_count,
+      [this, to_array, needs_write_barrier](Node* array, Node* offset) {
+        Node* value = Load(MachineType::AnyTagged(), array, offset);
+
+        if (needs_write_barrier) {
+          Store(to_array, offset, value);
+        } else {
+          StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array, offset,
+                              value);
+        }
+      },
+      mode);
+  Comment("] CopyPropertyArrayValues");
 }
 
 void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
@@ -3361,6 +3429,10 @@ Node* CodeStubAssembler::IsJSArrayMap(Node* map) {
 
 Node* CodeStubAssembler::IsFixedArray(Node* object) {
   return HasInstanceType(object, FIXED_ARRAY_TYPE);
+}
+
+Node* CodeStubAssembler::IsPropertyArray(Node* object) {
+  return HasInstanceType(object, PROPERTY_ARRAY_TYPE);
 }
 
 // This complicated check is due to elements oddities. If a smi array is empty
@@ -7009,7 +7081,8 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   CSA_SLOW_ASSERT(this, MatchesParameterMode(first_element_inclusive, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(last_element_exclusive, mode));
-  CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(fixed_array, kind));
+  CSA_SLOW_ASSERT(this, Word32Or(IsFixedArrayWithKind(fixed_array, kind),
+                                 IsPropertyArray(fixed_array)));
   int32_t first_val;
   bool constant_first = ToInt32Constant(first_element_inclusive, first_val);
   int32_t last_val;

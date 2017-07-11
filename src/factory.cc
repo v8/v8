@@ -153,6 +153,14 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
       FixedArray);
 }
 
+Handle<PropertyArray> Factory::NewPropertyArray(int size,
+                                                PretenureFlag pretenure) {
+  DCHECK_LE(0, size);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocatePropertyArray(size, pretenure),
+                     PropertyArray);
+}
+
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
                                                   PretenureFlag pretenure) {
   DCHECK(0 <= size);
@@ -1275,7 +1283,6 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
                      JSObject);
 }
 
-
 Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
                                                   Handle<Map> map) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -1283,13 +1290,21 @@ Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
                      FixedArray);
 }
 
-
 Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
                                                   int grow_by,
                                                   PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->CopyFixedArrayAndGrow(
-                                    *array, grow_by, pretenure),
-                     FixedArray);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->CopyArrayAndGrow(*array, grow_by, pretenure),
+      FixedArray);
+}
+
+Handle<PropertyArray> Factory::CopyPropertyArrayAndGrow(
+    Handle<PropertyArray> array, int grow_by, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->CopyArrayAndGrow(*array, grow_by, pretenure),
+      PropertyArray);
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayUpTo(Handle<FixedArray> array,
@@ -1873,7 +1888,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   new_map->set_dictionary_map(true);
 
   // Set up the global object as a normalized object.
-  global->set_properties(*dictionary);
+  global->set_global_dictionary(*dictionary);
   global->synchronized_set_map(*new_map);
 
   // Make sure result is a global object with properties in dictionary.
@@ -1898,7 +1913,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
                                                  PretenureFlag pretenure) {
   DCHECK(map->is_dictionary_map());
-  Handle<FixedArray> object_properties =
+  Handle<NameDictionary> object_properties =
       NameDictionary::New(isolate(), capacity);
   Handle<JSObject> js_object = NewJSObjectFromMap(map, pretenure);
   js_object->set_properties(*object_properties);

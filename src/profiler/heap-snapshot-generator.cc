@@ -1138,10 +1138,12 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(view, entry, "buffer", view->buffer(),
                          JSArrayBufferView::kBufferOffset);
   }
+
   TagObject(js_obj->properties(), "(object properties)");
   SetInternalReference(obj, entry,
                        "properties", js_obj->properties(),
                        JSObject::kPropertiesOffset);
+
   TagObject(js_obj->elements(), "(object elements)");
   SetInternalReference(obj, entry,
                        "elements", js_obj->elements(),
@@ -1573,7 +1575,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     }
   } else if (js_obj->IsJSGlobalObject()) {
     // We assume that global objects can only have slow properties.
-    GlobalDictionary* dictionary = js_obj->global_dictionary();
+    GlobalDictionary* dictionary =
+        JSGlobalObject::cast(js_obj)->global_dictionary();
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       if (dictionary->IsKey(isolate, dictionary->KeyAt(i))) {
