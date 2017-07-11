@@ -1,0 +1,29 @@
+crbug.com/736302
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : 
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    type : undefined
+}
