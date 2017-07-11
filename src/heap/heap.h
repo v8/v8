@@ -167,6 +167,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
     EmptySlowElementDictionary)                                                \
+  V(FixedArray, empty_ordered_hash_table, EmptyOrderedHashTable)               \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \

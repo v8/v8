@@ -954,8 +954,7 @@ void JSSetIterator::JSSetIteratorVerify() {
   CHECK(IsJSSetIterator());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  Isolate* isolate = GetIsolate();
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(isolate));
+  CHECK(table()->IsOrderedHashTable());
   CHECK(index()->IsSmi());
 }
 
@@ -964,8 +963,7 @@ void JSMapIterator::JSMapIteratorVerify() {
   CHECK(IsJSMapIterator());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  Isolate* isolate = GetIsolate();
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(isolate));
+  CHECK(table()->IsOrderedHashTable());
   CHECK(index()->IsSmi());
 }
 

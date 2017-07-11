@@ -32,8 +32,16 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
   template <typename CollectionType, int entrysize>
   Node* CallHasRaw(Node* const table, Node* const key);
 
+  // Transitions the iterator to the non obsolete backing store.
+  // This is a NOP if the [table] is not obsolete.
+  typedef std::function<void(Node* const table, Node* const index)>
+      UpdateInTransition;
+  template <typename TableType>
+  std::tuple<Node*, Node*> Transition(
+      Node* const table, Node* const index,
+      UpdateInTransition const& update_in_transition);
   template <typename IteratorType, typename TableType>
-  std::tuple<Node*, Node*> Transition(Node* const iterator);
+  std::tuple<Node*, Node*> TransitionAndUpdate(Node* const iterator);
   template <typename TableType>
   std::tuple<Node*, Node*, Node*> NextSkipHoles(Node* table, Node* index,
                                                 Label* if_end);
@@ -648,13 +656,12 @@ void CollectionsBuiltinsAssembler::FindOrderedHashMapEntry(
   }
 }
 
-template <typename IteratorType, typename TableType>
+template <typename TableType>
 std::tuple<Node*, Node*> CollectionsBuiltinsAssembler::Transition(
-    Node* const iterator) {
-  VARIABLE(var_table, MachineRepresentation::kTagged,
-           LoadObjectField(iterator, IteratorType::kTableOffset));
-  VARIABLE(var_index, MachineType::PointerRepresentation(),
-           LoadAndUntagObjectField(iterator, IteratorType::kIndexOffset));
+    Node* const table, Node* const index,
+    UpdateInTransition const& update_in_transition) {
+  VARIABLE(var_index, MachineType::PointerRepresentation(), index);
+  VARIABLE(var_table, MachineRepresentation::kTagged, table);
   Label if_done(this), if_transition(this, Label::kDeferred);
   Branch(TaggedIsSmi(
              LoadObjectField(var_table.value(), TableType::kNextTableOffset)),
@@ -711,15 +718,27 @@ std::tuple<Node*, Node*> CollectionsBuiltinsAssembler::Transition(
     }
     BIND(&done_loop);
 
-    // Update the {iterator} with the new state.
-    StoreObjectField(iterator, IteratorType::kTableOffset, var_table.value());
-    StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kIndexOffset,
-                                   SmiTag(var_index.value()));
+    // Update with the new {table} and {index}.
+    update_in_transition(var_table.value(), var_index.value());
     Goto(&if_done);
   }
 
   BIND(&if_done);
   return std::tuple<Node*, Node*>(var_table.value(), var_index.value());
+}
+
+template <typename IteratorType, typename TableType>
+std::tuple<Node*, Node*> CollectionsBuiltinsAssembler::TransitionAndUpdate(
+    Node* const iterator) {
+  return Transition<TableType>(
+      LoadObjectField(iterator, IteratorType::kTableOffset),
+      LoadAndUntagObjectField(iterator, IteratorType::kIndexOffset),
+      [this, iterator](Node* const table, Node* const index) {
+        // Update the {iterator} with the new state.
+        StoreObjectField(iterator, IteratorType::kTableOffset, table);
+        StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kIndexOffset,
+                                       SmiTag(index));
+      });
 }
 
 template <typename TableType>
@@ -809,6 +828,69 @@ TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
       context, Context::MAP_KEY_VALUE_ITERATOR_MAP_INDEX, receiver));
 }
 
+TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
+  const char* const kMethodName = "Map.prototype.forEach";
+  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  Node* const receiver = args.GetReceiver();
+  Node* const callback = args.GetOptionalArgumentValue(0);
+  Node* const this_arg = args.GetOptionalArgumentValue(1);
+
+  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, kMethodName);
+
+  // Ensure that {callback} is actually callable.
+  Label callback_not_callable(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(callback), &callback_not_callable);
+  GotoIfNot(IsCallable(callback), &callback_not_callable);
+
+  VARIABLE(var_index, MachineType::PointerRepresentation(), IntPtrConstant(0));
+  VARIABLE(var_table, MachineRepresentation::kTagged,
+           LoadObjectField(receiver, JSMap::kTableOffset));
+  Label loop(this, {&var_index, &var_table}), done_loop(this);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // Transition {table} and {index} if there was any modification to
+    // the {receiver} while we're iterating.
+    Node* index = var_index.value();
+    Node* table = var_table.value();
+    std::tie(table, index) =
+        Transition<OrderedHashMap>(table, index, [](Node*, Node*) {});
+
+    // Read the next entry from the {table}, skipping holes.
+    Node* entry_key;
+    Node* entry_start_position;
+    std::tie(entry_key, entry_start_position, index) =
+        NextSkipHoles<OrderedHashMap>(table, index, &done_loop);
+
+    // Load the entry value as well.
+    Node* entry_value = LoadFixedArrayElement(
+        table, entry_start_position,
+        (OrderedHashMap::kHashTableStartIndex + OrderedHashMap::kValueOffset) *
+            kPointerSize);
+
+    // Invoke the {callback} passing the {entry_key}, {entry_value} and the
+    // {receiver}.
+    CallJS(CodeFactory::Call(isolate()), context, callback, this_arg,
+           entry_value, entry_key, receiver);
+
+    // Continue with the next entry.
+    var_index.Bind(index);
+    var_table.Bind(table);
+    Goto(&loop);
+  }
+
+  BIND(&done_loop);
+  args.PopAndReturn(UndefinedConstant());
+
+  BIND(&callback_not_callable);
+  {
+    CallRuntime(Runtime::kThrowCalledNonCallable, context, callback);
+    Unreachable();
+  }
+}
+
 TF_BUILTIN(MapPrototypeKeys, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const context = Parameter(Descriptor::kContext);
@@ -847,19 +929,16 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&if_receiver_valid);
 
   // Check if the {receiver} is exhausted.
-  Label return_value(this), return_entry(this),
-      return_end(this, Label::kDeferred);
-  VARIABLE(var_value, MachineRepresentation::kTagged, UndefinedConstant());
   VARIABLE(var_done, MachineRepresentation::kTagged, TrueConstant());
-  // TODO(bmeurer): Don't stick undefined in here, but some canonical
-  // empty_table, to avoid this check.
-  GotoIf(IsUndefined(LoadObjectField(receiver, JSMapIterator::kTableOffset)),
-         &return_value);
+  VARIABLE(var_value, MachineRepresentation::kTagged, UndefinedConstant());
+  Label return_value(this, {&var_done, &var_value}), return_entry(this),
+      return_end(this, Label::kDeferred);
 
   // Transition the {receiver} table if necessary.
   Node* table;
   Node* index;
-  std::tie(table, index) = Transition<JSMapIterator, OrderedHashMap>(receiver);
+  std::tie(table, index) =
+      TransitionAndUpdate<JSMapIterator, OrderedHashMap>(receiver);
 
   // Read the next entry from the {table}, skipping holes.
   Node* entry_key;
@@ -898,8 +977,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSMapIterator::kTableOffset,
-                         Heap::kUndefinedValueRootIndex);
-    var_value.Bind(UndefinedConstant());
+                         Heap::kEmptyOrderedHashTableRootIndex);
     Goto(&return_value);
   }
 }
@@ -922,6 +1000,62 @@ TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {
                          "Set.prototype.entries");
   Return(AllocateJSCollectionIterator<JSSetIterator>(
       context, Context::SET_KEY_VALUE_ITERATOR_MAP_INDEX, receiver));
+}
+
+TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
+  const char* const kMethodName = "Set.prototype.forEach";
+  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  Node* const receiver = args.GetReceiver();
+  Node* const callback = args.GetOptionalArgumentValue(0);
+  Node* const this_arg = args.GetOptionalArgumentValue(1);
+
+  ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, kMethodName);
+
+  // Ensure that {callback} is actually callable.
+  Label callback_not_callable(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(callback), &callback_not_callable);
+  GotoIfNot(IsCallable(callback), &callback_not_callable);
+
+  VARIABLE(var_index, MachineType::PointerRepresentation(), IntPtrConstant(0));
+  VARIABLE(var_table, MachineRepresentation::kTagged,
+           LoadObjectField(receiver, JSSet::kTableOffset));
+  Label loop(this, {&var_index, &var_table}), done_loop(this);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // Transition {table} and {index} if there was any modification to
+    // the {receiver} while we're iterating.
+    Node* index = var_index.value();
+    Node* table = var_table.value();
+    std::tie(table, index) =
+        Transition<OrderedHashSet>(table, index, [](Node*, Node*) {});
+
+    // Read the next entry from the {table}, skipping holes.
+    Node* entry_key;
+    Node* entry_start_position;
+    std::tie(entry_key, entry_start_position, index) =
+        NextSkipHoles<OrderedHashSet>(table, index, &done_loop);
+
+    // Invoke the {callback} passing the {entry_key} (twice) and the {receiver}.
+    CallJS(CodeFactory::Call(isolate()), context, callback, this_arg, entry_key,
+           entry_key, receiver);
+
+    // Continue with the next entry.
+    var_index.Bind(index);
+    var_table.Bind(table);
+    Goto(&loop);
+  }
+
+  BIND(&done_loop);
+  args.PopAndReturn(UndefinedConstant());
+
+  BIND(&callback_not_callable);
+  {
+    CallRuntime(Runtime::kThrowCalledNonCallable, context, callback);
+    Unreachable();
+  }
 }
 
 TF_BUILTIN(SetPrototypeValues, CollectionsBuiltinsAssembler) {
@@ -952,19 +1086,16 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&if_receiver_valid);
 
   // Check if the {receiver} is exhausted.
-  Label return_value(this), return_entry(this),
-      return_end(this, Label::kDeferred);
-  VARIABLE(var_value, MachineRepresentation::kTagged, UndefinedConstant());
   VARIABLE(var_done, MachineRepresentation::kTagged, TrueConstant());
-  // TODO(bmeurer): Don't stick undefined in here, but some canonical
-  // empty_table, to avoid this check.
-  GotoIf(IsUndefined(LoadObjectField(receiver, JSSetIterator::kTableOffset)),
-         &return_value);
+  VARIABLE(var_value, MachineRepresentation::kTagged, UndefinedConstant());
+  Label return_value(this, {&var_done, &var_value}), return_entry(this),
+      return_end(this, Label::kDeferred);
 
   // Transition the {receiver} table if necessary.
   Node* table;
   Node* index;
-  std::tie(table, index) = Transition<JSSetIterator, OrderedHashSet>(receiver);
+  std::tie(table, index) =
+      TransitionAndUpdate<JSSetIterator, OrderedHashSet>(receiver);
 
   // Read the next entry from the {table}, skipping holes.
   Node* entry_key;
@@ -997,8 +1128,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSSetIterator::kTableOffset,
-                         Heap::kUndefinedValueRootIndex);
-    var_value.Bind(UndefinedConstant());
+                         Heap::kEmptyOrderedHashTableRootIndex);
     Goto(&return_value);
   }
 }

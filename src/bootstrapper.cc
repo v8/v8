@@ -2915,8 +2915,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, "entries", Builtins::kMapPrototypeEntries, 0, true);
     JSObject::AddProperty(prototype, factory->iterator_symbol(), entries,
                           DONT_ENUM);
-    SimpleInstallFunction(prototype, "forEach", Builtins::kMapForEach, 1,
-                          false);
+    SimpleInstallFunction(prototype, "forEach", Builtins::kMapPrototypeForEach,
+                          1, false);
     SimpleInstallFunction(prototype, "keys", Builtins::kMapPrototypeKeys, 0,
                           true);
     SimpleInstallGetter(prototype, factory->InternalizeUtf8String("size"),
@@ -2954,8 +2954,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "clear", Builtins::kSetClear, 0, true);
     SimpleInstallFunction(prototype, "entries", Builtins::kSetPrototypeEntries,
                           0, true);
-    SimpleInstallFunction(prototype, "forEach", Builtins::kSetForEach, 1,
-                          false);
+    SimpleInstallFunction(prototype, "forEach", Builtins::kSetPrototypeForEach,
+                          1, false);
     SimpleInstallGetter(prototype, factory->InternalizeUtf8String("size"),
                         Builtins::kSetGetSize, false);
     Handle<JSFunction> values = SimpleInstallFunction(

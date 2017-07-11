@@ -2789,6 +2789,16 @@ void Heap::CreateInitialObjects() {
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
   set_next_template_serial_number(Smi::kZero);
 
+  // Allocate the empty OrderedHashTable.
+  Handle<FixedArray> empty_ordered_hash_table =
+      factory->NewFixedArray(OrderedHashMap::kHashTableStartIndex, TENURED);
+  empty_ordered_hash_table->set_map_no_write_barrier(
+      *factory->ordered_hash_table_map());
+  for (int i = 0; i < empty_ordered_hash_table->length(); ++i) {
+    empty_ordered_hash_table->set(i, Smi::kZero);
+  }
+  set_empty_ordered_hash_table(*empty_ordered_hash_table);
+
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
   script->set_type(Script::TYPE_NATIVE);

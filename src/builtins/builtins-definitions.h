@@ -582,9 +582,10 @@ namespace internal {
   TFJ(MapHas, 1, kKey)                                                         \
   CPP(MapGetSize)                                                              \
   CPP(MapClear)                                                                \
-  CPP(MapForEach)                                                              \
   /* ES #sec-map.prototype.entries */                                          \
   TFJ(MapPrototypeEntries, 0)                                                  \
+  /* ES #sec-map.prototype.forEach */                                          \
+  TFJ(MapPrototypeForEach, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES #sec-map.prototype.keys */                                             \
   TFJ(MapPrototypeKeys, 0)                                                     \
   /* ES #sec-map.prototype.values */                                           \
@@ -873,9 +874,10 @@ namespace internal {
   TFJ(SetHas, 1, kKey)                                                         \
   CPP(SetGetSize)                                                              \
   CPP(SetClear)                                                                \
-  CPP(SetForEach)                                                              \
   /* ES #sec-set.prototype.entries */                                          \
   TFJ(SetPrototypeEntries, 0)                                                  \
+  /* ES #sec-set.prototype.foreach */                                          \
+  TFJ(SetPrototypeForEach, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES #sec-set.prototype.values */                                           \
   TFJ(SetPrototypeValues, 0)                                                   \
   /* ES #sec-%setiteratorprototype%.next */                                    \

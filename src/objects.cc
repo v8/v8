@@ -18624,7 +18624,6 @@ template<class Derived, class TableType>
 bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   DisallowHeapAllocation no_allocation;
   Isolate* isolate = this->GetIsolate();
-  if (this->table()->IsUndefined(isolate)) return false;
 
   Transition();
 
@@ -18640,7 +18639,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   if (index < used_capacity) return true;
 
-  set_table(isolate->heap()->undefined_value());
+  set_table(isolate->heap()->empty_ordered_hash_table());
   return false;
 }
 

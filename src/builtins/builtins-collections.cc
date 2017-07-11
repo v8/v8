@@ -28,36 +28,6 @@ BUILTIN(MapClear) {
   return isolate->heap()->undefined_value();
 }
 
-BUILTIN(MapForEach) {
-  HandleScope scope(isolate);
-  const char* const kMethodName = "Map.prototype.forEach";
-  CHECK_RECEIVER(JSMap, map, kMethodName);
-
-  Handle<Object> callback_fn = args.atOrUndefined(isolate, 1);
-  if (!callback_fn->IsCallable()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kCalledNonCallable, callback_fn));
-  }
-
-  Handle<Object> receiver = args.atOrUndefined(isolate, 2);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()), isolate);
-  Handle<JSMapIterator> iterator = isolate->factory()->NewJSMapIterator(
-      isolate->map_key_value_iterator_map(), table, 0);
-
-  while (iterator->HasMore()) {
-    Handle<Object> key(iterator->CurrentKey(), isolate);
-    Handle<Object> value(iterator->CurrentValue(), isolate);
-    Handle<Object> argv[] = {value, key, map};
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate,
-        Execution::Call(isolate, callback_fn, receiver, arraysize(argv), argv));
-    iterator->MoveNext();
-  }
-
-  return isolate->heap()->undefined_value();
-}
-
 BUILTIN(SetGetSize) {
   HandleScope scope(isolate);
   const char* const kMethodName = "get Set.prototype.size";
@@ -74,35 +44,6 @@ BUILTIN(SetClear) {
   const char* const kMethodName = "Set.prototype.clear";
   CHECK_RECEIVER(JSSet, set, kMethodName);
   JSSet::Clear(set);
-  return isolate->heap()->undefined_value();
-}
-
-BUILTIN(SetForEach) {
-  HandleScope scope(isolate);
-  const char* const kMethodName = "Set.prototype.forEach";
-  CHECK_RECEIVER(JSSet, set, kMethodName);
-
-  Handle<Object> callback_fn = args.atOrUndefined(isolate, 1);
-  if (!callback_fn->IsCallable()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kCalledNonCallable, callback_fn));
-  }
-
-  Handle<Object> receiver = args.atOrUndefined(isolate, 2);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()), isolate);
-  Handle<JSSetIterator> iterator = isolate->factory()->NewJSSetIterator(
-      isolate->set_value_iterator_map(), table, 0);
-
-  while (iterator->HasMore()) {
-    Handle<Object> key(iterator->CurrentKey(), isolate);
-    Handle<Object> argv[] = {key, key, set};
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate,
-        Execution::Call(isolate, callback_fn, receiver, arraysize(argv), argv));
-    iterator->MoveNext();
-  }
-
   return isolate->heap()->undefined_value();
 }
 
