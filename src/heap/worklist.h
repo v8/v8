@@ -60,27 +60,27 @@ class Worklist {
 
   explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
     for (int i = 0; i < num_tasks_; i++) {
-      private_push_segment_[i] = new Segment();
-      private_pop_segment_[i] = new Segment();
+      private_push_segment(i) = new Segment();
+      private_pop_segment(i) = new Segment();
     }
   }
 
   ~Worklist() {
     CHECK(IsGlobalEmpty());
     for (int i = 0; i < num_tasks_; i++) {
-      DCHECK_NOT_NULL(private_push_segment_[i]);
-      DCHECK_NOT_NULL(private_pop_segment_[i]);
-      delete private_push_segment_[i];
-      delete private_pop_segment_[i];
+      DCHECK_NOT_NULL(private_push_segment(i));
+      DCHECK_NOT_NULL(private_pop_segment(i));
+      delete private_push_segment(i);
+      delete private_pop_segment(i);
     }
   }
 
   bool Push(int task_id, EntryType entry) {
     DCHECK_LT(task_id, num_tasks_);
-    DCHECK_NOT_NULL(private_push_segment_[task_id]);
-    if (!private_push_segment_[task_id]->Push(entry)) {
+    DCHECK_NOT_NULL(private_push_segment(task_id));
+    if (!private_push_segment(task_id)->Push(entry)) {
       PublishPushSegmentToGlobal(task_id);
-      bool success = private_push_segment_[task_id]->Push(entry);
+      bool success = private_push_segment(task_id)->Push(entry);
       USE(success);
       DCHECK(success);
     }
@@ -89,16 +89,16 @@ class Worklist {
 
   bool Pop(int task_id, EntryType* entry) {
     DCHECK_LT(task_id, num_tasks_);
-    DCHECK_NOT_NULL(private_pop_segment_[task_id]);
-    if (!private_pop_segment_[task_id]->Pop(entry)) {
-      if (!private_push_segment_[task_id]->IsEmpty()) {
-        Segment* tmp = private_pop_segment_[task_id];
-        private_pop_segment_[task_id] = private_push_segment_[task_id];
-        private_push_segment_[task_id] = tmp;
+    DCHECK_NOT_NULL(private_pop_segment(task_id));
+    if (!private_pop_segment(task_id)->Pop(entry)) {
+      if (!private_push_segment(task_id)->IsEmpty()) {
+        Segment* tmp = private_pop_segment(task_id);
+        private_pop_segment(task_id) = private_push_segment(task_id);
+        private_push_segment(task_id) = tmp;
       } else if (!StealPopSegmentFromGlobal(task_id)) {
         return false;
       }
-      bool success = private_pop_segment_[task_id]->Pop(entry);
+      bool success = private_pop_segment(task_id)->Pop(entry);
       USE(success);
       DCHECK(success);
     }
@@ -106,12 +106,12 @@ class Worklist {
   }
 
   size_t LocalPushSegmentSize(int task_id) {
-    return private_push_segment_[task_id]->Size();
+    return private_push_segment(task_id)->Size();
   }
 
   bool IsLocalEmpty(int task_id) {
-    return private_pop_segment_[task_id]->IsEmpty() &&
-           private_push_segment_[task_id]->IsEmpty();
+    return private_pop_segment(task_id)->IsEmpty() &&
+           private_push_segment(task_id)->IsEmpty();
   }
 
   bool IsGlobalPoolEmpty() {
@@ -127,16 +127,16 @@ class Worklist {
   }
 
   size_t LocalSize(int task_id) {
-    return private_pop_segment_[task_id]->Size() +
-           private_push_segment_[task_id]->Size();
+    return private_pop_segment(task_id)->Size() +
+           private_push_segment(task_id)->Size();
   }
 
   // Clears all segments. Frees the global segment pool.
   // This function assumes that other tasks are not running.
   void Clear() {
     for (int i = 0; i < num_tasks_; i++) {
-      private_pop_segment_[i]->Clear();
-      private_push_segment_[i]->Clear();
+      private_pop_segment(i)->Clear();
+      private_push_segment(i)->Clear();
     }
     for (Segment* segment : global_pool_) {
       delete segment;
@@ -154,8 +154,8 @@ class Worklist {
   template <typename Callback>
   void Update(Callback callback) {
     for (int i = 0; i < num_tasks_; i++) {
-      private_pop_segment_[i]->Update(callback);
-      private_push_segment_[i]->Update(callback);
+      private_pop_segment(i)->Update(callback);
+      private_push_segment(i)->Update(callback);
     }
     for (size_t i = 0; i < global_pool_.size(); i++) {
       Segment* segment = global_pool_[i];
@@ -225,38 +225,51 @@ class Worklist {
     EntryType entries_[kCapacity];
   };
 
+  struct PrivateSegmentHolder {
+    Segment* private_push_segment;
+    Segment* private_pop_segment;
+    char cache_line_padding[64];
+  };
+
+  V8_INLINE Segment*& private_push_segment(int task_id) {
+    return private_segments_[task_id].private_push_segment;
+  }
+
+  V8_INLINE Segment*& private_pop_segment(int task_id) {
+    return private_segments_[task_id].private_pop_segment;
+  }
+
   // Do not inline the following functions as this would mean that vector fast
   // paths are inlined into all callers. This is mainly an issue when used
   // within visitors that have lots of dispatches.
 
   V8_NOINLINE void PublishPushSegmentToGlobal(int task_id) {
     base::LockGuard<base::Mutex> guard(&lock_);
-    if (!private_push_segment_[task_id]->IsEmpty()) {
-      global_pool_.push_back(private_push_segment_[task_id]);
-      private_push_segment_[task_id] = new Segment();
+    if (!private_push_segment(task_id)->IsEmpty()) {
+      global_pool_.push_back(private_push_segment(task_id));
+      private_push_segment(task_id) = new Segment();
     }
   }
 
   V8_NOINLINE void PublishPopSegmentToGlobal(int task_id) {
     base::LockGuard<base::Mutex> guard(&lock_);
-    if (!private_pop_segment_[task_id]->IsEmpty()) {
-      global_pool_.push_back(private_pop_segment_[task_id]);
-      private_pop_segment_[task_id] = new Segment();
+    if (!private_pop_segment(task_id)->IsEmpty()) {
+      global_pool_.push_back(private_pop_segment(task_id));
+      private_pop_segment(task_id) = new Segment();
     }
   }
 
   V8_NOINLINE bool StealPopSegmentFromGlobal(int task_id) {
     base::LockGuard<base::Mutex> guard(&lock_);
     if (global_pool_.empty()) return false;
-    delete private_pop_segment_[task_id];
-    private_pop_segment_[task_id] = global_pool_.back();
+    delete private_pop_segment(task_id);
+    private_pop_segment(task_id) = global_pool_.back();
     global_pool_.pop_back();
     return true;
   }
 
+  PrivateSegmentHolder private_segments_[kMaxNumTasks];
   base::Mutex lock_;
-  Segment* private_pop_segment_[kMaxNumTasks];
-  Segment* private_push_segment_[kMaxNumTasks];
   std::vector<Segment*> global_pool_;
   int num_tasks_;
 };
