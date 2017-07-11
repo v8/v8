@@ -21,10 +21,9 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   inline void VisitPointers(HeapObject* host, Object** start,
                             Object** end) final {
-    Address slot_address = reinterpret_cast<Address>(start);
-    Page* page = Page::FromAddress(slot_address);
-
-    while (slot_address < reinterpret_cast<Address>(end)) {
+    for (Address slot_address = reinterpret_cast<Address>(start);
+         slot_address < reinterpret_cast<Address>(end);
+         slot_address += kPointerSize) {
       Object** slot = reinterpret_cast<Object**>(slot_address);
       Object* target = *slot;
 
@@ -36,7 +35,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           if (heap_->InNewSpace(target)) {
             SLOW_DCHECK(target->IsHeapObject());
             SLOW_DCHECK(heap_->InToSpace(target));
-            RememberedSet<OLD_TO_NEW>::Insert(page, slot_address);
+            RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
+                                              slot_address);
           }
           SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
               HeapObject::cast(target)));
@@ -46,8 +46,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           heap_->mark_compact_collector()->RecordSlot(host, slot, target);
         }
       }
-
-      slot_address += kPointerSize;
     }
   }
 
@@ -63,7 +61,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  private:
   Heap* const heap_;
   Scavenger* const scavenger_;
-  bool record_slots_;
+  const bool record_slots_;
 };
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
