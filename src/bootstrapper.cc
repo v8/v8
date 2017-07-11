@@ -4959,28 +4959,6 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   JSObject::ForceSetPrototype(to, proto);
 }
 
-class NoTrackDoubleFieldsForSerializerScope {
- public:
-  explicit NoTrackDoubleFieldsForSerializerScope(Isolate* isolate)
-      : flag_(FLAG_track_double_fields), enabled_(false) {
-    if (isolate->serializer_enabled()) {
-      // Disable tracking double fields because heap numbers treated as
-      // immutable by the serializer.
-      FLAG_track_double_fields = false;
-      enabled_ = true;
-    }
-  }
-
-  ~NoTrackDoubleFieldsForSerializerScope() {
-    if (enabled_) {
-      FLAG_track_double_fields = flag_;
-    }
-  }
-
- private:
-  bool flag_;
-  bool enabled_;
-};
 
 Genesis::Genesis(
     Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
@@ -4989,7 +4967,6 @@ Genesis::Genesis(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
-  NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
 
@@ -5128,7 +5105,6 @@ Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
                  v8::Local<v8::ObjectTemplate> global_proxy_template)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
-  NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
 
