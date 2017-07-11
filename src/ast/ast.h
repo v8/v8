@@ -3493,7 +3493,7 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   YieldStar* NewYieldStar(Expression* expression, int pos, SuspendFlags flags) {
-    if (!expression) expression = NewUndefinedLiteral(pos);
+    DCHECK_NOT_NULL(expression);
     return new (zone_) YieldStar(expression, pos, flags);
   }
 
