@@ -79,7 +79,7 @@ class DeoptimizationLiteral {
 // Generates native code for a sequence of instructions.
 class CodeGenerator final : public GapResolver::Assembler {
  public:
-  explicit CodeGenerator(Frame* frame, Linkage* linkage,
+  explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info,
                          base::Optional<OsrHelper> osr_helper,
                          int start_source_position);
@@ -109,7 +109,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
                        int arguments, Safepoint::DeoptMode deopt_mode);
 
-  Zone* zone() const { return code()->zone(); }
+  Zone* zone() const { return zone_; }
 
  private:
   TurboAssembler* tasm() { return &tasm_; }
@@ -309,6 +309,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   friend class OutOfLineCode;
 
+  Zone* zone_;
   FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
   InstructionSequence* const code_;

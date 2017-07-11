@@ -97,6 +97,8 @@ class PipelineData {
         graph_zone_(graph_zone_scope_.zone()),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
@@ -134,6 +136,8 @@ class PipelineData {
         jsgraph_(jsgraph),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         protected_instructions_(protected_instructions) {
@@ -154,6 +158,8 @@ class PipelineData {
         schedule_(schedule),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     is_asm_ = false;
@@ -169,6 +175,8 @@ class PipelineData {
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     is_asm_ =
@@ -180,6 +188,7 @@ class PipelineData {
     code_generator_ = nullptr;
     DeleteRegisterAllocationZone();
     DeleteInstructionZone();
+    DeleteCodegenZone();
     DeleteGraphZone();
   }
 
@@ -234,6 +243,7 @@ class PipelineData {
   void reset_schedule() { schedule_ = nullptr; }
 
   Zone* instruction_zone() const { return instruction_zone_; }
+  Zone* codegen_zone() const { return codegen_zone_; }
   InstructionSequence* sequence() const { return sequence_; }
   Frame* frame() const { return frame_; }
 
@@ -279,6 +289,12 @@ class PipelineData {
     instruction_zone_scope_.Destroy();
     instruction_zone_ = nullptr;
     sequence_ = nullptr;
+  }
+
+  void DeleteCodegenZone() {
+    if (codegen_zone_ == nullptr) return;
+    codegen_zone_scope_.Destroy();
+    codegen_zone_ = nullptr;
     frame_ = nullptr;
   }
 
@@ -310,7 +326,7 @@ class PipelineData {
     if (descriptor != nullptr) {
       fixed_frame_size = descriptor->CalculateFixedFrameSize();
     }
-    frame_ = new (instruction_zone()) Frame(fixed_frame_size);
+    frame_ = new (codegen_zone()) Frame(fixed_frame_size);
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
@@ -333,8 +349,9 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-    code_generator_ = new CodeGenerator(frame(), linkage, sequence(), info(),
-                                        osr_helper_, start_source_position_);
+    code_generator_ =
+        new CodeGenerator(codegen_zone(), frame(), linkage, sequence(), info(),
+                          osr_helper_, start_source_position_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -381,15 +398,21 @@ class PipelineData {
   Schedule* schedule_ = nullptr;
 
   // All objects in the following group of fields are allocated in
-  // instruction_zone_.  They are all set to nullptr when the instruction_zone_
+  // instruction_zone_. They are all set to nullptr when the instruction_zone_
   // is destroyed.
   ZoneStats::Scope instruction_zone_scope_;
   Zone* instruction_zone_;
   InstructionSequence* sequence_ = nullptr;
+
+  // All objects in the following group of fields are allocated in
+  // codegen_zone_. They are all set to nullptr when the codegen_zone_
+  // is destroyed.
+  ZoneStats::Scope codegen_zone_scope_;
+  Zone* codegen_zone_;
   Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
-  // register_allocation_zone_.  They are all set to nullptr when the zone is
+  // register_allocation_zone_. They are all set to nullptr when the zone is
   // destroyed.
   ZoneStats::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
@@ -2026,6 +2049,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage) {
   data->BeginPhaseKind("code generation");
   data->InitializeCodeGenerator(linkage);
   Run<AssembleCodePhase>();
+  data->DeleteInstructionZone();
 }
 
 Handle<Code> PipelineImpl::FinalizeCode() {

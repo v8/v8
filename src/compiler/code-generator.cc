@@ -35,11 +35,12 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
+CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info,
                              base::Optional<OsrHelper> osr_helper,
                              int start_source_position)
-    : frame_access_state_(nullptr),
+    : zone_(codegen_zone),
+      frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
       unwinding_info_writer_(zone()),
@@ -50,20 +51,20 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       current_source_position_(SourcePosition::Unknown()),
       tasm_(info->isolate(), nullptr, 0, CodeObjectRequired::kNo),
       resolver_(this),
-      safepoints_(code->zone()),
-      handlers_(code->zone()),
-      deoptimization_exits_(code->zone()),
-      deoptimization_states_(code->zone()),
-      deoptimization_literals_(code->zone()),
+      safepoints_(zone()),
+      handlers_(zone()),
+      deoptimization_exits_(zone()),
+      deoptimization_states_(zone()),
+      deoptimization_literals_(zone()),
       inlined_function_count_(0),
-      translations_(code->zone()),
+      translations_(zone()),
       last_lazy_deopt_pc_(0),
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_helper_(osr_helper),
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
-      source_position_table_builder_(code->zone(),
+      source_position_table_builder_(zone(),
                                      info->SourcePositionRecordingMode()),
       result_(kSuccess) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
@@ -77,7 +78,7 @@ Isolate* CodeGenerator::isolate() const { return info_->isolate(); }
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   FinishFrame(frame);
-  frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
+  frame_access_state_ = new (zone()) FrameAccessState(frame);
 }
 
 void CodeGenerator::AssembleCode() {
