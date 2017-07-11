@@ -1865,6 +1865,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::ASYNC:
       if (!scanner()->HasAnyLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
+        BindingPatternUnexpectedToken();
         Consume(Token::ASYNC);
         return ParseAsyncFunctionLiteral(CHECK_OK);
       }

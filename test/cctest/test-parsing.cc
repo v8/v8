@@ -7459,6 +7459,9 @@ TEST(DestructuringNegativeTests) {
         "{ x : y++ }",
         "[a++]",
         "(x => y)",
+        "(async x => y)",
+        "((x, z) => y)",
+        "(async (x, z) => y)",
         "a[i]", "a()",
         "a.b",
         "new a",
@@ -7473,6 +7476,8 @@ TEST(DestructuringNegativeTests) {
         "a <<< a",
         "a >>> a",
         "function a() {}",
+        "function* a() {}",
+        "async function a() {}",
         "a`bcd`",
         "this",
         "null",
@@ -7539,6 +7544,11 @@ TEST(DestructuringNegativeTests) {
       NULL
     };
 
+    const char* async_gen_data[] = {
+      "async function* a() {}",
+      NULL
+    };
+
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunParserSyncTest(context_data, rest_data, kError);
@@ -7547,6 +7557,9 @@ TEST(DestructuringNegativeTests) {
                       arraysize(flags));
     RunParserSyncTest(context_data, rest_data, kError, NULL, 0, flags,
                       arraysize(flags));
+    static const ParserFlag async_gen_flags[] = {kAllowHarmonyAsyncIteration};
+    RunParserSyncTest(context_data, async_gen_data, kError, NULL, 0,
+                      async_gen_flags, arraysize(async_gen_flags));
   }
 
   {  // All modes.
@@ -7922,9 +7935,13 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[super]",
     "[super = 1]",
     "[function f() {}]",
+    "[async function f() {}]",
+    "[function* f() {}]",
     "[50]",
     "[(50)]",
     "[(function() {})]",
+    "[(async function() {})]",
+    "[(function*() {})]",
     "[(foo())]",
     "{ x: 50 }",
     "{ x: (50) }",
@@ -7932,11 +7949,21 @@ TEST(DestructuringAssignmentNegativeTests) {
     "{ x: 'str' }",
     "{ x: ('str') }",
     "{ x: (foo()) }",
+    "{ x: function() {} }",
+    "{ x: async function() {} }",
+    "{ x: function*() {} }",
     "{ x: (function() {}) }",
+    "{ x: (async function() {}) }",
+    "{ x: (function*() {}) }",
     "{ x: y } = 'str'",
     "[x, y] = 'str'",
     "[(x,y) => z]",
+    "[async(x,y) => z]",
+    "[async x => z]",
     "{x: (y) => z}",
+    "{x: (y,w) => z}",
+    "{x: async (y) => z}",
+    "{x: async (y,w) => z}",
     "[x, ...y, z]",
     "[...x,]",
     "[x, y, ...z = 1]",
