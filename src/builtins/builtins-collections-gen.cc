@@ -284,21 +284,14 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
 
   BIND(&if_notcallable);
   {
-    Node* const message_id = SmiConstant(MessageTemplate::kPropertyNotFunction);
     Node* const receiver_str = HeapConstant(isolate()->factory()->add_string());
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, adder,
-                receiver_str, var_result.value());
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kPropertyNotFunction, adder,
+                   receiver_str, var_result.value());
   }
 
   BIND(&if_target_is_undefined);
-  {
-    Node* const message_id =
-        SmiConstant(MessageTemplate::kConstructorNotFunction);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id,
-                HeapConstant(isolate()->factory()->Map_string()));
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kConstructorNotFunction,
+                 HeapConstant(isolate()->factory()->Map_string()));
 
   BIND(&exit);
   args.PopAndReturn(var_result.value());
@@ -392,22 +385,13 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
   }
 
   BIND(&if_notcallable);
-  {
-    Node* const message_id = SmiConstant(MessageTemplate::kPropertyNotFunction);
-    Node* const receiver_str = HeapConstant(isolate()->factory()->add_string());
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, adder,
-                receiver_str, var_result.value());
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kPropertyNotFunction, adder,
+                 HeapConstant(isolate()->factory()->add_string()),
+                 var_result.value());
 
   BIND(&if_target_is_undefined);
-  {
-    Node* const message_id =
-        SmiConstant(MessageTemplate::kConstructorNotFunction);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id,
-                HeapConstant(isolate()->factory()->Set_string()));
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kConstructorNotFunction,
+                 HeapConstant(isolate()->factory()->Set_string()));
 
   BIND(&exit);
   args.PopAndReturn(var_result.value());

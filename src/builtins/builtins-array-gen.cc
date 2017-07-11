@@ -84,9 +84,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   void ReducePostLoopAction() {
     Label ok(this);
     GotoIf(WordNotEqual(a(), TheHoleConstant()), &ok);
-    CallRuntime(Runtime::kThrowTypeError, context(),
-                SmiConstant(MessageTemplate::kReduceNoInitial));
-    Unreachable();
+    ThrowTypeError(context(), MessageTemplate::kReduceNoInitial);
     BIND(&ok);
   }
 
@@ -309,14 +307,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Goto(&done);
 
     BIND(&detached);
-    {
-      // tc39.github.io/ecma262/#sec-integerindexedelementset
-      // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-      CallRuntime(Runtime::kThrowTypeError, context_,
-                  SmiConstant(MessageTemplate::kDetachedOperation),
-                  name_string_);
-      Unreachable();
-    }
+    // tc39.github.io/ecma262/#sec-integerindexedelementset
+    // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+    ThrowTypeError(context_, MessageTemplate::kDetachedOperation, name_);
 
     BIND(&done);
     return a();
@@ -400,21 +393,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Branch(IsCallableMap(LoadMap(callbackfn())), &done, &type_exception);
 
     BIND(&throw_null_undefined_exception);
-    {
-      CallRuntime(
-          Runtime::kThrowTypeError, context(),
-          SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
-          HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(name)));
-      Unreachable();
-    }
+    ThrowTypeError(context(), MessageTemplate::kCalledOnNullOrUndefined, name);
 
     BIND(&type_exception);
-    {
-      CallRuntime(Runtime::kThrowTypeError, context(),
-                  SmiConstant(MessageTemplate::kCalledNonCallable),
-                  callbackfn());
-      Unreachable();
-    }
+    ThrowTypeError(context(), MessageTemplate::kCalledNonCallable,
+                   callbackfn());
 
     BIND(&done);
 
@@ -460,8 +443,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       const char* name, const BuiltinResultGenerator& generator,
       const CallResultProcessor& processor, const PostLoopAction& action,
       ForEachDirection direction = ForEachDirection::kForward) {
-    name_string_ =
-        HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(name));
+    name_ = name;
 
     // ValidateTypedArray: tc39.github.io/ecma262/#sec-validatetypedarray
 
@@ -485,27 +467,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
            &throw_not_callable);
 
     BIND(&throw_not_typed_array);
-    {
-      CallRuntime(Runtime::kThrowTypeError, context_,
-                  SmiConstant(MessageTemplate::kNotTypedArray));
-      Unreachable();
-    }
+    ThrowTypeError(context_, MessageTemplate::kNotTypedArray);
 
     BIND(&throw_detached);
-    {
-      CallRuntime(Runtime::kThrowTypeError, context_,
-                  SmiConstant(MessageTemplate::kDetachedOperation),
-                  name_string_);
-      Unreachable();
-    }
+    ThrowTypeError(context_, MessageTemplate::kDetachedOperation, name_);
 
     BIND(&throw_not_callable);
-    {
-      CallRuntime(Runtime::kThrowTypeError, context_,
-                  SmiConstant(MessageTemplate::kCalledNonCallable),
-                  callbackfn_);
-      Unreachable();
-    }
+    ThrowTypeError(context_, MessageTemplate::kCalledNonCallable, callbackfn_);
 
     Label unexpected_instance_type(this);
     BIND(&unexpected_instance_type);
@@ -828,7 +796,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Node* new_target_ = nullptr;
   Node* argc_ = nullptr;
   Node* fast_typed_array_target_ = nullptr;
-  Node* name_string_ = nullptr;
+  const char* name_ = nullptr;
   Variable k_;
   Variable a_;
   Variable to_;
@@ -2520,12 +2488,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   }
 
   BIND(&if_isdetached);
-  {
-    Node* message = SmiConstant(MessageTemplate::kDetachedOperation);
-    CallRuntime(Runtime::kThrowTypeError, context, message,
-                HeapConstant(operation));
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation,
+                 HeapConstant(operation));
 }
 
 }  // namespace internal

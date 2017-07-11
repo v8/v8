@@ -755,16 +755,10 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
   {
-    Node* const message_id = SmiConstant(msg_template);
-    Node* const method_name_str = HeapConstant(
-        isolate()->factory()->NewStringFromAsciiChecked(method_name, TENURED));
-
     Node* const value_str =
         CallBuiltin(Builtins::kToString, context, maybe_receiver);
-
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, method_name_str,
-                value_str);
-    Unreachable();
+    ThrowTypeError(context, msg_template, CStringConstant(method_name),
+                   value_str);
   }
 
   BIND(&out);
@@ -1499,8 +1493,6 @@ Node* RegExpBuiltinsAssembler::FlagGetter(Node* const context,
 void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
                                          JSRegExp::Flag flag, int counter,
                                          const char* method_name) {
-  Isolate* isolate = this->isolate();
-
   // Check whether we have an unmodified regexp instance.
   Label if_isunmodifiedjsregexp(this),
       if_isnotunmodifiedjsregexp(this, Label::kDeferred);
@@ -1539,14 +1531,7 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
     }
 
     BIND(&if_isnotprototype);
-    {
-      Node* const message_id = SmiConstant(MessageTemplate::kRegExpNonRegExp);
-      Node* const method_name_str = HeapConstant(
-          isolate->factory()->NewStringFromAsciiChecked(method_name));
-      CallRuntime(Runtime::kThrowTypeError, context, message_id,
-                  method_name_str);
-      Unreachable();
-    }
+    ThrowTypeError(context, MessageTemplate::kRegExpNonRegExp, method_name);
   }
 }
 

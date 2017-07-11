@@ -3127,10 +3127,8 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
     CHECK_NOT_NULL(primitive_name);
 
     // The {value} is not a compatible receiver for this method.
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kNotGeneric),
-                CStringConstant(method_name), CStringConstant(primitive_name));
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kNotGeneric, method_name,
+                   primitive_name);
   }
 
   BIND(&done_loop);
@@ -3166,6 +3164,33 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   BIND(&out);
   return var_value_map.value();
+}
+
+void CodeStubAssembler::ThrowTypeError(Node* context,
+                                       MessageTemplate::Template message,
+                                       char const* arg0, char const* arg1) {
+  Node* arg0_node = nullptr;
+  if (arg0) arg0_node = CStringConstant(arg0);
+  Node* arg1_node = nullptr;
+  if (arg1) arg1_node = CStringConstant(arg1);
+  ThrowTypeError(context, message, arg0_node, arg1_node);
+}
+
+void CodeStubAssembler::ThrowTypeError(Node* context,
+                                       MessageTemplate::Template message,
+                                       Node* arg0, Node* arg1, Node* arg2) {
+  Node* template_index = SmiConstant(message);
+  if (arg0 == nullptr) {
+    CallRuntime(Runtime::kThrowTypeError, context, template_index);
+  } else if (arg1 == nullptr) {
+    CallRuntime(Runtime::kThrowTypeError, context, template_index, arg0);
+  } else if (arg2 == nullptr) {
+    CallRuntime(Runtime::kThrowTypeError, context, template_index, arg0, arg1);
+  } else {
+    CallRuntime(Runtime::kThrowTypeError, context, template_index, arg0, arg1,
+                arg2);
+  }
+  Unreachable();
 }
 
 Node* CodeStubAssembler::InstanceTypeEqual(Node* instance_type, int type) {

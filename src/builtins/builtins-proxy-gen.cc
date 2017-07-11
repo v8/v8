@@ -18,11 +18,7 @@ using compiler::CodeAssembler;
 // ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Call]] case.
 TF_BUILTIN(ProxyConstructor, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-
-  CallRuntime(Runtime::kThrowTypeError, context,
-              SmiConstant(MessageTemplate::kConstructorNotFunction),
-              CStringConstant("Proxy"));
-  Unreachable();
+  ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, "Proxy");
 }
 
 class ProxiesCodeStubAssembler : public CodeStubAssembler {
@@ -121,18 +117,10 @@ TF_BUILTIN(ProxyConstructor_ConstructStub, ProxiesCodeStubAssembler) {
   args.PopAndReturn(AllocateProxy(target, handler, context));
 
   BIND(&throw_proxy_non_object);
-  {
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kProxyNonObject));
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kProxyNonObject);
 
   BIND(&throw_proxy_handler_or_target_revoked);
-  {
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kProxyHandlerOrTargetRevoked));
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kProxyHandlerOrTargetRevoked);
 }
 
 }  // namespace internal

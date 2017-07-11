@@ -183,23 +183,17 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     Goto(&out);
 
     BIND(&if_notcallable);
-    Node* message = SmiConstant(MessageTemplate::kPromiseNonCallable);
     StoreObjectField(capability, JSPromiseCapability::kPromiseOffset,
                      UndefinedConstant());
     StoreObjectField(capability, JSPromiseCapability::kResolveOffset,
                      UndefinedConstant());
     StoreObjectField(capability, JSPromiseCapability::kRejectOffset,
                      UndefinedConstant());
-    CallRuntime(Runtime::kThrowTypeError, context, message);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kPromiseNonCallable);
   }
 
   BIND(&if_not_constructor);
-  {
-    Node* const message_id = SmiConstant(MessageTemplate::kNotConstructor);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, constructor);
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kNotConstructor, constructor);
 
   BIND(&out);
   return var_result.value();
@@ -269,16 +263,7 @@ Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
 
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
-  {
-    Node* const method =
-        method_name == nullptr
-            ? UndefinedConstant()
-            : HeapConstant(
-                  isolate()->factory()->NewStringFromAsciiChecked(method_name));
-    Node* const message_id = SmiConstant(msg_template);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, method);
-    Unreachable();
-  }
+  ThrowTypeError(context, msg_template, method_name);
 
   BIND(&out);
   return var_value_map.value();
@@ -338,12 +323,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
 
   // 8. Throw a TypeError exception.
   BIND(&throw_error);
-  {
-    Node* const message_id =
-        SmiConstant(MessageTemplate::kSpeciesNotConstructor);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id);
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kSpeciesNotConstructor);
 
   BIND(&out);
   return var_result.value();
@@ -1153,20 +1133,11 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
   BIND(&if_targetisundefined);
-  {
-    Node* const message_id = SmiConstant(MessageTemplate::kNotAPromise);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, new_target);
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kNotAPromise, new_target);
 
   // 2. If IsCallable(executor) is false, throw a TypeError exception.
   BIND(&if_notcallable);
-  {
-    Node* const message_id =
-        SmiConstant(MessageTemplate::kResolverNotAFunction);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id, executor);
-    Unreachable();
-  }
+  ThrowTypeError(context, MessageTemplate::kResolverNotAFunction, executor);
 
   // Silently fail if the stack looks fishy.
   BIND(&if_noaccess);
@@ -1527,9 +1498,7 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   Return(UndefinedConstant());
 
   BIND(&if_alreadyinvoked);
-  Node* message = SmiConstant(MessageTemplate::kPromiseExecutorAlreadyInvoked);
-  CallRuntime(Runtime::kThrowTypeError, context, message);
-  Unreachable();
+  ThrowTypeError(context, MessageTemplate::kPromiseExecutorAlreadyInvoked);
 }
 
 // ES6 #sec-newpromisecapability
