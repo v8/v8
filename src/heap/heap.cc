@@ -4244,10 +4244,8 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
       Address addr = chunk.start;
       while (addr < chunk.end) {
         HeapObject* obj = HeapObject::FromAddress(addr);
-        // There might be grey objects due to black to grey transitions in
-        // incremental marking. E.g. see VisitNativeContextIncremental.
-        DCHECK(ObjectMarking::IsBlackOrGrey<IncrementalMarking::kAtomicity>(
-            obj, MarkingState::Internal(obj)));
+        // Objects can have any color because incremental marking can
+        // start in the middle of Heap::ReserveSpace().
         if (ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
                 obj, MarkingState::Internal(obj))) {
           incremental_marking()->ProcessBlackAllocatedObject(obj);
