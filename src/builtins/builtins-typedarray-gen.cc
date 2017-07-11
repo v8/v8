@@ -488,8 +488,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   BIND(&start_offset_error);
   {
     Node* holder_map = LoadMap(holder);
-    Node* problem_string = HeapConstant(
-        factory()->NewStringFromAsciiChecked("start offset", TENURED));
+    Node* problem_string = StringConstant("start offset");
     CallRuntime(Runtime::kThrowInvalidTypedArrayAlignment, context, holder_map,
                 problem_string);
 
@@ -499,8 +498,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   BIND(&byte_length_error);
   {
     Node* holder_map = LoadMap(holder);
-    Node* problem_string = HeapConstant(
-        factory()->NewStringFromAsciiChecked("byte length", TENURED));
+    Node* problem_string = StringConstant("byte length");
     CallRuntime(Runtime::kThrowInvalidTypedArrayAlignment, context, holder_map,
                 problem_string);
 
@@ -639,9 +637,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   {
     // The {receiver} is not a valid JSTypedArray.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                HeapConstant(
-                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
-                receiver);
+                StringConstant(method_name), receiver);
     Unreachable();
   }
 }
@@ -706,8 +702,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
 
   BIND(&throw_typeerror);
   {
-    Node* method_arg = HeapConstant(
-        isolate()->factory()->NewStringFromAsciiChecked(method_name, TENURED));
+    Node* method_arg = StringConstant(method_name);
     Node* result = CallRuntime(Runtime::kThrowTypeError, context,
                                var_message.value(), method_arg);
     Return(result);

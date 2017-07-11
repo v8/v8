@@ -221,7 +221,7 @@ Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
   return raw_assembler()->HeapConstant(object);
 }
 
-Node* CodeAssembler::CStringConstant(const char* str) {
+Node* CodeAssembler::StringConstant(const char* str) {
   return HeapConstant(factory()->NewStringFromAsciiChecked(str, TENURED));
 }
 

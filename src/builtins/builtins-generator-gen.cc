@@ -84,9 +84,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   {
     // The {receiver} is not a valid JSGeneratorObject.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                HeapConstant(
-                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
-                receiver);
+                StringConstant(method_name), receiver);
     Unreachable();
   }
 

@@ -757,7 +757,7 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
   {
     Node* const value_str =
         CallBuiltin(Builtins::kToString, context, maybe_receiver);
-    ThrowTypeError(context, msg_template, CStringConstant(method_name),
+    ThrowTypeError(context, msg_template, StringConstant(method_name),
                    value_str);
   }
 
@@ -1493,6 +1493,8 @@ Node* RegExpBuiltinsAssembler::FlagGetter(Node* const context,
 void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
                                          JSRegExp::Flag flag, int counter,
                                          const char* method_name) {
+  Isolate* isolate = this->isolate();
+
   // Check whether we have an unmodified regexp instance.
   Label if_isunmodifiedjsregexp(this),
       if_isnotunmodifiedjsregexp(this, Label::kDeferred);
@@ -1531,7 +1533,14 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
     }
 
     BIND(&if_isnotprototype);
-    ThrowTypeError(context, MessageTemplate::kRegExpNonRegExp, method_name);
+    {
+      Node* const message_id = SmiConstant(MessageTemplate::kRegExpNonRegExp);
+      Node* const method_name_str = HeapConstant(
+          isolate->factory()->NewStringFromAsciiChecked(method_name));
+      CallRuntime(Runtime::kThrowTypeError, context, message_id,
+                  method_name_str);
+      Unreachable();
+    }
   }
 }
 

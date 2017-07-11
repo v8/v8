@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* SmiConstant(Smi* value);
   Node* SmiConstant(int value);
   Node* HeapConstant(Handle<HeapObject> object);
-  Node* CStringConstant(const char* str);
+  Node* StringConstant(const char* str);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);

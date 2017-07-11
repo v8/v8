@@ -397,9 +397,8 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Return(js_value);
 
   BIND(&if_noconstructor);
-  TailCallRuntime(
-      Runtime::kThrowUndefinedOrNullToObject, context,
-      HeapConstant(factory()->NewStringFromAsciiChecked("ToObject", TENURED)));
+  TailCallRuntime(Runtime::kThrowUndefinedOrNullToObject, context,
+                  StringConstant("ToObject"));
 
   BIND(&if_jsreceiver);
   Return(object);

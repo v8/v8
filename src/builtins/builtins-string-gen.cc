@@ -997,9 +997,8 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
   Branch(IsNullOrUndefined(value), &throw_exception, &out);
 
   BIND(&throw_exception);
-  TailCallRuntime(
-      Runtime::kThrowCalledOnNullOrUndefined, context,
-      HeapConstant(factory()->NewStringFromAsciiChecked(method_name, TENURED)));
+  TailCallRuntime(Runtime::kThrowCalledOnNullOrUndefined, context,
+                  StringConstant(method_name));
 
   BIND(&out);
 }
@@ -1831,9 +1830,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   {
     // The {receiver} is not a valid JSGeneratorObject.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                HeapConstant(factory()->NewStringFromAsciiChecked(
-                    "String Iterator.prototype.next", TENURED)),
-                iterator);
+                StringConstant("String Iterator.prototype.next"), iterator);
     Unreachable();
   }
 }

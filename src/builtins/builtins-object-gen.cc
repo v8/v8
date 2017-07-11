@@ -39,8 +39,8 @@ void ObjectBuiltinsAssembler::IsString(Node* object, Label* if_string,
 
 void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
                                                    Node* string) {
-  Node* lhs = HeapConstant(factory()->NewStringFromStaticChars("[object "));
-  Node* rhs = HeapConstant(factory()->NewStringFromStaticChars("]"));
+  Node* lhs = StringConstant("[object ");
+  Node* rhs = StringConstant("]");
 
   Callable callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);

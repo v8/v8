@@ -183,7 +183,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
   {
     Node* const error =
         MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver, context,
-                      CStringConstant(method_name), generator);
+                      StringConstant(method_name), generator);
 
     CallBuiltin(Builtins::kRejectNativePromise, context, promise, error,
                 TrueConstant());

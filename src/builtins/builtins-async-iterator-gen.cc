@@ -66,7 +66,7 @@ void AsyncFromSyncBuiltinsAssembler::ThrowIfNotAsyncFromSyncIterator(
     // Let badIteratorError be a new TypeError exception.
     Node* const error =
         MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver, context,
-                      CStringConstant(method_name), object);
+                      StringConstant(method_name), object);
 
     // Perform ! Call(promiseCapability.[[Reject]], undefined,
     //                « badIteratorError »).

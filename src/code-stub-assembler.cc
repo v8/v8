@@ -2992,8 +2992,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
       {
         // The {value} is either null or undefined.
         CallRuntime(Runtime::kThrowCalledOnNullOrUndefined, context,
-                    HeapConstant(factory()->NewStringFromAsciiChecked(
-                        method_name, TENURED)));
+                    StringConstant(method_name));
         Unreachable();
       }
     }
@@ -3139,7 +3138,7 @@ void CodeStubAssembler::ThrowIncompatibleMethodReceiver(Node* context,
                                                         const char* method_name,
                                                         Node* receiver) {
   CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-              CStringConstant(method_name), receiver);
+              StringConstant(method_name), receiver);
   Unreachable();
 }
 
@@ -3170,9 +3169,9 @@ void CodeStubAssembler::ThrowTypeError(Node* context,
                                        MessageTemplate::Template message,
                                        char const* arg0, char const* arg1) {
   Node* arg0_node = nullptr;
-  if (arg0) arg0_node = CStringConstant(arg0);
+  if (arg0) arg0_node = StringConstant(arg0);
   Node* arg1_node = nullptr;
-  if (arg1) arg1_node = CStringConstant(arg1);
+  if (arg1) arg1_node = StringConstant(arg1);
   ThrowTypeError(context, message, arg0_node, arg1_node);
 }
 
@@ -9460,9 +9459,8 @@ void CodeStubAssembler::Print(const char* s) {
 #ifdef DEBUG
   std::string formatted(s);
   formatted += "\n";
-  Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
-      formatted.c_str(), TENURED);
-  CallRuntime(Runtime::kGlobalPrint, NoContextConstant(), HeapConstant(string));
+  CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
+              StringConstant(formatted.c_str()));
 #endif
 }
 
