@@ -112,6 +112,7 @@ class ConsoleHelper {
   String16 firstArgToString(const String16& defaultValue) {
     if (m_info.Length() < 1) return defaultValue;
     v8::Local<v8::String> titleValue;
+    v8::TryCatch tryCatch(m_context->GetIsolate());
     if (m_info[0]->IsObject()) {
       if (!m_info[0].As<v8::Object>()->ObjectProtoToString(m_context).ToLocal(
               &titleValue))
