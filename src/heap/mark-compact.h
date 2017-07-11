@@ -390,7 +390,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
-#ifdef V8_CONCURRENT_MARKING
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
@@ -408,7 +407,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     HeapObject* Pop() {
       HeapObject* result;
+#ifdef V8_CONCURRENT_MARKING
       if (bailout_.Pop(kMainThread, &result)) return result;
+#endif
       if (shared_.Pop(kMainThread, &result)) return result;
       return nullptr;
     }
@@ -458,9 +459,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
   };
-#else
-  using MarkingWorklist = SequentialMarkingDeque;
-#endif
 
   class RootMarkingVisitor;
 
