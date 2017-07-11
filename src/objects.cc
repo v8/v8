@@ -14295,6 +14295,16 @@ void Code::PrintExtraICState(std::ostream& os,  // NOLINT
 
 #ifdef ENABLE_DISASSEMBLER
 
+namespace {
+void print_pc(std::ostream& os, int pc) {
+  if (pc == -1) {
+    os << "NA";
+  } else {
+    os << std::hex << pc << std::dec;
+  }
+}
+}  // anonymous namespace
+
 void DeoptimizationInputData::DeoptimizationInputDataPrint(
     std::ostream& os) {  // NOLINT
   disasm::NameConverter converter;
@@ -14314,14 +14324,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << BytecodeOffset(i).ToInt() << "  " << std::setw(13) << std::hex
-       << TrampolinePc(i)->value() << " " << std::setw(6);
-    int pc_value = Pc(i)->value();
-    if (pc_value != -1) {
-      os << pc_value << std::dec;
-    } else {
-      os << "NA";
-    }
+       << BytecodeOffset(i).ToInt() << "  " << std::setw(13);
+
+    print_pc(os, TrampolinePc(i)->value());
+    os << std::setw(7);
+    print_pc(os, Pc(i)->value());
+    os << std::setw(2);
 
     if (!FLAG_print_code_verbose) {
       os << "\n";

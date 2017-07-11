@@ -248,6 +248,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
         shared->increment_deopt_count();
         code->set_deopt_already_counted(true);
       }
+
       function->set_code(shared->code());
 
       if (FLAG_trace_deopt) {
@@ -287,6 +288,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       }
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
+
       // Turbofan deopt is checked when we are patching addresses on stack.
       bool turbofanned =
           code->is_turbofanned() && function->shared()->asm_function();
@@ -988,13 +990,17 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;
+
   int raw_bytecode_offset =
       BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset;
   Smi* smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
-  WriteValueToOutput(smi_bytecode_offset, 0, frame_index, output_offset,
-                     "bytecode offset ");
+  output_[frame_index]->SetFrameSlot(
+      output_offset, reinterpret_cast<intptr_t>(smi_bytecode_offset));
 
   if (trace_scope_ != nullptr) {
+    DebugPrintOutputSlot(reinterpret_cast<intptr_t>(smi_bytecode_offset),
+                         frame_index, output_offset, "bytecode offset @ ");
+    PrintF(trace_scope_->file(), "%d\n", bytecode_offset);
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
 
