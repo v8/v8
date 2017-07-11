@@ -10136,10 +10136,12 @@ Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
   return result;
 }
 
-Handle<FixedArray> ArrayList::Elements() const {
-  Handle<FixedArray> result = GetIsolate()->factory()->NewFixedArray(Length());
+Handle<FixedArray> ArrayList::Elements(Handle<ArrayList> array) {
+  int length = array->Length();
+  Handle<FixedArray> result =
+      array->GetIsolate()->factory()->NewFixedArray(length);
   // Do not copy the first entry, i.e., the length.
-  CopyTo(kFirstIndex, *result, 0, Length());
+  array->CopyTo(kFirstIndex, *result, 0, length);
   return result;
 }
 

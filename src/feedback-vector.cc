@@ -1000,10 +1000,11 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
           ArrayList::cast(feedback->get(value_index)));
 
       int position = Smi::ToInt(key);
-      JSObject::AddDataElement(type_profile, position,
-                               isolate->factory()->NewJSArrayWithElements(
-                                   position_specific_types->Elements()),
-                               PropertyAttributes::NONE)
+      JSObject::AddDataElement(
+          type_profile, position,
+          isolate->factory()->NewJSArrayWithElements(
+              ArrayList::Elements(position_specific_types)),
+          PropertyAttributes::NONE)
           .ToHandleChecked();
     }
   }
