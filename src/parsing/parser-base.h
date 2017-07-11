@@ -99,7 +99,11 @@ class SourceRangeScope final {
     DCHECK_NE(range_->start, kNoSourcePosition);
   }
 
-  ~SourceRangeScope() {
+  ~SourceRangeScope() { Finalize(); }
+
+  void Finalize() {
+    if (is_finalized_) return;
+    is_finalized_ = true;
     range_->end = GetPosition(post_kind_);
     DCHECK_NE(range_->end, kNoSourcePosition);
   }
@@ -123,6 +127,7 @@ class SourceRangeScope final {
   Scanner* scanner_;
   SourceRange* range_;
   PositionKind post_kind_;
+  bool is_finalized_ = false;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SourceRangeScope);
 };
@@ -5466,6 +5471,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
       ExpressionT label = impl()->EmptyExpression();
+      SourceRange clause_range;
+      SourceRangeScope range_scope(scanner(), &clause_range);
       if (Check(Token::CASE)) {
         label = ParseExpression(true, CHECK_OK);
       } else {
@@ -5485,14 +5492,19 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         StatementT stat = ParseStatementListItem(CHECK_OK);
         statements->Add(stat, zone());
       }
-      auto clause = factory()->NewCaseClause(label, statements, clause_pos);
+      range_scope.Finalize();
+      auto clause =
+          factory()->NewCaseClause(label, statements, clause_pos, clause_range);
       cases->Add(clause, zone());
     }
     Expect(Token::RBRACE, CHECK_OK);
 
-    scope()->set_end_position(scanner()->location().end_pos);
+    int end_position = scanner()->location().end_pos;
+    scope()->set_end_position(end_position);
+    int continuation_pos = end_position;
     return impl()->RewriteSwitchStatement(tag, switch_statement, cases,
-                                          scope()->FinalizeBlockScope());
+                                          scope()->FinalizeBlockScope(),
+                                          continuation_pos);
   }
 }
 

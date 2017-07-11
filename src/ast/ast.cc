@@ -1068,8 +1068,11 @@ Call::CallType Call::GetCallType() const {
 }
 
 CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
-                       int pos)
-    : Expression(pos, kCaseClause), label_(label), statements_(statements) {}
+                       int pos, const SourceRange& clause_range)
+    : Expression(pos, kCaseClause),
+      label_(label),
+      statements_(statements),
+      clause_range_(clause_range) {}
 
 void CaseClause::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                      LanguageMode language_mode,

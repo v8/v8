@@ -769,7 +769,8 @@ class PreParserFactory {
   }
 
   PreParserStatement NewCaseClause(PreParserExpression label,
-                                   PreParserStatementList statements, int pos) {
+                                   PreParserStatementList statements, int pos,
+                                   const SourceRange& clause_range) {
     return PreParserStatement::Default();
   }
 
@@ -1067,7 +1068,7 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE PreParserStatement RewriteSwitchStatement(
       PreParserExpression tag, PreParserStatement switch_statement,
-      PreParserStatementList cases, Scope* scope) {
+      PreParserStatementList cases, Scope* scope, int32_t continuation_pos) {
     return PreParserStatement::Default();
   }
 

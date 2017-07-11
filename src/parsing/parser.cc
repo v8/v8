@@ -1641,7 +1641,8 @@ Expression* Parser::RewriteDoExpression(Block* body, int pos, bool* ok) {
 Statement* Parser::RewriteSwitchStatement(Expression* tag,
                                           SwitchStatement* switch_statement,
                                           ZoneList<CaseClause*>* cases,
-                                          Scope* scope) {
+                                          Scope* scope,
+                                          int32_t continuation_pos) {
   // In order to get the CaseClauses to execute in their own lexical scope,
   // but without requiring downstream code to have special scope handling
   // code for switch statements, desugar into blocks as follows:
@@ -1672,7 +1673,7 @@ Statement* Parser::RewriteSwitchStatement(Expression* tag,
       zone());
 
   Expression* tag_read = factory()->NewVariableProxy(tag_variable);
-  switch_statement->Initialize(tag_read, cases);
+  switch_statement->Initialize(tag_read, cases, continuation_pos);
   Block* cases_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
   cases_block->statements()->Add(switch_statement, zone());
   cases_block->set_scope(scope);
@@ -4615,7 +4616,8 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     cases->Add(factory()->NewCaseClause(kreturn, case_return, nopos), zone());
     cases->Add(factory()->NewCaseClause(kthrow, case_throw, nopos), zone());
 
-    switch_mode->Initialize(factory()->NewVariableProxy(var_mode), cases);
+    switch_mode->Initialize(factory()->NewVariableProxy(var_mode), cases,
+                            kNoSourcePosition);
   }
 
   // while (true) { ... }

@@ -342,4 +342,22 @@ TestCoverage(
  {"start":513,"end":564,"count":0}]
 );
 
+TestCoverage(
+"switch statements",
+`
+!function() {                             // 0000
+  var x = 42;                             // 0050
+  switch (x) {                            // 0100
+    case 41: nop(); break;                // 0150
+    case 42: nop(); break;                // 0200
+    default: nop(); break;                // 0250
+  }                                       // 0300
+}();                                      // 0350
+`,
+[{"start":0,"end":399,"count":1},
+ {"start":1,"end":351,"count":1},
+ {"start":154,"end":204,"count":0},
+ {"start":226,"end":303,"count":0}]
+);
+
 %DebugToggleBlockCoverage(false);
