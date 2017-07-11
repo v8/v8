@@ -150,9 +150,8 @@ bool HeapObject::IsJSGeneratorObject() const {
 
 bool HeapObject::IsBoilerplateDescription() const { return IsFixedArray(); }
 
-// External objects are not extensible, so the map check is enough.
 bool HeapObject::IsExternal() const {
-  return map() == GetHeap()->external_map();
+  return map()->FindRootMap() == GetHeap()->external_map();
 }
 
 #define IS_TYPE_FUNCTION_DEF(type_)                               \
