@@ -986,6 +986,30 @@ FieldAccess AccessBuilder::ForHashTableBaseCapacity() {
 }
 
 // static
+FieldAccess AccessBuilder::ForOrderedHashMapNumberOfElements() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {
+      kTaggedBase,           OrderedHashMap::kNumberOfElementsOffset,
+      MaybeHandle<Name>(),   MaybeHandle<Map>(),
+      Type::UnsignedSmall(), MachineType::TaggedSigned(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForOrderedHashSetNumberOfElements() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {
+      kTaggedBase,           OrderedHashSet::kNumberOfElementsOffset,
+      MaybeHandle<Name>(),   MaybeHandle<Map>(),
+      Type::UnsignedSmall(), MachineType::TaggedSigned(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForDictionaryMaxNumberKey() {
   FieldAccess access = {
       kTaggedBase,

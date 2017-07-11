@@ -580,10 +580,11 @@ namespace internal {
   TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(MapGet, 1, kKey)                                                         \
   TFJ(MapHas, 1, kKey)                                                         \
-  CPP(MapGetSize)                                                              \
   CPP(MapClear)                                                                \
   /* ES #sec-map.prototype.entries */                                          \
   TFJ(MapPrototypeEntries, 0)                                                  \
+  /* ES #sec-get-map.prototype.size */                                         \
+  TFJ(MapPrototypeGetSize, 0)                                                  \
   /* ES #sec-map.prototype.forEach */                                          \
   TFJ(MapPrototypeForEach, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES #sec-map.prototype.keys */                                             \
@@ -872,10 +873,11 @@ namespace internal {
   /* Set */                                                                    \
   TFJ(SetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(SetHas, 1, kKey)                                                         \
-  CPP(SetGetSize)                                                              \
   CPP(SetClear)                                                                \
   /* ES #sec-set.prototype.entries */                                          \
   TFJ(SetPrototypeEntries, 0)                                                  \
+  /* ES #sec-get-set.prototype.size */                                         \
+  TFJ(SetPrototypeGetSize, 0)                                                  \
   /* ES #sec-set.prototype.foreach */                                          \
   TFJ(SetPrototypeForEach, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES #sec-set.prototype.values */                                           \

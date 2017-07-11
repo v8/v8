@@ -828,6 +828,15 @@ TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
       context, Context::MAP_KEY_VALUE_ITERATOR_MAP_INDEX, receiver));
 }
 
+TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const context = Parameter(Descriptor::kContext);
+  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
+                         "get Map.prototype.size");
+  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  Return(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset));
+}
+
 TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map.prototype.forEach";
   Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
@@ -1000,6 +1009,15 @@ TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {
                          "Set.prototype.entries");
   Return(AllocateJSCollectionIterator<JSSetIterator>(
       context, Context::SET_KEY_VALUE_ITERATOR_MAP_INDEX, receiver));
+}
+
+TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const context = Parameter(Descriptor::kContext);
+  ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
+                         "get Set.prototype.size");
+  Node* const table = LoadObjectField(receiver, JSSet::kTableOffset);
+  Return(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset));
 }
 
 TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
