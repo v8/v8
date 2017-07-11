@@ -2284,7 +2284,8 @@ Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
                        Heap::kEmptyFixedArrayRootIndex);
 
   if (allocation_site != nullptr) {
-    InitializeAllocationMemento(array, JSArray::kSize, allocation_site);
+    InitializeAllocationMemento(array, IntPtrConstant(JSArray::kSize),
+                                allocation_site);
   }
   return array;
 }
@@ -2302,7 +2303,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     // Array is empty. Use the shared empty fixed array instead of allocating a
     // new one.
     array = AllocateUninitializedJSArrayWithoutElements(kind, array_map, length,
-                                                        nullptr);
+                                                        allocation_site);
     StoreObjectFieldRoot(array, JSArray::kElementsOffset,
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
@@ -2769,16 +2770,14 @@ Node* CodeStubAssembler::GrowElementsCapacity(
   return new_elements;
 }
 
-void CodeStubAssembler::InitializeAllocationMemento(Node* base_allocation,
-                                                    int base_allocation_size,
+void CodeStubAssembler::InitializeAllocationMemento(Node* base,
+                                                    Node* base_allocation_size,
                                                     Node* allocation_site) {
+  Comment("[Initialize AllocationMemento");
+  Node* memento = InnerAllocate(base, base_allocation_size);
+  StoreMapNoWriteBarrier(memento, Heap::kAllocationMementoMapRootIndex);
   StoreObjectFieldNoWriteBarrier(
-      base_allocation, AllocationMemento::kMapOffset + base_allocation_size,
-      HeapConstant(Handle<Map>(isolate()->heap()->allocation_memento_map())));
-  StoreObjectFieldNoWriteBarrier(
-      base_allocation,
-      AllocationMemento::kAllocationSiteOffset + base_allocation_size,
-      allocation_site);
+      memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
   if (FLAG_allocation_site_pretenuring) {
     Node* count = LoadObjectField(allocation_site,
                                   AllocationSite::kPretenureCreateCountOffset);
@@ -2787,6 +2786,7 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base_allocation,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    incremented_count);
   }
+  Comment("]");
 }
 
 Node* CodeStubAssembler::TryTaggedToFloat64(Node* value,

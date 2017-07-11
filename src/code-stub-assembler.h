@@ -742,7 +742,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Allocation site manipulation
   void InitializeAllocationMemento(Node* base_allocation,
-                                   int base_allocation_size,
+                                   Node* base_allocation_size,
                                    Node* allocation_site);
 
   Node* TryTaggedToFloat64(Node* value, Label* if_valueisnotnumber);
