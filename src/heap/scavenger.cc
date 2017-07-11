@@ -134,6 +134,8 @@ void Scavenger::RecordCopiedObject(HeapObject* obj) {
 
 void Scavenger::Finalize() {
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+  heap()->IncrementSemiSpaceCopiedObjectSize(copied_size_);
+  heap()->IncrementPromotedObjectsSize(promoted_size_);
 }
 
 void RootScavengeVisitor::VisitRootPointer(Root root, Object** p) {

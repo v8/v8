@@ -79,7 +79,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
     *slot = target;
 
     copied_list_.Insert(target, object_size);
-    heap()->IncrementSemiSpaceCopiedObjectSize(object_size);
+    copied_size_ += object_size;
     return true;
   }
   return false;
@@ -107,7 +107,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
     if (!ContainsOnlyData(static_cast<VisitorId>(map->visitor_id()))) {
       promotion_list_.Push(ObjectAndSize(target, object_size));
     }
-    heap()->IncrementPromotedObjectsSize(object_size);
+    promoted_size_ += object_size;
     return true;
   }
   return false;

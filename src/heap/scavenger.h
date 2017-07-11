@@ -74,6 +74,8 @@ class Scavenger {
         promotion_list_(promotion_list, task_id),
         copied_list_(copied_list, task_id),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
+        copied_size_(0),
+        promoted_size_(0),
         is_logging_(is_logging),
         is_incremental_marking_(is_incremental_marking) {}
 
@@ -132,6 +134,8 @@ class Scavenger {
   PromotionList::View promotion_list_;
   CopiedRangesList copied_list_;
   base::HashMap local_pretenuring_feedback_;
+  size_t copied_size_;
+  size_t promoted_size_;
   bool is_logging_;
   bool is_incremental_marking_;
 };
