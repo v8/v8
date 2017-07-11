@@ -3045,7 +3045,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ vld1(Neon8, NeonListOperand(dst.low(), 2),
                 NeonMemOperand(kScratchReg));
       }
-    } else if (rep == MachineRepresentation::kFloat64) {
+    } else {
       DCHECK(destination->IsFPStackSlot());
       if (rep == MachineRepresentation::kFloat64) {
         DwVfpRegister temp = kScratchDoubleReg;
