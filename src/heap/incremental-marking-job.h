@@ -39,8 +39,6 @@ class IncrementalMarkingJob {
 
   void Start(Heap* heap);
 
-  void NotifyTask();
-
   void ScheduleTask(Heap* heap);
 
  private:
