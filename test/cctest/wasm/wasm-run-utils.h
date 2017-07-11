@@ -800,6 +800,8 @@ class WasmRunner : public WasmRunnerBase {
     thread->Reset();
     std::array<WasmVal, sizeof...(p)> args{{WasmVal(p)...}};
     thread->InitFrame(function(), args.data());
+    WasmInterpreter::HeapObjectsScope heap_objects_scope(
+        interpreter(), module().instance_object());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmVal val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();

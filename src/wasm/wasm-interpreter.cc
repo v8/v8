@@ -936,21 +936,14 @@ class CodeMap {
   Zone* zone_;
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
-  // Global handle to the wasm instance.
+  // This handle is set and reset by the SetInstanceObject() /
+  // ClearInstanceObject() method, which is used by the HeapObjectsScope.
   Handle<WasmInstanceObject> instance_;
-  // Global handle to array of unwrapped imports.
-  Handle<FixedArray> imported_functions_;
-  // Map from WASM_TO_JS wrappers to unwrapped imports (indexes into
-  // imported_functions_).
-  IdentityMap<int, ZoneAllocationPolicy> unwrapped_imports_;
 
  public:
   CodeMap(Isolate* isolate, const WasmModule* module,
           const uint8_t* module_start, Zone* zone)
-      : zone_(zone),
-        module_(module),
-        interpreter_code_(zone),
-        unwrapped_imports_(isolate->heap(), ZoneAllocationPolicy(zone)) {
+      : zone_(zone), module_(module), interpreter_code_(zone) {
     if (module == nullptr) return;
     interpreter_code_.reserve(module->functions.size());
     for (const WasmFunction& function : module->functions) {
@@ -964,37 +957,28 @@ class CodeMap {
     }
   }
 
-  ~CodeMap() {
-    // Destroy the global handles.
-    // Cast the location, not the handle, because the handle cast might access
-    // the object behind the handle.
-    GlobalHandles::Destroy(reinterpret_cast<Object**>(instance_.location()));
-    GlobalHandles::Destroy(
-        reinterpret_cast<Object**>(imported_functions_.location()));
+  void SetInstanceObject(Handle<WasmInstanceObject> instance) {
+    DCHECK(instance_.is_null());
+    instance_ = instance;
   }
+
+  void ClearInstanceObject() { instance_ = Handle<WasmInstanceObject>::null(); }
 
   const WasmModule* module() const { return module_; }
   bool has_instance() const { return !instance_.is_null(); }
-  Handle<WasmInstanceObject> instance() const {
+  WasmInstanceObject* instance() const {
     DCHECK(has_instance());
-    return instance_;
+    return *instance_;
   }
   MaybeHandle<WasmInstanceObject> maybe_instance() const {
-    return has_instance() ? instance_ : MaybeHandle<WasmInstanceObject>();
-  }
-
-  void SetInstanceObject(WasmInstanceObject* instance) {
-    // Only set the instance once (otherwise we have to destroy the global
-    // handle first).
-    DCHECK(instance_.is_null());
-    DCHECK_EQ(instance->module(), module_);
-    instance_ = instance->GetIsolate()->global_handles()->Create(instance);
+    return has_instance() ? handle(instance())
+                          : MaybeHandle<WasmInstanceObject>();
   }
 
   Code* GetImportedFunction(uint32_t function_index) {
-    DCHECK(!instance_.is_null());
+    DCHECK(has_instance());
     DCHECK_GT(module_->num_imported_functions, function_index);
-    FixedArray* code_table = instance_->compiled_module()->ptr_to_code_table();
+    FixedArray* code_table = instance()->compiled_module()->ptr_to_code_table();
     return Code::cast(code_table->get(static_cast<int>(function_index)));
   }
 
@@ -1050,48 +1034,6 @@ class CodeMap {
     code->end = const_cast<byte*>(end);
     code->side_table = nullptr;
     Preprocess(code);
-  }
-
-  // Returns a callable object if the imported function has a JS-compatible
-  // signature, or a null handle otherwise.
-  Handle<HeapObject> GetCallableObjectForJSImport(Isolate* isolate,
-                                                  Handle<Code> code) {
-    DCHECK_EQ(Code::WASM_TO_JS_FUNCTION, code->kind());
-    int* unwrapped_index = unwrapped_imports_.Find(code);
-    if (unwrapped_index) {
-      return handle(
-          HeapObject::cast(imported_functions_->get(*unwrapped_index)),
-          isolate);
-    }
-    Handle<HeapObject> called_obj = UnwrapWasmToJSWrapper(isolate, code);
-    if (!called_obj.is_null()) {
-      // Cache the unwrapped callable object.
-      if (imported_functions_.is_null()) {
-        // This is the first call to an imported function. Allocate the
-        // FixedArray to cache unwrapped objects.
-        constexpr int kInitialCacheSize = 8;
-        Handle<FixedArray> new_imported_functions =
-            isolate->factory()->NewFixedArray(kInitialCacheSize, TENURED);
-        // First entry: Number of occupied slots.
-        new_imported_functions->set(0, Smi::kZero);
-        imported_functions_ =
-            isolate->global_handles()->Create(*new_imported_functions);
-      }
-      int this_idx = Smi::ToInt(imported_functions_->get(0)) + 1;
-      if (this_idx == imported_functions_->length()) {
-        Handle<FixedArray> new_imported_functions =
-            isolate->factory()->CopyFixedArrayAndGrow(imported_functions_,
-                                                      this_idx / 2, TENURED);
-        // Update the existing global handle:
-        *imported_functions_.location() = *new_imported_functions;
-      }
-      DCHECK_GT(imported_functions_->length(), this_idx);
-      DCHECK(imported_functions_->get(this_idx)->IsUndefined(isolate));
-      imported_functions_->set(0, Smi::FromInt(this_idx));
-      imported_functions_->set(this_idx, *called_obj);
-      unwrapped_imports_.Set(code, this_idx);
-    }
-    return called_obj;
   }
 };
 
@@ -2140,7 +2082,7 @@ class ThreadImpl {
       DCHECK_EQ(2, deopt_data->length());
       WasmInstanceObject* target_instance =
           WasmInstanceObject::cast(WeakCell::cast(deopt_data->get(0))->value());
-      if (target_instance != *codemap()->instance()) {
+      if (target_instance != codemap()->instance()) {
         // TODO(wasm): Implement calling functions of other instances/modules.
         UNIMPLEMENTED();
       }
@@ -2150,8 +2092,7 @@ class ThreadImpl {
               codemap()->GetCode(target_func_idx)};
     }
 
-    Handle<HeapObject> target =
-        codemap()->GetCallableObjectForJSImport(isolate, code);
+    Handle<HeapObject> target = UnwrapWasmToJSWrapper(isolate, code);
 
     if (target.is_null()) {
       isolate->Throw(*isolate->factory()->NewTypeError(
@@ -2372,6 +2313,37 @@ const InterpretedFrameImpl* ToImpl(const InterpretedFrame* frame) {
   return reinterpret_cast<const InterpretedFrameImpl*>(frame);
 }
 
+//============================================================================
+// Implementation details of the heap objects scope.
+//============================================================================
+class HeapObjectsScopeImpl {
+ public:
+  HeapObjectsScopeImpl(CodeMap* codemap, Handle<WasmInstanceObject> instance)
+      : codemap_(codemap), needs_reset(!codemap_->has_instance()) {
+    if (needs_reset) {
+      instance_ = handle(*instance);
+      codemap_->SetInstanceObject(instance_);
+    } else {
+      DCHECK_EQ(*instance, codemap_->instance());
+      return;
+    }
+  }
+
+  ~HeapObjectsScopeImpl() {
+    if (!needs_reset) return;
+    DCHECK_EQ(*instance_, codemap_->instance());
+    codemap_->ClearInstanceObject();
+    // Clear the handle, such that anyone who accidentally copied them will
+    // notice.
+    *instance_.location() = nullptr;
+  }
+
+ private:
+  CodeMap* codemap_;
+  Handle<WasmInstanceObject> instance_;
+  bool needs_reset;
+};
+
 }  // namespace
 
 //============================================================================
@@ -2512,10 +2484,6 @@ bool WasmInterpreter::SetTracing(const WasmFunction* function, bool enabled) {
   return false;
 }
 
-void WasmInterpreter::SetInstanceObject(WasmInstanceObject* instance) {
-  internals_->codemap_.SetInstanceObject(instance);
-}
-
 int WasmInterpreter::GetThreadCount() {
   return 1;  // only one thread for now.
 }
@@ -2588,6 +2556,19 @@ WasmVal InterpretedFrame::GetLocalValue(int index) const {
 }
 WasmVal InterpretedFrame::GetStackValue(int index) const {
   return ToImpl(this)->GetStackValue(index);
+}
+
+//============================================================================
+// Public API of the heap objects scope.
+//============================================================================
+WasmInterpreter::HeapObjectsScope::HeapObjectsScope(
+    WasmInterpreter* interpreter, Handle<WasmInstanceObject> instance) {
+  static_assert(sizeof(data) == sizeof(HeapObjectsScopeImpl), "Size mismatch");
+  new (data) HeapObjectsScopeImpl(&interpreter->internals_->codemap_, instance);
+}
+
+WasmInterpreter::HeapObjectsScope::~HeapObjectsScope() {
+  reinterpret_cast<HeapObjectsScopeImpl*>(data)->~HeapObjectsScopeImpl();
 }
 
 }  // namespace wasm

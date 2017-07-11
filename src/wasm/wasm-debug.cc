@@ -144,9 +144,6 @@ class InterpreterHandle {
 
     WasmInstanceObject* instance = debug_info->wasm_instance();
 
-    // Store a global handle to the wasm instance in the interpreter.
-    interpreter_.SetInstanceObject(instance);
-
     // Set memory start pointer and size.
     instance_.mem_start = nullptr;
     instance_.mem_size = 0;
@@ -193,7 +190,8 @@ class InterpreterHandle {
   // Returns true if exited regularly, false if a trap/exception occured and was
   // not handled inside this activation. In the latter case, a pending exception
   // will have been set on the isolate.
-  bool Execute(Address frame_pointer, uint32_t func_index,
+  bool Execute(Handle<WasmInstanceObject> instance_object,
+               Address frame_pointer, uint32_t func_index,
                uint8_t* arg_buffer) {
     DCHECK_GE(module()->functions.size(), func_index);
     FunctionSig* sig = module()->functions[func_index].sig;
@@ -222,6 +220,8 @@ class InterpreterHandle {
 
     uint32_t activation_id = StartActivation(frame_pointer);
 
+    WasmInterpreter::HeapObjectsScope heap_objects_scope(&interpreter_,
+                                                         instance_object);
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
     thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
@@ -705,8 +705,9 @@ void WasmDebugInfo::PrepareStep(StepAction step_action) {
 bool WasmDebugInfo::RunInterpreter(Address frame_pointer, int func_index,
                                    uint8_t* arg_buffer) {
   DCHECK_LE(0, func_index);
+  Handle<WasmInstanceObject> instance(wasm_instance());
   return GetInterpreterHandle(this)->Execute(
-      frame_pointer, static_cast<uint32_t>(func_index), arg_buffer);
+      instance, frame_pointer, static_cast<uint32_t>(func_index), arg_buffer);
 }
 
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(

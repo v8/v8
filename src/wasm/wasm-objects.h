@@ -592,11 +592,11 @@ class WasmDebugInfo : public FixedArray {
   DECL_GETTER(wasm_instance, WasmInstanceObject)
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
 
-  enum {  // --
-    kInstanceIndex,
-    kInterpreterHandleIndex,
-    kInterpretedFunctionsIndex,
-    kLocalsNamesIndex,
+  enum {
+    kInstanceIndex,              // instance object.
+    kInterpreterHandleIndex,     // managed object containing the interpreter.
+    kInterpretedFunctionsIndex,  // array of interpreter entry code objects.
+    kLocalsNamesIndex,           // array of array of local names.
     kFieldCount
   };
 
