@@ -980,8 +980,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       }
       DCHECK_LE(sw.min_value, sw.max_value);
       // Note that {value_range} can be 0 if {min_value} is -2^31 and
-      // {max_value}
-      // is 2^31-1, so don't assume that it's non-zero below.
+      // {max_value} is 2^31-1, so don't assume that it's non-zero below.
       sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
                        bit_cast<uint32_t>(sw.min_value);
       return VisitSwitch(input, sw);
@@ -1834,6 +1833,7 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
                                           InstructionOperand& index_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.value_range;
+  DCHECK_LE(sw.value_range, std::numeric_limits<size_t>::max() - 2);
   auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = index_operand;
   InstructionOperand default_operand = g.Label(sw.default_branch);
@@ -1853,6 +1853,7 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
                                            InstructionOperand& value_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.case_count * 2;
+  DCHECK_LE(sw.case_count, (std::numeric_limits<size_t>::max() - 2) / 2);
   auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch);
