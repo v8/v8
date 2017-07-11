@@ -393,17 +393,12 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(object, effect, &object_maps);
   if (result != NodeProperties::kNoReceiverMaps) {
-    Handle<Map> candidate_map(
-        object_maps[0]->GetPrototypeChainRootMap(isolate()));
+    Handle<Map> candidate_map = object_maps[0];
     Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
-
-    // We cannot deal with primitives here.
-    if (candidate_map->IsPrimitiveMap()) return NoChange();
 
     // Check if we can constant-fold the {candidate_prototype}.
     for (size_t i = 0; i < object_maps.size(); ++i) {
-      Handle<Map> const object_map(
-          object_maps[i]->GetPrototypeChainRootMap(isolate()));
+      Handle<Map> object_map = object_maps[i];
       if (object_map->IsSpecialReceiverMap() ||
           object_map->has_hidden_prototype() ||
           object_map->prototype() != *candidate_prototype) {
@@ -412,6 +407,9 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
         // with hidden prototypes at this point.
         return NoChange();
       }
+      // The above check also excludes maps for primitive values, which is
+      // important because we are not applying [[ToObject]] here as expected.
+      DCHECK(!object_map->IsPrimitiveMap() && object_map->IsJSReceiverMap());
       if (result == NodeProperties::kUnreliableReceiverMaps &&
           !object_map->is_stable()) {
         return NoChange();
