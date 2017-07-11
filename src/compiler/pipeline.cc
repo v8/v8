@@ -89,7 +89,7 @@ class PipelineData {
       : isolate_(info->isolate()),
         info_(info),
         debug_name_(info_->GetDebugName()),
-        outer_zone_(info_->zone()),
+        may_have_unverifiable_graph_(false),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
@@ -212,7 +212,7 @@ class PipelineData {
   CodeGenerator* code_generator() const { return code_generator_; }
 
   // RawMachineAssembler generally produces graphs which cannot be verified.
-  bool MayHaveUnverifiableGraph() const { return outer_zone_ == nullptr; }
+  bool MayHaveUnverifiableGraph() const { return may_have_unverifiable_graph_; }
 
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
@@ -371,7 +371,7 @@ class PipelineData {
   Isolate* const isolate_;
   CompilationInfo* const info_;
   std::unique_ptr<char[]> debug_name_;
-  Zone* outer_zone_ = nullptr;
+  bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
   bool compilation_failed_ = false;
