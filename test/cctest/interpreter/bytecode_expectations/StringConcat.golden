@@ -39,9 +39,9 @@ snippet: "
   var b = 2;
   return 'string' + a + b;
 "
-frame size: 5
+frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 26
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -51,10 +51,10 @@ bytecodes: [
   /*   56 S> */ B(LdaConstant), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(0),
-  /*   72 E> */ B(ToPrimitiveToString), R(3), U8(4),
+  /*   72 E> */ B(Add), R(2), U8(4),
+                B(Star), R(2),
                 B(Ldar), R(1),
-  /*   76 E> */ B(ToPrimitiveToString), R(4), U8(5),
-                B(StringConcat), R(2), U8(3),
+  /*   76 E> */ B(Add), R(2), U8(5),
   /*   81 S> */ B(Return),
 ]
 constant pool: [
@@ -69,9 +69,9 @@ snippet: "
   var b = 2;
   return a + 'string' + b;
 "
-frame size: 5
+frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 22
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -79,12 +79,10 @@ bytecodes: [
   /*   53 S> */ B(LdaSmi), I8(2),
                 B(Star), R(1),
   /*   56 S> */ B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(Ldar), R(0),
-  /*   65 E> */ B(ToPrimitiveToString), R(2), U8(4),
+  /*   65 E> */ B(Add), R(0), U8(4),
+                B(Star), R(2),
                 B(Ldar), R(1),
-  /*   76 E> */ B(ToPrimitiveToString), R(4), U8(5),
-                B(StringConcat), R(2), U8(3),
+  /*   76 E> */ B(Add), R(2), U8(5),
   /*   81 S> */ B(Return),
 ]
 constant pool: [
@@ -99,9 +97,9 @@ snippet: "
   var b = 2;
   return 'foo' + a + 'bar' + b + 'baz' + 1;
 "
-frame size: 7
+frame size: 3
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 43
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -111,14 +109,16 @@ bytecodes: [
   /*   56 S> */ B(LdaConstant), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(0),
-  /*   69 E> */ B(ToPrimitiveToString), R(3), U8(4),
+  /*   69 E> */ B(Add), R(2), U8(4),
+                B(Star), R(2),
                 B(LdaConstant), U8(1),
-                B(Star), R(4),
+  /*   73 E> */ B(Add), R(2), U8(5),
+                B(Star), R(2),
                 B(Ldar), R(1),
-  /*   81 E> */ B(ToPrimitiveToString), R(5), U8(6),
+  /*   81 E> */ B(Add), R(2), U8(6),
+                B(Star), R(2),
                 B(LdaConstant), U8(2),
-                B(Star), R(6),
-  /*   85 E> */ B(StringConcat), R(2), U8(5),
+  /*   85 E> */ B(Add), R(2), U8(7),
   /*   93 E> */ B(AddSmi), I8(1), U8(8),
   /*   98 S> */ B(Return),
 ]
@@ -136,9 +136,9 @@ snippet: "
   var b = 2;
   return (a + 'string') + ('string' + b);
 "
-frame size: 6
+frame size: 4
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 29
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -146,14 +146,13 @@ bytecodes: [
   /*   53 S> */ B(LdaSmi), I8(2),
                 B(Star), R(1),
   /*   56 S> */ B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(Ldar), R(0),
-  /*   66 E> */ B(ToPrimitiveToString), R(2), U8(4),
+  /*   66 E> */ B(Add), R(0), U8(4),
+                B(Star), R(2),
                 B(LdaConstant), U8(0),
-                B(Star), R(4),
+                B(Star), R(3),
                 B(Ldar), R(1),
-  /*   90 E> */ B(ToPrimitiveToString), R(5), U8(5),
-  /*   78 E> */ B(StringConcat), R(2), U8(4),
+  /*   90 E> */ B(Add), R(3), U8(5),
+  /*   78 E> */ B(Add), R(2), U8(6),
   /*   96 S> */ B(Return),
 ]
 constant pool: [
@@ -169,9 +168,9 @@ snippet: "
   function foo(a, b) { };
   return 'string' + foo(a, b) + a + b;
 "
-frame size: 7
+frame size: 4
 parameter count: 1
-bytecode array length: 41
+bytecode array length: 42
 bytecodes: [
                 B(CreateClosure), U8(0), U8(4), U8(2),
                 B(Star), R(2),
@@ -183,12 +182,13 @@ bytecodes: [
   /*   80 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
   /*   98 E> */ B(CallUndefinedReceiver2), R(2), R(0), R(1), U8(5),
-  /*   96 E> */ B(ToPrimitiveToString), R(4), U8(7),
+  /*   96 E> */ B(Add), R(3), U8(7),
+                B(Star), R(3),
                 B(Ldar), R(0),
-  /*  108 E> */ B(ToPrimitiveToString), R(5), U8(8),
+  /*  108 E> */ B(Add), R(3), U8(8),
+                B(Star), R(3),
                 B(Ldar), R(1),
-  /*  112 E> */ B(ToPrimitiveToString), R(6), U8(9),
-                B(StringConcat), R(3), U8(4),
+  /*  112 E> */ B(Add), R(3), U8(9),
   /*  117 S> */ B(Return),
 ]
 constant pool: [
