@@ -260,14 +260,11 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
       // Force completion of inobject slack tracking before
       // generating code to finalize the instance size.
       original_constructor->CompleteInobjectSlackTrackingIfActive();
-
-      // Compute instance size from initial map of {original_constructor}.
       Handle<Map> initial_map(original_constructor->initial_map(), isolate());
       int const instance_size = initial_map->instance_size();
 
       // Add a dependency on the {initial_map} to make sure that this code is
-      // deoptimized whenever the {initial_map} of the {original_constructor}
-      // changes.
+      // deoptimized whenever the {initial_map} changes.
       dependencies()->AssumeInitialMapCantChange(initial_map);
 
       // Emit code to allocate the JSObject instance for the
@@ -563,27 +560,30 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   Type* const closure_type = NodeProperties::GetType(closure);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
-  // Extract constructor and original constructor function.
   if (closure_type->IsHeapConstant()) {
     DCHECK(closure_type->AsHeapConstant()->Value()->IsJSFunction());
     Handle<JSFunction> js_function =
         Handle<JSFunction>::cast(closure_type->AsHeapConstant()->Value());
     JSFunction::EnsureHasInitialMap(js_function);
-    Handle<Map> initial_map(js_function->initial_map());
-    initial_map->CompleteInobjectSlackTracking();
+
+    // Force completion of inobject slack tracking before
+    // generating code to finalize the instance size.
+    js_function->CompleteInobjectSlackTrackingIfActive();
+    Handle<Map> initial_map(js_function->initial_map(), isolate());
     DCHECK(initial_map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
            initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
     // Add a dependency on the {initial_map} to make sure that this code is
-    // deoptimized whenever the {initial_map} of the {original_constructor}
-    // changes.
+    // deoptimized whenever the {initial_map} changes.
     dependencies()->AssumeInitialMapCantChange(initial_map);
 
+    // Allocate a register file.
     DCHECK(js_function->shared()->HasBytecodeArray());
     int size = js_function->shared()->bytecode_array()->register_count();
-    Node* elements = effect =
+    Node* register_file = effect =
         AllocateElements(effect, control, HOLEY_ELEMENTS, size, NOT_TENURED);
 
+    // Emit code to allocate the JS[Async]GeneratorObject instance.
     AllocationBuilder a(jsgraph(), effect, control);
     a.Allocate(initial_map->instance_size());
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
@@ -599,7 +599,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
             jsgraph()->Constant(JSGeneratorObject::kNext));
     a.Store(AccessBuilder::ForJSGeneratorObjectContinuation(),
             jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
-    a.Store(AccessBuilder::ForJSGeneratorObjectRegisterFile(), elements);
+    a.Store(AccessBuilder::ForJSGeneratorObjectRegisterFile(), register_file);
 
     if (initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
       a.Store(AccessBuilder::ForJSAsyncGeneratorObjectQueue(), undefined);
