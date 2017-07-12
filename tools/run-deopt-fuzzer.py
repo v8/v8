@@ -405,6 +405,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "novfp3": False,
     "predictable": False,
     "byteorder": sys.byteorder,
+    "no_harness": False,
   }
   all_tests = []
   num_tests = 0

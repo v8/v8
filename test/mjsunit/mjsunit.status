@@ -649,4 +649,11 @@
   'whitespaces': [SKIP],
 }],  # variant == wasm_traps
 
+##############################################################################
+['no_harness', {
+    # skip assertion tests since the stack trace is broken if mjsunit is
+    # included in the snapshot
+    'mjsunit-assertion-error' : [SKIP],
+}], # no_harness
+
 ]

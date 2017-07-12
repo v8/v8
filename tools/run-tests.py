@@ -836,6 +836,7 @@ def Execute(arch, mode, args, options, suites):
     "novfp3": options.novfp3,
     "predictable": options.predictable,
     "byteorder": sys.byteorder,
+    "no_harness": options.no_harness
   }
   all_tests = []
   num_tests = 0
