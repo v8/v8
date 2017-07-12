@@ -915,7 +915,7 @@ Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp());
   }
-  return Changed(node);
+  return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
