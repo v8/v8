@@ -95,12 +95,14 @@ template<ElementsKind Kind> class ElementsKindTraits {
   typedef FixedArrayBase BackingStore;
 };
 
-#define ELEMENTS_TRAITS(Class, KindParam, Store)               \
-template<> class ElementsKindTraits<KindParam> {               \
- public:   /* NOLINT */                                        \
-  static const ElementsKind Kind = KindParam;                  \
-  typedef Store BackingStore;                                  \
-};
+#define ELEMENTS_TRAITS(Class, KindParam, Store)    \
+  template <>                                       \
+  class ElementsKindTraits<KindParam> {             \
+   public: /* NOLINT */                             \
+    static constexpr ElementsKind Kind = KindParam; \
+    typedef Store BackingStore;                     \
+  };                                                \
+  constexpr ElementsKind ElementsKindTraits<KindParam>::Kind;
 ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
 
