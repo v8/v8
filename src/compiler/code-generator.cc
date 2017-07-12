@@ -656,16 +656,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
         DeoptimizationExit(deopt_state_id, current_source_position_);
     deoptimization_exits_.push_back(exit);
 
-    // If the pre-call frame state differs from the post-call one, produce the
-    // pre-call frame state, too.
-    // TODO(jarin) We might want to avoid building the pre-call frame state
-    // because it is only used to get locals and arguments (by the debugger and
-    // f.arguments), and those are the same in the pre-call and post-call
-    // states.
-    if (!descriptor->state_combine().IsOutputIgnored()) {
-      deopt_state_id = BuildTranslation(instr, -1, frame_state_offset,
-                                        OutputFrameStateCombine::Ignore());
-    }
     safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
   }
 }
