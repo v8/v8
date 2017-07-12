@@ -5,13 +5,16 @@
 #include <sys/mman.h>
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix-time.h"
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace base {
 
-TimezoneCache* OS::CreateTimezoneCache() { return new PosixTimezoneCache(); }
+TimezoneCache* OS::CreateTimezoneCache() {
+  return new PosixDefaultTimezoneCache();
+}
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
                    OS::MemoryPermission access) {

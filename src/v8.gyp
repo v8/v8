@@ -1970,6 +1970,8 @@
               'base/platform/platform-linux.cc',
               'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
+              'base/platform/platform-posix-time.h',
+              'base/platform/platform-posix-time.cc',
             ],
           }
         ],
@@ -1978,6 +1980,8 @@
               'base/debug/stack_trace_android.cc',
               'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
+              'base/platform/platform-posix-time.h',
+              'base/platform/platform-posix-time.cc',
             ],
             'link_settings': {
               'target_conditions': [
@@ -2034,6 +2038,8 @@
               'base/debug/stack_trace_posix.cc',
               'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
+              'base/platform/platform-posix-time.h',
+              'base/platform/platform-posix-time.cc',
               'base/qnx-math.h'
             ],
             'target_conditions': [
@@ -2065,6 +2071,8 @@
               'base/platform/platform-freebsd.cc',
               'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
+              'base/platform/platform-posix-time.h',
+              'base/platform/platform-posix-time.cc',
             ],
           }
         ],
@@ -2077,6 +2085,8 @@
               'base/platform/platform-openbsd.cc',
               'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc'
+              'base/platform/platform-posix-time.h',
+              'base/platform/platform-posix-time.cc',
             ],
           }
         ],
@@ -2090,6 +2100,8 @@
               'base/platform/platform-openbsd.cc',
               'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
+              'base/platform/platform-posix-time.h',
+              'base/platform/platform-posix-time.cc',
             ],
           }
         ],
@@ -2126,6 +2138,8 @@
             'base/platform/platform-macos.cc',
             'base/platform/platform-posix.h',
             'base/platform/platform-posix.cc',
+            'base/platform/platform-posix-time.h',
+            'base/platform/platform-posix-time.cc',
           ]},
         ],
         ['OS=="win"', {
