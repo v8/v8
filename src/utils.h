@@ -218,11 +218,11 @@ T JSMin(T x, T y) {
 }
 
 // Returns the absolute value of its argument.
-template <typename T>
-T Abs(T a) {
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+typename std::make_unsigned<T>::type Abs(T a) {
   return a < 0 ? -a : a;
 }
-
 
 // Floor(-0.0) == 0.0
 inline double Floor(double x) {
