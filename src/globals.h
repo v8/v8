@@ -955,11 +955,11 @@ const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 // The order of this enum has to be kept in sync with the predicates below.
 enum VariableMode : uint8_t {
   // User declared variables:
-  VAR,  // declared via 'var', and 'function' declarations
-
   LET,  // declared via 'let' declarations (first lexical)
 
   CONST,  // declared via 'const' declarations (last lexical)
+
+  VAR,  // declared via 'var', and 'function' declarations
 
   // Variables introduced by the compiler:
   TEMPORARY,  // temporary variables (not user-visible), stack-allocated
@@ -1014,13 +1014,14 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  STATIC_ASSERT(VAR == 0);  // Implies that mode >= VAR.
-  return mode <= CONST;
+  STATIC_ASSERT(LET == 0);  // Implies that mode >= LET.
+  return mode <= VAR;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= CONST;
+  STATIC_ASSERT(LET == 0);  // Implies that mode >= LET.
+  return mode <= CONST;
 }
 
 enum VariableLocation : uint8_t {
