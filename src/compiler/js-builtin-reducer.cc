@@ -421,7 +421,7 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
           value = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
                                    value);
         } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-          // TODO(bmeurer): avoid deopt if not all uses of value are truncated.
+          // TODO(6587): avoid deopt if not all uses of value are truncated.
           CheckFloat64HoleMode mode = CheckFloat64HoleMode::kAllowReturnHole;
           value = etrue1 = graph()->NewNode(
               simplified()->CheckFloat64Hole(mode), value, etrue1, if_true1);

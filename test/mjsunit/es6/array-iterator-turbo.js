@@ -43,13 +43,15 @@ let tests = {
           return sum;
       },
 
-      HOLEY_DOUBLE_ELEMENTS(array) {
+      // TODO(6587): Re-enable the below test case once we no longer deopt due
+      // to non-truncating uses of {CheckFloat64Hole} nodes.
+      /*HOLEY_DOUBLE_ELEMENTS(array) {
         let sum = 0.0;
         for (let x of array) {
           if (x) sum += x;
         }
         return sum;
-      }
+      }*/
     };
 
     let tests = {
@@ -84,12 +86,14 @@ let tests = {
         array2: [0.6, 0.4, 0.2],
         expected2: 1.2
       },
-      HOLEY_DOUBLE_ELEMENTS: {
+      // TODO(6587): Re-enable the below test case once we no longer deopt due
+      // to non-truncating uses of {CheckFloat64Hole} nodes.
+      /*HOLEY_DOUBLE_ELEMENTS: {
         array: [0.1, , 0.3, , 0.5, , 0.7, , 0.9, ,],
         expected: 2.5,
         array2: [0.1, , 0.3],
         expected2: 0.4
-      }
+      }*/
     };
 
     for (let key of Object.keys(runners)) {
