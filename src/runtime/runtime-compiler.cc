@@ -375,8 +375,7 @@ RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed()) {
-    SealHandleScope shs(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
 
