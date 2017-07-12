@@ -24,7 +24,7 @@
   # Slow tests
   'debug/debug-scopes': [PASS, SLOW],
   'debug/debug-stepout-scope-part*': [PASS, SLOW],
-  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW],
+  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW, ['mode == debug', SKIP]],
 
   # Too slow in debug mode and on slow platforms.
   'regress/regress-2318': [PASS, SLOW, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
