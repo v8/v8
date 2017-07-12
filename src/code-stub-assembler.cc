@@ -4826,9 +4826,11 @@ Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
   BIND(&to_integer);
   result.Bind(ToInteger(context, result.value(),
                         CodeStubAssembler::kTruncateMinusZero));
-  GotoIfNot(TaggedIsSmi(result.value()), range_error);
-  CSA_ASSERT(this, TaggedIsSmi(result.value()));
-  Goto(&negative_check);
+  GotoIf(TaggedIsSmi(result.value()), &negative_check);
+  // result.value() can still be a negative HeapNumber here.
+  Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context, result.value(),
+                            SmiConstant(0))),
+         &return_zero, range_error);
 
   BIND(&negative_check);
   Branch(SmiLessThan(result.value(), SmiConstant(0)), &return_zero, &done);
