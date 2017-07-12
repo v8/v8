@@ -972,12 +972,10 @@ enum VariableMode : uint8_t {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL,  // requires dynamic lookup, but we know that the
-                  // variable is local and where it is unless it
-                  // has been shadowed by an eval-introduced
-                  // variable
-
-  kLastVariableMode = DYNAMIC_LOCAL
+  DYNAMIC_LOCAL  // requires dynamic lookup, but we know that the
+                 // variable is local and where it is unless it
+                 // has been shadowed by an eval-introduced
+                 // variable
 };
 
 // Printing support
@@ -1007,8 +1005,7 @@ enum VariableKind : uint8_t {
   NORMAL_VARIABLE,
   FUNCTION_VARIABLE,
   THIS_VARIABLE,
-  SLOPPY_FUNCTION_NAME_VARIABLE,
-  kLastKind = SLOPPY_FUNCTION_NAME_VARIABLE
+  SLOPPY_FUNCTION_NAME_VARIABLE
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
