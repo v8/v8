@@ -169,6 +169,14 @@ class Worklist {
     }
   }
 
+  template <typename Callback>
+  void IterateGlobalPool(Callback callback) {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    for (size_t i = 0; i < global_pool_.size(); i++) {
+      global_pool_[i]->Iterate(callback);
+    }
+  }
+
   void FlushToGlobal(int task_id) {
     PublishPushSegmentToGlobal(task_id);
     PublishPopSegmentToGlobal(task_id);
@@ -218,6 +226,13 @@ class Worklist {
         }
       }
       index_ = new_index;
+    }
+
+    template <typename Callback>
+    void Iterate(Callback callback) {
+      for (size_t i = 0; i < index_; i++) {
+        callback(entries_[i]);
+      }
     }
 
    private:

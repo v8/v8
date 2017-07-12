@@ -293,7 +293,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 
 void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
   ConcurrentMarkingVisitor visitor(shared_, bailout_, task_id);
-  double time_ms = heap_->MonotonicallyIncreasingTimeInMs();
+  double time_ms;
   size_t bytes_marked = 0;
   {
     TimedScope scope(&time_ms);
@@ -327,6 +327,9 @@ void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
 
 void ConcurrentMarking::Start() {
   if (!FLAG_concurrent_marking) return;
+  if (FLAG_trace_concurrent_marking) {
+    heap_->isolate()->PrintWithTimestamp("Starting concurrent marking\n");
+  }
   pending_task_count_ = kTasks;
   for (int i = 0; i < kTasks; i++) {
     int task_id = i + 1;

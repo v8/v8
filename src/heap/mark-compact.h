@@ -455,7 +455,36 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     void SetOverflowed() {}
     bool overflowed() const { return false; }
 
+    void Print() {
+      PrintWorklist("shared", &shared_);
+      PrintWorklist("bailout", &bailout_);
+    }
+
    private:
+    // Prints the stats about the global pool of the worklist.
+    void PrintWorklist(const char* worklist_name,
+                       ConcurrentMarkingWorklist* worklist) {
+      std::map<InstanceType, int> count;
+      int total_count = 0;
+      worklist->IterateGlobalPool([&count, &total_count](HeapObject* obj) {
+        ++total_count;
+        count[obj->map()->instance_type()]++;
+      });
+      std::vector<std::pair<int, InstanceType>> rank;
+      for (auto i : count) {
+        rank.push_back(std::make_pair(i.second, i.first));
+      }
+      std::map<InstanceType, std::string> instance_type_name;
+#define INSTANCE_TYPE_NAME(name) instance_type_name[name] = #name;
+      INSTANCE_TYPE_LIST(INSTANCE_TYPE_NAME)
+#undef INSTANCE_TYPE_NAME
+      std::sort(rank.begin(), rank.end(),
+                std::greater<std::pair<int, InstanceType>>());
+      PrintF("Worklist %s: %d\n", worklist_name, total_count);
+      for (auto i : rank) {
+        PrintF("  [%s]: %d\n", instance_type_name[i.second].c_str(), i.first);
+      }
+    }
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
   };

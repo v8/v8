@@ -1210,6 +1210,10 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
 
   size_t bytes_processed = 0;
   if (state_ == MARKING) {
+    if (FLAG_trace_incremental_marking && FLAG_trace_concurrent_marking &&
+        FLAG_trace_gc_verbose) {
+      marking_worklist()->Print();
+    }
     bytes_processed = ProcessMarkingWorklist(bytes_to_process);
     if (step_origin == StepOrigin::kTask) {
       bytes_marked_ahead_of_schedule_ += bytes_processed;
