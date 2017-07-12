@@ -1492,6 +1492,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   inner_scope_ = nullptr;
   unresolved_ = nullptr;
   sloppy_block_function_map_ = nullptr;
+  rare_data_ = nullptr;
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
