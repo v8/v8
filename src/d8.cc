@@ -792,16 +792,21 @@ struct DynamicImportData {
 
 }  // namespace
 
-Local<Promise> Shell::HostImportModuleDynamically(Local<Context> context,
-                                                  Local<String> referrer,
-                                                  Local<String> specifier) {
+MaybeLocal<Promise> Shell::HostImportModuleDynamically(
+    Local<Context> context, Local<String> referrer, Local<String> specifier) {
   Isolate* isolate = context->GetIsolate();
-  Local<Promise::Resolver> resolver =
-      Promise::Resolver::New(context).ToLocalChecked();
-  DynamicImportData* data =
-      new DynamicImportData(isolate, referrer, specifier, resolver);
-  isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
-  return resolver->GetPromise();
+
+  MaybeLocal<Promise::Resolver> maybe_resolver =
+      Promise::Resolver::New(context);
+  Local<Promise::Resolver> resolver;
+  if (maybe_resolver.ToLocal(&resolver)) {
+    DynamicImportData* data =
+        new DynamicImportData(isolate, referrer, specifier, resolver);
+    isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
+    return resolver->GetPromise();
+  }
+
+  return MaybeLocal<Promise>();
 }
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {

@@ -26888,7 +26888,7 @@ TEST(CorrectEnteredContext) {
   object->ToString(currentContext.local()).ToLocalChecked();
 }
 
-Local<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
+v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<String> referrer, Local<String> specifier) {
   CHECK(!referrer.IsEmpty());
   String::Utf8Value referrer_utf8(referrer);

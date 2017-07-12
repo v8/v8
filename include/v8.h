@@ -6135,7 +6135,7 @@ typedef void (*DeprecatedCallCompletedCallback)();
  * namespace object. In case of an exception, the embedder must reject
  * this promise with the exception.
  */
-typedef Local<Promise> (*HostImportModuleDynamicallyCallback)(
+typedef MaybeLocal<Promise> (*HostImportModuleDynamicallyCallback)(
     Local<Context> context, Local<String> referrer, Local<String> specifier);
 
 /**

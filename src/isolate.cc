@@ -3370,9 +3370,12 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   }
   DCHECK(!has_pending_exception());
 
-  v8::Local<v8::Promise> promise = host_import_module_dynamically_callback_(
-      api_context, v8::Utils::ToLocal(source_url),
-      v8::Utils::ToLocal(specifier_str));
+  v8::MaybeLocal<v8::Promise> maybe_promise =
+      host_import_module_dynamically_callback_(
+          api_context, v8::Utils::ToLocal(source_url),
+          v8::Utils::ToLocal(specifier_str));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(this, MaybeHandle<JSPromise>());
+  v8::Local<v8::Promise> promise = maybe_promise.ToLocalChecked();
   return v8::Utils::OpenHandle(*promise);
 }
 

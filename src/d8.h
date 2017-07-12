@@ -444,9 +444,8 @@ class Shell : public i::AllStatic {
   static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static Local<Promise> HostImportModuleDynamically(Local<Context> context,
-                                                    Local<String> referrer,
-                                                    Local<String> specifier);
+  static MaybeLocal<Promise> HostImportModuleDynamically(
+      Local<Context> context, Local<String> referrer, Local<String> specifier);
 
   // Data is of type DynamicImportData*. We use void* here to be able
   // to conform with MicrotaskCallback interface and enqueue this
