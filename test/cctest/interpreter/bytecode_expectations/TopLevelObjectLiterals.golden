@@ -21,7 +21,7 @@ bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
-  /*    8 S> */ B(CreateObjectLiteral), U8(1), U8(7), U8(21), R(1),
+  /*    8 S> */ B(CreateObjectLiteral), U8(1), U8(7), U8(41), R(1),
                 B(CreateClosure), U8(2), U8(6), U8(0),
                 B(StaNamedOwnProperty), R(1), U8(3), U8(8),
                 B(Ldar), R(1),

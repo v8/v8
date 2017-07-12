@@ -29,12 +29,11 @@ function literals_sharing_test(warmup, optimize) {
 
 
 function test() {
+  var warmup = true;
   for (var i = 0; i < 3; i++) {
-    // We only start tracking allocation information with the second
-    // instantiation.
-    var warmup = i < 2;
     print("iter: " + i + ", warmup: "+ warmup);
     literals_sharing_test(warmup, false);
+    warmup = false;
   }
   print("iter: " + i + ", opt: true");
   literals_sharing_test(warmup, true);

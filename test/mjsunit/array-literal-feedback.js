@@ -99,20 +99,9 @@ assertOptimized(get_literal);
     return [a, b, c];
   }
 
-  var a = bar(1, 2, 3);
-  assertKind(elements_kind.fast_smi_only, a);
+  a = bar(1, 2, 3);
   a[0] = 3.5;
   a[1] = 'hi';
-  assertKind(elements_kind.fast, a);
-
-  // We only start tracking transition information with the second
-  // instantiation.
-  var b = bar(1, 2, 3);
-  assertKind(elements_kind.fast_smi_only, b);
-  b[0] = 3.5;
-  b[1] = 'hi';
+  b = bar(1, 2, 3);
   assertKind(elements_kind.fast, b);
-
-  var c = bar(1, 2, 3);
-  assertKind(elements_kind.fast, c);
 })();

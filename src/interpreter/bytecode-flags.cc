@@ -18,7 +18,7 @@ namespace interpreter {
 uint8_t CreateArrayLiteralFlags::Encode(bool use_fast_shallow_clone,
                                         int runtime_flags) {
   uint8_t result = FlagsBits::encode(runtime_flags);
-  result |= FastShallowCloneBit::encode(use_fast_shallow_clone);
+  result |= FastCloneSupportedBit::encode(use_fast_shallow_clone);
   return result;
 }
 

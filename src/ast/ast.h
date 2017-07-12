@@ -1099,12 +1099,6 @@ class Literal final : public Expression {
 // Base class for literals that need space in the type feedback vector.
 class MaterializedLiteral : public Expression {
  public:
-  bool is_initialized() const { return 0 < depth_; }
-  int depth() const {
-    DCHECK(is_initialized());
-    return depth_;
-  }
-
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache) {
     literal_slot_ = spec->AddLiteralSlot();
@@ -1112,40 +1106,27 @@ class MaterializedLiteral : public Expression {
 
   FeedbackSlot literal_slot() const { return literal_slot_; }
 
+  // A Materializedliteral is simple if the values consist of only
+  // constants and simple object and array literals.
+  bool IsSimple() const;
+
  private:
-  int depth_ : 31;
   FeedbackSlot literal_slot_;
 
-  class IsSimpleField
-      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
-
  protected:
-  MaterializedLiteral(int pos, NodeType type)
-      : Expression(pos, type), depth_(0) {
-    bit_field_ |= IsSimpleField::encode(false);
-  }
-
-  // A materialized literal is simple if the values consist of only
-  // constants and simple object and array literals.
-  bool is_simple() const { return IsSimpleField::decode(bit_field_); }
-  void set_is_simple(bool is_simple) {
-    bit_field_ = IsSimpleField::update(bit_field_, is_simple);
-  }
+  MaterializedLiteral(int pos, NodeType type) : Expression(pos, type) {}
 
   friend class CompileTimeValue;
+  friend class ArrayLiteral;
+  friend class ObjectLiteral;
 
-  void set_depth(int depth) {
-    DCHECK(!is_initialized());
-    depth_ = depth;
-  }
+  // Populate the depth field and any flags the literal has, returns the depth.
+  int InitDepthAndFlags();
 
-  // Populate the depth field and any flags the literal has.
-  void InitDepthAndFlags();
+  bool NeedsInitialAllocationSite();
 
   // Populate the constant properties/elements fixed array.
   void BuildConstants(Isolate* isolate);
-  friend class ArrayLiteral;
-  friend class ObjectLiteral;
 
   // If the expression is a literal, return the literal value;
   // if the expression is a materialized literal and is simple return a
@@ -1153,6 +1134,88 @@ class MaterializedLiteral : public Expression {
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
   Handle<Object> GetBoilerplateValue(Expression* expression, Isolate* isolate);
+};
+
+// Node for capturing a regexp literal.
+class RegExpLiteral final : public MaterializedLiteral {
+ public:
+  Handle<String> pattern() const { return pattern_->string(); }
+  const AstRawString* raw_pattern() const { return pattern_; }
+  int flags() const { return flags_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  RegExpLiteral(const AstRawString* pattern, int flags, int pos)
+      : MaterializedLiteral(pos, kRegExpLiteral),
+        flags_(flags),
+        pattern_(pattern) {}
+
+  int const flags_;
+  const AstRawString* const pattern_;
+};
+
+// Base class for Array and Object literals, providing common code for handling
+// nested subliterals.
+class AggregateLiteral : public MaterializedLiteral {
+ public:
+  enum Flags {
+    kNoFlags = 0,
+    kIsShallow = 1,
+    kDisableMementos = 1 << 1,
+    kNeedsInitialAllocationSite = 1 << 2,
+  };
+
+  bool is_initialized() const { return 0 < depth_; }
+  int depth() const {
+    DCHECK(is_initialized());
+    return depth_;
+  }
+
+  bool is_shallow() const { return depth() == 1; }
+  bool needs_initial_allocation_site() const {
+    return NeedsInitialAllocationSiteField::decode(bit_field_);
+  }
+
+  int ComputeFlags(bool disable_mementos = false) const {
+    int flags = kNoFlags;
+    if (is_shallow()) flags |= kIsShallow;
+    if (disable_mementos) flags |= kDisableMementos;
+    if (needs_initial_allocation_site()) flags |= kNeedsInitialAllocationSite;
+    return flags;
+  }
+
+  // An AggregateLiteral is simple if the values consist of only
+  // constants and simple object and array literals.
+  bool is_simple() const { return IsSimpleField::decode(bit_field_); }
+
+ private:
+  int depth_ : 31;
+  class NeedsInitialAllocationSiteField
+      : public BitField<bool, MaterializedLiteral::kNextBitFieldIndex, 1> {};
+  class IsSimpleField
+      : public BitField<bool, NeedsInitialAllocationSiteField::kNext, 1> {};
+
+ protected:
+  friend class AstNodeFactory;
+  AggregateLiteral(int pos, NodeType type)
+      : MaterializedLiteral(pos, type), depth_(0) {
+    bit_field_ |= NeedsInitialAllocationSiteField::encode(false) |
+                  IsSimpleField::encode(false);
+  }
+
+  void set_is_simple(bool is_simple) {
+    bit_field_ = IsSimpleField::update(bit_field_, is_simple);
+  }
+
+  void set_depth(int depth) {
+    DCHECK(!is_initialized());
+    depth_ = depth;
+  }
+
+  void set_needs_initial_allocation_site(bool required) {
+    bit_field_ = NeedsInitialAllocationSiteField::update(bit_field_, required);
+  }
 
   static const uint8_t kNextBitFieldIndex = IsSimpleField::kNext;
 };
@@ -1242,7 +1305,7 @@ class ObjectLiteralProperty final : public LiteralProperty {
 
 // An object literal has a boilerplate object that is used
 // for minimizing the work when constructing it at runtime.
-class ObjectLiteral final : public MaterializedLiteral {
+class ObjectLiteral final : public AggregateLiteral {
  public:
   typedef ObjectLiteralProperty Property;
 
@@ -1252,18 +1315,17 @@ class ObjectLiteral final : public MaterializedLiteral {
   }
   int properties_count() const { return boilerplate_properties_; }
   ZoneList<Property*>* properties() const { return properties_; }
-  bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   bool has_elements() const { return HasElementsField::decode(bit_field_); }
-  bool has_shallow_properties() const { return depth() == 1; }
   bool has_rest_property() const {
     return HasRestPropertyField::decode(bit_field_);
   }
+  bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   bool has_null_prototype() const {
     return HasNullPrototypeField::decode(bit_field_);
   }
 
-  // Populate the depth field and flags.
-  void InitDepthAndFlags();
+  // Populate the depth field and flags, returns the depth.
+  int InitDepthAndFlags();
 
   // Get the constant properties fixed array, populating it if necessary.
   Handle<BoilerplateDescription> GetOrBuildConstantProperties(
@@ -1287,27 +1349,26 @@ class ObjectLiteral final : public MaterializedLiteral {
 
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
-    int flags = fast_elements() ? kFastElements : kNoFlags;
-    if (has_shallow_properties()) flags |= kShallowProperties;
-    if (disable_mementos) flags |= kDisableMementos;
+    int flags = AggregateLiteral::ComputeFlags(disable_mementos);
+    if (fast_elements()) flags |= kFastElements;
     if (has_null_prototype()) flags |= kHasNullPrototype;
     return flags;
   }
 
   int EncodeLiteralType() {
-    int flags = fast_elements() ? kFastElements : kNoFlags;
-    if (has_shallow_properties()) flags |= kShallowProperties;
+    int flags = kNoFlags;
+    if (fast_elements()) flags |= kFastElements;
     if (has_null_prototype()) flags |= kHasNullPrototype;
     return flags;
   }
 
   enum Flags {
-    kNoFlags = 0,
-    kShallowProperties = 1,
-    kDisableMementos = 1 << 1,
-    kFastElements = 1 << 2,
-    kHasNullPrototype = 1 << 3,
+    kFastElements = 1 << 3,
+    kHasNullPrototype = 1 << 4,
   };
+  STATIC_ASSERT(
+      static_cast<int>(AggregateLiteral::kNeedsInitialAllocationSite) <
+      static_cast<int>(kFastElements));
 
   struct Accessors: public ZoneObject {
     Accessors() : getter(NULL), setter(NULL) {}
@@ -1326,22 +1387,22 @@ class ObjectLiteral final : public MaterializedLiteral {
   ObjectLiteral(ZoneList<Property*>* properties,
                 uint32_t boilerplate_properties, int pos,
                 bool has_rest_property)
-      : MaterializedLiteral(pos, kObjectLiteral),
+      : AggregateLiteral(pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
         properties_(properties) {
-    bit_field_ |= FastElementsField::encode(false) |
-                  HasElementsField::encode(false) |
+    bit_field_ |= HasElementsField::encode(false) |
                   HasRestPropertyField::encode(has_rest_property) |
+                  FastElementsField::encode(false) |
                   HasNullPrototypeField::encode(false);
   }
 
   void InitFlagsForPendingNullPrototype(int i);
 
-  void set_fast_elements(bool fast_elements) {
-    bit_field_ = FastElementsField::update(bit_field_, fast_elements);
-  }
   void set_has_elements(bool has_elements) {
     bit_field_ = HasElementsField::update(bit_field_, has_elements);
+  }
+  void set_fast_elements(bool fast_elements) {
+    bit_field_ = FastElementsField::update(bit_field_, fast_elements);
   }
   void set_has_null_protoype(bool has_null_prototype) {
     bit_field_ = HasNullPrototypeField::update(bit_field_, has_null_prototype);
@@ -1351,14 +1412,14 @@ class ObjectLiteral final : public MaterializedLiteral {
   Handle<BoilerplateDescription> constant_properties_;
   ZoneList<Property*>* properties_;
 
-  class FastElementsField
-      : public BitField<bool, MaterializedLiteral::kNextBitFieldIndex, 1> {};
-  class HasElementsField : public BitField<bool, FastElementsField::kNext, 1> {
-  };
+  class HasElementsField
+      : public BitField<bool, AggregateLiteral::kNextBitFieldIndex, 1> {};
   class HasRestPropertyField
       : public BitField<bool, HasElementsField::kNext, 1> {};
-  class HasNullPrototypeField
+  class FastElementsField
       : public BitField<bool, HasRestPropertyField::kNext, 1> {};
+  class HasNullPrototypeField
+      : public BitField<bool, FastElementsField::kNext, 1> {};
 };
 
 
@@ -1385,31 +1446,9 @@ class AccessorTable
 };
 
 
-// Node for capturing a regexp literal.
-class RegExpLiteral final : public MaterializedLiteral {
- public:
-  Handle<String> pattern() const { return pattern_->string(); }
-  const AstRawString* raw_pattern() const { return pattern_; }
-  int flags() const { return flags_; }
-
- private:
-  friend class AstNodeFactory;
-
-  RegExpLiteral(const AstRawString* pattern, int flags, int pos)
-      : MaterializedLiteral(pos, kRegExpLiteral),
-        flags_(flags),
-        pattern_(pattern) {
-    set_depth(1);
-  }
-
-  int const flags_;
-  const AstRawString* const pattern_;
-};
-
-
 // An array literal has a literals object that is used
 // for minimizing the work when constructing it at runtime.
-class ArrayLiteral final : public MaterializedLiteral {
+class ArrayLiteral final : public AggregateLiteral {
  public:
   Handle<ConstantElementsPair> constant_elements() const {
     return constant_elements_;
@@ -1417,8 +1456,8 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   ZoneList<Expression*>* values() const { return values_; }
 
-  // Populate the depth field and flags.
-  void InitDepthAndFlags();
+  // Populate the depth field and flags, returns the depth.
+  int InitDepthAndFlags();
 
   // Get the constant elements fixed array, populating it if necessary.
   Handle<ConstantElementsPair> GetOrBuildConstantElements(Isolate* isolate) {
@@ -1436,9 +1475,7 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
-    int flags = depth() == 1 ? kShallowElements : kNoFlags;
-    if (disable_mementos) flags |= kDisableMementos;
-    return flags;
+    return AggregateLiteral::ComputeFlags(disable_mementos);
   }
 
   // Provide a mechanism for iterating through values to rewrite spreads.
@@ -1451,12 +1488,6 @@ class ArrayLiteral final : public MaterializedLiteral {
   // Rewind an array literal omitting everything from the first spread on.
   void RewindSpreads();
 
-  enum Flags {
-    kNoFlags = 0,
-    kShallowElements = 1,
-    kDisableMementos = 1 << 1
-  };
-
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache);
   FeedbackSlot LiteralFeedbackSlot() const { return literal_slot_; }
@@ -1465,7 +1496,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   friend class AstNodeFactory;
 
   ArrayLiteral(ZoneList<Expression*>* values, int first_spread_index, int pos)
-      : MaterializedLiteral(pos, kArrayLiteral),
+      : AggregateLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
         values_(values) {}
 

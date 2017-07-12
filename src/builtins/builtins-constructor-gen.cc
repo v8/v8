@@ -541,12 +541,15 @@ void ConstructorBuiltinsAssembler::CreateFastCloneShallowArrayBuiltin(
   BIND(&call_runtime);
   {
     Comment("call runtime");
-    Node* flags = SmiConstant(ArrayLiteral::kShallowElements |
-                              (allocation_site_mode == TRACK_ALLOCATION_SITE
-                                   ? 0
-                                   : ArrayLiteral::kDisableMementos));
+    int flags = AggregateLiteral::kIsShallow;
+    if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
+      // Force initial allocation sites on the initial literal setup step.
+      flags |= AggregateLiteral::kNeedsInitialAllocationSite;
+    } else {
+      flags |= AggregateLiteral::kDisableMementos;
+    }
     Return(CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
-                       literal_index, constant_elements, flags));
+                       literal_index, constant_elements, SmiConstant(flags)));
   }
 }
 

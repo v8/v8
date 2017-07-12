@@ -549,10 +549,11 @@ void ObjectLiteral::InitFlagsForPendingNullPrototype(int i) {
   }
 }
 
-void ObjectLiteral::InitDepthAndFlags() {
-  if (is_initialized()) return;
+int ObjectLiteral::InitDepthAndFlags() {
+  if (is_initialized()) return depth();
   bool is_simple = true;
   bool has_seen_prototype = false;
+  bool needs_initial_allocation_site = false;
   int depth_acc = 1;
   uint32_t nof_properties = 0;
   uint32_t elements = 0;
@@ -579,10 +580,11 @@ void ObjectLiteral::InitDepthAndFlags() {
     }
     DCHECK(!property->is_computed_name());
 
-    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
-    if (m_literal != NULL) {
-      m_literal->InitDepthAndFlags();
-      if (m_literal->depth() >= depth_acc) depth_acc = m_literal->depth() + 1;
+    MaterializedLiteral* literal = property->value()->AsMaterializedLiteral();
+    if (literal != nullptr) {
+      int subliteral_depth = literal->InitDepthAndFlags() + 1;
+      if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
+      needs_initial_allocation_site |= literal->NeedsInitialAllocationSite();
     }
 
     const AstValue* key = property->key()->AsLiteral()->raw_value();
@@ -607,11 +609,13 @@ void ObjectLiteral::InitDepthAndFlags() {
     nof_properties++;
   }
 
+  set_depth(depth_acc);
+  set_is_simple(is_simple);
+  set_needs_initial_allocation_site(needs_initial_allocation_site);
+  set_has_elements(elements > 0);
   set_fast_elements((max_element_index <= 32) ||
                     ((2 * elements) >= max_element_index));
-  set_has_elements(elements > 0);
-  set_is_simple(is_simple);
-  set_depth(depth_acc);
+  return depth_acc;
 }
 
 void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
@@ -684,15 +688,14 @@ bool ObjectLiteral::IsFastCloningSupported() const {
   // The FastCloneShallowObject builtin doesn't copy elements, and object
   // literals don't support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
-  return fast_elements() && has_shallow_properties() &&
+  return fast_elements() && is_shallow() &&
          properties_count() <=
              ConstructorBuiltins::kMaximumClonedShallowObjectProperties;
 }
 
-void ArrayLiteral::InitDepthAndFlags() {
+int ArrayLiteral::InitDepthAndFlags() {
   DCHECK_LT(first_spread_index_, 0);
-
-  if (is_initialized()) return;
+  if (is_initialized()) return depth();
 
   int constants_length = values()->length();
 
@@ -703,12 +706,10 @@ void ArrayLiteral::InitDepthAndFlags() {
   for (; array_index < constants_length; array_index++) {
     Expression* element = values()->at(array_index);
     DCHECK(!element->IsSpread());
-    MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
-    if (m_literal != NULL) {
-      m_literal->InitDepthAndFlags();
-      if (m_literal->depth() + 1 > depth_acc) {
-        depth_acc = m_literal->depth() + 1;
-      }
+    MaterializedLiteral* literal = element->AsMaterializedLiteral();
+    if (literal != NULL) {
+      int subliteral_depth = literal->InitDepthAndFlags() + 1;
+      if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
     }
 
     if (!CompileTimeValue::IsCompileTimeValue(element)) {
@@ -716,8 +717,12 @@ void ArrayLiteral::InitDepthAndFlags() {
     }
   }
 
-  set_is_simple(is_simple);
   set_depth(depth_acc);
+  set_is_simple(is_simple);
+  // Array literals always need an initial allocation site to properly track
+  // elements transitions.
+  set_needs_initial_allocation_site(true);
+  return depth_acc;
 }
 
 void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
@@ -813,6 +818,12 @@ void ArrayLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
   }
 }
 
+bool MaterializedLiteral::IsSimple() const {
+  if (IsArrayLiteral()) return AsArrayLiteral()->is_simple();
+  if (IsObjectLiteral()) return AsObjectLiteral()->is_simple();
+  DCHECK(IsRegExpLiteral());
+  return false;
+}
 
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
                                                         Isolate* isolate) {
@@ -825,15 +836,22 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
   return isolate->factory()->uninitialized_value();
 }
 
-void MaterializedLiteral::InitDepthAndFlags() {
+int MaterializedLiteral::InitDepthAndFlags() {
+  if (IsArrayLiteral()) return AsArrayLiteral()->InitDepthAndFlags();
+  if (IsObjectLiteral()) return AsObjectLiteral()->InitDepthAndFlags();
+  DCHECK(IsRegExpLiteral());
+  return 1;
+}
+
+bool MaterializedLiteral::NeedsInitialAllocationSite() {
   if (IsArrayLiteral()) {
-    return AsArrayLiteral()->InitDepthAndFlags();
+    return AsArrayLiteral()->needs_initial_allocation_site();
   }
   if (IsObjectLiteral()) {
-    return AsObjectLiteral()->InitDepthAndFlags();
+    return AsObjectLiteral()->needs_initial_allocation_site();
   }
   DCHECK(IsRegExpLiteral());
-  DCHECK_LE(1, depth());  // Depth should be initialized.
+  return false;
 }
 
 void MaterializedLiteral::BuildConstants(Isolate* isolate) {

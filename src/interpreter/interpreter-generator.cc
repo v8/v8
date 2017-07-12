@@ -2680,9 +2680,9 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   Node* bytecode_flags = BytecodeOperandFlag(2);
 
   Label fast_shallow_clone(this), call_runtime(this, Label::kDeferred);
-  Branch(
-      IsSetWord32<CreateArrayLiteralFlags::FastShallowCloneBit>(bytecode_flags),
-      &fast_shallow_clone, &call_runtime);
+  Branch(IsSetWord32<CreateArrayLiteralFlags::FastCloneSupportedBit>(
+             bytecode_flags),
+         &fast_shallow_clone, &call_runtime);
 
   BIND(&fast_shallow_clone);
   {

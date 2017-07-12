@@ -479,7 +479,7 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 
   // Use the FastCloneShallowArray builtin only for shallow boilerplates without
   // properties up to the number of elements that the stubs can handle.
-  if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
+  if ((p.flags() & AggregateLiteral::kIsShallow) != 0 &&
       p.length() < ConstructorBuiltins::kMaximumClonedShallowArrayElements) {
     Callable callable = CodeFactory::FastCloneShallowArray(
         isolate(), DONT_TRACK_ALLOCATION_SITE);
@@ -500,7 +500,7 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
 
   // Use the FastCloneShallowObject builtin only for shallow boilerplates
   // without elements up to the number of properties that the stubs can handle.
-  if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
+  if ((p.flags() & AggregateLiteral::kIsShallow) != 0 &&
       p.length() <=
           ConstructorBuiltins::kMaximumClonedShallowObjectProperties) {
     Callable callable =
