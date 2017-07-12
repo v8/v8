@@ -35,8 +35,7 @@ void SequentialMarkingDeque::StartUsing() {
   size_t size = FLAG_force_marking_deque_overflows
                     ? 64 * kPointerSize
                     : backing_store_committed_size_;
-  DCHECK(
-      base::bits::IsPowerOfTwo32(static_cast<uint32_t>(size / kPointerSize)));
+  DCHECK(base::bits::IsPowerOfTwo(static_cast<uint32_t>(size / kPointerSize)));
   mask_ = static_cast<int>((size / kPointerSize) - 1);
   top_ = bottom_ = 0;
   overflowed_ = false;

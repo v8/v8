@@ -539,7 +539,7 @@ void TurboAssembler::CheckStackAlignment() {
   int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     Label alignment_as_expected;
     testp(rsp, Immediate(frame_alignment_mask));
     j(zero, &alignment_as_expected, Label::kNear);
@@ -4115,7 +4115,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
-    DCHECK(base::bits::IsPowerOfTwo32(kFrameAlignment));
+    DCHECK(base::bits::IsPowerOfTwo(kFrameAlignment));
     DCHECK(is_int8(kFrameAlignment));
     andp(rsp, Immediate(-kFrameAlignment));
   }
@@ -4604,7 +4604,7 @@ void TurboAssembler::PrepareCallCFunction(int num_arguments) {
 
   // Make stack end at alignment and allocate space for arguments and old rsp.
   movp(kScratchRegister, rsp);
-  DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+  DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   subp(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));

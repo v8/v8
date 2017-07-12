@@ -2023,7 +2023,7 @@ AsmType* AsmJsParser::ValidateCall() {
     if (!CheckForUnsigned(&mask)) {
       FAILn("Expected mask literal");
     }
-    if (!base::bits::IsPowerOfTwo32(mask + 1)) {
+    if (!base::bits::IsPowerOfTwo(mask + 1)) {
       FAILn("Expected power of 2 mask");
     }
     current_function_builder_->EmitI32Const(mask);

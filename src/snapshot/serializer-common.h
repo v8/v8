@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_SERIALIZER_COMMON_H_
 
 #include "src/address-map.h"
+#include "src/base/bits.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
 #include "src/visitors.h"
@@ -63,7 +64,7 @@ class HotObjectsList {
   static const int kSize = 8;
 
  private:
-  STATIC_ASSERT(IS_POWER_OF_TWO(kSize));
+  static_assert(base::bits::IsPowerOfTwo(kSize), "kSize must be power of two");
   static const int kSizeMask = kSize - 1;
   HeapObject* circular_queue_[kSize];
   int index_;

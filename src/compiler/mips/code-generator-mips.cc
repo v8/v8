@@ -2938,7 +2938,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   if (instr->arch_opcode() == kMipsTst) {
     cc = FlagsConditionToConditionTst(condition);
     if (instr->InputAt(1)->IsImmediate() &&
-        base::bits::IsPowerOfTwo32(i.InputOperand(1).immediate())) {
+        base::bits::IsPowerOfTwo(i.InputOperand(1).immediate())) {
       uint16_t pos =
           base::bits::CountTrailingZeros32(i.InputOperand(1).immediate());
       __ Ext(result, i.InputRegister(0), pos, 1);

@@ -1611,7 +1611,7 @@ int TurboAssembler::InstrCountForLi64Bit(int64_t value) {
                ((value >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
                kArchVariant == kMips64r6) {
       return 2;
-    } else if (base::bits::IsPowerOfTwo64(value + 1)) {
+    } else if (base::bits::IsPowerOfTwo(value + 1)) {
       return 2;
     } else {
       int shift_cnt = base::bits::CountTrailingZeros64(value);
@@ -1733,7 +1733,7 @@ void TurboAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
       // 16 MSBs contain a signed 16-bit number.
       daddiu(rd, zero_reg, j.immediate() & kImm16Mask);
       dati(rd, ((j.immediate() >> 48) + bit31) & kImm16Mask);
-    } else if (base::bits::IsPowerOfTwo64(j.immediate() + 1)) {
+    } else if (base::bits::IsPowerOfTwo(j.immediate() + 1)) {
       // 64-bit values which have their "n" MSBs set to one, and their
       // "64-n" LSBs set to zero. "n" must meet the restrictions 0 < n < 64.
       int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.immediate() + 1);
@@ -5828,7 +5828,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   DCHECK(stack_space >= 0);
   Dsubu(sp, sp, Operand((stack_space + 2) * kPointerSize));
   if (frame_alignment > 0) {
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     And(sp, sp, Operand(-frame_alignment));  // Align stack.
   }
 
@@ -5915,7 +5915,7 @@ void MacroAssembler::AssertStackIsAligned() {
 
       if (frame_alignment > kPointerSize) {
         Label alignment_as_expected;
-        DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+        DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
         andi(at, sp, frame_alignment_mask);
         Branch(&alignment_as_expected, eq, at, Operand(zero_reg));
         // Don't use Check here, as it will call Runtime_Abort re-entering here.
@@ -6460,7 +6460,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     // and the original value of sp.
     mov(scratch, sp);
     Dsubu(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     And(sp, sp, Operand(-frame_alignment));
     Sd(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
@@ -6510,7 +6510,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {
-      DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
       Label alignment_as_expected;
       And(at, sp, Operand(frame_alignment_mask));
       Branch(&alignment_as_expected, eq, at, Operand(zero_reg));

@@ -55,7 +55,7 @@ inline bool CStringEquals(const char* s1, const char* s2) {
 
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
-  DCHECK(base::bits::IsPowerOfTwo32(x));
+  DCHECK(base::bits::IsPowerOfTwo(x));
   int bits = 0;
 #ifdef DEBUG
   uint32_t original_x = x;
@@ -86,7 +86,7 @@ inline int WhichPowerOf2(uint32_t x) {
 
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2_64(uint64_t x) {
-  DCHECK(base::bits::IsPowerOfTwo64(x));
+  DCHECK(base::bits::IsPowerOfTwo(x));
   int bits = 0;
 #ifdef DEBUG
   uint64_t original_x = x;

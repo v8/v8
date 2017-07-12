@@ -2847,7 +2847,7 @@ class MapSpace : public PagedSpace {
       : PagedSpace(heap, id, NOT_EXECUTABLE) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
-    if (base::bits::IsPowerOfTwo32(Map::kSize)) {
+    if (base::bits::IsPowerOfTwo(Map::kSize)) {
       return RoundDown(size, Map::kSize);
     } else {
       return (size / Map::kSize) * Map::kSize;

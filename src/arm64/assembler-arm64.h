@@ -233,7 +233,7 @@ struct VRegister : public CPURegister {
   };
 
   static VRegister Create(int reg_code, int reg_size, int lane_count = 1) {
-    DCHECK(base::bits::IsPowerOfTwo32(lane_count) && (lane_count <= 16));
+    DCHECK(base::bits::IsPowerOfTwo(lane_count) && (lane_count <= 16));
     VRegister v(CPURegister::Create(reg_code, reg_size, CPURegister::kVRegister,
                                     lane_count));
     DCHECK(v.IsValidVRegister());

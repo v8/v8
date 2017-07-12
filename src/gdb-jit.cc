@@ -230,7 +230,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
                uint32_t flags)
       : name_(name), segment_(segment), align_(align), flags_(flags) {
     if (align_ != 0) {
-      DCHECK(base::bits::IsPowerOfTwo32(align));
+      DCHECK(base::bits::IsPowerOfTwo(align));
       align_ = WhichPowerOf2(align_);
     }
   }

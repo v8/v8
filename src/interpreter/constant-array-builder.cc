@@ -150,7 +150,7 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
     DCHECK(array_index == 0 ||
-           base::bits::IsPowerOfTwo32(static_cast<uint32_t>(array_index)));
+           base::bits::IsPowerOfTwo(static_cast<uint32_t>(array_index)));
 #if DEBUG
     // Different slices might contain the same element due to reservations, but
     // all elements within a slice should be unique. If this DCHECK fails, then

@@ -2541,7 +2541,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
     // -- preserving original value of sp.
     LoadRR(scratch, sp);
     lay(sp, MemOperand(sp, -(stack_passed_arguments + 1) * kPointerSize));
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
     StoreP(scratch, MemOperand(sp, (stack_passed_arguments)*kPointerSize));
   } else {
@@ -2627,7 +2627,7 @@ void MacroAssembler::CheckPageFlag(
   DCHECK(cc == ne || cc == eq);
   ClearRightImm(scratch, object, Operand(kPageSizeBits));
 
-  if (base::bits::IsPowerOfTwo32(mask)) {
+  if (base::bits::IsPowerOfTwo(mask)) {
     // If it's a power of two, we can use Test-Under-Mask Memory-Imm form
     // which allows testing of a single byte in memory.
     int32_t byte_offset = 4;
@@ -3922,7 +3922,7 @@ void MacroAssembler::AndP(Register dst, Register src, const Operand& opnd) {
     // than power of 2, we have consecutive bits of 1.
     // Special case: If shift_value is zero, we cannot use RISBG, as it requires
     //               selection of at least 1 bit.
-    if ((0 != shifted_value) && base::bits::IsPowerOfTwo64(shifted_value + 1)) {
+    if ((0 != shifted_value) && base::bits::IsPowerOfTwo(shifted_value + 1)) {
       int startBit =
           base::bits::CountLeadingZeros64(shifted_value) - trailing_zeros;
       int endBit = 63 - trailing_zeros;

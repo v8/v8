@@ -107,7 +107,8 @@ class Name : public HeapObject {
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
   // kMaxCachedArrayIndexLength.
-  STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
+  static_assert(base::bits::IsPowerOfTwo(kMaxCachedArrayIndexLength + 1),
+                "(kMaxCachedArrayIndexLength + 1) must be power of two");
 
   // When any of these bits is set then the hash field does not contain a cached
   // array index.

@@ -424,7 +424,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
     return JunkStringValue();
   }
 
-  if (base::bits::IsPowerOfTwo32(radix)) {
+  if (base::bits::IsPowerOfTwo(radix)) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(

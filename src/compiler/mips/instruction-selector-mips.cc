@@ -731,19 +731,19 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   Int32BinopMatcher m(node);
   if (m.right().HasValue() && m.right().Value() > 0) {
     int32_t value = m.right().Value();
-    if (base::bits::IsPowerOfTwo32(value)) {
+    if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMipsShl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value)));
       return;
     }
-    if (base::bits::IsPowerOfTwo32(value - 1)) {
+    if (base::bits::IsPowerOfTwo(value - 1)) {
       Emit(kMipsLsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
       return;
     }
-    if (base::bits::IsPowerOfTwo32(value + 1)) {
+    if (base::bits::IsPowerOfTwo(value + 1)) {
       InstructionOperand temp = g.TempRegister();
       Emit(kMipsShl | AddressingModeField::encode(kMode_None), temp,
            g.UseRegister(m.left().node()),

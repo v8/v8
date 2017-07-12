@@ -16441,7 +16441,7 @@ Handle<Derived> HashTable<Derived, Shape>::New(
     MinimumCapacity capacity_option) {
   DCHECK(0 <= at_least_space_for);
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
-                 base::bits::IsPowerOfTwo32(at_least_space_for));
+                 base::bits::IsPowerOfTwo(at_least_space_for));
 
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for

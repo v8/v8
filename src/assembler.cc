@@ -1948,7 +1948,7 @@ void Assembler::RecordDebugBreakSlot(RelocInfo::Mode mode) {
 
 
 void Assembler::DataAlign(int m) {
-  DCHECK(m >= 2 && base::bits::IsPowerOfTwo32(m));
+  DCHECK(m >= 2 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
     db(0);
   }

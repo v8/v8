@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_STRING_H_
 #define V8_OBJECTS_STRING_H_
 
+#include "src/base/bits.h"
 #include "src/objects/name.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -824,7 +825,8 @@ class ConsStringIterator {
   static const int kStackSize = 32;
   // Use a mask instead of doing modulo operations for stack wrapping.
   static const int kDepthMask = kStackSize - 1;
-  STATIC_ASSERT(IS_POWER_OF_TWO(kStackSize));
+  static_assert(base::bits::IsPowerOfTwo(kStackSize),
+                "kStackSize must be power of two");
   static inline int OffsetForDepth(int depth);
 
   inline void PushLeft(ConsString* string);

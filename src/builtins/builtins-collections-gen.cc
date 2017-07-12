@@ -101,7 +101,7 @@ Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
   static const int kDataTableStartIndex =
       CollectionType::kHashTableStartIndex + kBucketCount;
 
-  STATIC_ASSERT(base::bits::IsPowerOfTwo32(kCapacity));
+  STATIC_ASSERT(base::bits::IsPowerOfTwo(kCapacity));
   STATIC_ASSERT(kCapacity <= CollectionType::kMaxCapacity);
 
   // Allocate the table and add the proper map.

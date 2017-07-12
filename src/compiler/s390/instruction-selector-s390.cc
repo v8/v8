@@ -1310,7 +1310,7 @@ bool TryMatchShiftFromMul(InstructionSelector* selector, Node* node) {
   Node* left = m.left().node();
   Node* right = m.right().node();
   if (g.CanBeImmediate(right, OperandMode::kInt32Imm) &&
-      base::bits::IsPowerOfTwo64(g.GetImmediate(right))) {
+      base::bits::IsPowerOfTwo(g.GetImmediate(right))) {
     int power = 63 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
     bool doZeroExt = DoZeroExtForResult(node);
     bool canEliminateZeroExt = ProduceWord32Result(left);

@@ -6,6 +6,7 @@
 #define V8_BASE_BITS_H_
 
 #include <stdint.h>
+#include <type_traits>
 
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
@@ -168,14 +169,10 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 DEFINE_32_64_OVERLOADS(CountTrailingZeros)
 
 // Returns true iff |value| is a power of 2.
-constexpr inline bool IsPowerOfTwo32(uint32_t value) {
-  return value && !(value & (value - 1));
-}
-
-
-// Returns true iff |value| is a power of 2.
-constexpr inline bool IsPowerOfTwo64(uint64_t value) {
-  return value && !(value & (value - 1));
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+constexpr inline bool IsPowerOfTwo(T value) {
+  return value > 0 && (value & (value - 1)) == 0;
 }
 
 // RoundUpToPowerOfTwo32(value) returns the smallest power of two which is

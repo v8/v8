@@ -21,8 +21,8 @@ StubCache::StubCache(Isolate* isolate, Code::Kind ic_kind)
 }
 
 void StubCache::Initialize() {
-  DCHECK(base::bits::IsPowerOfTwo32(kPrimaryTableSize));
-  DCHECK(base::bits::IsPowerOfTwo32(kSecondaryTableSize));
+  DCHECK(base::bits::IsPowerOfTwo(kPrimaryTableSize));
+  DCHECK(base::bits::IsPowerOfTwo(kSecondaryTableSize));
   Clear();
 }
 

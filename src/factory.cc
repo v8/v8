@@ -634,8 +634,8 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
   // when building the new string.
   if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
     // We can do this.
-    DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCodeU +
-                                      1));  // because of this.
+    DCHECK(base::bits::IsPowerOfTwo(String::kMaxOneByteCharCodeU +
+                                    1));  // because of this.
     Handle<SeqOneByteString> str =
         isolate->factory()->NewRawOneByteString(2).ToHandleChecked();
     uint8_t* dest = str->GetChars();

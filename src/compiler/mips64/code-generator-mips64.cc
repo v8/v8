@@ -379,26 +379,26 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
 }
 
 }  // namespace
-#define ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, length, out_of_bounds)         \
-  do {                                                                        \
-    if (!length.is_reg() && base::bits::IsPowerOfTwo64(length.immediate())) { \
-      __ And(kScratchReg, offset, Operand(~(length.immediate() - 1)));        \
-      __ Branch(USE_DELAY_SLOT, out_of_bounds, ne, kScratchReg,               \
-                Operand(zero_reg));                                           \
-    } else {                                                                  \
-      __ Branch(USE_DELAY_SLOT, out_of_bounds, hs, offset, length);           \
-    }                                                                         \
+#define ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, length, out_of_bounds)       \
+  do {                                                                      \
+    if (!length.is_reg() && base::bits::IsPowerOfTwo(length.immediate())) { \
+      __ And(kScratchReg, offset, Operand(~(length.immediate() - 1)));      \
+      __ Branch(USE_DELAY_SLOT, out_of_bounds, ne, kScratchReg,             \
+                Operand(zero_reg));                                         \
+    } else {                                                                \
+      __ Branch(USE_DELAY_SLOT, out_of_bounds, hs, offset, length);         \
+    }                                                                       \
   } while (0)
 
-#define ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, length, out_of_bounds)        \
-  do {                                                                        \
-    if (!length.is_reg() && base::bits::IsPowerOfTwo64(length.immediate())) { \
-      __ Or(kScratchReg, zero_reg, Operand(offset));                          \
-      __ And(kScratchReg, kScratchReg, Operand(~(length.immediate() - 1)));   \
-      __ Branch(out_of_bounds, ne, kScratchReg, Operand(zero_reg));           \
-    } else {                                                                  \
-      __ Branch(out_of_bounds, ls, length.rm(), Operand(offset));             \
-    }                                                                         \
+#define ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, length, out_of_bounds)      \
+  do {                                                                      \
+    if (!length.is_reg() && base::bits::IsPowerOfTwo(length.immediate())) { \
+      __ Or(kScratchReg, zero_reg, Operand(offset));                        \
+      __ And(kScratchReg, kScratchReg, Operand(~(length.immediate() - 1))); \
+      __ Branch(out_of_bounds, ne, kScratchReg, Operand(zero_reg));         \
+    } else {                                                                \
+      __ Branch(out_of_bounds, ls, length.rm(), Operand(offset));           \
+    }                                                                       \
   } while (0)
 
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(width, asm_instr)                          \
@@ -3224,7 +3224,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   if (instr->arch_opcode() == kMips64Tst) {
     cc = FlagsConditionToConditionTst(condition);
     if (instr->InputAt(1)->IsImmediate() &&
-        base::bits::IsPowerOfTwo64(i.InputOperand(1).immediate())) {
+        base::bits::IsPowerOfTwo(i.InputOperand(1).immediate())) {
       uint16_t pos =
           base::bits::CountTrailingZeros64(i.InputOperand(1).immediate());
       __ Dext(result, i.InputRegister(0), pos, 1);

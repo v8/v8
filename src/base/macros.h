@@ -201,9 +201,6 @@ struct Use {
     (void)unused_tmp_array_for_use_macro;                \
   } while (false)
 
-#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
-
-
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
@@ -295,7 +292,8 @@ inline T AddressFrom(intptr_t x) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
-  DCHECK(IS_POWER_OF_TWO(m));
+  // m must be a power of two.
+  DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
 

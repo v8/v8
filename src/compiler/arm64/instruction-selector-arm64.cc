@@ -531,7 +531,7 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
   DCHECK(m->IsInt32Mul() || m->IsInt64Mul());
   if (m->right().HasValue() && m->right().Value() >= 3) {
     uint64_t value_minus_one = m->right().Value() - 1;
-    if (base::bits::IsPowerOfTwo64(value_minus_one)) {
+    if (base::bits::IsPowerOfTwo(value_minus_one)) {
       return WhichPowerOf2_64(value_minus_one);
     }
   }

@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 
   // Returns probe entry.
   static uint32_t GetProbe(uint32_t hash, uint32_t number, uint32_t size) {
-    DCHECK(base::bits::IsPowerOfTwo32(size));
+    DCHECK(base::bits::IsPowerOfTwo(size));
     return (hash + GetProbeOffset(number)) & (size - 1);
   }
 
@@ -214,7 +214,7 @@ class HashTable : public HashTableBase {
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
   STATIC_ASSERT(EntryToIndex(kMaxRegularCapacity) < kMaxRegularLength);
-  STATIC_ASSERT(v8::base::bits::IsPowerOfTwo32(kMaxRegularCapacity));
+  STATIC_ASSERT(v8::base::bits::IsPowerOfTwo(kMaxRegularCapacity));
   static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
   static const int kMaxRegularIndex = EntryToIndex(kMaxRegularEntry);
   STATIC_ASSERT(OffsetOfElementAt(kMaxRegularIndex) <

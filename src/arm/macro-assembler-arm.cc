@@ -309,7 +309,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
   } else if (!(src2.InstructionsRequired(this) == 1) &&
              !src2.MustOutputRelocInfo(this) &&
              CpuFeatures::IsSupported(ARMv7) &&
-             base::bits::IsPowerOfTwo32(src2.immediate() + 1)) {
+             base::bits::IsPowerOfTwo(src2.immediate() + 1)) {
     CpuFeatureScope scope(this, ARMv7);
     ubfx(dst, src1, 0,
         WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
@@ -1448,7 +1448,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
   if (frame_alignment > 0) {
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
   }
 
@@ -3175,7 +3175,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     // and the original value of sp.
     mov(scratch, sp);
     sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
     str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
@@ -3242,7 +3242,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {
-      DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
       Label alignment_as_expected;
       tst(sp, Operand(frame_alignment_mask));
       b(eq, &alignment_as_expected);

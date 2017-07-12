@@ -1999,7 +1999,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
     Handle<Map> map(isolate()->heap()->hash_table_map(), isolate());
     int capacity =
         NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
-    DCHECK(base::bits::IsPowerOfTwo32(capacity));
+    DCHECK(base::bits::IsPowerOfTwo(capacity));
     int length = NameDictionary::EntryToIndex(capacity);
     int size = NameDictionary::SizeFor(length);
 

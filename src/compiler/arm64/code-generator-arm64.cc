@@ -417,16 +417,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 }  // namespace
 
-#define ASSEMBLE_BOUNDS_CHECK(offset, length, out_of_bounds)   \
-  do {                                                         \
-    if (length.IsImmediate() &&                                \
-        base::bits::IsPowerOfTwo64(length.ImmediateValue())) { \
-      __ Tst(offset, ~(length.ImmediateValue() - 1));          \
-      __ B(ne, out_of_bounds);                                 \
-    } else {                                                   \
-      __ Cmp(offset, length);                                  \
-      __ B(hs, out_of_bounds);                                 \
-    }                                                          \
+#define ASSEMBLE_BOUNDS_CHECK(offset, length, out_of_bounds) \
+  do {                                                       \
+    if (length.IsImmediate() &&                              \
+        base::bits::IsPowerOfTwo(length.ImmediateValue())) { \
+      __ Tst(offset, ~(length.ImmediateValue() - 1));        \
+      __ B(ne, out_of_bounds);                               \
+    } else {                                                 \
+      __ Cmp(offset, length);                                \
+      __ B(hs, out_of_bounds);                               \
+    }                                                        \
   } while (0)
 
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                         \

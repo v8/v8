@@ -1184,7 +1184,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // function.
   const int frame_alignment = ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
   }
   li(r0, Operand::Zero());
@@ -2797,7 +2797,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
     // -- preserving original value of sp.
     mr(scratch, sp);
     addi(sp, sp, Operand(-(stack_passed_arguments + 1) * kPointerSize));
-    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
     StoreP(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {

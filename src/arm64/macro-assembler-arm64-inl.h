@@ -1046,7 +1046,7 @@ void MacroAssembler::AlignAndSetCSPForFrame() {
   int sp_alignment = ActivationFrameAlignment();
   // AAPCS64 mandates at least 16-byte alignment.
   DCHECK(sp_alignment >= 16);
-  DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
+  DCHECK(base::bits::IsPowerOfTwo(sp_alignment));
   Bic(csp, StackPointer(), sp_alignment - 1);
   SetStackPointer(csp);
 }
@@ -1304,7 +1304,7 @@ void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
 
 void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
-  DCHECK(base::bits::IsPowerOfTwo64(unit_size));
+  DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1323,7 +1323,7 @@ void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
 
 
 void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
-  DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo64(unit_size));
+  DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),
@@ -1362,7 +1362,7 @@ void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
 
 void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
-  DCHECK(base::bits::IsPowerOfTwo64(unit_size));
+  DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1384,7 +1384,7 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
 
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
-  DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo64(unit_size));
+  DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),

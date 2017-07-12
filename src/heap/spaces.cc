@@ -1157,7 +1157,7 @@ size_t MemoryAllocator::CodePageAreaEndOffset() {
 
 intptr_t MemoryAllocator::GetCommitPageSize() {
   if (FLAG_v8_os_page_size != 0) {
-    DCHECK(base::bits::IsPowerOfTwo32(FLAG_v8_os_page_size));
+    DCHECK(base::bits::IsPowerOfTwo(FLAG_v8_os_page_size));
     return FLAG_v8_os_page_size * KB;
   } else {
     return base::OS::CommitPageSize();
@@ -1688,7 +1688,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 bool NewSpace::SetUp(size_t initial_semispace_capacity,
                      size_t maximum_semispace_capacity) {
   DCHECK(initial_semispace_capacity <= maximum_semispace_capacity);
-  DCHECK(base::bits::IsPowerOfTwo32(
+  DCHECK(base::bits::IsPowerOfTwo(
       static_cast<uint32_t>(maximum_semispace_capacity)));
 
   to_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);

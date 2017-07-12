@@ -74,7 +74,7 @@ int float16classify(float16 value) {
 }
 
 int CountLeadingZeros(uint64_t value, int width) {
-  DCHECK(base::bits::IsPowerOfTwo32(width) && (width <= 64));
+  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
   if (value == 0) {
     return width;
   }
@@ -83,7 +83,7 @@ int CountLeadingZeros(uint64_t value, int width) {
 
 
 int CountLeadingSignBits(int64_t value, int width) {
-  DCHECK(base::bits::IsPowerOfTwo32(width) && (width <= 64));
+  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
   if (value >= 0) {
     return CountLeadingZeros(value, width) - 1;
   } else {
