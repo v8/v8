@@ -904,9 +904,10 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
   if (it.frame()->is_js_to_wasm()) {
     DCHECK(!instance.is_null());
   } else if (instance.is_null()) {
+    // Then this is a direct call (otherwise we would have attached the instance
+    // via deopt data to the lazy compile stub). Just use the instance of the
+    // caller.
     instance = handle(wasm::GetOwningWasmInstance(*caller_code), isolate);
-  } else {
-    DCHECK(*instance == wasm::GetOwningWasmInstance(*caller_code));
   }
   int offset =
       static_cast<int>(it.frame()->pc() - caller_code->instruction_start());
