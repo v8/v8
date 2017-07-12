@@ -424,6 +424,8 @@ class Simulator {
   void DecodeTypeMsa2RF();
   template <typename T>
   T MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5);
+  template <typename T>
+  T MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m);
 
   inline int32_t rs_reg() const { return instr_.RsValue(); }
   inline int32_t rs() const { return get_register(rs_reg()); }

@@ -4808,25 +4808,127 @@ void Simulator::DecodeTypeMsaELM() {
   }
 }
 
+template <typename T>
+T Simulator::MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m) {
+  typedef typename std::make_unsigned<T>::type uT;
+  T res;
+  switch (opcode) {
+    case SLLI:
+      res = static_cast<T>(ws << m);
+      break;
+    case SRAI:
+      res = static_cast<T>(ArithmeticShiftRight(ws, m));
+      break;
+    case SRLI:
+      res = static_cast<T>(static_cast<uT>(ws) >> m);
+      break;
+    case BCLRI:
+      res = static_cast<T>(static_cast<T>(~(1ull << m)) & ws);
+      break;
+    case BSETI:
+      res = static_cast<T>(static_cast<T>(1ull << m) | ws);
+      break;
+    case BNEGI:
+      res = static_cast<T>(static_cast<T>(1ull << m) ^ ws);
+      break;
+    case BINSLI: {
+      int elem_size = 8 * sizeof(T);
+      int bits = m + 1;
+      if (bits == elem_size) {
+        res = static_cast<T>(ws);
+      } else {
+        uint64_t mask = ((1ull << bits) - 1) << (elem_size - bits);
+        res = static_cast<T>((static_cast<T>(mask) & ws) |
+                             (static_cast<T>(~mask) & wd));
+      }
+    } break;
+    case BINSRI: {
+      int elem_size = 8 * sizeof(T);
+      int bits = m + 1;
+      if (bits == elem_size) {
+        res = static_cast<T>(ws);
+      } else {
+        uint64_t mask = (1ull << bits) - 1;
+        res = static_cast<T>((static_cast<T>(mask) & ws) |
+                             (static_cast<T>(~mask) & wd));
+      }
+    } break;
+    case SAT_S: {
+#define M_MAX_INT(x) static_cast<int64_t>((1LL << ((x)-1)) - 1)
+#define M_MIN_INT(x) static_cast<int64_t>(-(1LL << ((x)-1)))
+      int shift = 64 - 8 * sizeof(T);
+      int64_t ws_i64 = (static_cast<int64_t>(ws) << shift) >> shift;
+      res = static_cast<T>(ws_i64 < M_MIN_INT(m + 1)
+                               ? M_MIN_INT(m + 1)
+                               : ws_i64 > M_MAX_INT(m + 1) ? M_MAX_INT(m + 1)
+                                                           : ws_i64);
+#undef M_MAX_INT
+#undef M_MIN_INT
+    } break;
+    case SAT_U: {
+#define M_MAX_UINT(x) static_cast<uint64_t>(-1ULL >> (64 - (x)))
+      uint64_t mask = static_cast<uint64_t>(-1ULL >> (64 - 8 * sizeof(T)));
+      uint64_t ws_u64 = static_cast<uint64_t>(ws) & mask;
+      res = static_cast<T>(ws_u64 < M_MAX_UINT(m + 1) ? ws_u64
+                                                      : M_MAX_UINT(m + 1));
+#undef M_MAX_UINT
+    } break;
+    case SRARI:
+      if (!m) {
+        res = static_cast<T>(ws);
+      } else {
+        res = static_cast<T>(ArithmeticShiftRight(ws, m)) +
+              static_cast<T>((ws >> (m - 1)) & 0x1);
+      }
+      break;
+    case SRLRI:
+      if (!m) {
+        res = static_cast<T>(ws);
+      } else {
+        res = static_cast<T>(static_cast<uT>(ws) >> m) +
+              static_cast<T>((ws >> (m - 1)) & 0x1);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return res;
+}
+
 void Simulator::DecodeTypeMsaBIT() {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaBITMask;
+  int32_t m = instr_.MsaBitMValue();
+  msa_reg_t wd, ws;
 
-  switch (opcode) {
-    case SLLI:
-    case SRAI:
-    case SRLI:
-    case BCLRI:
-    case BSETI:
-    case BNEGI:
-    case BINSLI:
-    case BINSRI:
-    case SAT_S:
-    case SAT_U:
-    case SRARI:
-    case SRLRI:
-      UNIMPLEMENTED();
+#define MSA_BIT_DF(elem, num_of_lanes)                                 \
+  get_msa_register(instr_.WsValue(), ws.elem);                         \
+  if (opcode == BINSLI || opcode == BINSRI) {                          \
+    get_msa_register(instr_.WdValue(), wd.elem);                       \
+  }                                                                    \
+  for (int i = 0; i < num_of_lanes; i++) {                             \
+    wd.elem[i] = MsaBitInstrHelper(opcode, wd.elem[i], ws.elem[i], m); \
+  }                                                                    \
+  set_msa_register(instr_.WdValue(), wd.elem);                         \
+  TraceMSARegWr(wd.elem)
+
+  switch (DecodeMsaDataFormat()) {
+    case MSA_BYTE:
+      DCHECK(m < kMSARegSize / kMSALanesByte);
+      MSA_BIT_DF(b, kMSALanesByte);
+      break;
+    case MSA_HALF:
+      DCHECK(m < kMSARegSize / kMSALanesHalf);
+      MSA_BIT_DF(h, kMSALanesHalf);
+      break;
+    case MSA_WORD:
+      DCHECK(m < kMSARegSize / kMSALanesWord);
+      MSA_BIT_DF(w, kMSALanesWord);
+      break;
+    case MSA_DWORD:
+      DCHECK(m < kMSARegSize / kMSALanesDword);
+      MSA_BIT_DF(d, kMSALanesDword);
       break;
     default:
       UNREACHABLE();
