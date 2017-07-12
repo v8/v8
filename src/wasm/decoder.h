@@ -302,7 +302,7 @@ class Decoder {
     const bool at_end = checked && pc >= end_;
     byte b = 0;
     if (!at_end) {
-      DCHECK_LT(pc_, end_);
+      DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
       result = result | ((static_cast<IntType>(b) & 0x7f) << shift);
