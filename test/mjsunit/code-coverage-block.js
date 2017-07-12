@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --block-coverage
+// Flags: --allow-natives-syntax --no-always-opt --ignition --block-coverage
 
 // Test precise code coverage.
 
@@ -340,6 +340,36 @@ TestCoverage(
  {"start":264,"end":274,"count":0},
  {"start":369,"end":380,"count":0},
  {"start":513,"end":564,"count":0}]
+);
+
+TestCoverage(
+"early return in blocks",
+`
+!function() {                             // 0000
+  try { throw 42; } catch (e) { return; } // 0050
+  nop();                                  // 0100
+}();                                      // 0150
+!function() {                             // 0200
+  try { nop(); } finally { return; }      // 0250
+  nop();                                  // 0300
+}();                                      // 0350
+!function() {                             // 0400
+  {                                       // 0450
+    let x = 42;                           // 0500
+    return () => x;                       // 0550
+  }                                       // 0600
+  nop();                                  // 0650
+}();                                      // 0700
+`,
+[{"start":0,"end":749,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":67,"end":80,"count":0},
+ {"start":89,"end":91,"count":0},  // TODO(jgruber): Missing continuation.
+ {"start":201,"end":351,"count":1},
+ {"start":284,"end":286,"count":0},  // TODO(jgruber): Missing continuation.
+ {"start":401,"end":701,"count":1},
+ {"start":569,"end":701,"count":0},
+ {"start":561,"end":568,"count":0}]  // TODO(jgruber): Sorting.
 );
 
 TestCoverage(

@@ -7,6 +7,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/interpreter/block-coverage-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/zone/zone-containers.h"
@@ -89,9 +90,7 @@ class V8_EXPORT_PRIVATE BlockBuilder final
 class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
  public:
   LoopBuilder(BytecodeArrayBuilder* builder,
-              BlockCoverageBuilder* block_coverage_builder = nullptr,
-              const SourceRange& body_range = {},
-              const SourceRange& continuation_range = {})
+              BlockCoverageBuilder* block_coverage_builder, AstNode* node)
       : BreakableControlFlowBuilder(builder),
         continue_labels_(builder->zone()),
         generator_jump_table_location_(nullptr),
@@ -99,10 +98,11 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
         block_coverage_builder_(block_coverage_builder) {
     if (block_coverage_builder_ != nullptr) {
       block_coverage_body_slot_ =
-          block_coverage_builder_->AllocateBlockCoverageSlot(body_range);
+          block_coverage_builder_->AllocateBlockCoverageSlot(
+              node, SourceRangeKind::kBody);
       block_coverage_continuation_slot_ =
           block_coverage_builder_->AllocateBlockCoverageSlot(
-              continuation_range);
+              node, SourceRangeKind::kContinuation);
     }
   }
   ~LoopBuilder();

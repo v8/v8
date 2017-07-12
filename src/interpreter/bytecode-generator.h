@@ -14,8 +14,10 @@
 namespace v8 {
 namespace internal {
 
+class AstNodeSourceRanges;
 class AstStringConstants;
 class CompilationInfo;
+enum class SourceRangeKind;
 
 namespace interpreter {
 
@@ -192,9 +194,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildLoadPropertyKey(LiteralProperty* property, Register out_reg);
 
-  int AllocateBlockCoverageSlotIfEnabled(const SourceRange& range);
+  int AllocateBlockCoverageSlotIfEnabled(AstNode* node, SourceRangeKind kind);
+  void BuildIncrementBlockCoverageCounterIfEnabled(AstNode* node,
+                                                   SourceRangeKind kind);
   void BuildIncrementBlockCoverageCounterIfEnabled(int coverage_array_slot);
-  void BuildIncrementBlockCoverageCounterIfEnabled(const SourceRange& range);
 
   void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
                  BytecodeLabels* else_labels, TestFallthrough fallthrough);

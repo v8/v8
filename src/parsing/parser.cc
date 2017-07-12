@@ -487,6 +487,7 @@ Parser::Parser(ParseInfo* info)
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
+      source_range_map_(info->source_range_map()),
       target_stack_(nullptr),
       compile_options_(info->compile_options()),
       cached_parse_data_(nullptr),
@@ -1641,8 +1642,7 @@ Expression* Parser::RewriteDoExpression(Block* body, int pos, bool* ok) {
 Statement* Parser::RewriteSwitchStatement(Expression* tag,
                                           SwitchStatement* switch_statement,
                                           ZoneList<CaseClause*>* cases,
-                                          Scope* scope,
-                                          int32_t continuation_pos) {
+                                          Scope* scope) {
   // In order to get the CaseClauses to execute in their own lexical scope,
   // but without requiring downstream code to have special scope handling
   // code for switch statements, desugar into blocks as follows:
@@ -1673,7 +1673,7 @@ Statement* Parser::RewriteSwitchStatement(Expression* tag,
       zone());
 
   Expression* tag_read = factory()->NewVariableProxy(tag_variable);
-  switch_statement->Initialize(tag_read, cases, continuation_pos);
+  switch_statement->Initialize(tag_read, cases);
   Block* cases_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
   cases_block->statements()->Add(switch_statement, zone());
   cases_block->set_scope(scope);
@@ -1751,8 +1751,8 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
     DCHECK_NOT_NULL(catch_info.scope);
     TryCatchStatement* statement;
     statement = factory()->NewTryCatchStatement(try_block, catch_info.scope,
-                                                catch_block, kNoSourcePosition,
-                                                catch_range);
+                                                catch_block, kNoSourcePosition);
+    RecordTryCatchStatementSourceRange(statement, catch_range);
 
     try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
     try_block->statements()->Add(statement, zone());
@@ -1767,12 +1767,16 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
 
     DCHECK_NULL(finally_block);
     DCHECK_NOT_NULL(catch_info.scope);
-    return factory()->NewTryCatchStatement(try_block, catch_info.scope,
-                                           catch_block, pos, catch_range);
+    TryCatchStatement* stmt = factory()->NewTryCatchStatement(
+        try_block, catch_info.scope, catch_block, pos);
+    RecordTryCatchStatementSourceRange(stmt, catch_range);
+    return stmt;
   } else {
     DCHECK_NOT_NULL(finally_block);
-    return factory()->NewTryFinallyStatement(try_block, finally_block, pos,
-                                             finally_range);
+    TryFinallyStatement* stmt =
+        factory()->NewTryFinallyStatement(try_block, finally_block, pos);
+    RecordTryFinallyStatementSourceRange(stmt, finally_range);
+    return stmt;
   }
 }
 
@@ -2448,7 +2452,9 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     inner_block->set_scope(inner_scope);
   }
 
-  outer_loop->Initialize(NULL, NULL, NULL, inner_block, body_range);
+  outer_loop->Initialize(NULL, NULL, NULL, inner_block);
+  RecordIterationStatementSourceRange(outer_loop, body_range);
+
   return outer_block;
 }
 
@@ -4616,8 +4622,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     cases->Add(factory()->NewCaseClause(kreturn, case_return, nopos), zone());
     cases->Add(factory()->NewCaseClause(kthrow, case_throw, nopos), zone());
 
-    switch_mode->Initialize(factory()->NewVariableProxy(var_mode), cases,
-                            kNoSourcePosition);
+    switch_mode->Initialize(factory()->NewVariableProxy(var_mode), cases);
   }
 
   // while (true) { ... }

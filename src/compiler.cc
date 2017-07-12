@@ -516,6 +516,8 @@ bool CompileUnoptimizedInnerFunctions(
       parse_info.set_ast_value_factory(
           outer_info->parse_info()->ast_value_factory());
       parse_info.set_ast_value_factory_owned(false);
+      parse_info.set_source_range_map(
+          outer_info->parse_info()->source_range_map());
 
       if (will_serialize) info.PrepareForSerializing();
       if (is_debug) info.MarkAsDebug();

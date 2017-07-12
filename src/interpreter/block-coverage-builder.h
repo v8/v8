@@ -5,7 +5,7 @@
 #ifndef V8_INTERPRETER_BLOCK_COVERAGE_BUILDER_H_
 #define V8_INTERPRETER_BLOCK_COVERAGE_BUILDER_H_
 
-#include "src/ast/ast.h"
+#include "src/ast/ast-source-ranges.h"
 #include "src/interpreter/bytecode-array-builder.h"
 
 #include "src/zone/zone-containers.h"
@@ -18,13 +18,24 @@ namespace interpreter {
 // mapping for block coverage.
 class BlockCoverageBuilder final : public ZoneObject {
  public:
-  BlockCoverageBuilder(Zone* zone, BytecodeArrayBuilder* builder)
-      : slots_(0, zone), builder_(builder) {}
+  BlockCoverageBuilder(Zone* zone, BytecodeArrayBuilder* builder,
+                       SourceRangeMap* source_range_map)
+      : slots_(0, zone),
+        builder_(builder),
+        source_range_map_(source_range_map) {
+    DCHECK_NOT_NULL(builder);
+    DCHECK_NOT_NULL(source_range_map);
+  }
 
-  static const int kNoCoverageArraySlot = -1;
+  static constexpr int kNoCoverageArraySlot = -1;
 
-  int AllocateBlockCoverageSlot(SourceRange range) {
+  int AllocateBlockCoverageSlot(AstNode* node, SourceRangeKind kind) {
+    AstNodeSourceRanges* ranges = source_range_map_->Find(node);
+    if (ranges == nullptr) return kNoCoverageArraySlot;
+
+    SourceRange range = ranges->GetRange(kind);
     if (range.IsEmpty()) return kNoCoverageArraySlot;
+
     const int slot = static_cast<int>(slots_.size());
     slots_.emplace_back(range);
     return slot;
@@ -42,6 +53,7 @@ class BlockCoverageBuilder final : public ZoneObject {
   // slots. Slot i covers range slots_[i].
   ZoneVector<SourceRange> slots_;
   BytecodeArrayBuilder* builder_;
+  SourceRangeMap* source_range_map_;
 };
 
 }  // namespace interpreter

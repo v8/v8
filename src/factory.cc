@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
+#include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"

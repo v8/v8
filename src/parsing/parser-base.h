@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_PARSER_BASE_H
 #define V8_PARSING_PARSER_BASE_H
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
@@ -101,11 +102,12 @@ class SourceRangeScope final {
 
   ~SourceRangeScope() { Finalize(); }
 
-  void Finalize() {
-    if (is_finalized_) return;
+  const SourceRange& Finalize() {
+    if (is_finalized_) return *range_;
     is_finalized_ = true;
     range_->end = GetPosition(post_kind_);
     DCHECK_NE(range_->end, kNoSourcePosition);
+    return *range_;
   }
 
  private:
@@ -1428,12 +1430,9 @@ class ParserBase {
 
   // Convenience method which determines the type of return statement to emit
   // depending on the current function type.
-  inline StatementT BuildReturnStatement(
-      ExpressionT expr, int pos, int continuation_pos = kNoSourcePosition) {
-    if (is_async_function()) {
-      return factory()->NewAsyncReturnStatement(expr, pos, continuation_pos);
-    }
-    return factory()->NewReturnStatement(expr, pos, continuation_pos);
+  inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
+    return is_async_function() ? factory()->NewAsyncReturnStatement(expr, pos)
+                               : factory()->NewReturnStatement(expr, pos);
   }
 
   inline SuspendExpressionT BuildSuspend(
@@ -5200,8 +5199,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   } else {
     else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
   }
-  return factory()->NewIfStatement(condition, then_statement, else_statement,
-                                   pos, then_range, else_range);
+  StatementT stmt =
+      factory()->NewIfStatement(condition, then_statement, else_statement, pos);
+  impl()->RecordIfStatementSourceRange(stmt, then_range, else_range);
+  return stmt;
 }
 
 template <typename Impl>
@@ -5236,8 +5237,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
     return impl()->NullStatement();
   }
   ExpectSemicolon(CHECK_OK);
-  int continuation_pos = scanner_->location().end_pos;
-  return factory()->NewContinueStatement(target, pos, continuation_pos);
+  StatementT stmt = factory()->NewContinueStatement(target, pos);
+  impl()->RecordJumpStatementSourceRange(stmt, scanner_->location().end_pos);
+  return stmt;
 }
 
 template <typename Impl>
@@ -5275,8 +5277,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
     return impl()->NullStatement();
   }
   ExpectSemicolon(CHECK_OK);
-  int continuation_pos = scanner_->location().end_pos;
-  return factory()->NewBreakStatement(target, pos, continuation_pos);
+  StatementT stmt = factory()->NewBreakStatement(target, pos);
+  impl()->RecordJumpStatementSourceRange(stmt, scanner_->location().end_pos);
+  return stmt;
 }
 
 template <typename Impl>
@@ -5330,8 +5333,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
-  int continuation_pos = scanner_->location().end_pos;
-  return BuildReturnStatement(return_value, loc.beg_pos, continuation_pos);
+  StatementT stmt = BuildReturnStatement(return_value, loc.beg_pos);
+  impl()->RecordJumpStatementSourceRange(stmt, scanner_->location().end_pos);
+  return stmt;
 }
 
 template <typename Impl>
@@ -5393,7 +5397,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   // ExpectSemicolon() functionality here.
   Check(Token::SEMICOLON);
 
-  loop->Initialize(cond, body, body_range);
+  loop->Initialize(cond, body);
+  impl()->RecordIterationStatementSourceRange(loop, body_range);
+
   return loop;
 }
 
@@ -5418,7 +5424,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
     body = ParseStatement(nullptr, CHECK_OK);
   }
 
-  loop->Initialize(cond, body, body_range);
+  loop->Initialize(cond, body);
+  impl()->RecordIterationStatementSourceRange(loop, body_range);
+
   return loop;
 }
 
@@ -5437,9 +5445,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
   }
   ExpressionT exception = ParseExpression(true, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
-  int continuation_pos = scanner_->location().end_pos;
 
-  return impl()->NewThrowStatement(exception, pos, continuation_pos);
+  StatementT stmt = impl()->NewThrowStatement(exception, pos);
+  impl()->RecordThrowSourceRange(stmt, scanner_->location().end_pos);
+
+  return stmt;
 }
 
 template <typename Impl>
@@ -5493,19 +5503,17 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         StatementT stat = ParseStatementListItem(CHECK_OK);
         statements->Add(stat, zone());
       }
-      range_scope.Finalize();
-      auto clause =
-          factory()->NewCaseClause(label, statements, clause_pos, clause_range);
+      auto clause = factory()->NewCaseClause(label, statements, clause_pos);
+      impl()->RecordCaseClauseSourceRange(clause, range_scope.Finalize());
       cases->Add(clause, zone());
     }
     Expect(Token::RBRACE, CHECK_OK);
 
     int end_position = scanner()->location().end_pos;
     scope()->set_end_position(end_position);
-    int continuation_pos = end_position;
+    impl()->RecordSwitchStatementSourceRange(switch_statement, end_position);
     return impl()->RewriteSwitchStatement(tag, switch_statement, cases,
-                                          scope()->FinalizeBlockScope(),
-                                          continuation_pos);
+                                          scope()->FinalizeBlockScope());
   }
 }
 
@@ -5879,11 +5887,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     }
     block->statements()->Add(loop, zone());
     block->set_scope(for_scope);
-    loop->Initialize(init, cond, next, body, body_range);
+    loop->Initialize(init, cond, next, body);
+    impl()->RecordIterationStatementSourceRange(loop, body_range);
     return block;
   }
 
-  loop->Initialize(init, cond, next, body, body_range);
+  loop->Initialize(init, cond, next, body);
+  impl()->RecordIterationStatementSourceRange(loop, body_range);
   return loop;
 }
 

@@ -31,6 +31,7 @@ class FunctionLiteral;
 class RuntimeCallStats;
 class ScriptData;
 class SharedFunctionInfo;
+class SourceRangeMap;
 class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
@@ -207,6 +208,11 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     runtime_call_stats_ = runtime_call_stats;
   }
 
+  SourceRangeMap* source_range_map() const { return source_range_map_; }
+  void set_source_range_map(SourceRangeMap* source_range_map) {
+    source_range_map_ = source_range_map;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   FunctionKind function_kind() const;
@@ -310,6 +316,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
+  SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;

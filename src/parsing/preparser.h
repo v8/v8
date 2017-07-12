@@ -769,8 +769,7 @@ class PreParserFactory {
   }
 
   PreParserStatement NewCaseClause(PreParserExpression label,
-                                   PreParserStatementList statements, int pos,
-                                   const SourceRange& clause_range) {
+                                   PreParserStatementList statements, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -1068,7 +1067,7 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE PreParserStatement RewriteSwitchStatement(
       PreParserExpression tag, PreParserStatement switch_statement,
-      PreParserStatementList cases, Scope* scope, int32_t continuation_pos) {
+      PreParserStatementList cases, Scope* scope) {
     return PreParserStatement::Default();
   }
 
@@ -1638,8 +1637,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatement NewThrowStatement(PreParserExpression exception,
-                                                 int pos,
-                                                 int32_t continuation_pos) {
+                                                 int pos) {
     return PreParserStatement::Jump();
   }
 
@@ -1744,6 +1742,25 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
+
+  V8_INLINE void RecordCaseClauseSourceRange(PreParserStatement node,
+                                             const SourceRange& body_range) {}
+  V8_INLINE void RecordIfStatementSourceRange(PreParserStatement node,
+                                              const SourceRange& then_range,
+                                              const SourceRange& else_range) {}
+  V8_INLINE void RecordJumpStatementSourceRange(PreParserStatement node,
+                                                int32_t continuation_position) {
+  }
+  V8_INLINE void RecordIterationStatementSourceRange(
+      PreParserStatement node, const SourceRange& body_range) {}
+  V8_INLINE void RecordSwitchStatementSourceRange(
+      PreParserStatement node, int32_t continuation_position) {}
+  V8_INLINE void RecordThrowSourceRange(PreParserStatement node,
+                                        int32_t continuation_position) {}
+  V8_INLINE void RecordTryCatchStatementSourceRange(
+      PreParserStatement node, const SourceRange& body_range) {}
+  V8_INLINE void RecordTryFinallyStatementSourceRange(
+      PreParserStatement node, const SourceRange& body_range) {}
 
   // Preparser's private field members.
 

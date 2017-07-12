@@ -593,6 +593,7 @@
         'ast/ast-function-literal-id-reindexer.h',
         'ast/ast-numbering.cc',
         'ast/ast-numbering.h',
+        'ast/ast-source-ranges.h',
         'ast/ast-traversal-visitor.h',
         'ast/ast-value-factory.cc',
         'ast/ast-value-factory.h',
