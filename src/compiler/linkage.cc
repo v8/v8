@@ -147,8 +147,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kConvertReceiver:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kGeneratorGetContinuation:
     case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:

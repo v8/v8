@@ -5278,9 +5278,10 @@ class JSFunction: public JSObject {
 
   // ES6 section 9.2.11 SetFunctionName
   // Because of the way this abstract operation is used in the spec,
-  // it should never fail.
-  static void SetName(Handle<JSFunction> function, Handle<Name> name,
-                      Handle<String> prefix);
+  // it should never fail, but in practice it will fail if the generated
+  // function name's length exceeds String::kMaxLength.
+  static MUST_USE_RESULT bool SetName(Handle<JSFunction> function,
+                                      Handle<Name> name, Handle<String> prefix);
 
   // The function's displayName if it is set, otherwise name if it is
   // configured, otherwise shared function info

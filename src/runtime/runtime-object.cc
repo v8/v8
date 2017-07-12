@@ -758,8 +758,10 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
 
   if (flags & DataPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(value->IsJSFunction());
-    JSFunction::SetName(Handle<JSFunction>::cast(value), name,
-                        isolate->factory()->empty_string());
+    if (!JSFunction::SetName(Handle<JSFunction>::cast(value), name,
+                             isolate->factory()->empty_string())) {
+      return isolate->heap()->exception();
+    }
   }
 
   LookupIterator it = LookupIterator::PropertyOrElement(
@@ -857,7 +859,9 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   if (String::cast(getter->shared()->name())->length() == 0) {
-    JSFunction::SetName(getter, name, isolate->factory()->get_string());
+    if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
+      return isolate->heap()->exception();
+    }
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
@@ -985,7 +989,9 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   if (String::cast(setter->shared()->name())->length() == 0) {
-    JSFunction::SetName(setter, name, isolate->factory()->set_string());
+    if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
+      return isolate->heap()->exception();
+    }
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
