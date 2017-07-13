@@ -5332,7 +5332,7 @@ void Function::SetName(v8::Local<v8::String> name) {
   auto self = Utils::OpenHandle(this);
   if (!self->IsJSFunction()) return;
   auto func = i::Handle<i::JSFunction>::cast(self);
-  func->shared()->set_raw_name(*Utils::OpenHandle(*name));
+  func->shared()->set_name(*Utils::OpenHandle(*name));
 }
 
 

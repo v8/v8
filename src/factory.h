@@ -28,11 +28,31 @@ struct SourceRange;
 class PreParsedScopeData;
 
 enum FunctionMode {
-  // With prototype.
-  FUNCTION_WITH_WRITEABLE_PROTOTYPE,
-  FUNCTION_WITH_READONLY_PROTOTYPE,
+  kWithNameBit = 1 << 0,
+  kWithHomeObjectBit = 1 << 1,
+  kWithWritablePrototypeBit = 1 << 2,
+  kWithReadonlyPrototypeBit = 1 << 3,
+  kWithPrototypeBits = kWithWritablePrototypeBit | kWithReadonlyPrototypeBit,
+
   // Without prototype.
-  FUNCTION_WITHOUT_PROTOTYPE
+  FUNCTION_WITHOUT_PROTOTYPE = 0,
+  METHOD_WITH_NAME = kWithNameBit,
+  METHOD_WITH_HOME_OBJECT = kWithHomeObjectBit,
+  METHOD_WITH_NAME_AND_HOME_OBJECT = kWithNameBit | kWithHomeObjectBit,
+
+  // With writable prototype.
+  FUNCTION_WITH_WRITEABLE_PROTOTYPE = kWithWritablePrototypeBit,
+  FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE =
+      kWithWritablePrototypeBit | kWithNameBit,
+  FUNCTION_WITH_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE =
+      kWithWritablePrototypeBit | kWithHomeObjectBit,
+  FUNCTION_WITH_NAME_AND_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE =
+      kWithWritablePrototypeBit | kWithNameBit | kWithHomeObjectBit,
+
+  // With readonly prototype.
+  FUNCTION_WITH_READONLY_PROTOTYPE = kWithReadonlyPrototypeBit,
+  FUNCTION_WITH_NAME_AND_READONLY_PROTOTYPE =
+      kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
 // Interface for handle based allocation.
@@ -765,16 +785,27 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, FunctionKind kind, Handle<Code> code,
       Handle<ScopeInfo> scope_info);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo(MaybeHandle<String> name,
-                                                   MaybeHandle<Code> code,
-                                                   bool is_constructor);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(
+      MaybeHandle<String> name, MaybeHandle<Code> code, bool is_constructor,
+      FunctionKind kind = kNormalFunction);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script);
 
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
-    return (function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
-            function_mode == FUNCTION_WITH_READONLY_PROTOTYPE);
+    return (function_mode & kWithPrototypeBits) != 0;
+  }
+
+  static bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
+    return (function_mode & kWithWritablePrototypeBit) != 0;
+  }
+
+  static bool IsFunctionModeWithName(FunctionMode function_mode) {
+    return (function_mode & kWithNameBit) != 0;
+  }
+
+  static bool IsFunctionModeWithHomeObject(FunctionMode function_mode) {
+    return (function_mode & kWithHomeObjectBit) != 0;
   }
 
   Handle<Map> CreateSloppyFunctionMap(
@@ -862,8 +893,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,
                              PretenureFlag pretenure = NOT_TENURED);
 
-  void SetFunctionInstanceDescriptor(Handle<Map> map,
-                                     FunctionMode function_mode);
+  void SetSloppyFunctionInstanceDescriptor(Handle<Map> map,
+                                           FunctionMode function_mode);
 
   void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                            FunctionMode function_mode);

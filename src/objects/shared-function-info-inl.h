@@ -72,6 +72,11 @@ String* SharedFunctionInfo::name() const {
   return String::cast(raw_name());
 }
 
+void SharedFunctionInfo::set_name(String* name) {
+  set_raw_name(name);
+  UpdateFunctionMapIndex();
+}
+
 AbstractCode* SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(bytecode_array());
@@ -92,8 +97,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                     SharedFunctionInfo::IsDeclarationBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
-                    SharedFunctionInfo::NeedsHomeObjectBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, native,
                     SharedFunctionInfo::IsNativeBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline,
@@ -133,7 +136,19 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   UpdateFunctionMapIndex();
 }
 
+bool SharedFunctionInfo::needs_home_object() const {
+  return NeedsHomeObjectBit::decode(compiler_hints());
+}
+
+void SharedFunctionInfo::set_needs_home_object(bool value) {
+  int hints = compiler_hints();
+  hints = NeedsHomeObjectBit::update(hints, value);
+  set_compiler_hints(hints);
+  UpdateFunctionMapIndex();
+}
+
 int SharedFunctionInfo::function_map_index() const {
+  // Note: Must be kept in sync with the FastNewClosure builtin.
   int index = Context::FIRST_FUNCTION_MAP_INDEX +
               FunctionMapIndexBits::decode(compiler_hints());
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
@@ -150,7 +165,8 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
-  int map_index = Context::FunctionMapIndex(language_mode(), kind());
+  int map_index = Context::FunctionMapIndex(
+      language_mode(), kind(), has_shared_name(), needs_home_object());
   set_function_map_index(map_index);
 }
 

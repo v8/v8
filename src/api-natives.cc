@@ -39,15 +39,16 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         bool is_hidden_prototype,
                                         bool is_prototype);
 
-MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
-                                            Handle<FunctionTemplateInfo> data,
-                                            Handle<Name> name = Handle<Name>());
+MaybeHandle<JSFunction> InstantiateFunction(
+    Isolate* isolate, Handle<FunctionTemplateInfo> data,
+    MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
-MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
-                                Handle<Name> name = Handle<Name>()) {
+MaybeHandle<Object> Instantiate(
+    Isolate* isolate, Handle<Object> data,
+    MaybeHandle<Name> maybe_name = MaybeHandle<Name>()) {
   if (data->IsFunctionTemplateInfo()) {
-    return InstantiateFunction(isolate,
-                               Handle<FunctionTemplateInfo>::cast(data), name);
+    return InstantiateFunction(
+        isolate, Handle<FunctionTemplateInfo>::cast(data), maybe_name);
   } else if (data->IsObjectTemplateInfo()) {
     return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data),
                              Handle<JSReceiver>(), false, false);
@@ -445,7 +446,7 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
 
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
-                                            Handle<Name> name) {
+                                            MaybeHandle<Name> maybe_name) {
   int serial_number = Smi::ToInt(data->serial_number());
   if (serial_number) {
     Handle<JSObject> result;
@@ -487,10 +488,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
     }
   }
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
-      isolate, data, prototype, ApiNatives::JavaScriptObjectType);
-  if (!name.is_null() && name->IsString()) {
-    function->shared()->set_raw_name(*name);
-  }
+      isolate, data, prototype, ApiNatives::JavaScriptObjectType, maybe_name);
   if (serial_number) {
     // Cache the function.
     CacheTemplateInstantiation(isolate, serial_number, CachingMode::kUnlimited,
@@ -533,10 +531,10 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
 }  // namespace
 
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
-    Handle<FunctionTemplateInfo> data) {
+    Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
   Isolate* isolate = data->GetIsolate();
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateFunction(isolate, data);
+  return ::v8::internal::InstantiateFunction(isolate, data, maybe_name);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateObject(
@@ -616,12 +614,16 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
   info->set_property_accessors(*list);
 }
 
-
 Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<FunctionTemplateInfo> obj,
-    Handle<Object> prototype, ApiInstanceType instance_type) {
+    Handle<Object> prototype, ApiInstanceType instance_type,
+    MaybeHandle<Name> maybe_name) {
   Handle<SharedFunctionInfo> shared =
-      FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj);
+      FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj,
+                                                          maybe_name);
+  // To simplify things, API functions always have shared name.
+  DCHECK(shared->has_shared_name());
+
   Handle<JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, isolate->native_context());

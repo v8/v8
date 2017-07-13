@@ -151,6 +151,72 @@ bool Context::HasSameSecurityTokenAs(Context* that) {
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
+#define CHECK_FOLLOWS2(v1, v2) STATIC_ASSERT((v1 + 1) == (v2))
+#define CHECK_FOLLOWS4(v1, v2, v3, v4) \
+  CHECK_FOLLOWS2(v1, v2);              \
+  CHECK_FOLLOWS2(v2, v3);              \
+  CHECK_FOLLOWS2(v3, v4)
+
+int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
+                              bool has_shared_name, bool needs_home_object) {
+  if (IsClassConstructor(kind)) {
+    // Like the strict function map, but with no 'name' accessor. 'name'
+    // needs to be the last property and it is added during instantiation,
+    // in case a static property with the same name exists"
+    return CLASS_FUNCTION_MAP_INDEX;
+  }
+
+  int base = 0;
+  if (IsGeneratorFunction(kind)) {
+    CHECK_FOLLOWS4(GENERATOR_FUNCTION_MAP_INDEX,
+                   GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX,
+                   GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
+                   GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+    CHECK_FOLLOWS4(
+        ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
+        ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX,
+        ASYNC_GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
+        ASYNC_GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+
+    base = IsAsyncFunction(kind) ? ASYNC_GENERATOR_FUNCTION_MAP_INDEX
+                                 : GENERATOR_FUNCTION_MAP_INDEX;
+
+  } else if (IsAsyncFunction(kind)) {
+    CHECK_FOLLOWS4(ASYNC_FUNCTION_MAP_INDEX, ASYNC_FUNCTION_WITH_NAME_MAP_INDEX,
+                   ASYNC_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
+                   ASYNC_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+
+    base = ASYNC_FUNCTION_MAP_INDEX;
+
+  } else if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
+             IsAccessorFunction(kind)) {
+    DCHECK_IMPLIES(IsArrowFunction(kind), !needs_home_object);
+    CHECK_FOLLOWS4(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+                   METHOD_WITH_NAME_MAP_INDEX,
+                   METHOD_WITH_HOME_OBJECT_MAP_INDEX,
+                   METHOD_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+
+    base = STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+
+  } else {
+    DCHECK(!needs_home_object);
+    CHECK_FOLLOWS2(SLOPPY_FUNCTION_MAP_INDEX,
+                   SLOPPY_FUNCTION_WITH_NAME_MAP_INDEX);
+    CHECK_FOLLOWS2(STRICT_FUNCTION_MAP_INDEX,
+                   STRICT_FUNCTION_WITH_NAME_MAP_INDEX);
+
+    base = is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
+                                    : SLOPPY_FUNCTION_MAP_INDEX;
+  }
+  int offset = static_cast<int>(!has_shared_name) |
+               (static_cast<int>(needs_home_object) << 1);
+  DCHECK_EQ(0, offset & ~3);
+
+  return base + offset;
+}
+
+#undef CHECK_FOLLOWS2
+#undef CHECK_FOLLOWS4
 
 }  // namespace internal
 }  // namespace v8

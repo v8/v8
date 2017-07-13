@@ -1973,6 +1973,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         // __proto__:null is handled by CreateObjectLiteral.
         if (property->IsNullPrototype()) break;
         DCHECK(property->emit_store());
+        DCHECK(!property->NeedsSetFunctionName());
         RegisterList args = register_allocator()->NewRegisterList(2);
         builder()->MoveRegister(literal, args[0]);
         VisitForRegisterValue(property->value(), args[1]);
@@ -2025,6 +2026,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       // __proto__:null is handled by CreateObjectLiteral.
       if (property->IsNullPrototype()) continue;
       DCHECK(property->emit_store());
+      DCHECK(!property->NeedsSetFunctionName());
       RegisterList args = register_allocator()->NewRegisterList(2);
       builder()->MoveRegister(literal, args[0]);
       VisitForRegisterValue(property->value(), args[1]);

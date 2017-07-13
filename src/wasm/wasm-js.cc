@@ -838,9 +838,8 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
   Handle<String> name = v8_str(isolate, str);
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   Handle<JSFunction> function =
-      ApiNatives::InstantiateFunction(temp).ToHandleChecked();
-  CHECK(
-      JSFunction::SetName(function, name, isolate->factory()->empty_string()));
+      ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
+  DCHECK(function->shared()->has_shared_name());
   function->shared()->set_length(length);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(object, name, function, attributes);
@@ -851,8 +850,10 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
                                  const char* str, FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
+  // TODO(ishell): shouldn't we set "get "+name as getter's name?
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp).ToHandleChecked();
+  DCHECK(function->shared()->has_shared_name());
   v8::PropertyAttribute attributes =
       static_cast<v8::PropertyAttribute>(v8::DontEnum);
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),

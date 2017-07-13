@@ -498,15 +498,13 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     MaybeHandle<String> maybe_name, int func_index, int arity,
     Handle<Code> export_wrapper) {
   Handle<String> name;
-  if (maybe_name.is_null()) {
+  if (!maybe_name.ToHandle(&name)) {
     EmbeddedVector<char, 16> buffer;
     int length = SNPrintF(buffer, "%d", func_index);
     name = isolate->factory()
                ->NewStringFromOneByte(
                    Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
-  } else {
-    name = maybe_name.ToHandleChecked();
   }
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
   Handle<SharedFunctionInfo> shared =

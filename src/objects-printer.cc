@@ -1115,13 +1115,14 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "<no-shared-name>";
   }
   os << "\n - kind = " << kind();
+  os << "\n - function_map_index = " << function_map_index();
   os << "\n - formal_parameter_count = " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties = " << expected_nof_properties();
   os << "\n - language_mode = " << language_mode();
   os << "\n - ast_node_count = " << ast_node_count();
   os << "\n - instance class name = ";
   instance_class_name()->Print(os);
-  os << "\n - code = " << Brief(code());
+  os << " - code = " << Brief(code());
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }

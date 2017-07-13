@@ -40,11 +40,9 @@ class SharedFunctionInfo : public HeapObject {
  public:
   static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
 
-  // [raw_name]: Function name string or kNoSharedNameSentinel.
-  DECL_ACCESSORS(raw_name, Object)
-
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String* name() const;
+  inline void set_name(String* name);
 
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
@@ -302,11 +300,6 @@ class SharedFunctionInfo : public HeapObject {
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
 
-  // Indicates that this function uses a super property (or an eval that may
-  // use a super property).
-  // This is needed to set up the [[HomeObject]] on the function instance.
-  DECL_BOOLEAN_ACCESSORS(needs_home_object)
-
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
@@ -333,7 +326,6 @@ class SharedFunctionInfo : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
 
   inline FunctionKind kind() const;
-  inline void set_kind(FunctionKind kind);
 
   // Defines the index in a native context of closure's map instantiated using
   // this shared function info.
@@ -513,8 +505,8 @@ class SharedFunctionInfo : public HeapObject {
   V(MustUseIgnitionBit, bool, 1, _)        \
   V(IsDeclarationBit, bool, 1, _)          \
   V(IsAsmWasmBrokenBit, bool, 1, _)        \
-  V(FunctionMapIndexBits, int, 4, _)       \
-  /* Bits 26-31 are unused. */
+  V(FunctionMapIndexBits, int, 5, _)       \
+  /* Bits 27-31 are unused. */
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
@@ -558,6 +550,18 @@ class SharedFunctionInfo : public HeapObject {
 #undef OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS
 
  private:
+  // [raw_name]: Function name string or kNoSharedNameSentinel.
+  DECL_ACCESSORS(raw_name, Object)
+
+  inline void set_kind(FunctionKind kind);
+
+  // Indicates that this function uses a super property (or an eval that may
+  // use a super property).
+  // This is needed to set up the [[HomeObject]] on the function instance.
+  DECL_BOOLEAN_ACCESSORS(needs_home_object)
+
+  friend class Factory;
+  friend class V8HeapExplorer;
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
   inline int length() const;

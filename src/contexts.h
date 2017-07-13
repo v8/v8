@@ -349,18 +349,41 @@ enum ContextLookupFlags {
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
   /* must remain together. */                                                  \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map)                       \
+  V(SLOPPY_FUNCTION_WITH_NAME_MAP_INDEX, Map, sloppy_function_with_name_map)   \
   V(SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     sloppy_function_without_prototype_map)                                     \
   V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
     sloppy_function_with_readonly_prototype_map)                               \
-  V(ASYNC_FUNCTION_MAP_INDEX, Map, async_function_map)                         \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map)                       \
-  V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
-    strict_function_without_prototype_map)                                     \
+  V(STRICT_FUNCTION_WITH_NAME_MAP_INDEX, Map, strict_function_with_name_map)   \
   V(STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
     strict_function_with_readonly_prototype_map)                               \
+  V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
+    strict_function_without_prototype_map)                                     \
+  V(METHOD_WITH_NAME_MAP_INDEX, Map, method_with_name_map)                     \
+  V(METHOD_WITH_HOME_OBJECT_MAP_INDEX, Map, method_with_home_object_map)       \
+  V(METHOD_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,                           \
+    method_with_name_and_home_object_map)                                      \
+  V(ASYNC_FUNCTION_MAP_INDEX, Map, async_function_map)                         \
+  V(ASYNC_FUNCTION_WITH_NAME_MAP_INDEX, Map, async_function_with_name_map)     \
+  V(ASYNC_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX, Map,                            \
+    async_function_with_home_object_map)                                       \
+  V(ASYNC_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,                   \
+    async_function_with_name_and_home_object_map)                              \
   V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map)                 \
+  V(GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX, Map,                               \
+    generator_function_with_name_map)                                          \
+  V(GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX, Map,                        \
+    generator_function_with_home_object_map)                                   \
+  V(GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,               \
+    generator_function_with_name_and_home_object_map)                          \
   V(ASYNC_GENERATOR_FUNCTION_MAP_INDEX, Map, async_generator_function_map)     \
+  V(ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX, Map,                         \
+    async_generator_function_with_name_map)                                    \
+  V(ASYNC_GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX, Map,                  \
+    async_generator_function_with_home_object_map)                             \
+  V(ASYNC_GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,         \
+    async_generator_function_with_name_and_home_object_map)                    \
   V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
@@ -656,32 +679,9 @@ class Context: public FixedArray {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
 
-  static int FunctionMapIndex(LanguageMode language_mode, FunctionKind kind) {
-    // Note: Must be kept in sync with the FastNewClosure builtin.
-    if (IsGeneratorFunction(kind)) {
-      return IsAsyncFunction(kind) ? ASYNC_GENERATOR_FUNCTION_MAP_INDEX
-                                   : GENERATOR_FUNCTION_MAP_INDEX;
-    }
-
-    if (IsAsyncFunction(kind)) {
-      return ASYNC_FUNCTION_MAP_INDEX;
-    }
-
-    if (IsClassConstructor(kind)) {
-      // Like the strict function map, but with no 'name' accessor. 'name'
-      // needs to be the last property and it is added during instantiation,
-      // in case a static property with the same name exists"
-      return CLASS_FUNCTION_MAP_INDEX;
-    }
-
-    if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
-        IsAccessorFunction(kind)) {
-      return STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
-    }
-
-    return is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
-                                    : SLOPPY_FUNCTION_MAP_INDEX;
-  }
+  static inline int FunctionMapIndex(LanguageMode language_mode,
+                                     FunctionKind kind, bool has_shared_name,
+                                     bool needs_home_object);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));

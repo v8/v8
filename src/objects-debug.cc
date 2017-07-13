@@ -748,7 +748,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
 
-  int expected_map_index = Context::FunctionMapIndex(language_mode(), kind());
+  int expected_map_index = Context::FunctionMapIndex(
+      language_mode(), kind(), has_shared_name(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {

@@ -4555,7 +4555,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
 
   bool is_generator = allow_harmony_async_iteration() && Check(Token::MUL);
   const bool kIsAsync = true;
-  static const FunctionKind kind = FunctionKindFor(is_generator, kIsAsync);
+  const FunctionKind kind = FunctionKindFor(is_generator, kIsAsync);
 
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name

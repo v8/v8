@@ -1172,20 +1172,25 @@ bool Object::ToInt32(int32_t* value) {
 }
 
 Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
-    Isolate* isolate, Handle<FunctionTemplateInfo> info) {
+    Isolate* isolate, Handle<FunctionTemplateInfo> info,
+    MaybeHandle<Name> maybe_name) {
   Object* current_info = info->shared_function_info();
   if (current_info->IsSharedFunctionInfo()) {
     return handle(SharedFunctionInfo::cast(current_info), isolate);
   }
-
   Handle<Object> class_name(info->class_name(), isolate);
-  Handle<String> name = class_name->IsString()
-                            ? Handle<String>::cast(class_name)
-                            : Handle<String>();
+  Handle<Name> name;
+  Handle<String> name_string;
+  if (maybe_name.ToHandle(&name) && name->IsString()) {
+    name_string = Handle<String>::cast(name);
+  } else {
+    name_string = class_name->IsString() ? Handle<String>::cast(class_name)
+                                         : isolate->factory()->empty_string();
+  }
   Handle<Code> code = isolate->builtins()->HandleApiCall();
   bool is_constructor = !info->remove_prototype();
-  Handle<SharedFunctionInfo> result =
-      isolate->factory()->NewSharedFunctionInfo(name, code, is_constructor);
+  Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
+      name_string, code, is_constructor);
   if (is_constructor) {
     result->SetConstructStub(*isolate->builtins()->JSConstructStubApi());
   }
@@ -8888,8 +8893,15 @@ void EnsureInitialMap(Handle<Map> map) {
   DCHECK(constructor->IsJSFunction());
   DCHECK(*map == JSFunction::cast(constructor)->initial_map() ||
          *map == *isolate->strict_function_map() ||
+         *map == *isolate->strict_function_with_name_map() ||
          *map == *isolate->generator_function_map() ||
-         *map == *isolate->async_function_map());
+         *map == *isolate->generator_function_with_name_map() ||
+         *map == *isolate->generator_function_with_home_object_map() ||
+         *map == *isolate->generator_function_with_name_and_home_object_map() ||
+         *map == *isolate->async_function_map() ||
+         *map == *isolate->async_function_with_name_map() ||
+         *map == *isolate->async_function_with_home_object_map() ||
+         *map == *isolate->async_function_with_name_and_home_object_map());
 #endif
   // Initial maps must always own their descriptors and it's descriptor array
   // does not contain descriptors that do not belong to the map.
@@ -13816,7 +13828,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
   shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
-  shared_info->set_kind(lit->kind());
+  //  shared_info->set_kind(lit->kind());
+  // FunctionKind must have already been set.
+  DCHECK(lit->kind() == shared_info->kind());
   if (!IsConstructable(lit->kind())) {
     shared_info->SetConstructStub(
         *shared_info->GetIsolate()->builtins()->ConstructedNonConstructable());
