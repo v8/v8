@@ -284,7 +284,9 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
       shared_(shared),
       bailout_(bailout),
       pending_task_semaphore_(0),
-      pending_task_count_(0) {
+      pending_task_count_(0),
+      waiting_task_count_(0),
+      task_exit_requested_(false) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
   CHECK(!FLAG_concurrent_marking);
@@ -298,19 +300,35 @@ void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
   {
     TimedScope scope(&time_ms);
     while (true) {
-      base::LockGuard<base::Mutex> guard(lock);
-      HeapObject* object;
-      if (!shared_->Pop(task_id, &object)) break;
-      Address new_space_top = heap_->new_space()->original_top();
-      Address new_space_limit = heap_->new_space()->original_limit();
-      Address addr = object->address();
-      if (new_space_top <= addr && addr < new_space_limit) {
-        bailout_->Push(task_id, object);
-      } else {
-        Map* map = object->synchronized_map();
-        bytes_marked += visitor.Visit(map, object);
+      bool worklist_is_empty;
+      {
+        // Process the worklist.
+        base::LockGuard<base::Mutex> guard(lock);
+        HeapObject* object;
+        if (!shared_->Pop(task_id, &object)) {
+          worklist_is_empty = true;
+        } else {
+          worklist_is_empty = false;
+          Address new_space_top = heap_->new_space()->original_top();
+          Address new_space_limit = heap_->new_space()->original_limit();
+          Address addr = object->address();
+          if (new_space_top <= addr && addr < new_space_limit) {
+            bailout_->Push(task_id, object);
+          } else {
+            Map* map = object->synchronized_map();
+            bytes_marked += visitor.Visit(map, object);
+          }
+        }
+      }
+      if (worklist_is_empty) {
+        base::LockGuard<base::Mutex> guard(&wait_lock_);
+        if (task_exit_requested_) break;
+        waiting_task_count_++;
+        wait_condition_.Wait(&wait_lock_);
+        waiting_task_count_--;
       }
     }
+
     {
       // Take the lock to synchronize with worklist update after
       // young generation GC.
@@ -331,6 +349,8 @@ void ConcurrentMarking::Start() {
     heap_->isolate()->PrintWithTimestamp("Starting concurrent marking\n");
   }
   pending_task_count_ = kTasks;
+  waiting_task_count_ = 0;
+  task_exit_requested_ = false;
   for (int i = 0; i < kTasks; i++) {
     int task_id = i + 1;
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -342,10 +362,33 @@ void ConcurrentMarking::Start() {
 
 void ConcurrentMarking::EnsureCompleted() {
   if (!FLAG_concurrent_marking) return;
+  RequestTaskExit();
   while (pending_task_count_ > 0) {
     pending_task_semaphore_.Wait();
     pending_task_count_--;
   }
+}
+
+void ConcurrentMarking::RequestTaskExit() {
+  if (!FLAG_concurrent_marking) return;
+  base::LockGuard<base::Mutex> guard(&wait_lock_);
+  task_exit_requested_ = true;
+  wait_condition_.NotifyAll();
+}
+
+void ConcurrentMarking::NotifyWaitingTasks() {
+  if (!FLAG_concurrent_marking) return;
+  base::LockGuard<base::Mutex> guard(&wait_lock_);
+  if (waiting_task_count_ > 0) {
+    if (!shared_->IsGlobalPoolEmpty()) {
+      wait_condition_.NotifyAll();
+    }
+  }
+}
+
+bool ConcurrentMarking::AllTasksWaitingForTesting() {
+  base::LockGuard<base::Mutex> guard(&wait_lock_);
+  return waiting_task_count_ == kTasks;
 }
 
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
