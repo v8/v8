@@ -527,6 +527,10 @@ void TurboAssembler::Assert(Condition cc, BailoutReason reason) {
   if (emit_debug_code()) Check(cc, reason);
 }
 
+void TurboAssembler::AssertUnreachable(BailoutReason reason) {
+  if (emit_debug_code()) Abort(reason);
+}
+
 void TurboAssembler::Check(Condition cc, BailoutReason reason) {
   Label L;
   j(cc, &L, Label::kNear);
