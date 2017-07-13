@@ -550,11 +550,12 @@
       "name": "Inspector",
       "path": ["Inspector"],
       "main": "run.js",
-      "resources": [ "debugger.js" ],
+      "resources": [ "debugger.js", "runtime.js" ],
       "flags": ["--enable-inspector"],
       "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Debugger.paused"}
+        {"name": "Debugger.paused"},
+        {"name": "Runtime.evaluate(String16Cstor)"}
       ]
     }
   ]

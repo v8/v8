@@ -3,23 +3,23 @@
 // found in the LICENSE file.
 
 (function() {
-  new BenchmarkSuite('Debugger.paused', [10000], [
-    new Benchmark('Debugger.paused', false, false, 0, DebuggerPaused, Setup, TearDown),
+  new BenchmarkSuite('Runtime.evaluate(String16Cstor)', [1000], [
+    new Benchmark('Runtime.evaluate(String16Cstor)', false, false, 0, EvaluateTest, Setup, TearDown),
   ]);
 
   function Setup() {
-    SendMessage('Debugger.enable');
     // Force lazy compilation of inspector related scripts.
     SendMessage('Runtime.evaluate', {expression: ''});
   }
 
   function TearDown() {
-    SendMessage('Debugger.disable');
   }
 
-  function DebuggerPaused() {
+  function EvaluateTest() {
+    // This is meant to exercise the overhead of v8_inspector::String16
+    // constructors. https://crbug.com/738469
     for (var i = 0; i < 10; ++i) {
-      debugger;
+      SendMessage('Runtime.evaluate', {expression: '({})', returnByValue: true});
     }
   }
 })();

@@ -5,8 +5,10 @@
 load('../base.js');
 
 load('debugger.js');
+load('runtime.js');
 
-var success = true;
+let success = true;
+let lastId = 0;
 
 function PrintResult(name, result) {
   print(name + '-Inspector(Score): ' + result);
@@ -26,3 +28,11 @@ BenchmarkSuite.config.doDeterministic = undefined;
 BenchmarkSuite.RunSuites({ NotifyResult: PrintResult,
                            NotifyError: PrintError,
                            NotifyStep: PrintStep });
+
+function SendMessage(method, params) {
+  let obj = {id: ++lastId, method: method};
+  if (params) {
+    obj.params = params;
+  }
+  send(JSON.stringify(obj));
+}
