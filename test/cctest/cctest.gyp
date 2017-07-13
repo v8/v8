@@ -45,6 +45,7 @@
       'compiler/test-run-unwinding-info.cc',
       'compiler/test-gap-resolver.cc',
       'compiler/test-graph-visualizer.cc',
+      'compiler/test-code-generator.cc',
       'compiler/test-code-assembler.cc',
       'compiler/test-instruction.cc',
       'compiler/test-js-context-specialization.cc',

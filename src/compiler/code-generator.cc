@@ -328,16 +328,12 @@ bool CodeGenerator::IsValidPush(InstructionOperand source,
       ((push_type & CodeGenerator::kImmediatePush) != 0)) {
     return true;
   }
-  if ((source.IsRegister() || source.IsStackSlot()) &&
-      ((push_type & CodeGenerator::kScalarPush) != 0)) {
+  if (source.IsRegister() &&
+      ((push_type & CodeGenerator::kRegisterPush) != 0)) {
     return true;
   }
-  if ((source.IsFloatRegister() || source.IsFloatStackSlot()) &&
-      ((push_type & CodeGenerator::kFloat32Push) != 0)) {
-    return true;
-  }
-  if ((source.IsDoubleRegister() || source.IsFloatStackSlot()) &&
-      ((push_type & CodeGenerator::kFloat64Push) != 0)) {
+  if (source.IsStackSlot() &&
+      ((push_type & CodeGenerator::kStackSlotPush) != 0)) {
     return true;
   }
   return false;
