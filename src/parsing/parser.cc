@@ -2627,7 +2627,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
   const bool is_eager_top_level_function = !is_lazy && is_top_level;
-  const bool is_declaration = function_type == FunctionLiteral::kDeclaration;
+  const bool is_expression =
+      function_type == FunctionLiteral::kAnonymousExpression ||
+      function_type == FunctionLiteral::kNamedExpression;
 
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
@@ -2654,7 +2656,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   const bool should_preparse_inner =
       parse_lazily() && FLAG_lazy_inner_functions && is_lazy_inner_function &&
-      (is_declaration || FLAG_aggressive_lazy_inner_functions);
+      (!is_expression || FLAG_aggressive_lazy_inner_functions);
 
   bool should_use_parse_task =
       FLAG_use_parse_tasks && parse_lazily() && compiler_dispatcher_ &&
