@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "7e59b44eb6cce24a88adf5dd9485612fd4eb0a97",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "f64cb20c2b8c572fd7643a353e70c24630805f94",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "eb296f67da078ec01f5e3a9ea9cdc6d26d680161",
   "v8/third_party/icu":
@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "644afd349826cb68204226a16c38bde13abe9c3c",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "1dcd1bdbe93467531a50b60dbd18860803ca7be1",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "c2827ae578be603fb41a141631c27c3c09191dca",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "65d1d42a5df6c0a563a6fdfa58a135679185e5d9",
   "v8/third_party/jinja2":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "4dc63de8439474c75ba986a635bf7ee6eb944a9e",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "f6f6b6580cfddeb65b1e133c69d81cd54e4a3a19",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "aadd3a340c78e53078a7bb6c17cc30f105c2960c",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "e9d4018e149d50172ed462a7c21137aa915940ec",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "08d8c9f0860202115b653dc31a06d366a5978623",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "1286055c7bafeb075632f76ff161b619f6121463",
   },
 }
 
