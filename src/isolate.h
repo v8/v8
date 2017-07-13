@@ -5,6 +5,7 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include <cstddef>
 #include <memory>
 #include <queue>
 
@@ -1254,10 +1255,7 @@ class Isolate {
     using Deleter = void (*)(ManagedObjectFinalizer*);
 
     ManagedObjectFinalizer(void* value, Deleter deleter)
-        : value_(value), deleter_(deleter) {
-      DCHECK_EQ(reinterpret_cast<void*>(this),
-                reinterpret_cast<void*>(&value_));
-    }
+        : value_(value), deleter_(deleter) {}
 
     void Dispose() { deleter_(this); }
 
@@ -1273,6 +1271,9 @@ class Isolate {
     ManagedObjectFinalizer* prev_ = nullptr;
     ManagedObjectFinalizer* next_ = nullptr;
   };
+
+  static_assert(offsetof(ManagedObjectFinalizer, value_) == 0,
+                "value_ must be the first member");
 
   // Register a finalizer to be called at isolate teardown.
   void RegisterForReleaseAtTeardown(ManagedObjectFinalizer*);
