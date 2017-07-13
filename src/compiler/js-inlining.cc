@@ -250,36 +250,6 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                           outer_frame_state);
 }
 
-Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
-  FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
-  Handle<SharedFunctionInfo> shared;
-  frame_info.shared_info().ToHandle(&shared);
-
-  Node* function = frame_state->InputAt(kFrameStateFunctionInput);
-
-  // If we are inlining a tail call drop caller's frame state and an
-  // arguments adaptor if it exists.
-  frame_state = NodeProperties::GetFrameStateInput(frame_state);
-  if (frame_state->opcode() == IrOpcode::kFrameState) {
-    FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
-    if (frame_info.type() == FrameStateType::kArgumentsAdaptor) {
-      frame_state = NodeProperties::GetFrameStateInput(frame_state);
-    }
-  }
-
-  const FrameStateFunctionInfo* state_info =
-      common()->CreateFrameStateFunctionInfo(
-          FrameStateType::kTailCallerFunction, 0, 0, shared);
-
-  const Operator* op = common()->FrameState(
-      BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
-  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
-  Node* node0 = graph()->NewNode(op0);
-  return graph()->NewNode(op, node0, node0, node0,
-                          jsgraph()->UndefinedConstant(), function,
-                          frame_state);
-}
-
 namespace {
 
 // TODO(bmeurer): Unify this with the witness helper functions in the
@@ -749,20 +719,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                            call.receiver(), context, effect, start);
       NodeProperties::ReplaceValueInput(node, convert, 1);
       NodeProperties::ReplaceEffectInput(node, effect);
-    }
-  }
-
-  // If we are inlining a JS call at tail position then we have to pop current
-  // frame state and its potential arguments adaptor frame state in order to
-  // make the call stack be consistent with non-inlining case.
-  // After that we add a tail caller frame state which lets deoptimizer handle
-  // the case when the outermost function inlines a tail call (it should remove
-  // potential arguments adaptor frame that belongs to outermost function when
-  // deopt happens).
-  if (node->opcode() == IrOpcode::kJSCall) {
-    const CallParameters& p = CallParametersOf(node->op());
-    if (p.tail_call_mode() == TailCallMode::kAllow) {
-      frame_state = CreateTailCallerFrameState(node, frame_state);
     }
   }
 

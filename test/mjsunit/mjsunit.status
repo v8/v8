@@ -137,7 +137,6 @@
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
-  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
@@ -564,9 +563,6 @@
 
   # Deopting uses just enough memory to make this one OOM.
   'regress/regress-3976': [SKIP],
-
-  # Too slow.
-  'es6/tail-call-megatest*': [SKIP],
 
   # Forced optimisation path tests.
   'shared-function-tier-up-turbo': [SKIP],

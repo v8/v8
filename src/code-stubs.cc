@@ -572,7 +572,7 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
 }
 
 void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << convert_mode() << ", " << tail_call_mode();
+  os << convert_mode();
 }
 
 // TODO(ishell): Move to CallICAssembler.
@@ -626,8 +626,8 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   BIND(&call_function);
   {
     // Call using CallFunction builtin.
-    Callable callable = CodeFactory::CallFunction(
-        isolate(), stub->convert_mode(), stub->tail_call_mode());
+    Callable callable =
+        CodeFactory::CallFunction(isolate(), stub->convert_mode());
     TailCallStub(callable, context, target, argc);
   }
 
@@ -729,8 +729,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   {
     // Call using call builtin.
     Comment("call using Call builtin");
-    Callable callable_call = CodeFactory::Call(isolate(), stub->convert_mode(),
-                                               stub->tail_call_mode());
+    Callable callable_call = CodeFactory::Call(isolate(), stub->convert_mode());
     TailCallStub(callable_call, context, target, argc);
   }
 }
@@ -742,8 +741,7 @@ TF_STUB(CallICTrampolineStub, CodeStubAssembler) {
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = CodeFactory::CallIC(isolate(), stub->convert_mode(),
-                                          stub->tail_call_mode());
+  Callable callable = CodeFactory::CallIC(isolate(), stub->convert_mode());
   TailCallStub(callable, context, target, argc, slot, vector);
 }
 

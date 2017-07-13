@@ -584,7 +584,6 @@ namespace internal {
   F(DisassembleFunction, 1, 1)                \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
-  F(TraceTailCall, 0, 1)                      \
   F(HaveSameMap, 2, 1)                        \
   F(InNewSpace, 1, 1)                         \
   F(HasSmiElements, 1, 1)                     \

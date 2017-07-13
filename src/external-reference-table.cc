@@ -289,9 +289,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Isolate::stress_deopt_count_address()");
   Add(ExternalReference::runtime_function_table_address(isolate).address(),
       "Runtime::runtime_function_table_address()");
-  Add(ExternalReference::is_tail_call_elimination_enabled_address(isolate)
-          .address(),
-      "Isolate::is_tail_call_elimination_enabled_address()");
   Add(ExternalReference::address_of_float_abs_constant().address(),
       "float_absolute_constant");
   Add(ExternalReference::address_of_float_neg_constant().address(),

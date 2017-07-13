@@ -1294,7 +1294,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 // static
 void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     MacroAssembler* masm, ConvertReceiverMode receiver_mode,
-    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
+    InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a2 : the address of the first argument to be pushed. Subsequent
@@ -1324,15 +1324,14 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   // Call the target.
   if (mode == InterpreterPushArgsMode::kJSFunction) {
-    __ Jump(masm->isolate()->builtins()->CallFunction(ConvertReceiverMode::kAny,
-                                                      tail_call_mode),
-            RelocInfo::CODE_TARGET);
+    __ Jump(
+        masm->isolate()->builtins()->CallFunction(ConvertReceiverMode::kAny),
+        RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Jump(masm->isolate()->builtins()->CallWithSpread(),
             RelocInfo::CODE_TARGET);
   } else {
-    __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
-                                              tail_call_mode),
+    __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny),
             RelocInfo::CODE_TARGET);
   }
 
@@ -2237,99 +2236,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
-namespace {
-
-// Drops top JavaScript frame and an arguments adaptor frame below it (if
-// present) preserving all the arguments prepared for current call.
-// Does nothing if debugger is currently active.
-// ES6 14.6.3. PrepareForTailCall
-//
-// Stack structure for the function g() tail calling f():
-//
-// ------- Caller frame: -------
-// |  ...
-// |  g()'s arg M
-// |  ...
-// |  g()'s arg 1
-// |  g()'s receiver arg
-// |  g()'s caller pc
-// ------- g()'s frame: -------
-// |  g()'s caller fp      <- fp
-// |  g()'s context
-// |  function pointer: g
-// |  -------------------------
-// |  ...
-// |  ...
-// |  f()'s arg N
-// |  ...
-// |  f()'s arg 1
-// |  f()'s receiver arg   <- sp (f()'s caller pc is not on the stack yet!)
-// ----------------------
-//
-void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
-                        Register scratch1, Register scratch2,
-                        Register scratch3) {
-  DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
-  Comment cmnt(masm, "[ PrepareForTailCall");
-
-  // Prepare for tail call only if ES2015 tail call elimination is enabled.
-  Label done;
-  ExternalReference is_tail_call_elimination_enabled =
-      ExternalReference::is_tail_call_elimination_enabled_address(
-          masm->isolate());
-  __ li(at, Operand(is_tail_call_elimination_enabled));
-  __ Lb(scratch1, MemOperand(at));
-  __ Branch(&done, eq, scratch1, Operand(zero_reg));
-
-  // Drop possible interpreter handler/stub frame.
-  {
-    Label no_interpreter_frame;
-    __ Ld(scratch3,
-          MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ Branch(&no_interpreter_frame, ne, scratch3,
-              Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
-    __ Ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&no_interpreter_frame);
-  }
-
-  // Check if next frame is an arguments adaptor frame.
-  Register caller_args_count_reg = scratch1;
-  Label no_arguments_adaptor, formal_parameter_count_loaded;
-  __ Ld(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ld(scratch3,
-        MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ Branch(&no_arguments_adaptor, ne, scratch3,
-            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-
-  // Drop current frame and load arguments count from arguments adaptor frame.
-  __ mov(fp, scratch2);
-  __ Lw(caller_args_count_reg,
-        UntagSmiMemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Branch(&formal_parameter_count_loaded);
-
-  __ bind(&no_arguments_adaptor);
-  // Load caller's formal parameter count
-  __ Ld(scratch1,
-        MemOperand(fp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
-  __ Ld(scratch1,
-        FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
-  __ Lw(caller_args_count_reg,
-        FieldMemOperand(scratch1,
-                        SharedFunctionInfo::kFormalParameterCountOffset));
-
-  __ bind(&formal_parameter_count_loaded);
-
-  ParameterCount callee_args_count(args_reg);
-  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
-                        scratch3);
-  __ bind(&done);
-}
-}  // namespace
-
 // static
 void Builtins::Generate_CallFunction(MacroAssembler* masm,
-                                     ConvertReceiverMode mode,
-                                     TailCallMode tail_call_mode) {
+                                     ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the function to call (checked to be a JSFunction)
@@ -2418,10 +2327,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-  if (tail_call_mode == TailCallMode::kAllow) {
-    PrepareForTailCall(masm, a0, t0, t1, t2);
-  }
-
   __ Lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(a0);
@@ -2439,17 +2344,12 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm,
-                                              TailCallMode tail_call_mode) {
+void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the function to call (checked to be a JSBoundFunction)
   // -----------------------------------
   __ AssertBoundFunction(a1);
-
-  if (tail_call_mode == TailCallMode::kAllow) {
-    PrepareForTailCall(masm, a0, t0, t1, t2);
-  }
 
   // Patch the receiver to [[BoundThis]].
   {
@@ -2531,8 +2431,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
-                             TailCallMode tail_call_mode) {
+void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the target to call (can be any Object).
@@ -2542,9 +2441,9 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   __ JumpIfSmi(a1, &non_callable);
   __ bind(&non_smi);
   __ GetObjectType(a1, t1, t2);
-  __ Jump(masm->isolate()->builtins()->CallFunction(mode, tail_call_mode),
+  __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
-  __ Jump(masm->isolate()->builtins()->CallBoundFunction(tail_call_mode),
+  __ Jump(masm->isolate()->builtins()->CallBoundFunction(),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_BOUND_FUNCTION_TYPE));
 
   // Check if target has a [[Call]] internal method.
@@ -2553,11 +2452,6 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   __ Branch(&non_callable, eq, t1, Operand(zero_reg));
 
   __ Branch(&non_function, ne, t2, Operand(JS_PROXY_TYPE));
-
-  // 0. Prepare for tail call if necessary.
-  if (tail_call_mode == TailCallMode::kAllow) {
-    PrepareForTailCall(masm, a0, t0, t1, t2);
-  }
 
   // 1. Runtime fallback for Proxy [[Call]].
   __ Push(a1);
@@ -2577,7 +2471,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadNativeContextSlot(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, a1);
   __ Jump(masm->isolate()->builtins()->CallFunction(
-              ConvertReceiverMode::kNotNullOrUndefined, tail_call_mode),
+              ConvertReceiverMode::kNotNullOrUndefined),
           RelocInfo::CODE_TARGET);
 
   // 3. Call to something that is not callable.

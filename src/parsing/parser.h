@@ -293,7 +293,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                         parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
-      SET_ALLOW(tailcalls);
       SET_ALLOW(harmony_do_expressions);
       SET_ALLOW(harmony_function_sent);
       SET_ALLOW(harmony_class_fields);
@@ -634,9 +633,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
   void SetAsmModule();
-
-  V8_INLINE void MarkCollectedTailCallExpressions();
-  V8_INLINE void MarkTailPosition(Expression* expression);
 
   // Rewrite all DestructuringAssignments in the current FunctionState.
   V8_INLINE void RewriteDestructuringAssignments();

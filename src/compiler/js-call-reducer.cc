@@ -158,10 +158,6 @@ bool CanBeNullOrUndefined(Node* node) {
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  // Tail calls to Function.prototype.apply are not properly supported
-  // down the pipeline, so we disable this optimization completely for
-  // tail calls (for now).
-  if (p.tail_call_mode() == TailCallMode::kAllow) return NoChange();
   size_t arity = p.arity();
   DCHECK_LE(2u, arity);
   ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny;
@@ -268,8 +264,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   // Change {node} to the new {JSCall} operator.
   NodeProperties::ChangeOp(
       node,
-      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode,
-                         p.tail_call_mode()));
+      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -305,8 +300,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   }
   NodeProperties::ChangeOp(
       node,
-      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode,
-                         p.tail_call_mode()));
+      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -1131,8 +1125,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Operator const* op =
         (node->opcode() == IrOpcode::kJSCallWithArrayLike ||
          node->opcode() == IrOpcode::kJSCallWithSpread)
-            ? javascript()->CallForwardVarargs(arity + 1, start_index,
-                                               TailCallMode::kDisallow)
+            ? javascript()->CallForwardVarargs(arity + 1, start_index)
             : javascript()->ConstructForwardVarargs(arity + 2, start_index);
     NodeProperties::ChangeOp(node, op);
     return Changed(node);
@@ -1293,9 +1286,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         arity++;
       }
       NodeProperties::ChangeOp(
-          node,
-          javascript()->Call(arity, p.frequency(), VectorSlotPair(),
-                             convert_mode, p.tail_call_mode()));
+          node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
+                                   convert_mode));
       // Try to further reduce the JSCall {node}.
       Reduction const reduction = ReduceJSCall(node);
       return reduction.Changed() ? reduction : Changed(node);

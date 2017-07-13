@@ -1490,9 +1490,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   // Create node to perform the function call.
   CallFrequency frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
-  const Operator* call =
-      javascript()->Call(args->length() + 2, frequency, feedback, receiver_hint,
-                         expr->tail_call_mode());
+  const Operator* call = javascript()->Call(args->length() + 2, frequency,
+                                            feedback, receiver_hint);
   Node* value = ProcessArguments(call, args->length() + 2);
   ast_context()->ProduceValue(expr, value);
 }

@@ -1339,13 +1339,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallAnyReceiver(Register callable,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::TailCall(Register callable,
-                                                     RegisterList args,
-                                                     int feedback_slot) {
-  OutputTailCall(callable, args, args.register_count(), feedback_slot);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(Register callable,
                                                            RegisterList args) {
   OutputCallWithSpread(callable, args, args.register_count());

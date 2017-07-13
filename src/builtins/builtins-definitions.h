@@ -62,19 +62,12 @@ namespace internal {
   ASM(CallFunction_ReceiverIsNullOrUndefined)                                  \
   ASM(CallFunction_ReceiverIsNotNullOrUndefined)                               \
   ASM(CallFunction_ReceiverIsAny)                                              \
-  ASM(TailCallFunction_ReceiverIsNullOrUndefined)                              \
-  ASM(TailCallFunction_ReceiverIsNotNullOrUndefined)                           \
-  ASM(TailCallFunction_ReceiverIsAny)                                          \
   /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
   ASM(CallBoundFunction)                                                       \
-  ASM(TailCallBoundFunction)                                                   \
   /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
   ASM(Call_ReceiverIsNullOrUndefined)                                          \
   ASM(Call_ReceiverIsNotNullOrUndefined)                                       \
   ASM(Call_ReceiverIsAny)                                                      \
-  ASM(TailCall_ReceiverIsNullOrUndefined)                                      \
-  ASM(TailCall_ReceiverIsNotNullOrUndefined)                                   \
-  ASM(TailCall_ReceiverIsAny)                                                  \
   ASM(CallVarargs)                                                             \
   TFC(CallWithSpread, CallWithSpread, 1)                                       \
   TFC(CallWithArrayLike, CallWithArrayLike, 1)                                 \
@@ -138,8 +131,6 @@ namespace internal {
   ASM(InterpreterPushArgsThenCallFunction)                                     \
   ASM(InterpreterPushUndefinedAndArgsThenCallFunction)                         \
   ASM(InterpreterPushArgsThenCallWithFinalSpread)                              \
-  ASM(InterpreterPushArgsThenTailCall)                                         \
-  ASM(InterpreterPushArgsThenTailCallFunction)                                 \
   ASM(InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructFunction)                                \
   ASM(InterpreterPushArgsThenConstructArray)                                   \

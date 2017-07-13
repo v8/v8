@@ -56,7 +56,6 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT,
   DEBUG_BREAK_SLOT_AT_CALL,
   DEBUG_BREAK_SLOT_AT_RETURN,
-  DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
 enum IgnoreBreakMode {
@@ -75,9 +74,6 @@ class BreakLocation {
 
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
-  inline bool IsTailCall() const {
-    return type_ == DEBUG_BREAK_SLOT_AT_TAIL_CALL;
-  }
   inline bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
   inline bool IsDebuggerStatement() const {
     return type_ == DEBUGGER_STATEMENT;

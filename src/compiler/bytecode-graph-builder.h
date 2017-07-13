@@ -159,14 +159,12 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
-  void BuildCallVarArgs(TailCallMode tail_call_mode,
-                        ConvertReceiverMode receiver_mode);
-  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_mode,
-                 Node* const* args, size_t arg_count, int slot_id);
-  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_mode,
+  void BuildCallVarArgs(ConvertReceiverMode receiver_mode);
+  void BuildCall(ConvertReceiverMode receiver_mode, Node* const* args,
+                 size_t arg_count, int slot_id);
+  void BuildCall(ConvertReceiverMode receiver_mode,
                  std::initializer_list<Node*> args, int slot_id) {
-    BuildCall(tail_call_mode, receiver_mode, args.begin(), args.size(),
-              slot_id);
+    BuildCall(receiver_mode, args.begin(), args.size(), slot_id);
   }
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);

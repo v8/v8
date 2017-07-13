@@ -638,16 +638,12 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   }
 }
 
-void FullCodeGenerator::SetCallPosition(Expression* expr,
-                                        TailCallMode tail_call_mode) {
+void FullCodeGenerator::SetCallPosition(Expression* expr) {
   if (expr->position() == kNoSourcePosition) return;
   RecordPosition(expr->position());
   if (info_->is_debug()) {
-    RelocInfo::Mode mode = (tail_call_mode == TailCallMode::kAllow)
-                               ? RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL
-                               : RelocInfo::DEBUG_BREAK_SLOT_AT_CALL;
     // Always emit a debug break slot before a call.
-    DebugCodegen::GenerateSlot(masm_, mode);
+    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
   }
 }
 
@@ -1257,9 +1253,7 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 
 
 void FullCodeGenerator::VisitCall(Call* expr) {
-  Comment cmnt(masm_, (expr->tail_call_mode() == TailCallMode::kAllow)
-                          ? "[ TailCall"
-                          : "[ Call");
+  Comment cmnt(masm_, "[ Call");
   Expression* callee = expr->expression();
   Call::CallType call_type = expr->GetCallType();
 

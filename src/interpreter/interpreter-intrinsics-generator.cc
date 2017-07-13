@@ -335,7 +335,7 @@ Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,
   }
 
   Node* result = __ CallJS(function, context, receiver_arg, target_args_count,
-                           ConvertReceiverMode::kAny, TailCallMode::kDisallow);
+                           ConvertReceiverMode::kAny);
   return result;
 }
 

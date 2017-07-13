@@ -1573,11 +1573,6 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
-ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
-}
-
 ExternalReference ExternalReference::promise_hook_or_debug_is_active_address(
     Isolate* isolate) {
   return ExternalReference(isolate->promise_hook_or_debug_is_active_address());

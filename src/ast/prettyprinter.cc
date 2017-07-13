@@ -1147,9 +1147,7 @@ void AstPrinter::VisitProperty(Property* node) {
 
 void AstPrinter::VisitCall(Call* node) {
   EmbeddedVector<char, 128> buf;
-  const char* name =
-      node->tail_call_mode() == TailCallMode::kAllow ? "TAIL CALL" : "CALL";
-  FormatSlotNode(&buf, node, name, node->CallFeedbackICSlot());
+  FormatSlotNode(&buf, node, "CALL", node->CallFeedbackICSlot());
   IndentedScope indent(this, buf.start());
 
   Visit(node->expression());

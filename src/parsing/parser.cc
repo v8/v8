@@ -421,10 +421,6 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   return NULL;
 }
 
-void Parser::MarkTailPosition(Expression* expression) {
-  expression->MarkTail();
-}
-
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
                                    ZoneList<Expression*>* args, int pos,
                                    bool* ok) {
@@ -521,8 +517,6 @@ Parser::Parser(ParseInfo* info)
   allow_lazy_ = FLAG_lazy && info->allow_lazy_parsing() && !info->is_native() &&
                 info->extension() == nullptr && can_compile_lazily;
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
-  set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
-                      info->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
@@ -1760,11 +1754,6 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
   }
 
   if (catch_block != nullptr) {
-    // For a try-catch construct append return expressions from the catch block
-    // to the list of return expressions.
-    function_state_->tail_call_expressions().Append(
-        catch_info.tail_call_expressions);
-
     DCHECK_NULL(finally_block);
     DCHECK_NOT_NULL(catch_info.scope);
     TryCatchStatement* stmt = factory()->NewTryCatchStatement(
@@ -3757,10 +3746,8 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
 Expression* Parser::SpreadCall(Expression* function,
                                ZoneList<Expression*>* args, int pos,
                                Call::PossiblyEval is_possibly_eval) {
-  // Handle these cases in BytecodeGenerator.
-  // [Call,New]WithSpread bytecodes aren't used with tailcalls - see
-  // https://crbug.com/v8/5867
-  if (!allow_tailcalls() && OnlyLastArgIsSpread(args)) {
+  // Handle this case in BytecodeGenerator.
+  if (OnlyLastArgIsSpread(args)) {
     return factory()->NewCall(function, args, pos);
   }
 
@@ -3839,14 +3826,6 @@ void Parser::SetAsmModule() {
   ++use_counts_[v8::Isolate::kUseAsm];
   DCHECK(scope()->is_declaration_scope());
   scope()->AsDeclarationScope()->set_asm_module();
-}
-
-void Parser::MarkCollectedTailCallExpressions() {
-  const ZoneList<Expression*>& tail_call_expressions =
-      function_state_->tail_call_expressions().expressions();
-  for (int i = 0; i < tail_call_expressions.length(); ++i) {
-    MarkTailPosition(tail_call_expressions[i]);
-  }
 }
 
 Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {

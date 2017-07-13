@@ -155,7 +155,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, empty, 1)
       .CallUndefinedReceiver(reg, single, 1)
       .CallUndefinedReceiver(reg, pair, 1)
-      .TailCall(reg, reg_list, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)

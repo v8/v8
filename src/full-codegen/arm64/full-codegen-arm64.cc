@@ -1633,18 +1633,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     VisitForStackValue(args->at(i));
   }
 
-  SetCallPosition(expr, expr->tail_call_mode());
-  if (expr->tail_call_mode() == TailCallMode::kAllow) {
-    if (FLAG_trace) {
-      __ CallRuntime(Runtime::kTraceTailCall);
-    }
-    // Update profiling counters before the tail call since we will
-    // not return to this function.
-    EmitProfilingCounterHandlingForReturnSequence(true);
-  }
-  Handle<Code> code =
-      CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
-          .code();
+  SetCallPosition(expr);
+  Handle<Code> code = CodeFactory::CallICTrampoline(isolate(), mode).code();
   __ Mov(x3, IntFromSlot(expr->CallFeedbackICSlot()));
   __ Peek(x1, (arg_count + 1) * kXRegSize);
   __ Mov(x0, arg_count);

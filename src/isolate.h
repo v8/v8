@@ -1174,15 +1174,6 @@ class Isolate {
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
 
-  // Support for dynamically disabling tail call elimination.
-  Address is_tail_call_elimination_enabled_address() {
-    return reinterpret_cast<Address>(&is_tail_call_elimination_enabled_);
-  }
-  bool is_tail_call_elimination_enabled() const {
-    return is_tail_call_elimination_enabled_;
-  }
-  void SetTailCallEliminationEnabled(bool enabled);
-
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 

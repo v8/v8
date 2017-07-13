@@ -637,9 +637,6 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::CallForwardVarargs(isolate());
-  if (p.tail_call_mode() == TailCallMode::kAllow) {
-    flags |= CallDescriptor::kSupportsTailCalls;
-  }
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -657,9 +654,6 @@ void JSGenericLowering::LowerJSCall(Node* node) {
   ConvertReceiverMode const mode = p.convert_mode();
   Callable callable = CodeFactory::Call(isolate(), mode);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  if (p.tail_call_mode() == TailCallMode::kAllow) {
-    flags |= CallDescriptor::kSupportsTailCalls;
-  }
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());

@@ -80,8 +80,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
                 set_is_named_expression)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
-  FLAG_ACCESSOR(kTailCallEliminationEnabled, is_tail_call_elimination_enabled,
-                set_tail_call_elimination_enabled)
 
 #undef FLAG_ACCESSOR
 
@@ -280,8 +278,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     kIsNamedExpression = 1 << 8,
     kDebug = 1 << 9,
     kSerializing = 1 << 10,
-    kTailCallEliminationEnabled = 1 << 11,
-    kAstValueFactoryOwned = 1 << 12,
+    kAstValueFactoryOwned = 1 << 11,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

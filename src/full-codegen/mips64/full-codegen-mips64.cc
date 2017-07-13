@@ -1681,18 +1681,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   }
 
   // Record source position of the IC call.
-  SetCallPosition(expr, expr->tail_call_mode());
-  if (expr->tail_call_mode() == TailCallMode::kAllow) {
-    if (FLAG_trace) {
-      __ CallRuntime(Runtime::kTraceTailCall);
-    }
-    // Update profiling counters before the tail call since we will
-    // not return to this function.
-    EmitProfilingCounterHandlingForReturnSequence(true);
-  }
-  Handle<Code> code =
-      CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
-          .code();
+  SetCallPosition(expr);
+  Handle<Code> code = CodeFactory::CallICTrampoline(isolate(), mode).code();
   __ li(a3, Operand(IntFromSlot(expr->CallFeedbackICSlot())));
   __ Ld(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ li(a0, Operand(arg_count));

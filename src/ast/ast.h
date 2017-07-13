@@ -282,9 +282,6 @@ class Expression : public AstNode {
     kTest
   };
 
-  // Mark this expression as being in tail position.
-  void MarkTail();
-
   // True iff the expression is a valid reference expression.
   bool IsValidReferenceExpression() const;
 
@@ -1757,12 +1754,6 @@ class Call final : public Expression {
     return IsPossiblyEvalField::decode(bit_field_);
   }
 
-  TailCallMode tail_call_mode() const {
-    return IsTailField::decode(bit_field_) ? TailCallMode::kAllow
-                                           : TailCallMode::kDisallow;
-  }
-  void MarkTail() { bit_field_ = IsTailField::update(bit_field_, true); }
-
   bool only_last_arg_is_spread() {
     return !arguments_->is_empty() && arguments_->last()->IsSpread();
   }
@@ -1805,8 +1796,8 @@ class Call final : public Expression {
 
   class IsUninitializedField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
-  class IsTailField : public BitField<bool, IsUninitializedField::kNext, 1> {};
-  class IsPossiblyEvalField : public BitField<bool, IsTailField::kNext, 1> {};
+  class IsPossiblyEvalField
+      : public BitField<bool, IsUninitializedField::kNext, 1> {};
 
   FeedbackSlot ic_slot_;
   Expression* expression_;
@@ -1944,17 +1935,6 @@ class BinaryOperation final : public Expression {
   void set_left(Expression* e) { left_ = e; }
   Expression* right() const { return right_; }
   void set_right(Expression* e) { right_ = e; }
-
-  void MarkTail() {
-    switch (op()) {
-      case Token::COMMA:
-      case Token::AND:
-      case Token::OR:
-        right_->MarkTail();
-      default:
-        break;
-    }
-  }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FeedbackSlotCache* cache);
@@ -2109,11 +2089,6 @@ class Conditional final : public Expression {
   void set_condition(Expression* e) { condition_ = e; }
   void set_then_expression(Expression* e) { then_expression_ = e; }
   void set_else_expression(Expression* e) { else_expression_ = e; }
-
-  void MarkTail() {
-    then_expression_->MarkTail();
-    else_expression_->MarkTail();
-  }
 
  private:
   friend class AstNodeFactory;

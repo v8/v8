@@ -190,7 +190,6 @@ int CodeBreakIterator::GetModeMask() {
   int mask = 0;
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
-  mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
   return mask;
 }
@@ -225,10 +224,6 @@ DebugBreakType CodeBreakIterator::GetDebugBreakType() {
     return DEBUG_BREAK_SLOT_AT_RETURN;
   } else if (RelocInfo::IsDebugBreakSlotAtCall(rmode())) {
     return DEBUG_BREAK_SLOT_AT_CALL;
-  } else if (RelocInfo::IsDebugBreakSlotAtTailCall(rmode())) {
-    return isolate()->is_tail_call_elimination_enabled()
-               ? DEBUG_BREAK_SLOT_AT_TAIL_CALL
-               : DEBUG_BREAK_SLOT_AT_CALL;
   } else if (RelocInfo::IsDebugBreakSlot(rmode())) {
     return DEBUG_BREAK_SLOT;
   } else {
@@ -311,10 +306,6 @@ DebugBreakType BytecodeArrayBreakIterator::GetDebugBreakType() {
     return DEBUGGER_STATEMENT;
   } else if (bytecode == interpreter::Bytecode::kReturn) {
     return DEBUG_BREAK_SLOT_AT_RETURN;
-  } else if (bytecode == interpreter::Bytecode::kTailCall) {
-    return isolate()->is_tail_call_elimination_enabled()
-               ? DEBUG_BREAK_SLOT_AT_TAIL_CALL
-               : DEBUG_BREAK_SLOT_AT_CALL;
   } else if (interpreter::Bytecodes::IsCallOrConstruct(bytecode)) {
     return DEBUG_BREAK_SLOT_AT_CALL;
   } else if (source_position_iterator_.is_statement()) {
@@ -552,8 +543,6 @@ void Debug::Break(JavaScriptFrame* frame) {
     case StepNext:
       // Step next should not break in a deeper frame than target frame.
       if (current_frame_count > target_frame_count) return;
-      // For step-next, a tail call is like a return and should break.
-      step_break = location.IsTailCall();
     // Fall through.
     case StepIn: {
       FrameSummary summary = FrameSummary::GetTop(frame);
@@ -1029,8 +1018,6 @@ void Debug::PrepareStep(StepAction step_action) {
   }
   UpdateHookOnFunctionCall();
 
-  // A step-next at a tail call is a step-out.
-  if (location.IsTailCall() && step_action == StepNext) step_action = StepOut;
   // A step-next in blackboxed function is a step-out.
   if (step_action == StepNext && IsBlackboxed(shared)) step_action = StepOut;
 
@@ -1664,7 +1651,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   DCHECK(!frame->is_optimized());
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
-  return location.IsReturn() || location.IsTailCall();
+  return location.IsReturn();
 }
 
 void Debug::ScheduleFrameRestart(StackFrame* frame) {

@@ -431,7 +431,7 @@ class RelocInfo {
   }
   static inline bool IsDebugBreakSlot(Mode mode) {
     return IsDebugBreakSlotAtPosition(mode) || IsDebugBreakSlotAtReturn(mode) ||
-           IsDebugBreakSlotAtCall(mode) || IsDebugBreakSlotAtTailCall(mode);
+           IsDebugBreakSlotAtCall(mode);
   }
   static inline bool IsDebugBreakSlotAtPosition(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_POSITION;
@@ -441,9 +441,6 @@ class RelocInfo {
   }
   static inline bool IsDebugBreakSlotAtCall(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_CALL;
-  }
-  static inline bool IsDebugBreakSlotAtTailCall(Mode mode) {
-    return mode == DEBUG_BREAK_SLOT_AT_TAIL_CALL;
   }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
@@ -1006,9 +1003,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ForDeoptEntry(Address entry);
 
   static ExternalReference cpu_features();
-
-  static ExternalReference is_tail_call_elimination_enabled_address(
-      Isolate* isolate);
 
   static ExternalReference debug_is_active_address(Isolate* isolate);
   static ExternalReference debug_hook_on_function_call_address(

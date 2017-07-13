@@ -119,7 +119,6 @@ class TranslatedFrame {
     kInterpretedFunction,
     kGetter,
     kSetter,
-    kTailCallerFunction,
     kArgumentsAdaptor,
     kConstructStub,
     kBuiltinContinuation,
@@ -189,7 +188,6 @@ class TranslatedFrame {
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
-  static TranslatedFrame TailCallerFrame(SharedFunctionInfo* shared_info);
   static TranslatedFrame ConstructStubFrame(BailoutId bailout_id,
                                             SharedFunctionInfo* shared_info,
                                             int height);
@@ -515,8 +513,6 @@ class Deoptimizer : public Malloced {
                                  int frame_index, bool goto_catch_handler);
   void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
                                       int frame_index);
-  void DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
-                                int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
   void DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
@@ -876,7 +872,6 @@ class TranslationIterator BASE_EMBEDDED {
   V(GETTER_STUB_FRAME)                      \
   V(SETTER_STUB_FRAME)                      \
   V(ARGUMENTS_ADAPTOR_FRAME)                \
-  V(TAIL_CALLER_FRAME)                      \
   V(DUPLICATED_OBJECT)                      \
   V(ARGUMENTS_ELEMENTS)                     \
   V(ARGUMENTS_LENGTH)                       \
@@ -920,7 +915,6 @@ class Translation BASE_EMBEDDED {
   void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
                              unsigned height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
-  void BeginTailCallerFrame(int literal_id);
   void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
                                unsigned height);
   void BeginBuiltinContinuationFrame(BailoutId bailout_id, int literal_id,

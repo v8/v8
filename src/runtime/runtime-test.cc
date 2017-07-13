@@ -738,14 +738,6 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
   return obj;  // return TOS
 }
 
-RUNTIME_FUNCTION(Runtime_TraceTailCall) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  PrintIndentation(isolate);
-  PrintF("} -> tail call ->\n");
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_GetExceptionDetails) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

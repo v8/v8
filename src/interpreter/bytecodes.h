@@ -179,8 +179,6 @@ namespace interpreter {
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kRegList, OperandType::kRegCount)                             \
-  V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
     OperandType::kRegList, OperandType::kRegCount)                             \
   V(CallRuntimeForPair, AccumulatorUse::kNone, OperandType::kRuntimeId,        \
@@ -654,7 +652,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
            bytecode == Bytecode::kCallUndefinedReceiver0 ||
            bytecode == Bytecode::kCallUndefinedReceiver1 ||
            bytecode == Bytecode::kCallUndefinedReceiver2 ||
-           bytecode == Bytecode::kTailCall ||
            bytecode == Bytecode::kConstruct ||
            bytecode == Bytecode::kCallWithSpread ||
            bytecode == Bytecode::kConstructWithSpread ||
@@ -783,7 +780,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case Bytecode::kCallUndefinedReceiver2:
         return ConvertReceiverMode::kNullOrUndefined;
       case Bytecode::kCallAnyReceiver:
-      case Bytecode::kTailCall:
       case Bytecode::kConstruct:
       case Bytecode::kCallWithSpread:
       case Bytecode::kConstructWithSpread:

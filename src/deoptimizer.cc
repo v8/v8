@@ -767,12 +767,6 @@ void Deoptimizer::DoComputeOutputFrames() {
       case TranslatedFrame::kArgumentsAdaptor:
         DoComputeArgumentsAdaptorFrame(translated_frame, frame_index);
         break;
-      case TranslatedFrame::kTailCallerFunction:
-        DoComputeTailCallerFrame(translated_frame, frame_index);
-        // Tail caller frame translations do not produce output frames.
-        frame_index--;
-        output_count_--;
-        break;
       case TranslatedFrame::kConstructStub:
         DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
@@ -1204,70 +1198,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
         reinterpret_cast<intptr_t>(adaptor_trampoline->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
   }
-}
-
-void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
-                                           int frame_index) {
-  SharedFunctionInfo* shared = translated_frame->raw_shared_info();
-
-  bool is_bottommost = (0 == frame_index);
-  // Tail caller frame can't be topmost.
-  CHECK_NE(output_count_ - 1, frame_index);
-
-  if (trace_scope_ != NULL) {
-    PrintF(trace_scope_->file(), "  translating tail caller frame ");
-    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
-    PrintF(trace_scope_->file(), "%s\n", name.get());
-  }
-
-  if (!is_bottommost) return;
-
-  // Drop arguments adaptor frame below current frame if it exsits.
-  Address fp_address = input_->GetFramePointerAddress();
-  Address adaptor_fp_address =
-      Memory::Address_at(fp_address + CommonFrameConstants::kCallerFPOffset);
-
-  if (StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR) !=
-      Memory::intptr_at(adaptor_fp_address +
-                        CommonFrameConstants::kContextOrFrameTypeOffset)) {
-    return;
-  }
-
-  int caller_params_count =
-      Smi::cast(
-          Memory::Object_at(adaptor_fp_address +
-                            ArgumentsAdaptorFrameConstants::kLengthOffset))
-          ->value();
-
-  int callee_params_count =
-      function_->shared()->internal_formal_parameter_count();
-
-  // Both caller and callee parameters count do not include receiver.
-  int offset = (caller_params_count - callee_params_count) * kPointerSize;
-  intptr_t new_stack_fp =
-      reinterpret_cast<intptr_t>(adaptor_fp_address) + offset;
-
-  intptr_t new_caller_frame_top = new_stack_fp +
-                                  (callee_params_count + 1) * kPointerSize +
-                                  CommonFrameConstants::kFixedFrameSizeAboveFp;
-
-  intptr_t adaptor_caller_pc = Memory::intptr_at(
-      adaptor_fp_address + CommonFrameConstants::kCallerPCOffset);
-  intptr_t adaptor_caller_fp = Memory::intptr_at(
-      adaptor_fp_address + CommonFrameConstants::kCallerFPOffset);
-
-  if (trace_scope_ != NULL) {
-    PrintF(trace_scope_->file(),
-           "    dropping caller arguments adaptor frame: offset=%d, "
-           "fp: 0x%08" V8PRIxPTR " -> 0x%08" V8PRIxPTR
-           ", "
-           "caller sp: 0x%08" V8PRIxPTR " -> 0x%08" V8PRIxPTR "\n",
-           offset, stack_fp_, new_stack_fp, caller_frame_top_,
-           new_caller_frame_top);
-  }
-  caller_frame_top_ = new_caller_frame_top;
-  caller_fp_ = adaptor_caller_fp;
-  caller_pc_ = adaptor_caller_pc;
 }
 
 void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
@@ -2219,11 +2149,6 @@ void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
   buffer_->Add(height);
 }
 
-void Translation::BeginTailCallerFrame(int literal_id) {
-  buffer_->Add(TAIL_CALLER_FRAME);
-  buffer_->Add(literal_id);
-}
-
 void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
                                         int literal_id, unsigned height) {
   buffer_->Add(INTERPRETED_FRAME);
@@ -2354,7 +2279,6 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case FLOAT_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
-    case TAIL_CALLER_FRAME:
       return 1;
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
@@ -2912,12 +2836,6 @@ TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
                          shared_info, height);
 }
 
-TranslatedFrame TranslatedFrame::TailCallerFrame(
-    SharedFunctionInfo* shared_info) {
-  return TranslatedFrame(kTailCallerFunction, shared_info->GetIsolate(),
-                         shared_info, 0);
-}
-
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
     BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
   TranslatedFrame frame(kConstructStub, shared_info->GetIsolate(), shared_info,
@@ -2962,9 +2880,6 @@ int TranslatedFrame::GetValueCount() {
     case kBuiltinContinuation:
     case kJavaScriptBuiltinContinuation:
       return 1 + height_;
-
-    case kTailCallerFunction:
-      return 1;  // Function.
 
     case kInvalid:
       UNREACHABLE();
@@ -3018,17 +2933,6 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
       return TranslatedFrame::ArgumentsAdaptorFrame(shared_info, height);
-    }
-
-    case Translation::TAIL_CALLER_FRAME: {
-      SharedFunctionInfo* shared_info =
-          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
-      if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
-        PrintF(trace_file, "  reading tail caller frame marker %s\n",
-               name.get());
-      }
-      return TranslatedFrame::TailCallerFrame(shared_info);
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
@@ -3235,7 +3139,6 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::BEGIN:
     case Translation::INTERPRETED_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
-    case Translation::TAIL_CALLER_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
@@ -4159,8 +4062,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
-    CHECK(frames_[0].kind() == TranslatedFrame::kInterpretedFunction ||
-          frames_[0].kind() == TranslatedFrame::kTailCallerFunction);
+    CHECK(frames_[0].kind() == TranslatedFrame::kInterpretedFunction);
     CHECK_EQ(frame->function(), frames_[0].front().GetRawValue());
     Deoptimizer::DeoptimizeFunction(frame->function(), frame->LookupCode());
   }

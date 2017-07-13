@@ -765,10 +765,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
       while (buffer->frame_state_descriptor != nullptr &&
-             (buffer->frame_state_descriptor->type() ==
-                  FrameStateType::kArgumentsAdaptor ||
-              buffer->frame_state_descriptor->type() ==
-                  FrameStateType::kTailCallerFunction)) {
+             buffer->frame_state_descriptor->type() ==
+                 FrameStateType::kArgumentsAdaptor) {
         frame_state = NodeProperties::GetFrameStateInput(frame_state);
         buffer->frame_state_descriptor =
             buffer->frame_state_descriptor->outer_state();

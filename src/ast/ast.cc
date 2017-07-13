@@ -159,16 +159,6 @@ bool Expression::IsAccessorFunctionDefinition() const {
   return IsFunctionLiteral() && IsAccessorFunction(AsFunctionLiteral()->kind());
 }
 
-void Expression::MarkTail() {
-  if (IsConditional()) {
-    AsConditional()->MarkTail();
-  } else if (IsCall()) {
-    AsCall()->MarkTail();
-  } else if (IsBinaryOperation()) {
-    AsBinaryOperation()->MarkTail();
-  }
-}
-
 bool Statement::IsJump() const {
   switch (node_type()) {
 #define JUMP_NODE_LIST(V) \

@@ -146,9 +146,7 @@ StringConcatParameter const& StringConcatParameterOf(Operator const* op) {
 }
 
 std::ostream& operator<<(std::ostream& os, CallParameters const& p) {
-  os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode() << ", "
-     << p.tail_call_mode();
-  return os;
+  return os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode();
 }
 
 const CallParameters& CallParametersOf(const Operator* op) {
@@ -158,8 +156,7 @@ const CallParameters& CallParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os,
                          CallForwardVarargsParameters const& p) {
-  return os << p.arity() << ", " << p.start_index() << ", "
-            << p.tail_call_mode();
+  return os << p.arity() << ", " << p.start_index();
 }
 
 CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
@@ -804,9 +801,9 @@ const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
       hints);                                     // parameter
 }
 
-const Operator* JSOperatorBuilder::CallForwardVarargs(
-    size_t arity, uint32_t start_index, TailCallMode tail_call_mode) {
-  CallForwardVarargsParameters parameters(arity, start_index, tail_call_mode);
+const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,
+                                                      uint32_t start_index) {
+  CallForwardVarargsParameters parameters(arity, start_index);
   return new (zone()) Operator1<CallForwardVarargsParameters>(   // --
       IrOpcode::kJSCallForwardVarargs, Operator::kNoProperties,  // opcode
       "JSCallForwardVarargs",                                    // name
@@ -816,10 +813,8 @@ const Operator* JSOperatorBuilder::CallForwardVarargs(
 
 const Operator* JSOperatorBuilder::Call(size_t arity, CallFrequency frequency,
                                         VectorSlotPair const& feedback,
-                                        ConvertReceiverMode convert_mode,
-                                        TailCallMode tail_call_mode) {
-  CallParameters parameters(arity, frequency, feedback, tail_call_mode,
-                            convert_mode);
+                                        ConvertReceiverMode convert_mode) {
+  CallParameters parameters(arity, frequency, feedback, convert_mode);
   return new (zone()) Operator1<CallParameters>(   // --
       IrOpcode::kJSCall, Operator::kNoProperties,  // opcode
       "JSCall",                                    // name

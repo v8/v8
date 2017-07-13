@@ -9287,14 +9287,9 @@ void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   debug::SetLiveEditEnabled(isolate, enable);
 }
 
-bool Debug::IsTailCallEliminationEnabled(Isolate* isolate) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return internal_isolate->is_tail_call_elimination_enabled();
-}
+bool Debug::IsTailCallEliminationEnabled(Isolate* isolate) { return false; }
 
 void Debug::SetTailCallEliminationEnabled(Isolate* isolate, bool enabled) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->SetTailCallEliminationEnabled(enabled);
 }
 
 MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,

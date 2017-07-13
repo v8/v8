@@ -3066,7 +3066,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   RegisterList args = register_allocator()->NewGrowableRegisterList();
 
   bool implicit_undefined_receiver = false;
-  bool is_tail_call = (expr->tail_call_mode() == TailCallMode::kAllow);
   // When a call contains a spread, a Call AST node is only created if there is
   // exactly one spread, and it is the last argument.
   bool is_spread_call = expr->only_last_arg_is_spread();
@@ -3087,7 +3086,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::GLOBAL_CALL: {
       // Receiver is undefined for global calls.
-      if (!is_tail_call && !is_spread_call) {
+      if (!is_spread_call) {
         implicit_undefined_receiver = true;
       } else {
         // TODO(leszeks): There's no special bytecode for tail calls or spread
@@ -3125,7 +3124,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::OTHER_CALL: {
       // Receiver is undefined for other calls.
-      if (!is_tail_call && !is_spread_call) {
+      if (!is_spread_call) {
         implicit_undefined_receiver = true;
       } else {
         // TODO(leszeks): There's no special bytecode for tail calls or spread
@@ -3192,12 +3191,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
 
   if (is_spread_call) {
-    DCHECK(!is_tail_call);
     DCHECK(!implicit_undefined_receiver);
     builder()->CallWithSpread(callee, args);
-  } else if (is_tail_call) {
-    DCHECK(!implicit_undefined_receiver);
-    builder()->TailCall(callee, args, feedback_slot_index);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
              call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);

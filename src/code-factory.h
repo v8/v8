@@ -29,11 +29,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
   static Callable CallIC(Isolate* isolate,
-                         ConvertReceiverMode mode = ConvertReceiverMode::kAny,
-                         TailCallMode tail_call_mode = TailCallMode::kDisallow);
+                         ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable CallICTrampoline(
-      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable StoreGlobalIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreGlobalICInOptimizedCode(Isolate* isolate,
                                                LanguageMode mode);
@@ -85,13 +83,11 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
-                       ConvertReceiverMode mode = ConvertReceiverMode::kAny,
-                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+                       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable CallWithArrayLike(Isolate* isolate);
   static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
-      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable CallVarargs(Isolate* isolate);
   static Callable CallForwardVarargs(Isolate* isolate);
   static Callable CallFunctionForwardVarargs(Isolate* isolate);
@@ -104,7 +100,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   static Callable InterpreterPushArgsThenCall(Isolate* isolate,
                                               ConvertReceiverMode receiver_mode,
-                                              TailCallMode tail_call_mode,
                                               InterpreterPushArgsMode mode);
   static Callable InterpreterPushArgsThenConstruct(
       Isolate* isolate, InterpreterPushArgsMode mode);
