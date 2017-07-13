@@ -66,11 +66,6 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
-  if (!FLAG_opt && strcmp(FLAG_turbo_filter, "*") == 0) {
-    const char* filter_flag = "--turbo-filter=~";
-    FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
-  }
-
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
 
   Isolate::InitializeOncePerProcess();

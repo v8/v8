@@ -266,17 +266,6 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
       info->literal()->feedback_vector_spec()));
 }
 
-bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
-  // Check the enabling conditions for Turbofan.
-  // 1. "use asm" code.
-  bool is_turbofanable_asm = FLAG_turbo_asm && shared->asm_function();
-
-  // 2. Explicitly enabled by the command-line filter.
-  bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);
-
-  return is_turbofanable_asm || passes_turbo_filter;
-}
-
 bool ShouldUseFullCodegen(Handle<SharedFunctionInfo> shared) {
   // Code which can't be supported by the old pipeline should use Ignition.
   if (shared->must_use_ignition()) return false;
@@ -783,6 +772,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
   bool ignition_osr = osr_frame && osr_frame->is_interpreted();
+  USE(ignition_osr);
   DCHECK_IMPLIES(ignition_osr, !osr_ast_id.IsNone());
   DCHECK_IMPLIES(ignition_osr, FLAG_ignition_osr);
 
@@ -837,17 +827,18 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
+  // Do not use TurboFan if optimization is disabled or function doesn't pass
+  // turbo_filter.
+  if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) {
+    info->AbortOptimization(kOptimizationDisabled);
+    return MaybeHandle<Code>();
+  }
+
   // Limit the number of times we try to optimize functions.
   const int kMaxDeoptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_deopt_count : 1000;
   if (info->shared_info()->deopt_count() > kMaxDeoptCount) {
     info->AbortOptimization(kDeoptimizedTooManyTimes);
-    return MaybeHandle<Code>();
-  }
-
-  // Do not use TurboFan if activation criteria are not met.
-  if (!UseTurboFan(shared) && !ignition_osr) {
-    info->AbortOptimization(kOptimizationDisabled);
     return MaybeHandle<Code>();
   }
 

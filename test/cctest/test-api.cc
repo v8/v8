@@ -25356,11 +25356,11 @@ TEST(StringConcatOverflow) {
 
 
 TEST(TurboAsmDisablesNeuter) {
+  i::FLAG_opt = true;
   i::FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
-  bool should_be_neuterable = !i::FLAG_turbo_asm;
   const char* load =
       "function Module(stdlib, foreign, heap) {"
       "  'use asm';"
@@ -25375,7 +25375,7 @@ TEST(TurboAsmDisablesNeuter) {
       "buffer";
 
   v8::Local<v8::ArrayBuffer> result = CompileRun(load).As<v8::ArrayBuffer>();
-  CHECK_EQ(should_be_neuterable, result->IsNeuterable());
+  CHECK(!result->IsNeuterable());
 
   const char* store =
       "function Module(stdlib, foreign, heap) {"
@@ -25391,7 +25391,7 @@ TEST(TurboAsmDisablesNeuter) {
       "buffer";
 
   result = CompileRun(store).As<v8::ArrayBuffer>();
-  CHECK_EQ(should_be_neuterable, result->IsNeuterable());
+  CHECK(!result->IsNeuterable());
 }
 
 

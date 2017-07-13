@@ -695,6 +695,7 @@ TEST(LineNumber) {
 TEST(BailoutReason) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_always_opt = false;
+  i::FLAG_opt = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
