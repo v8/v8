@@ -528,6 +528,8 @@ TEST(Vfp) {
             "ec432b10       vmov d0, r2, r3");
     COMPARE(vmov(r2, r3, d0),
             "ec532b10       vmov r2, r3, d0");
+    COMPARE(vmov(r4, ip, d1),
+            "ec5c4b11       vmov r4, ip, d1");
     COMPARE(vmov(d0, d1),
             "eeb00b41       vmov.f64 d0, d1");
     COMPARE(vmov(d3, d3, eq),
@@ -656,6 +658,8 @@ TEST(Vfp) {
             "ed958a05       vldr s16, [r5 + 4*5]");
     COMPARE(vldr(s31, r10, 1020),
             "eddafaff       vldr s31, [r10 + 4*255]");
+    COMPARE(vldr(s31, ip, 1020),
+            "eddcfaff       vldr s31, [ip + 4*255]");
 
     COMPARE(vstr(s0, r0, 0),
             "ed800a00       vstr s0, [r0 + 4*0]");
@@ -962,6 +966,7 @@ TEST(Neon) {
       COMPARE(vmov(NeonU8, d1, 1, r1), "ee411b30       vmov.8 d1[1], r1");
       COMPARE(vmov(NeonS8, d2, 2, r2), "ee422b50       vmov.8 d2[2], r2");
       COMPARE(vmov(NeonU8, d3, 3, r8), "ee438b70       vmov.8 d3[3], r8");
+      COMPARE(vmov(NeonU8, d3, 3, ip), "ee43cb70       vmov.8 d3[3], ip");
       COMPARE(vmov(NeonS8, d4, 4, r0), "ee640b10       vmov.8 d4[4], r0");
       COMPARE(vmov(NeonU8, d5, 5, r1), "ee651b30       vmov.8 d5[5], r1");
       COMPARE(vmov(NeonS8, d6, 6, r2), "ee662b50       vmov.8 d6[6], r2");
@@ -970,6 +975,7 @@ TEST(Neon) {
       COMPARE(vmov(NeonS16, d1, 1, r1), "ee011b70       vmov.16 d1[1], r1");
       COMPARE(vmov(NeonS16, d2, 2, r2), "ee222b30       vmov.16 d2[2], r2");
       COMPARE(vmov(NeonS16, d3, 3, r7), "ee237b70       vmov.16 d3[3], r7");
+      COMPARE(vmov(NeonS16, d3, 3, ip), "ee23cb70       vmov.16 d3[3], ip");
       COMPARE(vmov(NeonS32, d0, 0, r0), "ee000b10       vmov.32 d0[0], r0");
       COMPARE(vmov(NeonU32, d0, 1, r0), "ee200b10       vmov.32 d0[1], r0");
 
@@ -981,6 +987,7 @@ TEST(Neon) {
       COMPARE(vmov(NeonU8, r1, d5, 5), "eef51b30       vmov.u8 r1, d5[5]");
       COMPARE(vmov(NeonS8, r2, d6, 6), "ee762b50       vmov.s8 r2, d6[6]");
       COMPARE(vmov(NeonU8, r8, d7, 7), "eef78b70       vmov.u8 r8, d7[7]");
+      COMPARE(vmov(NeonU8, ip, d7, 7), "eef7cb70       vmov.u8 ip, d7[7]");
       COMPARE(vmov(NeonS16, r0, d0, 0), "ee100b30       vmov.s16 r0, d0[0]");
       COMPARE(vmov(NeonU16, r1, d1, 1), "ee911b70       vmov.u16 r1, d1[1]");
       COMPARE(vmov(NeonS16, r2, d2, 2), "ee322b30       vmov.s16 r2, d2[2]");
@@ -1413,6 +1420,8 @@ TEST(LoadStore) {
 
     COMPARE(pld(MemOperand(r1, 0)),
             "f5d1f000       pld [r1]");
+    COMPARE(pld(MemOperand(ip, 64)),
+            "f5dcf040       pld [ip, #+64]");
     COMPARE(pld(MemOperand(r2, 128)),
             "f5d2f080       pld [r2, #+128]");
   }
