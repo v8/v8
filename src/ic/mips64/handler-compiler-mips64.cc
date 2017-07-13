@@ -126,7 +126,8 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Load properties array.
   Register properties = scratch0;
-  __ Ld(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ Ld(properties,
+        FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   // Check that the properties array is a dictionary.
   __ Ld(map, FieldMemOperand(properties, HeapObject::kMapOffset));
   Register tmp = properties;
@@ -134,7 +135,8 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ Branch(miss_label, ne, map, Operand(tmp));
 
   // Restore the temporarily used register.
-  __ Ld(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ Ld(properties,
+        FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
 
   NameDictionaryLookupStub::GenerateNegativeLookup(
       masm, miss_label, &done, receiver, properties, name, scratch1);

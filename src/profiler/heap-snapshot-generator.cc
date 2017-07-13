@@ -1144,9 +1144,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   }
 
   TagObject(js_obj->properties(), "(object properties)");
-  SetInternalReference(obj, entry,
-                       "properties", js_obj->properties(),
-                       JSObject::kPropertiesOffset);
+  SetInternalReference(obj, entry, "properties", js_obj->properties(),
+                       JSObject::kPropertiesOrHashOffset);
 
   TagObject(js_obj->elements(), "(object elements)");
   SetInternalReference(obj, entry,

@@ -151,8 +151,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
                                  JSBoundFunction::kBoundArgumentsOffset,
                                  argument_array.value());
   Node* empty_fixed_array = EmptyFixedArrayConstant();
-  StoreObjectFieldNoWriteBarrier(bound_function, JSObject::kPropertiesOffset,
-                                 empty_fixed_array);
+  StoreObjectFieldNoWriteBarrier(
+      bound_function, JSObject::kPropertiesOrHashOffset, empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(bound_function, JSObject::kElementsOffset,
                                  empty_fixed_array);
 

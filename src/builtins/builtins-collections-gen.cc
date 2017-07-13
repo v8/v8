@@ -167,7 +167,7 @@ Node* CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   Node* const iterator_map = LoadContextElement(native_context, map_index);
   Node* const iterator = AllocateInNewSpace(IteratorType::kSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
-  StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOffset,
+  StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(iterator, IteratorType::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);

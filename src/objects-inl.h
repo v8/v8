@@ -1091,12 +1091,12 @@ void JSReceiver::set_properties(Object* value, WriteBarrierMode mode) {
   Heap* heap = GetHeap();
   DCHECK_NE(value, heap->empty_property_array());
 
-  WRITE_FIELD(this, kPropertiesOffset, value);
-  CONDITIONAL_WRITE_BARRIER(heap, this, kPropertiesOffset, value, mode);
+  WRITE_FIELD(this, kPropertiesOrHashOffset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, kPropertiesOrHashOffset, value, mode);
 }
 
 Object* JSReceiver::properties() const {
-  return Object::cast(READ_FIELD(this, kPropertiesOffset));
+  return Object::cast(READ_FIELD(this, kPropertiesOrHashOffset));
 }
 
 Object** FixedArray::GetFirstElementAddress() {
@@ -5610,10 +5610,10 @@ void JSReceiver::initialize_properties() {
   DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
   DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
-    WRITE_FIELD(this, kPropertiesOffset,
+    WRITE_FIELD(this, kPropertiesOrHashOffset,
                 GetHeap()->empty_property_dictionary());
   } else {
-    WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
+    WRITE_FIELD(this, kPropertiesOrHashOffset, GetHeap()->empty_fixed_array());
   }
 }
 

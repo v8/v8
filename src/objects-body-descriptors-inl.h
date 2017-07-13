@@ -108,7 +108,7 @@ void BodyDescriptorBase::IteratePointer(Heap* heap, HeapObject* obj,
 
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  static const int kStartOffset = JSReceiver::kPropertiesOffset;
+  static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     if (offset < kStartOffset) return false;
@@ -134,7 +134,7 @@ class JSObject::BodyDescriptor final : public BodyDescriptorBase {
 
 class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
  public:
-  static const int kStartOffset = JSReceiver::kPropertiesOffset;
+  static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     return offset >= kStartOffset;
@@ -173,7 +173,7 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOffset, kNonWeakFieldsEndOffset, v);
+    IteratePointers(obj, kPropertiesOrHashOffset, kNonWeakFieldsEndOffset, v);
     v->VisitCodeEntry(JSFunction::cast(obj), obj->address() + kCodeEntryOffset);
     if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
@@ -184,7 +184,7 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
+    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                    kNonWeakFieldsEndOffset);
 
     StaticVisitor::VisitCodeEntry(heap, obj, obj->address() + kCodeEntryOffset);
@@ -218,7 +218,7 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     // Array buffers contain raw pointers that the GC does not know about. These
     // are stored at kBackStoreOffset and later, so we do not iterate over
     // those.
-    IteratePointers(obj, kPropertiesOffset, kBackingStoreOffset, v);
+    IteratePointers(obj, kPropertiesOrHashOffset, kBackingStoreOffset, v);
     IterateBodyImpl(obj, kSize, object_size, v);
   }
 
@@ -228,7 +228,7 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     // Array buffers contain raw pointers that the GC does not know about. These
     // are stored at kBackStoreOffset and later, so we do not iterate over
     // those.
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
+    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                    kBackingStoreOffset);
     IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
   }
@@ -373,9 +373,9 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     if (body_visiting_policy == kIgnoreWeakness) {
-      IterateBodyImpl(obj, kPropertiesOffset, object_size, v);
+      IterateBodyImpl(obj, kPropertiesOrHashOffset, object_size, v);
     } else {
-      IteratePointers(obj, kPropertiesOffset, kTableOffset, v);
+      IteratePointers(obj, kPropertiesOrHashOffset, kTableOffset, v);
       IterateBodyImpl(obj, kSize, object_size, v);
     }
   }
@@ -384,9 +384,10 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
     if (body_visiting_policy == kIgnoreWeakness) {
-      IterateBodyImpl<StaticVisitor>(heap, obj, kPropertiesOffset, object_size);
+      IterateBodyImpl<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
+                                     object_size);
     } else {
-      IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
+      IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                      kTableOffset);
       IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
     }

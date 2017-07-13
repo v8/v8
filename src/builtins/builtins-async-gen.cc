@@ -176,7 +176,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   Node* const function_map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   StoreMapNoWriteBarrier(function, function_map);
-  StoreObjectFieldRoot(function, JSObject::kPropertiesOffset,
+  StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(function, JSObject::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);

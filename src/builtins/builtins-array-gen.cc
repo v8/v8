@@ -2493,7 +2493,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                                    Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
     StoreMapNoWriteBarrier(entry, map);
-    StoreObjectFieldRoot(entry, JSArray::kPropertiesOffset,
+    StoreObjectFieldRoot(entry, JSArray::kPropertiesOrHashOffset,
                          Heap::kEmptyFixedArrayRootIndex);
     StoreObjectFieldNoWriteBarrier(entry, JSArray::kElementsOffset, elements);
     StoreObjectFieldNoWriteBarrier(entry, JSArray::kLengthOffset,
@@ -2509,7 +2509,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Node* map = LoadContextElement(LoadNativeContext(context),
                                    Context::ITERATOR_RESULT_MAP_INDEX);
     StoreMapNoWriteBarrier(result, map);
-    StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
+    StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
                          Heap::kEmptyFixedArrayRootIndex);
     StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
                          Heap::kEmptyFixedArrayRootIndex);

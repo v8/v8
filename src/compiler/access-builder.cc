@@ -55,7 +55,7 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
 
 // static
 FieldAccess AccessBuilder::ForJSObjectProperties() {
-  FieldAccess access = {kTaggedBase,         JSObject::kPropertiesOffset,
+  FieldAccess access = {kTaggedBase,         JSObject::kPropertiesOrHashOffset,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};

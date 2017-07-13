@@ -2550,7 +2550,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ LoadGlobalFunction(Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX, ecx);
     __ mov(FieldOperand(eax, JSArray::kMapOffset), ecx);
     __ mov(ecx, isolate()->factory()->empty_fixed_array());
-    __ mov(FieldOperand(eax, JSArray::kPropertiesOffset), ecx);
+    __ mov(FieldOperand(eax, JSArray::kPropertiesOrHashOffset), ecx);
     __ mov(FieldOperand(eax, JSArray::kElementsOffset), ecx);
     __ mov(FieldOperand(eax, JSArray::kLengthOffset), Immediate(Smi::kZero));
     STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
@@ -2612,7 +2612,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
            Operand(edx, eax, times_half_pointer_size, FixedArray::kHeaderSize));
     __ LoadGlobalFunction(Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX, ecx);
     __ mov(FieldOperand(edi, JSArray::kMapOffset), ecx);
-    __ mov(FieldOperand(edi, JSArray::kPropertiesOffset),
+    __ mov(FieldOperand(edi, JSArray::kPropertiesOrHashOffset),
            isolate()->factory()->empty_fixed_array());
     __ mov(FieldOperand(edi, JSArray::kElementsOffset), edx);
     __ mov(FieldOperand(edi, JSArray::kLengthOffset), eax);
@@ -2774,7 +2774,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // esp[8] = parameter count (tagged)
   // Copy the JS object part.
   __ mov(FieldOperand(eax, JSObject::kMapOffset), edi);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOrHashOffset),
          masm->isolate()->factory()->empty_fixed_array());
   __ mov(FieldOperand(eax, JSObject::kElementsOffset),
          masm->isolate()->factory()->empty_fixed_array());
@@ -2999,7 +2999,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
          Operand(edx, eax, times_half_pointer_size, FixedArray::kHeaderSize));
   __ LoadGlobalFunction(Context::STRICT_ARGUMENTS_MAP_INDEX, ecx);
   __ mov(FieldOperand(edi, JSStrictArgumentsObject::kMapOffset), ecx);
-  __ mov(FieldOperand(edi, JSStrictArgumentsObject::kPropertiesOffset),
+  __ mov(FieldOperand(edi, JSStrictArgumentsObject::kPropertiesOrHashOffset),
          isolate()->factory()->empty_fixed_array());
   __ mov(FieldOperand(edi, JSStrictArgumentsObject::kElementsOffset), edx);
   __ mov(FieldOperand(edi, JSStrictArgumentsObject::kLengthOffset), eax);

@@ -4475,7 +4475,7 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
   Sd(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
   LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
-  Sd(scratch1, FieldMemOperand(result, JSObject::kPropertiesOffset));
+  Sd(scratch1, FieldMemOperand(result, JSObject::kPropertiesOrHashOffset));
   Sd(scratch1, FieldMemOperand(result, JSObject::kElementsOffset));
   Sd(value, FieldMemOperand(result, JSValue::kValueOffset));
   STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);

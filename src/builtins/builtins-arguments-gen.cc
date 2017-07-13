@@ -87,7 +87,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   Comment("Initialize arguments object");
   StoreMapNoWriteBarrier(result, map);
   Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectField(result, JSArray::kPropertiesOffset, empty_fixed_array);
+  StoreObjectField(result, JSArray::kPropertiesOrHashOffset, empty_fixed_array);
   Node* smi_arguments_count = ParameterToTagged(arguments_count, mode);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
                                  smi_arguments_count);

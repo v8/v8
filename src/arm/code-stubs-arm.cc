@@ -1901,7 +1901,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
     // Restore the properties.
     __ ldr(properties,
-           FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+           FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   }
 
   const int spill_mask =
@@ -1909,7 +1909,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
        r2.bit() | r1.bit() | r0.bit());
 
   __ stm(db_w, sp, spill_mask);
-  __ ldr(r0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ ldr(r0, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   __ mov(r1, Operand(Handle<Name>(name)));
   NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
   __ CallStub(&stub);

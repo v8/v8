@@ -74,7 +74,8 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Load properties array.
   Register properties = scratch0;
-  __ Ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ Ldr(properties,
+         FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   // Check that the properties array is a dictionary.
   __ Ldr(map, FieldMemOperand(properties, HeapObject::kMapOffset));
   __ JumpIfNotRoot(map, Heap::kHashTableMapRootIndex, miss_label);

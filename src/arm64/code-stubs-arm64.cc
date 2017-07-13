@@ -2340,7 +2340,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
   __ PushCPURegList(spill_list);
 
-  __ Ldr(x0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ Ldr(x0, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   __ Mov(x1, Operand(name));
   NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
   __ CallStub(&stub);

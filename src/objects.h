@@ -2147,7 +2147,7 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object, PropertyFilter filter);
 
   // Layout description.
-  static const int kPropertiesOffset = HeapObject::kHeaderSize;
+  static const int kPropertiesOrHashOffset = HeapObject::kHeaderSize;
   static const int kHeaderSize = HeapObject::kHeaderSize + kPointerSize;
 
   bool HasProxyInPrototype(Isolate* isolate);
@@ -6314,7 +6314,7 @@ class JSProxy: public JSReceiver {
   static const int kHashOffset = kHandlerOffset + kPointerSize;
   static const int kSize = kHashOffset + kPointerSize;
 
-  typedef FixedBodyDescriptor<JSReceiver::kPropertiesOffset, kSize, kSize>
+  typedef FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;

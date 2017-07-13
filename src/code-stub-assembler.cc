@@ -1095,7 +1095,7 @@ Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
 }
 
 Node* CodeStubAssembler::LoadProperties(Node* object) {
-  return LoadObjectField(object, JSObject::kPropertiesOffset);
+  return LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
 }
 
 Node* CodeStubAssembler::LoadElements(Node* object) {
@@ -2064,7 +2064,7 @@ Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
   // Initialize the header before allocating the elements.
   Node* const empty_array = EmptyFixedArrayConstant();
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOffset,
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
                                  empty_array);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, empty_array);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
@@ -2172,13 +2172,13 @@ void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
   // check in AllocatedJSObjectFromMap.
   if (properties == nullptr) {
     CSA_ASSERT(this, Word32BinaryNot(IsDictionaryMap((map))));
-    StoreObjectFieldRoot(object, JSObject::kPropertiesOffset,
+    StoreObjectFieldRoot(object, JSObject::kPropertiesOrHashOffset,
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
     CSA_ASSERT(this, Word32Or(Word32Or(IsPropertyArray(properties),
                                        IsDictionary(properties)),
                               IsEmptyFixedArray(properties)));
-    StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOffset,
+    StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    properties);
   }
   if (elements == nullptr) {
@@ -2280,7 +2280,7 @@ Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
 
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
 
-  StoreObjectFieldRoot(array, JSArray::kPropertiesOffset,
+  StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
 
   if (allocation_site != nullptr) {
@@ -9246,7 +9246,7 @@ Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
                                                  Node* map) {
   Node* iterator = Allocate(JSArrayIterator::kSize);
   StoreMapNoWriteBarrier(iterator, map);
-  StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOffset,
+  StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(iterator, JSArrayIterator::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);
@@ -9267,7 +9267,7 @@ Node* CodeStubAssembler::AllocateJSIteratorResult(Node* context, Node* value,
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
   Node* result = Allocate(JSIteratorResult::kSize);
   StoreMapNoWriteBarrier(result, map);
-  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
+  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);
@@ -9293,7 +9293,7 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
       native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
   Node* array = InnerAllocate(elements, elements_size);
   StoreMapNoWriteBarrier(array, array_map);
-  StoreObjectFieldRoot(array, JSArray::kPropertiesOffset,
+  StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
@@ -9301,7 +9301,7 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
   Node* result = InnerAllocate(array, JSArray::kSize);
   StoreMapNoWriteBarrier(result, iterator_map);
-  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
+  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);
@@ -9479,7 +9479,7 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
 
   Node* const fun = Allocate(JSFunction::kSize);
   StoreMapNoWriteBarrier(fun, map);
-  StoreObjectFieldRoot(fun, JSObject::kPropertiesOffset,
+  StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(fun, JSObject::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);

@@ -389,7 +389,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
       LoadObjectField(constructor, JSFunction::kPrototypeOrInitialMapOffset);
   Node* js_value = Allocate(JSValue::kSize);
   StoreMapNoWriteBarrier(js_value, initial_map);
-  StoreObjectFieldRoot(js_value, JSValue::kPropertiesOffset,
+  StoreObjectFieldRoot(js_value, JSValue::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);

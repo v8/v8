@@ -122,7 +122,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
+  StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOrHashOffset,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
@@ -638,7 +638,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     Comment("Initialize Literal Copy");
     // Initialize Object fields.
     StoreMapNoWriteBarrier(copy, boilerplate_map);
-    StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
+    StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOrHashOffset,
                                    var_properties.value());
     StoreObjectFieldNoWriteBarrier(copy, JSObject::kElementsOffset,
                                    var_elements.value());

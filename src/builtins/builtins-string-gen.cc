@@ -1704,7 +1704,7 @@ TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
       LoadContextElement(native_context, Context::STRING_ITERATOR_MAP_INDEX);
   Node* iterator = Allocate(JSStringIterator::kSize);
   StoreMapNoWriteBarrier(iterator, map);
-  StoreObjectFieldRoot(iterator, JSValue::kPropertiesOffset,
+  StoreObjectFieldRoot(iterator, JSValue::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(iterator, JSObject::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);

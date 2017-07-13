@@ -1086,7 +1086,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   CopyPropertyArrayValues(properties, new_properties, length,
                           SKIP_WRITE_BARRIER, mode);
 
-  StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
+  StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
   Comment("] Extend storage");
   Goto(&done);
 
