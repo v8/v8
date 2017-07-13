@@ -1869,13 +1869,19 @@ TEST_(debug) {
 
   // All debug codes should produce the same instruction, and the debug code
   // can be any uint32_t.
-  COMPARE(debug("message", 0, BREAK), "hlt #0xdeb0");
-  COMPARE(debug("message", 1, BREAK), "hlt #0xdeb0");
-  COMPARE(debug("message", 0xffff, BREAK), "hlt #0xdeb0");
-  COMPARE(debug("message", 0x10000, BREAK), "hlt #0xdeb0");
-  COMPARE(debug("message", 0x7fffffff, BREAK), "hlt #0xdeb0");
-  COMPARE(debug("message", 0x80000000u, BREAK), "hlt #0xdeb0");
-  COMPARE(debug("message", 0xffffffffu, BREAK), "hlt #0xdeb0");
+#ifdef USE_SIMULATOR
+  const char* expected_instruction = "hlt #0xdeb0";
+#else
+  const char* expected_instruction = "brk #0x0";
+#endif
+
+  COMPARE(debug("message", 0, BREAK), expected_instruction);
+  COMPARE(debug("message", 1, BREAK), expected_instruction);
+  COMPARE(debug("message", 0xffff, BREAK), expected_instruction);
+  COMPARE(debug("message", 0x10000, BREAK), expected_instruction);
+  COMPARE(debug("message", 0x7fffffff, BREAK), expected_instruction);
+  COMPARE(debug("message", 0x80000000u, BREAK), expected_instruction);
+  COMPARE(debug("message", 0xffffffffu, BREAK), expected_instruction);
 
   CLEANUP();
 }
