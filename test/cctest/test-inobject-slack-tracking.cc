@@ -128,6 +128,7 @@ bool IsObjectShrinkable(JSObject* obj) {
 
 TEST(JSObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -186,6 +187,7 @@ TEST(JSObjectBasicNoInlineNew) {
 
 TEST(JSObjectComplex) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -266,6 +268,7 @@ TEST(JSObjectComplexNoInlineNew) {
 
 TEST(JSGeneratorObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -332,6 +335,7 @@ TEST(JSGeneratorObjectBasicNoInlineNew) {
 
 TEST(SubclassBasicNoBaseClassInstances) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -424,6 +428,7 @@ TEST(SubclassBasicNoBaseClassInstancesNoInlineNew) {
 
 TEST(SubclassBasic) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -622,6 +627,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
 
 static void TestSubclassChain(const std::vector<int>& hierarchy_desc) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -662,6 +668,7 @@ TEST(LongSubclassChain3) {
 
 TEST(InobjectPropetiesCountOverflowInSubclass) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -846,6 +853,7 @@ TEST(ObjectLiteralPropertyBackingStoreSize) {
 
 TEST(SlowModeSubclass) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -983,6 +991,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
 
 TEST(SubclassObjectBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1001,6 +1010,7 @@ TEST(SubclassObjectBuiltinNoInlineNew) {
 
 TEST(SubclassFunctionBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1018,6 +1028,7 @@ TEST(SubclassFunctionBuiltinNoInlineNew) {
 
 TEST(SubclassBooleanBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1035,6 +1046,7 @@ TEST(SubclassBooleanBuiltinNoInlineNew) {
 
 TEST(SubclassErrorBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1059,6 +1071,7 @@ TEST(SubclassErrorBuiltinNoInlineNew) {
 
 TEST(SubclassNumberBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1076,6 +1089,7 @@ TEST(SubclassNumberBuiltinNoInlineNew) {
 
 TEST(SubclassDateBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1092,6 +1106,7 @@ TEST(SubclassDateBuiltinNoInlineNew) {
 
 TEST(SubclassStringBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1109,6 +1124,7 @@ TEST(SubclassStringBuiltinNoInlineNew) {
 
 TEST(SubclassRegExpBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1127,6 +1143,7 @@ TEST(SubclassRegExpBuiltinNoInlineNew) {
 
 TEST(SubclassArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1143,6 +1160,7 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 
 TEST(SubclassTypedArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1164,6 +1182,7 @@ TEST(SubclassTypedArrayBuiltinNoInlineNew) {
 
 TEST(SubclassCollectionBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1183,6 +1202,7 @@ TEST(SubclassCollectionBuiltinNoInlineNew) {
 
 TEST(SubclassArrayBufferBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1201,6 +1221,7 @@ TEST(SubclassArrayBufferBuiltinNoInlineNew) {
 
 TEST(SubclassPromiseBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
+  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
