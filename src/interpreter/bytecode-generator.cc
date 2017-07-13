@@ -2955,6 +2955,88 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   builder()->LoadAccumulatorWithRegister(output_value);
 }
 
+void BytecodeGenerator::VisitAwait(Await* expr) {
+  // Rather than HandlerTable::UNCAUGHT, async functions use
+  // HandlerTable::ASYNC_AWAIT to communicate that top-level exceptions are
+  // transformed into promise rejections. This is necessary to prevent emitting
+  // multiple debbug events for the same uncaught exception. There is no point
+  // in the body of an async function where catch prediction is
+  // HandlerTable::UNCAUGHT.
+  DCHECK(catch_prediction() != HandlerTable::UNCAUGHT);
+
+  builder()->SetExpressionPosition(expr);
+  Register operand = VisitForRegisterValue(expr->expression());
+  RegisterList registers(0, operand.index());
+
+  {
+    // Await(operand) and suspend.
+    RegisterAllocationScope register_scope(this);
+
+    int await_builtin_context_index;
+    RegisterList args;
+    if (expr->is_async_generator()) {
+      await_builtin_context_index =
+          catch_prediction() == HandlerTable::ASYNC_AWAIT
+              ? Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT
+              : Context::ASYNC_GENERATOR_AWAIT_CAUGHT;
+      args = register_allocator()->NewRegisterList(2);
+      builder()
+          ->MoveRegister(generator_object_, args[0])
+          .MoveRegister(operand, args[1]);
+    } else {
+      await_builtin_context_index =
+          catch_prediction() == HandlerTable::ASYNC_AWAIT
+              ? Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX
+              : Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX;
+      args = register_allocator()->NewRegisterList(3);
+      builder()
+          ->MoveRegister(generator_object_, args[0])
+          .MoveRegister(operand, args[1]);
+
+      // AsyncFunction Await builtins require a 3rd parameter to hold the outer
+      // promise.
+      Variable* var_promise = closure_scope()->promise_var();
+      BuildVariableLoadForAccumulatorValue(var_promise, FeedbackSlot::Invalid(),
+                                           HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(args[2]);
+    }
+
+    builder()
+        ->CallJSRuntime(await_builtin_context_index, args)
+        .StoreAccumulatorInRegister(operand);
+
+    BuildGeneratorSuspend(expr, operand, registers);
+  }
+
+  builder()->Bind(generator_jump_table_, static_cast<int>(expr->suspend_id()));
+
+  // Upon resume, we continue here, with received value in accumulator.
+  BuildGeneratorResume(expr, registers);
+
+  Register input = register_allocator()->NewRegister();
+  Register resume_mode = register_allocator()->NewRegister();
+
+  // Now dispatch on resume mode.
+  BytecodeLabel resume_next;
+  builder()
+      ->StoreAccumulatorInRegister(input)
+      .CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator_object_)
+      .StoreAccumulatorInRegister(resume_mode)
+      .LoadLiteral(Smi::FromInt(JSGeneratorObject::kNext))
+      .CompareOperation(Token::EQ_STRICT, resume_mode)
+      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_next);
+
+  // Resume with "throw" completion (rethrow the received value).
+  // TODO(leszeks): Add a debug-only check that the accumulator is
+  // JSGeneratorObject::kThrow.
+  builder()->SetExpressionPosition(expr);
+  builder()->LoadAccumulatorWithRegister(input).ReThrow();
+
+  // Resume with next.
+  builder()->Bind(&resume_next);
+  builder()->LoadAccumulatorWithRegister(input);
+}
+
 void BytecodeGenerator::VisitThrow(Throw* expr) {
   AllocateBlockCoverageSlotIfEnabled(expr, SourceRangeKind::kContinuation);
   VisitForAccumulatorValue(expr->exception());
@@ -3258,49 +3340,15 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   }
 }
 
-int BytecodeGenerator::UpdateRuntimeFunctionForAsyncAwait(int context_index) {
-  // To support catch prediction within async/await:
-  //
-  // BytecodeGenerator models catch prediction (see VisitTryCatchstatement).
-  // Certain runtime calls need to be rewritten to invoke different functions,
-  // depending on the currently tracked catch prediction state. Take the
-  // following two cases of catch prediction:
-  //
-  // try { await fn(); } catch (e) { }
-  // try { await fn(); } finally { }
-  //
-  // When parsing the await that we want to mark as caught or uncaught, it's
-  // not yet known whether it will be followed by a 'finally' or a 'catch.
-  // The BytecodeGenerator has learned whether or not this Await is caught or
-  // not, and is responsible for invoking the correct function depending on
-  // those findings. It does that here.
-  if (catch_prediction() == HandlerTable::ASYNC_AWAIT) {
-    switch (context_index) {
-      case Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX:
-        context_index = Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX;
-        break;
-      case Context::ASYNC_GENERATOR_AWAIT_CAUGHT:
-        context_index = Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT;
-        break;
-      default:
-        break;
-    }
-  }
-  return context_index;
-}
-
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
-    int context_index =
-        UpdateRuntimeFunctionForAsyncAwait(expr->context_index());
-
     RegisterList args = register_allocator()->NewGrowableRegisterList();
     // Allocate a register for the receiver and load it with undefined.
     // TODO(leszeks): If CallJSRuntime always has an undefined receiver, use the
     // same mechanism as CallUndefinedReceiver.
     BuildPushUndefinedIntoRegisterList(&args);
     VisitArguments(expr->arguments(), &args);
-    builder()->CallJSRuntime(context_index, args);
+    builder()->CallJSRuntime(expr->context_index(), args);
   } else {
     // Evaluate all arguments to the runtime call.
     RegisterList args = register_allocator()->NewGrowableRegisterList();

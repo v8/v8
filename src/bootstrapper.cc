@@ -1461,12 +1461,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // --- A s y n c G e n e r a t o r ---
     Handle<JSFunction> await_caught =
         SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kAsyncGeneratorAwaitCaught, 2, false);
+                             Builtins::kAsyncGeneratorAwaitCaught, 1, false);
     native_context()->set_async_generator_await_caught(*await_caught);
 
     Handle<JSFunction> await_uncaught =
         SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kAsyncGeneratorAwaitUncaught, 2, false);
+                             Builtins::kAsyncGeneratorAwaitUncaught, 1, false);
     native_context()->set_async_generator_await_uncaught(*await_uncaught);
 
     Handle<Code> code(builtins->AsyncGeneratorAwaitResolveClosure());
@@ -3950,14 +3950,14 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     {
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionAwaitCaught, 3, false);
+                               Builtins::kAsyncFunctionAwaitCaught, 2, false);
       native_context->set_async_function_await_caught(*function);
     }
 
     {
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionAwaitUncaught, 3, false);
+                               Builtins::kAsyncFunctionAwaitUncaught, 2, false);
       native_context->set_async_function_await_uncaught(*function);
     }
 

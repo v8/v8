@@ -227,7 +227,7 @@ async function testPromiseAsyncWithCode() {
       var resolveNested;
       var p = |C|new Promise(resolve => resolveNested |_|= resolve|R|);
       |C|setTimeout(resolveNested, 0);
-      |_|await |C|p;
+      |_|await p;
     |R|}
     |C|setTimeout(returnCall, 0);
     |_|await |C|foo();

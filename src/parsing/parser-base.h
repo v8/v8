@@ -236,6 +236,7 @@ class ParserBase {
   typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
   typedef typename Types::Suspend SuspendExpressionT;
+  typedef typename Types::Await AwaitExpressionT;
   typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
@@ -1330,6 +1331,13 @@ class ParserBase {
                                                SuspendFlags::kAsyncGenerator);
     }
     return factory()->NewSuspend(expr, pos, on_abrupt_resume, suspend_type);
+  }
+
+  inline AwaitExpressionT BuildAwait(ExpressionT expr, int pos) {
+    SuspendFlags flags = is_async_generator()
+                             ? SuspendFlags::kAsyncGeneratorAwait
+                             : SuspendFlags::kGeneratorAwait;
+    return factory()->NewAwait(expr, pos, flags);
   }
 
   // Validation per ES6 object literals.
@@ -3103,7 +3111,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
 
     ExpressionT value = ParseUnaryExpression(CHECK_OK);
 
-    return impl()->RewriteAwaitExpression(value, await_pos);
+    return BuildAwait(value, await_pos);
   } else {
     return ParsePostfixExpression(ok);
   }

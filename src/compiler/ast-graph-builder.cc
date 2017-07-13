@@ -1375,6 +1375,11 @@ void AstGraphBuilder::VisitYieldStar(YieldStar* expr) {
   UNREACHABLE();
 }
 
+void AstGraphBuilder::VisitAwait(Await* expr) {
+  // Generator functions are supported only by going through Ignition first.
+  UNREACHABLE();
+}
+
 void AstGraphBuilder::VisitThrow(Throw* expr) {
   VisitForValue(expr->exception());
   Node* exception = environment()->Pop();

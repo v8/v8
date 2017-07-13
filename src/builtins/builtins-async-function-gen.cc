@@ -116,19 +116,21 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   // TODO(jgruber): Use a faster specialized version of
   // InternalPerformPromiseThen.
 
-  Node* const result = Await(
-      context, generator, awaited, outer_promise, AwaitContext::kLength,
-      init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
-      Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, is_predicted_as_caught);
+  Await(context, generator, awaited, outer_promise, AwaitContext::kLength,
+        init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
+        Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN,
+        is_predicted_as_caught);
 
-  Return(result);
+  // Return outer promise to avoid adding an load of the outer promise before
+  // suspending in BytecodeGenerator.
+  Return(outer_promise);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 3);
-  Node* const generator = Parameter(Descriptor::kGenerator);
+  CSA_ASSERT_JS_ARGC_EQ(this, 2);
+  Node* const generator = Parameter(Descriptor::kReceiver);
   Node* const awaited = Parameter(Descriptor::kAwaited);
   Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
   Node* const context = Parameter(Descriptor::kContext);
@@ -142,8 +144,8 @@ TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates no locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 3);
-  Node* const generator = Parameter(Descriptor::kGenerator);
+  CSA_ASSERT_JS_ARGC_EQ(this, 2);
+  Node* const generator = Parameter(Descriptor::kReceiver);
   Node* const awaited = Parameter(Descriptor::kAwaited);
   Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
   Node* const context = Parameter(Descriptor::kContext);

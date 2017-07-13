@@ -274,6 +274,8 @@ void AstExpressionRewriter::VisitYieldStar(YieldStar* node) {
   VisitSuspend(node);
 }
 
+void AstExpressionRewriter::VisitAwait(Await* node) { VisitSuspend(node); }
+
 void AstExpressionRewriter::VisitThrow(Throw* node) {
   REWRITE_THIS(node);
   AST_REWRITE_PROPERTY(Expression, node, exception);

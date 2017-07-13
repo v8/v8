@@ -372,6 +372,12 @@ void AstTraversalVisitor<Subclass>::VisitYieldStar(YieldStar* expr) {
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitAwait(Await* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->expression()));
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitThrow(Throw* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->exception()));

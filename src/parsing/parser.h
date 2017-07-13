@@ -165,6 +165,7 @@ struct ParserTypes<Parser> {
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ClassLiteral::Property* ClassLiteralProperty;
   typedef v8::internal::Suspend* Suspend;
+  typedef v8::internal::Await* Await;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* ObjectPropertyList;
   typedef ZoneList<ClassLiteral::Property*>* ClassPropertyList;

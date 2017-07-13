@@ -4,7 +4,7 @@ Running test: testBreakLocations
 
 function testFunction() {
   async function f1() {
-    for (let x = |_|0; x |_|< 1; ++|_|x) |_|await |C|x;
+    for (let x = |_|0; x |_|< 1; ++|_|x) |_|await x;
     |_|return await Promise.|C|resolve(2);
   |R|}
 
@@ -15,7 +15,7 @@ function testFunction() {
     |_|await [1].|C|map(x => Promise.|C|resolve(x)|R|)[0];
     |_|await Promise.|C|resolve().|C|then(x => x |_|* 2|R|);
     let p = |_|Promise.|C|resolve(42);
-    |_|await |C|p;
+    |_|await p;
     |_|return r;
   |R|}
 

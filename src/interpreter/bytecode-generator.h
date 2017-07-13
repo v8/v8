@@ -218,8 +218,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                      Register* out_register));
   void VisitInSameTestExecutionScope(Expression* expr);
 
-  int UpdateRuntimeFunctionForAsyncAwait(int context_index);
-
   // Returns the runtime function id for a store to super for the function's
   // language mode.
   inline Runtime::FunctionId StoreToSuperRuntimeId();

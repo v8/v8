@@ -242,6 +242,8 @@ void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
   ReserveFeedbackSlots(node);
 }
 
+void AstNumberingVisitor::VisitAwait(Await* node) { VisitSuspend(node); }
+
 void AstNumberingVisitor::VisitThrow(Throw* node) {
   IncrementNodeCount();
   Visit(node->exception());

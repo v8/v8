@@ -732,6 +732,7 @@ NOT_A_PATTERN(WhileStatement)
 NOT_A_PATTERN(WithStatement)
 NOT_A_PATTERN(Suspend)
 NOT_A_PATTERN(YieldStar)
+NOT_A_PATTERN(Await)
 
 #undef NOT_A_PATTERN
 }  // namespace internal

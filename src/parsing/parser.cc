@@ -1897,7 +1897,7 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
   Expression* next_call =
       factory()->NewCall(next_property, next_arguments, kNoSourcePosition);
   if (type == IteratorType::kAsync) {
-    next_call = RewriteAwaitExpression(next_call, pos);
+    next_call = BuildAwait(next_call, pos);
   }
   Expression* result_proxy = factory()->NewVariableProxy(result);
   Expression* left =
@@ -3180,15 +3180,6 @@ Variable* Parser::PromiseVariable() {
   return promise;
 }
 
-Variable* Parser::AsyncGeneratorAwaitVariable() {
-  Variable* result = function_state_->scope()->async_generator_await_var();
-  if (result == nullptr) {
-    result = function_state_->scope()->DeclareAsyncGeneratorAwaitVar(
-        ast_value_factory()->empty_string());
-  }
-  return result;
-}
-
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
   Expression* yield_result = factory()->NewVariableProxy(
       function_state_->scope()->generator_object_var());
@@ -3867,83 +3858,6 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
   body->Add(block, zone());
 }
 
-Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
-  // In an Async Function:
-  //   yield do {
-  //     %AsyncFunctionAwait(.generator_object, <operand>, .promise);
-  //     .promise
-  //   }
-  //
-  // In an Async Generator:
-  //   yield do {
-  //     %AsyncGeneratorAwait(.generator_object, <operand>)
-  //     .await_result_var
-  //   }
-  //
-  // The value of the expression is returned to the caller of the async
-  // function for the first yield statement; for this, .promise is the
-  // appropriate return value, being a Promise that will be fulfilled or
-  // rejected with the appropriate value by the desugaring. Subsequent yield
-  // occurrences will return to the AsyncFunctionNext call within the
-  // implemementation of the intermediate throwaway Promise's then handler.
-  // This handler has nothing useful to do with the value, as the Promise is
-  // ignored. If we yielded the value of the throwawayPromise that
-  // AsyncFunctionAwait creates as an intermediate, it would create a memory
-  // leak; we must return .promise instead;
-  //
-  // In the case of Async Generators, `.await_result_var` is not actually used
-  // for anything, but exists because of the current requirement that
-  // Do Expressions have a result variable.
-  Variable* generator_object_variable =
-      function_state_->scope()->generator_object_var();
-  DCHECK_NOT_NULL(generator_object_variable);
-
-  const int nopos = kNoSourcePosition;
-
-  Block* do_block = factory()->NewBlock(nullptr, 2, false, nopos);
-  Expression* generator_object =
-      factory()->NewVariableProxy(generator_object_variable);
-
-  if (is_async_generator()) {
-    // AsyncGeneratorAwaitCaught will be rewritten to
-    // AsyncGeneratorAwaitUncaught by AstNumberingVisitor if there is no local
-    // enclosing try/catch block (not counting the one implicitly added in
-    // ParseAndRewriteGeneratorFunctionBody)
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-    args->Add(generator_object, zone());
-    args->Add(value, zone());
-
-    Expression* await = factory()->NewCallRuntime(
-        Context::ASYNC_GENERATOR_AWAIT_CAUGHT, args, nopos);
-    do_block->statements()->Add(factory()->NewExpressionStatement(await, nopos),
-                                zone());
-
-    Expression* do_expr = factory()->NewDoExpression(
-        do_block, AsyncGeneratorAwaitVariable(), nopos);
-    return BuildSuspend(do_expr, await_pos, Suspend::kOnExceptionRethrow,
-                        SuspendFlags::kAwait);
-  }
-
-  // The parser emits calls to AsyncFunctionAwaitCaught or but the
-  // AstNumberingVisitor will rewrite this to AsyncFunctionAwaitUncaught or if
-  // there is no local enclosing try/catch block.
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
-  args->Add(generator_object, zone());
-  args->Add(value, zone());
-  args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-
-  Expression* await = factory()->NewCallRuntime(
-      Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, args, nopos);
-  do_block->statements()->Add(factory()->NewExpressionStatement(await, nopos),
-                              zone());
-
-  Expression* do_expr =
-      factory()->NewDoExpression(do_block, PromiseVariable(), nopos);
-
-  return factory()->NewSuspend(do_expr, await_pos, Suspend::kOnExceptionRethrow,
-                               SuspendFlags::kAwait);
-}
-
 class NonPatternRewriter : public AstExpressionRewriter {
  public:
   NonPatternRewriter(uintptr_t stack_limit, Parser* parser)
@@ -4379,7 +4293,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     args->Add(input_proxy, zone());
     Expression* call = factory()->NewCall(next_property, args, nopos);
     if (type == IteratorType::kAsync) {
-      call = RewriteAwaitExpression(call, nopos);
+      call = BuildAwait(call, nopos);
     }
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
     Expression* assignment =
@@ -4460,7 +4374,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     Expression* call =
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
     if (type == IteratorType::kAsync) {
-      call = RewriteAwaitExpression(call, nopos);
+      call = BuildAwait(call, nopos);
     }
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(var_output), call, nopos);
@@ -4741,7 +4655,7 @@ void Parser::BuildIteratorClose(ZoneList<Statement*>* statements,
     Expression* call =
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
     if (type == IteratorType::kAsync) {
-      call = RewriteAwaitExpression(call, nopos);
+      call = BuildAwait(call, nopos);
     }
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
     Expression* assignment =
@@ -4962,7 +4876,7 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
 
     if (type == IteratorType::kAsync) {
-      call = RewriteAwaitExpression(call, nopos);
+      call = BuildAwait(call, nopos);
     }
 
     Block* try_block = factory()->NewBlock(nullptr, 1, false, nopos);
@@ -4990,7 +4904,7 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
       Expression* call =
           factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
       if (type == IteratorType::kAsync) {
-        call = RewriteAwaitExpression(call, nopos);
+        call = BuildAwait(call, nopos);
       }
 
       Expression* output_proxy = factory()->NewVariableProxy(var_output);

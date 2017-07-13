@@ -240,9 +240,9 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
 template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
-  Node* generator = Parameter(1);
-  Node* value = Parameter(2);
-  Node* context = Parameter(5);
+  Node* generator = Parameter(Descriptor::kReceiver);
+  Node* value = Parameter(Descriptor::kAwaited);
+  Node* context = Parameter(Descriptor::kContext);
 
   CSA_SLOW_ASSERT(this,
                   HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));

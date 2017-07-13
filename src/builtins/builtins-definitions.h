@@ -343,8 +343,8 @@ namespace internal {
   CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
-  TFJ(AsyncFunctionAwaitCaught, 3, kGenerator, kAwaited, kOuterPromise)        \
-  TFJ(AsyncFunctionAwaitUncaught, 3, kGenerator, kAwaited, kOuterPromise)      \
+  TFJ(AsyncFunctionAwaitCaught, 2, kAwaited, kOuterPromise)                    \
+  TFJ(AsyncFunctionAwaitUncaught, 2, kAwaited, kOuterPromise)                  \
   TFJ(AsyncFunctionAwaitRejectClosure, 1, kSentError)                          \
   TFJ(AsyncFunctionAwaitResolveClosure, 1, kSentValue)                         \
   TFJ(AsyncFunctionPromiseCreate, 0)                                           \
@@ -1054,8 +1054,8 @@ namespace internal {
                                                                                \
   /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \
-  TFJ(AsyncGeneratorAwaitCaught, 2, kGenerator, kAwaited)                      \
-  TFJ(AsyncGeneratorAwaitUncaught, 2, kGenerator, kAwaited)                    \
+  TFJ(AsyncGeneratorAwaitCaught, 1, kAwaited)                                  \
+  TFJ(AsyncGeneratorAwaitUncaught, 1, kAwaited)                                \
   TFJ(AsyncGeneratorAwaitResolveClosure, 1, kValue)                            \
   TFJ(AsyncGeneratorAwaitRejectClosure, 1, kValue)                             \
                                                                                \

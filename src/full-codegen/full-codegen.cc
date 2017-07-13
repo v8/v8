@@ -1356,6 +1356,11 @@ void FullCodeGenerator::VisitYieldStar(YieldStar* expr) {
   UNREACHABLE();
 }
 
+void FullCodeGenerator::VisitAwait(Await* expr) {
+  // Resumable functions are not supported.
+  UNREACHABLE();
+}
+
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;

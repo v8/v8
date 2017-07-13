@@ -92,6 +92,7 @@ namespace internal {
   V(Literal)                    \
   V(Suspend)                    \
   V(YieldStar)                  \
+  V(Await)                      \
   V(Throw)                      \
   V(CallRuntime)                \
   V(UnaryOperation)             \
@@ -2290,6 +2291,7 @@ class Suspend : public Expression {
  private:
   friend class AstNodeFactory;
   friend class YieldStar;
+  friend class Await;
 
   Suspend(NodeType node_type, Expression* expression, int pos,
           OnAbruptResume on_abrupt_resume, SuspendFlags flags)
@@ -2375,6 +2377,14 @@ class YieldStar final : public Suspend {
   FeedbackSlot call_iterator_return_slot2_;
   FeedbackSlot call_iterator_next_slot_;
   FeedbackSlot call_iterator_throw_slot_;
+};
+
+class Await final : public Suspend {
+ private:
+  friend class AstNodeFactory;
+
+  Await(Expression* expression, int pos, SuspendFlags flags)
+      : Suspend(kAwait, expression, pos, Suspend::kOnExceptionThrow, flags) {}
 };
 
 class Throw final : public Expression {
@@ -3402,6 +3412,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   YieldStar* NewYieldStar(Expression* expression, int pos, SuspendFlags flags) {
     DCHECK_NOT_NULL(expression);
     return new (zone_) YieldStar(expression, pos, flags);
+  }
+
+  Await* NewAwait(Expression* expression, int pos, SuspendFlags flags) {
+    DCHECK(IsAwait(flags));
+    if (!expression) expression = NewUndefinedLiteral(pos);
+    return new (zone_) Await(expression, pos, flags);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {

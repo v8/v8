@@ -1401,6 +1401,35 @@ inline const char* SuspendTypeFor(SuspendFlags flags) {
   UNREACHABLE();
 }
 
+inline bool IsAwait(SuspendFlags flags) {
+  return (flags & SuspendFlags::kSuspendTypeMask) == SuspendFlags::kAwait;
+}
+
+inline bool IsAsyncGenerator(SuspendFlags flags) {
+  return (flags & SuspendFlags::kGeneratorTypeMask) ==
+         SuspendFlags::kAsyncGenerator;
+}
+
+inline std::ostream& operator<<(std::ostream& os, SuspendFlags flags) {
+  os << "SuspendFlags::k";
+  if (IsAsyncGenerator(flags)) {
+    os << "Async";
+  }
+  os << "Generator";
+
+  switch (flags & SuspendFlags::kSuspendTypeMask) {
+    case SuspendFlags::kYield:
+      return os << "Yield";
+    case SuspendFlags::kYieldStar:
+      return os << "YieldStar";
+    case SuspendFlags::kAwait:
+      return os << "Await";
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
 struct AssemblerDebugInfo {
   AssemblerDebugInfo(const char* name, const char* file, int line)
       : name(name), file(file), line(line) {}
