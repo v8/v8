@@ -377,10 +377,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROPERTY_CELL_TYPE)                                                        \
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                               \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                               \
-  /* TODO(yangguo): these padding types are for ABI stability. Remove after*/  \
-  /* version 6.0 branch, or replace them when there is demand for new types.*/ \
-  V(PADDING_TYPE_1)                                                            \
-  V(PADDING_TYPE_2)                                                            \
                                                                                \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
@@ -729,11 +725,6 @@ enum InstanceType : uint8_t {
   PROPERTY_CELL_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
-
-  // TODO(yangguo): these padding types are for ABI stability. Remove after
-  // version 6.0 branch, or replace them when there is demand for new types.
-  PADDING_TYPE_1,
-  PADDING_TYPE_2,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are

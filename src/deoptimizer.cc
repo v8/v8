@@ -4015,8 +4015,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case TUPLE3_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
     case PREPARSED_SCOPE_DATA_TYPE:
-    case PADDING_TYPE_1:
-    case PADDING_TYPE_2:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
