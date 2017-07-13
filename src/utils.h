@@ -52,26 +52,28 @@ inline bool CStringEquals(const char* s1, const char* s2) {
   return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
 }
 
-
 // X must be a power of 2.  Returns the number of trailing zeros.
-inline int WhichPowerOf2(uint32_t x) {
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+inline int WhichPowerOf2(T x) {
   DCHECK(base::bits::IsPowerOfTwo(x));
   int bits = 0;
 #ifdef DEBUG
-  uint32_t original_x = x;
+  const T original_x = x;
 #endif
-  if (x >= 0x10000) {
-    bits += 16;
-    x >>= 16;
+  constexpr int max_bits = sizeof(T) * 8;
+  static_assert(max_bits <= 64, "integral types are not bigger than 64 bits");
+// Avoid shifting by more than the bit width of x to avoid compiler warnings.
+#define CHECK_BIGGER(s)                                      \
+  if (max_bits > s && x >= T{1} << (max_bits > s ? s : 0)) { \
+    bits += s;                                               \
+    x >>= max_bits > s ? s : 0;                              \
   }
-  if (x >= 0x100) {
-    bits += 8;
-    x >>= 8;
-  }
-  if (x >= 0x10) {
-    bits += 4;
-    x >>= 4;
-  }
+  CHECK_BIGGER(32)
+  CHECK_BIGGER(16)
+  CHECK_BIGGER(8)
+  CHECK_BIGGER(4)
+#undef CHECK_BIGGER
   switch (x) {
     default: UNREACHABLE();
     case 8: bits++;  // Fall through.
@@ -79,45 +81,9 @@ inline int WhichPowerOf2(uint32_t x) {
     case 2: bits++;  // Fall through.
     case 1: break;
   }
-  DCHECK_EQ(static_cast<uint32_t>(1) << bits, original_x);
+  DCHECK_EQ(T{1} << bits, original_x);
   return bits;
 }
-
-
-// X must be a power of 2.  Returns the number of trailing zeros.
-inline int WhichPowerOf2_64(uint64_t x) {
-  DCHECK(base::bits::IsPowerOfTwo(x));
-  int bits = 0;
-#ifdef DEBUG
-  uint64_t original_x = x;
-#endif
-  if (x >= 0x100000000L) {
-    bits += 32;
-    x >>= 32;
-  }
-  if (x >= 0x10000) {
-    bits += 16;
-    x >>= 16;
-  }
-  if (x >= 0x100) {
-    bits += 8;
-    x >>= 8;
-  }
-  if (x >= 0x10) {
-    bits += 4;
-    x >>= 4;
-  }
-  switch (x) {
-    default: UNREACHABLE();
-    case 8: bits++;  // Fall through.
-    case 4: bits++;  // Fall through.
-    case 2: bits++;  // Fall through.
-    case 1: break;
-  }
-  DCHECK_EQ(static_cast<uint64_t>(1) << bits, original_x);
-  return bits;
-}
-
 
 inline int MostSignificantBit(uint32_t x) {
   static const int msb4[] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
