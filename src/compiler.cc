@@ -278,9 +278,6 @@ bool ShouldUseFullCodegen(Handle<SharedFunctionInfo> shared) {
   // Use full-codegen for asm.js functions.
   if (shared->asm_function()) return true;
 
-  // Use full-codegen for asm wasm code.
-  if (FLAG_validate_asm && shared->HasAsmWasmData()) return true;
-
   // If stressing full-codegen then use it for all functions it can support.
   return FLAG_stress_fullcodegen;
 }
@@ -847,8 +844,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
-  if (!ShouldUseFullCodegen(info)) {
-    DCHECK(shared->HasBytecodeArray());
+  if (shared->HasBytecodeArray()) {
     info->MarkAsOptimizeFromBytecode();
   }
 
