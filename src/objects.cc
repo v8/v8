@@ -15809,7 +15809,7 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     DisallowHeapAllocation no_allocation;
 
     AllocationMemento* memento =
-        heap->FindAllocationMemento<Heap::kForRuntime>(*object);
+        heap->FindAllocationMemento<Heap::kForRuntime>(object->map(), *object);
     if (memento == NULL) return false;
 
     // Walk through to the Allocation Site

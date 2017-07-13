@@ -101,7 +101,7 @@ class Scavenger {
   inline Heap* heap() { return heap_; }
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
-  V8_INLINE void MigrateObject(HeapObject* source, HeapObject* target,
+  V8_INLINE void MigrateObject(Map* map, HeapObject* source, HeapObject* target,
                                int size);
 
   V8_INLINE bool SemiSpaceCopyObject(Map* map, HeapObject** slot,

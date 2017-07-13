@@ -34,7 +34,7 @@ bool ContainsOnlyData(VisitorId visitor_id) {
 
 }  // namespace
 
-void Scavenger::MigrateObject(HeapObject* source, HeapObject* target,
+void Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
                               int size) {
   // If we migrate into to-space, then the to-space top pointer should be
   // right after the target object. Incorporate double alignment
@@ -58,6 +58,8 @@ void Scavenger::MigrateObject(HeapObject* source, HeapObject* target,
   if (is_incremental_marking_) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
+  heap()->UpdateAllocationSite<Heap::kCached>(map, source,
+                                              &local_pretenuring_feedback_);
 }
 
 bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
@@ -71,7 +73,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
   if (allocation.To(&target)) {
     DCHECK(ObjectMarking::IsWhite(
         target, heap()->mark_compact_collector()->marking_state(target)));
-    MigrateObject(object, target, object_size);
+    MigrateObject(map, object, target, object_size);
     *slot = target;
 
     copied_list_.Insert(target, object_size);
@@ -91,7 +93,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
   if (allocation.To(&target)) {
     DCHECK(ObjectMarking::IsWhite(
         target, heap()->mark_compact_collector()->marking_state(target)));
-    MigrateObject(object, target, object_size);
+    MigrateObject(map, object, target, object_size);
     *slot = target;
 
     if (!ContainsOnlyData(static_cast<VisitorId>(map->visitor_id()))) {
@@ -106,7 +108,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
 void Scavenger::EvacuateObjectDefault(Map* map, HeapObject** slot,
                                       HeapObject* object, int object_size) {
   SLOW_DCHECK(object_size <= Page::kAllocatableMemory);
-  SLOW_DCHECK(object->Size() == object_size);
+  SLOW_DCHECK(object->SizeFromMap(map) == object_size);
 
   if (!heap()->ShouldBePromoted(object->address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
@@ -234,9 +236,6 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
     *p = dest;
     return;
   }
-
-  heap()->UpdateAllocationSite<Heap::kCached>(object,
-                                              &local_pretenuring_feedback_);
 
   Map* map = first_word.ToMap();
   // AllocationMementos are unrooted and shouldn't survive a scavenge

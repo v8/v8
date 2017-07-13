@@ -780,7 +780,7 @@ class Heap {
   // If an object has an AllocationMemento trailing it, return it, otherwise
   // return NULL;
   template <FindMementoMode mode>
-  inline AllocationMemento* FindAllocationMemento(HeapObject* object);
+  inline AllocationMemento* FindAllocationMemento(Map* map, HeapObject* object);
 
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, List<Address>* maps);
@@ -1457,7 +1457,7 @@ class Heap {
   // in the hash map is created. Otherwise the entry (including a the count
   // value) is cached on the local pretenuring feedback.
   template <UpdateAllocationSiteMode mode>
-  inline void UpdateAllocationSite(HeapObject* object,
+  inline void UpdateAllocationSite(Map* map, HeapObject* object,
                                    base::HashMap* pretenuring_feedback);
 
   // Removes an entry from the global pretenuring storage.

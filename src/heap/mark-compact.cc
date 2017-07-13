@@ -1699,7 +1699,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       promoted_size_ += size;
       return true;
     }
-    heap_->UpdateAllocationSite<Heap::kCached>(object,
+    heap_->UpdateAllocationSite<Heap::kCached>(object->map(), object,
                                                local_pretenuring_feedback_);
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, size, &target);
@@ -1845,7 +1845,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(HeapObject* object, int size) {
     if (mode == NEW_TO_NEW) {
-      heap_->UpdateAllocationSite<Heap::kCached>(object,
+      heap_->UpdateAllocationSite<Heap::kCached>(object->map(), object,
                                                  local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
       object->IterateBodyFast(record_visitor_);

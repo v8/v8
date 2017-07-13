@@ -458,9 +458,9 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 }
 
 template <Heap::FindMementoMode mode>
-AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
+AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   Address object_address = object->address();
-  Address memento_address = object_address + object->Size();
+  Address memento_address = object_address + object->SizeFromMap(map);
   Address last_memento_word_address = memento_address + kPointerSize;
   // If the memento would be on another page, bail out immediately.
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
@@ -519,7 +519,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 }
 
 template <Heap::UpdateAllocationSiteMode mode>
-void Heap::UpdateAllocationSite(HeapObject* object,
+void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
                                 base::HashMap* pretenuring_feedback) {
   DCHECK(InFromSpace(object) ||
          (InToSpace(object) &&
@@ -529,9 +529,10 @@ void Heap::UpdateAllocationSite(HeapObject* object,
           Page::FromAddress(object->address())
               ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
-      !AllocationSite::CanTrack(object->map()->instance_type()))
+      !AllocationSite::CanTrack(map->instance_type()))
     return;
-  AllocationMemento* memento_candidate = FindAllocationMemento<kForGC>(object);
+  AllocationMemento* memento_candidate =
+      FindAllocationMemento<kForGC>(map, object);
   if (memento_candidate == nullptr) return;
 
   if (mode == kGlobal) {
