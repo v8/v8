@@ -41,8 +41,14 @@ void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
 }
 
 void BlockBuilder::EndBlock() {
-  builder()->Bind(&block_end_);
-  BindBreakTarget();
+  if (statement_->labels() != nullptr) {
+    builder()->Bind(&block_end_);
+    BindBreakTarget();
+  }
+  if (block_coverage_builder_ != nullptr && needs_continuation_counter_) {
+    block_coverage_builder_->IncrementBlockCounter(
+        statement_, SourceRangeKind::kContinuation);
+  }
 }
 
 LoopBuilder::~LoopBuilder() {

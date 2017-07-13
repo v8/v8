@@ -5035,7 +5035,9 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
     }
 
     Expect(Token::RBRACE, CHECK_OK_CUSTOM(NullBlock));
-    scope()->set_end_position(scanner()->location().end_pos);
+    int end_pos = scanner()->location().end_pos;
+    scope()->set_end_position(end_pos);
+    impl()->RecordBlockSourceRange(body, end_pos);
     body->set_scope(scope()->FinalizeBlockScope());
   }
   return body;

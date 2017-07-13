@@ -340,6 +340,7 @@ TestCoverage(
  {"start":219,"end":232,"count":0},
  {"start":264,"end":274,"count":0},
  {"start":369,"end":380,"count":0},
+ {"start":403,"end":414,"count":0},  // TODO(jgruber): Include `catch` in range.
  {"start":513,"end":564,"count":0}]
 );
 
@@ -361,16 +362,27 @@ TestCoverage(
   }                                       // 0600
   nop();                                  // 0650
 }();                                      // 0700
+!function() {                             // 0750
+  try { throw 42; } catch (e) {           // 0800
+    return;                               // 0850
+    nop();                                // 0900
+  }                                       // 0950
+  nop();                                  // 1000
+}();                                      // 1050
 `,
-[{"start":0,"end":749,"count":1},
+[{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
  {"start":67,"end":80,"count":0},
- {"start":89,"end":91,"count":0},  // TODO(jgruber): Missing continuation.
+ {"start":89,"end":151,"count":0},
  {"start":201,"end":351,"count":1},
- {"start":284,"end":286,"count":0},  // TODO(jgruber): Missing continuation.
+ {"start":284,"end":351,"count":0},
  {"start":401,"end":701,"count":1},
  {"start":569,"end":701,"count":0},
- {"start":561,"end":568,"count":0}]  // TODO(jgruber): Sorting.
+ {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
+ {"start":751,"end":1051,"count":1},
+ {"start":817,"end":830,"count":0},
+ {"start":861,"end":1051,"count":0}]
+
 );
 
 TestCoverage(
@@ -389,6 +401,69 @@ TestCoverage(
  {"start":1,"end":351,"count":1},
  {"start":154,"end":204,"count":0},
  {"start":226,"end":303,"count":0}]
+);
+
+TestCoverage(
+"labeled break statements",
+`
+!function() {                             // 0000
+  var x = 42;                             // 0050
+  l0: switch (x) {                        // 0100
+  case 41: return;                        // 0150
+  case 42:                                // 0200
+    switch (x) { case 42: break l0; }     // 0250
+    break;                                // 0300
+  }                                       // 0350
+  l1: for (;;) {                          // 0400
+    for (;;) break l1;                    // 0450
+  }                                       // 0500
+  l2: while (true) {                      // 0550
+    while (true) break l2;                // 0600
+  }                                       // 0650
+  l3: do {                                // 0700
+    do { break l3; } while (true);        // 0750
+  } while (true);                         // 0800
+  l4: { break l4; }                       // 0850
+  l5: for (;;) for (;;) break l5;         // 0900
+}();                                      // 0950
+`,
+[{"start":0,"end":999,"count":1},
+ {"start":1,"end":951,"count":1},
+ {"start":152,"end":202,"count":0},
+ {"start":285,"end":353,"count":0},
+ {"start":472,"end":503,"count":0},
+ {"start":626,"end":653,"count":0},
+ {"start":768,"end":803,"count":0},
+ {"start":867,"end":869,"count":0}]
+);
+
+TestCoverage(
+"labeled continue statements",
+`
+!function() {                             // 0000
+  l0: for (var i0 = 0; i0 < 2; i0++) {    // 0050
+    for (;;) continue l0;                 // 0100
+  }                                       // 0150
+  var i1 = 0;                             // 0200
+  l1: while (i1 < 2) {                    // 0250
+    i1++;                                 // 0300
+    while (true) continue l1;             // 0350
+  }                                       // 0400
+  var i2 = 0;                             // 0450
+  l2: do {                                // 0500
+    i2++;                                 // 0550
+    do { continue l2; } while (true);     // 0600
+  } while (i2 < 2);                       // 0650
+}();                                      // 0700
+`,
+[{"start":0,"end":749,"count":1},
+ {"start":1,"end":701,"count":1},
+ {"start":87,"end":153,"count":2},
+ {"start":125,"end":153,"count":0},
+ {"start":271,"end":403,"count":2},
+ {"start":379,"end":403,"count":0},
+ {"start":509,"end":653,"count":2},
+ {"start":621,"end":653,"count":0}]
 );
 
 %DebugToggleBlockCoverage(false);

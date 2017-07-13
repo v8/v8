@@ -330,6 +330,7 @@ class BytecodeGenerator::ControlScopeForBreakable final
 
  protected:
   bool Execute(Command command, Statement* statement) override {
+    control_builder_->set_needs_continuation_counter();
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
@@ -1058,13 +1059,13 @@ void BytecodeGenerator::VisitBlock(Block* stmt) {
 }
 
 void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
-  BlockBuilder block_builder(builder());
+  BlockBuilder block_builder(builder(), block_coverage_builder_, stmt);
   ControlScopeForBreakable execution_control(this, stmt, &block_builder);
   if (stmt->scope() != nullptr) {
     VisitDeclarations(stmt->scope()->declarations());
   }
   VisitStatements(stmt->statements());
-  if (stmt->labels() != nullptr) block_builder.EndBlock();
+  block_builder.EndBlock();
 }
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
@@ -4167,9 +4168,7 @@ int BytecodeGenerator::AllocateBlockCoverageSlotIfEnabled(
 void BytecodeGenerator::BuildIncrementBlockCoverageCounterIfEnabled(
     AstNode* node, SourceRangeKind kind) {
   if (block_coverage_builder_ == nullptr) return;
-
-  int slot = block_coverage_builder_->AllocateBlockCoverageSlot(node, kind);
-  block_coverage_builder_->IncrementBlockCounter(slot);
+  block_coverage_builder_->IncrementBlockCounter(node, kind);
 }
 
 void BytecodeGenerator::BuildIncrementBlockCoverageCounterIfEnabled(

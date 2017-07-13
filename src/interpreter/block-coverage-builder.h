@@ -46,6 +46,11 @@ class BlockCoverageBuilder final : public ZoneObject {
     builder_->IncBlockCounter(coverage_array_slot);
   }
 
+  void IncrementBlockCounter(AstNode* node, SourceRangeKind kind) {
+    int slot = AllocateBlockCoverageSlot(node, kind);
+    IncrementBlockCounter(slot);
+  }
+
   const ZoneVector<SourceRange>& slots() const { return slots_; }
 
  private:

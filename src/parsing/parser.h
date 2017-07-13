@@ -1146,6 +1146,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return parameters_end_pos_ != kNoSourcePosition;
   }
 
+  V8_INLINE void RecordBlockSourceRange(Block* node,
+                                        int32_t continuation_position) {
+    if (source_range_map_ == nullptr) return;
+    source_range_map_->Insert(
+        node, new (zone()) BlockSourceRanges(continuation_position));
+  }
+
   V8_INLINE void RecordCaseClauseSourceRange(CaseClause* node,
                                              const SourceRange& body_range) {
     if (source_range_map_ == nullptr) return;

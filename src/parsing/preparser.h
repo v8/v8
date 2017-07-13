@@ -1743,6 +1743,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
 
+  V8_INLINE void RecordBlockSourceRange(PreParserStatement node,
+                                        int32_t continuation_position) {}
   V8_INLINE void RecordCaseClauseSourceRange(PreParserStatement node,
                                              const SourceRange& body_range) {}
   V8_INLINE void RecordIfStatementSourceRange(PreParserStatement node,

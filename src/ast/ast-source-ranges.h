@@ -29,6 +29,7 @@ struct SourceRange {
 
 // The list of ast node kinds that have associated source ranges.
 #define AST_SOURCE_RANGE_LIST(V) \
+  V(Block)                       \
   V(CaseClause)                  \
   V(IfStatement)                 \
   V(IterationStatement)          \
@@ -65,6 +66,12 @@ class ContinuationSourceRanges : public AstNodeSourceRanges {
 
  private:
   int32_t continuation_position_;
+};
+
+class BlockSourceRanges final : public ContinuationSourceRanges {
+ public:
+  explicit BlockSourceRanges(int32_t continuation_position)
+      : ContinuationSourceRanges(continuation_position) {}
 };
 
 class CaseClauseSourceRanges final : public AstNodeSourceRanges {
