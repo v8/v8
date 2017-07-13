@@ -42,7 +42,7 @@ class CompilerDispatcherTestFlags {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     FLAG_single_threaded = true;
-    FLAG_ignition = true;
+    FLAG_stress_fullcodegen = false;
     FlagList::EnforceFlagImplications();
     FLAG_compiler_dispatcher = true;
   }

@@ -6700,13 +6700,13 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
       ++returns_count;
     }
   }
-  if (i::FLAG_ignition) {
+  if (i::FLAG_stress_fullcodegen) {
+    // With fullcodegen we generate one return location.
+    CHECK(returns_count == 1);
+  } else {
     // With Ignition we generate one return location per return statement,
     // each has line = 5, column = 0 as statement position.
     CHECK(returns_count == 4);
-  } else {
-    // Without Ignition we generate one return location.
-    CHECK(returns_count == 1);
   }
 }
 

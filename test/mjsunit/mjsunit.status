@@ -601,6 +601,16 @@
 ##############################################################################
 ['variant == fullcode', {
   'es6/array-iterator-turbo': [SKIP],
+
+  # TODO(6589) Crashing when changing tests to actually use full-codegen.
+  'regress/regress-4388': [SKIP],
+  'regress/regress-5404': [SKIP],
+  'regress/regress-v8-5697': [SKIP],
+  'regress/regress-crbug-489293': [SKIP],
+  'array-store-and-grow': [SKIP],
+  'es6/block-let-crankshaft': [SKIP],
+  'es6/block-let-crankshaft-sloppy': [SKIP],
+  'object-seal': [SKIP],
 }],  # variant == nocranshaft
 
 ##############################################################################

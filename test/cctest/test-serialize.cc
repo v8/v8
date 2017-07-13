@@ -1134,7 +1134,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   // This test relies on (full-codegen) code objects going to large object
   // space. Once FCG goes away, it must either be redesigned (to put some
   // other large deserialized object into LO space), or it can be deleted.
-  FLAG_ignition = false;
+  FLAG_stress_fullcodegen = true;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
   FLAG_black_allocation = true;
@@ -1773,7 +1773,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
 }
 
 TEST(CodeSerializerEagerCompilationAndPreAge) {
-  if (FLAG_ignition) return;
+  if (!FLAG_stress_fullcodegen) return;
 
   FLAG_lazy = true;
   FLAG_serialize_toplevel = true;

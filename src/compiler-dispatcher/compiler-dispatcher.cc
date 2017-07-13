@@ -205,7 +205,7 @@ bool CompilerDispatcher::CanEnqueue() {
 }
 
 bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
-  DCHECK_IMPLIES(IsEnabled(), FLAG_ignition);
+  DCHECK_IMPLIES(IsEnabled(), !FLAG_stress_fullcodegen);
 
   if (!CanEnqueue()) return false;
 

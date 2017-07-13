@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt --ignition --block-coverage
+// Flags: --no-stress-fullcodegen
 
 // Test precise code coverage.
 

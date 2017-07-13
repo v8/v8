@@ -277,34 +277,28 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
   return is_turbofanable_asm || passes_turbo_filter;
 }
 
-bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
-                       bool marked_as_debug) {
+bool ShouldUseFullCodegen(Handle<SharedFunctionInfo> shared) {
   // Code which can't be supported by the old pipeline should use Ignition.
-  if (shared->must_use_ignition()) return true;
+  if (shared->must_use_ignition()) return false;
 
   // Resumable functions are not supported by {FullCodeGenerator}, suspended
   // activations stored as {JSGeneratorObject} on the heap always assume the
   // underlying code to be based on the bytecode array.
   DCHECK(!IsResumableFunction(shared->kind()));
 
-  // Skip Ignition for asm.js functions.
-  if (shared->asm_function()) return false;
+  // Use full-codegen for asm.js functions.
+  if (shared->asm_function()) return true;
 
-  // Skip Ignition for asm wasm code.
-  if (FLAG_validate_asm && shared->HasAsmWasmData()) {
-    return false;
-  }
+  // Use full-codegen for asm wasm code.
+  if (FLAG_validate_asm && shared->HasAsmWasmData()) return true;
 
-  // Code destined for TurboFan should be compiled with Ignition first.
-  if (UseTurboFan(shared)) return true;
-
-  // Only use Ignition for any other function if FLAG_ignition is true.
-  return FLAG_ignition;
+  // If stressing full-codegen then use it for all functions it can support.
+  return FLAG_stress_fullcodegen;
 }
 
-bool ShouldUseIgnition(CompilationInfo* info) {
+bool ShouldUseFullCodegen(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
-  return ShouldUseIgnition(info->shared_info(), info->is_debug());
+  return ShouldUseFullCodegen(info->shared_info());
 }
 
 bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
@@ -342,10 +336,10 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
 
-  if (ShouldUseIgnition(info)) {
-    return interpreter::Interpreter::NewCompilationJob(info);
-  } else {
+  if (ShouldUseFullCodegen(info)) {
     return FullCodeGenerator::NewCompilationJob(info);
+  } else {
+    return interpreter::Interpreter::NewCompilationJob(info);
   }
 }
 
@@ -822,7 +816,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   bool has_script = shared->script()->IsScript();
   // BUG(5946): This DCHECK is necessary to make certain that we won't tolerate
   // the lack of a script without bytecode.
-  DCHECK_IMPLIES(!has_script, ShouldUseIgnition(shared, false));
+  DCHECK_IMPLIES(!has_script, !ShouldUseFullCodegen(shared));
   std::unique_ptr<CompilationJob> job(
       compiler::Pipeline::NewCompilationJob(function, has_script));
   CompilationInfo* info = job->info();
@@ -862,7 +856,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
-  if (ShouldUseIgnition(info)) {
+  if (!ShouldUseFullCodegen(info)) {
     DCHECK(shared->HasBytecodeArray());
     info->MarkAsOptimizeFromBytecode();
   }
@@ -1040,7 +1034,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return result;
   }
 }
-
 
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
@@ -1300,7 +1293,8 @@ bool Compiler::EnsureBytecode(CompilationInfo* info) {
 
   if (info->shared_info()->HasAsmWasmData()) return false;
 
-  DCHECK_EQ(ShouldUseIgnition(info), info->shared_info()->HasBytecodeArray());
+  DCHECK_EQ(ShouldUseFullCodegen(info),
+            !info->shared_info()->HasBytecodeArray());
   return info->shared_info()->HasBytecodeArray();
 }
 
@@ -1311,14 +1305,9 @@ bool Compiler::EnsureBaselineCode(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
 
-  CompilerDispatcher* dispatcher = info->isolate()->compiler_dispatcher();
-  if (dispatcher->IsEnqueued(shared)) {
-    if (!dispatcher->FinishNow(shared)) return false;
-  }
-
   if (!shared->HasBaselineCode()) {
     // Don't generate full-codegen code for functions which should use Ignition.
-    if (ShouldUseIgnition(info)) return false;
+    if (!ShouldUseFullCodegen(shared)) return false;
 
     DCHECK(!shared->must_use_ignition());
     DCHECK(!IsResumableFunction(shared->kind()));
@@ -1326,7 +1315,7 @@ bool Compiler::EnsureBaselineCode(CompilationInfo* info) {
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
     CompilationInfo unoptimized(&compile_zone, info->parse_info(),
                                 info->isolate(), info->closure());
-    DCHECK(!ShouldUseIgnition(&unoptimized));
+    DCHECK(ShouldUseFullCodegen(&unoptimized));
     GenerateUnoptimizedCode(&unoptimized);
   }
   return true;

@@ -72,7 +72,7 @@ static const char* kGoldenFileDirectory =
 class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
-    i::FLAG_ignition = true;
+    i::FLAG_stress_fullcodegen = false;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
   }

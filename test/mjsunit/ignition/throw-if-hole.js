@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --allow-natives-syntax --no-always-opt
+// Flags: --opt --allow-natives-syntax --no-always-opt --no-stress-fullcodegen
 
 function f(b) {
  if (b == 1) {

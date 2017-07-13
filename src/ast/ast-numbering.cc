@@ -642,7 +642,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   node->set_dont_optimize_reason(dont_optimize_reason());
   node->set_suspend_count(suspend_count_);
 
-  if (FLAG_trace_opt && !FLAG_ignition) {
+  if (FLAG_trace_opt && FLAG_stress_fullcodegen) {
     if (disable_fullcodegen_reason_ != kNoReason) {
       // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
       // the function to be accessed in the below print. This DCHECK will fail

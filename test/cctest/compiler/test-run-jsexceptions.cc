@@ -10,7 +10,7 @@ namespace internal {
 namespace compiler {
 
 TEST(Throw) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
 
   T.CheckThrows(T.true_value(), T.NewObject("new Error"));
@@ -19,7 +19,7 @@ TEST(Throw) {
 
 
 TEST(ThrowMessagePosition) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   static const char* src =
       "(function(a, b) {        \n"
       "  if (a == 1) throw 1;   \n"
@@ -46,7 +46,7 @@ TEST(ThrowMessagePosition) {
 
 
 TEST(ThrowMessageDirectly) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   static const char* src =
       "(function(a, b) {"
       "  if (a) { throw b; } else { throw new Error(b); }"
@@ -65,7 +65,7 @@ TEST(ThrowMessageDirectly) {
 
 
 TEST(ThrowMessageIndirectly) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   static const char* src =
       "(function(a, b) {"
       "  try {"
@@ -88,7 +88,7 @@ TEST(ThrowMessageIndirectly) {
 
 
 TEST(Catch) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -107,7 +107,7 @@ TEST(Catch) {
 
 
 TEST(CatchNested) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -131,7 +131,7 @@ TEST(CatchNested) {
 
 
 TEST(CatchBreak) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -156,7 +156,7 @@ TEST(CatchBreak) {
 
 
 TEST(CatchCall) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(fun) {"
       "  var r = '-';"
@@ -178,7 +178,7 @@ TEST(CatchCall) {
 
 
 TEST(Finally) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -196,7 +196,7 @@ TEST(Finally) {
 
 
 TEST(FinallyBreak) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -220,7 +220,7 @@ TEST(FinallyBreak) {
 
 
 TEST(DeoptTry) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -237,7 +237,7 @@ TEST(DeoptTry) {
 
 
 TEST(DeoptCatch) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -254,7 +254,7 @@ TEST(DeoptCatch) {
 
 
 TEST(DeoptFinallyReturn) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -271,7 +271,7 @@ TEST(DeoptFinallyReturn) {
 
 
 TEST(DeoptFinallyReThrow) {
-  FLAG_ignition = true;
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"

@@ -22070,7 +22070,7 @@ void TestStubCache(bool primary) {
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (FLAG_ignition) return;
+  if (!FLAG_stress_fullcodegen) return;
 
   FLAG_native_code_counters = true;
   if (primary) {
@@ -23025,7 +23025,7 @@ TEST(AccessCheckInIC) {
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (FLAG_ignition) return;
+  if (!FLAG_stress_fullcodegen) return;
 
   FLAG_native_code_counters = true;
   FLAG_opt = false;
