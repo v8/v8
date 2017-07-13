@@ -23,7 +23,7 @@ let instance0 = new WebAssembly.Instance(module0);
 
 let builder1 = new WasmModuleBuilder();
 builder1.setName('module_1');
-builder1.addFunction('main', kSig_i_i).addBody([0]);
+builder1.addFunction('main', kSig_i_v).addBody([kExprUnreachable]);
 builder1.addImportedTable('z', 'table');
 builder1.addFunctionTableInit(0, false, [0], true);
 let module1 = new WebAssembly.Module(builder1.toBuffer());
