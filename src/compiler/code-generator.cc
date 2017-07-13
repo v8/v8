@@ -508,7 +508,9 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
     if (FLAG_trace_turbo) {
       buffer << source_position;
     } else {
-      buffer << source_position.InliningStack(info);
+      buffer << source_position;
+      // TODO(neis): Figure out if/how to print InliningStack(info) from a
+      // background thread.
     }
     buffer << " --";
     tasm()->RecordComment(StrDup(buffer.str().c_str()));
