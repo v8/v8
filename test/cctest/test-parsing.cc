@@ -7368,7 +7368,6 @@ TEST(DestructuringPositiveTests) {
     "[{x:x, y:y, ...z}, [a,b,c]]",
     "[{x:x = 1, y:y = 2, ...z}, [a = 3, b = 4, c = 5]]",
     "{...x}",
-    "{...{ x = 5} }",
     "{x, ...y}",
     "{x = 42, y = 15, ...z}",
     "{42 : x = 42, ...y}",
@@ -7541,6 +7540,12 @@ TEST(DestructuringNegativeTests) {
       "{ ...method() {} }",
       "{ ...function() {} }",
       "{ ...*method() {} }",
+      "{...{x} }",
+      "{...[x] }",
+      "{...{ x = 5 } }",
+      "{...[ x = 5 ] }",
+      "{...x.f }",
+      "{...x[0] }",
       NULL
     };
 
@@ -7855,6 +7860,9 @@ TEST(DestructuringAssignmentPositiveTests) {
     "{x: { y = 10 } }",
     "[(({ x } = { x: 1 }) => x).a]",
 
+    "{ ...d.x }",
+    "{ ...c[0]}",
+
     // v8:4662
     "{ x: (y) }",
     "{ x: (y) = [] }",
@@ -7869,9 +7877,12 @@ TEST(DestructuringAssignmentPositiveTests) {
 
     NULL};
   // clang-format on
-  RunParserSyncTest(context_data, data, kSuccess);
+  static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                    arraysize(flags));
 
-  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess);
+  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess, NULL, 0,
+                    flags, arraysize(flags));
 
   const char* empty_context_data[][2] = {
       {"'use strict';", ""}, {"", ""}, {NULL, NULL}};

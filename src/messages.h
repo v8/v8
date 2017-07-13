@@ -566,6 +566,11 @@ class ErrorUtils : public AllStatic {
   T(IllegalLanguageModeDirective,                                              \
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
+  T(InvalidRestBindingPattern,                                                 \
+    "`...` must be followed by an identifier in declaration contexts")         \
+  T(InvalidRestAssignmentPattern,                                              \
+    "`...` must be followed by an assignable reference in assignment "         \
+    "contexts")                                                                \
   T(InvalidEscapedReservedWord, "Keyword must not contain escaped characters") \
   T(InvalidEscapedMetaProperty, "'%' must not contain escaped characters")     \
   T(InvalidLhsInAssignment, "Invalid left-hand side in assignment")            \

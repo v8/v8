@@ -2128,13 +2128,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
         expression = ParseAssignmentExpression(true, CHECK_OK);
         *kind = PropertyKind::kSpreadProperty;
 
-        if (expression->IsAssignment()) {
-          classifier()->RecordPatternError(
+        if (!impl()->IsIdentifier(expression)) {
+          classifier()->RecordBindingPatternError(
               scanner()->location(),
-              MessageTemplate::kInvalidDestructuringTarget);
-        } else {
-          CheckDestructuringElement(expression, pos,
-                                    scanner()->location().end_pos);
+              MessageTemplate::kInvalidRestBindingPattern);
+        }
+
+        if (!expression->IsValidReferenceExpression()) {
+          classifier()->RecordAssignmentPatternError(
+              scanner()->location(),
+              MessageTemplate::kInvalidRestAssignmentPattern);
         }
 
         if (peek() != Token::RBRACE) {
