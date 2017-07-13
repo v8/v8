@@ -102,24 +102,11 @@ intptr_t OS::CommitPageSize() {
 }
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   bool is_executable) {
+                   bool is_executable, void* hint) {
   return OS::Allocate(requested, allocated,
                       is_executable ? OS::MemoryPermission::kReadWriteExecute
-                                    : OS::MemoryPermission::kReadWrite);
-}
-
-void* OS::AllocateGuarded(const size_t requested) {
-  size_t allocated = 0;
-  void* mbase =
-      OS::Allocate(requested, &allocated, OS::MemoryPermission::kNoAccess);
-  if (allocated != requested) {
-    OS::Free(mbase, allocated);
-    return nullptr;
-  }
-  if (mbase == nullptr) {
-    return nullptr;
-  }
-  return mbase;
+                                    : OS::MemoryPermission::kReadWrite,
+                      hint);
 }
 
 void OS::Free(void* address, const size_t size) {

@@ -157,7 +157,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 #if USE_VM
   void* VirtualMemoryAllocate(size_t length) {
-    void* data = base::VirtualMemory::ReserveRegion(length);
+    void* data = base::VirtualMemory::ReserveRegion(length, nullptr);
     if (data && !base::VirtualMemory::CommitRegion(data, length, false)) {
       base::VirtualMemory::ReleaseRegion(data, length);
       return nullptr;

@@ -1487,6 +1487,25 @@ class Heap {
   void ReportHeapStatistics(const char* title);
   void ReportCodeStatistics(const char* title);
 #endif
+  void* GetRandomMmapAddr() {
+    void* result = base::OS::GetRandomMmapAddr();
+#if V8_TARGET_ARCH_X64
+#if V8_OS_MACOSX
+    // The Darwin kernel [as of macOS 10.12.5] does not clean up page
+    // directory entries [PDE] created from mmap or mach_vm_allocate, even
+    // after the region is destroyed. Using a virtual address space that is
+    // too large causes a leak of about 1 wired [can never be paged out] page
+    // per call to mmap(). The page is only reclaimed when the process is
+    // killed. Confine the hint to a 32-bit section of the virtual address
+    // space. See crbug.com/700928.
+    uintptr_t offset =
+        reinterpret_cast<uintptr_t>(base::OS::GetRandomMmapAddr()) &
+        kMmapRegionMask;
+    result = reinterpret_cast<void*>(mmap_region_base_ + offset);
+#endif  // V8_OS_MACOSX
+#endif  // V8_TARGET_ARCH_X64
+    return result;
+  }
 
   static const char* GarbageCollectionReasonToString(
       GarbageCollectionReason gc_reason);
@@ -2192,6 +2211,9 @@ class Heap {
 
   // How many gc happened.
   unsigned int gc_count_;
+
+  static const uintptr_t kMmapRegionMask = 0xFFFFFFFFu;
+  uintptr_t mmap_region_base_;
 
   // For post mortem debugging.
   int remembered_unmapped_pages_index_;

@@ -13,7 +13,8 @@ namespace v8 {
 namespace internal {
 
 void SequentialMarkingDeque::SetUp() {
-  backing_store_ = new base::VirtualMemory(kMaxSize);
+  backing_store_ =
+      new base::VirtualMemory(kMaxSize, heap_->GetRandomMmapAddr());
   backing_store_committed_size_ = 0;
   if (backing_store_ == nullptr) {
     V8::FatalProcessOutOfMemory("SequentialMarkingDeque::SetUp");

@@ -165,13 +165,12 @@ class V8_BASE_EXPORT OS {
   // Allocate/Free memory used by JS heap. Permissions are set according to the
   // is_* flags. Returns the address of allocated memory, or NULL if failed.
   static void* Allocate(const size_t requested, size_t* allocated,
-                        MemoryPermission access);
+                        MemoryPermission access, void* hint = nullptr);
   // Allocate/Free memory used by JS heap. Pages are readable/writable, but
   // they are not guaranteed to be executable unless 'executable' is true.
   // Returns the address of allocated memory, or NULL if failed.
-  static void* Allocate(const size_t requested,
-                        size_t* allocated,
-                        bool is_executable);
+  static void* Allocate(const size_t requested, size_t* allocated,
+                        bool is_executable, void* hint = nullptr);
   static void Free(void* address, const size_t size);
 
   // Allocates a region of memory that is inaccessible. On Windows this reserves
@@ -297,12 +296,12 @@ class V8_BASE_EXPORT VirtualMemory {
   VirtualMemory();
 
   // Reserves virtual memory with size.
-  explicit VirtualMemory(size_t size);
+  explicit VirtualMemory(size_t size, void* hint);
 
   // Reserves virtual memory containing an area of the given size that
   // is aligned per alignment. This may not be at the position returned
   // by address().
-  VirtualMemory(size_t size, size_t alignment);
+  VirtualMemory(size_t size, size_t alignment, void* hint);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -388,7 +387,7 @@ class V8_BASE_EXPORT VirtualMemory {
     from->Reset();
   }
 
-  static void* ReserveRegion(size_t size);
+  static void* ReserveRegion(size_t size, void* hint);
 
   static bool CommitRegion(void* base, size_t size, bool is_executable);
 

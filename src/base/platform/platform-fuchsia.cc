@@ -17,11 +17,10 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access) {
+                   OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = GetProtectionFromMemoryPermission(access);
-  void* addr = OS::GetRandomMmapAddr();
-  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
@@ -38,12 +37,12 @@ void OS::SignalCodeMovingGC() {
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) {}
 
-VirtualMemory::VirtualMemory(size_t size)
+VirtualMemory::VirtualMemory(size_t size, void* hint)
     : address_(ReserveRegion(size)), size_(size) {
   CHECK(false);  // TODO(fuchsia): Port, https://crbug.com/731217.
 }
 
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
     : address_(NULL), size_(0) {}
 
 VirtualMemory::~VirtualMemory() {}
@@ -59,7 +58,7 @@ bool VirtualMemory::Uncommit(void* address, size_t size) { return false; }
 bool VirtualMemory::Guard(void* address) { return false; }
 
 // static
-void* VirtualMemory::ReserveRegion(size_t size) {
+void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
   CHECK(false);  // TODO(fuchsia): Port, https://crbug.com/731217.
   return NULL;
 }

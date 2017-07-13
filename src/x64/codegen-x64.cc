@@ -36,8 +36,8 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      1 * KB, &actual_size, true, isolate->heap()->GetRandomMmapAddr()));
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),

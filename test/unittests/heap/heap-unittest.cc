@@ -13,10 +13,13 @@
 #include "src/handles-inl.h"
 
 #include "src/heap/heap.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+typedef TestWithIsolate HeapTest;
 
 double Round(double x) {
   // Round to three digits.
@@ -89,6 +92,33 @@ TEST(Heap, OldGenerationSize) {
               static_cast<uint64_t>(
                   i::Heap::ComputeMaxOldGenerationSize(configuration[0])));
   }
+}
+
+TEST_F(HeapTest, ASLR) {
+#if V8_TARGET_ARCH_X64
+#if V8_OS_MACOSX
+  Heap* heap = i_isolate()->heap();
+  std::set<void*> hints;
+  for (int i = 0; i < 1000; i++) {
+    hints.insert(heap->GetRandomMmapAddr());
+  }
+  if (hints.size() == 1) {
+    EXPECT_TRUE((*hints.begin()) == nullptr);
+    EXPECT_TRUE(base::OS::GetRandomMmapAddr() == nullptr);
+  } else {
+    // It is unlikely that 1000 random samples will collide to less then 500
+    // values.
+    EXPECT_GT(hints.size(), 500u);
+    const uintptr_t kRegionMask = 0xFFFFFFFFu;
+    void* first = *hints.begin();
+    for (void* hint : hints) {
+      uintptr_t diff = reinterpret_cast<uintptr_t>(first) ^
+                       reinterpret_cast<uintptr_t>(hint);
+      EXPECT_LE(diff, kRegionMask);
+    }
+  }
+#endif  // V8_OS_MACOSX
+#endif  // V8_TARGET_ARCH_X64
 }
 
 }  // namespace internal

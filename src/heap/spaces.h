@@ -986,6 +986,8 @@ class Space : public Malloced {
     committed_ -= bytes;
   }
 
+  V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
+
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
@@ -1360,11 +1362,11 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   MemoryChunk* AllocateChunk(size_t reserve_area_size, size_t commit_area_size,
                              Executability executable, Space* space);
 
-  Address ReserveAlignedMemory(size_t requested, size_t alignment,
+  Address ReserveAlignedMemory(size_t requested, size_t alignment, void* hint,
                                base::VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
                                 size_t alignment, Executability executable,
-                                base::VirtualMemory* controller);
+                                void* hint, base::VirtualMemory* controller);
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 

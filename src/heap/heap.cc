@@ -116,6 +116,7 @@ Heap::Heap()
       raw_allocations_hash_(0),
       ms_count_(0),
       gc_count_(0),
+      mmap_region_base_(0),
       remembered_unmapped_pages_index_(0),
 #ifdef DEBUG
       allocation_timeout_(0),
@@ -5630,6 +5631,10 @@ bool Heap::SetUp() {
   if (!configured_) {
     if (!ConfigureHeapDefault()) return false;
   }
+
+  mmap_region_base_ =
+      reinterpret_cast<uintptr_t>(base::OS::GetRandomMmapAddr()) &
+      ~kMmapRegionMask;
 
   // Set up memory allocator.
   memory_allocator_ = new MemoryAllocator(isolate_);

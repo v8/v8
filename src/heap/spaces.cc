@@ -123,8 +123,10 @@ bool CodeRange::SetUp(size_t requested) {
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
   code_range_ = new base::VirtualMemory(
-      requested, Max(kCodeRangeAreaAlignment,
-                     static_cast<size_t>(base::OS::AllocateAlignment())));
+      requested,
+      Max(kCodeRangeAreaAlignment,
+          static_cast<size_t>(base::OS::AllocateAlignment())),
+      base::OS::GetRandomMmapAddr());
   CHECK(code_range_ != NULL);
   if (!code_range_->IsReserved()) {
     delete code_range_;
@@ -460,8 +462,9 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
 }
 
 Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
+                                              void* hint,
                                               base::VirtualMemory* controller) {
-  base::VirtualMemory reservation(size, alignment);
+  base::VirtualMemory reservation(size, alignment, hint);
 
   if (!reservation.IsReserved()) return nullptr;
   const Address base =
@@ -477,10 +480,11 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
 
 Address MemoryAllocator::AllocateAlignedMemory(
     size_t reserve_size, size_t commit_size, size_t alignment,
-    Executability executable, base::VirtualMemory* controller) {
+    Executability executable, void* hint, base::VirtualMemory* controller) {
   DCHECK(commit_size <= reserve_size);
   base::VirtualMemory reservation;
-  Address base = ReserveAlignedMemory(reserve_size, alignment, &reservation);
+  Address base =
+      ReserveAlignedMemory(reserve_size, alignment, hint, &reservation);
   if (base == NULL) return NULL;
 
   if (executable == EXECUTABLE) {
@@ -742,6 +746,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   base::VirtualMemory reservation;
   Address area_start = nullptr;
   Address area_end = nullptr;
+  void* address_hint = heap->GetRandomMmapAddr();
 
   //
   // MemoryChunk layout:
@@ -801,7 +806,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     } else {
       base = AllocateAlignedMemory(chunk_size, commit_size,
                                    MemoryChunk::kAlignment, executable,
-                                   &reservation);
+                                   address_hint, &reservation);
       if (base == NULL) return NULL;
       // Update executable memory size.
       size_executable_.Increment(reservation.size());
@@ -822,7 +827,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                 GetCommitPageSize());
     base =
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
-                              executable, &reservation);
+                              executable, address_hint, &reservation);
 
     if (base == NULL) return NULL;
 
