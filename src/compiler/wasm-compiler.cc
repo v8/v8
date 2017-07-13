@@ -1009,8 +1009,157 @@ static bool ReverseBytesSupported(MachineOperatorBuilder* m,
   return false;
 }
 
-Node* WasmGraphBuilder::BuildChangeEndianness(Node* node, MachineType memtype,
-                                              wasm::ValueType wasmtype) {
+Node* WasmGraphBuilder::BuildChangeEndiannessStore(Node* node,
+                                                   MachineType memtype,
+                                                   wasm::ValueType wasmtype) {
+  Node* result;
+  Node* value = node;
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  int valueSizeInBytes = 1 << ElementSizeLog2Of(wasmtype);
+  int valueSizeInBits = 8 * valueSizeInBytes;
+  bool isFloat = false;
+
+  switch (wasmtype) {
+    case wasm::kWasmF64:
+      value = graph()->NewNode(m->BitcastFloat64ToInt64(), node);
+      isFloat = true;
+    case wasm::kWasmI64:
+      result = jsgraph()->Int64Constant(0);
+      break;
+    case wasm::kWasmF32:
+      value = graph()->NewNode(m->BitcastFloat32ToInt32(), node);
+      isFloat = true;
+    case wasm::kWasmI32:
+      result = jsgraph()->Int32Constant(0);
+      break;
+    case wasm::kWasmS128:
+      DCHECK(ReverseBytesSupported(m, valueSizeInBytes));
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  if (memtype.representation() == MachineRepresentation::kWord8) {
+    // No need to change endianness for byte size, return original node
+    return node;
+  }
+  if (wasmtype == wasm::kWasmI64 &&
+      memtype.representation() < MachineRepresentation::kWord64) {
+    // In case we store lower part of WasmI64 expression, we can truncate
+    // upper 32bits
+    value = graph()->NewNode(m->TruncateInt64ToInt32(), value);
+    valueSizeInBytes = 1 << ElementSizeLog2Of(wasm::kWasmI32);
+    valueSizeInBits = 8 * valueSizeInBytes;
+    if (memtype.representation() == MachineRepresentation::kWord16) {
+      value =
+          graph()->NewNode(m->Word32Shl(), value, jsgraph()->Int32Constant(16));
+    }
+  } else if (wasmtype == wasm::kWasmI32 &&
+             memtype.representation() == MachineRepresentation::kWord16) {
+    value =
+        graph()->NewNode(m->Word32Shl(), value, jsgraph()->Int32Constant(16));
+  }
+
+  int i;
+  uint32_t shiftCount;
+
+  if (ReverseBytesSupported(m, valueSizeInBytes)) {
+    switch (valueSizeInBytes) {
+      case 4:
+        result = graph()->NewNode(m->Word32ReverseBytes().op(), value);
+        break;
+      case 8:
+        result = graph()->NewNode(m->Word64ReverseBytes().op(), value);
+        break;
+      case 16: {
+        Node* byte_reversed_lanes[4];
+        for (int lane = 0; lane < 4; lane++) {
+          byte_reversed_lanes[lane] = graph()->NewNode(
+              m->Word32ReverseBytes().op(),
+              graph()->NewNode(jsgraph()->machine()->I32x4ExtractLane(lane),
+                               value));
+        }
+
+        // This is making a copy of the value.
+        result =
+            graph()->NewNode(jsgraph()->machine()->S128And(), value, value);
+
+        for (int lane = 0; lane < 4; lane++) {
+          result =
+              graph()->NewNode(jsgraph()->machine()->I32x4ReplaceLane(3 - lane),
+                               result, byte_reversed_lanes[lane]);
+        }
+
+        break;
+      }
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else {
+    for (i = 0, shiftCount = valueSizeInBits - 8; i < valueSizeInBits / 2;
+         i += 8, shiftCount -= 16) {
+      Node* shiftLower;
+      Node* shiftHigher;
+      Node* lowerByte;
+      Node* higherByte;
+
+      DCHECK(shiftCount > 0);
+      DCHECK((shiftCount + 8) % 16 == 0);
+
+      if (valueSizeInBits > 32) {
+        shiftLower = graph()->NewNode(m->Word64Shl(), value,
+                                      jsgraph()->Int64Constant(shiftCount));
+        shiftHigher = graph()->NewNode(m->Word64Shr(), value,
+                                       jsgraph()->Int64Constant(shiftCount));
+        lowerByte = graph()->NewNode(
+            m->Word64And(), shiftLower,
+            jsgraph()->Int64Constant(static_cast<uint64_t>(0xFF)
+                                     << (valueSizeInBits - 8 - i)));
+        higherByte = graph()->NewNode(
+            m->Word64And(), shiftHigher,
+            jsgraph()->Int64Constant(static_cast<uint64_t>(0xFF) << i));
+        result = graph()->NewNode(m->Word64Or(), result, lowerByte);
+        result = graph()->NewNode(m->Word64Or(), result, higherByte);
+      } else {
+        shiftLower = graph()->NewNode(m->Word32Shl(), value,
+                                      jsgraph()->Int32Constant(shiftCount));
+        shiftHigher = graph()->NewNode(m->Word32Shr(), value,
+                                       jsgraph()->Int32Constant(shiftCount));
+        lowerByte = graph()->NewNode(
+            m->Word32And(), shiftLower,
+            jsgraph()->Int32Constant(static_cast<uint32_t>(0xFF)
+                                     << (valueSizeInBits - 8 - i)));
+        higherByte = graph()->NewNode(
+            m->Word32And(), shiftHigher,
+            jsgraph()->Int32Constant(static_cast<uint32_t>(0xFF) << i));
+        result = graph()->NewNode(m->Word32Or(), result, lowerByte);
+        result = graph()->NewNode(m->Word32Or(), result, higherByte);
+      }
+    }
+  }
+
+  if (isFloat) {
+    switch (wasmtype) {
+      case wasm::kWasmF64:
+        result = graph()->NewNode(m->BitcastInt64ToFloat64(), result);
+        break;
+      case wasm::kWasmF32:
+        result = graph()->NewNode(m->BitcastInt32ToFloat32(), result);
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
+
+  return result;
+}
+
+Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
+                                                  MachineType memtype,
+                                                  wasm::ValueType wasmtype) {
   Node* result;
   Node* value = node;
   MachineOperatorBuilder* m = jsgraph()->machine();
@@ -3083,7 +3232,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   *effect_ = load;
 
 #if defined(V8_TARGET_BIG_ENDIAN)
-  load = BuildChangeEndianness(load, memtype, type);
+  load = BuildChangeEndiannessLoad(load, memtype, type);
 #endif
 
   if (type == wasm::kWasmI64 &&
@@ -3102,10 +3251,10 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   return load;
 }
 
-
 Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
                                  uint32_t offset, uint32_t alignment, Node* val,
-                                 wasm::WasmCodePosition position) {
+                                 wasm::WasmCodePosition position,
+                                 wasm::ValueType type) {
   Node* store;
 
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
@@ -3114,7 +3263,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   }
 
 #if defined(V8_TARGET_BIG_ENDIAN)
-  val = BuildChangeEndianness(val, memtype);
+  val = BuildChangeEndiannessStore(val, memtype, type);
 #endif
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||

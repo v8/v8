@@ -237,10 +237,9 @@ class WasmGraphBuilder {
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
-  Node* StoreMem(MachineType type, Node* index, uint32_t offset,
-                 uint32_t alignment, Node* val,
-                 wasm::WasmCodePosition position);
-
+  Node* StoreMem(MachineType memtype, Node* index, uint32_t offset,
+                 uint32_t alignment, Node* val, wasm::WasmCodePosition position,
+                 wasm::ValueType type = wasm::kWasmStmt);
   static void PrintDebugName(Node* node);
 
   Node* Control() { return *control_; }
@@ -312,8 +311,10 @@ class WasmGraphBuilder {
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
-  Node* BuildChangeEndianness(Node* node, MachineType type,
-                              wasm::ValueType wasmtype = wasm::kWasmStmt);
+  Node* BuildChangeEndiannessStore(Node* node, MachineType type,
+                                   wasm::ValueType wasmtype = wasm::kWasmStmt);
+  Node* BuildChangeEndiannessLoad(Node* node, MachineType type,
+                                  wasm::ValueType wasmtype = wasm::kWasmStmt);
 
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
