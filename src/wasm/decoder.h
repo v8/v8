@@ -139,8 +139,7 @@ class Decoder {
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
   void consume_bytes(uint32_t size, const char* name = "skip") {
     // Only trace if the name is not null.
-    TRACE_IF(name, "  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_),
-             name, size);
+    TRACE_IF(name, "  +%u  %-20s: %d bytes\n", pc_offset(), name, size);
     if (checkAvailable(size)) {
       pc_ += size;
     } else {
@@ -268,7 +267,7 @@ class Decoder {
 
   template <typename IntType>
   inline IntType consume_little_endian(const char* name) {
-    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_), name);
+    TRACE("  +%u  %-20s: ", pc_offset(), name);
     if (!checkAvailable(sizeof(IntType))) {
       traceOffEnd();
       pc_ = end_;
@@ -285,7 +284,7 @@ class Decoder {
   inline IntType read_leb(const byte* pc, uint32_t* length,
                           const char* name = "varint") {
     DCHECK_IMPLIES(advance_pc, pc == pc_);
-    TRACE_IF(trace, "  +%d  %-20s: ", static_cast<int>(pc - start_), name);
+    TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
     return read_leb_tail<IntType, checked, advance_pc, trace, 0>(pc, length,
                                                                  name, 0);
   }
