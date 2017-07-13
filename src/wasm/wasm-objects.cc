@@ -274,8 +274,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                         : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
-  Handle<JSArrayBuffer> new_buffer = NewArrayBuffer(
-      isolate, new_size, enable_guard_regions, IsShared(old_buffer));
+  Handle<JSArrayBuffer> new_buffer =
+      NewArrayBuffer(isolate, new_size, enable_guard_regions);
   if (new_buffer.is_null()) return new_buffer;
   Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
   memcpy(new_mem_start, old_mem_start, old_size);
@@ -369,8 +369,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       new_buffer = SetupArrayBuffer(
           isolate, old_buffer->allocation_base(),
           old_buffer->allocation_length(), old_buffer->backing_store(),
-          old_size, old_buffer->is_external(), old_buffer->has_guard_region(),
-          IsShared(old_buffer));
+          old_size, old_buffer->is_external(), old_buffer->has_guard_region());
       memory_object->set_array_buffer(*new_buffer);
     }
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
