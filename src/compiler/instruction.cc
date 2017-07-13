@@ -561,6 +561,12 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
+Handle<Code> Constant::ToCode() const {
+  DCHECK_EQ(kHeapObject, type());
+  Handle<Code> value(bit_cast<Code**>(static_cast<intptr_t>(value_)));
+  return value;
+}
+
 std::ostream& operator<<(std::ostream& os, const Constant& constant) {
   switch (constant.type()) {
     case Constant::kInt32:

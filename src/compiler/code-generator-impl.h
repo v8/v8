@@ -87,8 +87,8 @@ class InstructionOperandConverter {
     return ToExternalReference(instr_->InputAt(index));
   }
 
-  Handle<HeapObject> InputHeapObject(size_t index) {
-    return ToHeapObject(instr_->InputAt(index));
+  Handle<Code> InputCode(size_t index) {
+    return ToCode(instr_->InputAt(index));
   }
 
   Label* InputLabel(size_t index) { return ToLabel(instr_->InputAt(index)); }
@@ -159,8 +159,8 @@ class InstructionOperandConverter {
     return ToConstant(op).ToExternalReference();
   }
 
-  Handle<HeapObject> ToHeapObject(InstructionOperand* op) {
-    return ToConstant(op).ToHeapObject();
+  Handle<Code> ToCode(InstructionOperand* op) {
+    return ToConstant(op).ToCode();
   }
 
   const Frame* frame() const { return gen_->frame(); }
