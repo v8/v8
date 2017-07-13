@@ -1586,6 +1586,47 @@ TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
+TF_BUILTIN(ArrayMapLoopEagerDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg, array,
+                  receiver, initial_k, len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayMapLoopLazyDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* result = Parameter(Descriptor::kResult);
+
+  // This custom lazy deopt point is right after the callback. map() needs
+  // to pick up at the next step, which is setting the callback result in
+  // the output array. After incrementing k, we can glide into the loop
+  // continuation builtin.
+
+  // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+  CallRuntime(Runtime::kCreateDataProperty, context, array, initial_k, result);
+  // Then we have to increment k before going on.
+  initial_k = NumberInc(initial_k);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg, array,
+                  receiver, initial_k, len, UndefinedConstant()));
+}
+
 TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));

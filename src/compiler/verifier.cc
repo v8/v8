@@ -1286,6 +1286,9 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckValueInputIs(node, 1, ElementAccessOf(node->op()).type));
       CheckNotTyped(node);
       break;
+    case IrOpcode::kTransitionAndStoreElement:
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kStoreTypedElement:
       CheckNotTyped(node);
       break;

@@ -348,6 +348,55 @@ ElementsTransition const& ElementsTransitionOf(const Operator* op) {
   return OpParameter<ElementsTransition>(op);
 }
 
+namespace {
+
+// Parameters for the TransitionAndStoreElement opcode.
+class TransitionAndStoreElementParameters final {
+ public:
+  TransitionAndStoreElementParameters(Handle<Map> double_map,
+                                      Handle<Map> fast_map);
+
+  Handle<Map> double_map() const { return double_map_; }
+  Handle<Map> fast_map() const { return fast_map_; }
+
+ private:
+  Handle<Map> const double_map_;
+  Handle<Map> const fast_map_;
+};
+
+TransitionAndStoreElementParameters::TransitionAndStoreElementParameters(
+    Handle<Map> double_map, Handle<Map> fast_map)
+    : double_map_(double_map), fast_map_(fast_map) {}
+
+bool operator==(TransitionAndStoreElementParameters const& lhs,
+                TransitionAndStoreElementParameters const& rhs) {
+  return lhs.fast_map().address() == rhs.fast_map().address() &&
+         lhs.double_map().address() == rhs.double_map().address();
+}
+
+size_t hash_value(TransitionAndStoreElementParameters parameters) {
+  return base::hash_combine(parameters.fast_map().address(),
+                            parameters.double_map().address());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         TransitionAndStoreElementParameters parameters) {
+  return os << "fast-map" << Brief(*parameters.fast_map()) << " double-map"
+            << Brief(*parameters.double_map());
+}
+
+}  // namespace
+
+Handle<Map> DoubleMapParameterOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kTransitionAndStoreElement);
+  return OpParameter<TransitionAndStoreElementParameters>(op).double_map();
+}
+
+Handle<Map> FastMapParameterOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kTransitionAndStoreElement);
+  return OpParameter<TransitionAndStoreElementParameters>(op).fast_map();
+}
+
 std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
@@ -1052,6 +1101,15 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
+
+const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
+    Handle<Map> double_map, Handle<Map> fast_map) {
+  TransitionAndStoreElementParameters parameters(double_map, fast_map);
+  return new (zone()) Operator1<TransitionAndStoreElementParameters>(
+      IrOpcode::kTransitionAndStoreElement,
+      Operator::kNoDeopt | Operator::kNoThrow, "TransitionAndStoreElement", 3,
+      1, 1, 0, 1, 0, parameters);
+}
 
 }  // namespace compiler
 }  // namespace internal

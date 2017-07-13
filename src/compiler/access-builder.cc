@@ -501,6 +501,14 @@ FieldAccess AccessBuilder::ForMapBitField() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForMapBitField2() {
+  FieldAccess access = {
+      kTaggedBase,        Map::kBitField2Offset,   Handle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get().kUint8, MachineType::Uint8(),
+      kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForMapBitField3() {

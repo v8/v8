@@ -167,6 +167,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Map::bit_field() byte.
   static FieldAccess ForMapBitField();
 
+  // Provides access to Map::bit_field2() byte.
+  static FieldAccess ForMapBitField2();
+
   // Provides access to Map::bit_field3() field.
   static FieldAccess ForMapBitField3();
 

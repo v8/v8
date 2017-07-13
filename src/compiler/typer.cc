@@ -1963,6 +1963,10 @@ Type* Typer::Visitor::TypeStoreElement(Node* node) {
   UNREACHABLE();
 }
 
+Type* Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
+  UNREACHABLE();
+}
+
 Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   UNREACHABLE();
 }

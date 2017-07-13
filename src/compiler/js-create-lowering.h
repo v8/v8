@@ -75,6 +75,8 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                          ElementsKind elements_kind, int capacity,
                          PretenureFlag pretenure);
   Node* AllocateElements(Node* effect, Node* control,
+                         ElementsKind elements_kind, Node* capacity_and_length);
+  Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind,
                          std::vector<Node*> const& values,
                          PretenureFlag pretenure);

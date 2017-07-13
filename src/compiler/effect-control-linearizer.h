@@ -121,6 +121,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerStoreTypedElement(Node* node);
   Node* LowerLookupHashStorageIndex(Node* node);
   Node* LowerLoadHashMapValue(Node* node);
+  void LowerTransitionAndStoreElement(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);
@@ -136,6 +137,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  Node* frame_state);
   Node* BuildFloat64RoundDown(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
+  Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
@@ -144,6 +146,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
+  void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
+                            ElementsKind to);
 
   Factory* factory() const;
   Isolate* isolate() const;

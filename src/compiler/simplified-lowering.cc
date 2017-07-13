@@ -2591,6 +2591,14 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kTransitionAndStoreElement: {
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // array
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 2, UseInfo::AnyTagged());         // value
+        ProcessRemainingInputs(node, 3);
+        SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kLoadTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));

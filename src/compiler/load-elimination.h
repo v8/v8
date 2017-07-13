@@ -320,6 +320,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
   Reduction ReduceStoreField(Node* node);
   Reduction ReduceLoadElement(Node* node);
   Reduction ReduceStoreElement(Node* node);
+  Reduction ReduceTransitionAndStoreElement(Node* node);
   Reduction ReduceStoreTypedElement(Node* node);
   Reduction ReduceLookupHashStorageIndex(Node* node);
   Reduction ReduceEffectPhi(Node* node);

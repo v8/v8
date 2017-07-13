@@ -114,6 +114,8 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceLoadElement(node);
     case IrOpcode::kStoreElement:
       return ReduceStoreElement(node);
+    case IrOpcode::kTransitionAndStoreElement:
+      return ReduceTransitionAndStoreElement(node);
     case IrOpcode::kStoreTypedElement:
       return ReduceStoreTypedElement(node);
     case IrOpcode::kLookupHashStorageIndex:
@@ -784,6 +786,30 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   return UpdateState(node, state);
 }
 
+Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Handle<Map> double_map(DoubleMapParameterOf(node->op()));
+  Handle<Map> fast_map(FastMapParameterOf(node->op()));
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+
+  // We need to add the double and fast maps to the set of possible maps for
+  // this object, because we don't know which of those we'll transition to.
+  // Additionally, we should kill all alias information.
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    object_maps.insert(double_map, zone());
+    object_maps.insert(fast_map, zone());
+    state = state->KillMaps(object, zone());
+    state = state->AddMaps(object, object_maps, zone());
+  }
+  // Kill the elements as well.
+  state =
+      state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
+  return UpdateState(node, state);
+}
+
 Reduction LoadElimination::ReduceLoadField(Node* node) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
@@ -1108,6 +1134,15 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                   break;
               }
             }
+            break;
+          }
+          case IrOpcode::kTransitionAndStoreElement: {
+            Node* const object = NodeProperties::GetValueInput(current, 0);
+            // Invalidate what we know about the {object}s map.
+            state = state->KillMaps(object, zone());
+            // Kill the elements as well.
+            state = state->KillField(
+                object, FieldIndexOf(JSObject::kElementsOffset), zone());
             break;
           }
           case IrOpcode::kStoreField: {

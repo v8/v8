@@ -828,6 +828,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kLoadHashMapValue:
       result = LowerLoadHashMapValue(node);
+    case IrOpcode::kTransitionAndStoreElement:
+      LowerTransitionAndStoreElement(node);
       break;
     case IrOpcode::kFloat64RoundUp:
       if (!LowerFloat64RoundUp(node).To(&result)) {
@@ -2812,6 +2814,164 @@ void EffectControlLinearizer::LowerStoreTypedElement(Node* node) {
   // Perform the actual typed element access.
   __ StoreElement(AccessBuilder::ForTypedArrayElement(array_type, true),
                   storage, index, value);
+}
+
+void EffectControlLinearizer::TransitionElementsTo(Node* node, Node* array,
+                                                   ElementsKind from,
+                                                   ElementsKind to) {
+  DCHECK(IsMoreGeneralElementsKindTransition(from, to));
+  DCHECK(to == HOLEY_ELEMENTS || to == HOLEY_DOUBLE_ELEMENTS);
+
+  Handle<Map> target(to == HOLEY_ELEMENTS ? FastMapParameterOf(node->op())
+                                          : DoubleMapParameterOf(node->op()));
+  Node* target_map = __ HeapConstant(target);
+
+  if (IsSimpleMapChangeTransition(from, to)) {
+    __ StoreField(AccessBuilder::ForMap(), array, target_map);
+  } else {
+    // Instance migration, call out to the runtime for {array}.
+    Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+    Runtime::FunctionId id = Runtime::kTransitionElementsKind;
+    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
+    __ Call(desc, __ CEntryStubConstant(1), array, target_map,
+            __ ExternalConstant(ExternalReference(id, isolate())),
+            __ Int32Constant(2), __ NoContextConstant());
+  }
+}
+
+Node* EffectControlLinearizer::IsElementsKindGreaterThan(
+    Node* kind, ElementsKind reference_kind) {
+  Node* ref_kind = __ Int32Constant(reference_kind);
+  Node* ret = __ Int32LessThanOrEqual(ref_kind, kind);
+  return ret;
+}
+
+void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
+  Node* array = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  // Possibly transition array based on input and store.
+  //
+  //   -- TRANSITION PHASE -----------------
+  //   kind = ElementsKind(array)
+  //   if value is not smi {
+  //     if kind == HOLEY_SMI_ELEMENTS {
+  //       if value is heap number {
+  //         Transition array to HOLEY_DOUBLE_ELEMENTS
+  //       } else {
+  //         Transition array to HOLEY_ELEMENTS
+  //       }
+  //     } else if kind == HOLEY_DOUBLE_ELEMENTS {
+  //       if value is not heap number {
+  //         Transition array to HOLEY_ELEMENTS
+  //       }
+  //     }
+  //   }
+  //
+  //   -- STORE PHASE ----------------------
+  //   if kind == HOLEY_DOUBLE_ELEMENTS {
+  //     if value is smi {
+  //       float_value = convert smi to float
+  //       Store array[index] = float_value
+  //     } else {
+  //       float_value = value
+  //       Store array[index] = float_value
+  //     }
+  //   } else {
+  //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
+  //     Store array[index] = value
+  //   }
+  //
+  Node* map = __ LoadField(AccessBuilder::ForMap(), array);
+  Node* kind;
+  {
+    Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
+    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* andit = __ Word32And(bit_field2, mask);
+    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    kind = __ Word32Shr(andit, shift);
+  }
+
+  auto do_store = __ MakeLabel<6>();
+  Node* check1 = ObjectIsSmi(value);
+  __ GotoIf(check1, &do_store);
+  {
+    // {value} is a HeapObject.
+    Node* check2 = IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS);
+    auto if_array_not_fast_smi = __ MakeLabel<1>();
+    __ GotoIf(check2, &if_array_not_fast_smi);
+    {
+      // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_DOUBLE_ELEMENTS or
+      // to HOLEY_ELEMENTS.
+      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      Node* heap_number_map = __ HeapNumberMapConstant();
+      Node* check3 = __ WordEqual(value_map, heap_number_map);
+      auto if_value_not_heap_number = __ MakeLabel<1>();
+      __ GotoUnless(check3, &if_value_not_heap_number);
+      {
+        // {value} is a HeapNumber.
+        TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS,
+                             HOLEY_DOUBLE_ELEMENTS);
+        __ Goto(&do_store);
+      }
+      __ Bind(&if_value_not_heap_number);
+      {
+        TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS);
+        __ Goto(&do_store);
+      }
+    }
+    __ Bind(&if_array_not_fast_smi);
+    {
+      Node* check3 = IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS);
+      __ GotoUnless(check3, &do_store);
+      // We have double elements kind.
+      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      Node* heap_number_map = __ HeapNumberMapConstant();
+      Node* check4 = __ WordEqual(value_map, heap_number_map);
+      __ GotoIf(check4, &do_store);
+      // But the value is not a heap number, so we must transition.
+      TransitionElementsTo(node, array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS);
+      __ Goto(&do_store);
+    }
+  }
+
+  __ Bind(&do_store);
+  Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+  Node* check2 = IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS);
+  auto if_kind_is_double = __ MakeLabel<1>();
+  auto done = __ MakeLabel<3>();
+  __ GotoIf(check2, &if_kind_is_double);
+  {
+    // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
+    __ StoreElement(AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS),
+                    elements, index, value);
+    __ Goto(&done);
+  }
+  __ Bind(&if_kind_is_double);
+  {
+    // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
+    Node* check1 = ObjectIsSmi(value);
+    auto do_double_store = __ MakeLabel<1>();
+    __ GotoUnless(check1, &do_double_store);
+    {
+      Node* int_value = ChangeSmiToInt32(value);
+      Node* float_value = __ ChangeInt32ToFloat64(int_value);
+      __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
+                      index, float_value);
+      __ Goto(&done);
+    }
+    __ Bind(&do_double_store);
+    {
+      Node* float_value =
+          __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+      __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
+                      index, float_value);
+      __ Goto(&done);
+    }
+  }
+  __ Bind(&done);
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundUp(Node* node) {

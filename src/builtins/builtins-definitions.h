@@ -318,6 +318,10 @@ namespace internal {
   /* ES6 #sec-array.prototype.foreach */                                       \
   TFS(ArrayMapLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,      \
       kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayMapLoopEagerDeoptContinuation, 5, kCallbackFn, kThisArg, kArray,    \
+      kInitialK, kLength)                                                      \
+  TFJ(ArrayMapLoopLazyDeoptContinuation, 6, kCallbackFn, kThisArg, kArray,     \
+      kInitialK, kLength, kResult)                                             \
   TFJ(ArrayMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel)               \
   /* ES6 #sec-array.prototype.reduce */                                        \
   TFS(ArrayReduceLoopContinuation, kReceiver, kCallbackFn, kThisArg,           \
