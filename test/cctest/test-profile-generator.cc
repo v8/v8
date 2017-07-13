@@ -518,7 +518,6 @@ TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -597,7 +596,6 @@ TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -667,8 +665,6 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
 }
 
 TEST(LineNumber) {
-  i::FLAG_use_inlining = false;
-
   CcTest::InitializeVM();
   LocalContext env;
   i::Isolate* isolate = CcTest::i_isolate();

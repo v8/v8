@@ -14451,7 +14451,6 @@ TEST(SetFunctionEntryHook) {
   // only gets called from experimental natives) is compiled with entry hooks.
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   SetFunctionEntryHookTest test;
   test.RunTest();
