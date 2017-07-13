@@ -598,6 +598,10 @@ class MemoryChunk {
 
   base::VirtualMemory* reserved_memory() { return &reservation_; }
 
+  // Emits a memory barrier. For TSAN builds the other thread needs to perform
+  // MemoryChunk::synchronized_heap() to simulate the barrier.
+  void InitializationMemoryFence();
+
   size_t size_;
   Flags flags_;
 

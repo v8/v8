@@ -521,6 +521,18 @@ Heap* MemoryChunk::synchronized_heap() {
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&heap_)));
 }
 
+void MemoryChunk::InitializationMemoryFence() {
+  base::MemoryFence();
+#ifdef THREAD_SANITIZER
+  // Since TSAN does not process memory fences, we use the following annotation
+  // to tell TSAN that there is no data race when emitting a
+  // InitializationMemoryFence. Note that the other thread still needs to
+  // perform MemoryChunk::synchronized_heap().
+  base::Release_Store(reinterpret_cast<base::AtomicWord*>(&heap_),
+                      reinterpret_cast<base::AtomicWord>(heap_));
+#endif
+}
+
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
@@ -565,14 +577,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   if (reservation != nullptr) {
     chunk->reservation_.TakeControl(reservation);
   }
-
-#ifdef THREAD_SANITIZER
-  // The mark-bit clearing function above emits a memory fence. Since TSAN
-  // does not process memory fences, we use the following annotation to tell
-  // TSAN that there is no data race in mark-bit clearing.
-  base::Release_Store(reinterpret_cast<base::AtomicWord*>(&chunk->heap_),
-                      reinterpret_cast<base::AtomicWord>(heap));
-#endif
   return chunk;
 }
 
@@ -593,7 +597,7 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   if (mode == kFreeMemory) {
     owner->Free(page->area_start(), page->area_size());
   }
-
+  page->InitializationMemoryFence();
   return page;
 }
 
@@ -612,6 +616,7 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
     page->AllocateYoungGenerationBitmap();
     MarkingState::External(page).ClearLiveness();
   }
+  page->InitializationMemoryFence();
   return page;
 }
 
@@ -632,8 +637,9 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
     // Clear out kPageHeaderTag.
     Memory::Address_at(addr) = 0;
   }
-
-  return static_cast<LargePage*>(chunk);
+  LargePage* page = static_cast<LargePage*>(chunk);
+  page->InitializationMemoryFence();
+  return page;
 }
 
 Page* Page::ConvertNewToOld(Page* old_page) {
