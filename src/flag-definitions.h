@@ -340,11 +340,6 @@ DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
 
 // Flags for Crankshaft.
 DEFINE_STRING(hydrogen_filter, "*", "optimization filter")
-DEFINE_BOOL(use_gvn, true, "use hydrogen global value numbering")
-DEFINE_INT(gvn_iterations, 3, "maximum number of GVN fix-point iterations")
-DEFINE_BOOL(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
-DEFINE_BOOL(use_inlining, true, "use function inlining")
-DEFINE_BOOL(use_escape_analysis, true, "use hydrogen escape analysis")
 DEFINE_BOOL(use_allocation_folding, true, "use allocation folding")
 DEFINE_BOOL(use_local_allocation_folding, false, "only fold in basic blocks")
 DEFINE_BOOL(use_write_barrier_elimination, true,
@@ -362,10 +357,7 @@ DEFINE_INT(max_inlined_nodes_cumulative, 400,
 DEFINE_INT(max_inlined_nodes_small, 10,
            "maximum number of AST nodes considered for small function inlining")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
-DEFINE_BOOL(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
-DEFINE_BOOL(hydrogen_stats, false, "print statistics for hydrogen")
-DEFINE_BOOL(trace_check_elimination, false, "trace check elimination phase")
 DEFINE_BOOL(trace_environment_liveness, false,
             "trace liveness of local variable slots")
 DEFINE_BOOL(trace_hydrogen, false, "trace generated hydrogen to file")
@@ -373,60 +365,34 @@ DEFINE_STRING(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_BOOL(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
 DEFINE_STRING(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
 DEFINE_STRING(trace_phase, "HLZ", "trace generated IR for specified phases")
-DEFINE_BOOL(trace_inlining, false, "trace inlining decisions")
-DEFINE_BOOL(trace_load_elimination, false, "trace load elimination")
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_verify_store_elimination, false,
             "verify store elimination more rigorously")
 DEFINE_BOOL(trace_alloc, false, "trace register allocator")
 DEFINE_BOOL(trace_all_uses, false, "trace all use positions")
-DEFINE_BOOL(trace_range, false, "trace range analysis")
-DEFINE_BOOL(trace_gvn, false, "trace global value numbering")
 DEFINE_BOOL(trace_representation, false, "trace representation types")
-DEFINE_BOOL(trace_removable_simulates, false, "trace removable simulates")
-DEFINE_BOOL(trace_escape_analysis, false, "trace hydrogen escape analysis")
-DEFINE_BOOL(trace_allocation_folding, false, "trace allocation folding")
 DEFINE_BOOL(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_BOOL(trace_migration, false, "trace object migration")
 DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 DEFINE_BOOL(stress_pointer_maps, false, "pointer map for every instruction")
-DEFINE_BOOL(stress_environments, false, "environment for every instruction")
 DEFINE_INT(deopt_every_n_times, 0,
            "deoptimize every n times a deopt point is passed")
 DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 DEFINE_BOOL(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_BOOL(trap_on_stub_deopt, false,
             "put a break point before deoptimizing a stub")
-DEFINE_BOOL(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
-DEFINE_BOOL(array_bounds_checks_elimination, true,
-            "perform array bounds checks elimination")
-DEFINE_BOOL(trace_bce, false, "trace array bounds check elimination")
-DEFINE_BOOL(array_index_dehoisting, true, "perform array index dehoisting")
 DEFINE_BOOL(analyze_environment_liveness, true,
             "analyze liveness of environment slots and zap dead values")
 DEFINE_BOOL(load_elimination, true, "use load elimination")
 DEFINE_BOOL(check_elimination, true, "use check elimination")
 DEFINE_BOOL(store_elimination, false, "use store elimination")
-DEFINE_BOOL(dead_code_elimination, true, "use dead code elimination")
-DEFINE_BOOL(fold_constants, true, "use constant folding")
-DEFINE_BOOL(trace_dead_code_elimination, false, "trace dead code elimination")
-DEFINE_BOOL(unreachable_code_elimination, true, "eliminate unreachable code")
 DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
 DEFINE_INT(stress_runs, 0, "number of stress runs")
-DEFINE_BOOL(lookup_sample_by_shared, true,
-            "when picking a function to optimize, watch for shared function "
-            "info, not JSFunction itself")
-DEFINE_BOOL(flush_optimized_code_cache, false,
-            "flushes the cache of optimized code for closures on every GC")
-DEFINE_BOOL(inline_construct, true, "inline constructor calls")
-DEFINE_BOOL(inline_arguments, true, "inline functions with arguments object")
 DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
-DEFINE_INT(escape_analysis_iterations, 1,
-           "maximum number of escape analysis fix-point iterations")
 
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
@@ -1029,10 +995,6 @@ DEFINE_STRING(startup_src, NULL,
               "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, NULL,
               "Write V8 startup blob file. (mksnapshot only)")
-
-// code-stubs-hydrogen.cc
-DEFINE_BOOL(profile_hydrogen_code_stub_compilation, false,
-            "Print the time it takes to lazily compile hydrogen code stubs.")
 
 //
 // Dev shell flags

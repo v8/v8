@@ -131,11 +131,8 @@ VARIANT_ALIASES = {
   "extra": [],
 }
 
-DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
-               "--nofold-constants", "--enable-slow-asserts",
-               "--verify-heap"]
-RELEASE_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
-                 "--nofold-constants"]
+DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
+RELEASE_FLAGS = ["--nohard-abort"]
 
 MODES = {
   "debug": {
