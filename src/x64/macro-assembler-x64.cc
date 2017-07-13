@@ -205,13 +205,15 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   // Load store buffer top.
   ExternalReference store_buffer =
       ExternalReference::store_buffer_top(isolate());
-  movp(scratch, ExternalOperand(store_buffer));
+  DCHECK(!scratch.is(kScratchRegister));
+  Move(kScratchRegister, store_buffer);
+  movp(scratch, Operand(kScratchRegister, 0));
   // Store pointer to buffer.
   movp(Operand(scratch, 0), addr);
   // Increment buffer top.
   addp(scratch, Immediate(kPointerSize));
   // Write back new top of buffer.
-  movp(ExternalOperand(store_buffer), scratch);
+  movp(Operand(kScratchRegister, 0), scratch);
   // Call stub on end of buffer.
   Label done;
   // Check for end of buffer.
