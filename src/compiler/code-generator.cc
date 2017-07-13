@@ -506,12 +506,14 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
     if (!info->parse_info()) return;
     std::ostringstream buffer;
     buffer << "-- ";
-    if (FLAG_trace_turbo) {
+    if (FLAG_trace_turbo ||
+        tasm()->isolate()->concurrent_recompilation_enabled()) {
       buffer << source_position;
     } else {
-      buffer << source_position;
-      // TODO(neis): Figure out if/how to print InliningStack(info) from a
-      // background thread.
+      AllowHeapAllocation allocation;
+      AllowHandleAllocation handles;
+      AllowHandleDereference deref;
+      buffer << source_position.InliningStack(info);
     }
     buffer << " --";
     tasm()->RecordComment(StrDup(buffer.str().c_str()));

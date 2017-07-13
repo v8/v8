@@ -699,7 +699,9 @@ DEFINE_BOOL(fast_promotion_new_space, false,
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
-DEFINE_BOOL(code_comments, false, "emit comments in code disassembly")
+DEFINE_BOOL(code_comments, false,
+            "emit comments in code disassembly; for more readable source "
+            "positions you should add --no-concurrent_recompilation")
 DEFINE_BOOL(enable_sse3, true, "enable use of SSE3 instructions if available")
 DEFINE_BOOL(enable_ssse3, true, "enable use of SSSE3 instructions if available")
 DEFINE_BOOL(enable_sse4_1, true,
