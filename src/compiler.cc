@@ -1289,29 +1289,6 @@ bool Compiler::EnsureBytecode(CompilationInfo* info) {
   return info->shared_info()->HasBytecodeArray();
 }
 
-// TODO(turbofan): In the future, unoptimized code with deopt support could
-// be generated lazily once deopt is triggered.
-bool Compiler::EnsureBaselineCode(CompilationInfo* info) {
-  DCHECK_NOT_NULL(info->literal());
-  DCHECK_NOT_NULL(info->scope());
-  Handle<SharedFunctionInfo> shared = info->shared_info();
-
-  if (!shared->HasBaselineCode()) {
-    // Don't generate full-codegen code for functions which should use Ignition.
-    if (!ShouldUseFullCodegen(shared)) return false;
-
-    DCHECK(!shared->must_use_ignition());
-    DCHECK(!IsResumableFunction(shared->kind()));
-
-    Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
-    CompilationInfo unoptimized(&compile_zone, info->parse_info(),
-                                info->isolate(), info->closure());
-    DCHECK(ShouldUseFullCodegen(&unoptimized));
-    GenerateUnoptimizedCode(&unoptimized);
-  }
-  return true;
-}
-
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,

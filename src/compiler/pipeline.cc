@@ -648,6 +648,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   }
   if (info()->is_optimizing_from_bytecode()) {
     info()->MarkAsDeoptimizationEnabled();
+    if (FLAG_turbo_inlining) {
+      info()->MarkAsInliningEnabled();
+    }
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
@@ -655,10 +658,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
         isolate()->heap()->one_closure_cell_map()) {
       info()->MarkAsFunctionContextSpecializing();
     }
-  }
-  if (!info()->is_optimizing_from_bytecode()) {
-    if (!Compiler::EnsureBaselineCode(info())) return FAILED;
-  } else if (FLAG_turbo_inlining) {
     info()->MarkAsInliningEnabled();
   }
 

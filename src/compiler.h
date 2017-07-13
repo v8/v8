@@ -78,8 +78,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Convenience function
   static bool Analyze(CompilationInfo* info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
-  // Ensure that baseline code is generated, requires ParseAndAnalyze.
-  static bool EnsureBaselineCode(CompilationInfo* info);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
   static bool EnsureBytecode(CompilationInfo* info);
 
