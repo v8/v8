@@ -205,16 +205,32 @@
   'language/statements/for-of/dstr-array-rest-lref-err': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
-  'language/literals/regexp/early-err-pattern': [FAIL],
   'built-ins/RegExp/property-escapes/binary-properties-with-value': [FAIL],
-  'built-ins/RegExp/property-escapes/unsupported-binary-properties': [FAIL],
-  'built-ins/RegExp/property-escapes/non-existent-properties': [FAIL],
-  'built-ins/RegExp/property-escapes/grammar-extensions': [FAIL],
-  'built-ins/RegExp/property-escapes/unsupported-properties': [FAIL],
   'built-ins/RegExp/property-escapes/character-class': [FAIL],
-  'built-ins/RegExp/property-escapes/non-existent-property-values': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extensions': [FAIL],
   'built-ins/RegExp/property-escapes/loose-matching': [FAIL],
   'built-ins/RegExp/property-escapes/non-binary-properties-without-value': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-properties': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-values': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-properties': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-properties': [FAIL],
+  'language/literals/regexp/early-err-pattern': [FAIL],
+  'language/literals/regexp/invalid-braced-quantifier-exact': [FAIL],
+  'language/literals/regexp/invalid-braced-quantifier-lower': [FAIL],
+  'language/literals/regexp/invalid-braced-quantifier-range': [FAIL],
+  'language/literals/regexp/u-dec-esc': [FAIL],
+  'language/literals/regexp/u-invalid-class-escape': [FAIL],
+  'language/literals/regexp/u-invalid-extended-pattern-char': [FAIL],
+  'language/literals/regexp/u-invalid-identity-escape': [FAIL],
+  'language/literals/regexp/u-invalid-legacy-octal-escape': [FAIL],
+  'language/literals/regexp/u-invalid-non-empty-class-ranges': [FAIL],
+  'language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-a': [FAIL],
+  'language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-ab': [FAIL],
+  'language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-b': [FAIL],
+  'language/literals/regexp/u-invalid-oob-decimal-escape': [FAIL],
+  'language/literals/regexp/u-invalid-quantifiable-assertion': [FAIL],
+  'language/literals/regexp/u-unicode-esc-bounds': [FAIL],
+  'language/literals/regexp/u-unicode-esc-non-hex': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
@@ -484,6 +500,84 @@
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6538
+  'built-ins/Array/prototype/unshift/throws-if-integer-limit-exceeded': [SKIP],
+  'built-ins/Array/prototype/reverse/length-exceeding-integer-limit-with-proxy': [FAIL],
+  'built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit': [FAIL],
+  'built-ins/Array/prototype/splice/throws-if-integer-limit-exceeded': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6539
+  'built-ins/Number/prototype/toFixed/range': [FAIL],
+  'built-ins/Number/prototype/toPrecision/range': [FAIL],
+  'built-ins/Number/prototype/toExponential/range': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6540
+  'language/statements/for/decl-async-fun': [FAIL],
+  'language/statements/for/decl-async-gen': [FAIL],
+  'language/statements/for-in/decl-async-fun': [FAIL],
+  'language/statements/for-in/decl-async-gen': [FAIL],
+  'language/statements/for-of/decl-async-fun': [FAIL],
+  'language/statements/for-of/decl-async-gen': [FAIL],
+  'language/statements/if/if-async-fun-no-else': [FAIL],
+  'language/statements/if/if-async-gen-no-else': [FAIL],
+  'language/statements/if/if-stmt-else-async-fun': [FAIL],
+  'language/statements/if/if-stmt-else-async-gen': [FAIL],
+  'language/statements/labeled/decl-async-function': [FAIL],
+  'language/statements/labeled/decl-async-generator': [FAIL],
+  'language/statements/while/decl-async-fun': [FAIL],
+  'language/statements/while/decl-async-gen': [FAIL],
+  'language/statements/with/decl-async-fun': [FAIL],
+  'language/statements/with/decl-async-gen': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5855
+  'language/expressions/async-generator/named-yield-promise-reject-next': [FAIL],
+  'language/expressions/async-generator/named-yield-promise-reject-next-catch': [FAIL],
+  'language/expressions/async-generator/yield-promise-reject-next': [FAIL],
+  'language/expressions/async-generator/yield-promise-reject-next-catch': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-promise-reject-next': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-promise-reject-next-catch': [FAIL],
+  'language/expressions/class/async-gen-method-yield-promise-reject-next': [FAIL],
+  'language/expressions/class/async-gen-method-yield-promise-reject-next-catch': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-promise-reject-next': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-promise-reject-next-catch': [FAIL],
+  'language/statements/async-generator/yield-promise-reject-next': [FAIL],
+  'language/statements/async-generator/yield-promise-reject-next-catch': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-promise-reject-next': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-promise-reject-next-catch': [FAIL],
+  'language/statements/class/async-gen-method-yield-promise-reject-next': [FAIL],
+  'language/statements/class/async-gen-method-yield-promise-reject-next-catch': [FAIL],
+  'language/statements/for-await-of/async-func-decl-dstr-array-elem-init-let': [FAIL],
+  'language/statements/for-await-of/async-func-decl-dstr-array-elem-put-let': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-init-let': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-put-let': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-elision-iter-abpt': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-get-err': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-nrml-close-null': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-err': [PASS, FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6541
+  'language/export/escaped-as-export-specifier': [FAIL],
+  'language/export/escaped-from': [FAIL],
+  'language/expressions/object/method-definition/escaped-get': [FAIL],
+  'language/expressions/object/method-definition/escaped-set': [FAIL],
+  'language/import/escaped-as-import-specifier': [FAIL],
+  'language/import/escaped-as-namespace-import': [FAIL],
+  'language/import/escaped-from': [FAIL],
+  'language/statements/for-await-of/escaped-of': [FAIL],
+  'language/statements/for-of/escaped-of': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6542
+  'built-ins/Array/prototype/sort/comparefn-nonfunction-call-throws': [FAIL],
+  'built-ins/TypedArray/prototype/sort/comparefn-nonfunction-call-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6543
+  'language/statements/labeled/value-await-non-module-escaped': [FAIL],
+  'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
+
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
@@ -501,6 +595,17 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
+
+  # https://github.com/tc39/test262/issues/1085
+  'language/directive-prologue/10.1.1-5gs': [PASS, FAIL_SLOPPY],
+  'language/directive-prologue/10.1.1-2gs': [PASS, FAIL_SLOPPY],
+  'language/directive-prologue/14.1-4gs': [PASS, FAIL_SLOPPY],
+  'language/directive-prologue/10.1.1-8gs': [PASS, FAIL_SLOPPY],
+  'language/directive-prologue/14.1-5gs': [PASS, FAIL_SLOPPY],
+
+  # Test against internals of harness; we plug in differently
+  'harness/detachArrayBuffer': [SKIP],
+  'harness/detachArrayBuffer-$262.detachArrayBuffer': [SKIP],
 
   ############################ SKIPPED TESTS #############################
 

@@ -9169,6 +9169,7 @@ TEST(AsyncAwaitModuleErrors) {
     "export async function await() {}",
     "export async function() {}",
     "export async",
+    "export async\nfunction async() { await 1; }",
     NULL
   };
   // clang-format on
