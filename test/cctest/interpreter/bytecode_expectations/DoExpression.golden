@@ -17,7 +17,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Mov), R(0), R(1),
   /*   50 S> */ B(Ldar), R(1),
-  /*   60 S> */ B(Return),
+  /*   59 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -39,7 +39,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(Star), R(2),
   /*   63 S> */ B(Nop),
-  /*   73 S> */ B(Return),
+  /*   72 S> */ B(Return),
 ]
 constant pool: [
 ]

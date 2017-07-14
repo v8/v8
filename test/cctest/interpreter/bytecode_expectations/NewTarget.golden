@@ -17,7 +17,7 @@ bytecodes: [
                 B(Ldar), R(0),
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(Ldar), R(0),
-  /*   53 S> */ B(Return),
+  /*   52 S> */ B(Return),
 ]
 constant pool: [
 ]

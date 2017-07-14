@@ -21,12 +21,12 @@ function testFunction() {
         i: 0,
         next() {
           |_|if (this.i < 1) {
-            |_|return { value: this.i++, done: false };
+            |_|return { value: this.i++, done: false };|R|
           }
-          |_|return { value: undefined, done: true };
-        |R|}
-      };
-    |R|}
+          |_|return { value: undefined, done: true };|R|
+        }
+      };|R|
+    }
   };
   for (var |_|k of |_|iterable) { |_|all.|C|push(k); }
   |_|iterable.i = 0;
@@ -217,12 +217,12 @@ testFunction (test.js:25:16)
       #return {
         i: 0,
 
-[Symbol.iterator] (test.js:23:4)
+[Symbol.iterator] (test.js:22:8)
 testFunction (test.js:25:16)
 (anonymous) (expr.js:0:0)
-      };
-    #}
-  };
+        }
+      };#
+    }
 
 testFunction (test.js:25:11)
 (anonymous) (expr.js:0:0)
@@ -244,12 +244,12 @@ testFunction (test.js:25:11)
             #return { value: this.i++, done: false };
           }
 
-next (test.js:21:8)
+next (test.js:18:52)
 testFunction (test.js:25:11)
 (anonymous) (expr.js:0:0)
-          return { value: undefined, done: true };
-        #}
-      };
+          if (this.i < 1) {
+            return { value: this.i++, done: false };#
+          }
 
 testFunction (test.js:25:28)
 (anonymous) (expr.js:0:0)
@@ -277,12 +277,12 @@ testFunction (test.js:25:11)
           #return { value: undefined, done: true };
         }
 
-next (test.js:21:8)
+next (test.js:20:50)
 testFunction (test.js:25:11)
 (anonymous) (expr.js:0:0)
-          return { value: undefined, done: true };
-        #}
-      };
+          }
+          return { value: undefined, done: true };#
+        }
 
 testFunction (test.js:26:2)
 (anonymous) (expr.js:0:0)
@@ -303,12 +303,12 @@ testFunction (test.js:27:16)
       #return {
         i: 0,
 
-[Symbol.iterator] (test.js:23:4)
+[Symbol.iterator] (test.js:22:8)
 testFunction (test.js:27:16)
 (anonymous) (expr.js:0:0)
-      };
-    #}
-  };
+        }
+      };#
+    }
 
 testFunction (test.js:27:11)
 (anonymous) (expr.js:0:0)
@@ -330,12 +330,12 @@ testFunction (test.js:27:11)
             #return { value: this.i++, done: false };
           }
 
-next (test.js:21:8)
+next (test.js:18:52)
 testFunction (test.js:27:11)
 (anonymous) (expr.js:0:0)
-          return { value: undefined, done: true };
-        #}
-      };
+          if (this.i < 1) {
+            return { value: this.i++, done: false };#
+          }
 
 testFunction (test.js:27:28)
 (anonymous) (expr.js:0:0)
@@ -363,12 +363,12 @@ testFunction (test.js:27:11)
           #return { value: undefined, done: true };
         }
 
-next (test.js:21:8)
+next (test.js:20:50)
 testFunction (test.js:27:11)
 (anonymous) (expr.js:0:0)
-          return { value: undefined, done: true };
-        #}
-      };
+          }
+          return { value: undefined, done: true };#
+        }
 
 testFunction (test.js:28:0)
 (anonymous) (expr.js:0:0)

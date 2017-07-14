@@ -23,7 +23,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(LdaSmi), I8(-1),
-  /*   70 S> */ B(Return),
+  /*   65 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -47,7 +47,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   36 S> */ B(LdaSmi), I8(1),
-  /*   76 S> */ B(Return),
+  /*   45 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -71,7 +71,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   59 S> */ B(LdaSmi), I8(-1),
-  /*   74 S> */ B(Return),
+  /*   69 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -125,7 +125,7 @@ bytecodes: [
                 B(Star), R(0),
                 B(Jump), U8(5),
   /*   66 S> */ B(LdaSmi), I8(2),
-  /*   80 S> */ B(Return),
+  /*   75 S> */ B(Return),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
@@ -154,9 +154,9 @@ bytecodes: [
   /*   24 E> */ B(TestLessThanOrEqual), R(arg0), U8(4),
                 B(JumpIfFalse), U8(7),
   /*   36 S> */ B(Wide), B(LdaSmi), I16(200),
-  /*   80 S> */ B(Return),
+  /*   47 S> */ B(Return),
   /*   63 S> */ B(Wide), B(LdaSmi), I16(-200),
-  /*   80 S> */ B(Return),
+  /*   75 S> */ B(Return),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
@@ -178,7 +178,7 @@ bytecodes: [
   /*   25 E> */ B(TestIn), R(arg0),
                 B(JumpIfFalse), U8(7),
   /*   33 S> */ B(Wide), B(LdaSmi), I16(200),
-  /*   47 S> */ B(Return),
+  /*   44 S> */ B(Return),
                 B(LdaUndefined),
   /*   47 S> */ B(Return),
 ]
@@ -397,9 +397,9 @@ bytecodes: [
   /* 1066 S> */ B(Nop),
   /* 1073 S> */ B(Nop),
   /* 1081 S> */ B(Wide), B(LdaSmi), I16(200),
-  /* 1117 S> */ B(Return),
+  /* 1092 S> */ B(Return),
   /* 1102 S> */ B(Wide), B(LdaSmi), I16(-200),
-  /* 1117 S> */ B(Return),
+  /* 1114 S> */ B(Return),
                 B(LdaUndefined),
   /* 1117 S> */ B(Return),
 ]
@@ -622,9 +622,9 @@ bytecodes: [
   /* 1060 S> */ B(Nop),
   /* 1067 S> */ B(Nop),
   /* 1076 S> */ B(Wide), B(LdaSmi), I16(200),
-  /* 1112 S> */ B(Return),
+  /* 1087 S> */ B(Return),
   /* 1097 S> */ B(Wide), B(LdaSmi), I16(-200),
-  /* 1112 S> */ B(Return),
+  /* 1109 S> */ B(Return),
                 B(LdaUndefined),
   /* 1112 S> */ B(Return),
 ]
@@ -657,44 +657,44 @@ bytecodes: [
   /*   27 E> */ B(TestEqual), R(arg0), U8(4),
                 B(JumpIfFalse), U8(5),
   /*   35 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*   44 S> */ B(Return),
   /*   49 S> */ B(Ldar), R(arg1),
   /*   55 E> */ B(TestEqualStrict), R(arg0), U8(5),
                 B(JumpIfFalse), U8(5),
   /*   64 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*   73 S> */ B(Return),
   /*   78 S> */ B(Ldar), R(arg1),
   /*   84 E> */ B(TestLessThan), R(arg0), U8(6),
                 B(JumpIfFalse), U8(5),
   /*   91 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*  100 S> */ B(Return),
   /*  105 S> */ B(Ldar), R(arg1),
   /*  111 E> */ B(TestGreaterThan), R(arg0), U8(7),
                 B(JumpIfFalse), U8(5),
   /*  118 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*  127 S> */ B(Return),
   /*  132 S> */ B(Ldar), R(arg1),
   /*  138 E> */ B(TestLessThanOrEqual), R(arg0), U8(8),
                 B(JumpIfFalse), U8(5),
   /*  146 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*  155 S> */ B(Return),
   /*  160 S> */ B(Ldar), R(arg1),
   /*  166 E> */ B(TestGreaterThanOrEqual), R(arg0), U8(9),
                 B(JumpIfFalse), U8(5),
   /*  174 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*  183 S> */ B(Return),
   /*  188 S> */ B(Ldar), R(arg1),
   /*  194 E> */ B(TestIn), R(arg0),
                 B(JumpIfFalse), U8(5),
   /*  202 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*  211 S> */ B(Return),
   /*  216 S> */ B(Ldar), R(arg1),
   /*  222 E> */ B(TestInstanceOf), R(arg0),
                 B(JumpIfFalse), U8(5),
   /*  238 S> */ B(LdaSmi), I8(1),
-  /*  262 S> */ B(Return),
+  /*  247 S> */ B(Return),
   /*  252 S> */ B(LdaZero),
-  /*  262 S> */ B(Return),
+  /*  261 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -722,9 +722,9 @@ bytecodes: [
                 B(Star), R(0),
   /*   30 S> */ B(JumpIfToBooleanFalse), U8(5),
   /*   43 S> */ B(LdaSmi), I8(20),
-  /*   85 S> */ B(Return),
+  /*   53 S> */ B(Return),
   /*   69 S> */ B(LdaSmi), I8(-20),
-  /*   85 S> */ B(Return),
+  /*   80 S> */ B(Return),
                 B(LdaUndefined),
   /*   85 S> */ B(Return),
 ]
@@ -758,7 +758,7 @@ bytecodes: [
   /*   37 E> */ B(TestLessThan), R(arg0), U8(5),
                 B(JumpIfFalse), U8(5),
   /*   48 S> */ B(LdaSmi), I8(1),
-  /*  133 S> */ B(Return),
+  /*   57 S> */ B(Return),
   /*   67 S> */ B(LdaZero),
   /*   73 E> */ B(TestGreaterThan), R(arg0), U8(6),
                 B(JumpIfFalse), U8(10),
@@ -766,9 +766,9 @@ bytecodes: [
   /*   82 E> */ B(TestGreaterThan), R(arg1), U8(7),
                 B(JumpIfFalse), U8(4),
   /*   93 S> */ B(LdaZero),
-  /*  133 S> */ B(Return),
+  /*  102 S> */ B(Return),
   /*  118 S> */ B(LdaSmi), I8(-1),
-  /*  133 S> */ B(Return),
+  /*  128 S> */ B(Return),
                 B(LdaUndefined),
   /*  133 S> */ B(Return),
 ]

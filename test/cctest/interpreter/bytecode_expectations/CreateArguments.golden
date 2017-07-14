@@ -19,7 +19,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(Nop),
-  /*   33 S> */ B(Return),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -40,7 +40,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaZero),
   /*   31 E> */ B(LdaKeyedProperty), R(0), U8(4),
-  /*   36 S> */ B(Return),
+  /*   35 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -60,7 +60,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   29 S> */ B(Nop),
-  /*   47 S> */ B(Return),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -85,7 +85,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(LdaZero),
   /*   32 E> */ B(LdaKeyedProperty), R(0), U8(4),
-  /*   37 S> */ B(Return),
+  /*   36 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -113,7 +113,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(Nop),
-  /*   40 S> */ B(Return),
+  /*   39 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -133,7 +133,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   36 S> */ B(Nop),
-  /*   54 S> */ B(Return),
+  /*   53 S> */ B(Return),
 ]
 constant pool: [
 ]

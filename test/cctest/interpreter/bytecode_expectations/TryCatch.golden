@@ -16,7 +16,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(0),
   /*   40 S> */ B(LdaSmi), I8(1),
-  /*   75 S> */ B(Return),
+  /*   49 S> */ B(Return),
                 B(Jump), U8(21),
                 B(Star), R(1),
                 B(Ldar), R(closure),
@@ -27,7 +27,7 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(PushContext), R(1),
   /*   63 S> */ B(LdaSmi), I8(2),
-  /*   75 S> */ B(Return),
+  /*   72 S> */ B(Return),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]

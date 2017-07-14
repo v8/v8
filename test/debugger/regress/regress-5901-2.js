@@ -8,8 +8,8 @@ function f() {
 }
 
 function g() {
-  return f();
-}  // Break
+  return f();  // Break
+}
 
 function h() {
   return g();

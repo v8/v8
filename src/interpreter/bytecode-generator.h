@@ -119,8 +119,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       HoleCheckMode hole_check_mode,
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
   void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
-  void BuildReturn();
-  void BuildAsyncReturn();
+  void BuildReturn(int source_position = kNoSourcePosition);
+  void BuildAsyncReturn(int source_position = kNoSourcePosition);
   void BuildAsyncGeneratorReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);

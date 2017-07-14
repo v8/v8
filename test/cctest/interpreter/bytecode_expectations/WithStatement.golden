@@ -21,7 +21,7 @@ bytecodes: [
                 B(CreateWithContext), R(0), U8(1),
                 B(PushContext), R(0),
   /*   50 S> */ B(LdaLookupSlot), U8(2),
-  /*   62 S> */ B(Return),
+  /*   59 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,

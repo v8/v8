@@ -36,7 +36,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
   /*   46 S> */ B(Nop),
-  /*   56 S> */ B(Return),
+  /*   55 S> */ B(Return),
 ]
 constant pool: [
 ]

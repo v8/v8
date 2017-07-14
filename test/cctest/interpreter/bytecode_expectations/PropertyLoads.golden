@@ -18,7 +18,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(Nop),
   /*   25 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(4),
-  /*   31 S> */ B(Return),
+  /*   30 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
@@ -38,7 +38,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(Nop),
   /*   24 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(4),
-  /*   33 S> */ B(Return),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["key"],
@@ -58,7 +58,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(LdaSmi), I8(100),
   /*   24 E> */ B(LdaKeyedProperty), R(arg0), U8(4),
-  /*   31 S> */ B(Return),
+  /*   30 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -77,7 +77,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(arg1),
   /*   28 E> */ B(LdaKeyedProperty), R(arg0), U8(4),
-  /*   32 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -99,7 +99,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   32 S> */ B(LdaSmi), I8(-124),
   /*   40 E> */ B(LdaKeyedProperty), R(arg0), U8(6),
-  /*   48 S> */ B(Return),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
@@ -634,7 +634,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 1819 S> */ B(Nop),
   /* 1828 E> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(260),
-  /* 1834 S> */ B(Return),
+  /* 1833 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
@@ -1169,7 +1169,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 1566 S> */ B(Ldar), R(arg1),
   /* 1575 E> */ B(Wide), B(LdaKeyedProperty), R16(arg0), U16(260),
-  /* 1579 S> */ B(Return),
+  /* 1578 S> */ B(Return),
 ]
 constant pool: [
 ]

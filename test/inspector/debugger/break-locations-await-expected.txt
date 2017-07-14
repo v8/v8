@@ -19,8 +19,8 @@ function testFunction() {
     |_|return r;
   |R|}
 
-  |_|return |C|f2();
-|R|}
+  |_|return |C|f2();|R|
+}
 
 
 Running test: testStepInto

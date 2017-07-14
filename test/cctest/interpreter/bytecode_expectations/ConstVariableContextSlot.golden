@@ -49,7 +49,7 @@ bytecodes: [
   /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlot), U8(4),
   /*   74 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
-  /*   84 S> */ B(Return),
+  /*   83 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,

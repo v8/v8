@@ -774,15 +774,20 @@ class ReturnStatement final : public JumpStatement {
   Type type() const { return TypeField::decode(bit_field_); }
   bool is_async_return() const { return type() == kAsyncReturn; }
 
+  int end_position() const { return end_position_; }
+
  private:
   friend class AstNodeFactory;
 
-  ReturnStatement(Expression* expression, Type type, int pos)
-      : JumpStatement(pos, kReturnStatement), expression_(expression) {
+  ReturnStatement(Expression* expression, Type type, int pos, int end_position)
+      : JumpStatement(pos, kReturnStatement),
+        expression_(expression),
+        end_position_(end_position) {
     bit_field_ |= TypeField::encode(type);
   }
 
   Expression* expression_;
+  int end_position_;
 
   class TypeField
       : public BitField<Type, JumpStatement::kNextBitFieldIndex, 1> {};
@@ -3122,14 +3127,16 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) BreakStatement(target, pos);
   }
 
-  ReturnStatement* NewReturnStatement(Expression* expression, int pos) {
-    return new (zone_)
-        ReturnStatement(expression, ReturnStatement::kNormal, pos);
+  ReturnStatement* NewReturnStatement(Expression* expression, int pos,
+                                      int end_position = kNoSourcePosition) {
+    return new (zone_) ReturnStatement(expression, ReturnStatement::kNormal,
+                                       pos, end_position);
   }
 
-  ReturnStatement* NewAsyncReturnStatement(Expression* expression, int pos) {
-    return new (zone_)
-        ReturnStatement(expression, ReturnStatement::kAsyncReturn, pos);
+  ReturnStatement* NewAsyncReturnStatement(
+      Expression* expression, int pos, int end_position = kNoSourcePosition) {
+    return new (zone_) ReturnStatement(
+        expression, ReturnStatement::kAsyncReturn, pos, end_position);
   }
 
   WithStatement* NewWithStatement(Scope* scope,

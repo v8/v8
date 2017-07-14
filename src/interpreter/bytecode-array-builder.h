@@ -461,6 +461,14 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     latest_source_info_.MakeStatementPosition(expr->position());
   }
 
+  void SetReturnPosition(int source_position, FunctionLiteral* literal) {
+    if (source_position != kNoSourcePosition) {
+      latest_source_info_.MakeStatementPosition(source_position);
+    } else if (literal->return_position() != kNoSourcePosition) {
+      latest_source_info_.MakeStatementPosition(literal->return_position());
+    }
+  }
+
   bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
 
   // Returns the raw operand value for the given register or register list.
@@ -512,9 +520,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   bool RegisterIsValid(Register reg) const;
   bool RegisterListIsValid(RegisterList reg_list) const;
 
-  // Set position for return.
-  void SetReturnPosition();
-
   // Sets a deferred source info which should be emitted before any future
   // source info (either attached to a following bytecode or as a nop).
   void SetDeferredSourceInfo(BytecodeSourceInfo source_info);
@@ -558,7 +563,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   bool return_seen_in_block_;
   int parameter_count_;
   int local_register_count_;
-  int return_position_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;
   BytecodeRegisterOptimizer* register_optimizer_;

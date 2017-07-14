@@ -27,7 +27,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   69 S> */ B(Jump), U8(2),
   /*   97 S> */ B(Ldar), R(0),
-  /*  107 S> */ B(Return),
+  /*  106 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -85,7 +85,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(JumpLoop), U8(56), I8(0),
   /*  188 S> */ B(Ldar), R(0),
-  /*  200 S> */ B(Return),
+  /*  199 S> */ B(Return),
 ]
 constant pool: [
 ]

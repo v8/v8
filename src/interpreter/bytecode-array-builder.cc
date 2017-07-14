@@ -61,8 +61,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
         new (zone) RegisterTransferWriter(this));
   }
-
-  return_position_ = literal ? literal->return_position() : kNoSourcePosition;
 }
 
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
@@ -1185,7 +1183,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
-  SetReturnPosition();
   OutputReturn();
   return_seen_in_block_ = true;
   return *this;
@@ -1455,11 +1452,6 @@ size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
 void BytecodeArrayBuilder::SetDeferredConstantPoolEntry(size_t entry,
                                                         Handle<Object> object) {
   constant_array_builder()->SetDeferredAt(entry, object);
-}
-
-void BytecodeArrayBuilder::SetReturnPosition() {
-  if (return_position_ == kNoSourcePosition) return;
-  latest_source_info_.MakeStatementPosition(return_position_);
 }
 
 bool BytecodeArrayBuilder::RegisterIsValid(Register reg) const {

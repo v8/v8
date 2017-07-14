@@ -22,8 +22,8 @@ function testFunction() {
     let r = |_|await Promise.|C|resolve(42);
     |_|return r;
   |R|})|C|();
-  |_|return promise;
-|R|}
+  |_|return promise;|R|
+}
 
 (anonymous) (expr.js:0:0)
 

@@ -18,7 +18,7 @@ bytecode array length: 5
 bytecodes: [
   /*   21 E> */ B(StackCheck),
   /*   26 S> */ B(LdaGlobal), U8(0), U8(4),
-  /*   36 S> */ B(Return),
+  /*   35 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
@@ -38,7 +38,7 @@ bytecode array length: 5
 bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaGlobal), U8(0), U8(4),
-  /*   42 S> */ B(Return),
+  /*   41 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["t"],
@@ -58,7 +58,7 @@ bytecode array length: 5
 bytecodes: [
   /*   17 E> */ B(StackCheck),
   /*   22 S> */ B(LdaGlobal), U8(0), U8(4),
-  /*   32 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
@@ -464,7 +464,7 @@ bytecodes: [
   /* 1295 S> */ B(Nop),
   /* 1297 E> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(258),
   /* 1305 S> */ B(Wide), B(LdaGlobal), U16(1), U16(260),
-  /* 1315 S> */ B(Return),
+  /* 1314 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],

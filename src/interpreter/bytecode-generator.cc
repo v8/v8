@@ -101,10 +101,18 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
   }
   virtual ~ControlScope() { generator_->set_execution_control(outer()); }
 
-  void Break(Statement* stmt) { PerformCommand(CMD_BREAK, stmt); }
-  void Continue(Statement* stmt) { PerformCommand(CMD_CONTINUE, stmt); }
-  void ReturnAccumulator() { PerformCommand(CMD_RETURN, nullptr); }
-  void AsyncReturnAccumulator() { PerformCommand(CMD_ASYNC_RETURN, nullptr); }
+  void Break(Statement* stmt) {
+    PerformCommand(CMD_BREAK, stmt, kNoSourcePosition);
+  }
+  void Continue(Statement* stmt) {
+    PerformCommand(CMD_CONTINUE, stmt, kNoSourcePosition);
+  }
+  void ReturnAccumulator(int source_position = kNoSourcePosition) {
+    PerformCommand(CMD_RETURN, nullptr, source_position);
+  }
+  void AsyncReturnAccumulator(int source_position = kNoSourcePosition) {
+    PerformCommand(CMD_ASYNC_RETURN, nullptr, source_position);
+  }
 
   class DeferredCommands;
 
@@ -116,8 +124,10 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
     CMD_ASYNC_RETURN,
     CMD_RETHROW
   };
-  void PerformCommand(Command command, Statement* statement);
-  virtual bool Execute(Command command, Statement* statement) = 0;
+  void PerformCommand(Command command, Statement* statement,
+                      int source_position);
+  virtual bool Execute(Command command, Statement* statement,
+                       int source_position) = 0;
 
   // Helper to pop the context chain to a depth expected by this control scope.
   // Note that it is the responsibility of each individual {Execute} method to
@@ -208,7 +218,8 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
           .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
 
       builder()->LoadAccumulatorWithRegister(result_register_);
-      execution_control()->PerformCommand(entry.command, entry.statement);
+      execution_control()->PerformCommand(entry.command, entry.statement,
+                                          kNoSourcePosition);
     } else {
       // For multiple entries, build a jump table and switch on the token,
       // jumping to the fallthrough if none of them match.
@@ -223,7 +234,8 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
         builder()
             ->Bind(jump_table, entry.token)
             .LoadAccumulatorWithRegister(result_register_);
-        execution_control()->PerformCommand(entry.command, entry.statement);
+        execution_control()->PerformCommand(entry.command, entry.statement,
+                                            kNoSourcePosition);
       }
     }
 
@@ -295,18 +307,19 @@ class BytecodeGenerator::ControlScopeForTopLevel final
       : ControlScope(generator) {}
 
  protected:
-  bool Execute(Command command, Statement* statement) override {
+  bool Execute(Command command, Statement* statement,
+               int source_position) override {
     switch (command) {
       case CMD_BREAK:  // We should never see break/continue in top-level.
       case CMD_CONTINUE:
         UNREACHABLE();
       case CMD_RETURN:
         // No need to pop contexts, execution leaves the method body.
-        generator()->BuildReturn();
+        generator()->BuildReturn(source_position);
         return true;
       case CMD_ASYNC_RETURN:
         // No need to pop contexts, execution leaves the method body.
-        generator()->BuildAsyncReturn();
+        generator()->BuildAsyncReturn(source_position);
         return true;
       case CMD_RETHROW:
         // No need to pop contexts, execution leaves the method body.
@@ -329,7 +342,8 @@ class BytecodeGenerator::ControlScopeForBreakable final
         control_builder_(control_builder) {}
 
  protected:
-  bool Execute(Command command, Statement* statement) override {
+  bool Execute(Command command, Statement* statement,
+               int source_position) override {
     control_builder_->set_needs_continuation_counter();
     if (statement != statement_) return false;
     switch (command) {
@@ -367,7 +381,8 @@ class BytecodeGenerator::ControlScopeForIteration final
   ~ControlScopeForIteration() { generator()->loop_depth_--; }
 
  protected:
-  bool Execute(Command command, Statement* statement) override {
+  bool Execute(Command command, Statement* statement,
+               int source_position) override {
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
@@ -400,7 +415,8 @@ class BytecodeGenerator::ControlScopeForTryCatch final
       : ControlScope(generator) {}
 
  protected:
-  bool Execute(Command command, Statement* statement) override {
+  bool Execute(Command command, Statement* statement,
+               int source_position) override {
     switch (command) {
       case CMD_BREAK:
       case CMD_CONTINUE:
@@ -429,7 +445,8 @@ class BytecodeGenerator::ControlScopeForTryFinally final
         commands_(commands) {}
 
  protected:
-  bool Execute(Command command, Statement* statement) override {
+  bool Execute(Command command, Statement* statement,
+               int source_position) override {
     switch (command) {
       case CMD_BREAK:
       case CMD_CONTINUE:
@@ -437,6 +454,11 @@ class BytecodeGenerator::ControlScopeForTryFinally final
       case CMD_ASYNC_RETURN:
       case CMD_RETHROW:
         PopContextToExpectedDepth();
+        // We don't record source_position here since we don't generate return
+        // bytecode right here and will generate it later as part of finally
+        // block. Each return bytecode generated in finally block will get own
+        // return source position from corresponded return statement or we'll
+        // use end of function if no return statement is presented.
         commands_->RecordCommand(command, statement);
         try_finally_builder_->LeaveTry();
         return true;
@@ -450,10 +472,11 @@ class BytecodeGenerator::ControlScopeForTryFinally final
 };
 
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
-                                                     Statement* statement) {
+                                                     Statement* statement,
+                                                     int source_position) {
   ControlScope* current = this;
   do {
-    if (current->Execute(command, statement)) {
+    if (current->Execute(command, statement, source_position)) {
       return;
     }
     current = current->outer();
@@ -1296,9 +1319,9 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
   if (stmt->is_async_return()) {
-    execution_control()->AsyncReturnAccumulator();
+    execution_control()->AsyncReturnAccumulator(stmt->end_position());
   } else {
-    execution_control()->ReturnAccumulator();
+    execution_control()->ReturnAccumulator(stmt->end_position());
   }
 }
 
@@ -2259,7 +2282,7 @@ void BytecodeGenerator::BuildVariableLoadForAccumulatorValue(
   BuildVariableLoad(variable, slot, hole_check_mode, typeof_mode);
 }
 
-void BytecodeGenerator::BuildReturn() {
+void BytecodeGenerator::BuildReturn(int source_position) {
   if (FLAG_trace) {
     RegisterAllocationScope register_scope(this);
     Register result = register_allocator()->NewRegister();
@@ -2284,10 +2307,11 @@ void BytecodeGenerator::BuildReturn() {
         .CallRuntime(Runtime::kInlineGeneratorClose, generator_object_)
         .LoadAccumulatorWithRegister(result);
   }
+  builder()->SetReturnPosition(source_position, info()->literal());
   builder()->Return();
 }
 
-void BytecodeGenerator::BuildAsyncReturn() {
+void BytecodeGenerator::BuildAsyncReturn(int source_position) {
   RegisterAllocationScope register_scope(this);
 
   if (IsAsyncGeneratorFunction(info()->literal()->kind())) {
@@ -2326,7 +2350,7 @@ void BytecodeGenerator::BuildAsyncReturn() {
         .LoadAccumulatorWithRegister(promise);
   }
 
-  BuildReturn();
+  BuildReturn(source_position);
 }
 
 void BytecodeGenerator::BuildReThrow() { builder()->ReThrow(); }
@@ -2638,7 +2662,7 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register value,
         .StoreAccumulatorInRegister(args[1])
         .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
   }
-
+  builder()->SetReturnPosition(kNoSourcePosition, info()->literal());
   builder()->Return();  // Hard return (ignore any finally blocks).
 }
 

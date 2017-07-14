@@ -195,7 +195,7 @@ bytecodes: [
                 B(Star), R(1),
   /*   87 S> */ B(Nop),
   /*   94 E> */ B(Construct), R(1), R(0), U8(0), U8(5),
-  /*  103 S> */ B(Return),
+  /*  102 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,

@@ -26,4 +26,18 @@
   '*': [SKIP],
 }],  # variant == wasm_traps
 
+##############################################################################
+['variant == fullcode', {
+  # fullcode doesn't generate precise return positions
+  'debugger/return-break-locations': [SKIP],
+  'debugger/for-of-loops': [SKIP],
+  'debugger/break-locations-var-init': [SKIP],
+  'debugger/framework-precise-ranges': [SKIP],
+  'debugger/step-snapshot': [SKIP],
+  'debugger/step-into-next-script': [SKIP],
+  'debugger/asm-js-breakpoint-before-exec': [SKIP],
+  'debugger/break-locations-await': [SKIP],
+  'debugger/get-possible-breakpoints': [SKIP],
+}],  # variant == fullcode
+
 ]

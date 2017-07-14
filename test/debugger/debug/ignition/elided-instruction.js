@@ -24,8 +24,9 @@ function listener(event, exec_state, event_data, data) {
 
 function f() {
   var a = 1;                     // Break 2. 10.
-  return a;                      // Break 3. 2.
-}                                // Break 4. 0.
+  return a                       // Break 3. 2.
+  ;                              // Break 4. 3.
+}
 
 Debug.setListener(listener);
 debugger;                        // Break 0. 0.

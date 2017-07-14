@@ -28,8 +28,8 @@ function g() {
     function(res, rej) {
       late_resolve = res;  // B3 StepIn
     }                      // B4 StepIn
-  );
-}                      // B5 StepIn
+  );                       // B5 StepIn
+}
 
 async function f() {
   var a = 1;

@@ -40,7 +40,7 @@ bytecodes: [
                 B(Star), R(1),
   /*   14 E> */ B(CallUndefinedReceiver1), R(1), R(2), U8(4),
   /*   35 S> */ B(LdaLookupGlobalSlot), U8(2), U8(8), U8(1),
-  /*   45 S> */ B(Return),
+  /*   44 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
@@ -85,7 +85,7 @@ bytecodes: [
   /*   14 E> */ B(CallUndefinedReceiver1), R(1), R(2), U8(4),
   /*   35 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(2), U8(8), U8(1),
                 B(TypeOf),
-  /*   52 S> */ B(Return),
+  /*   51 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
@@ -130,7 +130,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(3), U8(6),
                 B(Star), R(1),
   /*   29 E> */ B(CallUndefinedReceiver1), R(1), R(2), U8(4),
-  /*   39 S> */ B(Return),
+  /*   38 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
@@ -179,7 +179,7 @@ bytecodes: [
                 B(Star), R(1),
   /*   44 E> */ B(CallUndefinedReceiver1), R(1), R(2), U8(4),
   /*   66 S> */ B(LdaLookupContextSlot), U8(2), U8(6), U8(1),
-  /*   76 S> */ B(Return),
+  /*   75 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
@@ -228,7 +228,7 @@ bytecodes: [
                 B(Star), R(1),
   /*   40 E> */ B(CallUndefinedReceiver1), R(1), R(2), U8(4),
   /*   62 S> */ B(LdaLookupGlobalSlot), U8(2), U8(8), U8(1),
-  /*   72 S> */ B(Return),
+  /*   71 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],

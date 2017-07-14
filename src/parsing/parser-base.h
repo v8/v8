@@ -1315,9 +1315,11 @@ class ParserBase {
 
   // Convenience method which determines the type of return statement to emit
   // depending on the current function type.
-  inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
-    return is_async_function() ? factory()->NewAsyncReturnStatement(expr, pos)
-                               : factory()->NewReturnStatement(expr, pos);
+  inline StatementT BuildReturnStatement(ExpressionT expr, int pos,
+                                         int end_pos = kNoSourcePosition) {
+    return is_async_function()
+               ? factory()->NewAsyncReturnStatement(expr, pos, end_pos)
+               : factory()->NewReturnStatement(expr, pos, end_pos);
   }
 
   // Validation per ES6 object literals.
@@ -5189,7 +5191,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
-  StatementT stmt = BuildReturnStatement(return_value, loc.beg_pos);
+  int continuation_pos = scanner_->location().end_pos;
+  StatementT stmt =
+      BuildReturnStatement(return_value, loc.beg_pos, continuation_pos);
   impl()->RecordJumpStatementSourceRange(stmt, scanner_->location().end_pos);
   return stmt;
 }

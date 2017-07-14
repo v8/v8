@@ -25,7 +25,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
   /*   69 E> */ B(Add), R(2), U8(5),
-  /*   81 S> */ B(Return),
+  /*   80 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
@@ -55,7 +55,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(Ldar), R(1),
   /*   76 E> */ B(Add), R(2), U8(5),
-  /*   81 S> */ B(Return),
+  /*   80 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
@@ -83,7 +83,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(Ldar), R(1),
   /*   76 E> */ B(Add), R(2), U8(5),
-  /*   81 S> */ B(Return),
+  /*   80 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
@@ -120,7 +120,7 @@ bytecodes: [
                 B(LdaConstant), U8(2),
   /*   85 E> */ B(Add), R(2), U8(7),
   /*   93 E> */ B(AddSmi), I8(1), U8(8),
-  /*   98 S> */ B(Return),
+  /*   97 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["foo"],
@@ -153,7 +153,7 @@ bytecodes: [
                 B(Ldar), R(1),
   /*   90 E> */ B(Add), R(3), U8(5),
   /*   78 E> */ B(Add), R(2), U8(6),
-  /*   96 S> */ B(Return),
+  /*   95 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["string"],
@@ -189,7 +189,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(Ldar), R(1),
   /*  112 E> */ B(Add), R(3), U8(9),
-  /*  117 S> */ B(Return),
+  /*  116 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,

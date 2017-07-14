@@ -43,7 +43,7 @@ bytecodes: [
   /*   62 S> */ B(LdaLookupGlobalSlot), U8(1), U8(11), U8(1),
                 B(Star), R(1),
   /*   69 E> */ B(CallUndefinedReceiver0), R(1), U8(9),
-  /*   74 S> */ B(Return),
+  /*   73 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
