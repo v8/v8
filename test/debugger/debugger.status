@@ -71,11 +71,6 @@
 }],  # variant == wasm_traps
 
 ##############################################################################
-['variant == fullcode', {
-  'debug/es6/debug-blockscopes': [SKIP],
-}],  # variant == fullcodegen
-
-##############################################################################
 ['arch == arm and not simulator_run', {
   # Too slow on chromebooks.
   'debug/ignition/debug-step-prefix-bytecodes': [SKIP],

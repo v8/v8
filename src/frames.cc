@@ -1164,8 +1164,8 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
 
 namespace {
 
-bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
-  return code->is_turbofanned() && function->shared()->asm_function();
+bool IsNonDeoptimizingAsmCode(Code* code, JSFunction* function) {
+  return code->is_turbofanned() && !function->shared()->HasBytecodeArray();
 }
 
 }  // namespace
@@ -1182,7 +1182,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor) {
   DCHECK(abstract_code->IsBytecodeArray() ||
          Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION ||
-         CannotDeoptFromAsmCode(Code::cast(abstract_code), function) ||
+         IsNonDeoptimizingAsmCode(Code::cast(abstract_code), function) ||
          mode == kApproximateSummary);
 }
 
@@ -1366,7 +1366,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
   if (code->kind() == Code::BUILTIN ||
-      CannotDeoptFromAsmCode(code, function())) {
+      IsNonDeoptimizingAsmCode(code, function())) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1529,7 +1529,7 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
   if (code->kind() == Code::BUILTIN ||
-      CannotDeoptFromAsmCode(code, function())) {
+      IsNonDeoptimizingAsmCode(code, function())) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
