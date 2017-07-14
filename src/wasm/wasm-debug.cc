@@ -40,8 +40,8 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
              : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
 }
 
-Handle<Object> WasmValToValueObject(Isolate* isolate, WasmVal value) {
-  switch (value.type) {
+Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
+  switch (value.type()) {
     case kWasmI32:
       if (Smi::IsValid(value.to<int32_t>()))
         return handle(Smi::FromInt(value.to<int32_t>()), isolate);
@@ -197,14 +197,14 @@ class InterpreterHandle {
     FunctionSig* sig = module()->functions[func_index].sig;
     DCHECK_GE(kMaxInt, sig->parameter_count());
     int num_params = static_cast<int>(sig->parameter_count());
-    ScopedVector<WasmVal> wasm_args(num_params);
+    ScopedVector<WasmValue> wasm_args(num_params);
     uint8_t* arg_buf_ptr = arg_buffer;
     for (int i = 0; i < num_params; ++i) {
       uint32_t param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
-#define CASE_ARG_TYPE(type, ctype)                                  \
-  case type:                                                        \
-    DCHECK_EQ(param_size, sizeof(ctype));                           \
-    wasm_args[i] = WasmVal(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
+#define CASE_ARG_TYPE(type, ctype)                                    \
+  case type:                                                          \
+    DCHECK_EQ(param_size, sizeof(ctype));                             \
+    wasm_args[i] = WasmValue(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
     break;
       switch (sig->GetParam(i)) {
         CASE_ARG_TYPE(kWasmI32, uint32_t)
@@ -264,7 +264,7 @@ class InterpreterHandle {
     // TODO(wasm): Handle multi-value returns.
     DCHECK_EQ(1, kV8MaxWasmFunctionReturns);
     if (sig->return_count()) {
-      WasmVal ret_val = thread->GetReturnValue(0);
+      WasmValue ret_val = thread->GetReturnValue(0);
 #define CASE_RET_TYPE(type, ctype)                                       \
   case type:                                                             \
     DCHECK_EQ(1 << ElementSizeLog2Of(sig->GetReturn(0)), sizeof(ctype)); \
@@ -498,8 +498,8 @@ class InterpreterHandle {
           const char* label = i < num_params ? "arg#%d" : "local#%d";
           name = PrintFToOneByteString<true>(isolate_, label, i);
         }
-        WasmVal value = frame->GetLocalValue(i);
-        Handle<Object> value_obj = WasmValToValueObject(isolate_, value);
+        WasmValue value = frame->GetLocalValue(i);
+        Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
         JSObject::SetOwnPropertyIgnoreAttributes(
             locals_obj, name.ToHandleChecked(), value_obj, NONE)
             .Assert();
@@ -519,8 +519,8 @@ class InterpreterHandle {
                                              stack_obj, NONE)
         .Assert();
     for (int i = 0; i < stack_count; ++i) {
-      WasmVal value = frame->GetStackValue(i);
-      Handle<Object> value_obj = WasmValToValueObject(isolate_, value);
+      WasmValue value = frame->GetStackValue(i);
+      Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
       JSObject::SetOwnElementIgnoreAttributes(
           stack_obj, static_cast<uint32_t>(i), value_obj, NONE)
           .Assert();

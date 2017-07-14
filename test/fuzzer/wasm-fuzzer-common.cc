@@ -111,7 +111,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
 
   ZoneBuffer buffer(&zone);
   int32_t num_args = 0;
-  std::unique_ptr<WasmVal[]> interpreter_args;
+  std::unique_ptr<WasmValue[]> interpreter_args;
   std::unique_ptr<Handle<Object>[]> compiler_args;
   if (!GenerateModule(i_isolate, &zone, data, size, buffer, num_args,
                       interpreter_args, compiler_args)) {

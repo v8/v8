@@ -45,7 +45,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 int32_t InterpretWasmModule(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             ErrorThrower* thrower, int32_t function_index,
-                            WasmVal* args, bool* possible_nondeterminism);
+                            WasmValue* args, bool* possible_nondeterminism);
 
 // Runs the module instance with arguments.
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,

@@ -160,7 +160,7 @@ void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
 
 // Wrapper with operator<<.
 struct WasmValWrapper {
-  WasmVal val;
+  WasmValue val;
 
   bool operator==(const WasmValWrapper& other) const {
     return val == other.val;
@@ -170,7 +170,7 @@ struct WasmValWrapper {
 // Only needed in debug builds. Avoid unused warning otherwise.
 #ifdef DEBUG
 std::ostream& operator<<(std::ostream& out, const WasmValWrapper& wrapper) {
-  switch (wrapper.val.type) {
+  switch (wrapper.val.type()) {
     case kWasmI32:
       out << "i32: " << wrapper.val.to<int32_t>();
       break;
@@ -193,8 +193,8 @@ std::ostream& operator<<(std::ostream& out, const WasmValWrapper& wrapper) {
 class CollectValuesBreakHandler : public debug::DebugDelegate {
  public:
   struct BreakpointValues {
-    std::vector<WasmVal> locals;
-    std::vector<WasmVal> stack;
+    std::vector<WasmValue> locals;
+    std::vector<WasmValue> stack;
   };
 
   explicit CollectValuesBreakHandler(
@@ -244,21 +244,21 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
   }
 };
 
-// Special template to explicitly cast to WasmVal.
+// Special template to explicitly cast to WasmValue.
 template <typename Arg>
-WasmVal MakeWasmVal(Arg arg) {
-  return WasmVal(arg);
+WasmValue MakeWasmVal(Arg arg) {
+  return WasmValue(arg);
 }
 // Translate long to i64 (ambiguous otherwise).
 template <>
-WasmVal MakeWasmVal(long arg) {  // NOLINT: allow long parameter
-  return WasmVal(static_cast<int64_t>(arg));
+WasmValue MakeWasmVal(long arg) {  // NOLINT: allow long parameter
+  return WasmValue(static_cast<int64_t>(arg));
 }
 
 template <typename... Args>
-std::vector<WasmVal> wasmVec(Args... args) {
-  std::array<WasmVal, sizeof...(args)> arr{{MakeWasmVal(args)...}};
-  return std::vector<WasmVal>{arr.begin(), arr.end()};
+std::vector<WasmValue> wasmVec(Args... args) {
+  std::array<WasmValue, sizeof...(args)> arr{{MakeWasmVal(args)...}};
+  return std::vector<WasmValue>{arr.begin(), arr.end()};
 }
 
 }  // namespace
