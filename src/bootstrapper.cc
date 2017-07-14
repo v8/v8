@@ -5154,6 +5154,8 @@ Genesis::Genesis(
     }
     DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
   } else {
+    base::ElapsedTimer timer;
+    if (FLAG_profile_deserialization) timer.Start();
     DCHECK_EQ(0u, context_snapshot_index);
     // We get here if there was no context snapshot.
     CreateRoots();
@@ -5174,6 +5176,11 @@ Genesis::Genesis(
     if (!ConfigureGlobalObjects(global_proxy_template)) return;
 
     isolate->counters()->contexts_created_from_scratch()->Increment();
+
+    if (FLAG_profile_deserialization) {
+      double ms = timer.Elapsed().InMillisecondsF();
+      i::PrintF("[Initializing context from scratch took %0.3f ms]\n", ms);
+    }
   }
 
   // Install experimental natives. Do not include them into the
