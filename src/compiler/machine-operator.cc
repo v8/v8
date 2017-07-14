@@ -981,7 +981,8 @@ SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
 SIMD_FORMAT_LIST(SIMD_SHIFT_OPS)
 #undef SIMD_SHIFT_OPS
 
-const Operator* MachineOperatorBuilder::S8x16Shuffle(uint8_t shuffle[16]) {
+const Operator* MachineOperatorBuilder::S8x16Shuffle(
+    const uint8_t shuffle[16]) {
   uint8_t* array = zone_->NewArray<uint8_t>(16);
   memcpy(array, shuffle, 16);
   return new (zone_)

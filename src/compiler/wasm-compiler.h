@@ -262,15 +262,14 @@ class WasmGraphBuilder {
   Node* S1x8Zero();
   Node* S1x16Zero();
 
-  Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
+  Node* SimdOp(wasm::WasmOpcode opcode, Node* const* inputs);
 
-  Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
-                   const NodeVector& inputs);
+  Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane, Node* const* inputs);
 
   Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
-                    const NodeVector& inputs);
+                    Node* const* inputs);
 
-  Node* Simd8x16ShuffleOp(uint8_t shuffle[16], const NodeVector& inputs);
+  Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
   bool has_simd() const { return has_simd_; }
 

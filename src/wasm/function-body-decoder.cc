@@ -1541,7 +1541,7 @@ class WasmFullDecoder : public WasmDecoder {
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(1, zone_);
       inputs[0] = Pop(0, ValueType::kSimd128).node;
-      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
+      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs.data());
       Push(type, node);
     }
     return operand.length;
@@ -1553,7 +1553,7 @@ class WasmFullDecoder : public WasmDecoder {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, type).node;
       inputs[0] = Pop(0, ValueType::kSimd128).node;
-      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
+      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs.data());
       Push(ValueType::kSimd128, node);
     }
     return operand.length;
@@ -1564,7 +1564,7 @@ class WasmFullDecoder : public WasmDecoder {
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(1, zone_);
       inputs[0] = Pop(0, ValueType::kSimd128).node;
-      TFNode* node = BUILD(SimdShiftOp, opcode, operand.shift, inputs);
+      TFNode* node = BUILD(SimdShiftOp, opcode, operand.shift, inputs.data());
       Push(ValueType::kSimd128, node);
     }
     return operand.length;
@@ -1576,7 +1576,7 @@ class WasmFullDecoder : public WasmDecoder {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, ValueType::kSimd128).node;
       inputs[0] = Pop(0, ValueType::kSimd128).node;
-      TFNode* node = BUILD(Simd8x16ShuffleOp, operand.shuffle, inputs);
+      TFNode* node = BUILD(Simd8x16ShuffleOp, operand.shuffle, inputs.data());
       Push(ValueType::kSimd128, node);
     }
     return 16;
@@ -1635,7 +1635,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value val = Pop(static_cast<int>(i - 1), sig->GetParam(i - 1));
             inputs[i - 1] = val.node;
           }
-          TFNode* node = BUILD(SimdOp, opcode, inputs);
+          TFNode* node = BUILD(SimdOp, opcode, inputs.data());
           Push(GetReturnType(sig), node);
         } else {
           error("invalid simd opcode");
