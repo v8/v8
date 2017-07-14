@@ -19,6 +19,12 @@ namespace wasm {
 // same index.
 class V8_EXPORT_PRIVATE SignatureMap {
  public:
+  // Allow default construction and move construction (because we have vectors
+  // of objects containing SignatureMaps), but disallow copy or assign. It's
+  // too easy to get security bugs by accidentally updating a copy of the map.
+  SignatureMap() = default;
+  SignatureMap(SignatureMap&&) = default;
+
   // Gets the index for a signature, assigning a new index if necessary.
   uint32_t FindOrInsert(FunctionSig* sig);
 
@@ -32,6 +38,8 @@ class V8_EXPORT_PRIVATE SignatureMap {
   };
   uint32_t next_ = 0;
   std::map<FunctionSig*, uint32_t, CompareFunctionSigs> map_;
+
+  DISALLOW_COPY_AND_ASSIGN(SignatureMap);
 };
 
 }  // namespace wasm

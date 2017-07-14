@@ -134,13 +134,13 @@ struct WasmDataSegment {
 
 // Static representation of a wasm indirect call table.
 struct WasmIndirectFunctionTable {
-  uint32_t min_size;            // minimum table size.
-  uint32_t max_size;            // maximum table size.
-  bool has_max;                 // true if there is a maximum size.
+  uint32_t min_size = 0;  // minimum table size.
+  uint32_t max_size = 0;  // maximum table size.
+  bool has_max = false;   // true if there is a maximum size.
   // TODO(titzer): Move this to WasmInstance. Needed by interpreter only.
   std::vector<int32_t> values;  // function table, -1 indicating invalid.
-  bool imported;                // true if imported.
-  bool exported;                // true if exported.
+  bool imported = false;        // true if imported.
+  bool exported = false;        // true if exported.
   SignatureMap map;             // canonicalizing map for sig indexes.
 };
 

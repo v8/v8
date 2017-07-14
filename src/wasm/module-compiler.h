@@ -289,7 +289,7 @@ class InstanceBuilder {
   // Allocate memory for a module instance as a new JSArrayBuffer.
   Handle<JSArrayBuffer> AllocateMemory(uint32_t min_mem_pages);
 
-  bool NeedsWrappers();
+  bool NeedsWrappers() const;
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.

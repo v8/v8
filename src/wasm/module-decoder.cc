@@ -444,11 +444,10 @@ class ModuleDecoder : public Decoder {
           if (!AddTable(module_.get())) break;
           import->index =
               static_cast<uint32_t>(module_->function_tables.size());
-          module_->function_tables.push_back({0, 0, false,
-                                              std::vector<int32_t>(), true,
-                                              false, SignatureMap()});
-          expect_u8("element type", kWasmAnyFunctionTypeForm);
+          module_->function_tables.emplace_back();
           WasmIndirectFunctionTable* table = &module_->function_tables.back();
+          table->imported = true;
+          expect_u8("element type", kWasmAnyFunctionTypeForm);
           consume_resizable_limits("element count", "elements",
                                    FLAG_wasm_max_table_size, &table->min_size,
                                    &table->has_max, FLAG_wasm_max_table_size,
@@ -508,8 +507,7 @@ class ModuleDecoder : public Decoder {
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
       if (!AddTable(module_.get())) break;
-      module_->function_tables.push_back(
-          {0, 0, false, std::vector<int32_t>(), false, false, SignatureMap()});
+      module_->function_tables.emplace_back();
       WasmIndirectFunctionTable* table = &module_->function_tables.back();
       expect_u8("table type", kWasmAnyFunctionTypeForm);
       consume_resizable_limits("table elements", "elements",

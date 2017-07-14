@@ -1524,12 +1524,12 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t min_mem_pages) {
   return mem_buffer;
 }
 
-bool InstanceBuilder::NeedsWrappers() {
+bool InstanceBuilder::NeedsWrappers() const {
   if (module_->num_exported_functions > 0) return true;
-  for (auto table_instance : table_instances_) {
+  for (auto& table_instance : table_instances_) {
     if (!table_instance.js_wrappers.is_null()) return true;
   }
-  for (auto table : module_->function_tables) {
+  for (auto& table : module_->function_tables) {
     if (table.exported) return true;
   }
   return false;
@@ -1801,10 +1801,10 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
     // since initializations are not sorted by table index.
     for (auto table_init : module_->table_inits) {
       uint32_t base = EvalUint32InitExpr(table_init.offset);
-      DCHECK(in_bounds(base, static_cast<uint32_t>(table_init.entries.size()),
+      uint32_t num_entries = static_cast<uint32_t>(table_init.entries.size());
+      DCHECK(in_bounds(base, num_entries,
                        table_instance.function_table->length()));
-      for (int i = 0, e = static_cast<int>(table_init.entries.size()); i < e;
-           ++i) {
+      for (uint32_t i = 0; i < num_entries; ++i) {
         uint32_t func_index = table_init.entries[i];
         WasmFunction* function = &module_->functions[func_index];
         int table_index = static_cast<int>(i + base);

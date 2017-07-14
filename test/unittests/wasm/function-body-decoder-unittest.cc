@@ -227,10 +227,7 @@ class TestModuleEnv : public ModuleEnv {
     mod.max_mem_pages = 100;
   }
 
-  void InitializeFunctionTable() {
-    mod.function_tables.push_back(
-        {0, 0, true, std::vector<int32_t>(), false, false, SignatureMap()});
-  }
+  void InitializeFunctionTable() { mod.function_tables.emplace_back(); }
 
  private:
   WasmModule mod;
