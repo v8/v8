@@ -1897,7 +1897,7 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
   Expression* next_call =
       factory()->NewCall(next_property, next_arguments, kNoSourcePosition);
   if (type == IteratorType::kAsync) {
-    next_call = BuildAwait(next_call, pos);
+    next_call = factory()->NewAwait(next_call, pos);
   }
   Expression* result_proxy = factory()->NewVariableProxy(result);
   Expression* left =
@@ -3186,8 +3186,8 @@ Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return BuildSuspend(yield_result, scope()->start_position(),
-                      Suspend::kOnExceptionThrow, SuspendFlags::kYield);
+  return factory()->NewYield(yield_result, scope()->start_position(),
+                             Suspend::kOnExceptionThrow);
 }
 
 ZoneList<Statement*>* Parser::ParseFunction(
@@ -4228,8 +4228,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
       is_async_generator() ? IteratorType::kAsync : IteratorType::kNormal;
 
   if (type == IteratorType::kNormal) {
-    return factory()->NewYieldStar(iterable, pos,
-                                   SuspendFlags::kGeneratorYieldStar);
+    return factory()->NewYieldStar(iterable, pos);
   }
 
   // Forward definition for break/continue statements.
@@ -4293,7 +4292,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     args->Add(input_proxy, zone());
     Expression* call = factory()->NewCall(next_property, args, nopos);
     if (type == IteratorType::kAsync) {
-      call = BuildAwait(call, nopos);
+      call = factory()->NewAwait(call, nopos);
     }
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
     Expression* assignment =
@@ -4374,7 +4373,7 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     Expression* call =
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
     if (type == IteratorType::kAsync) {
-      call = BuildAwait(call, nopos);
+      call = factory()->NewAwait(call, nopos);
     }
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(var_output), call, nopos);
@@ -4422,8 +4421,8 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
   Statement* yield_output;
   {
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
-    Suspend* yield = BuildSuspend(output_proxy, nopos, Suspend::kNoControl,
-                                  SuspendFlags::kYield);
+    Suspend* yield =
+        factory()->NewYield(output_proxy, nopos, Suspend::kNoControl);
     yield_output = factory()->NewExpressionStatement(yield, nopos);
   }
 
@@ -4655,7 +4654,7 @@ void Parser::BuildIteratorClose(ZoneList<Statement*>* statements,
     Expression* call =
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
     if (type == IteratorType::kAsync) {
-      call = BuildAwait(call, nopos);
+      call = factory()->NewAwait(call, nopos);
     }
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
     Expression* assignment =
@@ -4876,7 +4875,7 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
 
     if (type == IteratorType::kAsync) {
-      call = BuildAwait(call, nopos);
+      call = factory()->NewAwait(call, nopos);
     }
 
     Block* try_block = factory()->NewBlock(nullptr, 1, false, nopos);
@@ -4904,7 +4903,7 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
       Expression* call =
           factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
       if (type == IteratorType::kAsync) {
-        call = BuildAwait(call, nopos);
+        call = factory()->NewAwait(call, nopos);
       }
 
       Expression* output_proxy = factory()->NewVariableProxy(var_output);

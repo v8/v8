@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 25
 parameter count: 1
-bytecode array length: 646
+bytecode array length: 643
 bytecodes: [
                 B(Mov), R(new_target), R(11),
                 B(Ldar), R(new_target),
@@ -80,7 +80,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_uncaught), R(22), U8(3),
                 B(Star), R(21),
                 B(LdaZero),
-                B(SuspendGenerator), R(11), R(0), U8(21), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(21),
                 B(Ldar), R(21),
   /*   57 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(21),
@@ -111,7 +111,7 @@ bytecodes: [
                 B(Mov), R(3), R(0),
                 B(LdaZero),
                 B(Star), R(6),
-                B(JumpLoop), U8(126), I8(0),
+                B(JumpLoop), U8(125), I8(0),
                 B(Jump), U8(40),
                 B(Star), R(21),
                 B(Ldar), R(closure),
@@ -141,15 +141,15 @@ bytecodes: [
                 B(Star), R(19),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(22),
-                B(JumpIfTrue), U8(217),
+                B(JumpIfTrue), U8(215),
                 B(LdaNamedProperty), R(4), U8(12), U8(23),
                 B(Star), R(8),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(206),
+                B(Jump), U8(204),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(6), U8(26),
-                B(JumpIfFalse), U8(118),
+                B(JumpIfFalse), U8(117),
                 B(Ldar), R(8),
                 B(TestTypeOf), U8(5),
                 B(JumpIfFalse), U8(4),
@@ -171,7 +171,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_caught), R(22), U8(3),
                 B(Star), R(21),
                 B(LdaSmi), I8(1),
-                B(SuspendGenerator), R(11), R(0), U8(21), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(21),
                 B(Ldar), R(21),
   /*   57 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(21),
@@ -197,7 +197,7 @@ bytecodes: [
                 B(Ldar), R(20),
                 B(PushContext), R(21),
                 B(PopContext), R(21),
-                B(Jump), U8(83),
+                B(Jump), U8(82),
                 B(Mov), R(8), R(20),
                 B(Mov), R(4), R(21),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(20), U8(2),
@@ -208,7 +208,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_uncaught), R(21), U8(3),
                 B(Star), R(20),
                 B(LdaSmi), I8(2),
-                B(SuspendGenerator), R(11), R(0), U8(20), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(20),
                 B(Ldar), R(20),
   /*   57 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(20),
@@ -294,12 +294,12 @@ bytecodes: [
 ]
 constant pool: [
   Smi [102],
-  Smi [374],
-  Smi [463],
+  Smi [372],
+  Smi [460],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
-  Smi [55],
+  Smi [54],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -313,11 +313,11 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [62, 601, 607],
-  [65, 556, 558],
-  [71, 288, 294],
-  [74, 248, 250],
-  [354, 421, 423],
+  [62, 598, 604],
+  [65, 553, 555],
+  [71, 287, 293],
+  [74, 247, 249],
+  [353, 419, 421],
 ]
 
 ---
@@ -329,7 +329,7 @@ snippet: "
 "
 frame size: 25
 parameter count: 1
-bytecode array length: 678
+bytecode array length: 675
 bytecodes: [
                 B(Mov), R(new_target), R(11),
                 B(Ldar), R(new_target),
@@ -393,7 +393,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_uncaught), R(22), U8(3),
                 B(Star), R(21),
                 B(LdaZero),
-                B(SuspendGenerator), R(11), R(0), U8(21), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(21),
                 B(Ldar), R(21),
   /*   68 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(21),
@@ -455,15 +455,15 @@ bytecodes: [
                 B(Star), R(19),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(22),
-                B(JumpIfTrue), U8(217),
+                B(JumpIfTrue), U8(215),
                 B(LdaNamedProperty), R(4), U8(12), U8(23),
                 B(Star), R(8),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(206),
+                B(Jump), U8(204),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(6), U8(26),
-                B(JumpIfFalse), U8(118),
+                B(JumpIfFalse), U8(117),
                 B(Ldar), R(8),
                 B(TestTypeOf), U8(5),
                 B(JumpIfFalse), U8(4),
@@ -485,7 +485,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_caught), R(22), U8(3),
                 B(Star), R(21),
                 B(LdaSmi), I8(1),
-                B(SuspendGenerator), R(11), R(0), U8(21), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(21),
                 B(Ldar), R(21),
   /*   68 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(21),
@@ -511,7 +511,7 @@ bytecodes: [
                 B(Ldar), R(20),
                 B(PushContext), R(21),
                 B(PopContext), R(21),
-                B(Jump), U8(83),
+                B(Jump), U8(82),
                 B(Mov), R(8), R(20),
                 B(Mov), R(4), R(21),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(20), U8(2),
@@ -522,7 +522,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_uncaught), R(21), U8(3),
                 B(Star), R(20),
                 B(LdaSmi), I8(2),
-                B(SuspendGenerator), R(11), R(0), U8(20), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(20),
                 B(Ldar), R(20),
   /*   68 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(20),
@@ -619,12 +619,12 @@ bytecodes: [
 ]
 constant pool: [
   Smi [102],
-  Smi [377],
-  Smi [466],
+  Smi [375],
+  Smi [463],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
-  Smi [55],
+  Smi [54],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -641,11 +641,11 @@ constant pool: [
   Smi [25],
 ]
 handlers: [
-  [62, 617, 623],
-  [65, 571, 573],
-  [71, 290, 296],
-  [74, 250, 252],
-  [357, 424, 426],
+  [62, 614, 620],
+  [65, 568, 570],
+  [71, 289, 295],
+  [74, 249, 251],
+  [356, 422, 424],
 ]
 
 ---
@@ -660,7 +660,7 @@ snippet: "
 "
 frame size: 25
 parameter count: 1
-bytecode array length: 664
+bytecode array length: 661
 bytecodes: [
                 B(Mov), R(new_target), R(11),
                 B(Ldar), R(new_target),
@@ -724,7 +724,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_uncaught), R(22), U8(3),
                 B(Star), R(21),
                 B(LdaZero),
-                B(SuspendGenerator), R(11), R(0), U8(21), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(21),
                 B(Ldar), R(21),
   /*  114 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(21),
@@ -763,7 +763,7 @@ bytecodes: [
   /*  103 S> */ B(Jump), U8(8),
                 B(LdaZero),
                 B(Star), R(6),
-                B(JumpLoop), U8(144), I8(0),
+                B(JumpLoop), U8(143), I8(0),
                 B(Jump), U8(40),
                 B(Star), R(21),
                 B(Ldar), R(closure),
@@ -793,15 +793,15 @@ bytecodes: [
                 B(Star), R(19),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(24),
-                B(JumpIfTrue), U8(217),
+                B(JumpIfTrue), U8(215),
                 B(LdaNamedProperty), R(4), U8(12), U8(25),
                 B(Star), R(8),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(206),
+                B(Jump), U8(204),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(6), U8(28),
-                B(JumpIfFalse), U8(118),
+                B(JumpIfFalse), U8(117),
                 B(Ldar), R(8),
                 B(TestTypeOf), U8(5),
                 B(JumpIfFalse), U8(4),
@@ -823,7 +823,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_caught), R(22), U8(3),
                 B(Star), R(21),
                 B(LdaSmi), I8(1),
-                B(SuspendGenerator), R(11), R(0), U8(21), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(21),
                 B(Ldar), R(21),
   /*  114 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(21),
@@ -849,7 +849,7 @@ bytecodes: [
                 B(Ldar), R(20),
                 B(PushContext), R(21),
                 B(PopContext), R(21),
-                B(Jump), U8(83),
+                B(Jump), U8(82),
                 B(Mov), R(8), R(20),
                 B(Mov), R(4), R(21),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(20), U8(2),
@@ -860,7 +860,7 @@ bytecodes: [
                 B(CallJSRuntime), U8(%async_function_await_uncaught), R(21), U8(3),
                 B(Star), R(20),
                 B(LdaSmi), I8(2),
-                B(SuspendGenerator), R(11), R(0), U8(20), U8(2),
+                B(SuspendGenerator), R(11), R(0), U8(20),
                 B(Ldar), R(20),
   /*  114 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(11), R(0), U8(20),
@@ -946,12 +946,12 @@ bytecodes: [
 ]
 constant pool: [
   Smi [102],
-  Smi [392],
-  Smi [481],
+  Smi [390],
+  Smi [478],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
-  Smi [55],
+  Smi [54],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -965,11 +965,11 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [62, 619, 625],
-  [65, 574, 576],
-  [71, 306, 312],
-  [74, 266, 268],
-  [372, 439, 441],
+  [62, 616, 622],
+  [65, 571, 573],
+  [71, 305, 311],
+  [74, 265, 267],
+  [371, 437, 439],
 ]
 
 ---

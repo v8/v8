@@ -2613,23 +2613,15 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register value,
   // Save context, registers, and state. Then return.
   builder()
       ->LoadLiteral(Smi::FromInt(expr->suspend_id()))
-      .SuspendGenerator(generator_object_, registers_to_save, expr->flags());
+      .SuspendGenerator(generator_object_, registers_to_save);
 
-  if (expr->IsNonInitialGeneratorYield()) {
-    // GeneratorYield: Wrap the value into IteratorResult.
-    RegisterList args = register_allocator()->NewRegisterList(2);
-    builder()
-        ->MoveRegister(value, args[0])
-        .LoadFalse()
-        .StoreAccumulatorInRegister(args[1])
-        .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
-  } else if (expr->IsNonInitialAsyncGeneratorYield()) {
-    // AsyncGenerator yields (with the exception of the initial yield) delegate
-    // to AsyncGeneratorResolve(), implemented via the runtime call below.
+  if (expr->IsInitialYield() || !expr->IsYield()) {
+    builder()->LoadAccumulatorWithRegister(value);
+  } else if (IsAsyncGeneratorFunction(function_kind())) {
+    // AsyncGenerator yields (with the exception of the initial yield)
+    // delegate to AsyncGeneratorResolve(), implemented via the runtime call
+    // below.
     RegisterList args = register_allocator()->NewRegisterList(3);
-
-    // AsyncGeneratorYield:
-    // perform AsyncGeneratorResolve(<generator>, <value>, false).
     builder()
         ->MoveRegister(generator_object_, args[0])
         .MoveRegister(value, args[1])
@@ -2637,8 +2629,16 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register value,
         .StoreAccumulatorInRegister(args[2])
         .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
   } else {
-    builder()->LoadAccumulatorWithRegister(value);
+    // Generator yields (with the exception of the initial yield) wrap the
+    // value into IteratorResult.
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->MoveRegister(value, args[0])
+        .LoadFalse()
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
   }
+
   builder()->Return();  // Hard return (ignore any finally blocks).
 }
 
@@ -2655,15 +2655,10 @@ void BytecodeGenerator::BuildGeneratorResume(
       ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
       .StoreAccumulatorInRegister(generator_state_);
 
-  // When resuming an Async Generator from an Await expression, the sent
-  // value is in the [[await_input_or_debug_pos]] slot. Otherwise, the sent
+  // When resuming execution of a generator, module or async function, the sent
   // value is in the [[input_or_debug_pos]] slot.
-  Runtime::FunctionId get_generator_input =
-      expr->is_async_generator() && expr->is_await()
-          ? Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos
-          : Runtime::kInlineGeneratorGetInputOrDebugPos;
-
-  builder()->CallRuntime(get_generator_input, generator_object_);
+  builder()->CallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
+                         generator_object_);
 }
 
 void BytecodeGenerator::BuildAbruptResume(Suspend* expr) {
@@ -2699,7 +2694,7 @@ void BytecodeGenerator::BuildAbruptResume(Suspend* expr) {
     // Resume with return.
     builder()->Bind(jump_table, JSGeneratorObject::kReturn);
     builder()->LoadAccumulatorWithRegister(input);
-    if (expr->is_async_generator()) {
+    if (IsAsyncGeneratorFunction(function_kind())) {
       // Async generator methods will produce the iter result object.
       execution_control()->AsyncReturnAccumulator();
     } else {
@@ -2714,7 +2709,7 @@ void BytecodeGenerator::BuildAbruptResume(Suspend* expr) {
   }
 }
 
-void BytecodeGenerator::VisitSuspend(Suspend* expr) {
+void BytecodeGenerator::VisitYield(Yield* expr) {
   RegisterList registers(0, register_allocator()->next_register_index());
 
   {
@@ -2784,7 +2779,7 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
 //   }
 void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   // TODO(tebbi): Also desugar async generator yield* in the BytecodeGenerator.
-  DCHECK(!expr->is_async_generator());
+  DCHECK(!IsAsyncGeneratorFunction(function_kind()));
 
   Register output = register_allocator()->NewRegister();
   Register resume_mode = register_allocator()->NewRegister();
@@ -2983,7 +2978,7 @@ void BytecodeGenerator::VisitAwait(Await* expr) {
 
     int await_builtin_context_index;
     RegisterList args;
-    if (expr->is_async_generator()) {
+    if (IsAsyncGeneratorFunction(function_kind())) {
       await_builtin_context_index =
           catch_prediction() == HandlerTable::ASYNC_AWAIT
               ? Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT
@@ -4370,6 +4365,10 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
   CurrentScope current_scope(this, scope);
   ContextScope context_scope(this, scope);
   Visit(stmt);
+}
+
+FunctionKind BytecodeGenerator::function_kind() const {
+  return info()->literal()->kind();
 }
 
 LanguageMode BytecodeGenerator::language_mode() const {

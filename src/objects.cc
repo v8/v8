@@ -19349,14 +19349,7 @@ int JSGeneratorObject::source_position() const {
   DCHECK(function()->shared()->HasBytecodeArray());
   DCHECK(!function()->shared()->HasBaselineCode());
 
-  int code_offset;
-  const JSAsyncGeneratorObject* async =
-      IsJSAsyncGeneratorObject() ? JSAsyncGeneratorObject::cast(this) : nullptr;
-  if (async != nullptr && async->awaited_promise()->IsJSPromise()) {
-    code_offset = Smi::ToInt(async->await_input_or_debug_pos());
-  } else {
-    code_offset = Smi::ToInt(input_or_debug_pos());
-  }
+  int code_offset = Smi::ToInt(input_or_debug_pos());
 
   // The stored bytecode offset is relative to a different base than what
   // is used in the source position table, hence the subtraction.

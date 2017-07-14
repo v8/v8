@@ -5593,8 +5593,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
-void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
-  // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
+void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
   STATIC_ASSERT(kSmiTag == 0);
   SmiTst(object, t8);
@@ -5602,21 +5601,15 @@ void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
 
   GetObjectType(object, t8, t8);
 
-  Label async, abort, done;
-  And(t9, flags, Operand(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
-  Branch(&async, equal, t9,
-         Operand(static_cast<int>(SuspendFlags::kAsyncGenerator)));
+  Label done;
 
   // Check if JSGeneratorObject
   Branch(&done, eq, t8, Operand(JS_GENERATOR_OBJECT_TYPE));
-  jmp(&abort);
 
-  bind(&async);
   // Check if JSAsyncGeneratorObject
   Branch(&done, eq, t8, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
-  bind(&abort);
-  Abort(kOperandIsASmiAndNotAGeneratorObject);
+  Abort(kOperandIsNotAGeneratorObject);
 
   bind(&done);
 }

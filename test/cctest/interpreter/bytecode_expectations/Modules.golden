@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 111
+bytecode array length: 110
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -42,7 +42,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   13 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -62,7 +62,7 @@ bytecodes: [
   /*   13 S> */ B(Return),
 ]
 constant pool: [
-  Smi [59],
+  Smi [58],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -76,7 +76,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 111
+bytecode array length: 110
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -105,7 +105,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   24 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -125,7 +125,7 @@ bytecodes: [
   /*   24 S> */ B(Return),
 ]
 constant pool: [
-  Smi [59],
+  Smi [58],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -141,7 +141,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 155
+bytecode array length: 154
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -170,7 +170,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   64 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -209,7 +209,7 @@ bytecodes: [
   /*   64 S> */ B(Return),
 ]
 constant pool: [
-  Smi [59],
+  Smi [58],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -227,7 +227,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 153
+bytecode array length: 152
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -256,7 +256,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   49 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -294,7 +294,7 @@ bytecodes: [
   /*   49 S> */ B(Return),
 ]
 constant pool: [
-  Smi [59],
+  Smi [58],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -311,7 +311,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 157
+bytecode array length: 156
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -342,7 +342,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   49 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -380,7 +380,7 @@ bytecodes: [
   /*   49 S> */ B(Return),
 ]
 constant pool: [
-  Smi [63],
+  Smi [62],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -397,7 +397,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 161
+bytecode array length: 160
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -428,7 +428,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   51 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -466,7 +466,7 @@ bytecodes: [
   /*   51 S> */ B(Return),
 ]
 constant pool: [
-  Smi [63],
+  Smi [62],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -481,7 +481,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 122
+bytecode array length: 121
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -512,7 +512,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   32 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -534,7 +534,7 @@ bytecodes: [
   /*   32 S> */ B(Return),
 ]
 constant pool: [
-  Smi [63],
+  Smi [62],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -549,7 +549,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 155
+bytecode array length: 154
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -580,7 +580,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   26 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -614,7 +614,7 @@ bytecodes: [
   /*   26 S> */ B(Return),
 ]
 constant pool: [
-  Smi [63],
+  Smi [62],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -629,7 +629,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 111
+bytecode array length: 110
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -658,7 +658,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   30 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -678,7 +678,7 @@ bytecodes: [
   /*   30 S> */ B(Return),
 ]
 constant pool: [
-  Smi [59],
+  Smi [58],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -692,7 +692,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 111
+bytecode array length: 110
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -721,7 +721,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   19 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -741,7 +741,7 @@ bytecodes: [
   /*   19 S> */ B(Return),
 ]
 constant pool: [
-  Smi [59],
+  Smi [58],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -756,7 +756,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 2
-bytecode array length: 149
+bytecode array length: 148
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -789,7 +789,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(3),
                 B(LdaZero),
-  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
+  /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(3),
                 B(Ldar), R(3),
   /*   45 S> */ B(Return),
                 B(RestoreGeneratorRegisters), R(0), R(0), U8(3),
@@ -819,7 +819,7 @@ bytecodes: [
   /*   45 S> */ B(Return),
 ]
 constant pool: [
-  Smi [69],
+  Smi [68],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],

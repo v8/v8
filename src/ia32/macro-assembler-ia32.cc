@@ -865,8 +865,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
-void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
-  // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
+void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
 
   test(object, Immediate(kSmiTagMask));
@@ -879,18 +878,13 @@ void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
     // Load map
     mov(map, FieldOperand(object, HeapObject::kMapOffset));
 
-    Label async, do_check;
-    test(flags, Immediate(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
-    j(not_zero, &async, Label::kNear);
-
+    Label do_check;
     // Check if JSGeneratorObject
     CmpInstanceType(map, JS_GENERATOR_OBJECT_TYPE);
-    jmp(&do_check, Label::kNear);
+    j(equal, &do_check, Label::kNear);
 
-    bind(&async);
     // Check if JSAsyncGeneratorObject
     CmpInstanceType(map, JS_ASYNC_GENERATOR_OBJECT_TYPE);
-    jmp(&do_check, Label::kNear);
 
     bind(&do_check);
     Pop(object);

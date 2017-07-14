@@ -291,16 +291,6 @@ FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectQueue() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos() {
-  FieldAccess access = {
-      kTaggedBase,         JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::NonInternal(), MachineType::AnyTagged(),
-      kFullWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitedPromise() {
   FieldAccess access = {
       kTaggedBase,         JSAsyncGeneratorObject::kAwaitedPromiseOffset,

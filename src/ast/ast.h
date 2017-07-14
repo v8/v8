@@ -90,7 +90,7 @@ namespace internal {
   V(Conditional)                \
   V(VariableProxy)              \
   V(Literal)                    \
-  V(Suspend)                    \
+  V(Yield)                      \
   V(YieldStar)                  \
   V(Await)                      \
   V(Throw)                      \
@@ -2256,48 +2256,22 @@ class Suspend : public Expression {
   }
 
   int suspend_id() const { return suspend_id_; }
-  SuspendFlags flags() const { return FlagsField::decode(bit_field_); }
-  SuspendFlags suspend_type() const {
-    return flags() & SuspendFlags::kSuspendTypeMask;
-  }
-  SuspendFlags generator_type() const {
-    return flags() & SuspendFlags::kGeneratorTypeMask;
-  }
-  bool is_yield() const { return suspend_type() == SuspendFlags::kYield; }
-  bool is_yield_star() const {
-    return suspend_type() == SuspendFlags::kYieldStar;
-  }
-  bool is_await() const { return suspend_type() == SuspendFlags::kAwait; }
-  bool is_async_generator() const {
-    return generator_type() == SuspendFlags::kAsyncGenerator;
-  }
-  inline bool IsNonInitialAsyncGeneratorYield() const {
-    // Return true if is_async_generator() && !is_await() && yield_id() > 0
-    return suspend_id() > 0 && (flags() & SuspendFlags::kAsyncGeneratorAwait) ==
-                                   SuspendFlags::kAsyncGenerator;
-  }
-  inline bool IsNonInitialGeneratorYield() const {
-    // Return true if is_generator() && !is_await() && yield_id() > 0
-    return suspend_id() > 0 && (flags() == SuspendFlags::kGeneratorYield);
-  }
 
   void set_expression(Expression* e) { expression_ = e; }
   void set_suspend_id(int id) { suspend_id_ = id; }
-  void set_suspend_type(SuspendFlags type) {
-    DCHECK_EQ(0, static_cast<int>(type & ~SuspendFlags::kSuspendTypeMask));
-    bit_field_ = FlagsField::update(bit_field_, type);
-  }
+
+  inline bool IsInitialYield() const { return suspend_id_ == 0 && IsYield(); }
 
  private:
   friend class AstNodeFactory;
+  friend class Yield;
   friend class YieldStar;
   friend class Await;
 
   Suspend(NodeType node_type, Expression* expression, int pos,
-          OnAbruptResume on_abrupt_resume, SuspendFlags flags)
+          OnAbruptResume on_abrupt_resume)
       : Expression(pos, node_type), suspend_id_(-1), expression_(expression) {
-    bit_field_ |= OnAbruptResumeField::encode(on_abrupt_resume) |
-                  FlagsField::encode(flags);
+    bit_field_ |= OnAbruptResumeField::encode(on_abrupt_resume);
   }
 
   int suspend_id_;
@@ -2305,9 +2279,13 @@ class Suspend : public Expression {
 
   class OnAbruptResumeField
       : public BitField<OnAbruptResume, Expression::kNextBitFieldIndex, 2> {};
-  class FlagsField
-      : public BitField<SuspendFlags, OnAbruptResumeField::kNext,
-                        static_cast<int>(SuspendFlags::kBitWidth)> {};
+};
+
+class Yield final : public Suspend {
+ private:
+  friend class AstNodeFactory;
+  Yield(Expression* expression, int pos, OnAbruptResume on_abrupt_resume)
+      : Suspend(kYield, expression, pos, on_abrupt_resume) {}
 };
 
 class YieldStar final : public Suspend {
@@ -2362,9 +2340,9 @@ class YieldStar final : public Suspend {
  private:
   friend class AstNodeFactory;
 
-  YieldStar(Expression* expression, int pos, SuspendFlags flags)
+  YieldStar(Expression* expression, int pos)
       : Suspend(kYieldStar, expression, pos,
-                Suspend::OnAbruptResume::kNoControl, flags) {}
+                Suspend::OnAbruptResume::kNoControl) {}
 
   FeedbackSlot load_iterable_iterator_slot_;
   FeedbackSlot load_iterator_return_slot_;
@@ -2383,8 +2361,8 @@ class Await final : public Suspend {
  private:
   friend class AstNodeFactory;
 
-  Await(Expression* expression, int pos, SuspendFlags flags)
-      : Suspend(kAwait, expression, pos, Suspend::kOnExceptionThrow, flags) {}
+  Await(Expression* expression, int pos)
+      : Suspend(kAwait, expression, pos, Suspend::kOnExceptionRethrow) {}
 };
 
 class Throw final : public Expression {
@@ -3401,23 +3379,20 @@ class AstNodeFactory final BASE_EMBEDDED {
     return assign;
   }
 
-  Suspend* NewSuspend(Expression* expression, int pos,
-                      Suspend::OnAbruptResume on_abrupt_resume,
-                      SuspendFlags flags) {
+  Suspend* NewYield(Expression* expression, int pos,
+                    Suspend::OnAbruptResume on_abrupt_resume) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_)
-        Suspend(AstNode::kSuspend, expression, pos, on_abrupt_resume, flags);
+    return new (zone_) Yield(expression, pos, on_abrupt_resume);
   }
 
-  YieldStar* NewYieldStar(Expression* expression, int pos, SuspendFlags flags) {
+  YieldStar* NewYieldStar(Expression* expression, int pos) {
     DCHECK_NOT_NULL(expression);
-    return new (zone_) YieldStar(expression, pos, flags);
+    return new (zone_) YieldStar(expression, pos);
   }
 
-  Await* NewAwait(Expression* expression, int pos, SuspendFlags flags) {
-    DCHECK(IsAwait(flags));
+  Await* NewAwait(Expression* expression, int pos) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_) Await(expression, pos, flags);
+    return new (zone_) Await(expression, pos);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {
@@ -3576,7 +3551,6 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
-
 
 }  // namespace internal
 }  // namespace v8

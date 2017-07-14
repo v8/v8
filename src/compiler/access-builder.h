@@ -109,10 +109,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSAsyncGeneratorObject::queue() field.
   static FieldAccess ForJSAsyncGeneratorObjectQueue();
 
-  // Provides access to JSAsyncGeneratorObject::await_input_or_debug_pos()
-  // field.
-  static FieldAccess ForJSAsyncGeneratorObjectAwaitInputOrDebugPos();
-
   // Provides access to JSAsyncGeneratorObject::awaited_promise() field.
   static FieldAccess ForJSAsyncGeneratorObjectAwaitedPromise();
 

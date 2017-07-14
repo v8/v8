@@ -1365,7 +1365,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   ast_context()->ProduceValue(expr, value);
 }
 
-void AstGraphBuilder::VisitSuspend(Suspend* expr) {
+void AstGraphBuilder::VisitYield(Yield* expr) {
   // Generator functions are supported only by going through Ignition first.
   UNREACHABLE();
 }

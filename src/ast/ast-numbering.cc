@@ -42,6 +42,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitVariableProxyReference(VariableProxy* node);
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
+  void VisitSuspend(Suspend* node);
 
   void VisitStatementsAndDeclarations(Block* node);
   void VisitStatements(ZoneList<Statement*>* statements);
@@ -236,6 +237,8 @@ void AstNumberingVisitor::VisitSuspend(Suspend* node) {
   IncrementNodeCount();
   Visit(node->expression());
 }
+
+void AstNumberingVisitor::VisitYield(Yield* node) { VisitSuspend(node); }
 
 void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
   VisitSuspend(node);

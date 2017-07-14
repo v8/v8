@@ -61,8 +61,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
 
   // Resume the {receiver} using our trampoline.
   Callable callable = CodeFactory::ResumeGenerator(isolate());
-  CallStub(callable, context, sent_value, generator, SmiConstant(resume_mode),
-           SmiConstant(static_cast<int>(SuspendFlags::kGeneratorAwait)));
+  CallStub(callable, context, sent_value, generator, SmiConstant(resume_mode));
 
   // The resulting Promise is a throwaway, so it doesn't matter what it
   // resolves to. What is important is that we don't end up keeping the

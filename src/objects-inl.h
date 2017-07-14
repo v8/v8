@@ -4902,8 +4902,6 @@ bool JSGeneratorObject::is_executing() const {
 }
 
 ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
-ACCESSORS(JSAsyncGeneratorObject, await_input_or_debug_pos, Object,
-          kAwaitInputOrDebugPosOffset)
 ACCESSORS(JSAsyncGeneratorObject, awaited_promise, HeapObject,
           kAwaitedPromiseOffset)
 

@@ -1351,6 +1351,11 @@ void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
+void FullCodeGenerator::VisitYield(Yield* expr) {
+  // Resumable functions are not supported.
+  UNREACHABLE();
+}
+
 void FullCodeGenerator::VisitYieldStar(YieldStar* expr) {
   // Resumable functions are not supported.
   UNREACHABLE();

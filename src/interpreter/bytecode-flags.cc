@@ -75,16 +75,6 @@ TestTypeOfFlags::LiteralFlag TestTypeOfFlags::Decode(uint8_t raw_flag) {
 }
 
 // static
-uint8_t SuspendGeneratorBytecodeFlags::Encode(SuspendFlags flags) {
-  return FlagsBits::encode(flags);
-}
-
-// static
-SuspendFlags SuspendGeneratorBytecodeFlags::Decode(uint8_t flags) {
-  return FlagsBits::decode(flags);
-}
-
-// static
 uint8_t StoreLookupSlotFlags::Encode(LanguageMode language_mode,
                                      LookupHoistingMode lookup_hoisting_mode) {
   DCHECK_IMPLIES(lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy,

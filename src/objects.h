@@ -4852,21 +4852,13 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   // undefined.
   DECL_ACCESSORS(queue, HeapObject)
 
-  // [await_input_or_debug_pos]
-  // Holds the value to resume generator with after an Await(), in order to
-  // avoid clobbering function.sent. If awaited_promise is not undefined, holds
-  // current bytecode offset for debugging instead.
-  DECL_ACCESSORS(await_input_or_debug_pos, Object)
-
   // [awaited_promise]
   // A reference to the Promise of an AwaitExpression.
   DECL_ACCESSORS(awaited_promise, HeapObject)
 
   // Layout description.
   static const int kQueueOffset = JSGeneratorObject::kSize;
-  static const int kAwaitInputOrDebugPosOffset = kQueueOffset + kPointerSize;
-  static const int kAwaitedPromiseOffset =
-      kAwaitInputOrDebugPosOffset + kPointerSize;
+  static const int kAwaitedPromiseOffset = kQueueOffset + kPointerSize;
   static const int kSize = kAwaitedPromiseOffset + kPointerSize;
 
  private:

@@ -165,7 +165,6 @@ struct ParserTypes<Parser> {
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ClassLiteral::Property* ClassLiteralProperty;
   typedef v8::internal::Suspend* Suspend;
-  typedef v8::internal::Await* Await;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* ObjectPropertyList;
   typedef ZoneList<ClassLiteral::Property*>* ClassPropertyList;
@@ -684,7 +683,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                        IteratorType type);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
-  V8_INLINE Expression* RewriteAwaitExpression(Expression* value, int pos);
   V8_INLINE void PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
                                           FunctionKind kind, int pos);
   V8_INLINE void RewriteAsyncFunctionBody(ZoneList<Statement*>* body,

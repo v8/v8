@@ -646,13 +646,11 @@ class PreParserFactory {
     // default value inside an arrow function parameter list.
     return PreParserExpression::Assignment(left.variables_);
   }
-  PreParserExpression NewSuspend(PreParserExpression expression, int pos,
-                                 Suspend::OnAbruptResume on_abrupt_resume,
-                                 SuspendFlags flags) {
+  PreParserExpression NewYield(PreParserExpression expression, int pos,
+                               Suspend::OnAbruptResume on_abrupt_resume) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewAwait(PreParserExpression expression, int pos,
-                               SuspendFlags flags) {
+  PreParserExpression NewAwait(PreParserExpression expression, int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewConditional(PreParserExpression condition,
@@ -863,7 +861,6 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression ObjectLiteralProperty;
   typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpression Suspend;
-  typedef PreParserExpression Await;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList ObjectPropertyList;
   typedef PreParserExpressionList ClassPropertyList;

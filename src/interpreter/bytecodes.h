@@ -316,7 +316,7 @@ namespace interpreter {
   /* Generators */                                                             \
   V(RestoreGeneratorState, AccumulatorUse::kWrite, OperandType::kReg)          \
   V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg,                \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kFlag8)        \
+    OperandType::kRegList, OperandType::kRegCount)                             \
   V(RestoreGeneratorRegisters, AccumulatorUse::kNone, OperandType::kReg,       \
     OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \

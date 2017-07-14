@@ -3256,14 +3256,13 @@ IGNITION_HANDLER(Illegal, InterpreterAssembler) { Abort(kInvalidBytecode); }
 // No operation.
 IGNITION_HANDLER(Nop, InterpreterAssembler) { Dispatch(); }
 
-// SuspendGenerator <generator> <first input register> <register count> <flags>
+// SuspendGenerator <generator> <first input register> <register count>
 //
 // Exports the register file and stores it into the generator.  Also stores the
 // current context, the state given in the accumulator, and the current bytecode
 // offset (for debugging purposes) into the generator.
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
-  Node* flags = BytecodeOperandFlag(3);
 
   Node* generator = LoadRegister(generator_reg);
 
@@ -3292,41 +3291,11 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
 
-  Label if_asyncgeneratorawait(this), if_notasyncgeneratorawait(this),
-      merge(this);
-
-  // Calculate bytecode offset to store in the [input_or_debug_pos] or
-  // [await_input_or_debug_pos] fields, to be used by the inspector.
+  // Store the bytecode offset in the [input_or_debug_pos] field, to be used by
+  // the inspector.
   Node* offset = SmiTag(BytecodeOffset());
-
-  using AsyncGeneratorAwaitBits = SuspendGeneratorBytecodeFlags::FlagsBits;
-  Branch(Word32Equal(DecodeWord32<AsyncGeneratorAwaitBits>(flags),
-                     Int32Constant(
-                         static_cast<int>(SuspendFlags::kAsyncGeneratorAwait))),
-         &if_asyncgeneratorawait, &if_notasyncgeneratorawait);
-
-  BIND(&if_notasyncgeneratorawait);
-  {
-    // For ordinary yields (and for AwaitExpressions in Async Functions, which
-    // are implemented as ordinary yields), it is safe to write over the
-    // [input_or_debug_pos] field.
-    StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
-                     offset);
-    Goto(&merge);
-  }
-
-  BIND(&if_asyncgeneratorawait);
-  {
-    // An AwaitExpression in an Async Generator requires writing to the
-    // [await_input_or_debug_pos] field.
-    CSA_ASSERT(this,
-               HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
-    StoreObjectField(
-        generator, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset, offset);
-    Goto(&merge);
-  }
-
-  BIND(&merge);
+  StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
+                   offset);
   Dispatch();
 
   BIND(&if_stepping);

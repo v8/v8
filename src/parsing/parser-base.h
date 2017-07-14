@@ -236,7 +236,6 @@ class ParserBase {
   typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
   typedef typename Types::Suspend SuspendExpressionT;
-  typedef typename Types::Await AwaitExpressionT;
   typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
@@ -1319,25 +1318,6 @@ class ParserBase {
   inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
     return is_async_function() ? factory()->NewAsyncReturnStatement(expr, pos)
                                : factory()->NewReturnStatement(expr, pos);
-  }
-
-  inline SuspendExpressionT BuildSuspend(
-      ExpressionT expr, int pos, Suspend::OnAbruptResume on_abrupt_resume,
-      SuspendFlags suspend_type) {
-    DCHECK_EQ(0,
-              static_cast<int>(suspend_type & ~SuspendFlags::kSuspendTypeMask));
-    if (V8_UNLIKELY(is_async_generator())) {
-      suspend_type = static_cast<SuspendFlags>(suspend_type |
-                                               SuspendFlags::kAsyncGenerator);
-    }
-    return factory()->NewSuspend(expr, pos, on_abrupt_resume, suspend_type);
-  }
-
-  inline AwaitExpressionT BuildAwait(ExpressionT expr, int pos) {
-    SuspendFlags flags = is_async_generator()
-                             ? SuspendFlags::kAsyncGeneratorAwait
-                             : SuspendFlags::kGeneratorAwait;
-    return factory()->NewAwait(expr, pos, flags);
   }
 
   // Validation per ES6 object literals.
@@ -2939,8 +2919,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
 
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  ExpressionT yield = BuildSuspend(expression, pos, Suspend::kOnExceptionThrow,
-                                   SuspendFlags::kYield);
+  ExpressionT yield =
+      factory()->NewYield(expression, pos, Suspend::kOnExceptionThrow);
   return yield;
 }
 
@@ -3116,7 +3096,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
 
     ExpressionT value = ParseUnaryExpression(CHECK_OK);
 
-    return BuildAwait(value, await_pos);
+    return factory()->NewAwait(value, await_pos);
   } else {
     return ParsePostfixExpression(ok);
   }

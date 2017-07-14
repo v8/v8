@@ -1437,11 +1437,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   }
 }
 
-void FullCodeGenerator::VisitSuspend(Suspend* expr) {
-  // Resumable functions are not supported.
-  UNREACHABLE();
-}
-
 void FullCodeGenerator::PushOperands(Register reg1, Register reg2) {
   OperandStackDepthIncrement(2);
   __ Push(reg1, reg2);

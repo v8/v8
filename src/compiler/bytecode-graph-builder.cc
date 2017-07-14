@@ -2364,8 +2364,6 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   CHECK_EQ(0, first_reg.index());
   int register_count =
       static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
-  SuspendFlags flags = interpreter::SuspendGeneratorBytecodeFlags::Decode(
-      bytecode_iterator().GetFlagOperand(3));
 
   // The offsets used by the bytecode iterator are relative to a different base
   // than what is used in the interpreter, hence the addition.
@@ -2384,8 +2382,8 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
         environment()->LookupRegister(interpreter::Register(i));
   }
 
-  MakeNode(javascript()->GeneratorStore(register_count, flags),
-           value_input_count, value_inputs, false);
+  MakeNode(javascript()->GeneratorStore(register_count), value_input_count,
+           value_inputs, false);
 }
 
 void BytecodeGraphBuilder::VisitRestoreGeneratorState() {

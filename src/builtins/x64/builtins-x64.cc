@@ -551,34 +551,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- rax    : the value to pass to the generator
   //  -- rbx    : the JSGeneratorObject to resume
   //  -- rdx    : the resume mode (tagged)
-  //  -- rcx    : the SuspendFlags of the earlier suspend call (tagged)
   //  -- rsp[0] : return address
   // -----------------------------------
-  // Untag rcx
-  __ shrq(rcx, Immediate(kSmiTagSize + kSmiShiftSize));
-  __ AssertGeneratorObject(rbx, rcx);
+  __ AssertGeneratorObject(rbx);
 
   // Store input value into generator object.
-  Label async_await, done_store_input;
-
-  __ andb(rcx, Immediate(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ cmpb(rcx, Immediate(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ j(equal, &async_await);
-
   __ movp(FieldOperand(rbx, JSGeneratorObject::kInputOrDebugPosOffset), rax);
   __ RecordWriteField(rbx, JSGeneratorObject::kInputOrDebugPosOffset, rax, rcx,
                       kDontSaveFPRegs);
-  __ j(always, &done_store_input, Label::kNear);
-
-  __ bind(&async_await);
-  __ movp(
-      FieldOperand(rbx, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset),
-      rax);
-  __ RecordWriteField(rbx, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
-                      rax, rcx, kDontSaveFPRegs);
-
-  __ bind(&done_store_input);
-  // `rcx` no longer holds SuspendFlags
 
   // Store resume mode into generator object.
   __ movp(FieldOperand(rbx, JSGeneratorObject::kResumeModeOffset), rdx);

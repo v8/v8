@@ -702,33 +702,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- r0 : the value to pass to the generator
   //  -- r1 : the JSGeneratorObject to resume
   //  -- r2 : the resume mode (tagged)
-  //  -- r3 : the SuspendFlags of the earlier suspend call (tagged)
   //  -- lr : return address
   // -----------------------------------
-  __ SmiUntag(r3);
-  __ AssertGeneratorObject(r1, r3);
+  __ AssertGeneratorObject(r1);
 
   // Store input value into generator object.
-  Label async_await, done_store_input;
-
-  __ And(r3, r3, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ cmp(r3, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ b(eq, &async_await);
-
   __ str(r0, FieldMemOperand(r1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(r1, JSGeneratorObject::kInputOrDebugPosOffset, r0, r3,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
-  __ jmp(&done_store_input);
-
-  __ bind(&async_await);
-  __ str(r0, FieldMemOperand(
-                 r1, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset));
-  __ RecordWriteField(r1, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
-                      r0, r3, kLRHasNotBeenSaved, kDontSaveFPRegs);
-  __ jmp(&done_store_input);
-
-  __ bind(&done_store_input);
-  // `r3` no longer holds SuspendFlags
 
   // Store resume mode into generator object.
   __ str(r2, FieldMemOperand(r1, JSGeneratorObject::kResumeModeOffset));
