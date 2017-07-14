@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --ignition --block-coverage
+// Flags: --allow-natives-syntax --no-always-opt --ignition --block-coverage --harmony-async-iteration
 // Flags: --no-stress-fullcodegen
 
 // Test precise code coverage.
@@ -202,6 +202,44 @@ TestCoverage(
  {"start":163,"end":253,"count":0},
  {"start":460,"end":553,"count":0},
  {"start":761,"end":951,"count":0}]
+);
+
+TestCoverage(
+"for-of and for-in statements",
+`
+!function() {                             // 0000
+  var i;                                  // 0050
+  for (i of [0,1,2,3]) { nop(); }         // 0100
+  for (let j of [0,1,2,3]) { nop(); }     // 0150
+  for (i in [0,1,2,3]) { nop(); }         // 0200
+  for (let j in [0,1,2,3]) { nop(); }     // 0250
+  var xs = [{a:0, b:1}, {a:1,b:0}];       // 0300
+  for (var {a: x, b: y} of xs) { nop(); } // 0350
+}();                                      // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":1,"end":401,"count":1},
+ {"start":123,"end":133,"count":4},
+ {"start":177,"end":187,"count":4},
+ {"start":223,"end":233,"count":4},
+ {"start":277,"end":287,"count":4},
+ {"start":381,"end":391,"count":2}]
+);
+
+TestCoverage(
+"for-await-of statements",
+`
+!async function() {                       // 0000
+  for await (var x of [0,1,2,3]) {        // 0050
+    nop();                                // 0100
+  }                                       // 0150
+}();                                      // 0200
+%RunMicrotasks();                         // 0250
+`,
+[{"start":0,"end":299,"count":1},
+ {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
+ {"start":83,"end":153,"count":4},
+ {"start":153,"end":201,"count":1}]
 );
 
 TestCoverage(
