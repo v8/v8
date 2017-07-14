@@ -779,6 +779,9 @@
               # that signed overflow does not occur. Generates false positives
               # (see http://crbug.com/v8/6341).
               "-Wno-strict-overflow",
+              # Don't rely on strict aliasing; v8 does weird pointer casts all
+              # over the place.
+              '-fno-strict-aliasing',
             ],
           }],
           [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
