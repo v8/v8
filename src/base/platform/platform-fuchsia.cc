@@ -38,7 +38,7 @@ void OS::SignalCodeMovingGC() {
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) {}
 
 VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(ReserveRegion(size)), size_(size) {
+    : address_(ReserveRegion(size, hint)), size_(size) {
   CHECK(false);  // TODO(fuchsia): Port, https://crbug.com/731217.
 }
 
