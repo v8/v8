@@ -125,7 +125,7 @@ class Handle final : public HandleBase {
 
   template <typename S>
   static const Handle<T> cast(Handle<S> that) {
-    T::cast(*reinterpret_cast<T**>(that.location_));
+    T::cast(*reinterpret_cast<T**>(that.location()));
     return Handle<T>(reinterpret_cast<T**>(that.location_));
   }
 
