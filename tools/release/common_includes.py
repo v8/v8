@@ -549,7 +549,8 @@ class Step(GitRecipesMixin):
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
     if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
-      self.Die("This is not a git checkout, this script won't work for you.")
+      self.Die("%s is not a git checkout. If you know what you're doing, try "
+               "deleting it and rerunning this script." % cwd)
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
