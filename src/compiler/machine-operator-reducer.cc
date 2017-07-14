@@ -800,8 +800,8 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
     int32_t const divisor = m.right().Value();
     Node* const dividend = m.left().node();
     Node* quotient = dividend;
-    if (divisor == kMinInt || base::bits::IsPowerOfTwo(Abs(divisor))) {
-      uint32_t const shift = WhichPowerOf2Abs(divisor);
+    if (base::bits::IsPowerOfTwo(Abs(divisor))) {
+      uint32_t const shift = WhichPowerOf2(Abs(divisor));
       DCHECK_NE(0u, shift);
       if (shift > 1) {
         quotient = Word32Sar(quotient, 31);
