@@ -1748,6 +1748,9 @@ class PreParser : public ParserBase<PreParser> {
                                         int32_t continuation_position) {}
   V8_INLINE void RecordCaseClauseSourceRange(PreParserStatement node,
                                              const SourceRange& body_range) {}
+  V8_INLINE void RecordConditionalSourceRange(PreParserExpression node,
+                                              const SourceRange& then_range,
+                                              const SourceRange& else_range) {}
   V8_INLINE void RecordIfStatementSourceRange(PreParserStatement node,
                                               const SourceRange& then_range,
                                               const SourceRange& else_range) {}

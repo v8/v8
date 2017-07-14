@@ -504,4 +504,38 @@ TestCoverage(
  {"start":621,"end":653,"count":0}]
 );
 
+TestCoverage(
+"conditional expressions",
+`
+var TRUE = true;                          // 0000
+var FALSE = false;                        // 0050
+!function() {                             // 0100
+  TRUE ? nop() : nop();                   // 0150
+  true ? nop() : nop();                   // 0200
+  false ? nop() : nop();                  // 0250
+  FALSE ? TRUE ? nop()                    // 0300
+               : nop()                    // 0350
+        : nop();                          // 0400
+  TRUE ? FALSE ? nop()                    // 0450
+               : nop()                    // 0500
+       : nop();                           // 0550
+  TRUE ? nop() : FALSE ? nop()            // 0600
+                       : nop();           // 0650
+  FALSE ? nop() : TRUE ? nop()            // 0700
+                       : nop();           // 0750
+}();                                      // 0800
+`,
+[{"start":0,"end":849,"count":1},
+ {"start":101,"end":801,"count":1},
+ {"start":167,"end":172,"count":0},
+ {"start":217,"end":222,"count":0},
+ {"start":260,"end":265,"count":0},
+ {"start":310,"end":372,"count":0},
+ {"start":467,"end":472,"count":0},
+ {"start":559,"end":564,"count":0},
+ {"start":617,"end":680,"count":0},
+ {"start":710,"end":715,"count":0},
+ {"start":775,"end":780,"count":0}]
+);
+
 %DebugToggleBlockCoverage(false);

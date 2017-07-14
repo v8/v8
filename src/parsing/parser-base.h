@@ -2953,6 +2953,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   //   LogicalOrExpression
   //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
 
+  SourceRange then_range, else_range;
   int pos = peek_position();
   // We start using the binary expression parser for prec >= 4 only!
   ExpressionT expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
@@ -2964,6 +2965,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
 
   ExpressionT left;
   {
+    SourceRangeScope range_scope(scanner(), &then_range);
     ExpressionClassifier classifier(this);
     // In parsing the first assignment expression in conditional
     // expressions we always accept the 'in' keyword; see ECMA-262,
@@ -2975,12 +2977,15 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   Expect(Token::COLON, CHECK_OK);
   ExpressionT right;
   {
+    SourceRangeScope range_scope(scanner(), &else_range);
     ExpressionClassifier classifier(this);
     right = ParseAssignmentExpression(accept_IN, CHECK_OK);
     AccumulateNonBindingPatternErrors();
   }
   impl()->RewriteNonPattern(CHECK_OK);
-  return factory()->NewConditional(expression, left, right, pos);
+  ExpressionT expr = factory()->NewConditional(expression, left, right, pos);
+  impl()->RecordConditionalSourceRange(expr, then_range, else_range);
+  return expr;
 }
 
 

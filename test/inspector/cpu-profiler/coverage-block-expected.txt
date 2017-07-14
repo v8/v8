@@ -305,6 +305,11 @@ Running test: testPreciseCountCoverageIncremental
                             }
                             [1] : {
                                 count : 0
+                                endOffset : 156
+                                startOffset : 145
+                            }
+                            [2] : {
+                                count : 0
                                 endOffset : 175
                                 startOffset : 173
                             }

@@ -1851,12 +1851,19 @@ void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
 }
 
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
+  int then_slot =
+      AllocateBlockCoverageSlotIfEnabled(expr, SourceRangeKind::kThen);
+  int else_slot =
+      AllocateBlockCoverageSlotIfEnabled(expr, SourceRangeKind::kElse);
+
   if (expr->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
     VisitForAccumulatorValue(expr->then_expression());
+    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
   } else if (expr->condition()->ToBooleanIsFalse()) {
     // Generate else block unconditionally if it exists.
     VisitForAccumulatorValue(expr->else_expression());
+    BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
   } else {
     BytecodeLabel end_label;
     BytecodeLabels then_labels(zone()), else_labels(zone());
@@ -1865,10 +1872,12 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
                  TestFallthrough::kThen);
 
     then_labels.Bind(builder());
+    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
     VisitForAccumulatorValue(expr->then_expression());
     builder()->Jump(&end_label);
 
     else_labels.Bind(builder());
+    BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
     VisitForAccumulatorValue(expr->else_expression());
     builder()->Bind(&end_label);
   }
