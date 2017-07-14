@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#if !V8_OS_QNX && !V8_OS_AIX
+#if !V8_OS_QNX && !V8_OS_FUCHSIA && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
 #endif
 

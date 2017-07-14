@@ -57,7 +57,7 @@
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
 
-#ifndef _AIX
+#if !defined(_AIX) && !defined(V8_OS_FUCHSIA)
 #include <sys/syscall.h>
 #endif
 
