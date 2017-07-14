@@ -153,9 +153,6 @@ class TransitionArray: public FixedArray {
   inline Map* GetTarget(int transition_number);
   inline void SetTarget(int transition_number, Map* target);
 
-  static inline std::pair<Name*, Map*> GetKeyAndTarget(Object* raw_transitions,
-                                                       int transition_number);
-
   static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
 
   // Returns the number of transitions in the array.

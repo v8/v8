@@ -617,7 +617,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
       *split_map, split_details.kind(), GetKey(split_nof),
       split_details.attributes());
   if (maybe_transition != NULL) {
-    maybe_transition->DeprecateTransitionTree(isolate_);
+    maybe_transition->DeprecateTransitionTree();
   }
 
   // If |maybe_transition| is not NULL then the transition array already

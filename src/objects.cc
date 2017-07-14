@@ -4239,21 +4239,13 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
   return new_map;
 }
 
-void Map::DeprecateTransitionTree(Isolate* isolate) {
-  DisallowHeapAllocation no_allocation;
+
+void Map::DeprecateTransitionTree() {
   if (is_deprecated()) return;
-  Symbol* elements_transition_shortcut_symbol =
-      isolate->heap()->elements_transition_shortcut_symbol();
   Object* transitions = raw_transitions();
   int num_transitions = TransitionArray::NumberOfTransitions(transitions);
   for (int i = 0; i < num_transitions; ++i) {
-    Name* key;
-    Map* target;
-    std::tie(key, target) = TransitionArray::GetKeyAndTarget(transitions, i);
-    // Don't follow transition shortcuts during deprecation, otherwise
-    // we will deprecate unrelated maps.
-    if (key == elements_transition_shortcut_symbol) continue;
-    target->DeprecateTransitionTree(isolate);
+    TransitionArray::GetTarget(transitions, i)->DeprecateTransitionTree();
   }
   DCHECK(!constructor_or_backpointer()->IsFunctionTemplateInfo());
   deprecate();
@@ -4321,19 +4313,16 @@ Map* Map::FindFieldOwner(int descriptor) const {
   return const_cast<Map*>(result);
 }
 
-bool Map::UpdateFieldType(int descriptor, Handle<Name> name,
+void Map::UpdateFieldType(int descriptor, Handle<Name> name,
                           PropertyConstness new_constness,
                           Representation new_representation,
                           Handle<Object> new_wrapped_type) {
-  bool has_elements_transition_shortcut = false;
   DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakCell());
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
-  if (details.location() != kField) return has_elements_transition_shortcut;
+  if (details.location() != kField) return;
   DCHECK_EQ(kData, details.kind());
-  Symbol* elements_transition_shortcut_symbol =
-      GetHeap()->elements_transition_shortcut_symbol();
 
   Zone zone(GetIsolate()->allocator(), ZONE_NAME);
   ZoneQueue<Map*> backlog(&zone);
@@ -4346,16 +4335,7 @@ bool Map::UpdateFieldType(int descriptor, Handle<Name> name,
     Object* transitions = current->raw_transitions();
     int num_transitions = TransitionArray::NumberOfTransitions(transitions);
     for (int i = 0; i < num_transitions; ++i) {
-      Name* key;
-      Map* target;
-      std::tie(key, target) = TransitionArray::GetKeyAndTarget(transitions, i);
-      if (key == elements_transition_shortcut_symbol) {
-        // Handling of elements kind transition shortcuts may also require
-        // deoptimization of dependent code, Map::GeneralizeField() takes
-        // care of this case.
-        has_elements_transition_shortcut = true;
-        continue;
-      }
+      Map* target = TransitionArray::GetTarget(transitions, i);
       backlog.push(target);
     }
     DescriptorArray* descriptors = current->instance_descriptors();
@@ -4379,7 +4359,6 @@ bool Map::UpdateFieldType(int descriptor, Handle<Name> name,
       descriptors->Replace(descriptor, &d);
     }
   }
-  return has_elements_transition_shortcut;
 }
 
 bool FieldTypeIsCleared(Representation rep, FieldType* type) {
@@ -4404,6 +4383,7 @@ Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
   return FieldType::Any(isolate);
 }
 
+
 // static
 void Map::GeneralizeField(Handle<Map> map, int modify_index,
                           PropertyConstness new_constness,
@@ -4411,73 +4391,58 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
                           Handle<FieldType> new_field_type) {
   Isolate* isolate = map->GetIsolate();
 
-  for (;;) {
-    // Check if we actually need to generalize the field type at all.
-    Handle<DescriptorArray> old_descriptors(map->instance_descriptors(),
-                                            isolate);
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    PropertyConstness old_constness = old_details.constness();
-    Representation old_representation = old_details.representation();
-    Handle<FieldType> old_field_type(
-        old_descriptors->GetFieldType(modify_index), isolate);
+  // Check if we actually need to generalize the field type at all.
+  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
+  PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
+  PropertyConstness old_constness = old_details.constness();
+  Representation old_representation = old_details.representation();
+  Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
+                                   isolate);
 
-    // Return if the current map is general enough to hold requested constness
-    // and representation/field type.
-    if (((FLAG_modify_map_inplace &&
-          IsGeneralizableTo(new_constness, old_constness)) ||
-         (!FLAG_modify_map_inplace && (old_constness == new_constness))) &&
-        old_representation.Equals(new_representation) &&
-        !FieldTypeIsCleared(new_representation, *new_field_type) &&
-        // Checking old_field_type for being cleared is not necessary because
-        // the NowIs check below would fail anyway in that case.
-        new_field_type->NowIs(old_field_type)) {
-      DCHECK(GeneralizeFieldType(old_representation, old_field_type,
-                                 new_representation, new_field_type, isolate)
-                 ->NowIs(old_field_type));
-      return;
-    }
+  // Return if the current map is general enough to hold requested contness and
+  // representation/field type.
+  if (((FLAG_modify_map_inplace &&
+        IsGeneralizableTo(new_constness, old_constness)) ||
+       (!FLAG_modify_map_inplace && (old_constness == new_constness))) &&
+      old_representation.Equals(new_representation) &&
+      !FieldTypeIsCleared(new_representation, *new_field_type) &&
+      // Checking old_field_type for being cleared is not necessary because
+      // the NowIs check below would fail anyway in that case.
+      new_field_type->NowIs(old_field_type)) {
+    DCHECK(GeneralizeFieldType(old_representation, old_field_type,
+                               new_representation, new_field_type, isolate)
+               ->NowIs(old_field_type));
+    return;
+  }
 
-    // Determine the field owner.
-    Handle<Map> field_owner(map->FindFieldOwner(modify_index), isolate);
-    Handle<DescriptorArray> descriptors(field_owner->instance_descriptors(),
-                                        isolate);
-    DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
+  // Determine the field owner.
+  Handle<Map> field_owner(map->FindFieldOwner(modify_index), isolate);
+  Handle<DescriptorArray> descriptors(
+      field_owner->instance_descriptors(), isolate);
+  DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
 
-    new_field_type =
-        Map::GeneralizeFieldType(old_representation, old_field_type,
-                                 new_representation, new_field_type, isolate);
-    if (FLAG_modify_map_inplace) {
-      new_constness = GeneralizeConstness(old_constness, new_constness);
-    }
+  new_field_type =
+      Map::GeneralizeFieldType(old_representation, old_field_type,
+                               new_representation, new_field_type, isolate);
+  if (FLAG_modify_map_inplace) {
+    new_constness = GeneralizeConstness(old_constness, new_constness);
+  }
 
-    PropertyDetails details = descriptors->GetDetails(modify_index);
-    Handle<Name> name(descriptors->GetKey(modify_index));
+  PropertyDetails details = descriptors->GetDetails(modify_index);
+  Handle<Name> name(descriptors->GetKey(modify_index));
 
-    Handle<Object> wrapped_type(WrapFieldType(new_field_type));
-    bool has_elements_transition_shortcut = field_owner->UpdateFieldType(
-        modify_index, name, new_constness, new_representation, wrapped_type);
-    field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kFieldOwnerGroup);
+  Handle<Object> wrapped_type(WrapFieldType(new_field_type));
+  field_owner->UpdateFieldType(modify_index, name, new_constness,
+                               new_representation, wrapped_type);
+  field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
+      isolate, DependentCode::kFieldOwnerGroup);
 
-    if (FLAG_trace_generalization) {
-      map->PrintGeneralization(
-          stdout, "field type generalization", modify_index,
-          map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
-          details.representation(), details.representation(), old_field_type,
-          MaybeHandle<Object>(), new_field_type, MaybeHandle<Object>());
-    }
-
-    if (!has_elements_transition_shortcut) {
-      // Nothing else to be done here.
-      break;
-    }
-
-    // Repeat generalization procedure for the target of elements kind
-    // transition shortcut and updated |new_field_type| and |new_constness|.
-    Map* transition = TransitionArray::SearchSpecial(
-        *field_owner, isolate->heap()->elements_transition_shortcut_symbol());
-    DCHECK(transition);
-    map = handle(transition, isolate);
+  if (FLAG_trace_generalization) {
+    map->PrintGeneralization(
+        stdout, "field type generalization", modify_index,
+        map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
+        details.representation(), details.representation(), old_field_type,
+        MaybeHandle<Object>(), new_field_type, MaybeHandle<Object>());
   }
 }
 
@@ -4487,14 +4452,14 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
                                      PropertyKind new_kind,
                                      PropertyAttributes new_attributes,
                                      Representation new_representation,
-                                     Handle<FieldType> new_field_type,
-                                     PropertyConstness new_constness) {
+                                     Handle<FieldType> new_field_type) {
   DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
   MapUpdater mu(map->GetIsolate(), map);
-  return mu.ReconfigureToDataField(modify_index, new_attributes, new_constness,
+  return mu.ReconfigureToDataField(modify_index, new_attributes, kConst,
                                    new_representation, new_field_type);
 }
 
+// TODO(ishell): remove.
 // static
 Handle<Map> Map::ReconfigureElementsKind(Handle<Map> map,
                                          ElementsKind new_elements_kind) {
@@ -9206,114 +9171,6 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   return new_map;
 }
 
-// Find the right place for the elements kind transition shortcut in the chain
-// of elements kind transitions shortcuts starting from |map|.
-void Map::InsertElementsKindTransitionShortcut(Isolate* isolate,
-                                               Handle<Map> map,
-                                               Handle<Map> transition) {
-  DCHECK_NE(*map, *transition);
-
-  Handle<Symbol> name =
-      isolate->factory()->elements_transition_shortcut_symbol();
-  ElementsKind transition_elements_kind = transition->elements_kind();
-
-  for (;;) {
-    Map* maybe_transition = TransitionArray::SearchSpecial(*map, *name);
-    // If shortcut to the |transition| is already added then we are done.
-    if (maybe_transition == *transition) return;
-    // If we reach the end of elements kind transition chain then this is
-    // point where we are going to add the shortcut |map|->|transition|.
-    if (maybe_transition == NULL) break;
-
-    Handle<Map> next_map(maybe_transition, isolate);
-    DCHECK_NE(maybe_transition->elements_kind(), transition_elements_kind);
-    if (!IsMoreGeneralElementsKindTransition(maybe_transition->elements_kind(),
-                                             transition_elements_kind)) {
-      // |maybe_transition| has more general elements kind than |transition|,
-      // so rewire the chain this way: |map|->|transition|->|maybe_transition|.
-      Map::ConnectTransition(map, transition, name,
-                             SPECIAL_SHORTCUT_TRANSITION);
-      Map::ConnectTransition(transition, next_map, name,
-                             SPECIAL_SHORTCUT_TRANSITION);
-      return;
-    }
-    map = next_map;
-  }
-  Map::ConnectTransition(map, transition, name, SPECIAL_SHORTCUT_TRANSITION);
-}
-
-// Register elements kind transition shortcuts from |map| to |transition|.
-// When polymorphic keyed IC has maps that differs only in elements kind then
-// we may generate an IC handler or optimized code that will perform elements
-// kind transition to most general elements kind among the maps recorded by
-// the IC. In a case when maps have fields that can be generalized inplace
-// (for example, when the field has HeapObject representation with non-any
-// field type) we have to ensure that the generalization is properly propagated
-// from source map of elements kind transition to the target map.
-// Otherwise we may end up having an object with a field value that does not
-// match the field type after elements kind transition.
-// Consider the following example:
-//
-//   + - p0 - p1 - ... - pN: |transition|
-//   ^    ^    ^          ^
-//   |    |    |          |
-//  ek   {   ek shortcuts  }
-//   |    |    |          |
-//  {} - p0 - p1 - ... - pN: |map|
-//
-// The function inserts the shortcut links from every field owner map with
-// source elements kind to respective field owner map with target elements kind.
-// The shortcut links are treated differently during transition DAG traversal:
-//  - We don't deprecate maps through shortcut links,
-//  - When we generalize a field we follow only that field's shortcut link.
-// The elements kind transition shortcuts are chained the same way we chain
-// ordinary elements kind transitions (from less general to more general
-// elements kinds).
-void Map::RegisterElementsKindTransitionShortcut(Handle<Map> map,
-                                                 Handle<Map> transition) {
-  DCHECK_NE(*map, *transition);
-  DCHECK(map->EquivalentToForTransition(*transition));
-  DCHECK(IsMoreGeneralElementsKindTransition(map->elements_kind(),
-                                             transition->elements_kind()));
-#ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
-    // Ensure that all fields in |transition| are compatible with fields
-    // in |map|. Otherwise it's incorrect to register such an elements kind
-    // transition.
-    MapHandles map_list;
-    map_list.push_back(transition);
-    Map* transitioned_map = map->FindElementsKindTransitionedMap(map_list);
-    CHECK_EQ(*transition, transitioned_map);
-  }
-#endif
-
-  int root_nof;
-  {
-    Map* root_map = map->FindRootMap();
-    root_nof = root_map->NumberOfOwnDescriptors();
-    if (map->NumberOfOwnDescriptors() == root_nof) {
-      // If there were no descriptors added from the root map then the shortcut
-      // transition is not needed because at this position we will insert
-      // regular elements kind transitions.
-      // At this point the map must have already been marked as unstable.
-      DCHECK(!map->is_stable());
-      return;
-    }
-  }
-
-  Isolate* isolate = map->GetIsolate();
-  while (map->NumberOfOwnDescriptors() != root_nof) {
-    map->NotifyLeafMapLayoutChange();
-    // TODO(ishell): insert shortcut only when there's anything to propagate
-    // from |map| to |transition| (when |transition|'s last descriptor is
-    // a constant field or a field with non-"any" field type).
-    InsertElementsKindTransitionShortcut(isolate, map, transition);
-
-    map = handle(Map::cast(map->GetBackPointer()), isolate);
-    transition = handle(Map::cast(transition->GetBackPointer()), isolate);
-  }
-}
-
 Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
                                 Handle<SharedFunctionInfo> shared_info) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
@@ -9575,7 +9432,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                 constructor->context()->native_context()->object_function());
       Handle<Map> initial_map(constructor->initial_map(), isolate);
       result = Map::Normalize(initial_map, CLEAR_INOBJECT_PROPERTIES, reason);
-      initial_map->DeprecateTransitionTree(isolate);
+      initial_map->DeprecateTransitionTree();
       Handle<Object> prototype(result->prototype(), isolate);
       JSFunction::SetInitialMap(constructor, result, prototype);
 
