@@ -98,18 +98,6 @@ void TransitionArray::SetTarget(int transition_number, Map* value) {
   set(ToTargetIndex(transition_number), value);
 }
 
-std::pair<Name*, Map*> TransitionArray::GetKeyAndTarget(Object* raw_transitions,
-                                                        int transition_number) {
-  if (IsSimpleTransition(raw_transitions)) {
-    DCHECK(transition_number == 0);
-    Map* transition = GetSimpleTransition(raw_transitions);
-    return std::make_pair(GetSimpleTransitionKey(transition), transition);
-  }
-  DCHECK(IsFullTransitionArray(raw_transitions));
-  TransitionArray* transition_array = TransitionArray::cast(raw_transitions);
-  return std::make_pair(transition_array->GetKey(transition_number),
-                        transition_array->GetTarget(transition_number));
-}
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
   DCHECK(name->IsUniqueName());
@@ -125,7 +113,6 @@ bool TransitionArray::IsSpecialTransition(Name* name) {
   return name == heap->nonextensible_symbol() ||
          name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
          name == heap->elements_transition_symbol() ||
-         name == heap->elements_transition_shortcut_symbol() ||
          name == heap->strict_function_transition_symbol();
 }
 #endif
