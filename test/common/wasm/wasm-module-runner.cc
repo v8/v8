@@ -93,6 +93,7 @@ int32_t InterpretWasmModule(Isolate* isolate,
 
   WasmInterpreter* interpreter =
       WasmDebugInfo::SetupForTesting(instance, nullptr);
+  WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
   thread->InitFrame(&(instance->module()->functions[function_index]), args);

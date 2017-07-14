@@ -140,6 +140,19 @@ class InterpretedFrame {
 // An interpreter capable of executing WebAssembly.
 class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
+  // Open a HeapObjectsScope before running any code in the interpreter which
+  // needs access to the instance object or needs to call to JS functions.
+  class V8_EXPORT_PRIVATE HeapObjectsScope {
+   public:
+    HeapObjectsScope(WasmInterpreter* interpreter,
+                     Handle<WasmInstanceObject> instance);
+    ~HeapObjectsScope();
+
+   private:
+    char data[3 * sizeof(void*)];  // must match sizeof(HeapObjectsScopeImpl).
+    DISALLOW_COPY_AND_ASSIGN(HeapObjectsScope);
+  };
+
   // State machine for a Thread:
   //                         +---------Run()/Step()--------+
   //                         V                             |
@@ -235,13 +248,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
   // Enable or disable tracing for {function}. Return the previous state.
   bool SetTracing(const WasmFunction* function, bool enabled);
-
-  // Set the associated wasm instance object.
-  // If the instance object has been set, some tables stored inside it are used
-  // instead of the tables stored in the WasmModule struct. This allows to call
-  // back and forth between the interpreter and outside code (JS or wasm
-  // compiled) without repeatedly copying information.
-  void SetInstanceObject(WasmInstanceObject*);
 
   //==========================================================================
   // Thread iteration and inspection.
