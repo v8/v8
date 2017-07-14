@@ -2646,8 +2646,9 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   // existing receiver on the stack.
   __ AddP(r2, r2, Operand(2));
   // Tail-call to the runtime.
+  // This used to be a call to JSProxyCall which is now a CSA builtin
   __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyCall, masm->isolate()));
+      ExternalReference(Runtime::kAbort, masm->isolate()));
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
