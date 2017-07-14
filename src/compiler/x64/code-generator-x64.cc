@@ -41,7 +41,7 @@ class X64OperandConverter : public InstructionOperandConverter {
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
     if (constant.type() == Constant::kFloat64) {
-      DCHECK_EQ(0, bit_cast<int64_t>(constant.ToFloat64()));
+      DCHECK_EQ(0, constant.ToFloat64().AsUint64());
       return Immediate(0);
     }
     if (RelocInfo::IsWasmReference(constant.rmode())) {
@@ -3192,7 +3192,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ MoveNumber(dst, src.ToFloat32());
           break;
         case Constant::kFloat64:
-          __ MoveNumber(dst, src.ToFloat64());
+          __ MoveNumber(dst, src.ToFloat64().value());
           break;
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());
@@ -3226,7 +3226,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
-      uint64_t src_const = bit_cast<uint64_t>(src.ToFloat64());
+      uint64_t src_const = src.ToFloat64().AsUint64();
       if (destination->IsFPRegister()) {
         __ Move(g.ToDoubleRegister(destination), src_const);
       } else {

@@ -65,8 +65,8 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return Operand(
             isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
       case Constant::kFloat64:
-        return Operand(
-            isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
+        return Operand(isolate()->factory()->NewNumber(
+            constant.ToFloat64().value(), TENURED));
       case Constant::kInt64:
 #if V8_TARGET_ARCH_PPC64
         return Operand(constant.ToInt64());
@@ -2424,8 +2424,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                   isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
           break;
         case Constant::kFloat64:
-          __ Move(dst,
-                  isolate()->factory()->NewNumber(src.ToFloat64(), TENURED));
+          __ Move(dst, isolate()->factory()->NewNumber(src.ToFloat64().value(),
+                                                       TENURED));
           break;
         case Constant::kExternalReference:
           __ mov(dst, Operand(src.ToExternalReference()));
@@ -2466,7 +2466,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           value = Double(static_cast<double>(src.ToFloat32()));
         }
       } else {
-        value = Double(src.ToFloat64AsInt());
+        value = src.ToFloat64();
       }
 #else
       value = Double((src.type() == Constant::kFloat32)

@@ -151,7 +151,9 @@ class InstructionOperandConverter {
         ConstantOperand::cast(op)->virtual_register());
   }
 
-  double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }
+  double ToDouble(InstructionOperand* op) {
+    return ToConstant(op).ToFloat64().value();
+  }
 
   float ToFloat32(InstructionOperand* op) { return ToConstant(op).ToFloat32(); }
 

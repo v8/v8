@@ -962,7 +962,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
                type.representation() == MachineRepresentation::kTagged);
-        literal = DeoptimizationLiteral(constant.ToFloat64());
+        literal = DeoptimizationLiteral(constant.ToFloat64().value());
         break;
       case Constant::kHeapObject:
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());

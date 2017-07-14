@@ -71,8 +71,8 @@ class X87OperandConverter : public InstructionOperandConverter {
         return Immediate(
             isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
       case Constant::kFloat64:
-        return Immediate(
-            isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
+        return Immediate(isolate()->factory()->NewNumber(
+            constant.ToFloat64(value()).value(), TENURED));
       case Constant::kExternalReference:
         return Immediate(constant.ToExternalReference());
       case Constant::kHeapObject:
@@ -1080,7 +1080,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Constant src_constant = g.ToConstant(source);
 
       DCHECK_EQ(Constant::kFloat64, src_constant.type());
-      uint64_t src = bit_cast<uint64_t>(src_constant.ToFloat64());
+      uint64_t src = src_constant.ToFloat64().AsUint64();
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
       if (destination->IsFPRegister()) {
@@ -2600,7 +2600,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src_constant.type());
-      uint64_t src = src_constant.ToFloat64AsInt();
+      uint64_t src = src_constant.ToFloat64().AsUint64();
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
       if (destination->IsFPRegister()) {

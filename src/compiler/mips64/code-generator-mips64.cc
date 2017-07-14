@@ -82,7 +82,7 @@ class MipsOperandConverter final : public InstructionOperandConverter {
       case Constant::kFloat32:
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
-        return Operand::EmbeddedNumber(constant.ToFloat64());
+        return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kExternalReference:
       case Constant::kHeapObject:
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
@@ -3588,7 +3588,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         case Constant::kFloat64:
-          __ li(dst, Operand::EmbeddedNumber(src.ToFloat64()));
+          __ li(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
         case Constant::kExternalReference:
           __ li(dst, Operand(src.ToExternalReference()));
@@ -3627,7 +3627,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      __ Move(dst, src.ToFloat64());
+      __ Move(dst, src.ToFloat64().value());
       if (destination->IsFPStackSlot()) {
         __ Sdc1(dst, g.ToMemOperand(destination));
       }

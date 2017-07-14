@@ -228,7 +228,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case Constant::kFloat32:
         return Operand(Operand::EmbeddedNumber(constant.ToFloat32()));
       case Constant::kFloat64:
-        return Operand(Operand::EmbeddedNumber(constant.ToFloat64()));
+        return Operand(Operand::EmbeddedNumber(constant.ToFloat64().value()));
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
       case Constant::kHeapObject:
@@ -2658,15 +2658,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DCHECK_EQ(Constant::kFloat64, src.type());
       if (destination->IsFPRegister()) {
         VRegister dst = g.ToDoubleRegister(destination);
-        __ Fmov(dst, src.ToFloat64());
+        __ Fmov(dst, src.ToFloat64().value());
       } else {
         DCHECK(destination->IsFPStackSlot());
-        if (bit_cast<int64_t>(src.ToFloat64()) == 0) {
+        if (src.ToFloat64().AsUint64() == 0) {
           __ Str(xzr, g.ToMemOperand(destination, tasm()));
         } else {
           UseScratchRegisterScope scope(tasm());
           VRegister temp = scope.AcquireD();
-          __ Fmov(temp, src.ToFloat64());
+          __ Fmov(temp, src.ToFloat64().value());
           __ Str(temp, g.ToMemOperand(destination, tasm()));
         }
       }

@@ -15,6 +15,7 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
+#include "src/double.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
@@ -1074,20 +1075,9 @@ class V8_EXPORT_PRIVATE Constant final {
     return bit_cast<uint32_t>(static_cast<int32_t>(value_));
   }
 
-  double ToFloat64() const {
-    // TODO(ahaas): We should remove this function. If value_ has the bit
-    // representation of a signalling NaN, then returning it as float can cause
-    // the signalling bit to flip, and value_ is returned as a quiet NaN.
-    if (type() == kInt32) return ToInt32();
+  Double ToFloat64() const {
     DCHECK_EQ(kFloat64, type());
-    return bit_cast<double>(value_);
-  }
-
-  // TODO(ahaas) Use the Double class instead of uint64_t.
-  uint64_t ToFloat64AsInt() const {
-    if (type() == kInt32) return ToInt32();
-    DCHECK_EQ(kFloat64, type());
-    return bit_cast<uint64_t>(value_);
+    return Double(bit_cast<uint64_t>(value_));
   }
 
   ExternalReference ToExternalReference() const {

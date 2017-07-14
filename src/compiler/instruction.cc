@@ -576,7 +576,7 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
     case Constant::kFloat32:
       return os << constant.ToFloat32() << "f";
     case Constant::kFloat64:
-      return os << constant.ToFloat64();
+      return os << constant.ToFloat64().value();
     case Constant::kExternalReference:
       return os << static_cast<const void*>(
                        constant.ToExternalReference().address());

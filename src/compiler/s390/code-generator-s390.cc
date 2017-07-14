@@ -59,8 +59,8 @@ class S390OperandConverter final : public InstructionOperandConverter {
         return Operand(
             isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
       case Constant::kFloat64:
-        return Operand(
-            isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
+        return Operand(isolate()->factory()->NewNumber(
+            constant.ToFloat64().value(), TENURED));
       case Constant::kInt64:
 #if V8_TARGET_ARCH_S390X
         return Operand(constant.ToInt64());
@@ -2794,8 +2794,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                   isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
           break;
         case Constant::kFloat64:
-          __ Move(dst,
-                  isolate()->factory()->NewNumber(src.ToFloat64(), TENURED));
+          __ Move(dst, isolate()->factory()->NewNumber(src.ToFloat64().value(),
+                                                       TENURED));
           break;
         case Constant::kExternalReference:
           __ mov(dst, Operand(src.ToExternalReference()));
@@ -2821,8 +2821,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      double value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                        : src.ToFloat64();
+      double value = (src.type() == Constant::kFloat32)
+                         ? src.ToFloat32()
+                         : src.ToFloat64().value();
       if (src.type() == Constant::kFloat32) {
         __ LoadFloat32Literal(dst, src.ToFloat32(), kScratchReg);
       } else {
