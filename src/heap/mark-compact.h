@@ -24,8 +24,6 @@ class ItemParallelJob;
 class MigrationObserver;
 class RecordMigratedSlotVisitor;
 class YoungGenerationMarkingVisitor;
-template <typename EntryType, int SEGMENT_SIZE>
-class Worklist;
 
 class ObjectMarking : public AllStatic {
  public:

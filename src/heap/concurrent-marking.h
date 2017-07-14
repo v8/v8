@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/cancelable-task.h"
+#include "src/heap/worklist.h"
 #include "src/utils.h"
 #include "src/v8.h"
 
@@ -15,8 +16,6 @@ namespace internal {
 
 class Heap;
 class Isolate;
-template <typename EntryType, int SEGMENT_SIZE>
-class Worklist;
 
 class ConcurrentMarking {
  public:

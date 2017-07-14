@@ -44,6 +44,8 @@ class Worklist {
     // thread without concurrent access.
     bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
 
+    bool IsGlobalPoolEmpty() { return worklist_->IsGlobalPoolEmpty(); }
+
     size_t LocalPushSegmentSize() {
       return worklist_->LocalPushSegmentSize(task_id_);
     }
