@@ -874,8 +874,6 @@
         'compiler/state-values-utils.h',
         'compiler/store-store-elimination.cc',
         'compiler/store-store-elimination.h',
-        'compiler/tail-call-optimization.cc',
-        'compiler/tail-call-optimization.h',
         'compiler/types.cc',
         'compiler/types.h',
         'compiler/type-cache.cc',

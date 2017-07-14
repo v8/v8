@@ -64,7 +64,6 @@
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
-#include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -1346,13 +1345,11 @@ struct LateOptimizationPhase {
                                          data->common(), data->machine());
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
-    TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &select_lowering);
-    AddReducer(data, &graph_reducer, &tco);
     AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
