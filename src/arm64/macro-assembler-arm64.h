@@ -1146,8 +1146,7 @@ class TurboAssembler : public Assembler {
 
   inline void Mrs(const Register& rt, SystemRegister sysreg);
 
-  // Generates function and stub prologue code.
-  void StubPrologue(StackFrame::Type type, int frame_slots);
+  // Generates function prologue code.
   void Prologue(bool code_pre_aging);
 
   // Code ageing support functions.
@@ -1731,15 +1730,11 @@ class MacroAssembler : public TurboAssembler {
   void StoreRoot(Register source,
                  Heap::RootListIndex index);
 
-  // Load both TrueValue and FalseValue roots.
-  void LoadTrueFalseRoots(Register true_root, Register false_root);
-
   static int SafepointRegisterStackIndex(int reg_code);
 
   void LoadInstanceDescriptors(Register map,
                                Register descriptors);
   void EnumLengthUntagged(Register dst, Register map);
-  void EnumLengthSmi(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
                     AccessorComponent accessor);
@@ -1814,40 +1809,6 @@ class MacroAssembler : public TurboAssembler {
   void JumpIfNotHeapNumber(Register object, Label* on_not_heap_number,
                            SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
 
-  // Sets the vs flag if the input is -0.0.
-  void TestForMinusZero(DoubleRegister input);
-
-  // Jump to label if the input double register contains -0.0.
-  void JumpIfMinusZero(DoubleRegister input, Label* on_negative_zero);
-
-  // Jump to label if the input integer register contains the double precision
-  // floating point representation of -0.0.
-  void JumpIfMinusZero(Register input, Label* on_negative_zero);
-
-  // Saturate a signed 32-bit integer in input to an unsigned 8-bit integer in
-  // output.
-  void ClampInt32ToUint8(Register in_out);
-  void ClampInt32ToUint8(Register output, Register input);
-
-  // Saturate a double in input to an unsigned 8-bit integer in output.
-  void ClampDoubleToUint8(Register output,
-                          DoubleRegister input,
-                          DoubleRegister dbl_scratch);
-
-  // Try to represent a double as a signed 32-bit int.
-  // This succeeds if the result compares equal to the input, so inputs of -0.0
-  // are represented as 0 and handled as a success.
-  //
-  // On output the Z flag is set if the operation was successful.
-  void TryRepresentDoubleAsInt32(Register as_int, VRegister value,
-                                 VRegister scratch_d,
-                                 Label* on_successful_conversion = NULL,
-                                 Label* on_failed_conversion = NULL) {
-    DCHECK(as_int.Is32Bits());
-    TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
-                            on_failed_conversion);
-  }
-
   // Try to represent a double as a signed 64-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
   // are represented as 0 and handled as a success.
@@ -1861,14 +1822,6 @@ class MacroAssembler : public TurboAssembler {
     TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
                             on_failed_conversion);
   }
-
-  // ---- Object Utilities ----
-
-  // Initialize fields with filler values.  Fields starting at |current_address|
-  // not including |end_address| are overwritten with the value in |filler|.  At
-  // the end the loop, |current_address| takes the value of |end_address|.
-  void InitializeFieldsWithFiller(Register current_address,
-                                  Register end_address, Register filler);
 
   // ---- String Utilities ----
 
@@ -1957,23 +1910,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
-
-
-  // ---- Floating point helpers ----
-
-  // Performs a truncating conversion of a heap number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
-  // must be different registers.  Exits with 'result' holding the answer.
-  void TruncateHeapNumberToI(Register result, Register object);
-
-  // Converts the smi or heap number in object to an int32 using the rules
-  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
-  // different registers.
-  void TruncateNumberToI(Register object,
-                         Register result,
-                         Register heap_number_map,
-                         Label* not_int32);
 
   // ---- Code generation helpers ----
 
@@ -2117,10 +2053,6 @@ class MacroAssembler : public TurboAssembler {
   // miss label if the weak cell was cleared.
   void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
-  // Test the bitfield of the heap object map with mask and set the condition
-  // flags. The object register is preserved.
-  void TestMapBitfield(Register object, uint64_t mask);
-
   // Load the elements kind field from a map, and return it in the result
   // register.
   void LoadElementsKindFromMap(Register result, Register map);
@@ -2170,12 +2102,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Inline caching support.
 
-  void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,
-                                 SeqStringSetCharCheckIndexType index_type,
-                                 Register scratch,
-                                 uint32_t encoding_mask);
-
   // Hash the interger value in 'key' register.
   // It uses the same algorithm as ComputeIntegerHash in utils.h.
   void GetNumberHash(Register key, Register scratch);
@@ -2193,17 +2119,6 @@ class MacroAssembler : public TurboAssembler {
   void CheckEnumCache(Register object, Register scratch0, Register scratch1,
                       Register scratch2, Register scratch3, Register scratch4,
                       Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver should point to the array object.
-  // If allocation info is present, the Z flag is set (so that the eq
-  // condition will pass).
-  void TestJSArrayForAllocationMemento(Register receiver,
-                                       Register scratch1,
-                                       Register scratch2,
-                                       Label* no_memento_found);
 
   // The stack pointer has to switch between csp and jssp when setting up and
   // destroying the exit frame. Hence preserving/restoring the registers is
@@ -2265,15 +2180,9 @@ class MacroAssembler : public TurboAssembler {
     LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
   }
 
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged. Dividend and result must be different.
-  void TruncatingDiv(Register result, Register dividend, int32_t divisor);
-
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
-  void SetCounter(StatsCounter* counter, int value, Register scratch1,
-                  Register scratch2);
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
@@ -2300,9 +2209,6 @@ class MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  void PushSafepointRegistersAndDoubles();
-  void PopSafepointRegistersAndDoubles();
 
   // Store value in register src in the safepoint stack slot for register dst.
   void StoreToSafepointRegisterSlot(Register src, Register dst);
@@ -2426,7 +2332,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Debugging.
 
-  void AssertRegisterIsClear(Register reg, BailoutReason reason);
   void AssertRegisterIsRoot(
       Register reg,
       Heap::RootListIndex index,
@@ -2437,13 +2342,6 @@ class MacroAssembler : public TurboAssembler {
   //
   // If emit_debug_code() is false, this emits no code.
   void AssertHasValidColor(const Register& reg);
-
-  // Abort if 'object' register doesn't point to a string object.
-  //
-  // If emit_debug_code() is false, this emits no code.
-  void AssertIsString(const Register& object);
-
-  void CheckRegisterIsClear(Register reg, BailoutReason reason);
 
   void LoadNativeContextSlot(int index, Register dst);
 

@@ -905,12 +905,6 @@ class MacroAssembler : public TurboAssembler {
                        Register scratch1, Register scratch2,
                        Label* gc_required);
 
-  // Initialize fields with filler values.  Fields starting at |current_address|
-  // not including |end_address| are overwritten with the value in |filler|.  At
-  // the end the loop, |current_address| takes the value of |end_address|.
-  void InitializeFieldsWithFiller(Register current_address,
-                                  Register end_address, Register filler);
-
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -1038,21 +1032,6 @@ class MacroAssembler : public TurboAssembler {
                      Label* done,
                      Label* exact);
 
-  // Performs a truncating conversion of a heap number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
-  // must be different registers.  Exits with 'result' holding the answer.
-  void TruncateHeapNumberToI(Register result, Register object);
-
-  // Converts the smi or heap number in object to an int32 using the rules
-  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
-  // different registers.
-  void TruncateNumberToI(Register object,
-                         Register result,
-                         Register heap_number_map,
-                         Register scratch1,
-                         Label* not_int32);
-
   // Check whether d16-d31 are available on the CPU. The result is given by the
   // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
   void CheckFor32DRegs(Register scratch);
@@ -1108,17 +1087,9 @@ class MacroAssembler : public TurboAssembler {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
-
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged and a scratch register needs to be available. Dividend and result
-  // must be different.
-  void TruncatingDiv(Register result, Register dividend, int32_t divisor);
-
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
-  void SetCounter(StatsCounter* counter, int value,
-                  Register scratch1, Register scratch2);
   void IncrementCounter(StatsCounter* counter, int value,
                         Register scratch1, Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value,
@@ -1240,18 +1211,7 @@ class MacroAssembler : public TurboAssembler {
 
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
 
-  void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,
-                                 Register value,
-                                 uint32_t encoding_mask);
-
-
   void ClampUint8(Register output_reg, Register input_reg);
-
-  void ClampDoubleToUint8(Register result_reg,
-                          DwVfpRegister input_reg,
-                          LowDwVfpRegister double_scratch);
-
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
@@ -1286,16 +1246,6 @@ class MacroAssembler : public TurboAssembler {
   // Expects object in r0 and returns map with validated enum cache
   // in r0.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to eq.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Label* no_memento_found);
 
  private:
   // Helper functions for generating invokes.
