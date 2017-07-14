@@ -125,7 +125,7 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
   }
 }
 
-inline int FindFirstUpperOrNonAscii(Handle<String> s, int length) {
+inline int FindFirstUpperOrNonAscii(String* s, int length) {
   for (int index = 0; index < length; ++index) {
     uint16_t ch = s->Get(index);
     if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
@@ -200,35 +200,50 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
 }
 
 // A stripped-down version of ConvertToLower that can only handle flat one-byte
-// strings and does not allocate.
+// strings and does not allocate. Note that {src} could still be, e.g., a
+// one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
 MUST_USE_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
                                               Isolate* isolate) {
   DCHECK_EQ(src->length(), dst->length());
-  DCHECK(src->IsOneByteRepresentation());
+  DCHECK(src->HasOnlyOneByteChars());
   DCHECK(src->IsFlat());
   DCHECK(dst->IsSeqOneByteString());
 
   DisallowHeapAllocation no_gc;
 
   const int length = src->length();
-
-  const uint8_t* src_data = src->GetFlatContent().ToOneByteVector().start();
+  String::FlatContent src_flat = src->GetFlatContent();
   uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars();
 
-  bool has_changed_character = false;
-  int index_to_first_unprocessed = FastAsciiConvert<true>(
-      reinterpret_cast<char*>(dst_data),
-      reinterpret_cast<const char*>(src_data), length, &has_changed_character);
+  if (src_flat.IsOneByte()) {
+    const uint8_t* src_data = src_flat.ToOneByteVector().start();
 
-  if (index_to_first_unprocessed == length) {
-    return has_changed_character ? dst : src;
-  }
+    bool has_changed_character = false;
+    int index_to_first_unprocessed =
+        FastAsciiConvert<true>(reinterpret_cast<char*>(dst_data),
+                               reinterpret_cast<const char*>(src_data), length,
+                               &has_changed_character);
 
-  // If not ASCII, we keep the result up to index_to_first_unprocessed and
-  // process the rest.
-  for (int index = index_to_first_unprocessed; index < length; ++index) {
-    dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
+    if (index_to_first_unprocessed == length) {
+      return has_changed_character ? dst : src;
+    }
+
+    // If not ASCII, we keep the result up to index_to_first_unprocessed and
+    // process the rest.
+    for (int index = index_to_first_unprocessed; index < length; ++index) {
+      dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
+    }
+  } else {
+    DCHECK(src_flat.IsTwoByte());
+    int index_to_first_unprocessed = FindFirstUpperOrNonAscii(src, length);
+    if (index_to_first_unprocessed == length) return src;
+
+    const uint16_t* src_data = src_flat.ToUC16Vector().start();
+    CopyChars(dst_data, src_data, index_to_first_unprocessed);
+    for (int index = index_to_first_unprocessed; index < length; ++index) {
+      dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
+    }
   }
 
   return dst;
@@ -252,41 +267,17 @@ MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
   // TODO(jshin): Apply this to a longer input by breaking FastAsciiConvert()
   // to two parts, one for scanning the prefix with no change and the other for
   // handling ASCII-only characters.
-  int index_to_first_unprocessed = length;
-  const bool is_short = length < static_cast<int>(sizeof(uintptr_t));
+
+  bool is_short = length < static_cast<int>(sizeof(uintptr_t));
   if (is_short) {
-    index_to_first_unprocessed = FindFirstUpperOrNonAscii(s, length);
-    // Nothing to do if the string is all ASCII with no uppercase.
-    if (index_to_first_unprocessed == length) return *s;
+    bool is_lower_ascii = FindFirstUpperOrNonAscii(*s, length) == length;
+    if (is_lower_ascii) return *s;
   }
 
   Handle<SeqOneByteString> result =
       isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
-  if (s->IsOneByteRepresentation()) {
-    return ConvertOneByteToLower(*s, *result, isolate);
-  }
-
-  DisallowHeapAllocation no_gc;
-  DCHECK(s->IsFlat());
-  DCHECK(s->IsTwoByteRepresentation());
-  String::FlatContent flat = s->GetFlatContent();
-  DCHECK(flat.IsTwoByte());
-
-  uint8_t* dest = result->GetChars();
-  if (index_to_first_unprocessed == length) {
-    DCHECK(!is_short);
-    index_to_first_unprocessed = FindFirstUpperOrNonAscii(s, length);
-  }
-  // Nothing to do if the string is all ASCII with no uppercase.
-  if (index_to_first_unprocessed == length) return *s;
-  const uint16_t* src = flat.ToUC16Vector().start();
-  CopyChars(dest, src, index_to_first_unprocessed);
-  for (int index = index_to_first_unprocessed; index < length; ++index) {
-    dest[index] = ToLatin1Lower(static_cast<uint16_t>(src[index]));
-  }
-
-  return *result;
+  return ConvertOneByteToLower(*s, *result, isolate);
 }
 
 MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate) {
