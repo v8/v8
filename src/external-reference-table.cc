@@ -370,9 +370,14 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
     const char* name;
   };
   static const BuiltinEntry builtins[] = {
+#define BUILTIN_LIST_EXTERNAL_REFS(DEF) \
+  BUILTIN_LIST_C(DEF)                   \
+  BUILTIN_LIST_A(DEF)                   \
+  DEF(CallProxy)
 #define DEF_ENTRY(Name, ...) {Builtins::k##Name, "Builtin_" #Name},
-      BUILTIN_LIST_C(DEF_ENTRY) BUILTIN_LIST_A(DEF_ENTRY)
+      BUILTIN_LIST_EXTERNAL_REFS(DEF_ENTRY)
 #undef DEF_ENTRY
+#undef BUILTIN_LIST_EXTERNAL_REFS
   };
   for (unsigned i = 0; i < arraysize(builtins); ++i) {
     Add(isolate->builtins()->builtin_address(builtins[i].id), builtins[i].name);

@@ -2712,19 +2712,13 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
            Immediate(1 << Map::kIsCallable));
   __ j(zero, &non_callable);
 
+  // Check if target is a proxy and call CallProxy external builtin
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
   __ j(not_equal, &non_function);
 
-  // 1. Runtime fallback for Proxy [[Call]].
-  __ PopReturnAddressTo(kScratchRegister);
-  __ Push(rdi);
-  __ PushReturnAddressFrom(kScratchRegister);
-  // Increase the arguments size to include the pushed function and the
-  // existing receiver on the stack.
-  __ addp(rax, Immediate(2));
-  // Tail-call to the runtime.
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyCall, masm->isolate()));
+  __ Load(rcx, ExternalReference(Builtins::kCallProxy, masm->isolate()));
+  __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
+  __ jmp(rcx);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).

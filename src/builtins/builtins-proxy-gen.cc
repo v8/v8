@@ -51,8 +51,7 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
 
     Node* nativeContext = LoadNativeContext(context);
 
-    GotoIf(IsCallable(target), &callable_target);
-    Goto(&none_target);
+    Branch(IsCallable(target), &callable_target, &none_target);
 
     BIND(&callable_target);
     {
@@ -86,6 +85,32 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
                                    UndefinedConstant());
 
     return proxy;
+  }
+
+  Node* AllocateJSArrayForCodeStubArguments(Node* context,
+                                            CodeStubArguments& args, Node* argc,
+                                            ParameterMode mode) {
+    Node* array = nullptr;
+    Node* elements = nullptr;
+    Node* native_context = LoadNativeContext(context);
+    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    Node* argc_smi = ParameterToTagged(argc, mode);
+    std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+        PACKED_ELEMENTS, array_map, argc_smi, nullptr, argc, INTPTR_PARAMETERS);
+
+    StoreMapNoWriteBarrier(elements, Heap::kFixedArrayMapRootIndex);
+    StoreObjectFieldNoWriteBarrier(elements, FixedArrayBase::kLengthOffset,
+                                   argc_smi);
+
+    VARIABLE(index, MachineType::PointerRepresentation());
+    index.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+    VariableList list({&index}, zone());
+    args.ForEach(list, [this, elements, &index](Node* arg) {
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, elements,
+                          index.value(), arg);
+      Increment(index, kPointerSize);
+    });
+    return array;
   }
 };
 
@@ -121,6 +146,69 @@ TF_BUILTIN(ProxyConstructor_ConstructStub, ProxiesCodeStubAssembler) {
 
   BIND(&throw_proxy_handler_or_target_revoked);
   ThrowTypeError(context, MessageTemplate::kProxyHandlerOrTargetRevoked);
+}
+
+TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
+  Node* argc = Parameter(Descriptor::kActualArgumentsCount);
+  Node* argc_ptr = ChangeInt32ToIntPtr(argc);
+  Node* proxy = Parameter(Descriptor::kFunction);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsJSProxy(proxy));
+  CSA_ASSERT(this, IsCallable(proxy));
+
+  Label throw_proxy_handler_revoked(this, Label::kDeferred),
+      trap_undefined(this), trap_defined(this, Label::kDeferred);
+
+  // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Node* handler = LoadObjectField(proxy, JSProxy::kHandlerOffset);
+
+  // 2. If handler is null, throw a TypeError exception.
+  CSA_ASSERT(this, Word32Or(IsJSReceiver(handler), IsNull(handler)));
+  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
+
+  // 3. Assert: Type(handler) is Object.
+  CSA_ASSERT(this, IsJSReceiver(handler));
+
+  // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Node* target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+
+  // 5. Let trap be ? GetMethod(handler, "apply").
+  Handle<Name> trap_name = factory()->apply_string();
+  Node* trap = GetProperty(context, handler, trap_name);
+
+  // 6. If trap is undefined, then
+  GotoIf(IsUndefined(trap), &trap_undefined);
+  Branch(IsNull(trap), &trap_undefined, &trap_defined);
+
+  BIND(&trap_defined);
+  {
+    CodeStubArguments args(this, argc_ptr);
+    Node* receiver = args.GetReceiver();
+
+    // 7. Let argArray be CreateArrayFromList(argumentsList).
+    Node* array = AllocateJSArrayForCodeStubArguments(context, args, argc_ptr,
+                                                      INTPTR_PARAMETERS);
+
+    // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
+    Node* result = CallJS(CodeFactory::Call(isolate()), context, trap, handler,
+                          target, receiver, array);
+    args.PopAndReturn(result);
+  }
+
+  BIND(&trap_undefined);
+  {
+    // 6.a. Return Call(target, thisArgument, argumentsList).
+    TailCallStub(CodeFactory::Call(isolate()), context, target, argc);
+  }
+
+  BIND(&throw_proxy_handler_revoked);
+  {
+    CallRuntime(Runtime::kThrowTypeError, context,
+                SmiConstant(MessageTemplate::kProxyRevoked),
+                StringConstant("apply"));
+    Unreachable();
+  }
 }
 
 }  // namespace internal

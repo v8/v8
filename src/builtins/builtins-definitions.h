@@ -68,6 +68,9 @@ namespace internal {
   ASM(Call_ReceiverIsNullOrUndefined)                                          \
   ASM(Call_ReceiverIsNotNullOrUndefined)                                       \
   ASM(Call_ReceiverIsAny)                                                      \
+                                                                               \
+  /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */             \
+  TFC(CallProxy, CallTrampoline, 1)                                            \
   ASM(CallVarargs)                                                             \
   TFC(CallWithSpread, CallWithSpread, 1)                                       \
   TFC(CallWithArrayLike, CallWithArrayLike, 1)                                 \
