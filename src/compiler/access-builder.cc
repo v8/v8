@@ -104,6 +104,28 @@ FieldAccess AccessBuilder::ForJSCollectionTable() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSCollectionIteratorTable() {
+  FieldAccess access = {
+      kTaggedBase,           JSCollectionIterator::kTableOffset,
+      MaybeHandle<Name>(),   MaybeHandle<Map>(),
+      Type::OtherInternal(), MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSCollectionIteratorIndex() {
+  FieldAccess access = {kTaggedBase,
+                        JSCollectionIterator::kIndexOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get().kFixedArrayLengthType,
+                        MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,         JSFunction::kPrototypeOrInitialMapOffset,
@@ -994,26 +1016,57 @@ FieldAccess AccessBuilder::ForHashTableBaseCapacity() {
 }
 
 // static
-FieldAccess AccessBuilder::ForOrderedHashMapNumberOfElements() {
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNextTable() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
   FieldAccess const access = {
-      kTaggedBase,           OrderedHashMap::kNumberOfElementsOffset,
-      MaybeHandle<Name>(),   MaybeHandle<Map>(),
-      Type::UnsignedSmall(), MachineType::TaggedSigned(),
+      kTaggedBase,         OrderedHashTableBase::kNextTableOffset,
+      MaybeHandle<Name>(), MaybeHandle<Map>(),
+      Type::Any(),         MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {kTaggedBase,
+                              OrderedHashTableBase::kNumberOfBucketsOffset,
+                              MaybeHandle<Name>(),
+                              MaybeHandle<Map>(),
+                              TypeCache::Get().kFixedArrayLengthType,
+                              MachineType::TaggedSigned(),
+                              kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNumberOfDeletedElements() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {
+      kTaggedBase,
+      OrderedHashTableBase::kNumberOfDeletedElementsOffset,
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      TypeCache::Get().kFixedArrayLengthType,
+      MachineType::TaggedSigned(),
       kNoWriteBarrier};
   return access;
 }
 
 // static
-FieldAccess AccessBuilder::ForOrderedHashSetNumberOfElements() {
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNumberOfElements() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  FieldAccess const access = {
-      kTaggedBase,           OrderedHashSet::kNumberOfElementsOffset,
-      MaybeHandle<Name>(),   MaybeHandle<Map>(),
-      Type::UnsignedSmall(), MachineType::TaggedSigned(),
-      kNoWriteBarrier};
+  FieldAccess const access = {kTaggedBase,
+                              OrderedHashTableBase::kNumberOfElementsOffset,
+                              MaybeHandle<Name>(),
+                              MaybeHandle<Map>(),
+                              TypeCache::Get().kFixedArrayLengthType,
+                              MachineType::TaggedSigned(),
+                              kNoWriteBarrier};
   return access;
 }
 

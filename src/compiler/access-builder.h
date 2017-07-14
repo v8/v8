@@ -52,6 +52,12 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSCollecton::table() field.
   static FieldAccess ForJSCollectionTable();
 
+  // Provides access to JSCollectionIterator::table() field.
+  static FieldAccess ForJSCollectionIteratorTable();
+
+  // Provides access to JSCollectionIterator::index() field.
+  static FieldAccess ForJSCollectionIteratorIndex();
+
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
 
@@ -283,11 +289,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForHashTableBaseNumberOfDeletedElement();
   static FieldAccess ForHashTableBaseCapacity();
 
-  // Provides access to OrderedHashMap fields.
-  static FieldAccess ForOrderedHashMapNumberOfElements();
-
-  // Provides access to OrderedHashSet fields.
-  static FieldAccess ForOrderedHashSetNumberOfElements();
+  // Provides access to OrderedHashTableBase fields.
+  static FieldAccess ForOrderedHashTableBaseNextTable();
+  static FieldAccess ForOrderedHashTableBaseNumberOfBuckets();
+  static FieldAccess ForOrderedHashTableBaseNumberOfElements();
+  static FieldAccess ForOrderedHashTableBaseNumberOfDeletedElements();
 
   // Provides access to Dictionary fields.
   static FieldAccess ForDictionaryMaxNumberKey();

@@ -1577,7 +1577,6 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         // Set functions.
         case kSetAdd:
         case kSetEntries:
-        case kSetKeys:
         case kSetValues:
           return Type::OtherObject();
         case kSetClear:

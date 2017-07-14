@@ -335,50 +335,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
   return Changed(node);
 }
 
-namespace {
-
-bool HasInstanceTypeWitness(Node* receiver, Node* effect,
-                            InstanceType instance_type) {
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
-  switch (result) {
-    case NodeProperties::kNoReceiverMaps:
-      return false;
-    case NodeProperties::kReliableReceiverMaps:
-    case NodeProperties::kUnreliableReceiverMaps:
-      DCHECK_NE(0, receiver_maps.size());
-      for (size_t i = 0; i < receiver_maps.size(); ++i) {
-        if (receiver_maps[i]->instance_type() != instance_type) return false;
-      }
-      return true;
-  }
-  UNREACHABLE();
-  return false;
-}
-
-}  // namespace
-
-// ES #sec-get-map.prototype.size
-Reduction JSCallReducer::ReduceMapPrototypeGetSize(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE)) {
-    Node* table = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
-        receiver, effect, control);
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForOrderedHashMapNumberOfElements()),
-        table, effect, control);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
@@ -522,26 +478,6 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
                      ? NodeProperties::GetValueInput(node, 2)
                      : jsgraph()->UndefinedConstant();
   return ReduceObjectGetPrototype(node, target);
-}
-
-// ES #sec-get-set.prototype.size
-Reduction JSCallReducer::ReduceSetPrototypeGetSize(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (HasInstanceTypeWitness(receiver, effect, JS_SET_TYPE)) {
-    Node* table = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
-        receiver, effect, control);
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForOrderedHashSetNumberOfElements()),
-        table, effect, control);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  }
-  return NoChange();
 }
 
 bool CanInlineArrayIteratingBuiltin(Handle<Map> receiver_map) {
@@ -1220,8 +1156,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceFunctionPrototypeCall(node);
         case Builtins::kFunctionPrototypeHasInstance:
           return ReduceFunctionPrototypeHasInstance(node);
-        case Builtins::kMapPrototypeGetSize:
-          return ReduceMapPrototypeGetSize(node);
         case Builtins::kNumberConstructor:
           return ReduceNumberConstructor(node);
         case Builtins::kObjectGetPrototypeOf:
@@ -1236,8 +1170,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceReflectConstruct(node);
         case Builtins::kReflectGetPrototypeOf:
           return ReduceReflectGetPrototypeOf(node);
-        case Builtins::kSetPrototypeGetSize:
-          return ReduceSetPrototypeGetSize(node);
         case Builtins::kArrayForEach:
           return ReduceArrayForEach(function, node);
         case Builtins::kArrayMap:

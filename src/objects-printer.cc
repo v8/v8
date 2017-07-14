@@ -946,10 +946,7 @@ void JSMap::JSMapPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this);
 }
 
-
-template <class Derived, class TableType>
-void
-OrderedHashTableIterator<Derived, TableType>::OrderedHashTableIteratorPrint(
+void JSCollectionIterator::JSCollectionIteratorPrint(
     std::ostream& os) {  // NOLINT
   os << "\n - table = " << Brief(table());
   os << "\n - index = " << Brief(index());
@@ -957,25 +954,15 @@ OrderedHashTableIterator<Derived, TableType>::OrderedHashTableIteratorPrint(
 }
 
 
-template void OrderedHashTableIterator<
-    JSSetIterator,
-    OrderedHashSet>::OrderedHashTableIteratorPrint(std::ostream& os);  // NOLINT
-
-
-template void OrderedHashTableIterator<
-    JSMapIterator,
-    OrderedHashMap>::OrderedHashTableIteratorPrint(std::ostream& os);  // NOLINT
-
-
 void JSSetIterator::JSSetIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSSetIterator");
-  OrderedHashTableIteratorPrint(os);
+  JSCollectionIteratorPrint(os);
 }
 
 
 void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSMapIterator");
-  OrderedHashTableIteratorPrint(os);
+  JSCollectionIteratorPrint(os);
 }
 
 

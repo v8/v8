@@ -4860,25 +4860,8 @@ ACCESSORS(JSProxy, hash, Object, kHashOffset)
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 
 ACCESSORS(JSCollection, table, Object, kTableOffset)
-
-
-#define ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(name, type, offset)    \
-  template<class Derived, class TableType>                           \
-  type* OrderedHashTableIterator<Derived, TableType>::name() const { \
-    return type::cast(READ_FIELD(this, offset));                     \
-  }                                                                  \
-  template<class Derived, class TableType>                           \
-  void OrderedHashTableIterator<Derived, TableType>::set_##name(     \
-      type* value, WriteBarrierMode mode) {                          \
-    WRITE_FIELD(this, offset, value);                                \
-    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode); \
-  }
-
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(table, Object, kTableOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Object, kIndexOffset)
-
-#undef ORDERED_HASH_TABLE_ITERATOR_ACCESSORS
-
+ACCESSORS(JSCollectionIterator, table, Object, kTableOffset)
+ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
 
 ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
 ACCESSORS(JSWeakCollection, next, Object, kNextOffset)

@@ -124,6 +124,9 @@ namespace internal {
   TFC(StringLessThanOrEqual, Compare, 1)                                       \
   TFC(StringConcat, StringConcat, 1)                                           \
                                                                                \
+  /* OrderedHashTable helpers */                                               \
+  TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \
+                                                                               \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \
   ASM(InterpreterPushArgsThenCall)                                             \

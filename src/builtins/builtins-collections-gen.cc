@@ -640,6 +640,46 @@ void CollectionsBuiltinsAssembler::FindOrderedHashMapEntry(
   }
 }
 
+TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
+  Node* table = Parameter(Descriptor::kTable);
+  Node* index = Parameter(Descriptor::kIndex);
+  CSA_ASSERT(this, TaggedIsNotSmi(table));
+  CSA_ASSERT(this, TaggedIsSmi(index));
+  Label return_index(this), return_zero(this);
+
+  // Check if we need to update the {index}.
+  GotoIfNot(SmiLessThan(SmiConstant(Smi::kZero), index), &return_zero);
+
+  // Check if the {table} was cleared.
+  Node* number_of_deleted_elements = LoadAndUntagObjectField(
+      table, OrderedHashTableBase::kNumberOfDeletedElementsOffset);
+  GotoIf(WordEqual(number_of_deleted_elements,
+                   IntPtrConstant(OrderedHashTableBase::kClearedTableSentinel)),
+         &return_zero);
+
+  VARIABLE(var_i, MachineType::PointerRepresentation(), IntPtrConstant(0));
+  VARIABLE(var_index, MachineRepresentation::kTagged, index);
+  Label loop(this, {&var_i, &var_index});
+  Goto(&loop);
+  BIND(&loop);
+  {
+    Node* i = var_i.value();
+    GotoIfNot(IntPtrLessThan(i, number_of_deleted_elements), &return_index);
+    Node* removed_index = LoadFixedArrayElement(
+        table, i, OrderedHashTableBase::kRemovedHolesIndex * kPointerSize);
+    GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
+    Decrement(var_index, 1, SMI_PARAMETERS);
+    Increment(var_i);
+    Goto(&loop);
+  }
+
+  BIND(&return_index);
+  Return(var_index.value());
+
+  BIND(&return_zero);
+  Return(SmiConstant(Smi::kZero));
+}
+
 template <typename TableType>
 std::tuple<Node*, Node*> CollectionsBuiltinsAssembler::Transition(
     Node* const table, Node* const index,
@@ -664,41 +704,10 @@ std::tuple<Node*, Node*> CollectionsBuiltinsAssembler::Transition(
       GotoIf(TaggedIsSmi(next_table), &done_loop);
 
       var_table.Bind(next_table);
-
-      // Check if we need to update the {index}.
-      GotoIfNot(IntPtrLessThan(IntPtrConstant(0), index), &loop);
-
-      // Check if the {table} was cleared.
-      Node* nod = LoadAndUntagObjectField(
-          table, TableType::kNumberOfDeletedElementsOffset);
-      Label if_table_cleared(this), if_table_not_cleared(this);
-      Branch(WordEqual(nod, IntPtrConstant(TableType::kClearedTableSentinel)),
-             &if_table_cleared, &if_table_not_cleared);
-
-      BIND(&if_table_cleared);
-      {
-        var_index.Bind(IntPtrConstant(0));
-        Goto(&loop);
-      }
-
-      BIND(&if_table_not_cleared);
-      {
-        VARIABLE(var_i, MachineType::PointerRepresentation(),
-                 IntPtrConstant(0));
-        Label iloop(this, {&var_i, &var_index});
-        Goto(&iloop);
-        BIND(&iloop);
-        {
-          Node* i = var_i.value();
-          GotoIfNot(IntPtrLessThan(i, nod), &loop);
-          Node* removed_index = SmiUntag(LoadFixedArrayElement(
-              table, i, TableType::kRemovedHolesIndex * kPointerSize));
-          GotoIf(IntPtrGreaterThanOrEqual(removed_index, index), &loop);
-          Decrement(var_index);
-          Increment(var_i);
-          Goto(&iloop);
-        }
-      }
+      var_index.Bind(
+          SmiUntag(CallBuiltin(Builtins::kOrderedHashTableHealIndex,
+                               NoContextConstant(), table, SmiTag(index))));
+      Goto(&loop);
     }
     BIND(&done_loop);
 

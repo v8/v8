@@ -859,6 +859,12 @@ enum InstanceType : uint8_t {
 
   FIRST_ARRAY_ITERATOR_TYPE = FIRST_ARRAY_KEY_ITERATOR_TYPE,
   LAST_ARRAY_ITERATOR_TYPE = LAST_ARRAY_VALUE_ITERATOR_TYPE,
+
+  FIRST_SET_ITERATOR_TYPE = JS_SET_KEY_VALUE_ITERATOR_TYPE,
+  LAST_SET_ITERATOR_TYPE = JS_SET_VALUE_ITERATOR_TYPE,
+
+  FIRST_MAP_ITERATOR_TYPE = JS_MAP_KEY_ITERATOR_TYPE,
+  LAST_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
 };
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
@@ -4708,7 +4714,6 @@ class ContextExtension : public Struct {
   V(Set.prototype, entries, SetEntries)                     \
   V(Set.prototype, forEach, SetForEach)                     \
   V(Set.prototype, has, SetHas)                             \
-  V(Set.prototype, keys, SetKeys)                           \
   V(Set.prototype, values, SetValues)                       \
   V(WeakMap.prototype, delete, WeakMapDelete)               \
   V(WeakMap.prototype, has, WeakMapHas)                     \
@@ -4744,6 +4749,8 @@ enum BuiltinFunctionId {
   kArrayKeys,
   kArrayValues,
   kArrayIteratorNext,
+  kMapSize,
+  kSetSize,
   kMapIteratorNext,
   kSetIteratorNext,
   kDataViewBuffer,
