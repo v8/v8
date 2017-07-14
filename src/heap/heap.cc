@@ -5818,11 +5818,6 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
   }
 }
 
-void Heap::CompleteTasksBeforeTearDown() {
-  mark_compact_collector()->EnsureSweepingCompleted();
-  concurrent_marking()->EnsureCompleted();
-}
-
 void Heap::TearDown() {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {

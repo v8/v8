@@ -39,12 +39,6 @@ class ConcurrentMarking {
   void Start();
   bool IsRunning() { return pending_task_count_ > 0; }
   void EnsureCompleted();
-  // Wake up waiting tasks if the shared global pool is not empty.
-  void NotifyWaitingTasks();
-  // Set task exit request flag and wake up waiting tasks.
-  void RequestTaskExit();
-  // Returns true if all tasks are waiting. For testing only.
-  bool AllTasksWaitingForTesting();
 
  private:
   struct TaskLock {
@@ -57,16 +51,8 @@ class ConcurrentMarking {
   MarkingWorklist* shared_;
   MarkingWorklist* bailout_;
   TaskLock task_lock_[kTasks];
-  // Used by the main thread to wait for tasks to exit.
   base::Semaphore pending_task_semaphore_;
   int pending_task_count_;
-  // Used by the tasks to wait for
-  // - more work from the main thread
-  // - or for the exit request.
-  base::Mutex wait_lock_;
-  base::ConditionVariable wait_condition_;
-  int waiting_task_count_;
-  bool task_exit_requested_;
 };
 
 }  // namespace internal

@@ -592,7 +592,7 @@ void IncrementalMarking::StartMarking() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
   if (FLAG_concurrent_marking) {
-    heap()->concurrent_marking()->Start();
+    heap_->concurrent_marking()->Start();
   }
 
   // Ready to start incremental marking.
@@ -1056,9 +1056,6 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
   // that shouldn't make us do a scavenge and keep being incremental, so we set
   // the should-hurry flag to indicate that there can't be much work left to do.
   set_should_hurry(true);
-  if (FLAG_concurrent_marking) {
-    heap()->concurrent_marking()->RequestTaskExit();
-  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Complete (normal).\n");
@@ -1238,9 +1235,6 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
       } else {
         heap_->local_embedder_heap_tracer()->NotifyV8MarkingWorklistWasEmpty();
       }
-    }
-    if (FLAG_concurrent_marking) {
-      heap()->concurrent_marking()->NotifyWaitingTasks();
     }
   }
 

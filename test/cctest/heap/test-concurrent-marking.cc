@@ -15,43 +15,20 @@
 
 namespace v8 {
 namespace internal {
-
-void PublishSegment(ConcurrentMarking::MarkingWorklist* worklist,
-                    HeapObject* object) {
-  for (int i = 0; i <= ConcurrentMarking::MarkingWorklist::kSegmentCapacity;
-       i++) {
-    worklist->Push(0, object);
-  }
-  CHECK(worklist->Pop(0, &object));
-}
-
 TEST(ConcurrentMarking) {
   if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
-  ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout);
-  PublishSegment(&shared, heap->undefined_value());
-  concurrent_marking->Start();
-  concurrent_marking->EnsureCompleted();
-  delete concurrent_marking;
-}
-
-TEST(ConcurrentMarkingWaiting) {
-  if (!i::FLAG_concurrent_marking) return;
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  ConcurrentMarking::MarkingWorklist shared, bailout;
-  ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout);
-  PublishSegment(&shared, heap->undefined_value());
-  concurrent_marking->Start();
-  while (!concurrent_marking->AllTasksWaitingForTesting()) {
-    // Busy wait.
+  for (int i = 0; i <= ConcurrentMarking::MarkingWorklist::kSegmentCapacity;
+       i++) {
+    shared.Push(0, heap->undefined_value());
   }
-  PublishSegment(&shared, heap->undefined_value());
-  concurrent_marking->NotifyWaitingTasks();
+  HeapObject* object;
+  CHECK(shared.Pop(0, &object));
+  ConcurrentMarking* concurrent_marking =
+      new ConcurrentMarking(heap, &shared, &bailout);
+  concurrent_marking->Start();
   concurrent_marking->EnsureCompleted();
   delete concurrent_marking;
 }
