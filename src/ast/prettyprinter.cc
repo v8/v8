@@ -880,6 +880,7 @@ void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
 
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH", node->position());
+  PrintIndentedVisit("TRY", node->try_block());
   PrintIndented("CATCH PREDICTION");
   const char* prediction = "";
   switch (node->GetCatchPrediction(HandlerTable::UNCAUGHT)) {
@@ -908,6 +909,7 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
 
 void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IndentedScope indent(this, "TRY FINALLY", node->position());
+  PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("FINALLY", node->finally_block());
 }
 
