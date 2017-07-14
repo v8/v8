@@ -125,17 +125,15 @@ class FunctionBodyDecoderTest : public TestWithZone {
         zone()->allocator(), module == nullptr ? nullptr : module->module, sig,
         start, end);
 
-    if (result.ok() != expected_success) {
-      uint32_t pc = result.error_offset();
-      std::ostringstream str;
-      if (expected_success) {
-        str << "Verification failed: pc = +" << pc
-            << ", msg = " << result.error_msg();
-      } else {
-        str << "Verification successed, expected failure; pc = +" << pc;
-      }
-      EXPECT_TRUE(false) << str.str();
+    uint32_t pc = result.error_offset();
+    std::ostringstream str;
+    if (expected_success) {
+      str << "Verification failed: pc = +" << pc
+          << ", msg = " << result.error_msg();
+    } else {
+      str << "Verification successed, expected failure; pc = +" << pc;
     }
+    EXPECT_EQ(result.ok(), expected_success) << str.str();
   }
 
   void TestBinop(WasmOpcode opcode, FunctionSig* success) {
@@ -421,20 +419,20 @@ TEST_F(FunctionBodyDecoderTest, Binops_off_end) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock1) {
-  static const byte code[] = {WASM_ZERO, kExprBlock, WASM_ZERO, kExprI32Add,
-                              kExprEnd};
+  static const byte code[] = {WASM_ZERO, kExprBlock,  kLocalI32,
+                              WASM_ZERO, kExprI32Add, kExprEnd};
   EXPECT_FAILURE_C(i_i, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock2) {
-  static const byte code[] = {WASM_ZERO, WASM_ZERO, kExprBlock, kExprI32Add,
-                              kExprEnd};
+  static const byte code[] = {WASM_ZERO, WASM_ZERO,   kExprBlock,
+                              kLocalI32, kExprI32Add, kExprEnd};
   EXPECT_FAILURE_C(i_i, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock3) {
-  static const byte code[] = {WASM_ZERO, WASM_ZERO,   kExprIf, kExprI32Add,
-                              kExprElse, kExprI32Add, kExprEnd};
+  static const byte code[] = {WASM_ZERO,   WASM_ZERO, kExprIf,     kLocalI32,
+                              kExprI32Add, kExprElse, kExprI32Add, kExprEnd};
   EXPECT_FAILURE_C(i_i, code);
 }
 
