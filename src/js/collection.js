@@ -30,7 +30,6 @@ function HashToEntry(table, hash, numBuckets) {
   var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
   return ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
 }
-%SetForceInlineFlag(HashToEntry);
 
 
 function SetFindEntry(table, numBuckets, key, hash) {
@@ -50,7 +49,6 @@ function SetFindEntry(table, numBuckets, key, hash) {
   }
   return NOT_FOUND;
 }
-%SetForceInlineFlag(SetFindEntry);
 
 
 function MapFindEntry(table, numBuckets, key, hash) {
@@ -70,7 +68,6 @@ function MapFindEntry(table, numBuckets, key, hash) {
   }
   return NOT_FOUND;
 }
-%SetForceInlineFlag(MapFindEntry);
 
 
 function ComputeIntegerHash(key, seed) {
@@ -84,7 +81,6 @@ function ComputeIntegerHash(key, seed) {
   hash = hash ^ (hash >>> 16);
   return hash & 0x3fffffff;
 }
-%SetForceInlineFlag(ComputeIntegerHash);
 
 function GetExistingHash(key) {
   if (%_IsSmi(key)) {
@@ -101,7 +97,6 @@ function GetExistingHash(key) {
   }
   return %GenericHash(key);
 }
-%SetForceInlineFlag(GetExistingHash);
 
 
 function GetHash(key) {
@@ -113,7 +108,6 @@ function GetHash(key) {
   }
   return hash;
 }
-%SetForceInlineFlag(GetHash);
 
 
 // -------------------------------------------------------------------
