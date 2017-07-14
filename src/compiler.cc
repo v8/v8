@@ -266,25 +266,20 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
       info->literal()->feedback_vector_spec()));
 }
 
-bool ShouldUseFullCodegen(Handle<SharedFunctionInfo> shared) {
+bool ShouldUseFullCodegen(FunctionLiteral* literal) {
   // Code which can't be supported by the old pipeline should use Ignition.
-  if (shared->must_use_ignition()) return false;
+  if (literal->must_use_ignition()) return false;
 
   // Resumable functions are not supported by {FullCodeGenerator}, suspended
   // activations stored as {JSGeneratorObject} on the heap always assume the
   // underlying code to be based on the bytecode array.
-  DCHECK(!IsResumableFunction(shared->kind()));
+  DCHECK(!IsResumableFunction(literal->kind()));
 
   // Use full-codegen for asm.js functions.
-  if (shared->asm_function()) return true;
+  if (literal->scope()->asm_function()) return true;
 
   // If stressing full-codegen then use it for all functions it can support.
   return FLAG_stress_fullcodegen;
-}
-
-bool ShouldUseFullCodegen(CompilationInfo* info) {
-  DCHECK(info->has_shared_info());
-  return ShouldUseFullCodegen(info->shared_info());
 }
 
 bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
@@ -322,7 +317,7 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
 
-  if (ShouldUseFullCodegen(info)) {
+  if (ShouldUseFullCodegen(info->literal())) {
     return FullCodeGenerator::NewCompilationJob(info);
   } else {
     return interpreter::Interpreter::NewCompilationJob(info);
@@ -362,22 +357,6 @@ void InstallUnoptimizedCode(CompilationInfo* info) {
   }
 }
 
-CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
-  CompilationJob::Status status = job->FinalizeJob();
-  if (status == CompilationJob::SUCCEEDED) {
-    CompilationInfo* info = job->info();
-    EnsureFeedbackMetadata(info);
-    DCHECK(!info->code().is_null());
-    if (info->parse_info()->literal()->should_be_used_once_hint()) {
-      info->code()->MarkToBeExecutedOnce(info->isolate());
-    }
-    InstallUnoptimizedCode(info);
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, info);
-    job->RecordUnoptimizedCompilationStats();
-  }
-  return status;
-}
-
 void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
                                        Handle<SharedFunctionInfo> shared_info) {
   // Don't overwrite values set by the bootstrapper.
@@ -391,9 +370,24 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   if (literal->dont_optimize_reason() != kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }
-  if (literal->flags() & AstProperties::kMustUseIgnition) {
-    shared_info->set_must_use_ignition(true);
+}
+
+CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
+  CompilationInfo* info = job->info();
+  SetSharedFunctionFlagsFromLiteral(info->literal(), info->shared_info());
+
+  CompilationJob::Status status = job->FinalizeJob();
+  if (status == CompilationJob::SUCCEEDED) {
+    EnsureFeedbackMetadata(info);
+    DCHECK(!info->code().is_null());
+    if (info->parse_info()->literal()->should_be_used_once_hint()) {
+      info->code()->MarkToBeExecutedOnce(info->isolate());
+    }
+    InstallUnoptimizedCode(info);
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, info);
+    job->RecordUnoptimizedCompilationStats();
   }
+  return status;
 }
 
 bool Renumber(ParseInfo* parse_info,
@@ -418,10 +412,6 @@ bool Renumber(ParseInfo* parse_info,
                               parse_info->literal(), eager_literals,
                               collect_type_profile)) {
     return false;
-  }
-  if (!parse_info->shared_info().is_null()) {
-    SetSharedFunctionFlagsFromLiteral(parse_info->literal(),
-                                      parse_info->shared_info());
   }
   return true;
 }
@@ -467,10 +457,6 @@ bool CompileUnoptimizedInnerFunctions(
     Handle<SharedFunctionInfo> shared =
         Compiler::GetSharedFunctionInfo(literal, script, outer_info);
     if (shared->is_compiled()) continue;
-
-    // The {literal} has already been numbered because AstNumbering decends into
-    // eagerly compiled function literals.
-    SetSharedFunctionFlagsFromLiteral(literal, shared);
 
     // Try to enqueue the eager function on the compiler dispatcher.
     CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
@@ -604,9 +590,6 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
     }
   }
 
-  if (info->parse_info()->is_toplevel()) {
-    EnsureSharedFunctionInfosArrayOnScript(info);
-  }
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -801,9 +784,9 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
   bool has_script = shared->script()->IsScript();
-  // BUG(5946): This DCHECK is necessary to make certain that we won't tolerate
-  // the lack of a script without bytecode.
-  DCHECK_IMPLIES(!has_script, !ShouldUseFullCodegen(shared));
+  // BUG(5946): This DCHECK is necessary to make certain that we won't
+  // tolerate the lack of a script without bytecode.
+  DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
   std::unique_ptr<CompilationJob> job(
       compiler::Pipeline::NewCompilationJob(function, has_script));
   CompilationInfo* info = job->info();
@@ -1127,9 +1110,6 @@ bool Compiler::Analyze(CompilationInfo* info,
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info, Isolate* isolate) {
   if (!parsing::ParseAny(info, isolate)) return false;
-  if (info->is_toplevel()) {
-    EnsureSharedFunctionInfosArrayOnScript(info, isolate);
-  }
   if (!Compiler::Analyze(info, isolate)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1277,11 +1257,7 @@ bool Compiler::EnsureBytecode(CompilationInfo* info) {
     }
   }
   DCHECK(info->shared_info()->is_compiled());
-
   if (info->shared_info()->HasAsmWasmData()) return false;
-
-  DCHECK_EQ(ShouldUseFullCodegen(info),
-            !info->shared_info()->HasBytecodeArray());
   return info->shared_info()->HasBytecodeArray();
 }
 

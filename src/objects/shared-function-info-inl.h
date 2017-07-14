@@ -101,8 +101,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, native,
                     SharedFunctionInfo::IsNativeBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline,
                     SharedFunctionInfo::ForceInlineBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition,
-                    SharedFunctionInfo::MustUseIgnitionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, optimization_disabled,

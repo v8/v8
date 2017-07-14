@@ -9,7 +9,6 @@
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
-#include "src/base/flags.h"
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/isolate.h"
@@ -157,18 +156,8 @@ class FeedbackSlotCache {
 
 class AstProperties final BASE_EMBEDDED {
  public:
-  enum Flag {
-    kNoFlags = 0,
-    kDontSelfOptimize = 1 << 0,
-    kMustUseIgnition = 1 << 1
-  };
-
-  typedef base::Flags<Flag> Flags;
-
   explicit AstProperties(Zone* zone) : node_count_(0), spec_(zone) {}
 
-  Flags& flags() { return flags_; }
-  Flags flags() const { return flags_; }
   int node_count() { return node_count_; }
   void add_node_count(int count) { node_count_ += count; }
 
@@ -176,12 +165,10 @@ class AstProperties final BASE_EMBEDDED {
   FeedbackVectorSpec* get_spec() { return &spec_; }
 
  private:
-  Flags flags_;
   int node_count_;
   FeedbackVectorSpec spec_;
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 
 class AstNode: public ZoneObject {
  public:
@@ -2513,14 +2500,24 @@ class FunctionLiteral final : public Expression {
   }
   FunctionKind kind() const;
 
-  int ast_node_count() { return ast_properties_.node_count(); }
-  AstProperties::Flags flags() const { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
+  int ast_node_count() { return ast_properties_.node_count(); }
   const FeedbackVectorSpec* feedback_vector_spec() const {
     return ast_properties_.get_spec();
   }
+
+  bool must_use_ignition() { return MustUseIgnitionField::decode(bit_field_); }
+  void set_must_use_ignition() {
+    bit_field_ = MustUseIgnitionField::update(bit_field_, true);
+  }
+
+  bool dont_self_optimize() { return DontSelfOptimize::decode(bit_field_); }
+  void set_dont_self_optimize() {
+    bit_field_ = DontSelfOptimize::update(bit_field_, true);
+  }
+
   bool dont_optimize() { return dont_optimize_reason() != kNoReason; }
   BailoutReason dont_optimize_reason() {
     return DontOptimizeReasonField::decode(bit_field_);
@@ -2592,9 +2589,13 @@ class FunctionLiteral final : public Expression {
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
       : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
+  class MustUseIgnitionField
+      : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
+  // TODO(6409): Remove when Full-Codegen dies.
+  class DontSelfOptimize
+      : public BitField<bool, MustUseIgnitionField::kNext, 1> {};
   class DontOptimizeReasonField
-      : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
-  };
+      : public BitField<BailoutReason, DontSelfOptimize::kNext, 8> {};
 
   int expected_property_count_;
   int parameter_count_;

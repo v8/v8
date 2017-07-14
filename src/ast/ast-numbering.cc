@@ -26,6 +26,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         slot_cache_(zone),
         disable_fullcodegen_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
+        dont_self_optimize_(false),
         collect_type_profile_(collect_type_profile) {
     InitializeAstVisitor(stack_limit);
   }
@@ -57,16 +58,13 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   }
 
   void IncrementNodeCount() { properties_.add_node_count(1); }
-  void DisableSelfOptimization() {
-    properties_.flags() |= AstProperties::kDontSelfOptimize;
-  }
+  void DisableSelfOptimization() { dont_self_optimize_ = true; }
   void DisableOptimization(BailoutReason reason) {
     dont_optimize_reason_ = reason;
     DisableSelfOptimization();
   }
   void DisableFullCodegen(BailoutReason reason) {
     disable_fullcodegen_reason_ = reason;
-    properties_.flags() |= AstProperties::kMustUseIgnition;
   }
 
   template <typename Node>
@@ -102,6 +100,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   FeedbackSlotCache slot_cache_;
   BailoutReason disable_fullcodegen_reason_;
   BailoutReason dont_optimize_reason_;
+  bool dont_self_optimize_;
   bool collect_type_profile_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -227,8 +226,7 @@ void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
   IncrementNodeCount();
   Visit(node->expression());
 
-  DCHECK(!node->is_async_return() ||
-         properties_.flags() & AstProperties::kMustUseIgnition);
+  DCHECK(!node->is_async_return() || disable_fullcodegen_reason_ != kNoReason);
 }
 
 void AstNumberingVisitor::VisitSuspend(Suspend* node) {
@@ -647,8 +645,12 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   node->set_dont_optimize_reason(dont_optimize_reason());
   node->set_suspend_count(suspend_count_);
 
-  if (FLAG_trace_opt && FLAG_stress_fullcodegen) {
-    if (disable_fullcodegen_reason_ != kNoReason) {
+  if (dont_self_optimize_) {
+    node->set_dont_self_optimize();
+  }
+  if (disable_fullcodegen_reason_ != kNoReason) {
+    node->set_must_use_ignition();
+    if (FLAG_trace_opt && FLAG_stress_fullcodegen) {
       // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
       // the function to be accessed in the below print. This DCHECK will fail
       // if we move ast numbering off the main thread, but that won't be before

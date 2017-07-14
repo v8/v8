@@ -83,7 +83,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
-  DCHECK(!info->shared_info()->must_use_ignition());
+  DCHECK(!info->literal()->must_use_ignition());
   DCHECK(!FLAG_minimal);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileFullCode);

@@ -312,10 +312,6 @@ class SharedFunctionInfo : public HeapObject {
   // Indicate that this function should always be inlined in optimized code.
   DECL_BOOLEAN_ACCESSORS(force_inline)
 
-  // Indicates that code for this function must be compiled through the
-  // Ignition / TurboFan pipeline, and is unsupported by FullCodegen.
-  DECL_BOOLEAN_ACCESSORS(must_use_ignition)
-
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
 
@@ -502,11 +498,10 @@ class SharedFunctionInfo : public HeapObject {
   V(NeedsHomeObjectBit, bool, 1, _)        \
   V(ForceInlineBit, bool, 1, _)            \
   V(IsAsmFunctionBit, bool, 1, _)          \
-  V(MustUseIgnitionBit, bool, 1, _)        \
   V(IsDeclarationBit, bool, 1, _)          \
   V(IsAsmWasmBrokenBit, bool, 1, _)        \
   V(FunctionMapIndexBits, int, 5, _)       \
-  /* Bits 27-31 are unused. */
+  /* Bits 26-31 are unused. */
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
