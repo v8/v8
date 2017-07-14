@@ -18,7 +18,11 @@
         {"name": "ProxyConstructorWithArrowFunc"},
         {"name": "ProxyConstructorWithClass"},
         {"name": "ProxyConstructorWithObject"},
-        {"name": "ProxyConstructorWithProxy"}
+        {"name": "ProxyConstructorWithProxy"},
+        {"name": "CallProxyWithoutTrap"},
+        {"name": "CallProxyWithTrap"},
+        {"name": "ConstructProxyWithoutTrap"},
+        {"name": "ConstructProxyWithTrap"}
       ]
     },
     {
