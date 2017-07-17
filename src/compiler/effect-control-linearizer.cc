@@ -536,15 +536,9 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
     return;
   }
 
-  if (node->opcode() == IrOpcode::kIfSuccess) {
-    // We always schedule IfSuccess with its call, so skip it here.
-    DCHECK_EQ(IrOpcode::kCall, node->InputAt(0)->opcode());
-    // The IfSuccess node should not belong to an exceptional call node
-    // because such IfSuccess nodes should only start a basic block (and
-    // basic block start nodes are not handled in the ProcessNode method).
-    DCHECK(!NodeProperties::IsExceptionalCall(node->InputAt(0)));
-    return;
-  }
+  // The IfSuccess nodes should always start a basic block (and basic block
+  // start nodes are not handled in the ProcessNode method).
+  DCHECK_NE(IrOpcode::kIfSuccess, node->opcode());
 
   // If the node takes an effect, replace with the current one.
   if (node->op()->EffectInputCount() > 0) {
