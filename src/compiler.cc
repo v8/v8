@@ -113,15 +113,15 @@ CompilationJob::Status CompilationJob::PrepareJob() {
 }
 
 CompilationJob::Status CompilationJob::ExecuteJob() {
-  std::unique_ptr<DisallowHeapAllocation> no_allocation;
-  std::unique_ptr<DisallowHandleAllocation> no_handles;
-  std::unique_ptr<DisallowHandleDereference> no_deref;
-  std::unique_ptr<DisallowCodeDependencyChange> no_dependency_change;
+  base::Optional<DisallowHeapAllocation> no_allocation;
+  base::Optional<DisallowHandleAllocation> no_handles;
+  base::Optional<DisallowHandleDereference> no_deref;
+  base::Optional<DisallowCodeDependencyChange> no_dependency_change;
   if (can_execute_on_background_thread()) {
-    no_allocation.reset(new DisallowHeapAllocation());
-    no_handles.reset(new DisallowHandleAllocation());
-    no_deref.reset(new DisallowHandleDereference());
-    no_dependency_change.reset(new DisallowCodeDependencyChange());
+    no_allocation.emplace();
+    no_handles.emplace();
+    no_deref.emplace();
+    no_dependency_change.emplace();
     executed_on_background_thread_ =
         !ThreadId::Current().Equals(isolate_thread_id_);
   } else {
