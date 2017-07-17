@@ -132,6 +132,26 @@ class CompilationManager;
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
 
+#define ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                        \
+    Isolate* __isolate__ = (isolate);                                         \
+    if (!(call).ToLocal(&dst)) {                                              \
+      DCHECK(__isolate__->has_scheduled_exception());                         \
+      __isolate__->PromoteScheduledException();                               \
+      return value;                                                           \
+    }                                                                         \
+  } while (false)
+
+#define RETURN_ON_SCHEDULED_EXCEPTION_VALUE(isolate, call, value) \
+  do {                                                            \
+    Isolate* __isolate__ = (isolate);                             \
+    if ((call).IsNothing()) {                                     \
+      DCHECK(__isolate__->has_scheduled_exception());             \
+      __isolate__->PromoteScheduledException();                   \
+      return value;                                               \
+    }                                                             \
+  } while (false)
+
 #define RETURN_RESULT_OR_FAILURE(isolate, call)     \
   do {                                              \
     Handle<Object> __result__;                      \

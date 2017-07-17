@@ -3331,18 +3331,14 @@ namespace {
 MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
                                           v8::Local<v8::Context> api_context,
                                           Handle<Object> exception) {
-  v8::MaybeLocal<v8::Promise::Resolver> maybe_resolver =
-      v8::Promise::Resolver::New(api_context);
   v8::Local<v8::Promise::Resolver> resolver;
-  // TODO(gsathya): Add test that checks this failure
-  if (!maybe_resolver.ToLocal(&resolver)) {
-    return MaybeHandle<JSPromise>();
-  }
+  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      isolate, resolver, v8::Promise::Resolver::New(api_context),
+      MaybeHandle<JSPromise>());
 
-  if (resolver->Reject(api_context, v8::Utils::ToLocal(exception))
-          .IsNothing()) {
-    return MaybeHandle<JSPromise>();
-  }
+  RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      isolate, resolver->Reject(api_context, v8::Utils::ToLocal(exception)),
+      MaybeHandle<JSPromise>());
 
   v8::Local<v8::Promise> promise = resolver->GetPromise();
   return v8::Utils::OpenHandle(*promise);
@@ -3370,12 +3366,13 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   }
   DCHECK(!has_pending_exception());
 
-  v8::MaybeLocal<v8::Promise> maybe_promise =
+  v8::Local<v8::Promise> promise;
+  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      this, promise,
       host_import_module_dynamically_callback_(
           api_context, v8::Utils::ToLocal(source_url),
-          v8::Utils::ToLocal(specifier_str));
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(this, MaybeHandle<JSPromise>());
-  v8::Local<v8::Promise> promise = maybe_promise.ToLocalChecked();
+          v8::Utils::ToLocal(specifier_str)),
+      MaybeHandle<JSPromise>());
   return v8::Utils::OpenHandle(*promise);
 }
 
