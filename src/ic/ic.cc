@@ -413,19 +413,16 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
 }
 
 // static
-void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
-                           JSFunction* host_function) {
+void IC::OnFeedbackChanged(Isolate* isolate, JSFunction* host_function) {
   if (FLAG_trace_opt_verbose) {
-    // TODO(leszeks): The host function is only needed for this print, we could
-    // remove it as a parameter if we're of with removing this trace (or only
-    // tracing the feedback vector, not the function name).
-    if (vector->profiler_ticks() != 0) {
+    if (host_function->shared()->profiler_ticks() != 0) {
       PrintF("[resetting ticks for ");
       host_function->PrintName();
-      PrintF(" due from %d due to IC change]\n", vector->profiler_ticks());
+      PrintF(" due from %d due to IC change]\n",
+             host_function->shared()->profiler_ticks());
     }
   }
-  vector->set_profiler_ticks(0);
+  host_function->shared()->set_profiler_ticks(0);
   isolate->runtime_profiler()->NotifyICChanged();
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
@@ -514,7 +511,7 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   }
 
   vector_set_ = true;
-  OnFeedbackChanged(isolate(), *vector(), GetHostFunction());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
@@ -529,7 +526,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   }
 
   vector_set_ = true;
-  OnFeedbackChanged(isolate(), *vector(), GetHostFunction());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
@@ -540,7 +537,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
   nexus()->ConfigurePolymorphic(name, maps, handlers);
 
   vector_set_ = true;
-  OnFeedbackChanged(isolate(), *vector(), GetHostFunction());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {

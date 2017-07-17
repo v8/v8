@@ -201,7 +201,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   array->set_map_no_write_barrier(isolate->heap()->feedback_vector_map());
   array->set(kSharedFunctionInfoIndex, *shared);
   array->set(kOptimizedCodeIndex, Smi::FromEnum(OptimizationMarker::kNone));
-  array->set(kProfilerTicksIndex, Smi::kZero);
   array->set(kInvocationCountIndex, Smi::kZero);
 
   // Ensure we can skip the write barrier
@@ -453,7 +452,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
     }
   }
   if (feedback_updated) {
-    IC::OnFeedbackChanged(isolate, this, host_function);
+    IC::OnFeedbackChanged(isolate, host_function);
   }
 }
 
