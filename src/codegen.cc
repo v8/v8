@@ -244,8 +244,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 
     // Print the source code if available.
     bool print_source =
-        info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
-                               code->kind() == Code::FUNCTION);
+        info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION);
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
       Handle<Script> script = info->script();

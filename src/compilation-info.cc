@@ -124,8 +124,7 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 bool CompilationInfo::ShouldSelfOptimize() {
   return FLAG_opt && !literal()->dont_self_optimize() &&
          !literal()->dont_optimize() &&
-         literal()->scope()->AllowsLazyCompilation() &&
-         !shared_info()->optimization_disabled();
+         literal()->scope()->AllowsLazyCompilation();
 }
 
 void CompilationInfo::set_deferred_handles(

@@ -289,7 +289,7 @@ bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
 
   // Modules that have validated successfully, but were subsequently broken by
   // invalid module instantiation attempts are off limit forever.
-  if (shared_info->is_asm_wasm_broken()) return false;
+  if (!shared_info.is_null() && shared_info->is_asm_wasm_broken()) return false;
 
   // Compiling for debugging is not supported, fall back.
   if (is_debug) return false;
@@ -326,6 +326,18 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
 
 void InstallUnoptimizedCode(CompilationInfo* info) {
   Handle<SharedFunctionInfo> shared = info->shared_info();
+  DCHECK_EQ(info->shared_info()->language_mode(),
+            info->literal()->language_mode());
+
+  // Ensure feedback metadata is installed.
+  EnsureFeedbackMetadata(info);
+
+  // Mark code to be executed once before being aged if necessary.
+  // TODO(6409): Remove when full-codegen dies.
+  DCHECK(!info->code().is_null());
+  if (info->parse_info()->literal()->should_be_used_once_hint()) {
+    info->code()->MarkToBeExecutedOnce(info->isolate());
+  }
 
   // Update the shared function info with the scope info.
   Handle<ScopeInfo> scope_info = info->scope()->scope_info();
@@ -357,6 +369,19 @@ void InstallUnoptimizedCode(CompilationInfo* info) {
   }
 }
 
+void EnsureSharedFunctionInfosArrayOnScript(CompilationInfo* info) {
+  DCHECK(info->parse_info()->is_toplevel());
+  DCHECK(!info->script().is_null());
+  if (info->script()->shared_function_infos()->length() > 0) {
+    DCHECK_EQ(info->script()->shared_function_infos()->length(),
+              info->parse_info()->max_function_literal_id() + 1);
+    return;
+  }
+  Handle<FixedArray> infos(info->isolate()->factory()->NewFixedArray(
+      info->parse_info()->max_function_literal_id() + 1));
+  info->script()->set_shared_function_infos(*infos);
+}
+
 void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
                                        Handle<SharedFunctionInfo> shared_info) {
   // Don't overwrite values set by the bootstrapper.
@@ -374,17 +399,33 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
 
 CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   CompilationInfo* info = job->info();
+  ParseInfo* parse_info = info->parse_info();
+  Isolate* isolate = info->isolate();
+
+  if (parse_info->is_toplevel()) {
+    // Allocate a shared function info and an array for shared function infos
+    // for inner functions.
+    EnsureSharedFunctionInfosArrayOnScript(info);
+    DCHECK_EQ(kNoSourcePosition, info->literal()->function_token_position());
+    if (!info->has_shared_info()) {
+      Handle<SharedFunctionInfo> shared =
+          isolate->factory()->NewSharedFunctionInfoForLiteral(info->literal(),
+                                                              info->script());
+      shared->set_is_toplevel(true);
+      parse_info->set_shared_info(shared);
+    }
+  }
   SetSharedFunctionFlagsFromLiteral(info->literal(), info->shared_info());
 
   CompilationJob::Status status = job->FinalizeJob();
   if (status == CompilationJob::SUCCEEDED) {
-    EnsureFeedbackMetadata(info);
-    DCHECK(!info->code().is_null());
-    if (info->parse_info()->literal()->should_be_used_once_hint()) {
-      info->code()->MarkToBeExecutedOnce(info->isolate());
-    }
     InstallUnoptimizedCode(info);
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, info);
+    CodeEventListener::LogEventsAndTags log_tags =
+        parse_info->is_toplevel() ? parse_info->is_eval()
+                                        ? CodeEventListener::EVAL_TAG
+                                        : CodeEventListener::SCRIPT_TAG
+                                  : CodeEventListener::FUNCTION_TAG;
+    RecordFunctionCompilation(log_tags, info);
     job->RecordUnoptimizedCompilationStats();
   }
   return status;
@@ -418,7 +459,6 @@ bool Renumber(ParseInfo* parse_info,
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   if (UseAsmWasm(info->scope(), info->shared_info(), info->is_debug())) {
-    EnsureFeedbackMetadata(info);
     MaybeHandle<FixedArray> wasm_data;
     wasm_data = AsmJs::CompileAsmViaWasm(info);
     if (!wasm_data.is_null()) {
@@ -475,7 +515,7 @@ bool CompileUnoptimizedInnerFunctions(
       ParseInfo parse_info(script);
       CompilationInfo info(parse_info.zone(), &parse_info, isolate,
                            Handle<JSFunction>::null());
-
+      parse_info.set_toplevel(false);
       parse_info.set_literal(literal);
       parse_info.set_shared_info(shared);
       parse_info.set_function_literal_id(shared->function_literal_id());
@@ -498,11 +538,11 @@ bool CompileUnoptimizedInnerFunctions(
   return true;
 }
 
-bool InnerFunctionIsAsmModule(
+bool InnerFunctionShouldUseFullCodegen(
     ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* literals) {
   for (auto it : *literals) {
     FunctionLiteral* literal = it->value();
-    if (literal->scope()->IsAsmModule()) return true;
+    if (ShouldUseFullCodegen(literal)) return true;
   }
   return false;
 }
@@ -524,11 +564,12 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
     }
   }
 
-  // Disable concurrent inner compilation for asm-wasm code.
-  // TODO(rmcilroy,bradnelson): Remove this AsmWasm check once the asm-wasm
-  // builder doesn't do parsing when visiting function declarations.
-  if (info->scope()->IsAsmModule() ||
-      InnerFunctionIsAsmModule(&inner_literals)) {
+  if (info->parse_info()->is_toplevel() &&
+      (ShouldUseFullCodegen(info->literal()) ||
+       InnerFunctionShouldUseFullCodegen(&inner_literals))) {
+    // Full-codegen needs to access SFI when compiling, so allocate the array
+    // now.
+    EnsureSharedFunctionInfosArrayOnScript(info);
     inner_function_mode = ConcurrencyMode::kNotConcurrent;
   }
 
@@ -541,32 +582,14 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
     parse_zone->Seal();
   }
 
-  if (!CompileUnoptimizedInnerFunctions(&inner_literals, inner_function_mode,
-                                        parse_zone, info) ||
-      !GenerateUnoptimizedCode(info)) {
+  if (!GenerateUnoptimizedCode(info) ||
+      !CompileUnoptimizedInnerFunctions(&inner_literals, inner_function_mode,
+                                        parse_zone, info)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
   }
 
   return true;
-}
-
-void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info, Isolate* isolate) {
-  DCHECK(info->is_toplevel());
-  DCHECK(!info->script().is_null());
-  if (info->script()->shared_function_infos()->length() > 0) {
-    DCHECK_EQ(info->script()->shared_function_infos()->length(),
-              info->max_function_literal_id() + 1);
-    return;
-  }
-  Handle<FixedArray> infos(
-      isolate->factory()->NewFixedArray(info->max_function_literal_id() + 1));
-  info->script()->set_shared_function_infos(*infos);
-}
-
-void EnsureSharedFunctionInfosArrayOnScript(CompilationInfo* info) {
-  return EnsureSharedFunctionInfosArrayOnScript(info->parse_info(),
-                                                info->isolate());
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
@@ -590,9 +613,6 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
       info->parse_info()->ast_value_factory()->Internalize(info->isolate());
     }
   }
-
-  DCHECK_EQ(info->shared_info()->language_mode(),
-            info->literal()->language_mode());
 
   // Compile either unoptimized code or bytecode for the interpreter.
   if (!CompileUnoptimizedCode(info, inner_function_mode)) {
@@ -1042,8 +1062,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
     }
 
-    EnsureSharedFunctionInfosArrayOnScript(info);
-
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
     // parsing statistics.
@@ -1054,37 +1072,17 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
-    // Allocate a shared function info object.
-    FunctionLiteral* lit = parse_info->literal();
-    DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
-    result = isolate->factory()->NewSharedFunctionInfoForLiteral(lit, script);
-    result->set_is_toplevel(true);
-    parse_info->set_shared_info(result);
-    parse_info->set_function_literal_id(result->function_literal_id());
-
     // Compile the code.
     if (!CompileUnoptimizedCode(info, inner_function_mode)) {
       return Handle<SharedFunctionInfo>::null();
     }
-
-    Handle<String> script_name =
-        script->name()->IsString()
-            ? Handle<String>(String::cast(script->name()))
-            : isolate->factory()->empty_string();
-    CodeEventListener::LogEventsAndTags log_tag =
-        parse_info->is_eval()
-            ? CodeEventListener::EVAL_TAG
-            : Logger::ToNativeByScript(CodeEventListener::SCRIPT_TAG, *script);
-
-    PROFILE(isolate, CodeCreateEvent(log_tag, result->abstract_code(), *result,
-                                     *script_name));
 
     if (!script.is_null()) {
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
     }
   }
 
-  return result;
+  return info->shared_info();
 }
 
 }  // namespace
