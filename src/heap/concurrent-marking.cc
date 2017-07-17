@@ -151,6 +151,14 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
+  int VisitAllocationSite(Map* map, AllocationSite* object) {
+    if (!ShouldVisit(object)) return 0;
+    int size = AllocationSite::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    AllocationSite::BodyDescriptorWeak::IterateBody(object, size, this);
+    return size;
+  }
+
   int VisitJSFunction(Map* map, JSFunction* object) {
     if (!ShouldVisit(object)) return 0;
     int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
