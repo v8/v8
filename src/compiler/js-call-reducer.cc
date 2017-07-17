@@ -531,7 +531,6 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
   dependencies()->AssumePropertyCell(factory()->array_protector());
-  dependencies()->AssumePrototypeMapsStable(receiver_map);
 
   Node* k = jsgraph()->ZeroConstant();
 
