@@ -855,7 +855,7 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
       access.machine_type = MachineType::Float64();
       break;
     case FAST_HOLEY_DOUBLE_ELEMENTS:
-      access.type = Type::Number();
+      access.type = Type::NumberOrHole();
       access.write_barrier_kind = kNoWriteBarrier;
       access.machine_type = MachineType::Float64();
       break;
