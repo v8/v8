@@ -42,7 +42,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(55),
@@ -50,7 +50,6 @@ bytecodes: [
   /*   54 S> */ B(LdaSmi), I8(100),
                 B(Star), R(0),
                 B(Star), R(1),
-  /*   65 S> */ B(Nop),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
@@ -66,7 +65,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 27
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(55),
@@ -80,7 +79,6 @@ bytecodes: [
                 B(Star), R(0),
   /*   64 E> */ B(Add), R(1), U8(4),
                 B(Star), R(0),
-  /*   77 S> */ B(Nop),
   /*   86 S> */ B(Return),
 ]
 constant pool: [
@@ -97,7 +95,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(55),
@@ -112,7 +110,6 @@ bytecodes: [
                 B(Star), R(0),
   /*   75 S> */ B(Inc), U8(5),
                 B(Star), R(0),
-  /*   80 S> */ B(Nop),
   /*   89 S> */ B(Return),
 ]
 constant pool: [
@@ -128,7 +125,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(55),
@@ -146,7 +143,6 @@ bytecodes: [
                 B(Star), R(0),
   /*   76 E> */ B(Add), R(2), U8(5),
                 B(Star), R(1),
-  /*   87 S> */ B(Nop),
   /*   96 S> */ B(Return),
 ]
 constant pool: [
@@ -162,7 +158,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(55),
@@ -180,7 +176,6 @@ bytecodes: [
                 B(Star), R(0),
   /*   76 E> */ B(Add), R(1), U8(5),
                 B(Star), R(0),
-  /*   87 S> */ B(Nop),
   /*   96 S> */ B(Return),
 ]
 constant pool: [

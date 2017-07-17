@@ -74,13 +74,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(101),
                 B(Star), R(0),
-  /*   47 S> */ B(Nop),
-  /*   61 E> */ B(MulSmi), I8(3), U8(3),
+  /*   61 S> */ B(MulSmi), I8(3), U8(3),
                 B(LdaUndefined),
   /*   66 S> */ B(Return),
 ]
@@ -97,17 +96,15 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 19
+bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
-  /*   56 S> */ B(Nop),
-  /*   64 E> */ B(Mul), R(0), U8(3),
+  /*   64 S> */ B(Mul), R(0), U8(3),
   /*   68 E> */ B(SubSmi), I8(1), U8(4),
                 B(LdaUndefined),
                 B(Star), R(1),
-  /*   74 S> */ B(Nop),
   /*   83 S> */ B(Return),
 ]
 constant pool: [
@@ -122,13 +119,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(Nop),
-  /*   53 E> */ B(BitwiseXorSmi), I8(-1), U8(3),
+  /*   53 S> */ B(BitwiseXorSmi), I8(-1), U8(3),
   /*   56 S> */ B(Return),
 ]
 constant pool: [
@@ -143,13 +139,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(Nop),
-  /*   53 E> */ B(MulSmi), I8(1), U8(3),
+  /*   53 S> */ B(MulSmi), I8(1), U8(3),
   /*   56 S> */ B(Return),
 ]
 constant pool: [
@@ -164,13 +159,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(Nop),
-  /*   53 E> */ B(MulSmi), I8(-1), U8(3),
+  /*   53 S> */ B(MulSmi), I8(-1), U8(3),
   /*   56 S> */ B(Return),
 ]
 constant pool: [

@@ -441,7 +441,7 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 281
+bytecode array length: 280
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(7),
@@ -467,7 +467,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(2), U8(1),
                 B(LdaNamedProperty), R(2), U8(4), U8(13),
-                B(JumpIfToBooleanTrue), U8(31),
+                B(JumpIfToBooleanTrue), U8(30),
   /*   67 E> */ B(LdaNamedProperty), R(2), U8(5), U8(15),
                 B(Star), R(4),
                 B(LdaSmi), I8(2),
@@ -475,8 +475,7 @@ bytecodes: [
                 B(Ldar), R(4),
                 B(StaNamedPropertySloppy), R(0), U8(6), U8(17),
   /*   62 E> */ B(StackCheck),
-  /*   88 S> */ B(Nop),
-  /*   96 E> */ B(LdaNamedProperty), R(0), U8(6), U8(19),
+  /*   96 S> */ B(LdaNamedProperty), R(0), U8(6), U8(19),
                 B(Star), R(8),
                 B(LdaZero),
                 B(Star), R(7),
@@ -578,8 +577,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [15, 138, 144],
-  [18, 102, 104],
-  [205, 215, 217],
+  [15, 137, 143],
+  [18, 101, 103],
+  [204, 214, 216],
 ]
 

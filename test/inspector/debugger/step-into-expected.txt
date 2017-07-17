@@ -155,7 +155,7 @@ break at:
 
 break at:
     }
-    #return nested2();
+    return #nested2();
   }
 
 break at:
@@ -297,11 +297,6 @@ break at:
 break at:
   for (var i = 0; i < 1; ++i) {}
   for (var i = 0; i #< 1; ++i) i;
-  for (var i = 0; i < 0; ++i) {}
-
-break at:
-  for (var i = 0; i < 1; ++i) {}
-  for (var i = 0; i < 1; ++i) #i;
   for (var i = 0; i < 0; ++i) {}
 
 break at:
@@ -699,7 +694,7 @@ break at:
 
 break at:
   debugger;
-  #gen.next().value;
+  gen.#next().value;
   return42();
 
 break at:
@@ -852,7 +847,7 @@ break at:
 
 break at:
     setTimeout(returnCall, 0);
-    #await foo();
+    await #foo();
     await foo();
 
 break at:

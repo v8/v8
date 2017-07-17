@@ -421,9 +421,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Insert entry for illegal bytecode as this is never willingly emitted.
   scorecard[Bytecodes::ToByte(Bytecode::kIllegal)] = 1;
 
-  // Insert entry for nop bytecode as this often gets optimized out.
-  scorecard[Bytecodes::ToByte(Bytecode::kNop)] = 1;
-
   if (!FLAG_type_profile) {
     // Bytecode for CollectTypeProfile is only emitted when
     // Type Information for DevTools is turned on.

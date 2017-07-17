@@ -3251,11 +3251,6 @@ IGNITION_HANDLER(ExtraWide, InterpreterAssembler) {
 // An invalid bytecode aborting execution if dispatched.
 IGNITION_HANDLER(Illegal, InterpreterAssembler) { Abort(kInvalidBytecode); }
 
-// Nop
-//
-// No operation.
-IGNITION_HANDLER(Nop, InterpreterAssembler) { Dispatch(); }
-
 // SuspendGenerator <generator> <first input register> <register count>
 //
 // Exports the register file and stores it into the generator.  Also stores the

@@ -58,7 +58,7 @@ function testNested() {
       |C|nested3();
       |_|return;|R|
     }
-    |_|return |C|nested2();|R|
+    return |C|nested2();|R|
   }
   |C|nested1();
 |R|}
@@ -90,7 +90,7 @@ function testWith() {
 
 function testForLoop() {
   for (var i = |_|0; i |_|< 1; ++|_|i) {}
-  for (var i = |_|0; i |_|< 1; ++|_|i) |_|i;
+  for (var i = |_|0; i |_|< 1; ++|_|i) i;
   for (var i = |_|0; i |_|< 0; ++|_|i) {}
 |R|}
 
@@ -161,13 +161,13 @@ function* idMaker() {
 function testGenerator() {
   var gen = |C|idMaker();
   |C|return42();
-  |_|gen.|C|next().value;
+  gen.|C|next().value;
   |D|debugger;
-  |_|gen.|C|next().value;
+  gen.|C|next().value;
   |C|return42();
-  |_|gen.|C|next().value;
+  gen.|C|next().value;
   |C|return42();
-  |_|gen.|C|next().value;
+  gen.|C|next().value;
 |R|}
 
 function throwException() {
@@ -230,8 +230,8 @@ async function testPromiseAsyncWithCode() {
       |_|await p;
     |R|}
     |C|setTimeout(returnCall, 0);
-    |_|await |C|foo();
-    |_|await |C|foo();
+    await |C|foo();
+    await |C|foo();
     |C|nextTest();
   |R|}
   |C|main();

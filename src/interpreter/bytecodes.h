@@ -344,10 +344,6 @@ namespace interpreter {
                                                                                \
   /* Illegal bytecode (terminates execution) */                                \
   V(Illegal, AccumulatorUse::kNone)                                            \
-                                                                               \
-  /* No operation (used to maintain source positions for peephole */           \
-  /* eliminated bytecodes). */                                                 \
-  V(Nop, AccumulatorUse::kNone)
 
 // List of debug break bytecodes.
 #define DEBUG_BREAK_PLAIN_BYTECODE_LIST(V) \
@@ -632,7 +628,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   static constexpr bool IsWithoutExternalSideEffects(Bytecode bytecode) {
     return (IsAccumulatorLoadWithoutEffects(bytecode) ||
             IsRegisterLoadWithoutEffects(bytecode) ||
-            IsCompareWithoutEffects(bytecode) || bytecode == Bytecode::kNop ||
+            IsCompareWithoutEffects(bytecode) ||
             IsJumpWithoutEffects(bytecode) || IsSwitch(bytecode));
   }
 

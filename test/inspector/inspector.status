@@ -38,6 +38,7 @@
   'debugger/asm-js-breakpoint-before-exec': [SKIP],
   'debugger/break-locations-await': [SKIP],
   'debugger/get-possible-breakpoints': [SKIP],
+  'debugger/stepping-with-blackboxed-ranges': [SKIP],
 }],  # variant == fullcode
 
 ]

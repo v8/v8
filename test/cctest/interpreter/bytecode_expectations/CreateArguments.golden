@@ -13,12 +13,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(Nop),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
@@ -54,12 +53,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   29 S> */ B(Nop),
   /*   46 S> */ B(Return),
 ]
 constant pool: [
@@ -99,7 +97,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 4
-bytecode array length: 22
+bytecode array length: 21
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(1),
@@ -112,7 +110,6 @@ bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   22 S> */ B(Nop),
   /*   39 S> */ B(Return),
 ]
 constant pool: [
@@ -127,12 +124,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 4
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   36 S> */ B(Nop),
   /*   53 S> */ B(Return),
 ]
 constant pool: [

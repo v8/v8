@@ -34,8 +34,8 @@ function g() {
 async function f() {
   var a = 1;
   debugger;        // B0 StepNext
-  a +=             // B1 StepNext
-       await
+  a +=
+       await       // B1 StepNext
              g();
   return a;        // B2 StepNext
 }                  // B3 Continue

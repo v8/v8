@@ -2428,8 +2428,6 @@ void BytecodeGraphBuilder::VisitIllegal() {
   UNREACHABLE();
 }
 
-void BytecodeGraphBuilder::VisitNop() {}
-
 void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
   auto it = merge_environments_.find(current_offset);
   if (it != merge_environments_.end()) {

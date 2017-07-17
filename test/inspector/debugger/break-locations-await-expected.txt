@@ -19,7 +19,7 @@ function testFunction() {
     |_|return r;
   |R|}
 
-  |_|return |C|f2();|R|
+  return |C|f2();|R|
 }
 
 
@@ -27,10 +27,10 @@ Running test: testStepInto
 (anonymous) (expr.js:0:0)
 
 
-testFunction (test.js:18:2)
+testFunction (test.js:18:9)
 (anonymous) (expr.js:0:0)
 
-  #return f2();
+  return #f2();
 }
 
 f2 (test.js:8:12)

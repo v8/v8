@@ -119,22 +119,18 @@ BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
 void BytecodeArrayBuilder::SetDeferredSourceInfo(
     BytecodeSourceInfo source_info) {
   if (!source_info.is_valid()) return;
-  if (deferred_source_info_.is_valid()) {
-    // Emit any previous deferred source info now as a nop.
-    BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    bytecode_array_writer_.Write(&node);
-  }
   deferred_source_info_ = source_info;
 }
 
 void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
   if (!deferred_source_info_.is_valid()) return;
-
   if (!node->source_info().is_valid()) {
     node->set_source_info(deferred_source_info_);
-  } else {
-    BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    bytecode_array_writer_.Write(&node);
+  } else if (deferred_source_info_.is_statement() &&
+             node->source_info().is_expression()) {
+    BytecodeSourceInfo source_position = node->source_info();
+    source_position.MakeStatementPosition(source_position.source_position());
+    node->set_source_info(source_position);
   }
   deferred_source_info_.set_invalid();
 }
@@ -640,7 +636,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
   if (register_optimizer_) {
     // Defer source info so that if we elide the bytecode transfer, we attach
-    // the source info to a subsequent bytecode or to a nop.
+    // the source info to a subsequent bytecode if it exists.
     SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kLdar));
     register_optimizer_->DoLdar(reg);
   } else {
@@ -653,7 +649,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
   if (register_optimizer_) {
     // Defer source info so that if we elide the bytecode transfer, we attach
-    // the source info to a subsequent bytecode or to a nop.
+    // the source info to a subsequent bytecode if it exists.
     SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kStar));
     register_optimizer_->DoStar(reg);
   } else {
@@ -667,7 +663,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   DCHECK(from != to);
   if (register_optimizer_) {
     // Defer source info so that if we elide the bytecode transfer, we attach
-    // the source info to a subsequent bytecode or to a nop.
+    // the source info to a subsequent bytecode if it exists.
     SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kMov));
     register_optimizer_->DoMov(from, to);
   } else {

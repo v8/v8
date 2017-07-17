@@ -17,7 +17,7 @@ function testFunction() {
   function f() {
     for (let { x, y } = |_|{ x: 0, y: 1 }; y |_|> 0; --|_|y) { let z = |_|x + y; }
   |R|}
-  var b = |_|obj1.a;
+  var b = obj1.|_|a;
   |_|(async function asyncF() {
     let r = |_|await Promise.|C|resolve(42);
     |_|return r;
@@ -124,10 +124,10 @@ testFunction (test.js:10:44)
   #}
   var b = obj1.a;
 
-testFunction (test.js:14:10)
+testFunction (test.js:14:15)
 (anonymous) (expr.js:0:0)
   }
-  var b = #obj1.a;
+  var b = obj1.#a;
   (async function asyncF() {
 
 testFunction (test.js:15:2)

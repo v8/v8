@@ -8,19 +8,19 @@ function testFunction() {
   var obj = |_|{a : 1};
   var arr = |_|[1];
   var all = |_|[];
-  for (var |_|k in |_|arr) { |_|all.|C|push(k); }
-  for (var |_|k of |_|arr) { |_|all.|C|push(k); }
-  for (var |_|k in |_|obj) { |_|all.|C|push(k); }
-  for (let |_|k in |_|arr) { |_|all.|C|push(k); }
-  for (let |_|k of |_|arr) { |_|all.|C|push(k); }
-  for (let |_|k in |_|obj) { |_|all.|C|push(k); }
+  for (var |_|k in |_|arr) { all.|C|push(k); }
+  for (var |_|k of |_|arr) { all.|C|push(k); }
+  for (var |_|k in |_|obj) { all.|C|push(k); }
+  for (let |_|k in |_|arr) { all.|C|push(k); }
+  for (let |_|k of |_|arr) { all.|C|push(k); }
+  for (let |_|k in |_|obj) { all.|C|push(k); }
 
   var iterable = |_|{
     [Symbol.iterator]() {
       |_|return {
         i: 0,
         next() {
-          |_|if (this.i < 1) {
+          if (this.|_|i < 1) {
             |_|return { value: this.i++, done: false };|R|
           }
           |_|return { value: undefined, done: true };|R|
@@ -28,9 +28,9 @@ function testFunction() {
       };|R|
     }
   };
-  for (var |_|k of |_|iterable) { |_|all.|C|push(k); }
+  for (var |_|k of |_|iterable) { all.|C|push(k); }
   |_|iterable.i = 0;
-  for (let |_|k of |_|iterable) { |_|all.|C|push(k); }
+  for (let |_|k of |_|iterable) { all.|C|push(k); }
 |R|}
 
 (anonymous) (expr.js:0:0)
@@ -66,10 +66,10 @@ testFunction (test.js:5:11)
   for (var #k in arr) { all.push(k); }
   for (var k of arr) { all.push(k); }
 
-testFunction (test.js:5:23)
+testFunction (test.js:5:27)
 (anonymous) (expr.js:0:0)
   var all = [];
-  for (var k in arr) { #all.push(k); }
+  for (var k in arr) { all.#push(k); }
   for (var k of arr) { all.push(k); }
 
 testFunction (test.js:5:11)
@@ -90,10 +90,10 @@ testFunction (test.js:6:11)
   for (var #k of arr) { all.push(k); }
   for (var k in obj) { all.push(k); }
 
-testFunction (test.js:6:23)
+testFunction (test.js:6:27)
 (anonymous) (expr.js:0:0)
   for (var k in arr) { all.push(k); }
-  for (var k of arr) { #all.push(k); }
+  for (var k of arr) { all.#push(k); }
   for (var k in obj) { all.push(k); }
 
 testFunction (test.js:6:11)
@@ -114,10 +114,10 @@ testFunction (test.js:7:11)
   for (var #k in obj) { all.push(k); }
   for (let k in arr) { all.push(k); }
 
-testFunction (test.js:7:23)
+testFunction (test.js:7:27)
 (anonymous) (expr.js:0:0)
   for (var k of arr) { all.push(k); }
-  for (var k in obj) { #all.push(k); }
+  for (var k in obj) { all.#push(k); }
   for (let k in arr) { all.push(k); }
 
 testFunction (test.js:7:11)
@@ -138,10 +138,10 @@ testFunction (test.js:8:11)
   for (let #k in arr) { all.push(k); }
   for (let k of arr) { all.push(k); }
 
-testFunction (test.js:8:23)
+testFunction (test.js:8:27)
 (anonymous) (expr.js:0:0)
   for (var k in obj) { all.push(k); }
-  for (let k in arr) { #all.push(k); }
+  for (let k in arr) { all.#push(k); }
   for (let k of arr) { all.push(k); }
 
 testFunction (test.js:8:11)
@@ -162,10 +162,10 @@ testFunction (test.js:9:11)
   for (let #k of arr) { all.push(k); }
   for (let k in obj) { all.push(k); }
 
-testFunction (test.js:9:23)
+testFunction (test.js:9:27)
 (anonymous) (expr.js:0:0)
   for (let k in arr) { all.push(k); }
-  for (let k of arr) { #all.push(k); }
+  for (let k of arr) { all.#push(k); }
   for (let k in obj) { all.push(k); }
 
 testFunction (test.js:9:11)
@@ -186,10 +186,10 @@ testFunction (test.js:10:11)
   for (let #k in obj) { all.push(k); }
 
 
-testFunction (test.js:10:23)
+testFunction (test.js:10:27)
 (anonymous) (expr.js:0:0)
   for (let k of arr) { all.push(k); }
-  for (let k in obj) { #all.push(k); }
+  for (let k in obj) { all.#push(k); }
 
 
 testFunction (test.js:10:11)
@@ -230,11 +230,11 @@ testFunction (test.js:25:11)
   for (var #k of iterable) { all.push(k); }
   iterable.i = 0;
 
-next (test.js:17:10)
+next (test.js:17:19)
 testFunction (test.js:25:11)
 (anonymous) (expr.js:0:0)
         next() {
-          #if (this.i < 1) {
+          if (this.#i < 1) {
             return { value: this.i++, done: false };
 
 next (test.js:18:12)
@@ -251,10 +251,10 @@ testFunction (test.js:25:11)
             return { value: this.i++, done: false };#
           }
 
-testFunction (test.js:25:28)
+testFunction (test.js:25:32)
 (anonymous) (expr.js:0:0)
   };
-  for (var k of iterable) { #all.push(k); }
+  for (var k of iterable) { all.#push(k); }
   iterable.i = 0;
 
 testFunction (test.js:25:11)
@@ -263,11 +263,11 @@ testFunction (test.js:25:11)
   for (var #k of iterable) { all.push(k); }
   iterable.i = 0;
 
-next (test.js:17:10)
+next (test.js:17:19)
 testFunction (test.js:25:11)
 (anonymous) (expr.js:0:0)
         next() {
-          #if (this.i < 1) {
+          if (this.#i < 1) {
             return { value: this.i++, done: false };
 
 next (test.js:20:10)
@@ -316,11 +316,11 @@ testFunction (test.js:27:11)
   for (let #k of iterable) { all.push(k); }
 }
 
-next (test.js:17:10)
+next (test.js:17:19)
 testFunction (test.js:27:11)
 (anonymous) (expr.js:0:0)
         next() {
-          #if (this.i < 1) {
+          if (this.#i < 1) {
             return { value: this.i++, done: false };
 
 next (test.js:18:12)
@@ -337,10 +337,10 @@ testFunction (test.js:27:11)
             return { value: this.i++, done: false };#
           }
 
-testFunction (test.js:27:28)
+testFunction (test.js:27:32)
 (anonymous) (expr.js:0:0)
   iterable.i = 0;
-  for (let k of iterable) { #all.push(k); }
+  for (let k of iterable) { all.#push(k); }
 }
 
 testFunction (test.js:27:11)
@@ -349,11 +349,11 @@ testFunction (test.js:27:11)
   for (let #k of iterable) { all.push(k); }
 }
 
-next (test.js:17:10)
+next (test.js:17:19)
 testFunction (test.js:27:11)
 (anonymous) (expr.js:0:0)
         next() {
-          #if (this.i < 1) {
+          if (this.#i < 1) {
             return { value: this.i++, done: false };
 
 next (test.js:20:10)
@@ -386,10 +386,10 @@ testFunction (test.js:25:11)
   for (var #k of iterable) { all.push(k); }
   iterable.i = 0;
 
-next (test.js:17:10)
+next (test.js:17:19)
 testFunction (test.js:25:11)
 (anonymous) (expr.js:0:0)
         next() {
-          #if (this.i < 1) {
+          if (this.#i < 1) {
             return { value: this.i++, done: false };
 
