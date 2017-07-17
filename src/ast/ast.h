@@ -2404,7 +2404,6 @@ class FunctionLiteral final : public Expression {
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
   int end_position() const;
-  int SourceSize() const { return end_position() - start_position(); }
   bool is_declaration() const { return function_type() == kDeclaration; }
   bool is_named_expression() const {
     return function_type() == kNamedExpression;
