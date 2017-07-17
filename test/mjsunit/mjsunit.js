@@ -39,67 +39,6 @@ function MjsUnitAssertionError(message) {
   }
 }
 
-// Custom V8-specific stack trace formatter that is temporarily installed on
-// the Error object.
-MjsUnitAssertionError.prepareStackTrace = function(error, stack) {
-  // Trigger default formatting with recursion.
-  try {
-    // Filter-out all but the first mjsunit frame.
-    let filteredStack = [];
-    let inMjsunit = true;
-    for (let i = 0; i < stack.length; i++) {
-      let frame = stack[i];
-      if (inMjsunit) {
-        let file = frame.getFileName();
-        if (!file || !file.endsWith("mjsunit.js")) {
-          inMjsunit = false;
-          // Push the last mjsunit frame, typically containing the assertion
-          // function.
-          if (i > 0) filteredStack.push(stack[i-1]);
-          filteredStack.push(stack[i]);
-        }
-        continue;
-      }
-      filteredStack.push(frame);
-    }
-    stack = filteredStack;
-
-    // Infer function names and calculate {max_name_length}
-    let max_name_length = 0;
-    stack.forEach(each => {
-      let name = each.getFunctionName();
-      if (name == null) name = "";
-      if (each.isEval()) {
-        name = name;
-      } else if (each.isConstructor()) {
-        name = "new " + name;
-      } else if (each.isNative()) {
-        name = "native " + name;
-      } else if (!each.isToplevel()) {
-        name = each.getTypeName() + "." + name;
-      }
-      each.name = name;
-      max_name_length = Math.max(name.length, max_name_length)
-    });
-
-    // Format stack frames.
-    stack = stack.map(each => {
-      let frame = "    at " + each.name.padEnd(max_name_length);
-      let fileName = each.getFileName();
-      if (each.isEval()) return frame + " " + each.getEvalOrigin();
-      frame += " " + (fileName ? fileName : "");
-      let line= each.getLineNumber();
-      frame += " " + (line ? line : "");
-      let column = each.getColumnNumber();
-      frame += (column ? ":" + column : "");
-      return frame;
-    });
-    return "" + error.message + "\n" + stack.join("\n");
-  } catch(e) {};
-  return error.stack;
-}
-
-
 /*
  * This file is included in all mini jsunit test cases.  The test
  * framework expects lines that signal failed tests to start with
@@ -240,8 +179,10 @@ var failWithMessage;
   var StringPrototypeValueOf = String.prototype.valueOf;
   var DatePrototypeValueOf = Date.prototype.valueOf;
   var RegExpPrototypeToString = RegExp.prototype.toString;
-  var ArrayPrototypeMap = Array.prototype.map;
+  var ArrayPrototypeForEach = Array.prototype.forEach;
   var ArrayPrototypeJoin = Array.prototype.join;
+  var ArrayPrototypeMap = Array.prototype.map;
+  var ArrayPrototypePush = Array.prototype.push;
 
   function classOf(object) {
     // Argument must not be null or undefined.
@@ -513,7 +454,7 @@ var failWithMessage;
       // Success.
       return;
     }
-    failWithMessage('Did not throw exception');
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -703,6 +644,66 @@ var failWithMessage;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
            (opt_status & V8OptimizationStatus.kTurboFanned) !== 0;
+  }
+
+  // Custom V8-specific stack trace formatter that is temporarily installed on
+  // the Error object.
+  MjsUnitAssertionError.prepareStackTrace = function(error, stack) {
+    // Trigger default formatting with recursion.
+    try {
+      // Filter-out all but the first mjsunit frame.
+      let filteredStack = [];
+      let inMjsunit = true;
+      for (let i = 0; i < stack.length; i++) {
+        let frame = stack[i];
+        if (inMjsunit) {
+          let file = frame.getFileName();
+          if (!file || !file.endsWith("mjsunit.js")) {
+            inMjsunit = false;
+            // Push the last mjsunit frame, typically containing the assertion
+            // function.
+            if (i > 0) ArrayPrototypePush.call(filteredStack, stack[i-1]);
+            ArrayPrototypePush.call(filteredStack, stack[i]);
+          }
+          continue;
+        }
+        ArrayPrototypePush.call(filteredStack, frame);
+      }
+      stack = filteredStack;
+
+      // Infer function names and calculate {max_name_length}
+      let max_name_length = 0;
+      ArrayPrototypeForEach.call(stack, each => {
+        let name = each.getFunctionName();
+        if (name == null) name = "";
+        if (each.isEval()) {
+          name = name;
+        } else if (each.isConstructor()) {
+          name = "new " + name;
+        } else if (each.isNative()) {
+          name = "native " + name;
+        } else if (!each.isToplevel()) {
+          name = each.getTypeName() + "." + name;
+        }
+        each.name = name;
+        max_name_length = Math.max(name.length, max_name_length)
+      });
+
+      // Format stack frames.
+      stack = ArrayPrototypeMap.call(stack, each => {
+        let frame = "    at " + each.name.padEnd(max_name_length);
+        let fileName = each.getFileName();
+        if (each.isEval()) return frame + " " + each.getEvalOrigin();
+        frame += " " + (fileName ? fileName : "");
+        let line= each.getLineNumber();
+        frame += " " + (line ? line : "");
+        let column = each.getColumnNumber();
+        frame += (column ? ":" + column : "");
+        return frame;
+      });
+      return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
+    } catch(e) {};
+    return error.stack;
   }
 
 })();
