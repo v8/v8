@@ -456,8 +456,7 @@ void CompilerDispatcherJob::PrepareToCompileOnMainThread() {
 
 void CompilerDispatcherJob::Compile() {
   DCHECK(status() == CompileJobStatus::kReadyToCompile);
-  COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
-      tracer_, kCompile, parse_info_->literal()->ast_node_count());
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kCompile);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("CompilerDispatcherJob[%p]: Compiling\n", static_cast<void*>(this));
   }
@@ -550,8 +549,7 @@ double CompilerDispatcherJob::EstimateRuntimeOfNextStepInMs() const {
       return tracer_->EstimatePrepareToCompileInMs();
 
     case CompileJobStatus::kReadyToCompile:
-      return tracer_->EstimateCompileInMs(
-          parse_info_->literal()->ast_node_count());
+      return tracer_->EstimateCompileInMs();
 
     case CompileJobStatus::kCompiled:
       return tracer_->EstimateFinalizeCompilingInMs();

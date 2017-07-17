@@ -57,7 +57,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
     return tmp;
   }
 
-  void IncrementNodeCount() { properties_.add_node_count(1); }
   void DisableSelfOptimization() { dont_self_optimize_ = true; }
   void DisableOptimization(BailoutReason reason) {
     dont_optimize_reason_ = reason;
@@ -109,67 +108,56 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
 
 void AstNumberingVisitor::VisitVariableDeclaration(VariableDeclaration* node) {
-  IncrementNodeCount();
   VisitVariableProxy(node->proxy());
 }
 
 
 void AstNumberingVisitor::VisitEmptyStatement(EmptyStatement* node) {
-  IncrementNodeCount();
 }
 
 
 void AstNumberingVisitor::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* node) {
-  IncrementNodeCount();
   Visit(node->statement());
 }
 
 
 void AstNumberingVisitor::VisitContinueStatement(ContinueStatement* node) {
-  IncrementNodeCount();
 }
 
 
 void AstNumberingVisitor::VisitBreakStatement(BreakStatement* node) {
-  IncrementNodeCount();
 }
 
 
 void AstNumberingVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kDebuggerStatement);
 }
 
 
 void AstNumberingVisitor::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* node) {
-  IncrementNodeCount();
   DisableOptimization(kNativeFunctionLiteral);
   ReserveFeedbackSlots(node);
 }
 
 
 void AstNumberingVisitor::VisitDoExpression(DoExpression* node) {
-  IncrementNodeCount();
   Visit(node->block());
   Visit(node->result());
 }
 
 
 void AstNumberingVisitor::VisitLiteral(Literal* node) {
-  IncrementNodeCount();
 }
 
 
 void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
-  IncrementNodeCount();
   ReserveFeedbackSlots(node);
 }
 
 
 void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
-  IncrementNodeCount();
   switch (node->var()->location()) {
     case VariableLocation::LOOKUP:
       DisableFullCodegen(kReferenceToAVariableWhichRequiresDynamicLookup);
@@ -194,13 +182,11 @@ void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {
 
 
 void AstNumberingVisitor::VisitThisFunction(ThisFunction* node) {
-  IncrementNodeCount();
 }
 
 
 void AstNumberingVisitor::VisitSuperPropertyReference(
     SuperPropertyReference* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kSuperReference);
   Visit(node->this_var());
   Visit(node->home_object());
@@ -208,7 +194,6 @@ void AstNumberingVisitor::VisitSuperPropertyReference(
 
 
 void AstNumberingVisitor::VisitSuperCallReference(SuperCallReference* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kSuperReference);
   Visit(node->this_var());
   Visit(node->new_target_var());
@@ -217,13 +202,11 @@ void AstNumberingVisitor::VisitSuperCallReference(SuperCallReference* node) {
 
 
 void AstNumberingVisitor::VisitExpressionStatement(ExpressionStatement* node) {
-  IncrementNodeCount();
   Visit(node->expression());
 }
 
 
 void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
-  IncrementNodeCount();
   Visit(node->expression());
 
   DCHECK(!node->is_async_return() || disable_fullcodegen_reason_ != kNoReason);
@@ -232,7 +215,6 @@ void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
 void AstNumberingVisitor::VisitSuspend(Suspend* node) {
   node->set_suspend_id(suspend_count_);
   suspend_count_++;
-  IncrementNodeCount();
   Visit(node->expression());
 }
 
@@ -246,13 +228,11 @@ void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
 void AstNumberingVisitor::VisitAwait(Await* node) { VisitSuspend(node); }
 
 void AstNumberingVisitor::VisitThrow(Throw* node) {
-  IncrementNodeCount();
   Visit(node->exception());
 }
 
 
 void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
-  IncrementNodeCount();
   if ((node->op() == Token::TYPEOF) && node->expression()->IsVariableProxy()) {
     VariableProxy* proxy = node->expression()->AsVariableProxy();
     VisitVariableProxy(proxy, INSIDE_TYPEOF);
@@ -263,14 +243,12 @@ void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
 
 
 void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
-  IncrementNodeCount();
   Visit(node->expression());
   ReserveFeedbackSlots(node);
 }
 
 
 void AstNumberingVisitor::VisitBlock(Block* node) {
-  IncrementNodeCount();
   Scope* scope = node->scope();
   if (scope != nullptr) {
     LanguageModeScope language_mode_scope(this, scope->language_mode());
@@ -288,20 +266,17 @@ void AstNumberingVisitor::VisitStatementsAndDeclarations(Block* node) {
 }
 
 void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
-  IncrementNodeCount();
   VisitVariableProxy(node->proxy());
   VisitFunctionLiteral(node->fun());
 }
 
 
 void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
-  IncrementNodeCount();
   VisitArguments(node->arguments());
 }
 
 
 void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kWithStatement);
   Visit(node->expression());
   Visit(node->statement());
@@ -309,7 +284,6 @@ void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
 
 
 void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
-  IncrementNodeCount();
   DisableSelfOptimization();
   node->set_osr_id(ReserveId());
   node->set_first_suspend_id(suspend_count_);
@@ -320,7 +294,6 @@ void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
 
 
 void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
-  IncrementNodeCount();
   DisableSelfOptimization();
   node->set_osr_id(ReserveId());
   node->set_first_suspend_id(suspend_count_);
@@ -332,7 +305,6 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   DCHECK(node->scope() == nullptr || !node->scope()->HasBeenRemoved());
-  IncrementNodeCount();
   DisableFullCodegen(kTryCatchStatement);
   Visit(node->try_block());
   Visit(node->catch_block());
@@ -340,7 +312,6 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 
 
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kTryFinallyStatement);
   Visit(node->try_block());
   Visit(node->finally_block());
@@ -348,7 +319,6 @@ void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
 
 void AstNumberingVisitor::VisitPropertyReference(Property* node) {
-  IncrementNodeCount();
   Visit(node->key());
   Visit(node->obj());
 }
@@ -371,8 +341,6 @@ void AstNumberingVisitor::VisitProperty(Property* node) {
 
 
 void AstNumberingVisitor::VisitAssignment(Assignment* node) {
-  IncrementNodeCount();
-
   if (node->is_compound()) VisitBinaryOperation(node->binary_operation());
   VisitReference(node->target());
   Visit(node->value());
@@ -381,7 +349,6 @@ void AstNumberingVisitor::VisitAssignment(Assignment* node) {
 
 
 void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
-  IncrementNodeCount();
   Visit(node->left());
   Visit(node->right());
   ReserveFeedbackSlots(node);
@@ -389,14 +356,12 @@ void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
 
 
 void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
-  IncrementNodeCount();
   Visit(node->left());
   Visit(node->right());
   ReserveFeedbackSlots(node);
 }
 
 void AstNumberingVisitor::VisitSpread(Spread* node) {
-  IncrementNodeCount();
   // We can only get here from spread calls currently.
   DisableFullCodegen(kSpreadCall);
   Visit(node->expression());
@@ -407,7 +372,6 @@ void AstNumberingVisitor::VisitEmptyParentheses(EmptyParentheses* node) {
 }
 
 void AstNumberingVisitor::VisitGetIterator(GetIterator* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kGetIterator);
   Visit(node->iterable());
   ReserveFeedbackSlots(node);
@@ -415,13 +379,11 @@ void AstNumberingVisitor::VisitGetIterator(GetIterator* node) {
 
 void AstNumberingVisitor::VisitImportCallExpression(
     ImportCallExpression* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kDynamicImport);
   Visit(node->argument());
 }
 
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
-  IncrementNodeCount();
   DisableSelfOptimization();
   node->set_osr_id(ReserveId());
   Visit(node->enumerable());  // Not part of loop.
@@ -434,7 +396,6 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kForOfStatement);
   node->set_osr_id(ReserveId());
   Visit(node->assign_iterator());  // Not part of loop.
@@ -448,7 +409,6 @@ void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
 
 
 void AstNumberingVisitor::VisitConditional(Conditional* node) {
-  IncrementNodeCount();
   Visit(node->condition());
   Visit(node->then_expression());
   Visit(node->else_expression());
@@ -456,7 +416,6 @@ void AstNumberingVisitor::VisitConditional(Conditional* node) {
 
 
 void AstNumberingVisitor::VisitIfStatement(IfStatement* node) {
-  IncrementNodeCount();
   Visit(node->condition());
   Visit(node->then_statement());
   if (node->HasElseStatement()) {
@@ -466,7 +425,6 @@ void AstNumberingVisitor::VisitIfStatement(IfStatement* node) {
 
 
 void AstNumberingVisitor::VisitSwitchStatement(SwitchStatement* node) {
-  IncrementNodeCount();
   Visit(node->tag());
   ZoneList<CaseClause*>* cases = node->cases();
   for (int i = 0; i < cases->length(); i++) {
@@ -476,7 +434,6 @@ void AstNumberingVisitor::VisitSwitchStatement(SwitchStatement* node) {
 
 
 void AstNumberingVisitor::VisitCaseClause(CaseClause* node) {
-  IncrementNodeCount();
   if (!node->is_default()) Visit(node->label());
   VisitStatements(node->statements());
   ReserveFeedbackSlots(node);
@@ -484,7 +441,6 @@ void AstNumberingVisitor::VisitCaseClause(CaseClause* node) {
 
 
 void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
-  IncrementNodeCount();
   DisableSelfOptimization();
   node->set_osr_id(ReserveId());
   if (node->init() != NULL) Visit(node->init());  // Not part of loop.
@@ -497,7 +453,6 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 
 
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
-  IncrementNodeCount();
   DisableFullCodegen(kClassLiteral);
   LanguageModeScope language_mode_scope(this, STRICT);
   if (node->extends()) Visit(node->extends());
@@ -513,7 +468,6 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
 
 
 void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
-  IncrementNodeCount();
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));
   }
@@ -532,7 +486,6 @@ void AstNumberingVisitor::VisitLiteralProperty(LiteralProperty* node) {
 }
 
 void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
-  IncrementNodeCount();
   for (int i = 0; i < node->values()->length(); i++) {
     Visit(node->values()->at(i));
   }
@@ -545,7 +498,6 @@ void AstNumberingVisitor::VisitCall(Call* node) {
   if (node->is_possibly_eval()) {
     DisableFullCodegen(kFunctionCallsEval);
   }
-  IncrementNodeCount();
   ReserveFeedbackSlots(node);
   Visit(node->expression());
   VisitArguments(node->arguments());
@@ -553,7 +505,6 @@ void AstNumberingVisitor::VisitCall(Call* node) {
 
 
 void AstNumberingVisitor::VisitCallNew(CallNew* node) {
-  IncrementNodeCount();
   ReserveFeedbackSlots(node);
   Visit(node->expression());
   VisitArguments(node->arguments());
@@ -581,7 +532,6 @@ void AstNumberingVisitor::VisitArguments(ZoneList<Expression*>* arguments) {
 
 
 void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
-  IncrementNodeCount();
   if (node->ShouldEagerCompile()) {
     if (eager_literals_) {
       eager_literals_->Add(new (zone())
@@ -601,7 +551,6 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
 
 void AstNumberingVisitor::VisitRewritableExpression(
     RewritableExpression* node) {
-  IncrementNodeCount();
   Visit(node->expression());
 }
 

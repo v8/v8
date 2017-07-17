@@ -156,16 +156,12 @@ class FeedbackSlotCache {
 
 class AstProperties final BASE_EMBEDDED {
  public:
-  explicit AstProperties(Zone* zone) : node_count_(0), spec_(zone) {}
-
-  int node_count() { return node_count_; }
-  void add_node_count(int count) { node_count_ += count; }
+  explicit AstProperties(Zone* zone) : spec_(zone) {}
 
   const FeedbackVectorSpec* get_spec() const { return &spec_; }
   FeedbackVectorSpec* get_spec() { return &spec_; }
 
  private:
-  int node_count_;
   FeedbackVectorSpec spec_;
 };
 
@@ -2513,7 +2509,6 @@ class FunctionLiteral final : public Expression {
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
-  int ast_node_count() { return ast_properties_.node_count(); }
   const FeedbackVectorSpec* feedback_vector_spec() const {
     return ast_properties_.get_spec();
   }

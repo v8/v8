@@ -2460,7 +2460,9 @@ TEST(TrackHeapAllocationsWithInlining) {
 
 TEST(TrackHeapAllocationsWithoutInlining) {
   i::FLAG_turbo_inlining = false;
-  i::FLAG_max_inlined_source_size = 0;  // Disable inlining
+  // Disable inlining
+  i::FLAG_max_inlined_bytecode_size = 0;
+  i::FLAG_max_inlined_bytecode_size_small = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   LocalContext env;
 
