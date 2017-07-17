@@ -18,15 +18,15 @@ addBenchmark('Number-And', andNumber);
 addBenchmark('Smi-Constant-Or', orSmiConstant);
 addBenchmark('Smi-Constant-Xor', xorSmiConstant);
 addBenchmark('Smi-Constant-And', andSmiConstant);
-addBenchmark('Smi-ShiftLeft', orSmi);
-addBenchmark('Number-ShiftLeft', orNumber);
-addBenchmark('Smi-ShiftRight', xorSmi);
-addBenchmark('Number-ShiftRight', xorNumber);
-addBenchmark('Smi-ShiftRightLogical', andSmi);
-addBenchmark('Number-ShiftRightLogical', andNumber);
-addBenchmark('Smi-Constant-ShiftLeft', orSmiConstant);
-addBenchmark('Smi-Constant-ShiftRight', xorSmiConstant);
-addBenchmark('Smi-Constant-ShiftRightLogical', andSmiConstant);
+addBenchmark('Smi-ShiftLeft', shiftLeftSmi);
+addBenchmark('Number-ShiftLeft', shiftLeftNumber);
+addBenchmark('Smi-ShiftRight', shiftRightSmi);
+addBenchmark('Number-ShiftRight', shiftRightNumber);
+addBenchmark('Smi-ShiftRightLogical', shiftRightLogicalSmi);
+addBenchmark('Number-ShiftRightLogical', shiftRightLogicalNumber);
+addBenchmark('Smi-Constant-ShiftLeft', shiftLeftSmiConstant);
+addBenchmark('Smi-Constant-ShiftRight', shiftRightSmiConstant);
+addBenchmark('Smi-Constant-ShiftRightLogical', shiftRightLogicalSmiConstant);
 
 
 function bitwiseOr(a, b) {
