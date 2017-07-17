@@ -121,30 +121,6 @@ void Scavenger::EvacuateObjectDefault(Map* map, HeapObject** slot,
   FatalProcessOutOfMemory("Scavenger: semi-space copy\n");
 }
 
-void Scavenger::EvacuateJSFunction(Map* map, HeapObject** slot,
-                                   JSFunction* object, int object_size) {
-  EvacuateObjectDefault(map, slot, object, object_size);
-
-  if (!is_incremental_marking_) return;
-
-  MapWord map_word = object->map_word();
-  DCHECK(map_word.IsForwardingAddress());
-  HeapObject* target = map_word.ToForwardingAddress();
-
-  // TODO(mlippautz): Notify collector of this object so we don't have to
-  // retrieve the state our of thin air.
-  if (ObjectMarking::IsBlack(target, MarkingState::Internal(target))) {
-    // This object is black and it might not be rescanned by marker.
-    // We should explicitly record code entry slot for compaction because
-    // promotion queue processing (IteratePromotedObjectPointers) will
-    // miss it as it is not HeapObject-tagged.
-    Address code_entry_slot = target->address() + JSFunction::kCodeEntryOffset;
-    Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
-    heap()->mark_compact_collector()->RecordCodeEntrySlot(
-        target, code_entry_slot, code);
-  }
-}
-
 void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
                                    ThinString* object, int object_size) {
   if (!is_incremental_marking_) {
@@ -202,9 +178,6 @@ void Scavenger::EvacuateObject(HeapObject** slot, Map* map,
       break;
     case kVisitShortcutCandidate:
       EvacuateShortcutCandidate(map, slot, ConsString::cast(source), size);
-      break;
-    case kVisitJSFunction:
-      EvacuateJSFunction(map, slot, JSFunction::cast(source), size);
       break;
     default:
       EvacuateObjectDefault(map, slot, source, size);
