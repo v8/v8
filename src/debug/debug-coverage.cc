@@ -325,6 +325,7 @@ void ResetAllBlockCounts(SharedFunctionInfo* shared) {
 
 bool IsBlockMode(debug::Coverage::Mode mode) {
   switch (mode) {
+    case debug::Coverage::kBlockBinary:
     case debug::Coverage::kBlockCount:
       return true;
     default:
