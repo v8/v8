@@ -422,6 +422,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
     MaybeHandle<FixedArray> wasm_data;
     wasm_data = AsmJs::CompileAsmViaWasm(info);
     if (!wasm_data.is_null()) {
+      SetSharedFunctionFlagsFromLiteral(info->literal(), info->shared_info());
       info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
       info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
       InstallUnoptimizedCode(info);
