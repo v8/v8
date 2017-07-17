@@ -592,7 +592,7 @@ void IncrementalMarking::StartMarking() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
   if (FLAG_concurrent_marking) {
-    heap_->concurrent_marking()->Start();
+    heap_->concurrent_marking()->ScheduleTasks();
   }
 
   // Ready to start incremental marking.
@@ -1236,6 +1236,9 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
         heap_->local_embedder_heap_tracer()->NotifyV8MarkingWorklistWasEmpty();
       }
     }
+  }
+  if (FLAG_concurrent_marking) {
+    heap_->concurrent_marking()->RescheduleTasksIfNeeded();
   }
 
   double end = heap_->MonotonicallyIncreasingTimeInMs();

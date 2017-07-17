@@ -1177,7 +1177,7 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   DCHECK(array->map() != fixed_cow_array_map());
   Object** dst = array->data_start() + dst_index;
   Object** src = array->data_start() + src_index;
-  if (FLAG_concurrent_marking && concurrent_marking()->IsRunning()) {
+  if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
     if (dst < src) {
       for (int i = 0; i < len; i++) {
         base::AsAtomicWord::Relaxed_Store(

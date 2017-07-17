@@ -255,10 +255,9 @@ class ConcurrentMarkingVisitor final
 class ConcurrentMarking::Task : public CancelableTask {
  public:
   Task(Isolate* isolate, ConcurrentMarking* concurrent_marking,
-       base::Semaphore* on_finish, base::Mutex* lock, int task_id)
+       base::Mutex* lock, int task_id)
       : CancelableTask(isolate),
         concurrent_marking_(concurrent_marking),
-        on_finish_(on_finish),
         lock_(lock),
         task_id_(task_id) {}
 
@@ -268,11 +267,9 @@ class ConcurrentMarking::Task : public CancelableTask {
   // v8::internal::CancelableTask overrides.
   void RunInternal() override {
     concurrent_marking_->Run(task_id_, lock_);
-    on_finish_->Signal();
   }
 
   ConcurrentMarking* concurrent_marking_;
-  base::Semaphore* on_finish_;
   base::Mutex* lock_;
   int task_id_;
   DISALLOW_COPY_AND_ASSIGN(Task);
@@ -283,18 +280,24 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
-      pending_task_semaphore_(0),
       pending_task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
   CHECK(!FLAG_concurrent_marking);
 #endif
+  for (int i = 0; i <= kTasks; i++) {
+    is_pending_[i] = false;
+  }
 }
 
 void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
   ConcurrentMarkingVisitor visitor(shared_, bailout_, task_id);
   double time_ms;
   size_t bytes_marked = 0;
+  if (FLAG_trace_concurrent_marking) {
+    heap_->isolate()->PrintWithTimestamp(
+        "Starting concurrent marking task %d\n", task_id);
+  }
   {
     TimedScope scope(&time_ms);
     while (true) {
@@ -317,48 +320,71 @@ void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
       base::LockGuard<base::Mutex> guard(lock);
       bailout_->FlushToGlobal(task_id);
     }
+    {
+      base::LockGuard<base::Mutex> guard(&pending_lock_);
+      is_pending_[task_id] = false;
+      --pending_task_count_;
+      pending_condition_.NotifyAll();
+    }
   }
   if (FLAG_trace_concurrent_marking) {
-    heap_->isolate()->PrintWithTimestamp("concurrently marked %dKB in %.2fms\n",
-                                         static_cast<int>(bytes_marked / KB),
-                                         time_ms);
+    heap_->isolate()->PrintWithTimestamp(
+        "Task %d concurrently marked %dKB in %.2fms\n", task_id,
+        static_cast<int>(bytes_marked / KB), time_ms);
   }
 }
 
-void ConcurrentMarking::Start() {
+void ConcurrentMarking::ScheduleTasks() {
   if (!FLAG_concurrent_marking) return;
-  if (FLAG_trace_concurrent_marking) {
-    heap_->isolate()->PrintWithTimestamp("Starting concurrent marking\n");
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  if (pending_task_count_ < kTasks) {
+    // Task id 0 is for the main thread.
+    for (int i = 1; i <= kTasks; i++) {
+      if (!is_pending_[i]) {
+        if (FLAG_trace_concurrent_marking) {
+          heap_->isolate()->PrintWithTimestamp(
+              "Scheduling concurrent marking task %d\n", i);
+        }
+        is_pending_[i] = true;
+        ++pending_task_count_;
+        V8::GetCurrentPlatform()->CallOnBackgroundThread(
+            new Task(heap_->isolate(), this, &task_lock_[i].lock, i),
+            v8::Platform::kShortRunningTask);
+      }
+    }
   }
-  pending_task_count_ = kTasks;
-  for (int i = 0; i < kTasks; i++) {
-    int task_id = i + 1;
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new Task(heap_->isolate(), this, &pending_task_semaphore_,
-                 &task_lock_[i].lock, task_id),
-        v8::Platform::kShortRunningTask);
+}
+
+void ConcurrentMarking::RescheduleTasksIfNeeded() {
+  if (!FLAG_concurrent_marking) return;
+  {
+    base::LockGuard<base::Mutex> guard(&pending_lock_);
+    if (pending_task_count_ > 0) return;
+  }
+  if (!shared_->IsGlobalPoolEmpty()) {
+    ScheduleTasks();
   }
 }
 
 void ConcurrentMarking::EnsureCompleted() {
   if (!FLAG_concurrent_marking) return;
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
   while (pending_task_count_ > 0) {
-    pending_task_semaphore_.Wait();
-    pending_task_count_--;
+    pending_condition_.Wait(&pending_lock_);
   }
 }
 
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking) {
   if (!FLAG_concurrent_marking) return;
-  for (int i = 0; i < kTasks; i++) {
+  for (int i = 1; i <= kTasks; i++) {
     concurrent_marking_->task_lock_[i].lock.Lock();
   }
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (!FLAG_concurrent_marking) return;
-  for (int i = kTasks - 1; i >= 0; i--) {
+  for (int i = kTasks; i >= 1; i--) {
     concurrent_marking_->task_lock_[i].lock.Unlock();
   }
 }

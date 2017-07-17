@@ -84,6 +84,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
     CHECK(!heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
     CHECK(heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
   }
+  isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(PagePromotion_NewToNew) {
@@ -111,6 +112,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToNew) {
     CHECK(heap->new_space()->ToSpaceContainsSlow(last_object->address()));
     CHECK(to_be_promoted_page->Contains(last_object->address()));
   }
+  isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
@@ -152,6 +154,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
     CHECK(to_be_promoted_page->Contains(buffer->address()));
     CHECK(ArrayBufferTracker::IsTracked(*buffer));
   }
+  isolate->Dispose();
 }
 
 UNINITIALIZED_HEAP_TEST(Regress658718) {
@@ -188,6 +191,7 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
     heap->mark_compact_collector()->sweeper().StartSweeperTasks();
     heap->mark_compact_collector()->EnsureSweepingCompleted();
   }
+  isolate->Dispose();
 }
 
 }  // namespace internal

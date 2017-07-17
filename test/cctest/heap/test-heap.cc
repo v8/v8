@@ -2199,9 +2199,9 @@ TEST(InstanceOfStubWriteBarrier) {
 
   CHECK(f->IsOptimized());
 
-  while (
-      !ObjectMarking::IsBlack(f->code(), MarkingState::Internal(f->code())) &&
-      !marking->IsStopped()) {
+  while (!ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+             f->code(), MarkingState::Internal(f->code())) &&
+         !marking->IsStopped()) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
@@ -4958,8 +4958,8 @@ TEST(Regress3631) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
   HeapObject* weak_map_table = HeapObject::cast(weak_map->table());
-  while (!ObjectMarking::IsBlack(weak_map_table,
-                                 MarkingState::Internal(weak_map_table)) &&
+  while (!ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+             weak_map_table, MarkingState::Internal(weak_map_table)) &&
          !marking->IsStopped()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
@@ -5740,7 +5740,8 @@ TEST(Regress598319) {
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
     HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
-    CHECK(ObjectMarking::IsBlack(arr_value, MarkingState::Internal(arr_value)));
+    CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+        arr_value, MarkingState::Internal(arr_value)));
   }
 }
 
@@ -5887,13 +5888,15 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   isolate->factory()->NewFixedArray(4, TENURED);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(50, TENURED);
   CHECK(heap->old_space()->Contains(*array));
-  CHECK(ObjectMarking::IsBlack(*array, MarkingState::Internal(*array)));
+  CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+      *array, MarkingState::Internal(*array)));
 
   // Now left trim the allocated black area. A filler has to be installed
   // for the trimmed area and all mark bits of the trimmed area have to be
   // cleared.
   FixedArrayBase* trimmed = heap->LeftTrimFixedArray(*array, 10);
-  CHECK(ObjectMarking::IsBlack(trimmed, MarkingState::Internal(trimmed)));
+  CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+      trimmed, MarkingState::Internal(trimmed)));
 
   heap::GcAndSweep(heap, OLD_SPACE);
 }
@@ -5930,7 +5933,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  CHECK(ObjectMarking::IsBlack(*array, MarkingState::Internal(*array)));
+  CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+      *array, MarkingState::Internal(*array)));
   CHECK(MarkingState::Internal(page).bitmap()->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
       page->AddressToMarkbitIndex(end_address)));
@@ -5944,8 +5948,10 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
     trimmed = heap->LeftTrimFixedArray(previous, 1);
     HeapObject* filler = HeapObject::FromAddress(previous->address());
     CHECK(filler->IsFiller());
-    CHECK(ObjectMarking::IsBlack(trimmed, MarkingState::Internal(trimmed)));
-    CHECK(ObjectMarking::IsBlack(previous, MarkingState::Internal(previous)));
+    CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+        trimmed, MarkingState::Internal(trimmed)));
+    CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+        previous, MarkingState::Internal(previous)));
     previous = trimmed;
   }
 
@@ -5955,8 +5961,10 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
       trimmed = heap->LeftTrimFixedArray(previous, i);
       HeapObject* filler = HeapObject::FromAddress(previous->address());
       CHECK(filler->IsFiller());
-      CHECK(ObjectMarking::IsBlack(trimmed, MarkingState::Internal(trimmed)));
-      CHECK(ObjectMarking::IsBlack(previous, MarkingState::Internal(previous)));
+      CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+          trimmed, MarkingState::Internal(trimmed)));
+      CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+          previous, MarkingState::Internal(previous)));
       previous = trimmed;
     }
   }
@@ -5996,7 +6004,8 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  CHECK(ObjectMarking::IsBlack(*array, MarkingState::Internal(*array)));
+  CHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+      *array, MarkingState::Internal(*array)));
 
   CHECK(MarkingState::Internal(page).bitmap()->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
