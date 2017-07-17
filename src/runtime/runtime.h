@@ -104,7 +104,6 @@ namespace internal {
   F(MapIteratorClone, 1, 1)               \
   F(GetWeakMapEntries, 2, 1)              \
   F(WeakCollectionInitialize, 1, 1)       \
-  F(WeakCollectionGet, 3, 1)              \
   F(WeakCollectionHas, 3, 1)              \
   F(WeakCollectionDelete, 3, 1)           \
   F(WeakCollectionSet, 4, 1)              \

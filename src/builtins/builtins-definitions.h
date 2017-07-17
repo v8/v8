@@ -1033,6 +1033,11 @@ namespace internal {
   TFC(ThrowWasmTrapFuncInvalid, WasmRuntimeCall, 1)                            \
   TFC(ThrowWasmTrapFuncSigMismatch, WasmRuntimeCall, 1)                        \
                                                                                \
+  /* WeakMap */                                                                \
+  TFS(WeakMapLookupHashIndex, kTable, kKey)                                    \
+  TFJ(WeakMapGet, 1, kKey)                                                     \
+  TFJ(WeakMapHas, 1, kKey)                                                     \
+                                                                               \
   /* AsyncGenerator */                                                         \
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \

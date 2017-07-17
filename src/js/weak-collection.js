@@ -50,17 +50,6 @@ function WeakMapConstructor(iterable) {
 DEFINE_METHODS(
   GlobalWeakMap.prototype,
   {
-    get(key) {
-      if (!IS_WEAKMAP(this)) {
-        throw %make_type_error(kIncompatibleMethodReceiver,
-                            'WeakMap.prototype.get', this);
-      }
-      if (!IS_RECEIVER(key)) return UNDEFINED;
-      var hash = GetExistingHash(key);
-      if (IS_UNDEFINED(hash)) return UNDEFINED;
-      return %WeakCollectionGet(this, key, hash);
-    }
-
     set(key, value) {
       if (!IS_WEAKMAP(this)) {
         throw %make_type_error(kIncompatibleMethodReceiver,
@@ -68,17 +57,6 @@ DEFINE_METHODS(
       }
       if (!IS_RECEIVER(key)) throw %make_type_error(kInvalidWeakMapKey);
       return %WeakCollectionSet(this, key, value, GetHash(key));
-    }
-
-    has(key) {
-      if (!IS_WEAKMAP(this)) {
-        throw %make_type_error(kIncompatibleMethodReceiver,
-                            'WeakMap.prototype.has', this);
-      }
-      if (!IS_RECEIVER(key)) return false;
-      var hash = GetExistingHash(key);
-      if (IS_UNDEFINED(hash)) return false;
-      return %WeakCollectionHas(this, key, hash);
     }
 
     delete(key) {

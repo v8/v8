@@ -1225,5 +1225,107 @@ TF_BUILTIN(MapLookupHashIndex, CollectionsBuiltinsAssembler) {
   Return(result.value());
 }
 
+TF_BUILTIN(WeakMapLookupHashIndex, CollectionsBuiltinsAssembler) {
+  Node* const table = Parameter(Descriptor::kTable);
+  Node* const key = Parameter(Descriptor::kKey);
+
+  Label if_found(this), if_not_found(this);
+
+  Node* const capacity =
+      SmiUntag(LoadFixedArrayElement(table, WeakHashTable::kCapacityIndex));
+  Node* const mask = IntPtrSub(capacity, IntPtrConstant(1));
+
+  Node* const hash = SmiUntag(CallGetHashRaw(key));
+
+  GotoIf(IntPtrLessThan(hash, IntPtrConstant(0)), &if_not_found);
+
+  // See HashTable::FirstProbe().
+  Node* entry = WordAnd(hash, mask);
+
+  VARIABLE(var_count, MachineType::PointerRepresentation(), IntPtrConstant(0));
+  VARIABLE(var_entry, MachineType::PointerRepresentation(), entry);
+  Variable* loop_vars[] = {&var_count, &var_entry};
+  Label loop(this, arraysize(loop_vars), loop_vars);
+  Goto(&loop);
+  BIND(&loop);
+  Node* index;
+  {
+    Node* entry = var_entry.value();
+
+    index = IntPtrMul(entry, IntPtrConstant(WeakHashTable::kEntrySize));
+    index =
+        IntPtrAdd(index, IntPtrConstant(WeakHashTable::kElementsStartIndex));
+
+    Node* current = LoadFixedArrayElement(table, index);
+    GotoIf(WordEqual(current, UndefinedConstant()), &if_not_found);
+    GotoIf(WordEqual(current, key), &if_found);
+
+    // See HashTable::NextProbe().
+    Increment(var_count);
+    entry = WordAnd(IntPtrAdd(entry, var_count.value()), mask);
+
+    var_entry.Bind(entry);
+    Goto(&loop);
+  }
+
+  BIND(&if_not_found);
+  Return(SmiConstant(-1));
+
+  BIND(&if_found);
+  Return(SmiTag(IntPtrAdd(index, IntPtrConstant(1))));
+}
+
+TF_BUILTIN(WeakMapGet, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Label return_undefined(this);
+
+  ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
+                         "WeakMap.prototype.get");
+
+  GotoIf(TaggedIsSmi(key), &return_undefined);
+  GotoIfNot(IsJSReceiver(key), &return_undefined);
+
+  Node* const table = LoadObjectField(receiver, JSWeakCollection::kTableOffset);
+
+  Node* const index =
+      CallBuiltin(Builtins::kWeakMapLookupHashIndex, context, table, key);
+
+  GotoIf(WordEqual(index, SmiConstant(-1)), &return_undefined);
+
+  Return(LoadFixedArrayElement(table, SmiUntag(index)));
+
+  BIND(&return_undefined);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(WeakMapHas, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Label return_false(this);
+
+  ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
+                         "WeakMap.prototype.get");
+
+  GotoIf(TaggedIsSmi(key), &return_false);
+  GotoIfNot(IsJSReceiver(key), &return_false);
+
+  Node* const table = LoadObjectField(receiver, JSWeakCollection::kTableOffset);
+
+  Node* const index =
+      CallBuiltin(Builtins::kWeakMapLookupHashIndex, context, table, key);
+
+  GotoIf(WordEqual(index, SmiConstant(-1)), &return_false);
+
+  Return(TrueConstant());
+
+  BIND(&return_false);
+  Return(FalseConstant());
+}
+
 }  // namespace internal
 }  // namespace v8

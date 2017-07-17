@@ -3132,6 +3132,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup %WeakMapPrototype%.
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 
+    SimpleInstallFunction(prototype, "get", Builtins::kWeakMapGet, 1, true);
+    SimpleInstallFunction(prototype, "has", Builtins::kWeakMapHas, 1, true);
+
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("WeakMap"),
