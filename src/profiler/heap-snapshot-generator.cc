@@ -1143,8 +1143,9 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          JSArrayBufferView::kBufferOffset);
   }
 
-  TagObject(js_obj->properties(), "(object properties)");
-  SetInternalReference(obj, entry, "properties", js_obj->properties(),
+  TagObject(js_obj->raw_properties_or_hash(), "(object properties)");
+  SetInternalReference(obj, entry, "properties",
+                       js_obj->raw_properties_or_hash(),
                        JSObject::kPropertiesOrHashOffset);
 
   TagObject(js_obj->elements(), "(object elements)");

@@ -1386,18 +1386,17 @@ TEST(AllocateJSObjectFromMap) {
       handle(isolate->array_function()->initial_map(), isolate),
   };
 
-#define VERIFY(result, map_value, properties_value, elements_value) \
-  CHECK_EQ(result->map(), map_value);                               \
-  CHECK_EQ(result->properties(), properties_value);                 \
-  CHECK_EQ(result->elements(), elements_value);
-
   {
-    Handle<Object> empty_fixed_array = factory->empty_fixed_array();
+    Handle<FixedArray> empty_fixed_array = factory->empty_fixed_array();
+    Handle<PropertyArray> empty_property_array =
+        factory->empty_property_array();
     for (size_t i = 0; i < arraysize(maps); i++) {
       Handle<Map> map = maps[i];
       Handle<JSObject> result = Handle<JSObject>::cast(
           ft.Call(map, empty_fixed_array, empty_fixed_array).ToHandleChecked());
-      VERIFY(result, *map, *empty_fixed_array, *empty_fixed_array);
+      CHECK_EQ(result->map(), *map);
+      CHECK_EQ(result->property_array(), *empty_property_array);
+      CHECK_EQ(result->elements(), *empty_fixed_array);
       CHECK(result->HasFastProperties());
 #ifdef VERIFY_HEAP
       isolate->heap()->Verify();
@@ -1412,12 +1411,13 @@ TEST(AllocateJSObjectFromMap) {
                                           "object")));
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
-    Handle<JSObject> result =
-        Handle<JSObject>::cast(ft.Call(handle(object->map(), isolate),
-                                       handle(object->properties(), isolate),
-                                       handle(object->elements(), isolate))
-                                   .ToHandleChecked());
-    VERIFY(result, object->map(), object->properties(), object->elements());
+    Handle<JSObject> result = Handle<JSObject>::cast(
+        ft.Call(handle(object->map(), isolate),
+                handle(object->property_dictionary(), isolate),
+                handle(object->elements(), isolate))
+            .ToHandleChecked());
+    CHECK_EQ(result->map(), object->map());
+    CHECK_EQ(result->property_dictionary(), object->property_dictionary());
     CHECK(!result->HasFastProperties());
 #ifdef VERIFY_HEAP
     isolate->heap()->Verify();
@@ -2200,7 +2200,7 @@ TEST(AllocateFunctionWithMapAndContext) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result_obj->IsJSFunction());
   Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
-  CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->properties());
+  CHECK_EQ(isolate->heap()->empty_property_array(), fun->property_array());
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
   CHECK_EQ(isolate->heap()->undefined_cell(), fun->feedback_vector_cell());
   CHECK_EQ(isolate->heap()->the_hole_value(), fun->prototype_or_initial_map());

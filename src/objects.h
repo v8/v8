@@ -1956,6 +1956,8 @@ class JSReceiver: public HeapObject {
   // Gets slow properties for non-global objects.
   inline NameDictionary* property_dictionary() const;
 
+  inline void SetProperties(HeapObject* properties);
+
   // There are four possible value for the properties offset.
   // 1) EmptyFixedArray -- This is the standard placeholder.
   //
@@ -1969,7 +1971,7 @@ class JSReceiver: public HeapObject {
   //
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
-  DECL_ACCESSORS(properties, Object)
+  DECL_ACCESSORS(raw_properties_or_hash, Object)
 
   inline void initialize_properties();
 

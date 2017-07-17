@@ -414,7 +414,7 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
     dictionary = NameDictionary::Add(dictionary, name(),
                                      isolate_->factory()->uninitialized_value(),
                                      property_details_, &entry);
-    receiver->set_properties(*dictionary);
+    receiver->SetProperties(*dictionary);
     // Reload details containing proper enumeration index value.
     property_details_ = dictionary->DetailsAt(entry);
     number_ = entry;

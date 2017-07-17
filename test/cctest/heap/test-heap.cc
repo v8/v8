@@ -2620,7 +2620,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
-  CHECK(CcTest::heap()->InOldSpace(o->properties()));
+  CHECK(CcTest::heap()->InOldSpace(o->property_array()));
 }
 
 
@@ -4910,7 +4910,7 @@ TEST(Regress388880) {
   heap::CreatePadding(heap, static_cast<int>(padding_size), TENURED);
 
   Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
-  o->set_properties(*factory->empty_fixed_array());
+  o->set_raw_properties_or_hash(*factory->empty_fixed_array());
 
   // Ensure that the object allocated where we need it.
   Page* page = Page::FromAddress(o->address());

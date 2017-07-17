@@ -1087,17 +1087,7 @@ inline Object* OrderedHashMap::ValueAt(int entry) {
   return get(EntryToIndex(entry) + kValueOffset);
 }
 
-void JSReceiver::set_properties(Object* value, WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
-  DCHECK_NE(value, heap->empty_property_array());
-
-  WRITE_FIELD(this, kPropertiesOrHashOffset, value);
-  CONDITIONAL_WRITE_BARRIER(heap, this, kPropertiesOrHashOffset, value, mode);
-}
-
-Object* JSReceiver::properties() const {
-  return Object::cast(READ_FIELD(this, kPropertiesOrHashOffset));
-}
+ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
 
 Object** FixedArray::GetFirstElementAddress() {
   return reinterpret_cast<Object**>(FIELD_ADDR(this, OffsetOfElementAt(0)));
@@ -5473,13 +5463,13 @@ bool JSObject::HasIndexedInterceptor() {
 
 void JSGlobalObject::set_global_dictionary(GlobalDictionary* dictionary) {
   DCHECK(IsJSGlobalObject());
-  return set_properties(dictionary);
+  return SetProperties(dictionary);
 }
 
 GlobalDictionary* JSGlobalObject::global_dictionary() {
   DCHECK(!HasFastProperties());
   DCHECK(IsJSGlobalObject());
-  return GlobalDictionary::cast(properties());
+  return GlobalDictionary::cast(raw_properties_or_hash());
 }
 
 
@@ -5594,13 +5584,15 @@ void JSReceiver::initialize_properties() {
 }
 
 bool JSReceiver::HasFastProperties() const {
-  DCHECK_EQ(properties()->IsDictionary(), map()->is_dictionary_map());
+  DCHECK_EQ(raw_properties_or_hash()->IsDictionary(),
+            map()->is_dictionary_map());
   return !map()->is_dictionary_map();
 }
 
 NameDictionary* JSReceiver::property_dictionary() const {
   DCHECK(!IsJSGlobalObject());
-  return NameDictionary::cast(properties());
+  DCHECK(!HasFastProperties());
+  return NameDictionary::cast(raw_properties_or_hash());
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access
@@ -5608,12 +5600,17 @@ NameDictionary* JSReceiver::property_dictionary() const {
 PropertyArray* JSReceiver::property_array() const {
   DCHECK(HasFastProperties());
 
-  Object* prop = properties();
+  Object* prop = raw_properties_or_hash();
   if (prop->IsSmi() || prop == GetHeap()->empty_fixed_array()) {
     return GetHeap()->empty_property_array();
   }
 
   return PropertyArray::cast(prop);
+}
+
+void JSReceiver::SetProperties(HeapObject* properties) {
+  // TODO(gsathya): Update the hash code here.
+  set_raw_properties_or_hash(properties);
 }
 
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,

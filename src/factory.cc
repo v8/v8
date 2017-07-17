@@ -1918,7 +1918,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
   Handle<NameDictionary> object_properties =
       NameDictionary::New(isolate(), capacity);
   Handle<JSObject> js_object = NewJSObjectFromMap(map, pretenure);
-  js_object->set_properties(*object_properties);
+  js_object->set_raw_properties_or_hash(*object_properties);
   return js_object;
 }
 
@@ -2484,7 +2484,8 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     Handle<Object> stack_frames) {
   Handle<Map> map = message_object_map();
   Handle<JSMessageObject> message_obj = New<JSMessageObject>(map, NEW_SPACE);
-  message_obj->set_properties(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  message_obj->set_raw_properties_or_hash(*empty_fixed_array(),
+                                          SKIP_WRITE_BARRIER);
   message_obj->initialize_elements();
   message_obj->set_elements(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   message_obj->set_type(message);

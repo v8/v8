@@ -13835,7 +13835,7 @@ static int GetGlobalObjectsCount() {
     if (object->IsJSGlobalObject()) {
       i::JSGlobalObject* g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.
-      if (i::GlobalDictionary::cast(g->properties())->NumberOfElements() != 0) {
+      if (g->global_dictionary()->NumberOfElements() != 0) {
         count++;
       }
     }

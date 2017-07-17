@@ -3523,7 +3523,7 @@ AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
 
 void Heap::InitializeJSObjectFromMap(JSObject* obj, Object* properties,
                                      Map* map) {
-  obj->set_properties(properties);
+  obj->set_raw_properties_or_hash(properties);
   obj->initialize_elements();
   // TODO(1240798): Initialize the object's body using valid initial values
   // according to the object's initial map.  For example, if the map's
@@ -3676,7 +3676,8 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
         AllocationResult allocation = CopyPropertyArray(properties);
         if (!allocation.To(&prop)) return allocation;
       }
-      JSObject::cast(clone)->set_properties(prop, SKIP_WRITE_BARRIER);
+      JSObject::cast(clone)->set_raw_properties_or_hash(prop,
+                                                        SKIP_WRITE_BARRIER);
     }
   } else {
     FixedArray* properties = FixedArray::cast(source->property_dictionary());
@@ -3685,7 +3686,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
       AllocationResult allocation = CopyFixedArray(properties);
       if (!allocation.To(&prop)) return allocation;
     }
-    JSObject::cast(clone)->set_properties(prop, SKIP_WRITE_BARRIER);
+    JSObject::cast(clone)->set_raw_properties_or_hash(prop, SKIP_WRITE_BARRIER);
   }
   // Return the new clone.
   return clone;

@@ -3570,7 +3570,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       slot->value_ = object;
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       int in_object_properties = map->GetInObjectProperties();
       for (int i = 0; i < in_object_properties; ++i) {
@@ -3588,7 +3588,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> table = materializer.FieldAt(value_index);
       Handle<Object> index = materializer.FieldAt(value_index);
-      object->set_properties(FixedArray::cast(*properties));
+      object->set_raw_properties_or_hash(FixedArray::cast(*properties));
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_table(*table);
       object->set_index(*index);
@@ -3603,7 +3603,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> table = materializer.FieldAt(value_index);
       Handle<Object> index = materializer.FieldAt(value_index);
-      object->set_properties(FixedArray::cast(*properties));
+      object->set_raw_properties_or_hash(FixedArray::cast(*properties));
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_table(*table);
       object->set_index(*index);
@@ -3654,7 +3654,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> iterated_object = materializer.FieldAt(value_index);
       Handle<Object> next_index = materializer.FieldAt(value_index);
       Handle<Object> iterated_object_map = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_object(*iterated_object);
       object->set_index(*next_index);
@@ -3671,7 +3671,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> iterated_string = materializer.FieldAt(value_index);
       Handle<Object> next_index = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       CHECK(iterated_string->IsString());
       object->set_string(String::cast(*iterated_string));
@@ -3687,7 +3687,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> sync_iterator = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_sync_iterator(JSReceiver::cast(*sync_iterator));
       return object;
@@ -3699,7 +3699,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> array_length = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_length(*array_length);
       return object;
@@ -3713,7 +3713,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> bound_target_function = materializer.FieldAt(value_index);
       Handle<Object> bound_this = materializer.FieldAt(value_index);
       Handle<Object> bound_arguments = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_bound_target_function(
           JSReceiver::cast(*bound_target_function));
@@ -3734,7 +3734,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> resume_mode = materializer.FieldAt(value_index);
       Handle<Object> continuation_offset = materializer.FieldAt(value_index);
       Handle<Object> register_file = materializer.FieldAt(value_index);
-      object->set_properties(*properties);
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_function(JSFunction::cast(*function));
       object->set_context(Context::cast(*context));

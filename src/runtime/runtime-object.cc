@@ -307,7 +307,7 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
   PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
   dictionary = NameDictionary::Add(dictionary, name, value, property_details);
-  receiver->set_properties(*dictionary);
+  receiver->SetProperties(*dictionary);
   return *value;
 }
 
@@ -558,7 +558,7 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
   Handle<NameDictionary> new_properties = NameDictionary::Shrink(dictionary);
-  receiver->set_properties(*new_properties);
+  receiver->SetProperties(*new_properties);
   return Smi::kZero;
 }
 

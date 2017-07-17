@@ -125,7 +125,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      Handle<NameDictionary> dict(NameDictionary::cast(copy->properties()));
+      Handle<NameDictionary> dict(copy->property_dictionary());
       for (int i = 0; i < dict->Capacity(); i++) {
         Object* raw = dict->ValueAt(i);
         if (!raw->IsJSObject()) continue;

@@ -344,7 +344,7 @@ bool JSObject::ElementsAreSafeToExamine() {
 
 
 void JSObject::JSObjectVerify() {
-  VerifyPointer(properties());
+  VerifyPointer(raw_properties_or_hash());
   VerifyHeapPointer(elements());
 
   CHECK_IMPLIES(HasSloppyArgumentsElements(), IsJSArgumentsObject());
@@ -768,7 +768,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   JSObjectVerify();
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
-  CHECK_EQ(GetHeap()->empty_fixed_array(), properties());
+  CHECK_EQ(GetHeap()->empty_fixed_array(), raw_properties_or_hash());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
