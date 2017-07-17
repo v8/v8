@@ -730,7 +730,7 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   MipsOperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.right().HasValue() && m.right().Value() > 0) {
-    int32_t value = m.right().Value();
+    uint32_t value = static_cast<uint32_t>(m.right().Value());
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMipsShl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
