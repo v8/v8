@@ -1327,5 +1327,31 @@ TF_BUILTIN(WeakMapHas, CollectionsBuiltinsAssembler) {
   Return(FalseConstant());
 }
 
+TF_BUILTIN(WeakSetHas, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Label return_false(this);
+
+  ThrowIfNotInstanceType(context, receiver, JS_WEAK_SET_TYPE,
+                         "WeakSet.prototype.get");
+
+  GotoIf(TaggedIsSmi(key), &return_false);
+  GotoIfNot(IsJSReceiver(key), &return_false);
+
+  Node* const table = LoadObjectField(receiver, JSWeakCollection::kTableOffset);
+
+  Node* const index =
+      CallBuiltin(Builtins::kWeakMapLookupHashIndex, context, table, key);
+
+  GotoIf(WordEqual(index, SmiConstant(-1)), &return_false);
+
+  Return(TrueConstant());
+
+  BIND(&return_false);
+  Return(FalseConstant());
+}
+
 }  // namespace internal
 }  // namespace v8

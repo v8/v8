@@ -3150,6 +3150,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup %WeakSetPrototype%.
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 
+    SimpleInstallFunction(prototype, "has", Builtins::kWeakSetHas, 1, true);
+
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("WeakSet"),

@@ -112,17 +112,6 @@ DEFINE_METHODS(
       return %WeakCollectionSet(this, value, true, GetHash(value));
     }
 
-    has(value) {
-      if (!IS_WEAKSET(this)) {
-        throw %make_type_error(kIncompatibleMethodReceiver,
-                            'WeakSet.prototype.has', this);
-      }
-      if (!IS_RECEIVER(value)) return false;
-      var hash = GetExistingHash(value);
-      if (IS_UNDEFINED(hash)) return false;
-      return %WeakCollectionHas(this, value, hash);
-    }
-
     delete(value) {
       if (!IS_WEAKSET(this)) {
         throw %make_type_error(kIncompatibleMethodReceiver,

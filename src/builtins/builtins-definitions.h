@@ -1038,6 +1038,9 @@ namespace internal {
   TFJ(WeakMapGet, 1, kKey)                                                     \
   TFJ(WeakMapHas, 1, kKey)                                                     \
                                                                                \
+  /* WeakSet */                                                                \
+  TFJ(WeakSetHas, 1, kKey)                                                     \
+                                                                               \
   /* AsyncGenerator */                                                         \
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \

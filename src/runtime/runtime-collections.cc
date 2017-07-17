@@ -143,21 +143,6 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionInitialize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_SMI_ARG_CHECKED(hash, 2)
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
-  Handle<Object> lookup(table->Lookup(key, hash), isolate);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole(isolate));
-}
-
-
 RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
