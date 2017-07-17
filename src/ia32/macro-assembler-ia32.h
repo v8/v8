@@ -91,6 +91,10 @@ class TurboAssembler : public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cc, BailoutReason reason);
 
+  // Like Assert(), but without condition.
+  // Use --debug_code to enable.
+  void AssertUnreachable(BailoutReason reason);
+
   // Like Assert(), but always enabled.
   void Check(Condition cc, BailoutReason reason);
 
@@ -123,6 +127,9 @@ class TurboAssembler : public Assembler {
 
   inline bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);
+
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
