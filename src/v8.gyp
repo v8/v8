@@ -647,6 +647,7 @@
         'builtins/builtins-math.cc',
         'builtins/builtins-number.cc',
         'builtins/builtins-object.cc',
+        'builtins/builtins-promise.cc',
         'builtins/builtins-reflect.cc',
         'builtins/builtins-regexp.cc',
         'builtins/builtins-sharedarraybuffer.cc',

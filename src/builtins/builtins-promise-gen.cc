@@ -1155,20 +1155,6 @@ TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
   Return(AllocateAndInitJSPromise(context, parent));
 }
 
-TF_BUILTIN(IsPromise, PromiseBuiltinsAssembler) {
-  Node* const maybe_promise = Parameter(Descriptor::kObject);
-  Label if_notpromise(this, Label::kDeferred);
-
-  GotoIf(TaggedIsSmi(maybe_promise), &if_notpromise);
-
-  Node* const result =
-      SelectBooleanConstant(HasInstanceType(maybe_promise, JS_PROMISE_TYPE));
-  Return(result);
-
-  BIND(&if_notpromise);
-  Return(FalseConstant());
-}
-
 // ES#sec-promise.prototype.then
 // Promise.prototype.catch ( onFulfilled, onRejected )
 TF_BUILTIN(PromiseThen, PromiseBuiltinsAssembler) {

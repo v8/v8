@@ -763,7 +763,7 @@ namespace internal {
   /* ES6 #sec-promise-executor */                                              \
   TFJ(PromiseConstructor, 1, kExecutor)                                        \
   TFJ(PromiseInternalConstructor, 1, kParent)                                  \
-  TFJ(IsPromise, 1, kObject)                                                   \
+  CPP(IsPromise)                                                               \
   /* ES #sec-promise-resolve-functions */                                      \
   TFJ(PromiseResolveClosure, 1, kValue)                                        \
   /* ES #sec-promise-reject-functions */                                       \
