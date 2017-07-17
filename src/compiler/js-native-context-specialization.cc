@@ -2315,33 +2315,22 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
     MapHandles const& receiver_maps) {
-  // Check if the array prototype chain is intact.
-  if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
-
-  // Make sure both the initial Array and Object prototypes are stable.
-  Handle<JSObject> initial_array_prototype(
-      native_context()->initial_array_prototype(), isolate());
-  Handle<JSObject> initial_object_prototype(
-      native_context()->initial_object_prototype(), isolate());
-  if (!initial_array_prototype->map()->is_stable() ||
-      !initial_object_prototype->map()->is_stable()) {
-    return false;
-  }
-
-  // Check if all {receiver_maps} either have the initial Array.prototype
-  // or the initial Object.prototype as their prototype, as those are
-  // guarded by the array protector cell.
-  for (Handle<Map> map : receiver_maps) {
-    if (map->prototype() != *initial_array_prototype &&
-        map->prototype() != *initial_object_prototype) {
+  // Check if all {receiver_maps} either have one of the initial Array.prototype
+  // or Object.prototype objects as their prototype (in any of the current
+  // native contexts, as the global Array protector works isolate-wide).
+  for (Handle<Map> receiver_map : receiver_maps) {
+    DisallowHeapAllocation no_gc;
+    Object* const receiver_prototype = receiver_map->prototype();
+    if (!isolate()->IsInAnyContext(receiver_prototype,
+                                   Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
+        !isolate()->IsInAnyContext(receiver_prototype,
+                                   Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
       return false;
     }
   }
 
-  // Install code dependencies on the prototype maps.
-  for (Handle<Map> map : receiver_maps) {
-    dependencies()->AssumePrototypeMapsStable(map, initial_object_prototype);
-  }
+  // Check if the array prototype chain is intact.
+  if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
 
   // Install code dependency on the array protector cell.
   dependencies()->AssumePropertyCell(factory()->array_protector());
