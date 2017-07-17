@@ -4202,7 +4202,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
   set_memory_cost(cost);
 }
 
-Handle<Code> WasmCompilationUnit::FinishCompilation(
+MaybeHandle<Code> WasmCompilationUnit::FinishCompilation(
     wasm::ErrorThrower* thrower) {
   if (!ok_) {
     if (graph_construction_result_.failed()) {
@@ -4217,7 +4217,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation(
       thrower->CompileFailed(buffer.start(), graph_construction_result_);
     }
 
-    return Handle<Code>::null();
+    return {};
   }
   base::ElapsedTimer codegen_timer;
   if (FLAG_trace_wasm_decode_time) {
@@ -4247,7 +4247,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation(
 }
 
 // static
-Handle<Code> WasmCompilationUnit::CompileWasmFunction(
+MaybeHandle<Code> WasmCompilationUnit::CompileWasmFunction(
     wasm::ErrorThrower* thrower, Isolate* isolate,
     wasm::ModuleBytesEnv* module_env, const wasm::WasmFunction* function) {
   WasmCompilationUnit unit(isolate, module_env, function,

@@ -186,10 +186,12 @@ size_t ModuleCompiler::FinishCompilationUnits(
   size_t finished = 0;
   while (true) {
     int func_index = -1;
-    Handle<Code> result = FinishCompilationUnit(thrower, &func_index);
+    MaybeHandle<Code> result = FinishCompilationUnit(thrower, &func_index);
     if (func_index < 0) break;
-    results[func_index] = result;
     ++finished;
+    DCHECK_IMPLIES(result.is_null(), thrower->error());
+    if (result.is_null()) break;
+    results[func_index] = result.ToHandleChecked();
   }
   bool do_restart;
   {
@@ -205,17 +207,16 @@ void ModuleCompiler::SetFinisherIsRunning(bool value) {
   finisher_is_running_ = value;
 }
 
-Handle<Code> ModuleCompiler::FinishCompilationUnit(ErrorThrower* thrower,
-                                                   int* func_index) {
+MaybeHandle<Code> ModuleCompiler::FinishCompilationUnit(ErrorThrower* thrower,
+                                                        int* func_index) {
   std::unique_ptr<compiler::WasmCompilationUnit> unit;
   {
     base::LockGuard<base::Mutex> guard(&result_mutex_);
-    if (executed_units_.IsEmpty()) return Handle<Code>::null();
+    if (executed_units_.IsEmpty()) return {};
     unit = executed_units_.GetNext();
   }
   *func_index = unit->func_index();
-  Handle<Code> result = unit->FinishCompilation(thrower);
-  return result;
+  return unit->FinishCompilation(thrower);
 }
 
 void ModuleCompiler::CompileInParallel(ModuleBytesEnv* module_env,
@@ -286,15 +287,16 @@ void ModuleCompiler::CompileSequentially(ModuleBytesEnv* module_env,
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
-    Handle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
+    MaybeHandle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
         thrower, isolate_, module_env, &func);
     if (code.is_null()) {
       WasmName str = module_env->wire_bytes.GetName(&func);
+      // TODO(clemensh): Truncate the function name in the output.
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, str.length(),
                             str.start());
       break;
     }
-    results[i] = code;
+    results[i] = code.ToHandleChecked();
   }
 }
 
@@ -733,9 +735,8 @@ InstanceBuilder::InstanceBuilder(
       async_counters_(isolate->async_counters()),
       thrower_(thrower),
       module_object_(module_object),
-      ffi_(ffi.is_null() ? Handle<JSReceiver>::null() : ffi.ToHandleChecked()),
-      memory_(memory.is_null() ? Handle<JSArrayBuffer>::null()
-                               : memory.ToHandleChecked()),
+      ffi_(ffi),
+      memory_(memory),
       instance_finalizer_callback_(instance_finalizer_callback) {}
 
 // Build an instance, in all of its glory.
@@ -909,12 +910,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       ->AddSample(min_mem_pages);
 
   if (!memory_.is_null()) {
+    Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     // Set externally passed ArrayBuffer non neuterable.
-    memory_->set_is_neuterable(false);
-    memory_->set_is_wasm_buffer(true);
+    memory->set_is_neuterable(false);
+    memory->set_is_wasm_buffer(true);
 
     DCHECK_IMPLIES(EnableGuardRegions(),
-                   module_->is_asm_js() || memory_->has_guard_region());
+                   module_->is_asm_js() || memory->has_guard_region());
   } else if (min_mem_pages > 0) {
     memory_ = AllocateMemory(min_mem_pages);
     if (memory_.is_null()) return {};  // failed to allocate memory
@@ -941,7 +943,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   for (WasmDataSegment& seg : module_->data_segments) {
     uint32_t base = EvalUint32InitExpr(seg.dest_addr);
     uint32_t mem_size = 0;
-    if (!memory_.is_null()) CHECK(memory_->byte_length()->ToUint32(&mem_size));
+    if (!memory_.is_null()) {
+      CHECK(memory_.ToHandleChecked()->byte_length()->ToUint32(&mem_size));
+    }
     if (!in_bounds(base, seg.source.length(), mem_size)) {
       thrower_->LinkError("data segment is out of bounds");
       return {};
@@ -952,9 +956,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Initialize memory.
   //--------------------------------------------------------------------------
   if (!memory_.is_null()) {
-    Address mem_start = static_cast<Address>(memory_->backing_store());
+    Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
+    Address mem_start = static_cast<Address>(memory->backing_store());
     uint32_t mem_size;
-    CHECK(memory_->byte_length()->ToUint32(&mem_size));
+    CHECK(memory->byte_length()->ToUint32(&mem_size));
     LoadDataSegments(mem_start, mem_size);
 
     uint32_t old_mem_size = compiled_module_->mem_size();
@@ -967,9 +972,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     // Just like with globals, we need to keep both the JSArrayBuffer
     // and save the start pointer.
-    instance->set_memory_buffer(*memory_);
+    instance->set_memory_buffer(*memory);
     WasmCompiledModule::SetSpecializationMemInfoFrom(factory, compiled_module_,
-                                                     memory_);
+                                                     memory);
   }
 
   //--------------------------------------------------------------------------
@@ -1137,7 +1142,8 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
   DCHECK(!ffi_.is_null());
 
   // Look up the module first.
-  MaybeHandle<Object> result = Object::GetPropertyOrElement(ffi_, module_name);
+  MaybeHandle<Object> result =
+      Object::GetPropertyOrElement(ffi_.ToHandleChecked(), module_name);
   if (result.is_null()) {
     return ReportTypeError("module not found", index, module_name);
   }
@@ -1174,8 +1180,8 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
   // side-effect. We only accept accesses that resolve to data properties,
   // which is indicated by the asm.js spec in section 7 ("Linking") as well.
   Handle<Object> result;
-  LookupIterator it =
-      LookupIterator::PropertyOrElement(isolate_, ffi_, import_name);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate_, ffi_.ToHandleChecked(), import_name);
   switch (it.state()) {
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -1385,9 +1391,10 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         }
         auto memory = Handle<WasmMemoryObject>::cast(value);
         instance->set_memory_object(*memory);
-        memory_ = Handle<JSArrayBuffer>(memory->array_buffer(), isolate_);
+        Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
+        memory_ = buffer;
         uint32_t imported_cur_pages = static_cast<uint32_t>(
-            memory_->byte_length()->Number() / WasmModule::kPageSize);
+            buffer->byte_length()->Number() / WasmModule::kPageSize);
         if (imported_cur_pages < module_->min_mem_pages) {
           thrower_->LinkError(
               "memory import %d is smaller than maximum %u, got %u", index,
@@ -2188,7 +2195,7 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
 
       int func_index = -1;
 
-      Handle<Code> result =
+      MaybeHandle<Code> result =
           job_->compiler_->FinishCompilationUnit(&thrower, &func_index);
 
       if (thrower.error()) {
@@ -2203,7 +2210,7 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
         break;
       } else {
         DCHECK(func_index >= 0);
-        job_->code_table_->set(func_index, *result);
+        job_->code_table_->set(func_index, *result.ToHandleChecked());
         --job_->outstanding_units_;
       }
 

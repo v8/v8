@@ -69,12 +69,11 @@ class WasmCompilationUnit final {
   int func_index() const { return func_index_; }
 
   void ExecuteCompilation();
-  Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
+  MaybeHandle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
 
-  static Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower,
-                                          Isolate* isolate,
-                                          wasm::ModuleBytesEnv* module_env,
-                                          const wasm::WasmFunction* function);
+  static MaybeHandle<Code> CompileWasmFunction(
+      wasm::ErrorThrower* thrower, Isolate* isolate,
+      wasm::ModuleBytesEnv* module_env, const wasm::WasmFunction* function);
 
   void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
   size_t memory_cost() const { return memory_cost_; }

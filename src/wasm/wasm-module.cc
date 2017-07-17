@@ -990,7 +990,7 @@ void LazyCompilationOrchestrator::CompileFunction(
                                      CStrVector(func_name.c_str()), func_index,
                                      CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
-  Handle<Code> code = unit.FinishCompilation(&thrower);
+  MaybeHandle<Code> maybe_code = unit.FinishCompilation(&thrower);
 
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
@@ -998,6 +998,7 @@ void LazyCompilationOrchestrator::CompileFunction(
   // TODO(clemensh): According to the spec, we can actually skip validation at
   // module creation time, and return a function that always traps here.
   CHECK(!thrower.error());
+  Handle<Code> code = maybe_code.ToHandleChecked();
 
   Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
   Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);

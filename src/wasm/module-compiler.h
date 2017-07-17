@@ -138,7 +138,8 @@ class ModuleCompiler {
 
   void SetFinisherIsRunning(bool value);
 
-  Handle<Code> FinishCompilationUnit(ErrorThrower* thrower, int* func_index);
+  MaybeHandle<Code> FinishCompilationUnit(ErrorThrower* thrower,
+                                          int* func_index);
 
   void CompileInParallel(ModuleBytesEnv* module_env,
                          std::vector<Handle<Code>>& results,
@@ -223,8 +224,8 @@ class InstanceBuilder {
   const std::shared_ptr<Counters> async_counters_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
-  Handle<JSReceiver> ffi_;        // TODO(titzer): Use MaybeHandle
-  Handle<JSArrayBuffer> memory_;  // TODO(titzer): Use MaybeHandle
+  MaybeHandle<JSReceiver> ffi_;
+  MaybeHandle<JSArrayBuffer> memory_;
   Handle<JSArrayBuffer> globals_;
   Handle<WasmCompiledModule> compiled_module_;
   std::vector<TableInstance> table_instances_;
