@@ -551,6 +551,10 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       PatchCache(name, slow_stub());
       TRACE_IC("LoadIC", name);
     }
+
+    if (*name == isolate()->heap()->iterator_symbol()) {
+      return Runtime::ThrowIteratorError(isolate(), object);
+    }
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 

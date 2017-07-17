@@ -393,19 +393,14 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 }
 
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
-                              MessageTemplate::Template* id) {
+                              CallPrinter::IteratorHint* hint) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     ParseInfo info(location.shared());
     if (parsing::ParseAny(&info, isolate)) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
-      CallPrinter::IteratorHint type = printer.GetIteratorHint();
-      if (type == CallPrinter::IteratorHint::kNormal) {
-        *id = MessageTemplate::kNotIterable;
-      } else if (type == CallPrinter::IteratorHint::kAsync) {
-        *id = MessageTemplate::kNotAsyncIterable;
-      }
+      *hint = printer.GetIteratorHint();
       if (str->length() > 0) return str;
     } else {
       isolate->clear_pending_exception();
@@ -414,14 +409,43 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   return Object::TypeOf(isolate, object);
 }
 
+void UpdateIteratorTemplate(CallPrinter::IteratorHint hint,
+                            MessageTemplate::Template* id) {
+  if (hint == CallPrinter::IteratorHint::kNormal) {
+    *id = MessageTemplate::kNotIterable;
+  }
+
+  if (hint == CallPrinter::IteratorHint::kAsync) {
+    *id = MessageTemplate::kNotAsyncIterable;
+  }
+}
+
 }  // namespace
+
+MaybeHandle<Object> Runtime::ThrowIteratorError(Isolate* isolate,
+                                                Handle<Object> object) {
+  CallPrinter::IteratorHint hint;
+  Handle<String> callsite = RenderCallSite(isolate, object, &hint);
+  MessageTemplate::Template id = MessageTemplate::kNonObjectPropertyLoad;
+
+  if (hint == CallPrinter::kNone) {
+    Handle<Symbol> iterator_symbol = isolate->factory()->iterator_symbol();
+    THROW_NEW_ERROR(isolate, NewTypeError(id, iterator_symbol, callsite),
+                    Object);
+  }
+
+  UpdateIteratorTemplate(hint, &id);
+  THROW_NEW_ERROR(isolate, NewTypeError(id, callsite), Object);
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CallPrinter::IteratorHint hint;
+  Handle<String> callsite = RenderCallSite(isolate, object, &hint);
   MessageTemplate::Template id = MessageTemplate::kCalledNonCallable;
-  Handle<String> callsite = RenderCallSite(isolate, object, &id);
+  UpdateIteratorTemplate(hint, &id);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
 
@@ -437,8 +461,9 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CallPrinter::IteratorHint hint;
+  Handle<String> callsite = RenderCallSite(isolate, object, &hint);
   MessageTemplate::Template id = MessageTemplate::kNotConstructor;
-  Handle<String> callsite = RenderCallSite(isolate, object, &id);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
 

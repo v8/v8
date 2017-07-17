@@ -781,6 +781,9 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeHandle<JSArray> GetInternalProperties(
       Isolate* isolate, Handle<Object>);
+
+  MUST_USE_RESULT static MaybeHandle<Object> ThrowIteratorError(
+      Isolate* isolate, Handle<Object> object);
 };
 
 
