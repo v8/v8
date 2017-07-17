@@ -116,6 +116,7 @@
           'gn_debug_simulate_arm_asan_edge',
       'V8 Linux ASAN mipsel - debug builder':
           'gn_debug_simulate_mipsel_asan_edge',
+      'V8 Linux64 CFI - release builder': 'gn_release_x64_cfi_clusterfuzz',
       'V8 Linux MSAN no origins':
           'gn_release_simulate_arm64_msan_no_origins_edge',
       'V8 Linux MSAN chained origins':
@@ -377,6 +378,8 @@
       'v8_verify_heap'],
     'gn_release_x64_cfi': [
       'gn', 'release_bot', 'x64', 'cfi', 'swarming'],
+    'gn_release_x64_cfi_clusterfuzz': [
+      'gn', 'release_bot', 'x64', 'cfi_clusterfuzz'],
     'gn_release_x64_clang': [
       'gn', 'release_bot', 'x64', 'clang', 'swarming'],
     'gn_release_x64_concurrent_marking': [
@@ -533,6 +536,12 @@
     'cfi': {
       'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
                   'use_cfi_recover=false'),
+      'gyp_defines': 'cfi_vptr=1 cfi_diag=1',
+    },
+
+    'cfi_clusterfuzz': {
+      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
+                  'use_cfi_recover=true'),
       'gyp_defines': 'cfi_vptr=1 cfi_diag=1',
     },
 
