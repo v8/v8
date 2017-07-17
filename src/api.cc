@@ -9822,6 +9822,8 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
     case kObjectGetOwnPropertySymbols:
       name = i::Builtins::kObjectGetOwnPropertySymbols;
       break;
+    default:
+      UNREACHABLE();
   }
   i::Handle<i::Code> call_code(isolate->builtins()->builtin(name));
   i::Handle<i::JSFunction> fun =
