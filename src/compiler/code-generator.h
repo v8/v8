@@ -183,9 +183,10 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   enum PushTypeFlag {
     kImmediatePush = 0x1,
-    kRegisterPush = 0x2,
-    kStackSlotPush = 0x4,
-    kScalarPush = kRegisterPush | kStackSlotPush
+    kScalarPush = 0x2,
+    kFloat32Push = 0x4,
+    kFloat64Push = 0x8,
+    kFloatPush = kFloat32Push | kFloat64Push
   };
 
   typedef base::Flags<PushTypeFlag> PushTypeFlags;
@@ -307,7 +308,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   };
 
   friend class OutOfLineCode;
-  friend class CodeGeneratorTester;
 
   Zone* zone_;
   FrameAccessState* frame_access_state_;
