@@ -1581,6 +1581,7 @@ v8_source_set("v8_base") {
     "src/heap/incremental-marking.cc",
     "src/heap/incremental-marking.h",
     "src/heap/item-parallel-job.h",
+    "src/heap/local-allocator.h",
     "src/heap/mark-compact-inl.h",
     "src/heap/mark-compact.cc",
     "src/heap/mark-compact.h",

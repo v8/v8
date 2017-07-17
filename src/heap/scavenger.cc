@@ -134,6 +134,7 @@ void Scavenger::Finalize() {
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
   heap()->IncrementSemiSpaceCopiedObjectSize(copied_size_);
   heap()->IncrementPromotedObjectsSize(promoted_size_);
+  allocator_.Finalize();
 }
 
 void RootScavengeVisitor::VisitRootPointer(Root root, Object** p) {

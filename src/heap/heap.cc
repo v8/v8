@@ -1738,6 +1738,10 @@ void Heap::Scavenge() {
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
       &JSObject::IsUnmodifiedApiObject);
 
+  std::vector<MemoryChunk*> pages;
+  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+      this, [&pages](MemoryChunk* chunk) { pages.push_back(chunk); });
+
   {
     // Copy roots.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
@@ -1747,23 +1751,27 @@ void Heap::Scavenge() {
   {
     // Copy objects reachable from the old generation.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        this, SYNCHRONIZED, [this, &scavenger](Address addr) {
-          return scavenger.CheckAndScavengeObject(this, addr);
-        });
 
-    RememberedSet<OLD_TO_NEW>::IterateTyped(
-        this, SYNCHRONIZED,
-        [this, &scavenger](SlotType type, Address host_addr, Address addr) {
-          return UpdateTypedSlotHelper::UpdateTypedSlot(
-              isolate(), type, addr, [this, &scavenger](Object** addr) {
-                // We expect that objects referenced by code are long living.
-                // If we do not force promotion, then we need to clear
-                // old_to_new slots in dead code objects after mark-compact.
-                return scavenger.CheckAndScavengeObject(
-                    this, reinterpret_cast<Address>(addr));
-              });
-        });
+    for (MemoryChunk* chunk : pages) {
+      base::LockGuard<base::RecursiveMutex> guard(chunk->mutex());
+      RememberedSet<OLD_TO_NEW>::Iterate(
+          chunk, [this, &scavenger](Address addr) {
+            return scavenger.CheckAndScavengeObject(this, addr);
+          });
+      RememberedSet<OLD_TO_NEW>::IterateTyped(
+          chunk,
+          [this, &scavenger](SlotType type, Address host_addr, Address addr) {
+            return UpdateTypedSlotHelper::UpdateTypedSlot(
+                isolate(), type, addr, [this, &scavenger](Object** addr) {
+                  // We expect that objects referenced by code are long
+                  // living. If we do not force promotion, then we need to
+                  // clear old_to_new slots in dead code objects after
+                  // mark-compact.
+                  return scavenger.CheckAndScavengeObject(
+                      this, reinterpret_cast<Address>(addr));
+                });
+          });
+    }
   }
 
   {

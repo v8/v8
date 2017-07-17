@@ -36,13 +36,6 @@ bool ContainsOnlyData(VisitorId visitor_id) {
 
 void Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
                               int size) {
-  // If we migrate into to-space, then the to-space top pointer should be
-  // right after the target object. Incorporate double alignment
-  // over-allocation.
-  DCHECK(!heap()->InToSpace(target) ||
-         target->address() + size == heap()->new_space()->top() ||
-         target->address() + size + kPointerSize == heap()->new_space()->top());
-
   // Copy the content of source to target.
   heap()->CopyBlock(target->address(), source->address(), size);
 
@@ -67,7 +60,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
   DCHECK(heap()->AllowedToBeMigrated(object, NEW_SPACE));
   AllocationAlignment alignment = object->RequiredAlignment();
   AllocationResult allocation =
-      heap()->new_space()->AllocateRaw(object_size, alignment);
+      allocator_.Allocate<NEW_SPACE>(object_size, alignment);
 
   HeapObject* target = nullptr;
   if (allocation.To(&target)) {
@@ -87,7 +80,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
                               int object_size) {
   AllocationAlignment alignment = object->RequiredAlignment();
   AllocationResult allocation =
-      heap()->old_space()->AllocateRaw(object_size, alignment);
+      allocator_.Allocate<OLD_SPACE>(object_size, alignment);
 
   HeapObject* target = nullptr;
   if (allocation.To(&target)) {

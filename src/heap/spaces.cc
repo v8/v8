@@ -1412,6 +1412,8 @@ void PagedSpace::RefillFreeList() {
 }
 
 void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
+  base::LockGuard<base::Mutex> guard(mutex());
+
   DCHECK(identity() == other->identity());
   // Unmerged fields:
   //   area_size_
