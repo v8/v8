@@ -97,6 +97,7 @@
       # FYI.
       'V8 Linux - swarming staging': 'gn_release_x64',
       'V8 Linux64 - cfi': 'gn_release_x64_cfi',
+      'V8 Linux64 UBSanVptr': 'gn_release_x64_ubsan_vptr',
       'V8 Linux - vtunejit': 'gn_debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'gn_release_x64_gcc_coverage',
       'V8 Linux - predictable': 'gn_release_x86_predictable',
@@ -198,6 +199,7 @@
       'v8_linux64_tsan_rel': 'gn_release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'gn_release_x64_tsan_concurrent_marking_minimal_symbols',
+      'v8_linux64_ubsan_rel_ng': 'gn_release_x64_ubsan_vptr_minimal_symbols',
       'v8_win_dbg': 'gn_debug_x86_trybot',
       'v8_win_compile_dbg': 'gn_debug_x86_trybot',
       'v8_win_rel_ng': 'gn_release_x86_trybot',
@@ -404,6 +406,10 @@
       'minimal_symbols', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_ubsan_vptr': [
+      'gn', 'release_bot', 'x64', 'ubsan_vptr'],
+    'gn_release_x64_ubsan_vptr_minimal_symbols': [
+      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
     'gn_release_x64_valgrind': [
       'gn', 'release_bot', 'x64', 'swarming', 'valgrind',
       'no_custom_libcxx'],
@@ -718,6 +724,13 @@
     'tsan': {
       'gn_args': 'is_tsan=true',
       'gyp_defines': 'clang=1 tsan=1',
+    },
+
+    'ubsan_vptr': {
+      # TODO(krasin): Remove is_ubsan_no_recover=true when
+      # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
+      # ubsan_vptr instead.
+      'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=true',
     },
 
     'valgrind': {
