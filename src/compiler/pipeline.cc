@@ -785,6 +785,12 @@ class PipelineWasmCompilationJob final : public CompilationJob {
  private:
   size_t AllocatedMemory() const override;
 
+  // Temporary regression check while we get the wasm code off the GC heap, and
+  // until we decontextualize wasm code.
+  // We expect the only embedded objects to be: CEntryStub, undefined, and
+  // the various builtins for throwing exceptions like OOB.
+  void ValidateImmovableEmbeddedObjects() const;
+
   ZoneStats zone_stats_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -839,7 +845,43 @@ size_t PipelineWasmCompilationJob::AllocatedMemory() const {
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::FinalizeJobImpl() {
   pipeline_.FinalizeCode();
+  ValidateImmovableEmbeddedObjects();
   return SUCCEEDED;
+}
+
+void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
+#if !DEBUG
+  return;
+#endif
+  // We expect the only embedded objects to be those originating from
+  // a snapshot, which are immovable.
+  DisallowHeapAllocation no_gc;
+  Handle<Code> result = pipeline_.data_->code();
+  if (result.is_null()) return;
+  // TODO(aseemgarg): remove this restriction when
+  // wasm-to-js is also internally immovable to include WASM_TO_JS
+  if (result->kind() != Code::WASM_FUNCTION) return;
+  static const int kAllGCRefs = (1 << (RelocInfo::LAST_GCED_ENUM + 1)) - 1;
+  for (RelocIterator it(*result, kAllGCRefs); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    Object* target = nullptr;
+    switch (mode) {
+      case RelocInfo::CODE_TARGET:
+        target = reinterpret_cast<Object*>(it.rinfo()->target_address());
+        break;
+      case RelocInfo::EMBEDDED_OBJECT:
+        target = it.rinfo()->target_object();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    CHECK_NOT_NULL(target);
+    bool is_immovable =
+        target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
+    // TODO(mtrofin): remove the fixed array part when WebAssembly.Table
+    // is backed by native object, rather than a FixedArray
+    CHECK(is_immovable || target->IsFixedArray());
+  }
 }
 
 template <typename Phase>
