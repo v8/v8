@@ -129,20 +129,34 @@ class RememberedSet : public AllStatic {
   // Iterates and filters the remembered set in the given memory chunk with
   // the given callback. The callback should take (Address slot) and return
   // SlotCallbackResult.
+  //
+  // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
+  // threads concurrently inserting slots.
   template <typename Callback>
-  static void Iterate(MemoryChunk* chunk, Callback callback) {
+  static void Iterate(MemoryChunk* chunk, Callback callback,
+                      SlotSet::EmptyBucketMode mode) {
     SlotSet* slots = chunk->slot_set<type>();
     if (slots != nullptr) {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       int new_count = 0;
       for (size_t page = 0; page < pages; page++) {
-        new_count +=
-            slots[page].Iterate(callback, SlotSet::PREFREE_EMPTY_BUCKETS);
+        new_count += slots[page].Iterate(callback, mode);
       }
       // Only old-to-old slot sets are released eagerly. Old-new-slot sets are
       // released by the sweeper threads.
       if (type == OLD_TO_OLD && new_count == 0) {
         chunk->ReleaseSlotSet<OLD_TO_OLD>();
+      }
+    }
+  }
+
+  static void PreFreeEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    SlotSet* slots = chunk->slot_set<type>();
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      for (size_t page = 0; page < pages; page++) {
+        slots[page].PreFreeEmptyBuckets();
       }
     }
   }

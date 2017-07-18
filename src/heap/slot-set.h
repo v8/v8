@@ -225,6 +225,25 @@ class SlotSet : public Malloced {
     return new_count;
   }
 
+  void PreFreeEmptyBuckets() {
+    for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
+      Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+      if (bucket != nullptr) {
+        bool found_non_empty_cell = false;
+        int cell_offset = bucket_index * kBitsPerBucket;
+        for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
+          if (LoadCell(&bucket[i])) {
+            found_non_empty_cell = true;
+            break;
+          }
+        }
+        if (!found_non_empty_cell) {
+          PreFreeEmptyBucket(bucket_index);
+        }
+      }
+    }
+  }
+
   void FreeToBeFreedBuckets() {
     base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
     while (!to_be_freed_buckets_.empty()) {

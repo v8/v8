@@ -1755,9 +1755,11 @@ void Heap::Scavenge() {
     for (MemoryChunk* chunk : pages) {
       base::LockGuard<base::RecursiveMutex> guard(chunk->mutex());
       RememberedSet<OLD_TO_NEW>::Iterate(
-          chunk, [this, &scavenger](Address addr) {
+          chunk,
+          [this, &scavenger](Address addr) {
             return scavenger.CheckAndScavengeObject(this, addr);
-          });
+          },
+          SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk,
           [this, &scavenger](SlotType type, Address host_addr, Address addr) {
@@ -1805,6 +1807,10 @@ void Heap::Scavenge() {
   new_space_->set_age_mark(new_space_->top());
 
   ArrayBufferTracker::FreeDeadInNewSpace(this);
+
+  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(this, [](MemoryChunk* chunk) {
+    RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
+  });
 
   // Update how much has survived scavenge.
   DCHECK_GE(PromotedSpaceSizeOfObjects(), survived_watermark);
@@ -4970,12 +4976,14 @@ template <RememberedSetType direction>
 void CollectSlots(MemoryChunk* chunk, Address start, Address end,
                   std::set<Address>* untyped,
                   std::set<std::pair<SlotType, Address> >* typed) {
-  RememberedSet<direction>::Iterate(chunk, [start, end, untyped](Address slot) {
-    if (start <= slot && slot < end) {
-      untyped->insert(slot);
-    }
-    return KEEP_SLOT;
-  });
+  RememberedSet<direction>::Iterate(chunk,
+                                    [start, end, untyped](Address slot) {
+                                      if (start <= slot && slot < end) {
+                                        untyped->insert(slot);
+                                      }
+                                      return KEEP_SLOT;
+                                    },
+                                    SlotSet::PREFREE_EMPTY_BUCKETS);
   RememberedSet<direction>::IterateTyped(
       chunk, [start, end, typed](SlotType type, Address host, Address slot) {
         if (start <= slot && slot < end) {
