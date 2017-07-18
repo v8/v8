@@ -3072,29 +3072,30 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
   builder()->Throw();
 }
 
-void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
-  LhsKind property_kind = Property::GetAssignType(expr);
-  FeedbackSlot slot = expr->PropertyFeedbackSlot();
-  builder()->SetExpressionPosition(expr);
+void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
+  LhsKind property_kind = Property::GetAssignType(property);
+  FeedbackSlot slot = property->PropertyFeedbackSlot();
   switch (property_kind) {
     case VARIABLE:
       UNREACHABLE();
     case NAMED_PROPERTY: {
+      builder()->SetExpressionPosition(property);
       builder()->LoadNamedProperty(
-          obj, expr->key()->AsLiteral()->AsRawPropertyName(),
+          obj, property->key()->AsLiteral()->AsRawPropertyName(),
           feedback_index(slot));
       break;
     }
     case KEYED_PROPERTY: {
-      VisitForAccumulatorValue(expr->key());
+      VisitForAccumulatorValue(property->key());
+      builder()->SetExpressionPosition(property);
       builder()->LoadKeyedProperty(obj, feedback_index(slot));
       break;
     }
     case NAMED_SUPER_PROPERTY:
-      VisitNamedSuperPropertyLoad(expr, Register::invalid_value());
+      VisitNamedSuperPropertyLoad(property, Register::invalid_value());
       break;
     case KEYED_SUPER_PROPERTY:
-      VisitKeyedSuperPropertyLoad(expr, Register::invalid_value());
+      VisitKeyedSuperPropertyLoad(property, Register::invalid_value());
       break;
   }
 }
@@ -3115,6 +3116,8 @@ void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
   RegisterList args = register_allocator()->NewRegisterList(3);
   VisitForRegisterValue(super_property->this_var(), args[0]);
   VisitForRegisterValue(super_property->home_object(), args[1]);
+
+  builder()->SetExpressionPosition(property);
   builder()
       ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
       .StoreAccumulatorInRegister(args[2])
@@ -3134,6 +3137,8 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
   VisitForRegisterValue(super_property->this_var(), args[0]);
   VisitForRegisterValue(super_property->home_object(), args[1]);
   VisitForRegisterValue(property->key(), args[2]);
+
+  builder()->SetExpressionPosition(property);
   builder()->CallRuntime(Runtime::kLoadKeyedFromSuper, args);
 
   if (opt_receiver_out.is_valid()) {

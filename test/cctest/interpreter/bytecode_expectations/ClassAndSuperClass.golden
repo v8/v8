@@ -32,7 +32,7 @@ bytecodes: [
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
                 B(Mov), R(this), R(3),
-                B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
+  /*  117 E> */ B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
   /*  117 E> */ B(CallAnyReceiver), R(1), R(this), U8(1), U8(3),
   /*  126 E> */ B(AddSmi), I8(1), U8(9),
@@ -81,7 +81,7 @@ bytecodes: [
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(Mov), R(this), R(1),
-                B(CallRuntime), U16(Runtime::kLoadFromSuper), R(1), U8(3),
+  /*  156 E> */ B(CallRuntime), U16(Runtime::kLoadFromSuper), R(1), U8(3),
   /*  158 S> */ B(Return),
 ]
 constant pool: [
