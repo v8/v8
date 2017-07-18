@@ -591,6 +591,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
     DCHECK(false);
   }
 
+  JSObject::MigrateSlowToFast(function, 0, "Bootstrapping");
+
   restricted_properties_thrower_ = function;
   return function;
 }

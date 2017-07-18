@@ -127,6 +127,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
   // Needs to be called after the builtins are marked as initialized, in order
   // to display the builtin names.
   PrintDisassembledCodeObjects();
+
+  if (FLAG_rehash_snapshot && can_rehash_) Rehash();
 }
 
 MaybeHandle<Object> Deserializer::DeserializePartial(
@@ -157,6 +159,9 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   // changed and logging should be added to notify the profiler et al of the
   // new code, which also has to be flushed from instruction cache.
   CHECK_EQ(start_address, code_space->top());
+
+  if (FLAG_rehash_snapshot && can_rehash_) RehashContext(Context::cast(root));
+
   return Handle<Object>(root, isolate);
 }
 
@@ -180,6 +185,30 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
     }
     CommitPostProcessedObjects(isolate);
     return scope.CloseAndEscape(result);
+  }
+}
+
+void Deserializer::Rehash() {
+  DCHECK(can_rehash_);
+  isolate_->heap()->InitializeHashSeed();
+  isolate_->heap()->string_table()->Rehash();
+  isolate_->heap()->weak_object_to_code_table()->Rehash();
+  SortMapDescriptors();
+}
+
+void Deserializer::RehashContext(Context* context) {
+  DCHECK(can_rehash_);
+  for (const auto& array : transition_arrays_) array->Sort();
+  context->global_object()->global_dictionary()->Rehash();
+  SortMapDescriptors();
+}
+
+void Deserializer::SortMapDescriptors() {
+  for (const auto& address : allocated_maps_) {
+    Map* map = Map::cast(HeapObject::FromAddress(address));
+    if (map->instance_descriptors()->number_of_descriptors() > 1) {
+      map->instance_descriptors()->Sort();
+    }
   }
 }
 
@@ -370,6 +399,16 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         NativesExternalStringResource::DecodeForDeserialization(
             string->resource()));
     isolate_->heap()->RegisterExternalString(string);
+  }
+  if (FLAG_rehash_snapshot && can_rehash_ && !deserializing_user_code()) {
+    if (obj->IsString()) {
+      // Uninitialize hash field as we are going to reinitialize the hash seed.
+      String* string = String::cast(obj);
+      string->set_hash_field(String::kEmptyHashField);
+    } else if (obj->IsTransitionArray() &&
+               TransitionArray::cast(obj)->number_of_entries() > 1) {
+      transition_arrays_.Add(TransitionArray::cast(obj));
+    }
   }
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
