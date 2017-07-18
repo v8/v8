@@ -660,8 +660,7 @@ class ModuleDecoder : public Decoder {
       WasmInitExpr offset = consume_init_expr(module_.get(), kWasmI32);
       uint32_t num_elem =
           consume_count("number of elements", kV8MaxWasmTableEntries);
-      std::vector<uint32_t> vector;
-      module_->table_inits.push_back({table_index, offset, vector});
+      module_->table_inits.emplace_back(table_index, offset);
       WasmTableInit* init = &module_->table_inits.back();
       for (uint32_t j = 0; j < num_elem; j++) {
         WasmFunction* func = nullptr;

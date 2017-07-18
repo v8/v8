@@ -169,7 +169,7 @@ class InterpreterHandle {
     SeqOneByteString* bytes_str =
         debug_info->wasm_instance()->compiled_module()->module_bytes();
     Vector<const byte> bytes(bytes_str->GetChars(), bytes_str->length());
-    return ModuleBytesEnv(instance->module, instance, bytes);
+    return {instance->module, instance, bytes};
   }
 
   WasmInterpreter* interpreter() { return &interpreter_; }

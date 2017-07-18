@@ -34,6 +34,15 @@ class CallDescriptor;
 namespace wasm {
 class ErrorThrower;
 
+// Use this in the private section to mark a struct move-only.
+#define WASM_MOVE_ONLY_STRUCT(name) \
+ public:                            \
+  name() = default;                 \
+  name(name&&) = default;           \
+                                    \
+ private:                           \
+  DISALLOW_COPY_AND_ASSIGN(name)
+
 enum WasmExternalKind {
   kExternalFunction = 0,
   kExternalTable = 1,
@@ -142,13 +151,22 @@ struct WasmIndirectFunctionTable {
   bool imported = false;        // true if imported.
   bool exported = false;        // true if exported.
   SignatureMap map;             // canonicalizing map for sig indexes.
+
+ private:
+  WASM_MOVE_ONLY_STRUCT(WasmIndirectFunctionTable);
 };
 
 // Static representation of how to initialize a table.
 struct WasmTableInit {
+  WasmTableInit(uint32_t table_index, WasmInitExpr offset)
+      : table_index(table_index), offset(offset) {}
+
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
+
+ private:
+  WASM_MOVE_ONLY_STRUCT(WasmTableInit);
 };
 
 // Static representation of a wasm import.
@@ -210,6 +228,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
  private:
   // TODO(kschimpf) - Encapsulate more fields.
   ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
+
+  DISALLOW_COPY_AND_ASSIGN(WasmModule);
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
@@ -251,6 +271,9 @@ struct WasmInstance {
       code = handle(*code, isolate);
     }
   }
+
+ private:
+  WASM_MOVE_ONLY_STRUCT(WasmInstance);
 };
 
 // Interface to the storage (wire bytes) of a wasm module.
@@ -369,6 +392,9 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
     DCHECK_NOT_NULL(instance);
     return instance->function_code[index];
   }
+
+ private:
+  WASM_MOVE_ONLY_STRUCT(ModuleEnv);
 };
 
 // A ModuleEnv together with ModuleWireBytes.
@@ -546,6 +572,9 @@ void ValidateModuleState(Isolate* isolate, Handle<WasmModuleObject> module_obj);
 void ValidateOrphanedInstance(Isolate* isolate,
                               Handle<WasmInstanceObject> instance);
 }  // namespace testing
+
+#undef WASM_MOVE_ONLY_STRUCT
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

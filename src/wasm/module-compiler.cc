@@ -1791,7 +1791,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
     // compilation).
     std::unordered_map<uint32_t, uint32_t> num_table_exports;
     if (compile_lazy(module_)) {
-      for (auto table_init : module_->table_inits) {
+      for (auto& table_init : module_->table_inits) {
         for (uint32_t func_index : table_init.entries) {
           Code* code =
               Code::cast(code_table->get(static_cast<int>(func_index)));
@@ -1806,7 +1806,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
 
     // TODO(titzer): this does redundant work if there are multiple tables,
     // since initializations are not sorted by table index.
-    for (auto table_init : module_->table_inits) {
+    for (auto& table_init : module_->table_inits) {
       uint32_t base = EvalUint32InitExpr(table_init.offset);
       uint32_t num_entries = static_cast<uint32_t>(table_init.entries.size());
       DCHECK(in_bounds(base, num_entries,
