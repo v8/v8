@@ -3380,6 +3380,10 @@ Node* CodeStubAssembler::IsJSReceiver(Node* object) {
   return IsJSReceiverMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsNullOrJSReceiver(Node* object) {
+  return Word32Or(IsJSReceiver(object), IsNull(object));
+}
+
 Node* CodeStubAssembler::IsJSObjectMap(Node* map) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   CSA_ASSERT(this, IsMap(map));
@@ -5598,6 +5602,17 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
                                      &var_details, if_not_found);
     Goto(if_found);
   }
+}
+
+Node* CodeStubAssembler::GetMethod(Node* context, Node* object,
+                                   Handle<Name> name,
+                                   Label* if_null_or_undefined) {
+  Node* method = GetProperty(context, object, name);
+
+  GotoIf(IsUndefined(method), if_null_or_undefined);
+  GotoIf(IsNull(method), if_null_or_undefined);
+
+  return method;
 }
 
 void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,

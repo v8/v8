@@ -1054,6 +1054,9 @@ class MacroAssembler : public TurboAssembler {
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
 
+  // Tail call a code builtin (jump).
+  void TailCallBuiltin(Builtins::Name name);
+
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,

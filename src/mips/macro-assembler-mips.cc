@@ -11,6 +11,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
+#include "src/external-reference-table.h"
 #include "src/mips/macro-assembler-mips.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -4718,6 +4719,13 @@ void MacroAssembler::TailCallStub(CodeStub* stub,
                                   const Operand& r2,
                                   BranchDelaySlot bd) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
+}
+
+void MacroAssembler::TailCallBuiltin(Builtins::Name name) {
+  DCHECK(ExternalReferenceTable::HasBuiltin(name));
+  li(t2, Operand(ExternalReference(Builtins::kConstructProxy, isolate())));
+  lw(t2, MemOperand(t2));
+  Jump(t2, Operand(Code::kHeaderSize - kHeapObjectTag));
 }
 
 bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {

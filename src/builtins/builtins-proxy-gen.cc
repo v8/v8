@@ -158,13 +158,13 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   CSA_ASSERT(this, IsCallable(proxy));
 
   Label throw_proxy_handler_revoked(this, Label::kDeferred),
-      trap_undefined(this), trap_defined(this, Label::kDeferred);
+      trap_undefined(this);
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Node* handler = LoadObjectField(proxy, JSProxy::kHandlerOffset);
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_ASSERT(this, Word32Or(IsJSReceiver(handler), IsNull(handler)));
+  CSA_ASSERT(this, IsNullOrJSReceiver(handler));
   GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
@@ -174,27 +174,21 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   Node* target = LoadObjectField(proxy, JSProxy::kTargetOffset);
 
   // 5. Let trap be ? GetMethod(handler, "apply").
-  Handle<Name> trap_name = factory()->apply_string();
-  Node* trap = GetProperty(context, handler, trap_name);
-
   // 6. If trap is undefined, then
-  GotoIf(IsUndefined(trap), &trap_undefined);
-  Branch(IsNull(trap), &trap_undefined, &trap_defined);
+  Handle<Name> trap_name = factory()->apply_string();
+  Node* trap = GetMethod(context, handler, trap_name, &trap_undefined);
 
-  BIND(&trap_defined);
-  {
-    CodeStubArguments args(this, argc_ptr);
-    Node* receiver = args.GetReceiver();
+  CodeStubArguments args(this, argc_ptr);
+  Node* receiver = args.GetReceiver();
 
-    // 7. Let argArray be CreateArrayFromList(argumentsList).
-    Node* array = AllocateJSArrayForCodeStubArguments(context, args, argc_ptr,
-                                                      INTPTR_PARAMETERS);
+  // 7. Let argArray be CreateArrayFromList(argumentsList).
+  Node* array = AllocateJSArrayForCodeStubArguments(context, args, argc_ptr,
+                                                    INTPTR_PARAMETERS);
 
-    // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
-    Node* result = CallJS(CodeFactory::Call(isolate()), context, trap, handler,
-                          target, receiver, array);
-    args.PopAndReturn(result);
-  }
+  // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
+  Node* result = CallJS(CodeFactory::Call(isolate()), context, trap, handler,
+                        target, receiver, array);
+  args.PopAndReturn(result);
 
   BIND(&trap_undefined);
   {
@@ -203,12 +197,74 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   }
 
   BIND(&throw_proxy_handler_revoked);
+  { ThrowTypeError(context, MessageTemplate::kProxyRevoked, "apply"); }
+}
+
+TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
+  Node* argc = Parameter(Descriptor::kActualArgumentsCount);
+  Node* argc_ptr = ChangeInt32ToIntPtr(argc);
+  Node* proxy = Parameter(Descriptor::kFunction);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsJSProxy(proxy));
+  CSA_ASSERT(this, IsCallable(proxy));
+
+  Label throw_proxy_handler_revoked(this, Label::kDeferred),
+      trap_undefined(this), not_an_object(this, Label::kDeferred);
+
+  // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Node* handler = LoadObjectField(proxy, JSProxy::kHandlerOffset);
+
+  // 2. If handler is null, throw a TypeError exception.
+  CSA_ASSERT(this, IsNullOrJSReceiver(handler));
+  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
+
+  // 3. Assert: Type(handler) is Object.
+  CSA_ASSERT(this, IsJSReceiver(handler));
+
+  // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Node* target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+
+  // 5. Let trap be ? GetMethod(handler, "construct").
+  // 6. If trap is undefined, then
+  Handle<Name> trap_name = factory()->construct_string();
+  Node* trap = GetMethod(context, handler, trap_name, &trap_undefined);
+
+  CodeStubArguments args(this, argc_ptr);
+
+  // 7. Let argArray be CreateArrayFromList(argumentsList).
+  Node* array = AllocateJSArrayForCodeStubArguments(context, args, argc_ptr,
+                                                    INTPTR_PARAMETERS);
+
+  // 8. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
+  Node* new_obj = CallJS(CodeFactory::Call(isolate()), context, trap, handler,
+                         target, array, new_target);
+
+  // 9. If Type(newObj) is not Object, throw a TypeError exception.
+  GotoIf(TaggedIsSmi(new_obj), &not_an_object);
+  GotoIfNot(IsJSReceiver(new_obj), &not_an_object);
+
+  // 10. Return newObj.
+  args.PopAndReturn(new_obj);
+
+  BIND(&not_an_object);
   {
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kProxyRevoked),
-                StringConstant("apply"));
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kProxyConstructNonObject, new_obj);
   }
+
+  BIND(&trap_undefined);
+  {
+    // 6.a. Assert: target has a [[Construct]] internal method.
+    CSA_ASSERT(this, IsConstructor(target));
+
+    // 6.b. Return ? Construct(target, argumentsList, newTarget).
+    TailCallStub(CodeFactory::Construct(isolate()), context, target, new_target,
+                 argc);
+  }
+
+  BIND(&throw_proxy_handler_revoked);
+  { ThrowTypeError(context, MessageTemplate::kProxyRevoked, "construct"); }
 }
 
 }  // namespace internal

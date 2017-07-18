@@ -2547,24 +2547,6 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : the number of arguments (not including the receiver)
-  //  -- a1 : the constructor to call (checked to be a JSProxy)
-  //  -- a3 : the new target (either the same as the constructor or
-  //          the JSFunction on which new was invoked initially)
-  // -----------------------------------
-
-  // Call into the Runtime for Proxy [[Construct]].
-  __ Push(a1, a3);
-  // Include the pushed new_target, constructor and the receiver.
-  __ Addu(a0, a0, Operand(3));
-  // Tail-call to the runtime.
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()));
-}
-
-// static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
@@ -2574,7 +2556,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // -----------------------------------
 
   // Check if target is a Smi.
-  Label non_constructor;
+  Label non_constructor, non_proxy;
   __ JumpIfSmi(a1, &non_constructor);
 
   // Dispatch based on instance type.
@@ -2594,10 +2576,12 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_BOUND_FUNCTION_TYPE));
 
   // Only dispatch to proxies after checking whether they are constructors.
-  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
-          eq, t2, Operand(JS_PROXY_TYPE));
+  __ Branch(&non_proxy, ne, t2, Operand(JS_PROXY_TYPE));
+
+  __ TailCallBuiltin(Builtins::kConstructProxy);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
+  __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
     __ Lsa(at, sp, a0, kPointerSizeLog2);

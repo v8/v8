@@ -1540,6 +1540,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
 #undef COND_ARGS
 
+  // Tail call a code builtin (jump).
+  void TailCallBuiltin(Builtins::Name name);
+
   void CallJSExitStub(CodeStub* stub);
 
   // Call a runtime routine.

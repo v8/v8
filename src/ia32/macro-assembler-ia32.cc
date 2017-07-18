@@ -10,6 +10,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
+#include "src/external-reference-table.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/runtime/runtime.h"
 
@@ -1521,6 +1522,14 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub) {
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::TailCallBuiltin(Builtins::Name name) {
+  DCHECK(ExternalReferenceTable::HasBuiltin(name));
+  mov(ecx, Operand::StaticVariable(
+               ExternalReference(Builtins::kConstructProxy, isolate())));
+  lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  jmp(ecx);
 }
 
 bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {

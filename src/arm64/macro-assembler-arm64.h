@@ -1838,6 +1838,9 @@ class MacroAssembler : public TurboAssembler {
   void CallStub(CodeStub* stub);
   void TailCallStub(CodeStub* stub);
 
+  // Tail call a code builtin (jump).
+  void TailCallBuiltin(Builtins::Name name);
+
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);

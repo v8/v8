@@ -83,8 +83,6 @@ namespace internal {
   /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */           \
   ASM(ConstructBoundFunction)                                                  \
   ASM(ConstructedNonConstructable)                                             \
-  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
-  ASM(ConstructProxy)                                                          \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
   ASM(Construct)                                                               \
   ASM(ConstructVarargs)                                                        \
@@ -106,6 +104,8 @@ namespace internal {
   TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
   TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
   TFC(FastCloneShallowObject, FastCloneShallowObject, 1)                       \
+  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
+  TFC(ConstructProxy, ConstructTrampoline, 1)                                  \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(JSEntryTrampoline)                                                       \

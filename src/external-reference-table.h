@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/address-map.h"
+#include "src/builtins/builtins.h"
 
 namespace v8 {
 namespace internal {
@@ -37,6 +38,8 @@ class ExternalReferenceTable {
 
   static const char* ResolveSymbol(void* address,
                                    std::vector<char**>* = nullptr);
+
+  static bool HasBuiltin(Builtins::Name name);
 
  private:
   struct ExternalReferenceEntry {

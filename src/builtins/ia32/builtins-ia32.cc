@@ -2678,27 +2678,6 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax : the number of arguments (not including the receiver)
-  //  -- edi : the constructor to call (checked to be a JSProxy)
-  //  -- edx : the new target (either the same as the constructor or
-  //           the JSFunction on which new was invoked initially)
-  // -----------------------------------
-
-  // Call into the Runtime for Proxy [[Construct]].
-  __ PopReturnAddressTo(ecx);
-  __ Push(edi);
-  __ Push(edx);
-  __ PushReturnAddressFrom(ecx);
-  // Include the pushed new_target, constructor and the receiver.
-  __ add(eax, Immediate(3));
-  // Tail-call to the runtime.
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()));
-}
-
-// static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -2708,7 +2687,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // -----------------------------------
 
   // Check if target is a Smi.
-  Label non_constructor;
+  Label non_constructor, non_proxy;
   __ JumpIfSmi(edi, &non_constructor, Label::kNear);
 
   // Dispatch based on instance type.
@@ -2729,10 +2708,12 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ CmpInstanceType(ecx, JS_PROXY_TYPE);
-  __ j(equal, masm->isolate()->builtins()->ConstructProxy(),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_proxy);
+
+  __ TailCallBuiltin(Builtins::kConstructProxy);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
+  __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
     __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), edi);

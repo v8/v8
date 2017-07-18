@@ -825,6 +825,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSReceiverInstanceType(Node* instance_type);
   Node* IsJSReceiverMap(Node* map);
   Node* IsJSReceiver(Node* object);
+  Node* IsNullOrJSReceiver(Node* object);
   Node* IsJSRegExp(Node* object);
   Node* IsJSTypedArray(Node* object);
   Node* IsJSValueInstanceType(Node* instance_type);
@@ -1219,6 +1220,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return CallStub(CodeFactory::GetProperty(isolate()), context, receiver,
                     name);
   }
+
+  Node* GetMethod(Node* context, Node* object, Handle<Name> name,
+                  Label* if_null_or_undefined);
 
   template <class... TArgs>
   Node* CallBuiltin(Builtins::Name id, Node* context, TArgs... args) {

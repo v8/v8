@@ -15,6 +15,7 @@
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/double.h"
+#include "src/external-reference-table.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -2233,6 +2234,13 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub) {
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+}
+
+void MacroAssembler::TailCallBuiltin(Builtins::Name name) {
+  DCHECK(ExternalReferenceTable::HasBuiltin(name));
+  mov(r5, Operand(ExternalReference(Builtins::kConstructProxy, isolate())));
+  ldr(r5, MemOperand(r5));
+  add(pc, r5, Operand(Code::kHeaderSize - kHeapObjectTag));
 }
 
 bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
