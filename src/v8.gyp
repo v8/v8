@@ -272,6 +272,11 @@
             'builtins/s390/builtins-s390.cc',
           ],
         }],
+        ['v8_target_arch=="x87"', {
+          'sources': [  ### gcmole(arch:x87) ###
+            'builtins/x87/builtins-x87.cc',
+          ],
+        }],
         ['v8_enable_i18n_support==0', {
           'sources!': [
             'builtins/builtins-intl-gen.cc',
@@ -1529,7 +1534,6 @@
             'arm/simulator-arm.cc',
             'arm/simulator-arm.h',
             'arm/eh-frame-arm.cc',
-            'builtins/arm/builtins-arm.cc',
             'compiler/arm/code-generator-arm.cc',
             'compiler/arm/instruction-codes-arm.h',
             'compiler/arm/instruction-scheduler-arm.cc',
@@ -1584,7 +1588,6 @@
             'arm64/utils-arm64.cc',
             'arm64/utils-arm64.h',
             'arm64/eh-frame-arm64.cc',
-            'builtins/arm64/builtins-arm64.cc',
             'compiler/arm64/code-generator-arm64.cc',
             'compiler/arm64/instruction-codes-arm64.h',
             'compiler/arm64/instruction-scheduler-arm64.cc',
@@ -1629,7 +1632,6 @@
             'ia32/simulator-ia32.cc',
             'ia32/simulator-ia32.h',
             'ia32/sse-instr.h',
-            'builtins/ia32/builtins-ia32.cc',
             'compiler/ia32/code-generator-ia32.cc',
             'compiler/ia32/instruction-codes-ia32.h',
             'compiler/ia32/instruction-scheduler-ia32.cc',
@@ -1668,7 +1670,6 @@
             'x87/macro-assembler-x87.h',
             'x87/simulator-x87.cc',
             'x87/simulator-x87.h',
-            'builtins/x87/builtins-x87.cc',
             'compiler/x87/code-generator-x87.cc',
             'compiler/x87/instruction-codes-x87.h',
             'compiler/x87/instruction-scheduler-x87.cc',
@@ -1709,7 +1710,6 @@
             'mips/macro-assembler-mips.h',
             'mips/simulator-mips.cc',
             'mips/simulator-mips.h',
-            'builtins/mips/builtins-mips.cc',
             'compiler/mips/code-generator-mips.cc',
             'compiler/mips/instruction-codes-mips.h',
             'compiler/mips/instruction-scheduler-mips.cc',
@@ -1750,7 +1750,6 @@
             'mips64/macro-assembler-mips64.h',
             'mips64/simulator-mips64.cc',
             'mips64/simulator-mips64.h',
-            'builtins/mips64/builtins-mips64.cc',
             'compiler/mips64/code-generator-mips64.cc',
             'compiler/mips64/instruction-codes-mips64.h',
             'compiler/mips64/instruction-scheduler-mips64.cc',
@@ -1772,7 +1771,6 @@
         }],
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
-            'builtins/x64/builtins-x64.cc',
             'compiler/x64/code-generator-x64.cc',
             'compiler/x64/instruction-codes-x64.h',
             'compiler/x64/instruction-scheduler-x64.cc',
@@ -1819,7 +1817,6 @@
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
           'sources': [  ### gcmole(arch:ppc) ###
-            'builtins/ppc/builtins-ppc.cc',
             'compiler/ppc/code-generator-ppc.cc',
             'compiler/ppc/instruction-codes-ppc.h',
             'compiler/ppc/instruction-scheduler-ppc.cc',
@@ -1860,7 +1857,6 @@
         }],
         ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
           'sources': [  ### gcmole(arch:s390) ###
-            'builtins/s390/builtins-s390.cc',
             'compiler/s390/code-generator-s390.cc',
             'compiler/s390/instruction-codes-s390.h',
             'compiler/s390/instruction-scheduler-s390.cc',
@@ -1940,7 +1936,6 @@
         }, {  # v8_enable_i18n_support==0
           'sources!': [
             'builtins/builtins-intl.cc',
-            'builtins/builtins-intl-gen.cc',
             'intl.cc',
             'intl.h',
             'objects/intl-objects.cc',
