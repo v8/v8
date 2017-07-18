@@ -1614,6 +1614,8 @@ class Heap {
 
   static const int kInitialFeedbackCapacity = 256;
 
+  static const int kMaxScavengerTasks = 1;
+
   Heap();
 
   static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
@@ -1652,6 +1654,8 @@ class Heap {
   inline bool ShouldFinalizeIncrementalMarking() const {
     return (current_gc_flags_ & kFinalizeIncrementalMarkingMask) != 0;
   }
+
+  int NumberOfScavengeTasks();
 
   void PreprocessStackTraces();
 
@@ -2305,6 +2309,7 @@ class Heap {
   ObjectStats* dead_object_stats_;
 
   ScavengeJob* scavenge_job_;
+  base::Semaphore parallel_scavenge_semaphore_;
 
   AllocationObserver* idle_scavenge_observer_;
 

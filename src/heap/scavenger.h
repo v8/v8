@@ -97,6 +97,9 @@ class Scavenger {
   // Finalize the Scavenger. Needs to be called from the main thread.
   void Finalize();
 
+  size_t bytes_copied() const { return copied_size_; }
+  size_t bytes_promoted() const { return promoted_size_; }
+
  private:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 

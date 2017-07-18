@@ -30,6 +30,7 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
@@ -49,6 +50,7 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
+#include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -146,6 +148,7 @@ Heap::Heap()
       live_object_stats_(nullptr),
       dead_object_stats_(nullptr),
       scavenge_job_(nullptr),
+      parallel_scavenge_semaphore_(0),
       idle_scavenge_observer_(nullptr),
       new_space_allocation_counter_(0),
       old_generation_allocation_counter_at_last_gc_(0),
@@ -1695,6 +1698,82 @@ static bool IsLogging(Isolate* isolate) {
           isolate->heap_profiler()->is_tracking_object_moves());
 }
 
+class ScavengingItem : public ItemParallelJob::Item {
+ public:
+  virtual ~ScavengingItem() {}
+  virtual void Process(Scavenger* scavenger) = 0;
+};
+
+class ScavengingTask final : public ItemParallelJob::Task {
+ public:
+  ScavengingTask(Heap* heap, Scavenger* scavenger)
+      : ItemParallelJob::Task(heap->isolate()),
+        heap_(heap),
+        scavenger_(scavenger) {}
+
+  void RunInParallel() final {
+    double scavenging_time = 0.0;
+    {
+      TimedScope scope(&scavenging_time);
+      ScavengingItem* item = nullptr;
+      while ((item = GetItem<ScavengingItem>()) != nullptr) {
+        item->Process(scavenger_);
+        item->MarkFinished();
+      }
+      scavenger_->Process();
+    }
+    if (FLAG_trace_parallel_scavenge) {
+      PrintIsolate(heap_->isolate(),
+                   "scavenge[%p]: time=%.2f copied=%zu promoted=%zu\n",
+                   static_cast<void*>(this), scavenging_time,
+                   scavenger_->bytes_copied(), scavenger_->bytes_promoted());
+    }
+  };
+
+ private:
+  Heap* const heap_;
+  Scavenger* const scavenger_;
+};
+
+class PageScavengingItem final : public ScavengingItem {
+ public:
+  explicit PageScavengingItem(Heap* heap, MemoryChunk* chunk)
+      : heap_(heap), chunk_(chunk) {}
+  virtual ~PageScavengingItem() {}
+
+  void Process(Scavenger* scavenger) final {
+    base::LockGuard<base::RecursiveMutex> guard(chunk_->mutex());
+    RememberedSet<OLD_TO_NEW>::Iterate(
+        chunk_,
+        [this, scavenger](Address addr) {
+          return scavenger->CheckAndScavengeObject(heap_, addr);
+        },
+        SlotSet::KEEP_EMPTY_BUCKETS);
+    RememberedSet<OLD_TO_NEW>::IterateTyped(
+        chunk_,
+        [this, scavenger](SlotType type, Address host_addr, Address addr) {
+          return UpdateTypedSlotHelper::UpdateTypedSlot(
+              heap_->isolate(), type, addr, [this, scavenger](Object** addr) {
+                // We expect that objects referenced by code are long
+                // living. If we do not force promotion, then we need to
+                // clear old_to_new slots in dead code objects after
+                // mark-compact.
+                return scavenger->CheckAndScavengeObject(
+                    heap_, reinterpret_cast<Address>(addr));
+              });
+        });
+  }
+
+ private:
+  Heap* const heap_;
+  MemoryChunk* const chunk_;
+};
+
+int Heap::NumberOfScavengeTasks() {
+  CHECK(!FLAG_parallel_scavenge);
+  return 1;
+}
+
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
@@ -1726,14 +1805,27 @@ void Heap::Scavenge() {
   new_space_->Flip();
   new_space_->ResetAllocationInfo();
 
-  const int kScavengerTasks = 1;
+  ItemParallelJob job(isolate()->cancelable_task_manager(),
+                      &parallel_scavenge_semaphore_);
   const int kMainThreadId = 0;
-  CopiedList copied_list(kScavengerTasks);
-  PromotionList promotion_list(kScavengerTasks);
-  Scavenger scavenger(this, IsLogging(isolate()),
-                      incremental_marking()->IsMarking(), &copied_list,
-                      &promotion_list, kMainThreadId);
-  RootScavengeVisitor root_scavenge_visitor(this, &scavenger);
+  Scavenger* scavengers[kMaxScavengerTasks];
+  const bool is_logging = IsLogging(isolate());
+  const bool is_incremental_marking = incremental_marking()->IsMarking();
+  const int num_scavenge_tasks = NumberOfScavengeTasks();
+  CopiedList copied_list(num_scavenge_tasks);
+  PromotionList promotion_list(num_scavenge_tasks);
+  for (int i = 0; i < num_scavenge_tasks; i++) {
+    scavengers[i] = new Scavenger(this, is_logging, is_incremental_marking,
+                                  &copied_list, &promotion_list, i);
+    job.AddTask(new ScavengingTask(this, scavengers[i]));
+  }
+
+  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+      this, [this, &job](MemoryChunk* chunk) {
+        job.AddItem(new PageScavengingItem(this, chunk));
+      });
+
+  RootScavengeVisitor root_scavenge_visitor(this, scavengers[kMainThreadId]);
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
       &JSObject::IsUnmodifiedApiObject);
@@ -1749,31 +1841,8 @@ void Heap::Scavenge() {
   }
 
   {
-    // Copy objects reachable from the old generation.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-
-    for (MemoryChunk* chunk : pages) {
-      base::LockGuard<base::RecursiveMutex> guard(chunk->mutex());
-      RememberedSet<OLD_TO_NEW>::Iterate(
-          chunk,
-          [this, &scavenger](Address addr) {
-            return scavenger.CheckAndScavengeObject(this, addr);
-          },
-          SlotSet::KEEP_EMPTY_BUCKETS);
-      RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk,
-          [this, &scavenger](SlotType type, Address host_addr, Address addr) {
-            return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate(), type, addr, [this, &scavenger](Object** addr) {
-                  // We expect that objects referenced by code are long
-                  // living. If we do not force promotion, then we need to
-                  // clear old_to_new slots in dead code objects after
-                  // mark-compact.
-                  return scavenger.CheckAndScavengeObject(
-                      this, reinterpret_cast<Address>(addr));
-                });
-          });
-    }
+    job.Run();
   }
 
   {
@@ -1783,7 +1852,7 @@ void Heap::Scavenge() {
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
-    scavenger.Process();
+    scavengers[kMainThreadId]->Process();
   }
 
   isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
@@ -1791,9 +1860,12 @@ void Heap::Scavenge() {
 
   isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
       &root_scavenge_visitor);
-  scavenger.Process();
+  scavengers[kMainThreadId]->Process();
 
-  scavenger.Finalize();
+  for (int i = 0; i < num_scavenge_tasks; i++) {
+    scavengers[i]->Finalize();
+    delete scavengers[i];
+  }
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -4965,6 +5037,8 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
       : SlotVerifyingVisitor(untyped, typed), heap_(heap) {}
 
   bool ShouldHaveBeenRecorded(HeapObject* host, Object* target) override {
+    DCHECK_IMPLIES(target->IsHeapObject() && heap_->InNewSpace(target),
+                   heap_->InToSpace(target));
     return target->IsHeapObject() && heap_->InNewSpace(target) &&
            !heap_->InNewSpace(host);
   }
