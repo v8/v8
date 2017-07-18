@@ -2250,7 +2250,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                                           Int32Constant(kPointerSizeLog2)),
                          Int32Constant(fixed_offset)),
         *effect_, *control_);
-    auto map = const_cast<wasm::SignatureMap&>(
+    auto& map = const_cast<wasm::SignatureMap&>(
         module_->module->function_tables[0].map);
     Node* sig_match = graph()->NewNode(
         machine->WordEqual(), load_sig,
