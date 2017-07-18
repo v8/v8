@@ -1124,7 +1124,7 @@ void UpdateDispatchTablesInternal(Isolate* isolate,
       // a dangling pointer in the signature map.
       Handle<WasmInstanceObject> instance(
           WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
-      auto func_table = instance->module()->function_tables[table_index];
+      auto& func_table = instance->module()->function_tables[table_index];
       uint32_t sig_index = func_table.map.FindOrInsert(function->sig);
       signature_table->set(index, Smi::FromInt(static_cast<int>(sig_index)));
       function_table->set(index, *code);
