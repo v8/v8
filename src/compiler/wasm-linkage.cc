@@ -69,14 +69,6 @@ LinkageLocation stackloc(int i, MachineType type) {
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
 
-#elif V8_TARGET_ARCH_X87
-// ===========================================================================
-// == x87 ====================================================================
-// ===========================================================================
-#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi
-#define GP_RETURN_REGISTERS eax, edx
-#define FP_RETURN_REGISTERS stX_0
-
 #elif V8_TARGET_ARCH_ARM
 // ===========================================================================
 // == arm ====================================================================

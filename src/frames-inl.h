@@ -26,8 +26,6 @@
 #include "src/mips64/frames-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_S390
 #include "src/s390/frames-s390.h"  // NOLINT
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/frames-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

@@ -431,7 +431,7 @@ inline uint32_t ComputePointerHash(void* ptr) {
 // Initializes the codegen support that depends on CPU features.
 void init_memcopy_functions(Isolate* isolate);
 
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
+#if defined(V8_TARGET_ARCH_IA32)
 // Limit below which the extra overhead of the MemCopy function is likely
 // to outweigh the benefits of faster copying.
 const int kMinComplexMemCopy = 64;

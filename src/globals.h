@@ -167,7 +167,7 @@ const int kRegisterSize = kPointerSize;
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 const int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
 #else
 const int kElidedFrameSlots = 0;
@@ -912,16 +912,10 @@ enum AllocationSiteMode {
 };
 
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
-// The x87 FPU convert the sNaN to qNaN automatically when loading sNaN from
-// memmory.
-// Use mips sNaN which is a not used qNaN in x87 port as sNaN to workaround this
-// issue
-// for some test cases.
 #if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6) &&           \
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
     (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6) &&         \
-     (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
-    (V8_TARGET_ARCH_X87)
+     (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR)))
 const uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
 const uint32_t kHoleNanLower32 = 0xFFFF7FFF;
 #else

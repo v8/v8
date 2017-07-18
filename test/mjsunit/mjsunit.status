@@ -124,9 +124,8 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
-  # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
-  # nosse2. Also for arm novfp3.
-  'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
+  # BUG(v8:2989).
+  'regress/regress-2989': [FAIL, NO_VARIANTS],
 
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
@@ -519,12 +518,6 @@
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
-
-['arch == x87', {
-   # The result produced by Gcc on linux platform is extended 80-bit double
-   # precision and not the expected standard 64-bit double precision.
-   'number-tostring-big-integer': [SKIP],
-}],  # 'arch == x87'
 
 ##############################################################################
 ['system == windows', {

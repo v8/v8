@@ -86,11 +86,6 @@
 #include "src/ia32/macro-assembler-ia32.h"
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
 #endif
-#if V8_TARGET_ARCH_X87
-#include "src/regexp/x87/regexp-macro-assembler-x87.h"
-#include "src/x87/assembler-x87.h"
-#include "src/x87/macro-assembler-x87.h"
-#endif
 #endif  // V8_INTERPRETED_REGEXP
 #include "test/cctest/cctest.h"
 

@@ -262,14 +262,14 @@
         # goma doesn't support PDB yet.
         'fastbuild%': 1,
       }],
-      ['((v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
+      ['((v8_target_arch=="ia32" or v8_target_arch=="x64") and \
         (OS=="linux" or OS=="mac")) or (v8_target_arch=="ppc64" and OS=="linux")', {
         'v8_enable_gdbjit%': 1,
       }, {
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
+        v8_target_arch!="x32"', {
         'clang%': 1,
       }, {
         'clang%': 0,
@@ -1207,7 +1207,7 @@
                   '-L<(android_libcpp_libs)/arm64-v8a',
                 ],
               }],
-              ['target_arch=="ia32" or target_arch=="x87"', {
+              ['target_arch=="ia32"', {
                 # The x86 toolchain currently has problems with stack-protector.
                 'cflags!': [
                   '-fstack-protector',

@@ -52,8 +52,6 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_S390
 #include "src/s390/constants-s390.h"
 #include "src/s390/macro-assembler-s390.h"
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/macro-assembler-x87.h"
 #else
 #error Unsupported target architecture.
 #endif

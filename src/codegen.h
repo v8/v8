@@ -59,8 +59,6 @@
 #include "src/mips64/codegen-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_S390
 #include "src/s390/codegen-s390.h"  // NOLINT
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/codegen-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

@@ -144,7 +144,7 @@
         'host_cxx_is_biarch%': 0,
       },
     }],
-    ['target_arch=="ia32" or target_arch=="x64" or target_arch=="x87" or \
+    ['target_arch=="ia32" or target_arch=="x64" or \
       target_arch=="ppc" or target_arch=="ppc64" or target_arch=="s390" or \
       target_arch=="s390x" or clang==1', {
       'variables': {
@@ -342,12 +342,6 @@
           'V8_TARGET_ARCH_IA32',
         ],
       }],  # v8_target_arch=="ia32"
-      ['v8_target_arch=="x87"', {
-        'defines': [
-          'V8_TARGET_ARCH_X87',
-        ],
-        'cflags': ['-march=i586'],
-      }],  # v8_target_arch=="x87"
       ['v8_target_arch=="mips" or v8_target_arch=="mipsel" \
         or v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
         'target_conditions': [
@@ -1006,9 +1000,8 @@
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
-         v8_target_arch=="x87" or v8_target_arch=="mips" or \
-         v8_target_arch=="mipsel" or v8_target_arch=="ppc" or \
-         v8_target_arch=="s390")', {
+         v8_target_arch=="mips" or v8_target_arch=="mipsel" or \
+         v8_target_arch=="ppc" or v8_target_arch=="s390")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [

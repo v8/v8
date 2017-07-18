@@ -370,8 +370,6 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "ppc";
 #elif V8_TARGET_ARCH_MIPS
   const char arch[] = "mips";
-#elif V8_TARGET_ARCH_X87
-  const char arch[] = "x87";
 #elif V8_TARGET_ARCH_ARM64
   const char arch[] = "arm64";
 #elif V8_TARGET_ARCH_S390

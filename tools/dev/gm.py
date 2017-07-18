@@ -33,7 +33,7 @@ BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "s390", "s390x", "x87"]
+          "s390", "s390x"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
