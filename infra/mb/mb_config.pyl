@@ -407,9 +407,9 @@
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
     'gn_release_x64_ubsan_vptr': [
-      'gn', 'release_bot', 'x64', 'ubsan_vptr'],
+      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'swarming'],
     'gn_release_x64_ubsan_vptr_minimal_symbols': [
-      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
+      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols', 'swarming'],
     'gn_release_x64_valgrind': [
       'gn', 'release_bot', 'x64', 'swarming', 'valgrind',
       'no_custom_libcxx'],

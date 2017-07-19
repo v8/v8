@@ -813,6 +813,7 @@ action("v8_dump_build_config") {
     "is_gcov_coverage=$is_gcov_coverage",
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
+    "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
