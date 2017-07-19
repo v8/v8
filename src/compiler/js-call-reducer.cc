@@ -683,9 +683,6 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
     return NoChange();
   }
 
-  // TODO(danno): map can throw. Hook up exceptional edges.
-  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
-
   // We want the input to be a generic Array.
   const int map_index = Context::ArrayMapIndex(kind);
   Handle<JSFunction> handle_constructor(
@@ -722,6 +719,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       receiver, effect, control);
 
   // This array should be HOLEY_SMI_ELEMENTS because of the non-zero length.
+  // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
+  // exceptional projections because it cannot throw with the given parameters.
   Node* a = control = effect = graph()->NewNode(
       javascript()->CreateArray(1, Handle<AllocationSite>::null()),
       array_constructor, array_constructor, original_length, context,
@@ -798,6 +797,16 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   Node* callback_value = control = effect = graph()->NewNode(
       javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
       receiver, context, frame_state, effect, control);
+
+  // Update potential {IfException} uses of {node} to point to the above
+  // JavaScript call node within the loop instead.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, control);
+    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    control = graph()->NewNode(common()->IfSuccess(), control);
+    Revisit(on_exception);
+  }
 
   Handle<Map> double_map(Map::cast(
       native_context()->get(Context::ArrayMapIndex(HOLEY_DOUBLE_ELEMENTS))));

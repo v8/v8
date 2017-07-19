@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --expose-gc --turbo-inline-array-builtins
 // Flags: --opt --no-always-opt --no-stress-fullcodegen
 
-var a = [0, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,0,0];
+var a = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,0,0];
 var b = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
 var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
 
@@ -225,6 +225,37 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   assertDoesNotThrow(lazyDeopt.bind(this, true));
   assertTrue(caught);
   lazyDeopt();
+})();
+
+// Call to a.map is done inside a try-catch block and the callback function
+// being called throws into a deoptimized caller function.
+(function TestThrowIntoDeoptimizedOuter() {
+  var a = [1,2,3,4];
+  var lazyDeopt = function(deopt) {
+    var callback = function(v,i,o) {
+      if (i == 1 && deopt) {
+        %DeoptimizeFunction(lazyDeopt);
+        throw "some exception";
+      }
+      return 2 * v;
+    };
+    %NeverOptimizeFunction(callback);
+    var result = 0;
+    try {
+      result = a.map(callback);
+    } catch (e) {
+      assertEquals("some exception", e)
+      result = "nope";
+    }
+    return result;
+  }
+  assertEquals([2,4,6,8], lazyDeopt(false));
+  assertEquals([2,4,6,8], lazyDeopt(false));
+  assertEquals("nope", lazyDeopt(true));
+  assertEquals("nope", lazyDeopt(true));
+  %OptimizeFunctionOnNextCall(lazyDeopt);
+  assertEquals([2,4,6,8], lazyDeopt(false));
+  assertEquals("nope", lazyDeopt(true));
 })();
 
 (function() {
