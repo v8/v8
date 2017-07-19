@@ -4421,6 +4421,9 @@ ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
 ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
           kConstantValuesOffset)
+bool ConstantElementsPair::is_empty() const {
+  return constant_values()->length() == 0;
+}
 
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 

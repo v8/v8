@@ -197,14 +197,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   return result;
 }
 
-Node* ConstructorBuiltinsAssembler::LoadFeedbackVectorSlot(
-    Node* closure, Node* literal_index) {
-  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
-  return LoadFixedArrayElement(feedback_vector, literal_index, 0,
-                               CodeStubAssembler::SMI_PARAMETERS);
-}
-
 Node* ConstructorBuiltinsAssembler::NotHasBoilerplate(Node* literal_site) {
   return TaggedIsSmi(literal_site);
 }
@@ -213,6 +205,29 @@ Node* ConstructorBuiltinsAssembler::LoadAllocationSiteBoilerplate(Node* site) {
   CSA_ASSERT(this, IsAllocationSite(site));
   return LoadObjectField(site,
                          AllocationSite::kTransitionInfoOrBoilerplateOffset);
+}
+
+Node* ConstructorBuiltinsAssembler::AllocateAllocationSite(
+    Node* closure, Node* literal_index) {
+  CSA_ASSERT(this, TaggedIsPositiveSmi(literal_index));
+  Node* result = Allocate(AllocationSite::kSize);
+  StoreMapNoWriteBarrier(result, Heap::kAllocationSiteMapRootIndex);
+  // Should match AllocationSite::Initialize.
+  StoreObjectFieldNoWriteBarrier(
+      result, AllocationSite::kTransitionInfoOrBoilerplateOffset,
+      SmiConstant(0));
+  StoreObjectFieldNoWriteBarrier(result, AllocationSite::kNestedSiteOffset,
+                                 SmiConstant(0));
+  StoreObjectFieldNoWriteBarrier(result, AllocationSite::kPretenureDataOffset,
+                                 SmiConstant(0));
+  StoreObjectFieldNoWriteBarrier(
+      result, AllocationSite::kPretenureCreateCountOffset, SmiConstant(0));
+  StoreObjectFieldNoWriteBarrier(result, AllocationSite::kWeakNextOffset,
+                                 SmiConstant(0));
+  StoreObjectFieldRoot(result, AllocationSite::kDependentCodeOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreFeedbackVectorSlot(closure, literal_index, result);
+  return result;
 }
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
@@ -563,6 +578,55 @@ TF_BUILTIN(FastCloneShallowArrayTrack, ConstructorBuiltinsAssembler) {
 
 TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
   CreateFastCloneShallowArrayBuiltin(DONT_TRACK_ALLOCATION_SITE);
+}
+
+Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
+    Node* closure, Node* literal_index, Node* context) {
+  // Array literals always have a valid AllocationSite to properly track
+  // elements transitions.
+  VARIABLE(allocation_site, MachineRepresentation::kTagged,
+           LoadFeedbackVectorSlot(closure, literal_index));
+
+  Label create_empty_array(this),
+      initialize_allocation_site(this, Label::kDeferred), done(this);
+  Branch(TaggedIsSmi(allocation_site.value()), &initialize_allocation_site,
+         &create_empty_array);
+
+  // TODO(cbruni): create the AllocationSite in CSA.
+  BIND(&initialize_allocation_site);
+  {
+    allocation_site.Bind(AllocateAllocationSite(closure, literal_index));
+    Goto(&create_empty_array);
+  }
+
+  BIND(&create_empty_array);
+  CSA_ASSERT(this, IsAllocationSite(allocation_site.value()));
+  Node* kind = SmiToWord32(
+      LoadObjectField(allocation_site.value(),
+                      AllocationSite::kTransitionInfoOrBoilerplateOffset));
+  CSA_ASSERT(this, IsFastElementsKind(kind));
+  Node* native_context = LoadNativeContext(context);
+  Comment("LoadJSArrayElementsMap");
+  Node* array_map = LoadJSArrayElementsMap(kind, native_context);
+  Node* zero = SmiConstant(0);
+  Comment("Allocate JSArray");
+  Node* result =
+      AllocateJSArray(GetInitialFastElementsKind(), array_map, zero, zero,
+                      allocation_site.value(), ParameterMode::SMI_PARAMETERS);
+
+  Goto(&done);
+  BIND(&done);
+
+  return result;
+}
+
+TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
+  Node* closure = Parameter(CreateEmptyArrayLiteralDescriptor::kClosure);
+  Node* literal_index =
+      Parameter(CreateEmptyArrayLiteralDescriptor::kLiteralIndex);
+  Node* context = Parameter(CreateEmptyArrayLiteralDescriptor::kContext);
+  Node* result = EmitCreateEmptyArrayLiteral(closure, literal_index, context);
+  Return(result);
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(

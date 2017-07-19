@@ -221,6 +221,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
       return ReduceJSCreateLiteral(node);
+    case IrOpcode::kJSCreateEmptyLiteralArray:
+      return ReduceJSCreateEmptyLiteralArray(node);
     case IrOpcode::kJSCreateFunctionContext:
       return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:
@@ -621,7 +623,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
                                            int capacity,
                                            Handle<AllocationSite> site) {
-  DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
+  DCHECK(node->opcode() == IrOpcode::kJSCreateArray ||
+         node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -915,7 +918,23 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
       }
     }
   }
+  return NoChange();
+}
 
+Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kJSCreateEmptyLiteralArray);
+  int literal_index = OpParameter<int>(node);
+  Handle<FeedbackVector> feedback_vector;
+  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackSlot slot(FeedbackVector::ToSlot(literal_index));
+    Handle<Object> raw_site(feedback_vector->Get(slot), isolate());
+    if (raw_site->IsAllocationSite()) {
+      Handle<AllocationSite> site = Handle<AllocationSite>::cast(raw_site);
+      DCHECK(!site->PointsToLiteral());
+      Node* length = jsgraph()->ZeroConstant();
+      return ReduceNewArray(node, length, 0, site);
+    }
+  }
   return NoChange();
 }
 
