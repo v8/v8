@@ -384,6 +384,35 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
 
 EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
+template <typename T>
+bool UseScratchRegisterScope::CanAcquireVfp() const {
+  VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+  DCHECK_NOT_NULL(available);
+  for (int index = 0; index < T::kNumRegisters; index++) {
+    T reg = T::from_code(index);
+    uint64_t mask = reg.ToVfpRegList();
+    if ((*available & mask) == mask) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template <typename T>
+T UseScratchRegisterScope::AcquireVfp() {
+  VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+  DCHECK_NOT_NULL(available);
+  for (int index = 0; index < T::kNumRegisters; index++) {
+    T reg = T::from_code(index);
+    uint64_t mask = reg.ToVfpRegList();
+    if ((*available & mask) == mask) {
+      *available &= ~mask;
+      return reg;
+    }
+  }
+  UNREACHABLE();
+}
+
 }  // namespace internal
 }  // namespace v8
 

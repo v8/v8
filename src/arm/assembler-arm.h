@@ -184,6 +184,17 @@ enum SwVfpRegisterCode {
       kSwVfpAfterLast
 };
 
+// Representation of a list of non-overlapping VFP registers. This list
+// represents the data layout of VFP registers as a bitfield:
+//   S registers cover 1 bit
+//   D registers cover 2 bits
+//   Q registers cover 4 bits
+//
+// This way, we make sure no registers in the list ever overlap. However, a list
+// may represent multiple different sets of registers,
+// e.g. [d0 s2 s3] <=> [s0 s1 d1].
+typedef uint64_t VfpRegList;
+
 // Single word VFP register.
 class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
  public:
@@ -195,6 +206,11 @@ class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
     *vm = reg_code >> 1;
   }
   void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // Each bit in the list corresponds to a S register.
+    return uint64_t{0x1} << code();
+  }
 
  private:
   friend class RegisterBase;
@@ -217,10 +233,6 @@ enum DoubleRegisterCode {
 // Double word VFP register.
 class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
  public:
-  // A few double registers are reserved: one as a scratch register and one to
-  // hold 0.0, that does not fit in the immediate field of vmov instructions.
-  //  d14: 0.0
-  //  d15: scratch register.
   static constexpr int kSizeInBytes = 8;
 
   inline static int NumRegisters();
@@ -231,6 +243,11 @@ class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
     *vm = reg_code & 0x0F;
   }
   void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // A D register overlaps two S registers.
+    return uint64_t{0x3} << (code() * 2);
+  }
 
  private:
   friend class RegisterBase;
@@ -254,6 +271,11 @@ class LowDwVfpRegister
   SwVfpRegister low() const { return SwVfpRegister::from_code(code() * 2); }
   SwVfpRegister high() const {
     return SwVfpRegister::from_code(code() * 2 + 1);
+  }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // A D register overlaps two S registers.
+    return uint64_t{0x3} << (code() * 2);
   }
 
  private:
@@ -281,6 +303,11 @@ class QwNeonRegister : public RegisterBase<QwNeonRegister, kSimd128AfterLast> {
   DwVfpRegister low() const { return DwVfpRegister::from_code(code() * 2); }
   DwVfpRegister high() const {
     return DwVfpRegister::from_code(code() * 2 + 1);
+  }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // A Q register overlaps four S registers.
+    return uint64_t{0xf} << (code() * 4);
   }
 
  private:
@@ -334,12 +361,6 @@ SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
 constexpr LowDwVfpRegister kFirstCalleeSavedDoubleReg = d8;
 constexpr LowDwVfpRegister kLastCalleeSavedDoubleReg = d15;
 constexpr LowDwVfpRegister kDoubleRegZero  = d13;
-constexpr LowDwVfpRegister kScratchDoubleReg = d14;
-// This scratch q-register aliases d14 (kScratchDoubleReg) and d15, but is only
-// used if NEON is supported, which implies VFP32DREGS. When there are only 16
-// d-registers, d15 is still allocatable.
-constexpr QwNeonRegister kScratchQuadReg = q7;
-constexpr LowDwVfpRegister kScratchDoubleReg2 = d15;
 
 constexpr CRegister no_creg = CRegister::no_reg();
 
@@ -685,6 +706,9 @@ class Assembler : public AssemblerBase {
   // register.
   static constexpr int kPcLoadDelta = 8;
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+  VfpRegList* GetScratchVfpRegisterList() {
+    return &scratch_vfp_register_list_;
+  }
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1655,6 +1679,7 @@ class Assembler : public AssemblerBase {
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
+  VfpRegList scratch_vfp_register_list_;
 
  private:
   // Avoid overflows for displacements etc.
@@ -1732,6 +1757,7 @@ class Assembler : public AssemblerBase {
   friend class BlockConstPoolScope;
   friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
+  friend class UseScratchRegisterScope;
 
   // The following functions help with avoiding allocations of embedded heap
   // objects during the code assembly phase. {RequestHeapObject} records the
@@ -1779,12 +1805,38 @@ class UseScratchRegisterScope {
 
   // Take a register from the list and return it.
   Register Acquire();
+  SwVfpRegister AcquireS() { return AcquireVfp<SwVfpRegister>(); }
+  LowDwVfpRegister AcquireLowD() { return AcquireVfp<LowDwVfpRegister>(); }
+  DwVfpRegister AcquireD() {
+    DwVfpRegister reg = AcquireVfp<DwVfpRegister>();
+    DCHECK(assembler_->VfpRegisterIsAvailable(reg));
+    return reg;
+  }
+  QwNeonRegister AcquireQ() {
+    QwNeonRegister reg = AcquireVfp<QwNeonRegister>();
+    DCHECK(assembler_->VfpRegisterIsAvailable(reg));
+    return reg;
+  }
 
  private:
-  // Currently available scratch registers.
-  RegList* available_;
+  friend class Assembler;
+  friend class TurboAssembler;
+
+  // Check if we have registers available to acquire.
+  // These methods are kept private intentionally to restrict their usage to the
+  // assemblers. Choosing to emit a difference instruction sequence depending on
+  // the availability of scratch registers is generally their job.
+  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  template <typename T>
+  bool CanAcquireVfp() const;
+
+  template <typename T>
+  T AcquireVfp();
+
+  Assembler* assembler_;
   // Available scratch registers at the start of this scope.
   RegList old_available_;
+  VfpRegList old_available_vfp_;
 };
 
 }  // namespace internal

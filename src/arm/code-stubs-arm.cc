@@ -46,7 +46,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   UseScratchRegisterScope temps(masm);
   Register double_low = GetRegisterThatIsNotOneOf(result_reg);
   Register double_high = GetRegisterThatIsNotOneOf(result_reg, double_low);
-  LowDwVfpRegister double_scratch = kScratchDoubleReg;
+  LowDwVfpRegister double_scratch = temps.AcquireLowD();
 
   // Save the old values from these temporary registers on the stack.
   __ Push(double_high, double_low);
