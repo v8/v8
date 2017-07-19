@@ -35,34 +35,6 @@ class StringHelper : public AllStatic {
 };
 
 
-class StoreRegistersStateStub: public PlatformCodeStub {
- public:
-  explicit StoreRegistersStateStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  static Register to_be_pushed_lr() { return ip0; }
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(StoreRegistersState, PlatformCodeStub);
-};
-
-
-class RestoreRegistersStateStub: public PlatformCodeStub {
- public:
-  explicit RestoreRegistersStateStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(RestoreRegistersState, PlatformCodeStub);
-};
-
-
 class RecordWriteStub: public PlatformCodeStub {
  public:
   // Stub to record the write of 'value' at 'address' in 'object'.

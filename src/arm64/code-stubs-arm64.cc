@@ -621,30 +621,6 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
 }
 
 
-void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
-  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
-  UseScratchRegisterScope temps(masm);
-  Register saved_lr = temps.UnsafeAcquire(to_be_pushed_lr());
-  Register return_address = temps.AcquireX();
-  __ Mov(return_address, lr);
-  // Restore lr with the value it had before the call to this stub (the value
-  // which must be pushed).
-  __ Mov(lr, saved_lr);
-  __ PushSafepointRegisters();
-  __ Ret(return_address);
-}
-
-
-void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
-  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
-  UseScratchRegisterScope temps(masm);
-  Register return_address = temps.AcquireX();
-  // Preserve the return address (lr will be clobbered by the pop).
-  __ Mov(return_address, lr);
-  __ PopSafepointRegisters();
-  __ Ret(return_address);
-}
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   // Stack on entry:
   // jssp[0]: Exponent (as a tagged value).
@@ -777,21 +753,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   CreateWeakCellStub::GenerateAheadOfTime(isolate);
-  StoreRegistersStateStub::GenerateAheadOfTime(isolate);
-  RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-}
-
-
-void StoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreRegistersStateStub stub(isolate);
-  stub.GetCode();
-}
-
-
-void RestoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  RestoreRegistersStateStub stub(isolate);
-  stub.GetCode();
 }
 
 

@@ -2496,17 +2496,11 @@ class UseScratchRegisterScope {
     return VRegister::Create(AcquireNextAvailable(availablefp_).code(), format);
   }
 
-  Register UnsafeAcquire(const Register& reg) {
-    return Register(UnsafeAcquire(available_, reg));
-  }
-
   Register AcquireSameSizeAs(const Register& reg);
   VRegister AcquireSameSizeAs(const VRegister& reg);
 
  private:
   static CPURegister AcquireNextAvailable(CPURegList* available);
-  static CPURegister UnsafeAcquire(CPURegList* available,
-                                   const CPURegister& reg);
 
   // Available scratch registers.
   CPURegList* available_;     // kRegister

@@ -4233,13 +4233,6 @@ CPURegister UseScratchRegisterScope::AcquireNextAvailable(
 }
 
 
-CPURegister UseScratchRegisterScope::UnsafeAcquire(CPURegList* available,
-                                                   const CPURegister& reg) {
-  DCHECK(available->IncludesAliasOf(reg));
-  available->Remove(reg);
-  return reg;
-}
-
 MemOperand ContextMemOperand(Register context, int index) {
   return MemOperand(context, Context::SlotOffset(index));
 }

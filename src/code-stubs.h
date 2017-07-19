@@ -87,10 +87,7 @@ class Node;
 
 // List of code stubs only used on ARM 64 bits platforms.
 #if V8_TARGET_ARCH_ARM64
-#define CODE_STUB_LIST_ARM64(V) \
-  V(DirectCEntry)               \
-  V(RestoreRegistersState)      \
-  V(StoreRegistersState)
+#define CODE_STUB_LIST_ARM64(V) V(DirectCEntry)
 
 #else
 #define CODE_STUB_LIST_ARM64(V)
