@@ -143,8 +143,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // edi: constructor function
     // edx: new target
     ParameterCount actual(eax);
-    __ InvokeFunction(edi, edx, actual, CALL_FUNCTION,
-                      CheckDebugStepCallWrapper());
+    __ InvokeFunction(edi, edx, actual, CALL_FUNCTION);
 
     // Restore context from the frame.
     __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
@@ -268,8 +267,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     // Call the function.
     ParameterCount actual(eax);
-    __ InvokeFunction(edi, edx, actual, CALL_FUNCTION,
-                      CheckDebugStepCallWrapper());
+    __ InvokeFunction(edi, edx, actual, CALL_FUNCTION);
 
     // ----------- S t a t e -------------
     //  --                eax: constructor result
@@ -2456,8 +2454,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(eax);
   ParameterCount expected(ebx);
-  __ InvokeFunctionCode(edi, no_reg, expected, actual, JUMP_FUNCTION,
-                        CheckDebugStepCallWrapper());
+  __ InvokeFunctionCode(edi, no_reg, expected, actual, JUMP_FUNCTION);
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
   {

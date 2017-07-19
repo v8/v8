@@ -125,8 +125,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
          FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount dummy(ebx);
-  __ InvokeFunction(edi, dummy, dummy, JUMP_FUNCTION,
-                    CheckDebugStepCallWrapper());
+  __ InvokeFunction(edi, dummy, dummy, JUMP_FUNCTION);
 }
 
 

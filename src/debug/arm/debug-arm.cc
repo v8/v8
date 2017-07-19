@@ -144,8 +144,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
 
   ParameterCount dummy1(r2);
   ParameterCount dummy2(r0);
-  __ InvokeFunction(r1, dummy1, dummy2, JUMP_FUNCTION,
-                    CheckDebugStepCallWrapper());
+  __ InvokeFunction(r1, dummy1, dummy2, JUMP_FUNCTION);
 }
 
 

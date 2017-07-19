@@ -485,8 +485,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     {
       ConstantPoolUnavailableScope constant_pool_unavailable(masm);
       ParameterCount actual(r3);
-      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION);
     }
 
     // Restore context from the frame.
@@ -613,8 +612,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     {
       ConstantPoolUnavailableScope constant_pool_unavailable(masm);
       ParameterCount actual(r3);
-      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION);
     }
 
     // ----------- S t a t e -------------
@@ -2485,8 +2483,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(r3);
   ParameterCount expected(r5);
-  __ InvokeFunctionCode(r4, no_reg, expected, actual, JUMP_FUNCTION,
-                        CheckDebugStepCallWrapper());
+  __ InvokeFunctionCode(r4, no_reg, expected, actual, JUMP_FUNCTION);
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
