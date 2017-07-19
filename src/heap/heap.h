@@ -575,7 +575,7 @@ class Heap {
 
   // Semi-space size needs to be a multiple of page size.
   static const int kMinSemiSpaceSizeInKB =
-      2 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
+      1 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
   static const int kMaxSemiSpaceSizeInKB =
       16 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
 
