@@ -42,7 +42,7 @@ newBenchmark("ProxyConstructorWithClass", {
 
 // ----------------------------------------------------------------------------
 
-var obj = {};
+let obj = {};
 
 newBenchmark("ProxyConstructorWithObject", {
   setup() { },
@@ -149,5 +149,46 @@ newBenchmark("ConstructProxyWithTrap", {
   },
   teardown() {
     return instance instanceof MyClass;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {
+  prop: SOME_NUMBER
+}
+let value;
+
+newBenchmark("GetPropertyOfProxyWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p.prop;
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetPropertyOfProxyWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      get: function(target, propertyKey, receiver) {
+        return SOME_OTHER_NUMBER;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p.prop;
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
   }
 });

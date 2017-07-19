@@ -22,7 +22,9 @@
         {"name": "CallProxyWithoutTrap"},
         {"name": "CallProxyWithTrap"},
         {"name": "ConstructProxyWithoutTrap"},
-        {"name": "ConstructProxyWithTrap"}
+        {"name": "ConstructProxyWithTrap"},
+        {"name": "GetPropertyOfProxyWithoutTrap"},
+        {"name": "GetPropertyOfProxyWithTrap"}
       ]
     },
     {
