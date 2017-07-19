@@ -427,6 +427,14 @@ FieldAccess AccessBuilder::ForJSIteratorResultValue() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForJSRegExpData() {
+  FieldAccess access = {kTaggedBase,         JSRegExp::kDataOffset,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForJSRegExpFlags() {
@@ -437,6 +445,14 @@ FieldAccess AccessBuilder::ForJSRegExpFlags() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForJSRegExpLastIndex() {
+  FieldAccess access = {kTaggedBase,         JSRegExp::kLastIndexOffset,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForJSRegExpSource() {

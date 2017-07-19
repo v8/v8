@@ -220,7 +220,9 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateKeyValueArray(node);
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
-      return ReduceJSCreateLiteral(node);
+      return ReduceJSCreateLiteralArrayOrObject(node);
+    case IrOpcode::kJSCreateLiteralRegExp:
+      return ReduceJSCreateLiteralRegExp(node);
     case IrOpcode::kJSCreateEmptyLiteralArray:
       return ReduceJSCreateEmptyLiteralArray(node);
     case IrOpcode::kJSCreateFunctionContext:
@@ -892,7 +894,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   return Changed(node);
 }
 
-Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
+Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
          node->opcode() == IrOpcode::kJSCreateLiteralObject);
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
@@ -916,6 +918,26 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       }
+    }
+  }
+  return NoChange();
+}
+
+Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralRegExp);
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Handle<FeedbackVector> feedback_vector;
+  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackSlot slot(FeedbackVector::ToSlot(p.index()));
+    Handle<Object> maybe_boilerplate(feedback_vector->Get(slot), isolate());
+    if (maybe_boilerplate->IsJSRegExp()) {
+      Node* value = effect = AllocateLiteralRegExp(
+          effect, control, Handle<JSRegExp>::cast(maybe_boilerplate));
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
     }
   }
   return NoChange();
@@ -1411,6 +1433,44 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   for (int i = 0; i < elements_length; ++i) {
     builder.Store(access, jsgraph()->Constant(i), elements_values[i]);
   }
+  return builder.Finish();
+}
+
+Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
+                                              Handle<JSRegExp> boilerplate) {
+  Handle<Map> boilerplate_map(boilerplate->map(), isolate());
+
+  // Sanity check that JSRegExp object layout hasn't changed.
+  STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+  STATIC_ASSERT(JSRegExp::kSourceOffset ==
+                JSRegExp::kDataOffset + kPointerSize);
+  STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+                JSRegExp::kSourceOffset + kPointerSize);
+  STATIC_ASSERT(JSRegExp::kSize == JSRegExp::kFlagsOffset + kPointerSize);
+  STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kSize);
+  STATIC_ASSERT(JSRegExp::kInObjectFieldCount == 1);  // LastIndex.
+
+  const PretenureFlag pretenure = NOT_TENURED;
+  const int size =
+      JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+
+  AllocationBuilder builder(jsgraph(), effect, control);
+  builder.Allocate(size, pretenure, Type::For(boilerplate_map));
+  builder.Store(AccessBuilder::ForMap(), boilerplate_map);
+  builder.Store(AccessBuilder::ForJSObjectProperties(),
+                handle(boilerplate->raw_properties_or_hash(), isolate()));
+  builder.Store(AccessBuilder::ForJSObjectElements(),
+                handle(boilerplate->elements(), isolate()));
+
+  builder.Store(AccessBuilder::ForJSRegExpData(),
+                handle(boilerplate->data(), isolate()));
+  builder.Store(AccessBuilder::ForJSRegExpSource(),
+                handle(boilerplate->source(), isolate()));
+  builder.Store(AccessBuilder::ForJSRegExpFlags(),
+                handle(boilerplate->flags(), isolate()));
+  builder.Store(AccessBuilder::ForJSRegExpLastIndex(),
+                handle(boilerplate->last_index(), isolate()));
+
   return builder.Finish();
 }
 
