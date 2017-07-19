@@ -3804,8 +3804,9 @@ ParserBase<Impl>::ParseFunctionDeclaration(bool* ok) {
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
   if (Check(Token::MUL)) {
-    impl()->ReportMessageAt(scanner()->location(),
-                            MessageTemplate::kGeneratorInLegacyContext);
+    impl()->ReportMessageAt(
+        scanner()->location(),
+        MessageTemplate::kGeneratorInSingleStatementContext);
     *ok = false;
     return impl()->NullStatement();
   }
@@ -4853,6 +4854,16 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       return ParseDebuggerStatement(ok);
     case Token::VAR:
       return ParseVariableStatement(kStatement, nullptr, ok);
+    case Token::ASYNC:
+      if (!scanner()->HasAnyLineTerminatorAfterNext() &&
+          PeekAhead() == Token::FUNCTION) {
+        impl()->ReportMessageAt(
+            scanner()->peek_location(),
+            MessageTemplate::kAsyncFunctionInSingleStatementContext);
+        *ok = false;
+        return impl()->NullStatement();
+      }
+    // Falls through
     default:
       return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
   }

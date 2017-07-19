@@ -556,8 +556,11 @@ class ErrorUtils : public AllStatic {
     "% loop variable declaration may not have an initializer.")                \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
-  T(GeneratorInLegacyContext,                                                  \
-    "Generator declarations are not allowed in legacy contexts.")              \
+  T(GeneratorInSingleStatementContext,                                         \
+    "Generators can only be declared at the top level or inside a block.")     \
+  T(AsyncFunctionInSingleStatementContext,                                     \
+    "Async functions can only be declared at the top level or inside a "       \
+    "block.")                                                                  \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(NoIterationStatement,                                                      \
     "Illegal continue statement: no surrounding iteration statement")          \

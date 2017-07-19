@@ -511,24 +511,6 @@
   'built-ins/Number/prototype/toPrecision/range': [FAIL],
   'built-ins/Number/prototype/toExponential/range': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6540
-  'language/statements/for/decl-async-fun': [FAIL],
-  'language/statements/for/decl-async-gen': [FAIL],
-  'language/statements/for-in/decl-async-fun': [FAIL],
-  'language/statements/for-in/decl-async-gen': [FAIL],
-  'language/statements/for-of/decl-async-fun': [FAIL],
-  'language/statements/for-of/decl-async-gen': [FAIL],
-  'language/statements/if/if-async-fun-no-else': [FAIL],
-  'language/statements/if/if-async-gen-no-else': [FAIL],
-  'language/statements/if/if-stmt-else-async-fun': [FAIL],
-  'language/statements/if/if-stmt-else-async-gen': [FAIL],
-  'language/statements/labeled/decl-async-function': [FAIL],
-  'language/statements/labeled/decl-async-generator': [FAIL],
-  'language/statements/while/decl-async-fun': [FAIL],
-  'language/statements/while/decl-async-gen': [FAIL],
-  'language/statements/with/decl-async-fun': [FAIL],
-  'language/statements/with/decl-async-gen': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5855
   'language/expressions/async-generator/named-yield-promise-reject-next': [FAIL],
   'language/expressions/async-generator/named-yield-promise-reject-next-catch': [FAIL],

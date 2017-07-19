@@ -8763,11 +8763,8 @@ TEST(FunctionDeclarationError) {
     "if (true) {} else label: function f() {}",
     "if (true) function* f() { }",
     "label: function* f() { }",
-    // TODO(littledan, v8:4806): Ban duplicate generator declarations in
-    // a block, maybe by tracking whether a Variable is a generator declaration
-    // "{ function* f() {} function* f() {} }",
-    // "{ function f() {} function* f() {} }",
-    // "{ function* f() {} function f() {} }",
+    "if (true) async function f() { }",
+    "label: async function f() { }",
     NULL
   };
   // Valid only in sloppy mode.
@@ -8789,6 +8786,20 @@ TEST(FunctionDeclarationError) {
   // In sloppy mode, sloppy_data is successful
   RunParserSyncTest(sloppy_context, error_data, kError);
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess);
+
+  // No single statement async iterators
+  // clang-format off
+  const char* async_iterator_data[] = {
+    "if (true) async function* f() { }",
+    "label: async function* f() { }",
+    NULL,
+  };
+  // clang-format on
+  static const ParserFlag flags[] = {kAllowHarmonyAsyncIteration};
+  RunParserSyncTest(sloppy_context, async_iterator_data, kError, NULL, 0, flags,
+                    arraysize(flags));
+  RunParserSyncTest(strict_context, async_iterator_data, kError, NULL, 0, flags,
+                    arraysize(flags));
 }
 
 TEST(ExponentiationOperator) {
