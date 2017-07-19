@@ -117,8 +117,7 @@
   V(JSToName)                      \
   V(JSToNumber)                    \
   V(JSToObject)                    \
-  V(JSToString)                    \
-  V(JSToPrimitiveToString)
+  V(JSToString)
 
 #define JS_OTHER_UNOP_LIST(V) \
   V(JSClassOf)                \
@@ -182,7 +181,6 @@
   V(JSGeneratorRestoreContinuation) \
   V(JSGeneratorRestoreRegister)     \
   V(JSStackCheck)                   \
-  V(JSStringConcat)                 \
   V(JSDebugger)
 
 #define JS_OP_LIST(V)     \
@@ -331,7 +329,6 @@
   V(CheckReceiver)                  \
   V(CheckString)                    \
   V(CheckSeqString)                 \
-  V(CheckNonEmptyString)            \
   V(CheckSymbol)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \

@@ -931,10 +931,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* constructor,
 Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
                                          Node* first_arg, Node* arg_count,
                                          int result_size) {
-  DCHECK_IMPLIES(Bytecodes::IsCallRuntime(bytecode_),
-                 Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  DCHECK(Bytecodes::IsCallRuntime(bytecode_) ||
-         bytecode_ == Bytecode::kStringConcat);
+  DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
+  DCHECK(Bytecodes::IsCallRuntime(bytecode_));
   Callable callable = CodeFactory::InterpreterCEntry(isolate(), result_size);
   Node* code_target = HeapConstant(callable.code());
 

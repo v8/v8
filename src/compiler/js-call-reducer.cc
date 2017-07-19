@@ -140,7 +140,6 @@ bool CanBeNullOrUndefined(Node* node) {
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:
-    case IrOpcode::kJSToPrimitiveToString:
       return false;
     case IrOpcode::kHeapConstant: {
       Handle<HeapObject> value = HeapObjectMatcher(node).Value();

@@ -2141,45 +2141,6 @@ void BytecodeGraphBuilder::VisitToNumber() {
                               Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitToPrimitiveToString() {
-  PrepareEagerCheckpoint();
-  Node* object = environment()->LookupAccumulator();
-
-  Node* node = nullptr;
-  FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
-  if (Node* simplified = TryBuildSimplifiedToPrimitiveToString(object, slot)) {
-    node = simplified;
-  } else {
-    node = NewNode(javascript()->ToPrimitiveToString(), object);
-  }
-
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node,
-                              Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitStringConcat() {
-  PrepareEagerCheckpoint();
-  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(0);
-  int operand_count =
-      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(1));
-  Node** operands =
-      local_zone()->NewArray<Node*>(static_cast<size_t>(operand_count));
-  int operand_base = first_reg.index();
-  for (int i = 0; i < operand_count; ++i) {
-    Node* reg =
-        environment()->LookupRegister(interpreter::Register(operand_base + i));
-    // Explicitly insert a string check here. All operands are already strings,
-    // however in the case of generator yields in the middle of string
-    // concatenations we might lose the knowledge that the operand is a string.
-    operands[i] = NewNode(simplified()->CheckString(), reg);
-  }
-
-  Node* node = MakeNode(javascript()->StringConcat(operand_count),
-                        operand_count, operands, false);
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }
 
 void BytecodeGraphBuilder::VisitJumpConstant() { BuildJump(); }
@@ -2638,20 +2599,6 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceToNumberOperation(
       value, effect, control, slot);
-  if (early_reduction.Changed()) {
-    ApplyEarlyReduction(early_reduction);
-    return early_reduction.replacement();
-  }
-  return nullptr;
-}
-
-Node* BytecodeGraphBuilder::TryBuildSimplifiedToPrimitiveToString(
-    Node* value, FeedbackSlot slot) {
-  Node* effect = environment()->GetEffectDependency();
-  Node* control = environment()->GetControlDependency();
-  Reduction early_reduction =
-      type_hint_lowering().ReduceToPrimitiveToStringOperation(value, effect,
-                                                              control, slot);
   if (early_reduction.Changed()) {
     ApplyEarlyReduction(early_reduction);
     return early_reduction.replacement();

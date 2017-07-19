@@ -351,11 +351,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* TailCallRuntime(Runtime::FunctionId function, Node* context,
                         TArgs... args);
 
-  // Tail call into the runtime passing the same |argc| stack arguments that we
-  // were called with.
-  Node* TailCallRuntimeN(Runtime::FunctionId function, Node* context,
-                         Node* argc);
-
   template <class... TArgs>
   Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
     Node* target = HeapConstant(callable.code());

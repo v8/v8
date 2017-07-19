@@ -47,8 +47,6 @@ const Register StoreTransitionDescriptor::MapRegister() { return r11; }
 const Register StringCompareDescriptor::LeftRegister() { return rdx; }
 const Register StringCompareDescriptor::RightRegister() { return rax; }
 
-const Register StringConcatDescriptor::ArgumentsCountRegister() { return rbx; }
-
 const Register ApiGetterDescriptor::HolderRegister() { return rcx; }
 const Register ApiGetterDescriptor::CallbackRegister() { return rbx; }
 

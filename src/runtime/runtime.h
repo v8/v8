@@ -212,9 +212,9 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F)      \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)      \
-  F(InterpreterNewClosure, 4, 1)               \
+#define FOR_EACH_INTRINSIC_INTERPRETER(F) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
+  F(InterpreterNewClosure, 4, 1)          \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
@@ -520,7 +520,6 @@ namespace internal {
   F(StringLastIndexOf, 2, 1)              \
   F(SubString, 3, 1)                      \
   F(StringAdd, 2, 1)                      \
-  F(StringConcat, -1 /* >= 2 */, 1)       \
   F(InternalizeString, 1, 1)              \
   F(StringCharCodeAtRT, 2, 1)             \
   F(StringCompare, 2, 1)                  \

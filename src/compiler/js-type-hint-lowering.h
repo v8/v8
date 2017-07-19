@@ -59,11 +59,6 @@ class JSTypeHintLowering {
   Reduction ReduceToNumberOperation(Node* value, Node* effect, Node* control,
                                     FeedbackSlot slot) const;
 
-  // Potential reduction to ToPrimitiveToString operations
-  Reduction ReduceToPrimitiveToStringOperation(Node* value, Node* effect,
-                                               Node* control,
-                                               FeedbackSlot slot) const;
-
   // Potential reduction of call operations.
   Reduction ReduceCallOperation(const Operator* op, Node* const* args,
                                 int arg_count, Node* effect, Node* control,

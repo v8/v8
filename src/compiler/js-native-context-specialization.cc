@@ -72,8 +72,6 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
-    case IrOpcode::kJSStringConcat:
-      return ReduceJSStringConcat(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
     case IrOpcode::kJSInstanceOf:
@@ -128,59 +126,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
     }
   }
   return NoChange();
-}
-
-Reduction JSNativeContextSpecialization::ReduceJSStringConcat(Node* node) {
-  // TODO(turbofan): This has to run together with the inlining and
-  // native context specialization to be able to leverage the string
-  // constant-folding for optimizing property access, but we should
-  // nevertheless find a better home for this at some point.
-  DCHECK_EQ(IrOpcode::kJSStringConcat, node->opcode());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  DCHECK_GE(StringConcatParameterOf(node->op()).operand_count(), 3);
-
-  // Constant-fold string concatenation.
-  HeapObjectMatcher last_operand(NodeProperties::GetValueInput(node, 0));
-  int operand_count = StringConcatParameterOf(node->op()).operand_count();
-  for (int i = 1; i < operand_count; ++i) {
-    HeapObjectMatcher current_operand(NodeProperties::GetValueInput(node, i));
-
-    if (last_operand.HasValue() && current_operand.HasValue()) {
-      Handle<String> left = Handle<String>::cast(last_operand.Value());
-      Handle<String> right = Handle<String>::cast(current_operand.Value());
-      if (left->length() + right->length() <= String::kMaxLength) {
-        Handle<String> result =
-            factory()->NewConsString(left, right).ToHandleChecked();
-        Node* value = jsgraph()->HeapConstant(result);
-        node->ReplaceInput(i - 1, value);
-        node->RemoveInput(i);
-        last_operand = HeapObjectMatcher(value);
-        i--;
-        operand_count--;
-        continue;
-      }
-    }
-    last_operand = current_operand;
-  }
-
-  if (operand_count == StringConcatParameterOf(node->op()).operand_count()) {
-    return NoChange();
-  } else if (operand_count == 1) {
-    // Replace with input if there is only one input left.
-    Node* value = NodeProperties::GetValueInput(node, 0);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  } else if (operand_count == 2) {
-    // Replace with JSAdd if we only have two operands left.
-    NodeProperties::ChangeOp(node,
-                             javascript()->Add(BinaryOperationHint::kString));
-    return Changed(node);
-  } else {
-    // Otherwise update operand count.
-    NodeProperties::ChangeOp(node, javascript()->StringConcat(operand_count));
-    return Changed(node);
-  }
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(

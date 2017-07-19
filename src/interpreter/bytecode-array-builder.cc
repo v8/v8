@@ -1000,18 +1000,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(Register out,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ToPrimitiveToString(
-    Register out, int feedback_slot) {
-  OutputToPrimitiveToString(out, feedback_slot);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::StringConcat(
-    RegisterList operand_registers) {
-  OutputStringConcat(operand_registers, operand_registers.register_count());
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.

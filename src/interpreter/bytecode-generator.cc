@@ -504,18 +504,6 @@ class BytecodeGenerator::RegisterAllocationScope final {
         outer_next_register_index_);
   }
 
-  // Enable the registers in |register_list| to escape into the parent register
-  // allocation scope.
-  void EscapeRegisterListToParent(RegisterList* register_list) {
-    DCHECK_LT(register_list->last_register().index(),
-              generator_->register_allocator()->next_register_index());
-    DCHECK_LE(register_list->first_register().index(),
-              outer_next_register_index_);
-    DCHECK_GE(register_list->last_register().index(),
-              outer_next_register_index_);
-    outer_next_register_index_ = register_list->last_register().index() + 1;
-  }
-
  private:
   BytecodeGenerator* generator_;
   int outer_next_register_index_;
@@ -527,9 +515,7 @@ class BytecodeGenerator::RegisterAllocationScope final {
 // used.
 class BytecodeGenerator::ExpressionResultScope {
  public:
-  enum class Kind { kEffect, kValue, kTest, kAddition };
-
-  ExpressionResultScope(BytecodeGenerator* generator, Kind kind)
+  ExpressionResultScope(BytecodeGenerator* generator, Expression::Context kind)
       : generator_(generator),
         outer_(generator->execution_result()),
         allocator_(generator),
@@ -542,37 +528,28 @@ class BytecodeGenerator::ExpressionResultScope {
     generator_->set_execution_result(outer_);
   }
 
-  bool IsEffect() const { return kind_ == Kind::kEffect; }
-  bool IsValue() const { return kind_ == Kind::kValue; }
-  bool IsTest() const { return kind_ == Kind::kTest; }
-  bool IsAddition() const { return kind_ == Kind::kAddition; }
+  bool IsEffect() const { return kind_ == Expression::kEffect; }
+  bool IsValue() const { return kind_ == Expression::kValue; }
+  bool IsTest() const { return kind_ == Expression::kTest; }
 
   TestResultScope* AsTest() {
     DCHECK(IsTest());
     return reinterpret_cast<TestResultScope*>(this);
   }
 
-  AdditionResultScope* AsAddition() {
-    DCHECK(IsAddition());
-    return reinterpret_cast<AdditionResultScope*>(this);
-  }
-
-  // Specify expression always returns a result value of type |hint|.
-  void set_type_hint(TypeHint hint) {
+  // Specify expression always returns a Boolean result value.
+  void SetResultIsBoolean() {
     DCHECK(type_hint_ == TypeHint::kAny);
-    type_hint_ = hint;
+    type_hint_ = TypeHint::kBoolean;
   }
 
   TypeHint type_hint() const { return type_hint_; }
-
- protected:
-  RegisterAllocationScope* allocation_scope() { return &allocator_; }
 
  private:
   BytecodeGenerator* generator_;
   ExpressionResultScope* outer_;
   RegisterAllocationScope allocator_;
-  Kind kind_;
+  Expression::Context kind_;
   TypeHint type_hint_;
 
   DISALLOW_COPY_AND_ASSIGN(ExpressionResultScope);
@@ -584,7 +561,7 @@ class BytecodeGenerator::EffectResultScope final
     : public ExpressionResultScope {
  public:
   explicit EffectResultScope(BytecodeGenerator* generator)
-      : ExpressionResultScope(generator, Kind::kEffect) {}
+      : ExpressionResultScope(generator, Expression::kEffect) {}
 };
 
 // Scoped class used when the result of the current expression to be
@@ -592,7 +569,7 @@ class BytecodeGenerator::EffectResultScope final
 class BytecodeGenerator::ValueResultScope final : public ExpressionResultScope {
  public:
   explicit ValueResultScope(BytecodeGenerator* generator)
-      : ExpressionResultScope(generator, Kind::kValue) {}
+      : ExpressionResultScope(generator, Expression::kValue) {}
 };
 
 // Scoped class used when the result of the current expression to be
@@ -601,7 +578,7 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
  public:
   TestResultScope(BytecodeGenerator* generator, BytecodeLabels* then_labels,
                   BytecodeLabels* else_labels, TestFallthrough fallthrough)
-      : ExpressionResultScope(generator, Kind::kTest),
+      : ExpressionResultScope(generator, Expression::kTest),
         result_consumed_by_test_(false),
         fallthrough_(fallthrough),
         then_labels_(then_labels),
@@ -656,37 +633,6 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
   BytecodeLabels* else_labels_;
 
   DISALLOW_COPY_AND_ASSIGN(TestResultScope);
-};
-
-// Scoped class used when the result of the current expression to be evaluated
-// will be used for an addition operation.
-class BytecodeGenerator::AdditionResultScope final
-    : public ExpressionResultScope {
- public:
-  explicit AdditionResultScope(BytecodeGenerator* generator,
-                               RegisterList* operand_registers)
-      : ExpressionResultScope(generator, Kind::kAddition),
-        result_deferred_until_concat_(false),
-        operand_registers_(operand_registers) {}
-
-  RegisterList* operand_registers() { return operand_registers_; }
-
-  // Used when code special cases string concatenation and the values have
-  // been consumed as operand registers and the result won't be computed until
-  // the concat operation is performed.
-  void SetResultDeferredUntilConcat() {
-    // Ensure registers allocated on the growable operand register list are
-    // kept live when we return from this result scope.
-    allocation_scope()->EscapeRegisterListToParent(operand_registers_);
-    result_deferred_until_concat_ = true;
-  }
-  bool result_deferred_until_concat() { return result_deferred_until_concat_; }
-
- private:
-  bool result_deferred_until_concat_;
-  RegisterList* operand_registers_;
-
-  DISALLOW_COPY_AND_ASSIGN(AdditionResultScope);
 };
 
 // Used to build a list of global declaration initial value pairs.
@@ -1910,10 +1856,8 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
   if (!execution_result()->IsEffect()) {
     const AstValue* raw_value = expr->raw_value();
     builder()->LoadLiteral(raw_value);
-    if (raw_value->IsString()) {
-      execution_result()->set_type_hint(TypeHint::kString);
-    } else if (raw_value->IsTrue() || raw_value->IsFalse()) {
-      execution_result()->set_type_hint(TypeHint::kBoolean);
+    if (raw_value->IsTrue() || raw_value->IsFalse()) {
+      execution_result()->SetResultIsBoolean();
     }
   }
 }
@@ -3434,7 +3378,7 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
     TypeHint type_hint = VisitForAccumulatorValue(expr->expression());
     builder()->LogicalNot(ToBooleanModeFromTypeHint(type_hint));
     // Always returns a boolean value.
-    execution_result()->set_type_hint(TypeHint::kBoolean);
+    execution_result()->SetResultIsBoolean();
   }
 }
 
@@ -3717,92 +3661,25 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     }
   }
   // Always returns a boolean value.
-  execution_result()->set_type_hint(TypeHint::kBoolean);
-}
-
-void BytecodeGenerator::BuildAddExpression(BinaryOperation* expr,
-                                           RegisterList* operand_registers) {
-  int initial_operand_length = operand_registers->register_count();
-  USE(initial_operand_length);
-  Register lhs, rhs;
-  TypeHint lhs_hint = VisitForAddOperand(expr->left(), operand_registers, &lhs);
-  TypeHint rhs_hint =
-      VisitForAddOperand(expr->right(), operand_registers, &rhs);
-  DCHECK_GE(operand_registers->register_count(), initial_operand_length + 2);
-  builder()->SetExpressionPosition(expr);
-
-  bool is_chained_addition = execution_result()->IsAddition() ||
-                             operand_registers->register_count() > 2;
-  // Use string concatenation if one of the sides is a string, and we have more
-  // than two additions chained together.
-  if (FLAG_ignition_string_concat && is_chained_addition &&
-      (lhs_hint == TypeHint::kString || rhs_hint == TypeHint::kString)) {
-    // One of the sides is a string, perform to primitive, then to string on the
-    // other operand and perform a single StringConcat operation once the
-    // addition chain is complete.
-    if (lhs_hint != TypeHint::kString) {
-      builder()->LoadAccumulatorWithRegister(lhs).ToPrimitiveToString(
-          lhs, feedback_index(expr->BinaryOperationFeedbackSlot()));
-    } else if (rhs_hint != TypeHint::kString) {
-      builder()->LoadAccumulatorWithRegister(rhs).ToPrimitiveToString(
-          rhs, feedback_index(expr->BinaryOperationFeedbackSlot()));
-    }
-    if (execution_result()->IsAddition()) {
-      execution_result()->AsAddition()->SetResultDeferredUntilConcat();
-    }
-    execution_result()->set_type_hint(TypeHint::kString);
-  } else {
-    // Otherwise just remove the operands from the operand register list and
-    // perform a normal addition.
-    builder()->LoadAccumulatorWithRegister(rhs);
-    Register popped_rhs =
-        register_allocator()->ShrinkRegisterList(operand_registers);
-    CHECK_EQ(rhs.index(), popped_rhs.index());
-
-    builder()->BinaryOperation(
-        expr->op(), lhs, feedback_index(expr->BinaryOperationFeedbackSlot()));
-    Register popped_lhs =
-        register_allocator()->ShrinkRegisterList(operand_registers);
-    CHECK_EQ(lhs.index(), popped_lhs.index());
-    DCHECK_EQ(initial_operand_length, operand_registers->register_count());
-  }
+  execution_result()->SetResultIsBoolean();
 }
 
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   // TODO(rmcilroy): Special case "x * 1.0" and "x * -1" which are generated for
   // +x and -x by the parser.
+  FeedbackSlot slot = expr->BinaryOperationFeedbackSlot();
   Expression* subexpr;
   Smi* literal;
   if (expr->IsSmiLiteralOperation(&subexpr, &literal)) {
     VisitForAccumulatorValue(subexpr);
     builder()->SetExpressionPosition(expr);
-    builder()->BinaryOperationSmiLiteral(
-        expr->op(), literal,
-        feedback_index(expr->BinaryOperationFeedbackSlot()));
-  } else if (expr->op() == Token::ADD) {
-    // Special case addition to enable folding of string concatenations.
-    if (execution_result()->IsAddition()) {
-      BuildAddExpression(expr,
-                         execution_result()->AsAddition()->operand_registers());
-    } else {
-      RegisterList operand_registers =
-          register_allocator()->NewGrowableRegisterList();
-      BuildAddExpression(expr, &operand_registers);
-      // If there are any registers in operand_registers then we need to
-      // StringConcat them together.
-      if (operand_registers.register_count() != 0) {
-        DCHECK(FLAG_ignition_string_concat);
-        // There must be more than 2 operands to the concatenation.
-        DCHECK_GT(operand_registers.register_count(), 2);
-        builder()->StringConcat(operand_registers);
-      }
-    }
+    builder()->BinaryOperationSmiLiteral(expr->op(), literal,
+                                         feedback_index(slot));
   } else {
     Register lhs = VisitForRegisterValue(expr->left());
     VisitForAccumulatorValue(expr->right());
     builder()->SetExpressionPosition(expr);
-    builder()->BinaryOperation(
-        expr->op(), lhs, feedback_index(expr->BinaryOperationFeedbackSlot()));
+    builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
   }
 }
 
@@ -4300,25 +4177,6 @@ void BytecodeGenerator::VisitForRegisterValue(Expression* expr,
   builder()->StoreAccumulatorInRegister(destination);
 }
 
-// Visits the expression |expr| as an addition operand value and places the
-// result in the accumulator.
-BytecodeGenerator::TypeHint BytecodeGenerator::VisitForAddOperand(
-    Expression* expr, RegisterList* operand_registers, Register* out_register) {
-  TypeHint type_hint;
-  bool result_deferred_until_concat;
-  {
-    AdditionResultScope add_scope(this, operand_registers);
-    Visit(expr);
-    type_hint = add_scope.type_hint();
-    result_deferred_until_concat = add_scope.result_deferred_until_concat();
-  }
-  if (!result_deferred_until_concat) {
-    *out_register = register_allocator()->GrowRegisterList(operand_registers);
-    builder()->StoreAccumulatorInRegister(*out_register);
-  }
-  return type_hint;
-}
-
 // Visits the expression |expr| and pushes the result into a new register
 // added to the end of |reg_list|.
 void BytecodeGenerator::VisitAndPushIntoRegisterList(Expression* expr,
@@ -4349,6 +4207,7 @@ void BytecodeGenerator::BuildTest(ToBooleanMode mode,
     case TestFallthrough::kNone:
       builder()->JumpIfTrue(mode, then_labels->New());
       builder()->Jump(else_labels->New());
+      break;
   }
 }
 

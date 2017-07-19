@@ -105,9 +105,8 @@ class RegisterList {
       : first_reg_index_(first_reg_index), register_count_(register_count) {}
   explicit RegisterList(Register r) : RegisterList(r.index(), 1) {}
 
-  // Increases/decreases the size of the register list by one.
+  // Increases the size of the register list by one.
   void IncrementRegisterCount() { register_count_++; }
-  void DecrementRegisterCount() { register_count_--; }
 
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.

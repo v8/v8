@@ -74,7 +74,6 @@ class PlatformInterfaceDescriptor;
   V(StringCharAt)                          \
   V(StringCharCodeAt)                      \
   V(StringCompare)                         \
-  V(StringConcat)                          \
   V(SubString)                             \
   V(ForInPrepare)                          \
   V(GetProperty)                           \
@@ -809,15 +808,6 @@ class StringCompareDescriptor : public CallInterfaceDescriptor {
 
   static const Register LeftRegister();
   static const Register RightRegister();
-};
-
-class StringConcatDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringConcatDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register ArgumentsCountRegister();
 };
 
 class SubStringDescriptor : public CallInterfaceDescriptor {

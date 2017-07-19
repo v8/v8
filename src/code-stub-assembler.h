@@ -439,11 +439,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadWeakCellValueUnchecked(Node* weak_cell);
   Node* LoadWeakCellValue(Node* weak_cell, Label* if_cleared = nullptr);
 
-  // Get the offset of an element in a fixed array.
-  Node* GetFixedArrayElementOffset(
-      Node* index_node, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
-
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElement(Node* object, Node* index,
                               int additional_offset = 0,

@@ -675,7 +675,9 @@ void String::StringVerify() {
 
 
 void ConsString::ConsStringVerify() {
-  CHECK(this->first()->IsString() && this->second()->IsString());
+  CHECK(this->first()->IsString());
+  CHECK(this->second() == GetHeap()->empty_string() ||
+        this->second()->IsString());
   CHECK(this->length() >= ConsString::kMinLength);
   CHECK(this->length() == this->first()->length() + this->second()->length());
   if (this->IsFlat()) {

@@ -43,7 +43,7 @@ Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
-  singleton_empty_string_ = Type::NewConstant(factory->empty_string(), zone);
+  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
   falsish_ = Type::Union(
@@ -272,7 +272,6 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
-  static Type* ToPrimitiveToString(Type*, Typer*);
 #define DECLARE_METHOD(Name)                \
   static Type* Name(Type* type, Typer* t) { \
     return t->operation_typer_.Name(type);  \
@@ -501,15 +500,6 @@ Type* Typer::Visitor::ToObject(Type* type, Typer* t) {
 
 // static
 Type* Typer::Visitor::ToString(Type* type, Typer* t) {
-  // ES6 section 7.1.12 ToString ( argument )
-  type = ToPrimitive(type, t);
-  if (type->Is(Type::String())) return type;
-  return Type::String();
-}
-
-// static
-Type* Typer::Visitor::ToPrimitiveToString(Type* type, Typer* t) {
-  // ES6 section 7.1.1 ToPrimitive( argument, "default" ) followed by
   // ES6 section 7.1.12 ToString ( argument )
   type = ToPrimitive(type, t);
   if (type->Is(Type::String())) return type;
@@ -1018,9 +1008,6 @@ Type* Typer::Visitor::JSShiftRightLogicalTyper(Type* lhs, Type* rhs, Typer* t) {
   return NumberShiftRightLogical(ToNumber(lhs, t), ToNumber(rhs, t), t);
 }
 
-// JS string concatenation.
-
-Type* Typer::Visitor::TypeJSStringConcat(Node* node) { return Type::String(); }
 
 // JS arithmetic operators.
 
@@ -1095,10 +1082,6 @@ Type* Typer::Visitor::TypeJSToObject(Node* node) {
 
 Type* Typer::Visitor::TypeJSToString(Node* node) {
   return TypeUnaryOp(node, ToString);
-}
-
-Type* Typer::Visitor::TypeJSToPrimitiveToString(Node* node) {
-  return TypeUnaryOp(node, ToPrimitiveToString);
 }
 
 // JS object operators.
@@ -1884,11 +1867,6 @@ Type* Typer::Visitor::TypeCheckString(Node* node) {
 Type* Typer::Visitor::TypeCheckSeqString(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, Type::SeqString(), zone());
-}
-
-Type* Typer::Visitor::TypeCheckNonEmptyString(Node* node) {
-  Type* arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::NonEmptyString(), zone());
 }
 
 Type* Typer::Visitor::TypeCheckSymbol(Node* node) {

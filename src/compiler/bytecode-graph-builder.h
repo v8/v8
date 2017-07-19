@@ -182,7 +182,6 @@ class BytecodeGraphBuilder {
   Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
                                    FeedbackSlot slot);
   Node* TryBuildSimplifiedToNumber(Node* input, FeedbackSlot slot);
-  Node* TryBuildSimplifiedToPrimitiveToString(Node* input, FeedbackSlot slot);
   Node* TryBuildSimplifiedCall(const Operator* op, Node* const* args,
                                int arg_count, FeedbackSlot slot);
   Node* TryBuildSimplifiedConstruct(const Operator* op, Node* const* args,

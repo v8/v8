@@ -349,13 +349,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& ToName(Register out);
   BytecodeArrayBuilder& ToNumber(Register out, int feedback_slot);
 
-  // Converts accumulator to a primitive and then to a string, and stores result
-  // in register |out|.
-  BytecodeArrayBuilder& ToPrimitiveToString(Register out, int feedback_slot);
-  // Concatenate all the string values in |operand_registers| into a string
-  // and store result in the accumulator.
-  BytecodeArrayBuilder& StringConcat(RegisterList operand_registers);
-
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
   BytecodeArrayBuilder& Bind(const BytecodeLabel& target, BytecodeLabel* label);

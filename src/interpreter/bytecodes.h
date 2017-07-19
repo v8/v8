@@ -222,12 +222,6 @@ namespace interpreter {
   V(ToNumber, AccumulatorUse::kRead, OperandType::kRegOut, OperandType::kIdx)  \
   V(ToObject, AccumulatorUse::kRead, OperandType::kRegOut)                     \
                                                                                \
-  /* String concatenation */                                                   \
-  V(ToPrimitiveToString, AccumulatorUse::kRead, OperandType::kRegOut,          \
-    OperandType::kIdx)                                                         \
-  V(StringConcat, AccumulatorUse::kWrite, OperandType::kRegList,               \
-    OperandType::kRegCount)                                                    \
-                                                                               \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
     OperandType::kIdx, OperandType::kFlag8)                                    \
