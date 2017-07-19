@@ -819,16 +819,6 @@ class MacroAssembler : public Assembler {
   // Load the value of a smi object into a double register.
   void SmiToDouble(DoubleRegister value, Register smi);
 
-  // Check if a double can be exactly represented as a signed 32-bit integer.
-  // CR_EQ in cr7 is set if true.
-  void TestDoubleIsInt32(DoubleRegister double_input, Register scratch1,
-                         Register scratch2, DoubleRegister double_scratch);
-
-  // Check if a double is equal to -0.0.
-  // CR_EQ in cr7 holds the result.
-  void TestDoubleIsMinusZero(DoubleRegister input, Register scratch1,
-                             Register scratch2);
-
   // Check the sign of a double.
   // CR_LT in cr7 holds the result.
   void TestDoubleSign(DoubleRegister input, Register scratch);
@@ -839,14 +829,6 @@ class MacroAssembler : public Assembler {
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,
                              Register scratch, DoubleRegister double_scratch);
 
-  // Floor a double and writes the value to the result register.
-  // Go to exact if the conversion is exact (to be able to test -0),
-  // fall through calling code if an overflow occurred, else go to done.
-  // In return, input_high is loaded with high bits of input.
-  void TryInt32Floor(Register result, DoubleRegister double_input,
-                     Register input_high, Register scratch,
-                     DoubleRegister double_scratch, Label* done, Label* exact);
-
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
@@ -855,24 +837,6 @@ class MacroAssembler : public Assembler {
   // Only public for the test code in test-code-stubs-arm.cc.
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
-  // Exits with 'result' holding the answer.
-  void TruncateDoubleToI(Register result, DoubleRegister double_input);
-
-  // Performs a truncating conversion of a heap number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
-  // must be different registers.  Exits with 'result' holding the answer.
-  void TruncateHeapNumberToI(Register result, Register object);
-
-  // Converts the smi or heap number in object to an int32 using the rules
-  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
-  // different registers.
-  void TruncateNumberToI(Register object, Register result,
-                         Register heap_number_map, Register scratch1,
-                         Label* not_int32);
 
   // Overflow handling functions.
   // Usage: call the appropriate arithmetic function and then call one of the

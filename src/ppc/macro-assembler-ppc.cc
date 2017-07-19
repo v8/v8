@@ -2007,31 +2007,6 @@ void MacroAssembler::SmiToDouble(DoubleRegister value, Register smi) {
   ConvertIntToDouble(ip, value);
 }
 
-
-void MacroAssembler::TestDoubleIsInt32(DoubleRegister double_input,
-                                       Register scratch1, Register scratch2,
-                                       DoubleRegister double_scratch) {
-  TryDoubleToInt32Exact(scratch1, double_input, scratch2, double_scratch);
-}
-
-void MacroAssembler::TestDoubleIsMinusZero(DoubleRegister input,
-                                           Register scratch1,
-                                           Register scratch2) {
-#if V8_TARGET_ARCH_PPC64
-  MovDoubleToInt64(scratch1, input);
-  rotldi(scratch1, scratch1, 1);
-  cmpi(scratch1, Operand(1));
-#else
-  MovDoubleToInt64(scratch1, scratch2, input);
-  Label done;
-  cmpi(scratch2, Operand::Zero());
-  bne(&done);
-  lis(scratch2, Operand(SIGN_EXT_IMM16(0x8000)));
-  cmp(scratch1, scratch2);
-  bind(&done);
-#endif
-}
-
 void MacroAssembler::TestDoubleSign(DoubleRegister input, Register scratch) {
 #if V8_TARGET_ARCH_PPC64
   MovDoubleToInt64(scratch, input);
@@ -2076,47 +2051,6 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
   bind(&done);
 }
 
-
-void MacroAssembler::TryInt32Floor(Register result, DoubleRegister double_input,
-                                   Register input_high, Register scratch,
-                                   DoubleRegister double_scratch, Label* done,
-                                   Label* exact) {
-  DCHECK(!result.is(input_high));
-  DCHECK(!double_input.is(double_scratch));
-  Label exception;
-
-  MovDoubleHighToInt(input_high, double_input);
-
-  // Test for NaN/Inf
-  ExtractBitMask(result, input_high, HeapNumber::kExponentMask);
-  cmpli(result, Operand(0x7ff));
-  beq(&exception);
-
-  // Convert (rounding to -Inf)
-  ConvertDoubleToInt64(double_input,
-#if !V8_TARGET_ARCH_PPC64
-                       scratch,
-#endif
-                       result, double_scratch, kRoundToMinusInf);
-
-// Test for overflow
-#if V8_TARGET_ARCH_PPC64
-  TestIfInt32(result, r0);
-#else
-  TestIfInt32(scratch, result, r0);
-#endif
-  bne(&exception);
-
-  // Test for exactness
-  fcfid(double_scratch, double_scratch);
-  fcmpu(double_scratch, double_input);
-  beq(exact);
-  b(done);
-
-  bind(&exception);
-}
-
-
 void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
@@ -2139,65 +2073,6 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
 #endif
   beq(done);
 }
-
-
-void MacroAssembler::TruncateDoubleToI(Register result,
-                                       DoubleRegister double_input) {
-  Label done;
-
-  TryInlineTruncateDoubleToI(result, double_input, &done);
-
-  // If we fell through then inline version didn't succeed - call stub instead.
-  mflr(r0);
-  push(r0);
-  // Put input on stack.
-  stfdu(double_input, MemOperand(sp, -kDoubleSize));
-
-  DoubleToIStub stub(isolate(), sp, result, 0, true, true);
-  CallStub(&stub);
-
-  addi(sp, sp, Operand(kDoubleSize));
-  pop(r0);
-  mtlr(r0);
-
-  bind(&done);
-}
-
-
-void MacroAssembler::TruncateHeapNumberToI(Register result, Register object) {
-  Label done;
-  DoubleRegister double_scratch = kScratchDoubleReg;
-  DCHECK(!result.is(object));
-
-  lfd(double_scratch, FieldMemOperand(object, HeapNumber::kValueOffset));
-  TryInlineTruncateDoubleToI(result, double_scratch, &done);
-
-  // If we fell through then inline version didn't succeed - call stub instead.
-  mflr(r0);
-  push(r0);
-  DoubleToIStub stub(isolate(), object, result,
-                     HeapNumber::kValueOffset - kHeapObjectTag, true, true);
-  CallStub(&stub);
-  pop(r0);
-  mtlr(r0);
-
-  bind(&done);
-}
-
-
-void MacroAssembler::TruncateNumberToI(Register object, Register result,
-                                       Register heap_number_map,
-                                       Register scratch1, Label* not_number) {
-  Label done;
-  DCHECK(!result.is(object));
-
-  UntagAndJumpIfSmi(result, object, &done);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
-  TruncateHeapNumberToI(result, object);
-
-  bind(&done);
-}
-
 
 void MacroAssembler::GetLeastBitsFromSmi(Register dst, Register src,
                                          int num_least_bits) {

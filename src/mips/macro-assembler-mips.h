@@ -1120,21 +1120,6 @@ class MacroAssembler : public TurboAssembler {
       DoubleRegister double_scratch, Register except_flag,
       CheckForInexactConversion check_inexact = kDontCheckForInexactConversion);
 
-  // Performs a truncating conversion of a heap number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
-  // must be different registers. Exits with 'result' holding the answer.
-  void TruncateHeapNumberToI(Register result, Register object);
-
-  // Converts the smi or heap number in object to an int32 using the rules
-  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
-  // different registers.
-  void TruncateNumberToI(Register object,
-                         Register result,
-                         Register heap_number_map,
-                         Register scratch,
-                         Label* not_int32);
-
   // Loads the number from object into dst register.
   // If |object| is neither smi nor heap number, |not_number| is jumped to
   // with |object| still intact.

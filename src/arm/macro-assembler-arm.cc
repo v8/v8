@@ -2244,16 +2244,6 @@ void MacroAssembler::SmiToDouble(LowDwVfpRegister value, Register smi) {
   }
 }
 
-
-void MacroAssembler::TestDoubleIsInt32(DwVfpRegister double_input,
-                                       LowDwVfpRegister double_scratch) {
-  DCHECK(!double_input.is(double_scratch));
-  vcvt_s32_f64(double_scratch.low(), double_input);
-  vcvt_f64_s32(double_scratch, double_scratch.low());
-  VFPCompareAndSetFlags(double_input, double_scratch);
-}
-
-
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DwVfpRegister double_input,
                                            LowDwVfpRegister double_scratch) {
@@ -2262,53 +2252,6 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
   vmov(result, double_scratch.low());
   vcvt_f64_s32(double_scratch, double_scratch.low());
   VFPCompareAndSetFlags(double_input, double_scratch);
-}
-
-
-void MacroAssembler::TryInt32Floor(Register result,
-                                   DwVfpRegister double_input,
-                                   Register input_high,
-                                   LowDwVfpRegister double_scratch,
-                                   Label* done,
-                                   Label* exact) {
-  DCHECK(!result.is(input_high));
-  DCHECK(!double_input.is(double_scratch));
-  Label negative, exception;
-
-  VmovHigh(input_high, double_input);
-
-  // Test for NaN and infinities.
-  Sbfx(result, input_high,
-       HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-  cmp(result, Operand(-1));
-  b(eq, &exception);
-  // Test for values that can be exactly represented as a
-  // signed 32-bit integer.
-  TryDoubleToInt32Exact(result, double_input, double_scratch);
-  // If exact, return (result already fetched).
-  b(eq, exact);
-  cmp(input_high, Operand::Zero());
-  b(mi, &negative);
-
-  // Input is in ]+0, +inf[.
-  // If result equals 0x7fffffff input was out of range or
-  // in ]0x7fffffff, 0x80000000[. We ignore this last case which
-  // could fits into an int32, that means we always think input was
-  // out of range and always go to exception.
-  // If result < 0x7fffffff, go to done, result fetched.
-  cmn(result, Operand(1));
-  b(mi, &exception);
-  b(done);
-
-  // Input is in ]-inf, -0[.
-  // If x is a non integer negative number,
-  // floor(x) <=> round_to_zero(x) - 1.
-  bind(&negative);
-  sub(result, result, Operand(1), SetCC);
-  // If result is still negative, go to done, result fetched.
-  // Else, we had an overflow and we fall through exception.
-  b(mi, done);
-  bind(&exception);
 }
 
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,

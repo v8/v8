@@ -1001,11 +1001,6 @@ class MacroAssembler : public TurboAssembler {
   // The register value must be between d0 and d15.
   void SmiToDouble(LowDwVfpRegister value, Register smi);
 
-  // Check if a double can be exactly represented as a signed 32-bit integer.
-  // Z flag set to one if true.
-  void TestDoubleIsInt32(DwVfpRegister double_input,
-                         LowDwVfpRegister double_scratch);
-
   // Try to convert a double to a signed 32-bit integer.
   // Z flag set to one and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result,

@@ -580,12 +580,6 @@ class MacroAssembler : public TurboAssembler {
   void ClampDoubleToUint8(XMMRegister input_reg, XMMRegister scratch_reg,
                           Register result_reg);
 
-  void SlowTruncateToI(Register result_reg, Register input_reg,
-      int offset = HeapNumber::kValueOffset - kHeapObjectTag);
-
-  void TruncateHeapNumberToI(Register result_reg, Register input_reg);
-  void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
-
   void DoubleToI(Register result_reg, XMMRegister input_reg,
                  XMMRegister scratch, MinusZeroMode minus_zero_mode,
                  Label* lost_precision, Label* is_nan, Label* minus_zero,

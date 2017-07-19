@@ -3452,56 +3452,6 @@ void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg,
       new (zone) DoubleToIStub(nullptr, input_reg, result_reg, offset, true));
 }
 
-void MacroAssembler::SlowTruncateToI(Register result_reg,
-                                     Register input_reg,
-                                     int offset) {
-  DoubleToIStub stub(isolate(), input_reg, result_reg, offset, true);
-  call(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
-                                           Register input_reg) {
-  Label done;
-  Movsd(kScratchDoubleReg, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  Cvttsd2siq(result_reg, kScratchDoubleReg);
-  cmpq(result_reg, Immediate(1));
-  j(no_overflow, &done, Label::kNear);
-
-  // Slow case.
-  if (input_reg.is(result_reg)) {
-    subp(rsp, Immediate(kDoubleSize));
-    Movsd(MemOperand(rsp, 0), kScratchDoubleReg);
-    SlowTruncateToI(result_reg, rsp, 0);
-    addp(rsp, Immediate(kDoubleSize));
-  } else {
-    SlowTruncateToI(result_reg, input_reg);
-  }
-
-  bind(&done);
-  // Keep our invariant that the upper 32 bits are zero.
-  movl(result_reg, result_reg);
-}
-
-
-void MacroAssembler::TruncateDoubleToI(Register result_reg,
-                                       XMMRegister input_reg) {
-  Label done;
-  Cvttsd2siq(result_reg, input_reg);
-  cmpq(result_reg, Immediate(1));
-  j(no_overflow, &done, Label::kNear);
-
-  subp(rsp, Immediate(kDoubleSize));
-  Movsd(MemOperand(rsp, 0), input_reg);
-  SlowTruncateToI(result_reg, rsp, 0);
-  addp(rsp, Immediate(kDoubleSize));
-
-  bind(&done);
-  // Keep our invariant that the upper 32 bits are zero.
-  movl(result_reg, result_reg);
-}
-
-
 void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
                                XMMRegister scratch,
                                MinusZeroMode minus_zero_mode,

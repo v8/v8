@@ -279,29 +279,6 @@ void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg,
       new (zone) DoubleToIStub(nullptr, input_reg, result_reg, offset, true));
 }
 
-void MacroAssembler::SlowTruncateToI(Register result_reg,
-                                     Register input_reg,
-                                     int offset) {
-  DoubleToIStub stub(isolate(), input_reg, result_reg, offset, true);
-  CallStub(&stub);
-}
-
-
-void MacroAssembler::TruncateDoubleToI(Register result_reg,
-                                       XMMRegister input_reg) {
-  Label done;
-  cvttsd2si(result_reg, Operand(input_reg));
-  cmp(result_reg, 0x1);
-  j(no_overflow, &done, Label::kNear);
-
-  sub(esp, Immediate(kDoubleSize));
-  movsd(MemOperand(esp, 0), input_reg);
-  SlowTruncateToI(result_reg, esp, 0);
-  add(esp, Immediate(kDoubleSize));
-  bind(&done);
-}
-
-
 void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
                                XMMRegister scratch,
                                MinusZeroMode minus_zero_mode,
@@ -327,73 +304,6 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
     j(not_zero, minus_zero, dst);
     bind(&done);
   }
-}
-
-
-void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
-                                           Register input_reg) {
-  Label done, slow_case;
-
-  if (CpuFeatures::IsSupported(SSE3)) {
-    CpuFeatureScope scope(this, SSE3);
-    Label convert;
-    // Use more powerful conversion when sse3 is available.
-    // Load x87 register with heap number.
-    fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
-    // Get exponent alone and check for too-big exponent.
-    mov(result_reg, FieldOperand(input_reg, HeapNumber::kExponentOffset));
-    and_(result_reg, HeapNumber::kExponentMask);
-    const uint32_t kTooBigExponent =
-        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-    cmp(Operand(result_reg), Immediate(kTooBigExponent));
-    j(greater_equal, &slow_case, Label::kNear);
-
-    // Reserve space for 64 bit answer.
-    sub(Operand(esp), Immediate(kDoubleSize));
-    // Do conversion, which cannot fail because we checked the exponent.
-    fisttp_d(Operand(esp, 0));
-    mov(result_reg, Operand(esp, 0));  // Low word of answer is the result.
-    add(Operand(esp), Immediate(kDoubleSize));
-    jmp(&done, Label::kNear);
-
-    // Slow case.
-    bind(&slow_case);
-    if (input_reg.is(result_reg)) {
-      // Input is clobbered. Restore number from fpu stack
-      sub(Operand(esp), Immediate(kDoubleSize));
-      fstp_d(Operand(esp, 0));
-      SlowTruncateToI(result_reg, esp, 0);
-      add(esp, Immediate(kDoubleSize));
-    } else {
-      fstp(0);
-      SlowTruncateToI(result_reg, input_reg);
-    }
-  } else {
-    movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    cvttsd2si(result_reg, Operand(xmm0));
-    cmp(result_reg, 0x1);
-    j(no_overflow, &done, Label::kNear);
-    // Check if the input was 0x8000000 (kMinInt).
-    // If no, then we got an overflow and we deoptimize.
-    ExternalReference min_int = ExternalReference::address_of_min_int();
-    ucomisd(xmm0, Operand::StaticVariable(min_int));
-    j(not_equal, &slow_case, Label::kNear);
-    j(parity_even, &slow_case, Label::kNear);  // NaN.
-    jmp(&done, Label::kNear);
-
-    // Slow case.
-    bind(&slow_case);
-    if (input_reg.is(result_reg)) {
-      // Input is clobbered. Restore number from double scratch.
-      sub(esp, Immediate(kDoubleSize));
-      movsd(MemOperand(esp, 0), xmm0);
-      SlowTruncateToI(result_reg, esp, 0);
-      add(esp, Immediate(kDoubleSize));
-    } else {
-      SlowTruncateToI(result_reg, input_reg);
-    }
-  }
-  bind(&done);
 }
 
 void TurboAssembler::LoadUint32(XMMRegister dst, const Operand& src) {
