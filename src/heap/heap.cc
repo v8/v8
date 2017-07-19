@@ -407,6 +407,99 @@ void Heap::ReportStatisticsAfterGC() {
   }
 }
 
+void Heap::AddRetainingPathTarget(Handle<HeapObject> object) {
+  if (!FLAG_track_retaining_path) {
+    PrintF("Retaining path tracking requires --trace-retaining-path\n");
+  } else {
+    Handle<WeakFixedArray> array = WeakFixedArray::Add(
+        handle(retaining_path_targets(), isolate()), object);
+    set_retaining_path_targets(*array);
+  }
+}
+
+bool Heap::IsRetainingPathTarget(HeapObject* object) {
+  WeakFixedArray::Iterator it(retaining_path_targets());
+  HeapObject* target;
+  while ((target = it.Next<HeapObject>()) != nullptr) {
+    if (target == object) return true;
+  }
+  return false;
+}
+
+namespace {
+const char* RootToString(Root root) {
+  switch (root) {
+#define ROOT_CASE(root_id, ignore, description) \
+  case Root::root_id:                           \
+    return description;
+    ROOT_ID_LIST(ROOT_CASE)
+#undef ROOT_CASE
+    case Root::kCodeFlusher:
+      return "(Code flusher)";
+    case Root::kPartialSnapshotCache:
+      return "(Partial snapshot cache)";
+    case Root::kWeakCollections:
+      return "(Weak collections)";
+    case Root::kWrapperTracing:
+      return "(Wrapper tracing)";
+    case Root::kUnknown:
+      return "(Unknown)";
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+}  // namespace
+
+void Heap::PrintRetainingPath(HeapObject* target) {
+  PrintF("\n\n\n");
+  PrintF("#################################################\n");
+  PrintF("Retaining path for %p:\n", static_cast<void*>(target));
+  HeapObject* object = target;
+  std::vector<HeapObject*> retaining_path;
+  Root root = Root::kUnknown;
+  while (true) {
+    retaining_path.push_back(object);
+    if (retainer_.count(object)) {
+      object = retainer_[object];
+    } else {
+      if (retaining_root_.count(object)) {
+        root = retaining_root_[object];
+      }
+      break;
+    }
+  }
+  int distance = static_cast<int>(retaining_path.size());
+  for (auto object : retaining_path) {
+    PrintF("\n");
+    PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+    PrintF("Distance from root %d: ", distance);
+    object->ShortPrint();
+    PrintF("\n");
+#ifdef OBJECT_PRINT
+    object->Print();
+    PrintF("\n");
+#endif
+    --distance;
+  }
+  PrintF("\n");
+  PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+  PrintF("Root: %s\n", RootToString(root));
+  PrintF("-------------------------------------------------\n");
+}
+
+void Heap::AddRetainer(HeapObject* retainer, HeapObject* object) {
+  retainer_[object] = retainer;
+  if (IsRetainingPathTarget(object)) {
+    PrintRetainingPath(object);
+  }
+}
+
+void Heap::AddRetainingRoot(Root root, HeapObject* object) {
+  retaining_root_[object] = root;
+  if (IsRetainingPathTarget(object)) {
+    PrintRetainingPath(object);
+  }
+}
 
 void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
@@ -452,6 +545,10 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
+  if (FLAG_track_retaining_path) {
+    retainer_.clear();
+    retaining_root_.clear();
+  }
 }
 
 size_t Heap::SizeOfObjects() {
@@ -966,6 +1063,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       break;
     }
   }
+
   set_current_gc_flags(kNoGCFlags);
   new_space_->Shrink();
   UncommitFromSpace();
@@ -2859,6 +2957,7 @@ void Heap::CreateInitialObjects() {
 
   set_detached_contexts(empty_fixed_array());
   set_retained_maps(ArrayList::cast(empty_fixed_array()));
+  set_retaining_path_targets(undefined_value());
 
   set_weak_object_to_code_table(*WeakHashTable::New(isolate(), 16, TENURED));
 
@@ -2994,6 +3093,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kWeakObjectToCodeTableRootIndex:
     case kWeakNewSpaceObjectToCodeListRootIndex:
     case kRetainedMapsRootIndex:
+    case kRetainingPathTargetsRootIndex:
     case kCodeCoverageListRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
@@ -4508,7 +4608,6 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
   return result;
 }
 
-
 void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
                                     GCIdleTimeHeapState heap_state,
                                     double start_ms, double deadline_in_ms) {
@@ -5908,7 +6007,7 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
     incremental_marking()->WhiteToGreyAndPush(heap_object);
   } else {
     DCHECK(mark_compact_collector()->in_use());
-    mark_compact_collector()->MarkObject(heap_object);
+    mark_compact_collector()->MarkExternallyReferencedObject(heap_object);
   }
 }
 

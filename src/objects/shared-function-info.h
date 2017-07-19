@@ -391,6 +391,9 @@ class SharedFunctionInfo : public HeapObject {
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
+#ifdef OBJECT_PRINT
+  void PrintSourceCode(std::ostream& os);
+#endif
 
   void ResetForNewContext(int new_ic_age);
 

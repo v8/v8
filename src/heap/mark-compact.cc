@@ -1052,7 +1052,8 @@ class MarkCompactMarkingVisitor final
                                Object** end) final {
     // Mark all objects pointed to in [start, end).
     const int kMinRangeForMarkingRecursion = 64;
-    if (end - start >= kMinRangeForMarkingRecursion) {
+    if (end - start >= kMinRangeForMarkingRecursion &&
+        V8_LIKELY(!FLAG_track_retaining_path)) {
       if (VisitUnmarkedObjects(host, start, end)) return;
       // We are close to a stack overflow, so just mark the objects.
     }
@@ -1062,8 +1063,8 @@ class MarkCompactMarkingVisitor final
   }
 
   // Marks the object black and pushes it on the marking stack.
-  V8_INLINE void MarkObject(HeapObject* object) {
-    collector_->MarkObject(object);
+  V8_INLINE void MarkObject(HeapObject* host, HeapObject* object) {
+    collector_->MarkObject(host, object);
   }
 
   // Marks the object black without pushing it on the marking stack. Returns
@@ -1076,7 +1077,7 @@ class MarkCompactMarkingVisitor final
     if (!(*p)->IsHeapObject()) return;
     HeapObject* target_object = HeapObject::cast(*p);
     collector_->RecordSlot(host, p, target_object);
-    collector_->MarkObject(target_object);
+    collector_->MarkObject(host, target_object);
   }
 
  protected:
@@ -1106,7 +1107,7 @@ class MarkCompactMarkingVisitor final
       Map* map = obj->map();
       ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
       // Mark the map pointer and the body.
-      collector_->MarkObject(map);
+      collector_->MarkObject(obj, map);
       Visit(map, obj);
     }
   }
@@ -1132,19 +1133,20 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
       : collector_(heap->mark_compact_collector()), visitor_(collector_) {}
 
   void VisitPointer(HeapObject* host, Object** p) override {
-    MarkObjectByPointer(p);
+    MarkObjectByPointer(host, p);
   }
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(host, p);
   }
 
   void VisitRootPointer(Root root, Object** p) override {
-    MarkObjectByPointer(p);
+    MarkObjectByPointer(nullptr, p, root);
   }
 
   void VisitRootPointers(Root root, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+    for (Object** p = start; p < end; p++)
+      MarkObjectByPointer(nullptr, p, root);
   }
 
   // Skip the weak next code link in a code object, which is visited in
@@ -1152,16 +1154,24 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
   void VisitNextCodeLink(Code* host, Object** p) override {}
 
  private:
-  void MarkObjectByPointer(Object** p) {
+  void MarkObjectByPointer(HeapObject* host, Object** p,
+                           Root root = Root::kUnknown) {
     if (!(*p)->IsHeapObject()) return;
 
     HeapObject* object = HeapObject::cast(*p);
 
     if (ObjectMarking::WhiteToBlack<AccessMode::NON_ATOMIC>(
             object, MarkingState::Internal(object))) {
+      if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+        if (host) {
+          object->GetHeap()->AddRetainer(host, object);
+        } else {
+          object->GetHeap()->AddRetainingRoot(root, object);
+        }
+      }
       Map* map = object->map();
       // Mark the map pointer and body, and push them on the marking stack.
-      collector_->MarkObject(map);
+      collector_->MarkObject(object, map);
       visitor_.Visit(map, object);
       // Mark all the objects reachable from the map and body.  May leave
       // overflowed objects in the heap.
@@ -1961,7 +1971,7 @@ void MarkCompactCollector::EmptyMarkingWorklist() {
         object, MarkingState::Internal(object))));
 
     Map* map = object->map();
-    MarkObject(map);
+    MarkObject(object, map);
     visitor.Visit(map, object);
   }
   DCHECK(marking_worklist()->IsEmpty());

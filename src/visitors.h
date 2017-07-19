@@ -48,7 +48,9 @@ enum class Root {
   // TODO(ulan): Merge with the ROOT_ID_LIST.
   kCodeFlusher,
   kPartialSnapshotCache,
-  kWeakCollections
+  kWeakCollections,
+  kWrapperTracing,
+  kUnknown
 };
 
 // Abstract base class for visiting, and optionally modifying, the

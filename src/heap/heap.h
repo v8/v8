@@ -203,6 +203,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
+  V(HeapObject, retaining_path_targets, RetainingPathTargets)                  \
   V(ArrayList, retained_maps, RetainedMaps)                                    \
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
   /* weak_new_space_object_to_code_list is an array of weak cells, where */    \
@@ -1480,8 +1481,16 @@ class Heap {
   void MergeAllocationSitePretenuringFeedback(
       const base::HashMap& local_pretenuring_feedback);
 
-// =============================================================================
+  // ===========================================================================
+  // Retaining path tracking. ==================================================
+  // ===========================================================================
 
+  // Adds the given object to the weak table of retaining path targets.
+  // On each GC if the marker discovers the object, it will print the retaining
+  // path. This requires --track-retaining-path flag.
+  void AddRetainingPathTarget(Handle<HeapObject> object);
+
+// =============================================================================
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
@@ -2142,9 +2151,16 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       AllocateCode(int object_size, bool immovable);
 
+  void set_force_oom(bool value) { force_oom_ = value; }
+
+  // ===========================================================================
+  // Retaining path tracing ====================================================
   // ===========================================================================
 
-  void set_force_oom(bool value) { force_oom_ = value; }
+  void AddRetainer(HeapObject* retainer, HeapObject* object);
+  void AddRetainingRoot(Root root, HeapObject* object);
+  bool IsRetainingPathTarget(HeapObject* object);
+  void PrintRetainingPath(HeapObject* object);
 
   // The amount of external memory registered through the API.
   int64_t external_memory_;
@@ -2382,12 +2398,17 @@ class Heap {
 
   HeapObject* pending_layout_change_object_;
 
+  std::map<HeapObject*, HeapObject*> retainer_;
+  std::map<HeapObject*, Root> retaining_root_;
+
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
   friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
+  template <typename ConcreteVisitor>
+  friend class MarkingVisitor;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;

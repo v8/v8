@@ -21,10 +21,23 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
   }
 }
 
-void MarkCompactCollector::MarkObject(HeapObject* obj) {
+void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
   if (ObjectMarking::WhiteToBlack<AccessMode::NON_ATOMIC>(
           obj, MarkingState::Internal(obj))) {
     PushBlack(obj);
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainer(host, obj);
+    }
+  }
+}
+
+void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
+  if (ObjectMarking::WhiteToBlack<AccessMode::NON_ATOMIC>(
+          obj, MarkingState::Internal(obj))) {
+    PushBlack(obj);
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
+    }
   }
 }
 

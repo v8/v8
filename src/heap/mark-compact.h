@@ -681,7 +681,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
-  V8_INLINE void MarkObject(HeapObject* obj);
+  V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
+
+  // Used by wrapper tracing.
+  V8_INLINE void MarkExternallyReferencedObject(HeapObject* obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor* visitor);

@@ -269,6 +269,7 @@ void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
 
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "BytecodeArray");
   Disassemble(os);
 }
 
@@ -1090,7 +1091,20 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
       os << "\n - bytecode = " << shared()->bytecode_array();
     }
   }
+  shared()->PrintSourceCode(os);
   JSObjectPrintBody(os, this);
+}
+
+void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
+  if (HasSourceCode()) {
+    os << "\n - source code = ";
+    String* source = String::cast(Script::cast(script())->source());
+    int start = start_position();
+    int length = end_position() - start;
+    std::unique_ptr<char[]> source_string = source->ToCString(
+        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
+    os << source_string.get();
+  }
 }
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
@@ -1113,15 +1127,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
-  if (HasSourceCode()) {
-    os << "\n - source code = ";
-    String* source = String::cast(Script::cast(script())->source());
-    int start = start_position();
-    int length = end_position() - start;
-    std::unique_ptr<char[]> source_string = source->ToCString(
-        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
-    os << source_string.get();
-  }
+  PrintSourceCode(os);
   // Script files are often large, hard to read.
   // os << "\n - script =";
   // script()->Print(os);

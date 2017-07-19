@@ -612,6 +612,17 @@ RUNTIME_FUNCTION(Runtime_DebugTrace) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  if (!FLAG_track_retaining_path) {
+    PrintF("DebugTrackRetainingPath requires --track-retaining-path flag.\n");
+  } else {
+    CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
+    isolate->heap()->AddRetainingPathTarget(object);
+  }
+  return isolate->heap()->undefined_value();
+}
 
 // This will not allocate (flatten the string), but it may run
 // very slowly for very deeply nested ConsStrings.  For debugging use only.

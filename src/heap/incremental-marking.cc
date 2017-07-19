@@ -294,7 +294,7 @@ class IncrementalMarkingMarkingVisitor final
     Object* target = *p;
     if (target->IsHeapObject()) {
       collector_->RecordSlot(host, p, target);
-      MarkObject(target);
+      MarkObject(host, target);
     }
   }
 
@@ -304,13 +304,13 @@ class IncrementalMarkingMarkingVisitor final
       Object* target = *p;
       if (target->IsHeapObject()) {
         collector_->RecordSlot(host, p, target);
-        MarkObject(target);
+        MarkObject(host, target);
       }
     }
   }
 
   // Marks the object grey and pushes it on the marking stack.
-  V8_INLINE void MarkObject(Object* obj) {
+  V8_INLINE void MarkObject(HeapObject* host, Object* obj) {
     incremental_marking_->WhiteToGreyAndPush(HeapObject::cast(obj));
   }
 
