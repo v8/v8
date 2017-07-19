@@ -753,15 +753,13 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
       accessor(this), readonly(this);
-  Node* properties = LoadProperties(receiver);
-  Node* properties_map = LoadMap(properties);
-  Branch(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
-         &dictionary_properties, &fast_properties);
+  Node* bitfield3 = LoadMapBitField3(receiver_map);
+  Branch(IsSetWord32<Map::DictionaryMap>(bitfield3), &dictionary_properties,
+         &fast_properties);
 
   BIND(&fast_properties);
   {
     Comment("fast property store");
-    Node* bitfield3 = LoadMapBitField3(receiver_map);
     Node* descriptors = LoadMapDescriptors(receiver_map);
     Label descriptor_found(this);
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
@@ -789,6 +787,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&data_property);
       {
         CheckForAssociatedProtector(p->name, slow);
+        Node* properties = LoadProperties(receiver);
         OverwriteExistingFastProperty(receiver, receiver_map, properties,
                                       descriptors, name_index, details,
                                       p->value, slow);
@@ -805,6 +804,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index), not_found(this);
+    Node* properties = LoadProperties(receiver);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);

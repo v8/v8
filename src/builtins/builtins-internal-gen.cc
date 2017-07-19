@@ -245,16 +245,15 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     CheckForAssociatedProtector(unique, &slow);
 
     Label dictionary(this), dont_delete(this);
-    Node* properties = LoadProperties(receiver);
-    Node* properties_map = LoadMap(properties);
-    GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
-           &dictionary);
+    GotoIf(IsDictionaryMap(receiver_map), &dictionary);
+
     // Fast properties need to clear recorded slots, which can only be done
     // in C++.
     Goto(&slow);
 
     BIND(&dictionary);
     {
+      Node* properties = LoadProperties(receiver);
       DeleteDictionaryProperty(receiver, properties, unique, context,
                                &dont_delete, &if_notfound);
     }

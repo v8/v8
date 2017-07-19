@@ -1482,14 +1482,11 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
          slow);
 
   // Check if the receiver has fast or slow properties.
-  Node* properties = LoadProperties(receiver);
-  Node* properties_map = LoadMap(properties);
-  GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
-         &if_property_dictionary);
+  Node* bitfield3 = LoadMapBitField3(receiver_map);
+  GotoIf(IsSetWord32<Map::DictionaryMap>(bitfield3), &if_property_dictionary);
 
   // Try looking up the property on the receiver; if unsuccessful, look
   // for a handler in the stub cache.
-  Node* bitfield3 = LoadMapBitField3(receiver_map);
   Node* descriptors = LoadMapDescriptors(receiver_map);
 
   Label if_descriptor_found(this), stub_cache(this);
@@ -1538,6 +1535,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
+    Node* properties = LoadProperties(receiver);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index,
                                          &lookup_prototype_chain);
