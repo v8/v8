@@ -1352,7 +1352,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
 
     uint32_t last_index = 0;
     if (sticky) {
-      Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+      Handle<Object> last_index_obj(regexp->last_index(), isolate);
       ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
                                  Object::ToLength(isolate, last_index_obj),
                                  String);
@@ -1367,7 +1367,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
         RegExpImpl::Exec(regexp, string, last_index, last_match_info), String);
 
     if (match_indices_obj->IsNull(isolate)) {
-      if (sticky) regexp->SetLastIndex(0);
+      if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
       return string;
     }
 
@@ -1376,7 +1376,8 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
     const int start_index = match_indices->Capture(0);
     const int end_index = match_indices->Capture(1);
 
-    if (sticky) regexp->SetLastIndex(end_index);
+    if (sticky)
+      regexp->set_last_index(Smi::FromInt(end_index), SKIP_WRITE_BARRIER);
 
     IncrementalStringBuilder builder(isolate);
     builder.AppendString(factory->NewSubString(string, 0, start_index));
@@ -1471,7 +1472,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const bool sticky = (flags & JSRegExp::kSticky) != 0;
   uint32_t last_index = 0;
   if (sticky) {
-    Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+    Handle<Object> last_index_obj(regexp->last_index(), isolate);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
     last_index = PositiveNumberToUint32(*last_index_obj);
@@ -1485,7 +1486,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
       RegExpImpl::Exec(regexp, subject, last_index, last_match_info));
 
   if (match_indices_obj->IsNull(isolate)) {
-    if (sticky) regexp->SetLastIndex(0);
+    if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
     return *subject;
   }
 
@@ -1495,7 +1496,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const int index = match_indices->Capture(0);
   const int end_of_match = match_indices->Capture(1);
 
-  if (sticky) regexp->SetLastIndex(end_of_match);
+  if (sticky)
+    regexp->set_last_index(Smi::FromInt(end_of_match), SKIP_WRITE_BARRIER);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(factory->NewSubString(subject, 0, index));

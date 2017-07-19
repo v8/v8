@@ -5288,7 +5288,7 @@ BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
 ACCESSORS(JSRegExp, source, Object, kSourceOffset)
-
+ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() {
   Object* data = this->data();
@@ -5343,19 +5343,6 @@ void JSRegExp::SetDataAt(int index, Object* value) {
   DCHECK(TypeTag() != NOT_COMPILED);
   DCHECK(index >= kDataIndex);  // Only implementation data can be set this way.
   FixedArray::cast(data())->set(index, value);
-}
-
-void JSRegExp::SetLastIndex(int index) {
-  static const int offset =
-      kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
-  Smi* value = Smi::FromInt(index);
-  WRITE_FIELD(this, offset, value);
-}
-
-Object* JSRegExp::LastIndex() {
-  static const int offset =
-      kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
-  return READ_FIELD(this, offset);
 }
 
 ElementsKind JSObject::GetElementsKind() {

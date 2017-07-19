@@ -5697,6 +5697,7 @@ class JSRegExp: public JSObject {
 
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)
+  DECL_ACCESSORS(last_index, Object)
   DECL_ACCESSORS(source, Object)
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(Handle<String> source,
@@ -5719,9 +5720,6 @@ class JSRegExp: public JSObject {
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
 
-  inline void SetLastIndex(int index);
-  inline Object* LastIndex();
-
   static int code_index(bool is_latin1) {
     if (is_latin1) {
       return kIrregexpLatin1CodeIndex;
@@ -5740,6 +5738,7 @@ class JSRegExp: public JSObject {
   static const int kSourceOffset = kDataOffset + kPointerSize;
   static const int kFlagsOffset = kSourceOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
+  static const int kLastIndexOffset = kSize;  // In-object field.
 
   // Indices in the data array.
   static const int kTagIndex = 0;
