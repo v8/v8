@@ -911,6 +911,8 @@ namespace internal {
   TFJ(StringPrototypeCharAt, 1, kPosition)                                     \
   /* ES6 #sec-string.prototype.charcodeat */                                   \
   TFJ(StringPrototypeCharCodeAt, 1, kPosition)                                 \
+  /* ES6 #sec-string.prototype.codepointat */                                  \
+  TFJ(StringPrototypeCodePointAt, 1, kPosition)                                \
   /* ES6 #sec-string.prototype.concat */                                       \
   TFJ(StringPrototypeConcat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   /* ES6 #sec-string.prototype.endswith */                                     \

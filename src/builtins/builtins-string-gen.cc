@@ -706,6 +706,36 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
   Return(result);
 }
 
+// ES6 #sec-string.prototype.codepointat
+TF_BUILTIN(StringPrototypeCodePointAt, StringBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
+
+  // Check that {receiver} is coercible to Object and convert it to a String.
+  receiver = ToThisString(context, receiver, "String.prototype.codePointAt");
+
+  // Convert the {position} to a Smi and check that it's in bounds of the
+  // {receiver}.
+  Label if_inbounds(this), if_outofbounds(this, Label::kDeferred);
+  position =
+      ToInteger(context, position, CodeStubAssembler::kTruncateMinusZero);
+  GotoIfNot(TaggedIsSmi(position), &if_outofbounds);
+  Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
+  Branch(SmiBelow(position, receiver_length), &if_inbounds, &if_outofbounds);
+
+  BIND(&if_inbounds);
+  {
+    Node* value = LoadSurrogatePairAt(receiver, receiver_length, position,
+                                      UnicodeEncoding::UTF32);
+    Node* result = SmiFromWord32(value);
+    Return(result);
+  }
+
+  BIND(&if_outofbounds);
+  Return(UndefinedConstant());
+}
+
 // ES6 String.prototype.concat(...args)
 // ES6 #sec-string.prototype.concat
 TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
@@ -1769,7 +1799,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
             Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
 
         // (lead << 10) + trail + SURROGATE_OFFSET
-        var_result.Bind(Int32Add(WordShl(lead, Int32Constant(10)),
+        var_result.Bind(Int32Add(Word32Shl(lead, Int32Constant(10)),
                                  Int32Add(trail, surrogate_offset)));
         break;
       }

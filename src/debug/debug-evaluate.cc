@@ -321,7 +321,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringEqual)                     \
   V(SymbolDescriptiveString)         \
   V(GenerateRandomNumbers)           \
-  V(ExternalStringGetChar)           \
   V(GlobalPrint)                     \
   V(AllocateInNewSpace)              \
   V(AllocateSeqOneByteString)        \
@@ -597,6 +596,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringConstructor:
     case Builtins::kStringPrototypeCharAt:
     case Builtins::kStringPrototypeCharCodeAt:
+    case Builtins::kStringPrototypeCodePointAt:
     case Builtins::kStringPrototypeConcat:
     case Builtins::kStringPrototypeEndsWith:
     case Builtins::kStringPrototypeIncludes:

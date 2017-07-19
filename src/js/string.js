@@ -167,27 +167,6 @@ DEFINE_METHODS(
         s += s;
       }
     }
-
-    /* ES#sec-string.prototype.codepointat */
-    codePointAt(pos) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.codePointAt");
-
-      var string = TO_STRING(this);
-      var size = string.length;
-      pos = TO_INTEGER(pos);
-      if (pos < 0 || pos >= size) {
-        return UNDEFINED;
-      }
-      var first = %_StringCharCodeAt(string, pos);
-      if (first < 0xD800 || first > 0xDBFF || pos + 1 == size) {
-        return first;
-      }
-      var second = %_StringCharCodeAt(string, pos + 1);
-      if (second < 0xDC00 || second > 0xDFFF) {
-        return first;
-      }
-      return (first - 0xD800) * 0x400 + second + 0x2400;
-    }
   }
 );
 
