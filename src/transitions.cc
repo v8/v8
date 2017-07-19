@@ -16,7 +16,9 @@ namespace internal {
 void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
                              Handle<Map> target, SimpleTransitionFlag flag) {
   Isolate* isolate = map->GetIsolate();
-  target->SetBackPointer(*map);
+  if (flag != SPECIAL_SHORTCUT_TRANSITION) {
+    target->SetBackPointer(*map);
+  }
 
   // If the map doesn't have any transitions at all yet, install the new one.
   if (CanStoreSimpleTransition(map->raw_transitions())) {
@@ -30,7 +32,7 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
     ReplaceTransitions(map, *result);
   }
 
-  bool is_special_transition = flag == SPECIAL_TRANSITION;
+  bool is_special_transition = flag >= SPECIAL_TRANSITION;
   // If the map has a simple transition, check if it should be overwritten.
   if (IsSimpleTransition(map->raw_transitions())) {
     Map* old_target = GetSimpleTransition(map->raw_transitions());

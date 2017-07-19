@@ -249,9 +249,10 @@ enum TransitionFlag {
 enum SimpleTransitionFlag {
   SIMPLE_PROPERTY_TRANSITION,
   PROPERTY_TRANSITION,
-  SPECIAL_TRANSITION
+  // Below are the special transitions.
+  SPECIAL_TRANSITION,
+  SPECIAL_SHORTCUT_TRANSITION
 };
-
 
 // Indicates whether we are only interested in the descriptors of a particular
 // map, or in all descriptors in the descriptor array.

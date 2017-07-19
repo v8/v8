@@ -1706,6 +1706,9 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
     } else if (key == heap->elements_transition_symbol()) {
       os << "(transition to " << ElementsKindToString(target->elements_kind())
          << ")";
+    } else if (key == heap->elements_transition_shortcut_symbol()) {
+      os << "(shortcut to " << ElementsKindToString(target->elements_kind())
+         << ")";
     } else if (key == heap->strict_function_transition_symbol()) {
       os << " (transition to strict function)";
     } else {
@@ -1737,8 +1740,7 @@ void TransitionArray::PrintTransitionTree(std::ostream& os, Map* map,
   for (int i = 0; i < num_transitions; i++) {
     Name* key = GetKey(transitions, i);
     Map* target = GetTarget(transitions, i);
-    os << std::endl
-       << "  " << level << "/" << i << ":" << std::setw(level * 2 + 2) << " ";
+    os << "\n  " << level << "/" << i << ":" << std::setw(level * 2 + 2) << " ";
     std::stringstream ss;
     ss << Brief(target);
     os << std::left << std::setw(50) << ss.str() << ": ";
@@ -1752,17 +1754,21 @@ void TransitionArray::PrintTransitionTree(std::ostream& os, Map* map,
       os << "to frozen";
     } else if (key == heap->elements_transition_symbol()) {
       os << "to " << ElementsKindToString(target->elements_kind());
+    } else if (key == heap->elements_transition_shortcut_symbol()) {
+      os << "shortcut to " << ElementsKindToString(target->elements_kind());
+      // Don't print transitions "through" the transition shortcut.
+      continue;
     } else if (key == heap->strict_function_transition_symbol()) {
       os << "to strict function";
     } else {
+      DCHECK(!IsSpecialTransition(key));
+      os << "to ";
 #ifdef OBJECT_PRINT
       key->NamePrint(os);
 #else
       key->ShortPrint(os);
 #endif
       os << " ";
-      DCHECK(!IsSpecialTransition(key));
-      os << "to ";
       int descriptor = target->LastAdded();
       DescriptorArray* descriptors = target->instance_descriptors();
       descriptors->PrintDescriptorDetails(os, descriptor,

@@ -153,6 +153,9 @@ class TransitionArray: public FixedArray {
   inline Map* GetTarget(int transition_number);
   inline void SetTarget(int transition_number, Map* target);
 
+  static inline std::pair<Name*, Map*> GetKeyAndTarget(Object* raw_transitions,
+                                                       int transition_number);
+
   static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
 
   // Returns the number of transitions in the array.
@@ -203,6 +206,10 @@ class TransitionArray: public FixedArray {
   // Returns true for a non-property transitions like elements kind, observed
   // or frozen transitions.
   static inline bool IsSpecialTransition(Name* name);
+
+  // Returns true for shortcut transitions.
+  static inline bool IsShortcutTransition(Name* name);
+  static inline bool IsShortcutTransition(Heap* heap, Name* name);
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
