@@ -485,18 +485,46 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
   return FLAG_wasm_max_mem_pages;
 }
 
+bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
+  if (!object->IsJSFunction()) return false;
+  Handle<JSFunction> js_function(JSFunction::cast(object));
+  if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
+
+  Handle<Symbol> symbol(
+      js_function->GetIsolate()->factory()->wasm_instance_symbol());
+  MaybeHandle<Object> maybe_result =
+      JSObject::GetPropertyOrElement(js_function, symbol);
+  Handle<Object> result;
+  if (!maybe_result.ToHandle(&result)) return false;
+  return result->IsWasmInstanceObject();
+}
+
 WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
-  DCHECK(object && object->IsJSFunction());
-  DCHECK_EQ(Code::JS_TO_WASM_FUNCTION,
-            JSFunction::cast(object)->code()->kind());
-  // TODO(titzer): brand check for WasmExportedFunction.
+  DCHECK(IsWasmExportedFunction(object));
   return reinterpret_cast<WasmExportedFunction*>(object);
+}
+
+WasmInstanceObject* WasmExportedFunction::instance() {
+  DisallowHeapAllocation no_allocation;
+  Handle<Symbol> symbol(GetIsolate()->factory()->wasm_instance_symbol());
+  MaybeHandle<Object> result =
+      JSObject::GetPropertyOrElement(handle(this), symbol);
+  return WasmInstanceObject::cast(*(result.ToHandleChecked()));
+}
+
+int WasmExportedFunction::function_index() {
+  DisallowHeapAllocation no_allocation;
+  Handle<Symbol> symbol = GetIsolate()->factory()->wasm_function_index_symbol();
+  MaybeHandle<Object> result =
+      JSObject::GetPropertyOrElement(handle(this), symbol);
+  return result.ToHandleChecked()->Number();
 }
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     MaybeHandle<String> maybe_name, int func_index, int arity,
     Handle<Code> export_wrapper) {
+  DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
   Handle<String> name;
   if (!maybe_name.ToHandle(&name)) {
     EmbeddedVector<char, 16> buffer;
@@ -506,22 +534,23 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                    Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
-  DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name, export_wrapper, false);
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(arity);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(
-      isolate->wasm_function_map(), name, export_wrapper);
+      isolate->sloppy_function_map(), name, export_wrapper);
 
-  Handle<WasmExportedFunction> function(
-      reinterpret_cast<WasmExportedFunction*>(*js_function), isolate);
+  js_function->set_shared(*shared);
+  Handle<Symbol> instance_symbol(isolate->factory()->wasm_instance_symbol());
+  JSObject::AddProperty(js_function, instance_symbol, instance, DONT_ENUM);
 
-  function->set_shared(*shared);
-  function->set_instance(*instance);
-  function->set_function_index(func_index);
+  Handle<Symbol> function_index_symbol(
+      isolate->factory()->wasm_function_index_symbol());
+  JSObject::AddProperty(js_function, function_index_symbol,
+                        isolate->factory()->NewNumber(func_index), DONT_ENUM);
 
-  return Handle<WasmExportedFunction>::cast(function);
+  return Handle<WasmExportedFunction>::cast(js_function);
 }
 
 bool WasmSharedModuleData::IsWasmSharedModuleData(Object* object) {
