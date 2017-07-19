@@ -21,6 +21,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/item-parallel-job.h"
+#include "src/heap/local-allocator.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -1624,23 +1625,25 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
                         reinterpret_cast<base::AtomicWord>(dst_addr));
   }
 
-  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces,
+  EvacuateVisitorBase(Heap* heap, LocalAllocator* local_allocator,
                       RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
-        compaction_spaces_(compaction_spaces),
+        local_allocator_(local_allocator),
         record_visitor_(record_visitor) {
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
   }
 
-  inline bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
-                                int size, HeapObject** target_object) {
+  inline bool TryEvacuateObject(AllocationSpace target_space,
+                                HeapObject* object, int size,
+                                HeapObject** target_object) {
 #ifdef VERIFY_HEAP
     if (AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
     AllocationAlignment alignment = object->RequiredAlignment();
-    AllocationResult allocation = target_space->AllocateRaw(size, alignment);
+    AllocationResult allocation =
+        local_allocator_->Allocate(target_space, size, alignment);
     if (allocation.To(target_object)) {
-      MigrateObject(*target_object, object, size, target_space->identity());
+      MigrateObject(*target_object, object, size, target_space);
       return true;
     }
     return false;
@@ -1679,7 +1682,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #endif  // VERIFY_HEAP
 
   Heap* heap_;
-  CompactionSpaceCollection* compaction_spaces_;
+  LocalAllocator* local_allocator_;
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
@@ -1687,16 +1690,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
-  static const intptr_t kLabSize = 4 * KB;
-  static const intptr_t kMaxLabObjectSize = 256;
-
-  explicit EvacuateNewSpaceVisitor(Heap* heap,
-                                   CompactionSpaceCollection* compaction_spaces,
+  explicit EvacuateNewSpaceVisitor(Heap* heap, LocalAllocator* local_allocator,
                                    RecordMigratedSlotVisitor* record_visitor,
                                    base::HashMap* local_pretenuring_feedback)
-      : EvacuateVisitorBase(heap, compaction_spaces, record_visitor),
+      : EvacuateVisitorBase(heap, local_allocator, record_visitor),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
-        space_to_allocate_(NEW_SPACE),
         promoted_size_(0),
         semispace_copied_size_(0),
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
@@ -1704,8 +1702,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   inline bool Visit(HeapObject* object, int size) override {
     HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address()) &&
-        TryEvacuateObject(compaction_spaces_->Get(OLD_SPACE), object, size,
-                          &target_object)) {
+        TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       promoted_size_ += size;
       return true;
     }
@@ -1720,28 +1717,15 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   intptr_t promoted_size() { return promoted_size_; }
   intptr_t semispace_copied_size() { return semispace_copied_size_; }
-  AllocationInfo CloseLAB() { return buffer_.Close(); }
 
  private:
-  enum NewSpaceAllocationMode {
-    kNonstickyBailoutOldSpace,
-    kStickyBailoutOldSpace,
-  };
-
   inline AllocationSpace AllocateTargetObject(HeapObject* old_object, int size,
                                               HeapObject** target_object) {
     AllocationAlignment alignment = old_object->RequiredAlignment();
-    AllocationResult allocation;
-    AllocationSpace space_allocated_in = space_to_allocate_;
-    if (space_to_allocate_ == NEW_SPACE) {
-      if (size > kMaxLabObjectSize) {
-        allocation =
-            AllocateInNewSpace(size, alignment, kNonstickyBailoutOldSpace);
-      } else {
-        allocation = AllocateInLab(size, alignment);
-      }
-    }
-    if (allocation.IsRetry() || (space_to_allocate_ == OLD_SPACE)) {
+    AllocationSpace space_allocated_in = NEW_SPACE;
+    AllocationResult allocation =
+        local_allocator_->Allocate(NEW_SPACE, size, alignment);
+    if (allocation.IsRetry()) {
       allocation = AllocateInOldSpace(size, alignment);
       space_allocated_in = OLD_SPACE;
     }
@@ -1751,42 +1735,10 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     return space_allocated_in;
   }
 
-  inline bool NewLocalAllocationBuffer() {
-    AllocationResult result =
-        AllocateInNewSpace(kLabSize, kWordAligned, kStickyBailoutOldSpace);
-    LocalAllocationBuffer saved_old_buffer = buffer_;
-    buffer_ = LocalAllocationBuffer::FromResult(heap_, result, kLabSize);
-    if (buffer_.IsValid()) {
-      buffer_.TryMerge(&saved_old_buffer);
-      return true;
-    }
-    return false;
-  }
-
-  inline AllocationResult AllocateInNewSpace(int size_in_bytes,
-                                             AllocationAlignment alignment,
-                                             NewSpaceAllocationMode mode) {
-    AllocationResult allocation =
-        heap_->new_space()->AllocateRawSynchronized(size_in_bytes, alignment);
-    if (allocation.IsRetry()) {
-      if (!heap_->new_space()->AddFreshPageSynchronized()) {
-        if (mode == kStickyBailoutOldSpace) space_to_allocate_ = OLD_SPACE;
-      } else {
-        allocation = heap_->new_space()->AllocateRawSynchronized(size_in_bytes,
-                                                                 alignment);
-        if (allocation.IsRetry()) {
-          if (mode == kStickyBailoutOldSpace) space_to_allocate_ = OLD_SPACE;
-        }
-      }
-    }
-    return allocation;
-  }
-
   inline AllocationResult AllocateInOldSpace(int size_in_bytes,
                                              AllocationAlignment alignment) {
     AllocationResult allocation =
-        compaction_spaces_->Get(OLD_SPACE)->AllocateRaw(size_in_bytes,
-                                                        alignment);
+        local_allocator_->Allocate(OLD_SPACE, size_in_bytes, alignment);
     if (allocation.IsRetry()) {
       v8::internal::Heap::FatalProcessOutOfMemory(
           "MarkCompactCollector: semi-space copy, fallback in old gen", true);
@@ -1794,33 +1746,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     return allocation;
   }
 
-  inline AllocationResult AllocateInLab(int size_in_bytes,
-                                        AllocationAlignment alignment) {
-    AllocationResult allocation;
-    if (!buffer_.IsValid()) {
-      if (!NewLocalAllocationBuffer()) {
-        space_to_allocate_ = OLD_SPACE;
-        return AllocationResult::Retry(OLD_SPACE);
-      }
-    }
-    allocation = buffer_.AllocateRawAligned(size_in_bytes, alignment);
-    if (allocation.IsRetry()) {
-      if (!NewLocalAllocationBuffer()) {
-        space_to_allocate_ = OLD_SPACE;
-        return AllocationResult::Retry(OLD_SPACE);
-      } else {
-        allocation = buffer_.AllocateRawAligned(size_in_bytes, alignment);
-        if (allocation.IsRetry()) {
-          space_to_allocate_ = OLD_SPACE;
-          return AllocationResult::Retry(OLD_SPACE);
-        }
-      }
-    }
-    return allocation;
-  }
-
   LocalAllocationBuffer buffer_;
-  AllocationSpace space_to_allocate_;
   intptr_t promoted_size_;
   intptr_t semispace_copied_size_;
   base::HashMap* local_pretenuring_feedback_;
@@ -1875,16 +1801,15 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
  public:
-  EvacuateOldSpaceVisitor(Heap* heap,
-                          CompactionSpaceCollection* compaction_spaces,
+  EvacuateOldSpaceVisitor(Heap* heap, LocalAllocator* local_allocator,
                           RecordMigratedSlotVisitor* record_visitor)
-      : EvacuateVisitorBase(heap, compaction_spaces, record_visitor) {}
+      : EvacuateVisitorBase(heap, local_allocator, record_visitor) {}
 
   inline bool Visit(HeapObject* object, int size) override {
-    CompactionSpace* target_space = compaction_spaces_->Get(
-        Page::FromAddress(object->address())->owner()->identity());
     HeapObject* target_object = nullptr;
-    if (TryEvacuateObject(target_space, object, size, &target_object)) {
+    if (TryEvacuateObject(
+            Page::FromAddress(object->address())->owner()->identity(), object,
+            size, &target_object)) {
       DCHECK(object->map_word().IsForwardingAddress());
       return true;
     }
@@ -3494,16 +3419,17 @@ class Evacuator : public Malloced {
 
   Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
+        local_allocator_(heap_),
         compaction_spaces_(heap_),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
-        new_space_visitor_(heap_, &compaction_spaces_, record_visitor,
+        new_space_visitor_(heap_, &local_allocator_, record_visitor,
                            &local_pretenuring_feedback_),
         new_to_new_page_visitor_(heap_, record_visitor,
                                  &local_pretenuring_feedback_),
         new_to_old_page_visitor_(heap_, record_visitor,
                                  &local_pretenuring_feedback_),
 
-        old_space_visitor_(heap_, &compaction_spaces_, record_visitor),
+        old_space_visitor_(heap_, &local_allocator_, record_visitor),
         duration_(0.0),
         bytes_compacted_(0) {}
 
@@ -3519,9 +3445,6 @@ class Evacuator : public Malloced {
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
   inline void Finalize();
-
-  CompactionSpaceCollection* compaction_spaces() { return &compaction_spaces_; }
-  AllocationInfo CloseNewSpaceLAB() { return new_space_visitor_.CloseLAB(); }
 
  protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
@@ -3539,6 +3462,7 @@ class Evacuator : public Malloced {
   Heap* heap_;
 
   // Locally cached collector data.
+  LocalAllocator local_allocator_;
   CompactionSpaceCollection compaction_spaces_;
   base::HashMap local_pretenuring_feedback_;
 
@@ -3581,9 +3505,7 @@ void Evacuator::EvacuatePage(Page* page) {
 }
 
 void Evacuator::Finalize() {
-  heap()->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
-  heap()->code_space()->MergeCompactionSpace(
-      compaction_spaces_.Get(CODE_SPACE));
+  local_allocator_.Finalize();
   heap()->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
   heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
                                        new_to_old_page_visitor_.moved_bytes());
@@ -3771,16 +3693,8 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
     job->AddTask(new PageEvacuationTask(heap()->isolate(), evacuators[i]));
   }
   job->Run();
-  const Address top = heap()->new_space()->top();
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
-    // Try to find the last LAB that was used for new space allocation in
-    // evacuation tasks. If it was adjacent to the current top, move top back.
-    const AllocationInfo info = evacuators[i]->CloseNewSpaceLAB();
-    if (info.limit() != nullptr && info.limit() == top) {
-      DCHECK_NOT_NULL(info.top());
-      *heap()->new_space()->allocation_top_address() = info.top();
-    }
     delete evacuators[i];
   }
   delete[] evacuators;

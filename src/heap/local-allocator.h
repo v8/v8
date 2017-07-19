@@ -20,11 +20,14 @@ class LocalAllocator {
       : heap_(heap),
         new_space_(heap->new_space()),
         compaction_spaces_(heap),
-        new_space_lab_(LocalAllocationBuffer::InvalidBuffer()) {}
+        new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
+        lab_allocation_will_fail_(false) {}
 
   // Needs to be called from the main thread to finalize this LocalAllocator.
   void Finalize() {
     heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
+    heap_->code_space()->MergeCompactionSpace(
+        compaction_spaces_.Get(CODE_SPACE));
     // Give back remaining LAB space if this LocalAllocator's new space LAB
     // sits right next to new space allocation top.
     const AllocationInfo info = new_space_lab_.Close();
@@ -35,16 +38,18 @@ class LocalAllocator {
     }
   }
 
-  template <AllocationSpace space>
-  AllocationResult Allocate(int object_size, AllocationAlignment alignment) {
+  AllocationResult Allocate(AllocationSpace space, int object_size,
+                            AllocationAlignment alignment) {
     switch (space) {
       case NEW_SPACE:
         return AllocateInNewSpace(object_size, alignment);
       case OLD_SPACE:
         return compaction_spaces_.Get(OLD_SPACE)->AllocateRaw(object_size,
                                                               alignment);
+      case CODE_SPACE:
+        return compaction_spaces_.Get(CODE_SPACE)
+            ->AllocateRaw(object_size, alignment);
       default:
-        // Only new and old space supported.
         UNREACHABLE();
         break;
     }
@@ -60,6 +65,7 @@ class LocalAllocator {
   }
 
   inline bool NewLocalAllocationBuffer() {
+    if (lab_allocation_will_fail_) return false;
     LocalAllocationBuffer saved_lab_ = new_space_lab_;
     AllocationResult result =
         new_space_->AllocateRawSynchronized(kLabSize, kWordAligned);
@@ -68,6 +74,8 @@ class LocalAllocator {
       new_space_lab_.TryMerge(&saved_lab_);
       return true;
     }
+    new_space_lab_ = saved_lab_;
+    lab_allocation_will_fail_ = true;
     return false;
   }
 
@@ -93,6 +101,7 @@ class LocalAllocator {
   NewSpace* const new_space_;
   CompactionSpaceCollection compaction_spaces_;
   LocalAllocationBuffer new_space_lab_;
+  bool lab_allocation_will_fail_;
 };
 
 }  // namespace internal
