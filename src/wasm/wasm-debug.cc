@@ -94,6 +94,8 @@ class InterpreterHandle;
 InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
 
 class InterpreterHandle {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(InterpreterHandle);
+
   WasmInstance instance_;
   WasmInterpreter interpreter_;
   Isolate* isolate_;

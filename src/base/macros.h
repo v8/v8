@@ -102,26 +102,32 @@ V8_INLINE Dest bit_cast(Source const& source) {
   return dest;
 }
 
+// Explicitly declare the assignment operator as deleted.
+#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete;
 
-// Put this in the private: declarations for a class to be unassignable.
-#define DISALLOW_ASSIGN(TypeName) void operator=(const TypeName&)
-
-
-// A macro to disallow the evil copy constructor and operator= functions
-// This should be used in the private: declarations for a class
+// Explicitly declare the copy constructor and assignment operator as deleted.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;      \
-  void operator=(const TypeName&) = delete
+  DISALLOW_ASSIGN(TypeName)
 
-
-// A macro to disallow all the implicit constructors, namely the
+// Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
-//
-// This should be used in the private: declarations for a class
-// that wants to prevent anyone from instantiating it. This is
-// especially useful for classes containing only static methods.
+// This is especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName() = delete;                           \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
+
+// Disallow copying a type, but provide default construction, move construction
+// and move assignment. Especially useful for move-only structs.
+#define MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(TypeName) \
+  TypeName() = default;                               \
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)
+
+// Disallow copying a type, and only provide move construction and move
+// assignment. Especially useful for move-only structs.
+#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName) \
+  TypeName(TypeName&&) = default;                  \
+  TypeName& operator=(TypeName&&) = default;       \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // A macro to disallow the dynamic allocation.

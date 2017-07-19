@@ -34,15 +34,6 @@ class CallDescriptor;
 namespace wasm {
 class ErrorThrower;
 
-// Use this in the private section to mark a struct move-only.
-#define WASM_MOVE_ONLY_STRUCT(name) \
- public:                            \
-  name() = default;                 \
-  name(name&&) = default;           \
-                                    \
- private:                           \
-  DISALLOW_COPY_AND_ASSIGN(name)
-
 enum WasmExternalKind {
   kExternalFunction = 0,
   kExternalTable = 1,
@@ -143,6 +134,8 @@ struct WasmDataSegment {
 
 // Static representation of a wasm indirect call table.
 struct WasmIndirectFunctionTable {
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmIndirectFunctionTable);
+
   uint32_t min_size = 0;  // minimum table size.
   uint32_t max_size = 0;  // maximum table size.
   bool has_max = false;   // true if there is a maximum size.
@@ -151,22 +144,18 @@ struct WasmIndirectFunctionTable {
   bool imported = false;        // true if imported.
   bool exported = false;        // true if exported.
   SignatureMap map;             // canonicalizing map for sig indexes.
-
- private:
-  WASM_MOVE_ONLY_STRUCT(WasmIndirectFunctionTable);
 };
 
 // Static representation of how to initialize a table.
 struct WasmTableInit {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmTableInit);
+
   WasmTableInit(uint32_t table_index, WasmInitExpr offset)
       : table_index(table_index), offset(offset) {}
 
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
-
- private:
-  WASM_MOVE_ONLY_STRUCT(WasmTableInit);
 };
 
 // Static representation of a wasm import.
@@ -190,6 +179,8 @@ struct ModuleWireBytes;
 
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmModule);
+
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
 
@@ -228,14 +219,14 @@ struct V8_EXPORT_PRIVATE WasmModule {
  private:
   // TODO(kschimpf) - Encapsulate more fields.
   ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
-
-  DISALLOW_COPY_AND_ASSIGN(WasmModule);
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
 
 // An instantiated wasm module, including memory, function table, etc.
 struct WasmInstance {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInstance);
+
   const WasmModule* module;  // static representation of the module.
   // -- Heap allocated --------------------------------------------------------
   Handle<Context> context;               // JavaScript native context.
@@ -271,9 +262,6 @@ struct WasmInstance {
       code = handle(*code, isolate);
     }
   }
-
- private:
-  WASM_MOVE_ONLY_STRUCT(WasmInstance);
 };
 
 // Interface to the storage (wire bytes) of a wasm module.
@@ -336,6 +324,8 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 // Interface provided to the decoder/graph builder which contains only
 // minimal information about the globals, functions, and function tables.
 struct V8_EXPORT_PRIVATE ModuleEnv {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ModuleEnv);
+
   ModuleEnv(const WasmModule* module, WasmInstance* instance)
       : module(module),
         instance(instance),
@@ -392,9 +382,6 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
     DCHECK_NOT_NULL(instance);
     return instance->function_code[index];
   }
-
- private:
-  WASM_MOVE_ONLY_STRUCT(ModuleEnv);
 };
 
 // A ModuleEnv together with ModuleWireBytes.
@@ -572,8 +559,6 @@ void ValidateModuleState(Isolate* isolate, Handle<WasmModuleObject> module_obj);
 void ValidateOrphanedInstance(Isolate* isolate,
                               Handle<WasmInstanceObject> instance);
 }  // namespace testing
-
-#undef WASM_MOVE_ONLY_STRUCT
 
 }  // namespace wasm
 }  // namespace internal
