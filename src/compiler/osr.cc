@@ -255,8 +255,9 @@ void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
 
 }  // namespace
 
-void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
-                            Zone* tmp_zone) {
+void OsrHelper::Deconstruct(CompilationInfo* info, JSGraph* jsgraph,
+                            CommonOperatorBuilder* common, Zone* tmp_zone) {
+  DCHECK(!info->is_optimizing_from_bytecode());
   Graph* graph = jsgraph->graph();
   Node* osr_normal_entry = nullptr;
   Node* osr_loop_entry = nullptr;

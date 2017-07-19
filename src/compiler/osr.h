@@ -6,6 +6,9 @@
 #define V8_COMPILER_OSR_H_
 
 #include "src/zone/zone.h"
+// TODO(6409) This phase (and then the below explanations) are now only used
+// when osring from the ast graph builder. When using Ignition bytecode, the OSR
+// implementation is integrated directly to the graph building phase.
 
 // TurboFan structures OSR graphs in a way that separates almost all phases of
 // compilation from OSR implementation details. This is accomplished with
@@ -95,8 +98,8 @@ class OsrHelper {
 
   // Deconstructs the artificial {OsrNormalEntry} and rewrites the graph so
   // that only the path corresponding to {OsrLoopEntry} remains.
-  void Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
-                   Zone* tmp_zone);
+  void Deconstruct(CompilationInfo* info, JSGraph* jsgraph,
+                   CommonOperatorBuilder* common, Zone* tmp_zone);
 
   // Prepares the frame w.r.t. OSR.
   void SetupFrame(Frame* frame);
