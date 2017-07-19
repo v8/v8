@@ -186,18 +186,6 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
-      int size = SharedFunctionInfo::BodyDescriptorWeak::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      SharedFunctionInfo::BodyDescriptorWeak::IterateBody(object, size, this);
-      // Resetting of IC age counter is done on the main thread.
-      bailout_.Push(object);
-    }
-    return 0;
-  }
-
   int VisitTransitionArray(Map* map, TransitionArray* object) {
     // TODO(ulan): implement iteration of strong fields.
     bailout_.Push(object);
