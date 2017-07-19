@@ -2543,7 +2543,8 @@ TEST(LoadJSArrayElementsMap) {
     Handle<Map> csa_result =
         ft.CallChecked<Map>(handle(Smi::FromInt(kind), isolate));
     ElementsKind elements_kind = static_cast<ElementsKind>(kind);
-    Handle<Map> result(isolate->get_initial_js_array_map(elements_kind));
+    Handle<Map> result(
+        isolate->native_context()->GetInitialJSArrayMap(elements_kind));
     CHECK_EQ(*csa_result, *result);
   }
 }

@@ -683,10 +683,9 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   }
 
   // We want the input to be a generic Array.
-  const int map_index = Context::ArrayMapIndex(kind);
   Handle<JSFunction> handle_constructor(
       JSFunction::cast(
-          Map::cast(native_context()->get(map_index))->GetConstructor()),
+          native_context()->GetInitialJSArrayMap(kind)->GetConstructor()),
       isolate());
   Node* array_constructor = jsgraph()->HeapConstant(handle_constructor);
   if (receiver_map->prototype() !=

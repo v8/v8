@@ -643,9 +643,8 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   dependencies()->AssumeTransitionStable(site);
 
   // Retrieve the initial map for the array.
-  int const array_map_index = Context::ArrayMapIndex(elements_kind);
   Node* js_array_map = jsgraph()->HeapConstant(
-      handle(Map::cast(native_context()->get(array_map_index)), isolate()));
+      handle(native_context()->GetInitialJSArrayMap(elements_kind), isolate()));
 
   // Setup elements and properties.
   Node* elements;
@@ -707,9 +706,8 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   }
 
   // Retrieve the initial map for the array.
-  int const array_map_index = Context::ArrayMapIndex(elements_kind);
   Node* js_array_map = jsgraph()->HeapConstant(
-      handle(Map::cast(native_context()->get(array_map_index)), isolate()));
+      handle(native_context()->GetInitialJSArrayMap(elements_kind), isolate()));
 
   // Setup elements, properties and length.
   Node* elements = effect =

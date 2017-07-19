@@ -1047,8 +1047,6 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
-  Map* get_initial_js_array_map(ElementsKind kind);
-
   static const int kProtectorValid = 1;
   static const int kProtectorInvalid = 0;
 

@@ -5331,7 +5331,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
   } else if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
     // Reuse map transitions for JSArrays.
     DisallowHeapAllocation no_gc;
-    if (native_context->get(Context::ArrayMapIndex(from_kind)) == *map) {
+    if (native_context->GetInitialJSArrayMap(from_kind) == *map) {
       Object* maybe_transitioned_map =
           native_context->get(Context::ArrayMapIndex(to_kind));
       if (maybe_transitioned_map->IsMap()) {

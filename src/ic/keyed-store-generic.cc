@@ -139,8 +139,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   VARIABLE(var_target_map, MachineRepresentation::kTagged);
   // Check if the receiver has the default |from_kind| map.
   {
-    Node* packed_map =
-        LoadContextElement(native_context, Context::ArrayMapIndex(from_kind));
+    Node* packed_map = LoadJSArrayElementsMap(from_kind, native_context);
     GotoIf(WordNotEqual(receiver_map, packed_map), &check_holey_map);
     var_target_map.Bind(
         LoadContextElement(native_context, Context::ArrayMapIndex(to_kind)));
@@ -174,8 +173,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
     Node* receiver, Node* receiver_map, Node* native_context,
     ElementsKind packed_kind, ElementsKind holey_kind, Label* done,
     Label* map_mismatch, Label* bailout) {
-  Node* packed_map =
-      LoadContextElement(native_context, Context::ArrayMapIndex(packed_kind));
+  Node* packed_map = LoadJSArrayElementsMap(packed_kind, native_context);
   GotoIf(WordNotEqual(receiver_map, packed_map), map_mismatch);
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
     TrapAllocationMemento(receiver, bailout);
