@@ -280,7 +280,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
-    case kArchTailCallJSFunctionFromJSFunction:
     case kArchTailCallAddress:
       return kHasSideEffect | kIsBlockTerminator;
 

@@ -660,21 +660,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->SetFrameAccessToDefault();
       break;
     }
-    case kArchTailCallJSFunctionFromJSFunction: {
-      Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
-        // Check the function's context matches the context argument.
-        __ lw(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
-      }
-      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                       i.TempRegister(0), i.TempRegister(1),
-                                       i.TempRegister(2));
-      __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Jump(at);
-      frame_access_state()->ClearSPDelta();
-      break;
-    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);

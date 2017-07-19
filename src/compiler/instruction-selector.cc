@@ -2603,9 +2603,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
       case CallDescriptor::kCallCodeObject:
         opcode = kArchTailCallCodeObjectFromJSFunction;
         break;
-      case CallDescriptor::kCallJSFunction:
-        opcode = kArchTailCallJSFunctionFromJSFunction;
-        break;
       default:
         UNREACHABLE();
         return;
