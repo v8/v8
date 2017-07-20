@@ -45,8 +45,8 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
+#include "src/boxed-float.h"
 #include "src/double.h"
-#include "src/float.h"
 
 namespace v8 {
 namespace internal {

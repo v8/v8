@@ -6,8 +6,8 @@
 #define V8_DEOPTIMIZER_H_
 
 #include "src/allocation.h"
+#include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
-#include "src/float.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
