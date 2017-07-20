@@ -954,12 +954,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyArrayLiteral(
-    int literal_index) {
-  OutputCreateEmptyArrayLiteral(literal_index);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
     size_t constant_elements_entry, int literal_index, int flags) {
   OutputCreateArrayLiteral(constant_elements_entry, literal_index, flags);

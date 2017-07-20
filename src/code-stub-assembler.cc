@@ -1430,15 +1430,6 @@ Node* CodeStubAssembler::LoadNativeContext(Node* context) {
   return LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX);
 }
 
-Node* CodeStubAssembler::LoadJSArrayElementsMap(Node* kind,
-                                                Node* native_context) {
-  CSA_ASSERT(this, IsFastElementsKind(kind));
-  CSA_ASSERT(this, IsNativeContext(native_context));
-  Node* offset = IntPtrAdd(IntPtrConstant(Context::FIRST_JS_ARRAY_MAP_SLOT),
-                           ChangeInt32ToIntPtr(kind));
-  return LoadContextElement(native_context, offset);
-}
-
 Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
                                                 Node* native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
@@ -6316,30 +6307,11 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
   return IntPtrAdd(IntPtrConstant(base_size), shifted_index);
 }
 
-Node* CodeStubAssembler::LoadFeedbackVector(Node* closure) {
-  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  return LoadObjectField(cell, Cell::kValueOffset);
-}
-
 Node* CodeStubAssembler::LoadFeedbackVectorForStub() {
   Node* function =
       LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset);
-  return LoadFeedbackVector(function);
-}
-
-Node* CodeStubAssembler::LoadFeedbackVectorSlot(Node* closure,
-                                                Node* smi_index) {
-  Node* feedback_vector = LoadFeedbackVector(closure);
-  return LoadFixedArrayElement(feedback_vector, smi_index, 0,
-                               CodeStubAssembler::SMI_PARAMETERS);
-}
-
-void CodeStubAssembler::StoreFeedbackVectorSlot(Node* closure, Node* smi_index,
-                                                Node* value) {
-  Node* feedback_vector = LoadFeedbackVector(closure);
-  StoreFixedArrayElement(feedback_vector, smi_index, value,
-                         UPDATE_WRITE_BARRIER, 0,
-                         CodeStubAssembler::SMI_PARAMETERS);
+  Node* cell = LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
+  return LoadObjectField(cell, Cell::kValueOffset);
 }
 
 void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,

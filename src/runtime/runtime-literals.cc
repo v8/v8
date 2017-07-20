@@ -16,8 +16,8 @@ namespace internal {
 
 namespace {
 
-bool IsUninitializedLiteralSite(Object* literal_site) {
-  return literal_site == Smi::kZero;
+bool IsUninitializedLiteralSite(Handle<Object> literal_site) {
+  return *literal_site == Smi::kZero;
 }
 
 bool HasBoilerplate(Isolate* isolate, Handle<Object> literal_site) {
@@ -478,7 +478,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     // TODO(cbruni): Even in the case where we need an initial allocation site
     // we could still create the boilerplate lazily to save memory.
     if (!needs_initial_allocation_site &&
-        IsUninitializedLiteralSite(*literal_site)) {
+        IsUninitializedLiteralSite(literal_site)) {
       PreInitializeLiteralSite(vector, literals_slot);
       boilerplate =
           Boilerplate::Create(isolate, description, flags, NOT_TENURED);
@@ -559,7 +559,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   if (!HasBoilerplate(isolate, literal_site)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, boilerplate, JSRegExp::New(pattern, JSRegExp::Flags(flags)));
-    if (IsUninitializedLiteralSite(*literal_site)) {
+    if (IsUninitializedLiteralSite(literal_site)) {
       PreInitializeLiteralSite(vector, literal_slot);
       return *boilerplate;
     }

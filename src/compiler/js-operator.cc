@@ -1039,15 +1039,6 @@ const Operator* JSOperatorBuilder::CreateLiteralArray(
       parameters);                                               // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(int literal_index) {
-  return new (zone()) Operator1<int>(        // --
-      IrOpcode::kJSCreateEmptyLiteralArray,  // opcode
-      Operator::kNoProperties,               // properties
-      "JSCreateEmptyLiteralArray",           // name
-      1, 1, 1, 1, 1, 2,                      // counts
-      literal_index);                        // parameter
-}
-
 const Operator* JSOperatorBuilder::CreateLiteralObject(
     Handle<BoilerplateDescription> constant_properties, int literal_flags,
     int literal_index, int number_of_properties) {

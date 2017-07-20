@@ -1124,9 +1124,6 @@ Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
   return Type::Array();
 }
 
-Type* Typer::Visitor::TypeJSCreateEmptyLiteralArray(Node* node) {
-  return Type::Array();
-}
 
 Type* Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
   return Type::OtherObject();

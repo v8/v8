@@ -2526,28 +2526,6 @@ TEST(DirectMemoryTest16BitWord32) {
   CHECK_EQ(1, ft.CallChecked<Smi>()->value());
 }
 
-TEST(LoadJSArrayElementsMap) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  {
-    CodeStubAssembler m(asm_tester.state());
-    Node* context = m.Parameter(kNumParams + 2);
-    Node* native_context = m.LoadNativeContext(context);
-    Node* kind = m.SmiToWord32(m.Parameter(0));
-    m.Return(m.LoadJSArrayElementsMap(kind, native_context));
-  }
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  for (int kind = 0; kind <= HOLEY_DOUBLE_ELEMENTS; kind++) {
-    Handle<Map> csa_result =
-        ft.CallChecked<Map>(handle(Smi::FromInt(kind), isolate));
-    ElementsKind elements_kind = static_cast<ElementsKind>(kind);
-    Handle<Map> result(isolate->get_initial_js_array_map(elements_kind));
-    CHECK_EQ(*csa_result, *result);
-  }
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

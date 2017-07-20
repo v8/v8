@@ -1295,13 +1295,6 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
-  int literal_index = bytecode_iterator().GetIndexOperand(0);
-  Node* literal = NewNode(javascript()->CreateEmptyLiteralArray(literal_index),
-                          GetFunctionClosure());
-  environment()->BindAccumulator(literal);
-}
-
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   Handle<BoilerplateDescription> constant_properties =
       Handle<BoilerplateDescription>::cast(
