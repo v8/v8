@@ -506,11 +506,6 @@
   'built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit': [FAIL],
   'built-ins/Array/prototype/splice/throws-if-integer-limit-exceeded': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6539
-  'built-ins/Number/prototype/toFixed/range': [FAIL],
-  'built-ins/Number/prototype/toPrecision/range': [FAIL],
-  'built-ins/Number/prototype/toExponential/range': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5855
   'language/expressions/async-generator/named-yield-promise-reject-next': [FAIL],
   'language/expressions/async-generator/named-yield-promise-reject-next-catch': [FAIL],

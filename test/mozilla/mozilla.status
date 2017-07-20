@@ -301,9 +301,6 @@
   # returned via the indirect 'arguments' property accessor.
   'js1_4/Functions/function-001': [FAIL_OK],
 
-  # toPrecision argument restricted to range 1..21 in JSC/V8 and ECMA-262
-  'js1_5/Regress/regress-452346': [FAIL_OK],
-
   # Fail because it calls builtins as functions and do not expect the
   # builtin to have undefined as the receiver.
   'ecma/String/15.5.4.6-2': [FAIL_OK],
