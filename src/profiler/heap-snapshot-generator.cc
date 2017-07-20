@@ -1013,6 +1013,8 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
       ExtractJSCollectionReferences(entry, JSSet::cast(obj));
     } else if (obj->IsJSMap()) {
       ExtractJSCollectionReferences(entry, JSMap::cast(obj));
+    } else if (obj->IsJSPromise()) {
+      ExtractJSPromiseReferences(entry, JSPromise::cast(obj));
     }
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -1405,7 +1407,6 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(
   }
 }
 
-
 void V8HeapExplorer::ExtractAccessorPairReferences(
     int entry, AccessorPair* accessors) {
   SetInternalReference(accessors, entry, "getter", accessors->getter(),
@@ -1414,11 +1415,9 @@ void V8HeapExplorer::ExtractAccessorPairReferences(
                        AccessorPair::kSetterOffset);
 }
 
-
 void V8HeapExplorer::TagBuiltinCodeObject(Code* code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
-
 
 void V8HeapExplorer::TagCodeObject(Code* code) {
   if (code->kind() == Code::STUB) {
@@ -1427,7 +1426,6 @@ void V8HeapExplorer::TagCodeObject(Code* code) {
                         CodeStub::MajorName(CodeStub::GetMajorKey(code))));
   }
 }
-
 
 void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   TagCodeObject(code);
@@ -1472,7 +1470,6 @@ void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
                        PropertyCell::kDependentCodeOffset);
 }
 
-
 void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                                                      AllocationSite* site) {
   SetInternalReference(site, entry, "transition_info",
@@ -1488,7 +1485,6 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
   STATIC_ASSERT(AllocationSite::kWeakNextOffset >=
                 AllocationSite::kPointerFieldsEndOffset);
 }
-
 
 class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
  public:
@@ -1506,7 +1502,6 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
   V8HeapExplorer* explorer_;
 };
 
-
 void V8HeapExplorer::ExtractJSArrayBufferReferences(
     int entry, JSArrayBuffer* buffer) {
   // Setup a reference to a native memory backing_store object.
@@ -1518,6 +1513,26 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
       filler_->FindOrAddEntry(buffer->backing_store(), &allocator);
   filler_->SetNamedReference(HeapGraphEdge::kInternal,
                              entry, "backing_store", data_entry);
+}
+
+void V8HeapExplorer::ExtractJSPromiseReferences(int entry, JSPromise* promise) {
+  SetInternalReference(promise, entry, "result", promise->result(),
+                       JSPromise::kResultOffset);
+  SetInternalReference(promise, entry, "deferred_promise",
+                       promise->deferred_promise(),
+                       JSPromise::kDeferredPromiseOffset);
+  SetInternalReference(promise, entry, "deferred_on_resolve",
+                       promise->deferred_on_resolve(),
+                       JSPromise::kDeferredOnResolveOffset);
+  SetInternalReference(promise, entry, "deferred_on_reject",
+                       promise->deferred_on_reject(),
+                       JSPromise::kDeferredOnRejectOffset);
+  SetInternalReference(promise, entry, "fulfill_reactions",
+                       promise->fulfill_reactions(),
+                       JSPromise::kFulfillReactionsOffset);
+  SetInternalReference(promise, entry, "reject_reactions",
+                       promise->reject_reactions(),
+                       JSPromise::kRejectReactionsOffset);
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
