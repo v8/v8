@@ -345,7 +345,14 @@ class String : public Name {
   static const uc32 kMaxCodePoint = 0x10ffff;
 
   // Maximal string length.
-  static const int kMaxLength = (1 << 28) - 16;
+  // The max length is different on 32 and 64 bit platforms. Max length for a
+  // 32-bit platform is ~268.4M chars. On 64-bit platforms, max length is
+  // ~1.073B chars. The limit on 64-bit is so that SeqTwoByteString::kMaxSize
+  // can fit in a 32bit int: 2^31 - 1 is the max positive int, minus one bit as
+  // each char needs two bytes, subtract 24 bytes for the string header size.
+
+  // See include/v8.h for the definition.
+  static const int kMaxLength = v8::String::kMaxLength;
 
   // Max length for computing hash. For strings longer than this limit the
   // string length is used as the hash value.
@@ -502,7 +509,7 @@ class SeqOneByteString : public SeqString {
   }
 
   // Maximal memory usage for a single sequential one-byte string.
-  static const int kMaxSize = 512 * MB - 1;
+  static const int kMaxSize = kMaxLength + kHeaderSize;
   STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
   class BodyDescriptor;
@@ -544,7 +551,7 @@ class SeqTwoByteString : public SeqString {
   }
 
   // Maximal memory usage for a single sequential two-byte string.
-  static const int kMaxSize = 512 * MB - 1;
+  static const int kMaxSize = kMaxLength * 2 + kHeaderSize;
   STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
                 String::kMaxLength);
 

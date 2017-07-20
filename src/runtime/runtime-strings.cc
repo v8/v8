@@ -736,5 +736,10 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_StringMaxLength) {
+  SealHandleScope shs(isolate);
+  return Smi::FromInt(String::kMaxLength);
+}
+
 }  // namespace internal
 }  // namespace v8
