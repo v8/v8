@@ -316,7 +316,7 @@ class IncrementalMarkingMarkingVisitor final
 
   // Marks the object black without pushing it on the marking stack.
   // Returns true if object needed marking and false otherwise.
-  V8_INLINE bool MarkObjectWithoutPush(Object* obj) {
+  V8_INLINE bool MarkObjectWithoutPush(HeapObject* host, Object* obj) {
     HeapObject* heap_object = HeapObject::cast(obj);
     return ObjectMarking::WhiteToBlack<IncrementalMarking::kAtomicity>(
         heap_object, incremental_marking_->marking_state(heap_object));

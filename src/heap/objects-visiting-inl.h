@@ -273,7 +273,7 @@ int MarkingVisitor<ConcreteVisitor>::VisitJSWeakCollection(
       HeapObject::RawField(weak_collection, JSWeakCollection::kTableOffset);
   HeapObject* obj = HeapObject::cast(*slot);
   collector_->RecordSlot(weak_collection, slot, obj);
-  visitor->MarkObjectWithoutPush(obj);
+  visitor->MarkObjectWithoutPush(weak_collection, obj);
   return size;
 }
 
@@ -321,10 +321,7 @@ void MarkingVisitor<ConcreteVisitor>::MarkMapContents(Map* map) {
   // just mark the entire descriptor array.
   if (!map->is_prototype_map()) {
     DescriptorArray* descriptors = map->instance_descriptors();
-    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
-      heap_->AddRetainer(map, descriptors);
-    }
-    if (visitor->MarkObjectWithoutPush(descriptors) &&
+    if (visitor->MarkObjectWithoutPush(map, descriptors) &&
         descriptors->length() > 0) {
       visitor->VisitPointers(descriptors, descriptors->GetFirstElementAddress(),
                              descriptors->GetDescriptorEndSlot(0));
