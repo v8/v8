@@ -786,6 +786,9 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
   if (info()->is_block_coverage_enabled()) {
     info()->set_coverage_info(
         isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
+    if (FLAG_trace_block_coverage) {
+      info()->coverage_info()->Print(info()->shared_info()->name());
+    }
   }
 
   if (HasStackOverflow()) return Handle<BytecodeArray>();

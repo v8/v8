@@ -333,5 +333,25 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
   set(slot_start + kSlotBlockCountIndex, Smi::kZero);
 }
 
+void CoverageInfo::Print(String* function_name) {
+  DCHECK(FLAG_trace_block_coverage);
+  DisallowHeapAllocation no_gc;
+
+  OFStream os(stdout);
+  os << "Coverage info (";
+  if (function_name->length() > 0) {
+    auto function_name_cstr = function_name->ToCString();
+    os << function_name_cstr.get();
+  } else {
+    os << "{anonymous}";
+  }
+  os << "):" << std::endl;
+
+  for (int i = 0; i < SlotCount(); i++) {
+    os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
+       << std::endl;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

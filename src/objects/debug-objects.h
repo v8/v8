@@ -162,6 +162,9 @@ class CoverageInfo : public FixedArray {
 
   DECL_CAST(CoverageInfo)
 
+  // Print debug info.
+  void Print(String* function_name);
+
  private:
   static int FirstIndexForSlot(int slot_index) {
     return kFirstSlotIndex + slot_index * kSlotIndexCount;
