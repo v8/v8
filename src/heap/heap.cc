@@ -4522,7 +4522,8 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object,
     incremental_marking()->MarkBlackAndPush(object);
   }
 #ifdef VERIFY_HEAP
-  DCHECK(pending_layout_change_object_ == nullptr);
+  DCHECK(pending_layout_change_object_ == nullptr ||
+         pending_layout_change_object_ == object);
   pending_layout_change_object_ = object;
 #endif
 }
