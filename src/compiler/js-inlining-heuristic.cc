@@ -19,6 +19,23 @@ namespace compiler {
     if (FLAG_trace_turbo_inlining) PrintF(__VA_ARGS__); \
   } while (false)
 
+JSInliningHeuristic::JSInliningHeuristic(Editor* editor, Mode mode,
+                                         Zone* local_zone,
+                                         CompilationInfo* info,
+                                         JSGraph* jsgraph,
+                                         SourcePositionTable* source_positions)
+    : AdvancedReducer(editor),
+      mode_(mode),
+      inliner_(editor, local_zone, info, jsgraph, source_positions),
+      candidates_(local_zone),
+      seen_(local_zone),
+      jsgraph_(jsgraph) {
+  // Initialize cumulative_count_ with the size of the current function.
+  if (info->shared_info()->HasBytecodeArray()) {
+    cumulative_count_ = info->shared_info()->bytecode_array()->length();
+  }
+}
+
 namespace {
 
 int CollectFunctions(Node* node, Handle<JSFunction>* functions,
