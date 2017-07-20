@@ -482,7 +482,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadNativeContext(Node* context);
 
   Node* LoadJSArrayElementsMap(ElementsKind kind, Node* native_context);
-  Node* LoadJSArrayElementsMap(Node* kind, Node* native_context);
 
   // Load the "prototype" property of a JSFunction.
   Node* LoadJSFunctionPrototype(Node* function, Label* if_bailout);
@@ -1296,10 +1295,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load type feedback vector from the stub caller's frame.
   Node* LoadFeedbackVectorForStub();
-
-  Node* LoadFeedbackVector(Node* closure);
-  Node* LoadFeedbackVectorSlot(Node* closure, Node* smi_index);
-  void StoreFeedbackVectorSlot(Node* closure, Node* smi_index, Node* value);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id,

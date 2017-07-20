@@ -223,8 +223,6 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateLiteralArrayOrObject(node);
     case IrOpcode::kJSCreateLiteralRegExp:
       return ReduceJSCreateLiteralRegExp(node);
-    case IrOpcode::kJSCreateEmptyLiteralArray:
-      return ReduceJSCreateEmptyLiteralArray(node);
     case IrOpcode::kJSCreateFunctionContext:
       return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:
@@ -625,8 +623,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
                                            int capacity,
                                            Handle<AllocationSite> site) {
-  DCHECK(node->opcode() == IrOpcode::kJSCreateArray ||
-         node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
+  DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -936,23 +933,6 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
           effect, control, Handle<JSRegExp>::cast(maybe_boilerplate));
       ReplaceWithValue(node, value, effect, control);
       return Replace(value);
-    }
-  }
-  return NoChange();
-}
-
-Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kJSCreateEmptyLiteralArray);
-  int literal_index = OpParameter<int>(node);
-  Handle<FeedbackVector> feedback_vector;
-  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
-    FeedbackSlot slot(FeedbackVector::ToSlot(literal_index));
-    Handle<Object> raw_site(feedback_vector->Get(slot), isolate());
-    if (raw_site->IsAllocationSite()) {
-      Handle<AllocationSite> site = Handle<AllocationSite>::cast(raw_site);
-      DCHECK(!site->PointsToLiteral());
-      Node* length = jsgraph()->ZeroConstant();
-      return ReduceNewArray(node, length, 0, site);
     }
   }
   return NoChange();

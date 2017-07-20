@@ -29,9 +29,9 @@
 // Flags: --opt --no-always-opt --no-stress-fullcodegen
 
 var elements_kind = {
-  packed_smi               :  'packed smi elements',
-  packed                   :  'packed elements',
-  packed_double            :  'packed double elements',
+  fast_smi_only            :  'fast smi only elements',
+  fast                     :  'fast elements',
+  fast_double              :  'fast double elements',
   dictionary               :  'dictionary elements',
   external_byte            :  'external byte elements',
   external_unsigned_byte   :  'external unsigned byte elements',
@@ -45,9 +45,9 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasSmiElements(obj)) return elements_kind.packed_smi;
-  if (%HasObjectElements(obj)) return elements_kind.packed;
-  if (%HasDoubleElements(obj)) return elements_kind.packed_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 }
 
@@ -93,7 +93,7 @@ assertOptimized(get_literal);
 
 
 // Test: make sure allocation site information is updated through a
-// transition from SMI->DOUBLE->PACKED
+// transition from SMI->DOUBLE->FAST
 (function() {
   function bar(a, b, c) {
     return [a, b, c];
@@ -103,132 +103,5 @@ assertOptimized(get_literal);
   a[0] = 3.5;
   a[1] = 'hi';
   b = bar(1, 2, 3);
-  assertKind(elements_kind.packed, b);
-})();
-
-
-(function changeOptimizedEmptyArrayKind() {
-  function f() {
-    return new Array();
-  }
-  var a = f();
-  assertKind('packed smi elements', a);
-  a = f();
-  assertKind('packed smi elements', a);
-  a = f();
-  a.push(0.5);
-  assertKind('packed double elements', a);
-  %OptimizeFunctionOnNextCall(f);
-  a = f();
-  assertKind('packed double elements', a);
-})();
-
-(function changeOptimizedArrayLiteralKind() {
-  function f() {
-    return [1, 2];
-  }
-  var a = f();
-  assertKind('packed smi elements', a);
-
-  a = f();
-  a.push(0.5);
-  assertKind('packed double elements', a);
-
-  a = f();
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  a.push(undefined);
-  assertKind('packed elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed elements', a);
-  assertFalse(isHoley(a));
-
-  %OptimizeFunctionOnNextCall(f);
-
-  a = f();
-  assertKind('packed elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed elements', a);
-  assertFalse(isHoley(a));
-})();
-
-(function changeOptimizedEmptyArrayLiteralKind() {
-  function f() {
-    return [];
-  }
-  var a = f();
-  assertKind('packed smi elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  a.push(0.5);
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-
-  %OptimizeFunctionOnNextCall(f);
-
-  a = f();
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-})();
-
-(function changeEmptyArrayLiteralKind2() {
-  function f() {
-    var literal = [];
-    %HeapObjectVerify(literal);
-    return literal;
-  }
-  var a = f();
-  assertKind('packed smi elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  a.push(0.5);
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed double elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  a.push(undefined);
-  assertKind('packed elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  a[10] = 1;
-  assertKind('packed elements', a);
-  assertTrue(isHoley(a));
-
-  a = f();
-  assertKind('packed elements', a);
-  assertTrue(isHoley(a));
-
-  a = f();
-  a[10000] = 1;
-  assertKind('dictionary elements', a);
-  assertFalse(isHoley(a));
-
-  a = f();
-  assertKind('packed elements', a);
-  assertTrue(isHoley(a));
+  assertKind(elements_kind.fast, b);
 })();

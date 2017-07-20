@@ -1442,12 +1442,6 @@ class ArrayLiteral final : public AggregateLiteral {
 
   ZoneList<Expression*>* values() const { return values_; }
 
-  bool is_empty() const {
-    DCHECK(is_initialized());
-    return values()->is_empty() &&
-           (constant_elements().is_null() || constant_elements()->is_empty());
-  }
-
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
 
