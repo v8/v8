@@ -2053,6 +2053,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64S128Or, Orr, 16B);
       SIMD_BINOP_CASE(kArm64S128Xor, Eor, 16B);
       SIMD_UNOP_CASE(kArm64S128Not, Mvn, 16B);
+    case kArm64S128Dup: {
+      VRegister dst = i.OutputSimd128Register(),
+                src = i.InputSimd128Register(0);
+      int lanes = i.InputInt32(1);
+      int index = i.InputInt32(2);
+      switch (lanes) {
+        case 4:
+          __ Dup(dst.V4S(), src.V4S(), index);
+          break;
+        case 8:
+          __ Dup(dst.V8H(), src.V8H(), index);
+          break;
+        case 16:
+          __ Dup(dst.V16B(), src.V16B(), index);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+      break;
+    }
     case kArm64S128Select: {
       VRegister dst = i.OutputSimd128Register().V16B();
       DCHECK(dst.is(i.InputSimd128Register(0).V16B()));

@@ -1577,7 +1577,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
-              DwVfpRegister::from_code(src_code / 2), src_code & 0x1);
+              DwVfpRegister::from_code(src_code / 2), src_code % 2);
       break;
     }
     case kArmF32x4ExtractLane: {
@@ -2086,6 +2086,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS128Zero: {
       __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
               i.OutputSimd128Register());
+      break;
+    }
+    case kArmS128Dup: {
+      NeonSize size = static_cast<NeonSize>(i.InputInt32(1));
+      int lanes = kSimd128Size >> size;
+      int index = i.InputInt32(2);
+      DCHECK(index < lanes);
+      int d_lanes = lanes / 2;
+      int src_d_index = index & (d_lanes - 1);
+      int src_d_code = i.InputSimd128Register(0).low().code() + index / d_lanes;
+      __ vdup(size, i.OutputSimd128Register(),
+              DwVfpRegister::from_code(src_d_code), src_d_index);
       break;
     }
     case kArmS128And: {

@@ -1591,6 +1591,14 @@ WASM_SIMD_TEST(F32x4AddHoriz) {
     V8_TARGET_ARCH_MIPS64
 // Test some regular shuffles that may have special handling on some targets.
 // Test a normal and unary versions (where second operand isn't used).
+WASM_SIMD_TEST(S32x4Dup) {
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7}});
+}
+
 WASM_SIMD_TEST(S32x4ZipLeft) {
   RunBinaryLaneOpTest<int8_t>(
       kExprS8x16Shuffle,
@@ -1655,6 +1663,14 @@ WASM_SIMD_TEST(S32x4Irregular) {
       {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}});
   RunBinaryLaneOpTest<int8_t>(
       kExprS8x16Shuffle, {{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7}});
+}
+
+WASM_SIMD_TEST(S16x8Dup) {
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7}});
 }
 
 WASM_SIMD_TEST(S16x8ZipLeft) {
@@ -1724,6 +1740,14 @@ WASM_SIMD_TEST(S16x8Irregular) {
       {{0, 1, 16, 17, 16, 17, 0, 1, 4, 5, 20, 21, 6, 7, 22, 23}});
   RunBinaryLaneOpTest<int8_t>(
       kExprS8x16Shuffle, {{0, 1, 0, 1, 0, 1, 0, 1, 4, 5, 4, 5, 6, 7, 6, 7}});
+}
+
+WASM_SIMD_TEST(S8x16Dup) {
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7}});
 }
 
 WASM_SIMD_TEST(S8x16ZipLeft) {
