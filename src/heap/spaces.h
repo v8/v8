@@ -1967,6 +1967,8 @@ class LocalAllocationBuffer {
   // Returns true if the merge was successful, false otherwise.
   inline bool TryMerge(LocalAllocationBuffer* other);
 
+  inline bool TryFreeLast(HeapObject* object, int object_size);
+
   // Close a LAB, effectively invalidating it. Returns the unused area.
   AllocationInfo Close();
 
@@ -2098,6 +2100,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
     DCHECK_GE(size_in_bytes, wasted);
     return size_in_bytes - wasted;
   }
+
+  inline bool TryFreeLast(HeapObject* object, int object_size);
 
   void ResetFreeList() { free_list_.Reset(); }
 

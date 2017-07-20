@@ -47,6 +47,7 @@
 #include "src/execution.h"
 #include "src/futex-emulation.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/local-allocator.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/parsing/preparse-data.h"
@@ -7577,6 +7578,8 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   i::FLAG_stress_incremental_marking = false;
+  // Parallel scavenge introduces too much fragmentation.
+  i::FLAG_parallel_scavenge = false;
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Local<Context> context = Context::New(iso);

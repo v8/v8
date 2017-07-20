@@ -1804,10 +1804,11 @@ class ScavengingItem : public ItemParallelJob::Item {
 
 class ScavengingTask final : public ItemParallelJob::Task {
  public:
-  ScavengingTask(Heap* heap, Scavenger* scavenger)
+  ScavengingTask(Heap* heap, Scavenger* scavenger, Scavenger::Barrier* barrier)
       : ItemParallelJob::Task(heap->isolate()),
         heap_(heap),
-        scavenger_(scavenger) {}
+        scavenger_(scavenger),
+        barrier_(barrier) {}
 
   void RunInParallel() final {
     double scavenging_time = 0.0;
@@ -1817,6 +1818,10 @@ class ScavengingTask final : public ItemParallelJob::Task {
       while ((item = GetItem<ScavengingItem>()) != nullptr) {
         item->Process(scavenger_);
         item->MarkFinished();
+      }
+      while (!barrier_->Done()) {
+        scavenger_->Process(barrier_);
+        barrier_->Wait();
       }
       scavenger_->Process();
     }
@@ -1831,6 +1836,7 @@ class ScavengingTask final : public ItemParallelJob::Task {
  private:
   Heap* const heap_;
   Scavenger* const scavenger_;
+  Scavenger::Barrier* const barrier_;
 };
 
 class PageScavengingItem final : public ScavengingItem {
@@ -1868,8 +1874,14 @@ class PageScavengingItem final : public ScavengingItem {
 };
 
 int Heap::NumberOfScavengeTasks() {
-  CHECK(!FLAG_parallel_scavenge);
-  return 1;
+  if (!FLAG_parallel_scavenge) return 1;
+  const int num_scavenge_tasks =
+      static_cast<int>(new_space()->TotalCapacity()) / MB;
+  return Max(
+      1,
+      Min(Min(num_scavenge_tasks, kMaxScavengerTasks),
+          static_cast<int>(
+              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())));
 }
 
 void Heap::Scavenge() {
@@ -1910,12 +1922,13 @@ void Heap::Scavenge() {
   const bool is_logging = IsLogging(isolate());
   const bool is_incremental_marking = incremental_marking()->IsMarking();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
+  Scavenger::Barrier barrier(num_scavenge_tasks);
   CopiedList copied_list(num_scavenge_tasks);
   PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
     scavengers[i] = new Scavenger(this, is_logging, is_incremental_marking,
                                   &copied_list, &promotion_list, i);
-    job.AddTask(new ScavengingTask(this, scavengers[i]));
+    job.AddTask(new ScavengingTask(this, scavengers[i], &barrier));
   }
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(

@@ -514,7 +514,7 @@ String* ConsString::second() {
 }
 
 Object* ConsString::unchecked_second() {
-  return READ_FIELD(this, kSecondOffset);
+  return RELAXED_READ_FIELD(this, kSecondOffset);
 }
 
 void ConsString::set_second(String* value, WriteBarrierMode mode) {

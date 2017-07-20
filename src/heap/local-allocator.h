@@ -55,6 +55,21 @@ class LocalAllocator {
     }
   }
 
+  void FreeLast(AllocationSpace space, HeapObject* object, int object_size) {
+    switch (space) {
+      case NEW_SPACE:
+        FreeLastInNewSpace(object, object_size);
+        return;
+      case OLD_SPACE:
+        FreeLastInOldSpace(object, object_size);
+        return;
+      default:
+        // Only new and old space supported.
+        UNREACHABLE();
+        break;
+    }
+  }
+
  private:
   AllocationResult AllocateInNewSpace(int object_size,
                                       AllocationAlignment alignment) {
@@ -95,6 +110,22 @@ class LocalAllocator {
       }
     }
     return allocation;
+  }
+
+  void FreeLastInNewSpace(HeapObject* object, int object_size) {
+    if (!new_space_lab_.TryFreeLast(object, object_size)) {
+      // We couldn't free the last object so we have to write a proper filler.
+      heap_->CreateFillerObjectAt(object->address(), object_size,
+                                  ClearRecordedSlots::kNo);
+    }
+  }
+
+  void FreeLastInOldSpace(HeapObject* object, int object_size) {
+    if (!compaction_spaces_.Get(OLD_SPACE)->TryFreeLast(object, object_size)) {
+      // We couldn't free the last object so we have to write a proper filler.
+      heap_->CreateFillerObjectAt(object->address(), object_size,
+                                  ClearRecordedSlots::kNo);
+    }
   }
 
   Heap* const heap_;

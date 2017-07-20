@@ -172,6 +172,17 @@ intptr_t PagedSpace::RelinkFreeListCategories(Page* page) {
   return added;
 }
 
+bool PagedSpace::TryFreeLast(HeapObject* object, int object_size) {
+  if (allocation_info_.top() != nullptr) {
+    const Address object_address = object->address();
+    if ((allocation_info_.top() - object_size) == object_address) {
+      allocation_info_.set_top(object_address);
+      return true;
+    }
+  }
+  return false;
+}
+
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   uintptr_t offset = addr - chunk->address();
@@ -515,6 +526,17 @@ bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
     allocation_info_.set_top(other->allocation_info_.top());
     other->allocation_info_.Reset(nullptr, nullptr);
     return true;
+  }
+  return false;
+}
+
+bool LocalAllocationBuffer::TryFreeLast(HeapObject* object, int object_size) {
+  if (IsValid()) {
+    const Address object_address = object->address();
+    if ((allocation_info_.top() - object_size) == object_address) {
+      allocation_info_.set_top(object_address);
+      return true;
+    }
   }
   return false;
 }

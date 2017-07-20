@@ -26,6 +26,8 @@ v8::Isolate* NewIsolateForPagePromotion(int min_semi_space_size = 8,
   FLAG_parallel_compaction = false;
   FLAG_page_promotion = true;
   FLAG_page_promotion_threshold = 0;
+  // Parallel scavenge introduces too much fragmentation.
+  FLAG_parallel_scavenge = false;
   FLAG_min_semi_space_size = min_semi_space_size;
   // We cannot optimize for size as we require a new space with more than one
   // page.
