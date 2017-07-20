@@ -247,6 +247,7 @@ TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
                         "get %TypedArray%.prototype.subarray", this);
   }
 );
+%SetForceInlineFlag(GlobalTypedArray.prototype.subarray);
 
 
 

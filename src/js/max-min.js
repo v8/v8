@@ -16,6 +16,8 @@ function MinSimple(a, b) {
   return a > b ? b : a;
 }
 
+%SetForceInlineFlag(MaxSimple);
+%SetForceInlineFlag(MinSimple);
 
 // ----------------------------------------------------------------------------
 // Exports
