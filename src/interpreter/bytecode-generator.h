@@ -138,9 +138,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildGeneratorSuspend(Suspend* expr, Register value,
-                             RegisterList registers_to_save);
-  void BuildGeneratorResume(Suspend* expr, RegisterList registers_to_restore);
+  void BuildSuspendPoint(int suspend_id);
+
   void BuildAbruptResume(Suspend* expr);
   void BuildGetIterator(Expression* iterable, IteratorType hint,
                         FeedbackSlot load_slot, FeedbackSlot call_slot,
