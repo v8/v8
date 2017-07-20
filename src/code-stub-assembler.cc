@@ -9570,16 +9570,13 @@ Node* CodeStubAssembler::MarkerIsNotFrameType(Node* marker_or_function,
 }
 
 void CodeStubAssembler::Print(const char* s) {
-#ifdef DEBUG
   std::string formatted(s);
   formatted += "\n";
   CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
               StringConstant(formatted.c_str()));
-#endif
 }
 
 void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
-#ifdef DEBUG
   if (prefix != nullptr) {
     std::string formatted(prefix);
     formatted += ": ";
@@ -9589,7 +9586,6 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
                 HeapConstant(string));
   }
   CallRuntime(Runtime::kDebugPrint, NoContextConstant(), tagged_value);
-#endif
 }
 
 }  // namespace internal
