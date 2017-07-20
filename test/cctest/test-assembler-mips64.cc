@@ -8360,4 +8360,82 @@ TEST(MSA_sat_s_sat_u) {
 #undef M_MAX_UINT
 }
 
+template <typename InstFunc, typename OperFunc>
+void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
+                 OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+  GenerateVectorInstructionFunc(assm, input);
+
+  __ copy_u_w(t2, w0, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w0, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w0, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w0, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input), res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input), res.d[1]);
+}
+
+TEST(MSA_ldi) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  // signed 10bit integers: -512 .. 511
+  int32_t tc[] = {0, -1, 1, 256, -256, -178, 352, -512, 511};
+
+#define LDI_DF(lanes, mask)                                        \
+  [](int32_t s10) {                                                \
+    uint64_t res = 0;                                              \
+    int elem_size = kMSARegSize / lanes;                           \
+    int64_t s10_64 =                                               \
+        ArithmeticShiftRight(static_cast<int64_t>(s10) << 54, 54); \
+    for (int i = 0; i < lanes / 2; ++i) {                          \
+      int shift = elem_size * i;                                   \
+      res |= static_cast<uint64_t>(s10_64 & mask) << shift;        \
+    }                                                              \
+    return res;                                                    \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(int32_t); ++i) {
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_b(w0, s10); },
+                LDI_DF(kMSALanesByte, UINT8_MAX));
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_h(w0, s10); },
+                LDI_DF(kMSALanesHalf, UINT16_MAX));
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_w(w0, s10); },
+                LDI_DF(kMSALanesWord, UINT32_MAX));
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_d(w0, s10); },
+                LDI_DF(kMSALanesDword, UINT64_MAX));
+  }
+#undef LDI_DF
+}
+
 #undef __

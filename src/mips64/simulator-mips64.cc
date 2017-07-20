@@ -4708,11 +4708,37 @@ void Simulator::DecodeTypeMsaI10() {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaI5Mask;
+  int64_t s10 = (static_cast<int64_t>(instr_.MsaImm10Value()) << 54) >> 54;
+  msa_reg_t wd;
+
+#define MSA_I10_DF(elem, num_of_lanes, T)      \
+  for (int i = 0; i < num_of_lanes; ++i) {     \
+    wd.elem[i] = static_cast<T>(s10);          \
+  }                                            \
+  set_msa_register(instr_.WdValue(), wd.elem); \
+  TraceMSARegWr(wd.elem)
+
   if (opcode == LDI) {
-    UNIMPLEMENTED();
+    switch (DecodeMsaDataFormat()) {
+      case MSA_BYTE:
+        MSA_I10_DF(b, kMSALanesByte, int8_t);
+        break;
+      case MSA_HALF:
+        MSA_I10_DF(h, kMSALanesHalf, int16_t);
+        break;
+      case MSA_WORD:
+        MSA_I10_DF(w, kMSALanesWord, int32_t);
+        break;
+      case MSA_DWORD:
+        MSA_I10_DF(d, kMSALanesDword, int64_t);
+        break;
+      default:
+        UNREACHABLE();
+    }
   } else {
     UNREACHABLE();
   }
+#undef MSA_I10_DF
 }
 
 void Simulator::DecodeTypeMsaELM() {
