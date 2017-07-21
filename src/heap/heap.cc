@@ -4481,10 +4481,10 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
 }
 
 void Heap::RegisterDeserializedObjectsForBlackAllocation(
-    Reservation* reservations, List<HeapObject*>* large_objects) {
-  // TODO(hpayer): We do not have to iterate reservations on black objects
-  // for marking. We just have to execute the special visiting side effect
-  // code that adds objects to global data structures, e.g. for array buffers.
+    Reservation* reservations, List<HeapObject*>* large_objects,
+    List<Address>* maps) {
+  // TODO(ulan): pause black allocation during deserialization to avoid
+  // iterating all these objects in one go.
 
   if (!incremental_marking()->black_allocation()) return;
 
@@ -4513,6 +4513,12 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   // Large object space doesn't use reservations, so it needs custom handling.
   for (HeapObject* object : *large_objects) {
     incremental_marking()->ProcessBlackAllocatedObject(object);
+  }
+
+  // Map space doesn't use reservations, so it needs custom handling.
+  for (Address addr : *maps) {
+    incremental_marking()->ProcessBlackAllocatedObject(
+        HeapObject::FromAddress(addr));
   }
 }
 

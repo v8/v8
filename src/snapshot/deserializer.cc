@@ -153,7 +153,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   DeserializeEmbedderFields(embedder_fields_deserializer);
 
   isolate->heap()->RegisterDeserializedObjectsForBlackAllocation(
-      reservations_, &deserialized_large_objects_);
+      reservations_, &deserialized_large_objects_, &allocated_maps_);
 
   // There's no code deserialized here. If this assert fires then that's
   // changed and logging should be added to notify the profiler et al of the
@@ -181,7 +181,7 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
       FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
       result = Handle<HeapObject>(HeapObject::cast(root));
       isolate->heap()->RegisterDeserializedObjectsForBlackAllocation(
-          reservations_, &deserialized_large_objects_);
+          reservations_, &deserialized_large_objects_, &allocated_maps_);
     }
     CommitPostProcessedObjects(isolate);
     return scope.CloseAndEscape(result);
