@@ -2924,22 +2924,6 @@ void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
   }
 }
 
-namespace {
-
-Map* GetTransitionArrayOwnerMap(Heap* heap, TransitionArray* transitions,
-                                int num_transitions) {
-  // Search for any non-shortcut transition.
-  for (int i = 0; i < num_transitions; i++) {
-    Name* key = transitions->GetKey(i);
-    if (TransitionArray::IsShortcutTransition(key)) continue;
-    Map* target = transitions->GetTarget(i);
-    Map* parent = Map::cast(target->constructor_or_backpointer());
-    return parent;
-  }
-  return nullptr;
-}
-
-}  // namespace
 
 void MarkCompactCollector::ClearFullMapTransitions() {
   HeapObject* undefined = heap()->undefined_value();
@@ -2949,20 +2933,16 @@ void MarkCompactCollector::ClearFullMapTransitions() {
     int num_transitions = array->number_of_entries();
     DCHECK_EQ(TransitionArray::NumberOfTransitions(array), num_transitions);
     if (num_transitions > 0) {
-      Map* parent = GetTransitionArrayOwnerMap(heap(), array, num_transitions);
-      if (!parent) {
-        // The transition array contains only shortcut transitions.
-        CompactTransitionArray(parent, array, nullptr);
-      } else {
-        bool parent_is_alive = ObjectMarking::IsBlackOrGrey(
-            parent, MarkingState::Internal(parent));
-        DescriptorArray* descriptors =
-            parent_is_alive ? parent->instance_descriptors() : nullptr;
-        bool descriptors_owner_died =
-            CompactTransitionArray(parent, array, descriptors);
-        if (descriptors_owner_died) {
-          TrimDescriptorArray(parent, descriptors);
-        }
+      Map* map = array->GetTarget(0);
+      Map* parent = Map::cast(map->constructor_or_backpointer());
+      bool parent_is_alive =
+          ObjectMarking::IsBlackOrGrey(parent, MarkingState::Internal(parent));
+      DescriptorArray* descriptors =
+          parent_is_alive ? parent->instance_descriptors() : nullptr;
+      bool descriptors_owner_died =
+          CompactTransitionArray(parent, array, descriptors);
+      if (descriptors_owner_died) {
+        TrimDescriptorArray(parent, descriptors);
       }
     }
     obj = array->next_link();
@@ -2971,41 +2951,6 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   heap()->set_encountered_transition_arrays(Smi::kZero);
 }
 
-namespace {
-
-// Returns true if the target is live and the transition entry should be kept
-// in the transition array. In addition, if current transition entry is a dead
-// shortcut transition this function tries to fixup the entry to make it point
-// to the next live target in a shortcut chain.
-bool FixupDeadTransition(bool is_shortcut_transition, Name* key, Map* target,
-                         TransitionArray* transitions, int transition_index) {
-  if (!ObjectMarking::IsWhite(target, MarkingState::Internal(target))) {
-    return true;
-  }
-  if (!is_shortcut_transition) {
-    // Target map is dead.
-    return false;
-  }
-
-  Symbol* symbol = Symbol::cast(key);
-  // Follow the shortcut transition chain in order to find live target.
-  for (;;) {
-    target = TransitionArray::SearchSpecial(target, symbol);
-    if (target == nullptr ||
-        !ObjectMarking::IsWhite(target, MarkingState::Internal(target))) {
-      break;
-    }
-  }
-  if (target) {
-    // Found live target in shortcuts chain, now fixup the transitions array.
-    // Target slots do not need to be recorded since maps are not compacted.
-    transitions->SetTarget(transition_index, target);
-    return true;
-  }
-  return false;
-}
-
-}  // namespace
 
 bool MarkCompactCollector::CompactTransitionArray(
     Map* map, TransitionArray* transitions, DescriptorArray* descriptors) {
@@ -3014,24 +2959,16 @@ bool MarkCompactCollector::CompactTransitionArray(
   int transition_index = 0;
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
-    Name* key;
-    Map* target;
-    std::tie(key, target) = TransitionArray::GetKeyAndTarget(transitions, i);
-    bool is_shortcut_transition =
-        TransitionArray::IsShortcutTransition(heap(), key);
-
-    DCHECK_IMPLIES(!is_shortcut_transition,
-                   target->constructor_or_backpointer() == map);
-
-    bool is_live_transition = FixupDeadTransition(is_shortcut_transition, key,
-                                                  target, transitions, i);
-    if (!is_live_transition) {
-      if (!is_shortcut_transition && descriptors != nullptr &&
+    Map* target = transitions->GetTarget(i);
+    DCHECK_EQ(target->constructor_or_backpointer(), map);
+    if (ObjectMarking::IsWhite(target, MarkingState::Internal(target))) {
+      if (descriptors != nullptr &&
           target->instance_descriptors() == descriptors) {
         descriptors_owner_died = true;
       }
     } else {
       if (i != transition_index) {
+        Name* key = transitions->GetKey(i);
         transitions->SetKey(transition_index, key);
         Object** key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);

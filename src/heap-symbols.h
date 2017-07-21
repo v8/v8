@@ -217,7 +217,6 @@
   V(class_start_position_symbol)            \
   V(detailed_stack_trace_symbol)            \
   V(elements_transition_symbol)             \
-  V(elements_transition_shortcut_symbol)    \
   V(error_end_pos_symbol)                   \
   V(error_script_symbol)                    \
   V(error_start_pos_symbol)                 \

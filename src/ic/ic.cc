@@ -1439,7 +1439,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     if (receiver_map->is_stable()) {
       Map* tmap = receiver_map->FindElementsKindTransitionedMap(*receiver_maps);
       if (tmap != nullptr) {
-        Map::RegisterElementsKindTransitionShortcut(receiver_map, handle(tmap));
+        receiver_map->NotifyLeafMapLayoutChange();
       }
     }
     handlers->Add(LoadElementHandler(receiver_map));
@@ -2130,9 +2130,10 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
         Map* tmap =
             receiver_map->FindElementsKindTransitionedMap(*receiver_maps);
         if (tmap != nullptr) {
+          if (receiver_map->is_stable()) {
+            receiver_map->NotifyLeafMapLayoutChange();
+          }
           transitioned_map = handle(tmap);
-          Map::RegisterElementsKindTransitionShortcut(receiver_map,
-                                                      transitioned_map);
         }
       }
 

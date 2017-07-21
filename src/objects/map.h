@@ -345,11 +345,11 @@ class Map : public HeapObject {
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
 
-  static Handle<Map> ReconfigureProperty(
-      Handle<Map> map, int modify_index, PropertyKind new_kind,
-      PropertyAttributes new_attributes, Representation new_representation,
-      Handle<FieldType> new_field_type,
-      PropertyConstness new_constness = kConst);
+  static Handle<Map> ReconfigureProperty(Handle<Map> map, int modify_index,
+                                         PropertyKind new_kind,
+                                         PropertyAttributes new_attributes,
+                                         Representation new_representation,
+                                         Handle<FieldType> new_field_type);
 
   static Handle<Map> ReconfigureElementsKind(Handle<Map> map,
                                              ElementsKind new_elements_kind);
@@ -494,9 +494,6 @@ class Map : public HeapObject {
   // the ElementsKind set.
   static Handle<Map> TransitionElementsTo(Handle<Map> map,
                                           ElementsKind to_kind);
-
-  static void RegisterElementsKindTransitionShortcut(Handle<Map> map,
-                                                     Handle<Map> transition);
 
   static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
@@ -747,9 +744,6 @@ class Map : public HeapObject {
       Handle<Map> split_map, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> full_layout_descriptor);
 
-  static inline void InsertElementsKindTransitionShortcutForTesting(
-      Isolate* isolate, Handle<Map> map, Handle<Map> transition);
-
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing
   // the descriptor array.
@@ -768,12 +762,6 @@ class Map : public HeapObject {
   // taken by this function. Returns |nullptr| if matching transition map is
   // not found.
   Map* TryReplayPropertyTransitions(Map* map);
-
-  static MaybeHandle<Map> GetTransitionShortcutRemoveDeprecated(
-      Isolate* isolate, Handle<Map> map, Handle<Symbol> name);
-  static void InsertElementsKindTransitionShortcut(Isolate* isolate,
-                                                   Handle<Map> map,
-                                                   Handle<Map> transition);
 
   static void ConnectTransition(Handle<Map> parent, Handle<Map> child,
                                 Handle<Name> name, SimpleTransitionFlag flag);
@@ -814,7 +802,7 @@ class Map : public HeapObject {
       Handle<Map> map, ElementsKind elements_kind, int modify_index,
       PropertyKind kind, PropertyAttributes attributes, const char* reason);
 
-  void DeprecateTransitionTree(Isolate* isolate);
+  void DeprecateTransitionTree();
 
   void ReplaceDescriptors(DescriptorArray* new_descriptors,
                           LayoutDescriptor* new_layout_descriptor);
@@ -822,8 +810,7 @@ class Map : public HeapObject {
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:
   // it must be either a simple type or a map wrapped in a weak cell.
-  // Returns true if the elements kind transition shortcut exists.
-  bool UpdateFieldType(int descriptor_number, Handle<Name> name,
+  void UpdateFieldType(int descriptor_number, Handle<Name> name,
                        PropertyConstness new_constness,
                        Representation new_representation,
                        Handle<Object> new_wrapped_type);

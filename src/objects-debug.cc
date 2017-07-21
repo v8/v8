@@ -1627,12 +1627,7 @@ static bool CheckOneBackPointer(Map* current_map, Object* target) {
 // static
 bool TransitionArray::IsConsistentWithBackPointers(Map* map) {
   Object* transitions = map->raw_transitions();
-  Heap* heap = map->GetHeap();
   for (int i = 0; i < TransitionArray::NumberOfTransitions(transitions); ++i) {
-    // Back pointers of shortcut transitions don't point to source maps.
-    Name* name = TransitionArray::GetKey(transitions, i);
-    if (IsShortcutTransition(heap, name)) continue;
-
     Map* target = TransitionArray::GetTarget(transitions, i);
     if (!CheckOneBackPointer(map, target)) return false;
   }

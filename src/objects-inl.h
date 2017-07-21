@@ -3184,11 +3184,6 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
   return AddMissingTransitions(split_map, descriptors, full_layout_descriptor);
 }
 
-void Map::InsertElementsKindTransitionShortcutForTesting(
-    Isolate* isolate, Handle<Map> map, Handle<Map> transition) {
-  Map::InsertElementsKindTransitionShortcut(isolate, map, transition);
-}
-
 int HeapObject::SizeFromMap(Map* map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
