@@ -1479,6 +1479,10 @@ Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
     page = free_list()->GetPageForCategoryType(kMedium);
   if (!page && static_cast<int>(kSmall) >= minimum_category)
     page = free_list()->GetPageForCategoryType(kSmall);
+  if (!page && static_cast<int>(kTiny) >= minimum_category)
+    page = free_list()->GetPageForCategoryType(kTiny);
+  if (!page && static_cast<int>(kTiniest) >= minimum_category)
+    page = free_list()->GetPageForCategoryType(kTiniest);
   if (!page) return nullptr;
 
   AccountUncommitted(page->size());
