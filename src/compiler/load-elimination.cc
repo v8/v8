@@ -146,7 +146,7 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
 
 Node* LoadElimination::AbstractChecks::Lookup(Node* node) const {
   for (Node* const check : nodes_) {
-    if (check && IsCompatibleCheck(check, node)) {
+    if (check && !check->IsDead() && IsCompatibleCheck(check, node)) {
       return check;
     }
   }
