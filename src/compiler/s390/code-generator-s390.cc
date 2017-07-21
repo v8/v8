@@ -56,11 +56,9 @@ class S390OperandConverter final : public InstructionOperandConverter {
       case Constant::kInt32:
         return Operand(constant.ToInt32());
       case Constant::kFloat32:
-        return Operand(
-            isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
+        return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
-        return Operand(isolate()->factory()->NewNumber(
-            constant.ToFloat64().value(), TENURED));
+        return Operand::EmbeddedNumber(constant.ToFloat64());
       case Constant::kInt64:
 #if V8_TARGET_ARCH_S390X
         return Operand(constant.ToInt64());
@@ -208,7 +206,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
-        must_save_lr_(!gen->frame_access_state()->has_frame()) {}
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        zone_(gen->zone()) {}
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
                        Register value, Register scratch0, Register scratch1,
@@ -221,7 +220,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
-        must_save_lr_(!gen->frame_access_state()->has_frame()) {}
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        zone_(gen->zone()) {}
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -239,15 +239,15 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We need to save and restore r14 if the frame was elided.
       __ Push(r14);
     }
-    RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         remembered_set_action, save_fp_mode);
     if (offset_.is(no_reg)) {
       __ AddP(scratch1_, object_, Operand(offset_immediate_));
     } else {
       DCHECK_EQ(0, offset_immediate_);
       __ AddP(scratch1_, object_, offset_);
     }
-    __ CallStub(&stub);
+    __ CallStubDelayed(
+        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
+                                    remembered_set_action, save_fp_mode));
     if (must_save_lr_) {
       // We need to save and restore r14 if the frame was elided.
       __ Pop(r14);
@@ -263,6 +263,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch1_;
   RecordWriteMode const mode_;
   bool must_save_lr_;
+  Zone* zone_;
 };
 
 Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
@@ -1757,8 +1758,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      MathPowStub stub(isolate(), MathPowStub::DOUBLE);
-      __ CallStub(&stub);
+      __ CallStubDelayed(new (zone())
+                             MathPowStub(nullptr, MathPowStub::DOUBLE));
       __ Move(d1, d3);
       break;
     }
@@ -2772,12 +2773,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 #endif  // V8_TARGET_ARCH_S390X
           break;
         case Constant::kFloat32:
-          __ Move(dst,
-                  isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
+          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kFloat64:
-          __ Move(dst, isolate()->factory()->NewNumber(src.ToFloat64().value(),
-                                                       TENURED));
+          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64()));
           break;
         case Constant::kExternalReference:
           __ mov(dst, Operand(src.ToExternalReference()));

@@ -126,7 +126,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
 #endif
   // This can likely be optimized to make use of bc() with 24bit relative
   //
-  // RecordRelocInfo(x.rmode_, x.imm_);
+  // RecordRelocInfo(x.rmode_, x.immediate);
   // bc( BA, .... offset, LKset);
   //
 
@@ -150,12 +150,13 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 
+  Label start;
+  bind(&start);
+
 #ifdef DEBUG
   // Check the expected size before generating code to ensure we assume the same
   // constant pool availability (e.g., whether constant pool is full or not).
   int expected_size = CallSize(code, rmode, cond);
-  Label start;
-  bind(&start);
 #endif
 
   AllowDeferredHandleDereference using_raw_address;
@@ -1992,6 +1993,16 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+
+  // Block constant pool for the call instruction sequence.
+  ConstantPoolUnavailableScope constant_pool_unavailable(this);
+
+  mov(ip, Operand::EmbeddedCode(stub));
+  mtctr(ip);
+  bctrl();
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
@@ -2091,6 +2102,17 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst, Register src,
   rlwinm(dst, src, 0, 32 - num_least_bits, 31);
 }
 
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r3, Operand(f->nargs));
+  mov(r4, Operand(ExternalReference(f, isolate())));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
+}
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
@@ -3381,7 +3403,8 @@ void MacroAssembler::And(Register ra, Register rs, const Operand& rb,
   if (rb.is_reg()) {
     and_(ra, rs, rb.rm(), rc);
   } else {
-    if (is_uint16(rb.imm_) && RelocInfo::IsNone(rb.rmode_) && rc == SetRC) {
+    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
+        rc == SetRC) {
       andi(ra, rs, rb);
     } else {
       // mov handles the relocation.
@@ -3397,7 +3420,8 @@ void MacroAssembler::Or(Register ra, Register rs, const Operand& rb, RCBit rc) {
   if (rb.is_reg()) {
     orx(ra, rs, rb.rm(), rc);
   } else {
-    if (is_uint16(rb.imm_) && RelocInfo::IsNone(rb.rmode_) && rc == LeaveRC) {
+    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
+        rc == LeaveRC) {
       ori(ra, rs, rb);
     } else {
       // mov handles the relocation.
@@ -3414,7 +3438,8 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
   if (rb.is_reg()) {
     xor_(ra, rs, rb.rm(), rc);
   } else {
-    if (is_uint16(rb.imm_) && RelocInfo::IsNone(rb.rmode_) && rc == LeaveRC) {
+    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
+        rc == LeaveRC) {
       xori(ra, rs, rb);
     } else {
       // mov handles the relocation.

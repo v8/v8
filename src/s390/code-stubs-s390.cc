@@ -2250,7 +2250,6 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
                                                      Zone* zone) {
-  UNIMPLEMENTED_S390();
   if (masm->isolate()->function_entry_hook() != NULL) {
     PredictableCodeSizeScope predictable(masm,
 #if V8_TARGET_ARCH_S390X
@@ -2260,10 +2259,9 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
 #else
                                          32);
 #endif
-    ProfileEntryHookStub stub(masm->isolate());
     __ CleanseP(r14);
     __ Push(r14, ip);
-    __ CallStub(&stub);  // BRASL
+    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     __ Pop(r14, ip);
   }
 }
