@@ -61,12 +61,6 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
 
 class V8_EXPORT_PRIVATE SourcePositionTableIterator {
  public:
-  // Used for saving/restoring the iterator.
-  struct IndexAndPosition {
-    int index_;
-    PositionTableEntry position_;
-  };
-
   // We expose two flavours of the iterator, depending on the argument passed
   // to the constructor:
 
@@ -94,13 +88,6 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
     return current_.is_statement;
   }
   bool done() const { return index_ == kDone; }
-
-  IndexAndPosition GetState() const { return {index_, current_}; }
-
-  void RestoreState(const IndexAndPosition& saved_state) {
-    index_ = saved_state.index_;
-    current_ = saved_state.position_;
-  }
 
  private:
   static const int kDone = -1;

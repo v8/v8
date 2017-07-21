@@ -31,25 +31,16 @@ class BytecodeGraphBuilder {
       JSGraph* jsgraph, CallFrequency invocation_frequency,
       SourcePositionTable* source_positions,
       int inlining_id = SourcePosition::kNotInlined,
-      JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags,
-      bool stack_check = true);
+      JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags);
 
   // Creates a graph by visiting bytecodes.
-  void CreateGraph();
+  void CreateGraph(bool stack_check = true);
 
  private:
   class Environment;
-  class OsrIteratorState;
   struct SubEnvironment;
 
-  void RemoveMergeEnvironmentsBeforeOffset(int limit_offset);
-  void AdvanceToOsrEntryAndPeelLoops(
-      interpreter::BytecodeArrayIterator* iterator,
-      SourcePositionTableIterator* source_position_iterator);
-
-  void VisitSingleBytecode(
-      SourcePositionTableIterator* source_position_iterator);
-  void VisitBytecodes();
+  void VisitBytecodes(bool stack_check);
 
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
@@ -245,6 +236,10 @@ class BytecodeGraphBuilder {
   // Simulates control flow that exits the function body.
   void MergeControlToLeaveFunction(Node* exit);
 
+  // Builds entry points that are used by OSR deconstruction.
+  void BuildOSRLoopEntryPoint(int current_offset);
+  void BuildOSRNormalEntryPoint();
+
   // Builds loop exit nodes for every exited loop between the current bytecode
   // offset and {target_offset}.
   void BuildLoopExitsForBranch(int target_offset);
@@ -256,7 +251,7 @@ class BytecodeGraphBuilder {
 
   // Update the current position of the {SourcePositionTable} to that of the
   // bytecode at {offset}, if any.
-  void UpdateSourcePosition(SourcePositionTableIterator* it, int offset);
+  void UpdateCurrentSourcePosition(SourcePositionTableIterator* it, int offset);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -304,7 +299,7 @@ class BytecodeGraphBuilder {
   }
 
   void set_bytecode_iterator(
-      interpreter::BytecodeArrayIterator* bytecode_iterator) {
+      const interpreter::BytecodeArrayIterator* bytecode_iterator) {
     bytecode_iterator_ = bytecode_iterator;
   }
 
@@ -314,24 +309,6 @@ class BytecodeGraphBuilder {
 
   void set_bytecode_analysis(const BytecodeAnalysis* bytecode_analysis) {
     bytecode_analysis_ = bytecode_analysis;
-  }
-
-  int currently_peeled_loop_offset() const {
-    return currently_peeled_loop_offset_;
-  }
-
-  void set_currently_peeled_loop_offset(int offset) {
-    currently_peeled_loop_offset_ = offset;
-  }
-
-  bool stack_check() const { return stack_check_; }
-
-  void set_stack_check(bool stack_check) { stack_check_ = stack_check; }
-
-  int current_exception_handler() { return current_exception_handler_; }
-
-  void set_current_exception_handler(int index) {
-    current_exception_handler_ = index;
   }
 
   bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
@@ -355,8 +332,6 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
-  int currently_peeled_loop_offset_;
-  bool stack_check_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
