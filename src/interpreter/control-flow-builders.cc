@@ -11,7 +11,12 @@ namespace interpreter {
 
 
 BreakableControlFlowBuilder::~BreakableControlFlowBuilder() {
+  BindBreakTarget();
   DCHECK(break_labels_.empty() || break_labels_.is_bound());
+  if (block_coverage_builder_ != nullptr && needs_continuation_counter()) {
+    block_coverage_builder_->IncrementBlockCounter(
+        node_, SourceRangeKind::kContinuation);
+  }
 }
 
 void BreakableControlFlowBuilder::BindBreakTarget() {
@@ -40,28 +45,11 @@ void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
   builder()->JumpIfNull(sites->New());
 }
 
-void BlockBuilder::EndBlock() {
-  if (statement_->labels() != nullptr) {
-    builder()->Bind(&block_end_);
-    BindBreakTarget();
-  }
-  if (block_coverage_builder_ != nullptr && needs_continuation_counter_) {
-    block_coverage_builder_->IncrementBlockCounter(
-        statement_, SourceRangeKind::kContinuation);
-  }
-}
-
 LoopBuilder::~LoopBuilder() {
   DCHECK(continue_labels_.empty() || continue_labels_.is_bound());
-  BindBreakTarget();
   // Restore the parent jump table.
   if (generator_jump_table_location_ != nullptr) {
     *generator_jump_table_location_ = parent_generator_jump_table_;
-  }
-  // Generate block coverage counter for the continuation.
-  if (block_coverage_builder_ != nullptr) {
-    block_coverage_builder_->IncrementBlockCounter(
-        block_coverage_continuation_slot_);
   }
 }
 
@@ -120,10 +108,13 @@ SwitchBuilder::~SwitchBuilder() {
 #endif
 }
 
-
-void SwitchBuilder::SetCaseTarget(int index) {
+void SwitchBuilder::SetCaseTarget(int index, CaseClause* clause) {
   BytecodeLabel& site = case_sites_.at(index);
   builder()->Bind(&site);
+  if (block_coverage_builder_) {
+    block_coverage_builder_->IncrementBlockCounter(clause,
+                                                   SourceRangeKind::kBody);
+  }
 }
 
 

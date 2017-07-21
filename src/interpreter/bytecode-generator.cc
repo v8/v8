@@ -1037,7 +1037,6 @@ void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
     VisitDeclarations(stmt->scope()->declarations());
   }
   VisitStatements(stmt->statements());
-  block_builder.EndBlock();
 }
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
@@ -1285,7 +1284,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // We need this scope because we visit for register values. We have to
   // maintain a execution result scope where registers can be allocated.
   ZoneList<CaseClause*>* clauses = stmt->cases();
-  SwitchBuilder switch_builder(builder(), clauses->length());
+  SwitchBuilder switch_builder(builder(), block_coverage_builder_, stmt,
+                               clauses->length());
   ControlScopeForBreakable scope(this, stmt, &switch_builder);
   int default_index = -1;
 
@@ -1324,13 +1324,9 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Iterate over all cases and create the case bodies.
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
-    switch_builder.SetCaseTarget(i);
-    BuildIncrementBlockCoverageCounterIfEnabled(clause, SourceRangeKind::kBody);
+    switch_builder.SetCaseTarget(i, clause);
     VisitStatements(clause->statements());
   }
-  switch_builder.BindBreakTarget();
-  BuildIncrementBlockCoverageCounterIfEnabled(stmt,
-                                              SourceRangeKind::kContinuation);
 }
 
 void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
