@@ -4131,6 +4131,11 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
   } else if (!new_map->is_dictionary_map()) {
     MigrateFastToFast(object, new_map);
     if (old_map->is_prototype_map()) {
+      DisallowHeapAllocation no_allocation;
+      // Ensure that the object is marked because its old map is going
+      // to drop the descriptor array and the layout descriptor, which
+      // is unsafe for the concurrent marker.
+      object->GetHeap()->NotifyObjectLayoutChange(*object, no_allocation);
       DCHECK(!old_map->is_stable());
       DCHECK(new_map->is_stable());
       // Clear out the old descriptor array to avoid problems to sharing
@@ -4142,6 +4147,11 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
       DCHECK_EQ(
           0, TransitionArray::NumberOfTransitions(old_map->raw_transitions()));
       DCHECK(new_map->GetBackPointer()->IsUndefined(new_map->GetIsolate()));
+#ifdef VERIFY_HEAP
+      // When verify heap is on, NotifyObjectLayoutChange checks that
+      // it is followed by VerifyObjectLayoutChange after the map change.
+      object->GetHeap()->VerifyObjectLayoutChange(*object, *new_map);
+#endif
     }
   } else {
     MigrateFastToSlow(object, new_map, expected_additional_properties);
