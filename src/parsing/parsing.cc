@@ -40,8 +40,10 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate, bool internalize) {
   return (result != nullptr);
 }
 
-bool ParseFunction(ParseInfo* info, Isolate* isolate, bool internalize) {
+bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+                   Isolate* isolate, bool internalize) {
   DCHECK(!info->is_toplevel());
+  DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
 
   Parser parser(info);
@@ -50,7 +52,7 @@ bool ParseFunction(ParseInfo* info, Isolate* isolate, bool internalize) {
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
 
-  result = parser.ParseFunction(isolate, info);
+  result = parser.ParseFunction(isolate, info, shared_info);
   info->set_literal(result);
   if (result == nullptr) {
     parser.ReportErrors(isolate, info->script());
@@ -62,9 +64,12 @@ bool ParseFunction(ParseInfo* info, Isolate* isolate, bool internalize) {
   return (result != nullptr);
 }
 
-bool ParseAny(ParseInfo* info, Isolate* isolate, bool internalize) {
-  return info->is_toplevel() ? ParseProgram(info, isolate, internalize)
-                             : ParseFunction(info, isolate, internalize);
+bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+              Isolate* isolate, bool internalize) {
+  DCHECK(!shared_info.is_null());
+  return info->is_toplevel()
+             ? ParseProgram(info, isolate, internalize)
+             : ParseFunction(info, shared_info, isolate, internalize);
 }
 
 }  // namespace parsing

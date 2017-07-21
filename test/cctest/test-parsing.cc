@@ -889,7 +889,7 @@ static void CheckParsesToNumber(const char* source) {
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
-  CHECK(i::Compiler::ParseAndAnalyze(&info, isolate));
+  CHECK(i::parsing::ParseProgram(&info, isolate));
 
   CHECK_EQ(1, info.scope()->declarations()->LengthForTest());
   i::Declaration* decl = info.scope()->declarations()->AtForTest(0);
@@ -3361,7 +3361,7 @@ TEST(InnerAssignment) {
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
-          CHECK(i::parsing::ParseFunction(info.get(), isolate));
+          CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
         } else {
           i::Handle<i::String> source =
               factory->InternalizeUtf8String(program.start());
@@ -3475,7 +3475,7 @@ TEST(MaybeAssignedParameters) {
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
       info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
       info->set_allow_lazy_parsing(allow_lazy);
-      CHECK(i::parsing::ParseFunction(info.get(), isolate));
+      CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
       CHECK(i::Compiler::Analyze(info.get(), isolate));
       CHECK_NOT_NULL(info->literal());
 

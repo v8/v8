@@ -397,7 +397,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     ParseInfo info(location.shared());
-    if (parsing::ParseAny(&info, isolate)) {
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
       *hint = printer.GetIteratorHint();

@@ -11,6 +11,7 @@ namespace v8 {
 namespace internal {
 
 class ParseInfo;
+class SharedFunctionInfo;
 
 namespace parsing {
 
@@ -21,16 +22,19 @@ namespace parsing {
 V8_EXPORT_PRIVATE bool ParseProgram(ParseInfo* info, Isolate* isolate,
                                     bool internalize = true);
 
-// Like ParseProgram but for an individual function. Internalizes AST nodes on
+// Like ParseProgram but for an individual function which already has a
+// allocated shared function info. Internalizes AST nodes on
 // the heap if |internalize|.
-V8_EXPORT_PRIVATE bool ParseFunction(ParseInfo* info, Isolate* isolate,
-                                     bool internalize = true);
+V8_EXPORT_PRIVATE bool ParseFunction(ParseInfo* info,
+                                     Handle<SharedFunctionInfo> shared_info,
+                                     Isolate* isolate, bool internalize = true);
 
 // If you don't know whether info->is_toplevel() is true or not, use this method
 // to dispatch to either of the above functions. Prefer to use the above methods
 // whenever possible. Internalizes AST nodes on the heap if |internalize|.
-V8_EXPORT_PRIVATE bool ParseAny(ParseInfo* info, Isolate* isolate,
-                                bool internalize = true);
+V8_EXPORT_PRIVATE bool ParseAny(ParseInfo* info,
+                                Handle<SharedFunctionInfo> shared_info,
+                                Isolate* isolate, bool internalize = true);
 
 }  // namespace parsing
 }  // namespace internal

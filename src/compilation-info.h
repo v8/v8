@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   };
 
   CompilationInfo(Zone* zone, ParseInfo* parse_info, Isolate* isolate,
+                  Handle<SharedFunctionInfo> shared,
                   Handle<JSFunction> closure);
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags);
@@ -68,13 +69,16 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   Handle<Script> script() const;
   FunctionLiteral* literal() const;
   DeclarationScope* scope() const;
-  Handle<SharedFunctionInfo> shared_info() const;
-  bool has_shared_info() const;
   // -----------------------------------------------------------
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_ast_id_.IsNone(); }
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  void set_shared_info(Handle<SharedFunctionInfo> shared_info) {
+    shared_info_ = shared_info;
+  }
+  bool has_shared_info() const { return !shared_info().is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Flags code_flags() const { return code_flags_; }
@@ -348,6 +352,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   unsigned flags_;
 
   Code::Flags code_flags_;
+
+  Handle<SharedFunctionInfo> shared_info_;
 
   Handle<JSFunction> closure_;
 

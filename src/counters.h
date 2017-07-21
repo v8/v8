@@ -765,7 +765,7 @@ class RuntimeCallTimer final {
   V(CompileBackgroundIgnition)                      \
   V(CompileFunction)                                \
   V(CompileGetFromOptimizedCodeMap)                 \
-  V(CompileGetUnoptimizedCode)                      \
+  V(CompileUnoptimizedFunction)                     \
   V(CompileIgnition)                                \
   V(CompileIgnitionFinalization)                    \
   V(CompileInnerFunction)                           \

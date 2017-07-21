@@ -68,8 +68,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       EagerInnerFunctionLiterals;
 
   // Parser::Parse, then Compiler::Analyze.
-  static bool ParseAndAnalyze(ParseInfo* info, Isolate* isolate);
-  // Convenience function
+  static bool ParseAndAnalyze(ParseInfo* info,
+                              Handle<SharedFunctionInfo> shared_info,
+                              Isolate* isolate);
+  // Convenience function.
   static bool ParseAndAnalyze(CompilationInfo* info);
   // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
   // is appended with inner function literals which should be eagerly compiled.

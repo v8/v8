@@ -749,7 +749,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   return result;
 }
 
-FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
+FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
+                                       Handle<SharedFunctionInfo> shared_info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
@@ -762,7 +763,6 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   if (FLAG_trace_parse) {
     timer.Start();
   }
-  Handle<SharedFunctionInfo> shared_info = info->shared_info();
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
   if (info->asm_function_scope()) {
     original_scope_ = info->asm_function_scope();

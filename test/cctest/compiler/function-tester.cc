@@ -139,9 +139,10 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
-  ParseInfo parse_info(handle(function->shared()));
+  Handle<SharedFunctionInfo> shared(function->shared());
+  ParseInfo parse_info(shared);
   CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
-                       function);
+                       shared, function);
 
   info.SetOptimizing();
   if (flags_ & CompilationInfo::kInliningEnabled) {
@@ -168,11 +169,13 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
-  ParseInfo parse_info(handle(function->shared()));
+  Handle<SharedFunctionInfo> shared(function->shared());
+  ParseInfo parse_info(shared);
   CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
-                       function);
+                       shared, function);
 
-  CHECK(parsing::ParseFunction(info.parse_info(), info.isolate()));
+  CHECK(parsing::ParseFunction(info.parse_info(), info.shared_info(),
+                               info.isolate()));
   info.SetOptimizing();
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

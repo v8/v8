@@ -120,10 +120,11 @@ class BytecodeGraphTester {
 
     // TODO(mstarzinger): We should be able to prime CompilationInfo without
     // having to instantiate a ParseInfo first. Fix this!
-    ParseInfo parse_info(handle(function->shared()));
+    Handle<SharedFunctionInfo> shared(function->shared());
+    ParseInfo parse_info(shared);
 
     CompilationInfo compilation_info(parse_info.zone(), &parse_info,
-                                     function->GetIsolate(), function);
+                                     function->GetIsolate(), shared, function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compilation_info.MarkAsOptimizeFromBytecode();

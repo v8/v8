@@ -597,14 +597,16 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
 class PipelineCompilationJob final : public CompilationJob {
  public:
-  PipelineCompilationJob(ParseInfo* parse_info, Handle<JSFunction> function)
+  PipelineCompilationJob(ParseInfo* parse_info,
+                         Handle<SharedFunctionInfo> shared_info,
+                         Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
       : CompilationJob(function->GetIsolate(), &info_, "TurboFan"),
         parse_info_(parse_info),
         zone_stats_(function->GetIsolate()->allocator()),
         info_(parse_info_.get()->zone(), parse_info_.get(),
-              function->GetIsolate(), function),
+              function->GetIsolate(), shared_info, function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -1961,7 +1963,7 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
   } else {
     parse_info = new ParseInfo(shared);
   }
-  return new PipelineCompilationJob(parse_info, function);
+  return new PipelineCompilationJob(parse_info, shared, function);
 }
 
 // static

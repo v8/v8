@@ -217,7 +217,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*, bool);
-  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, Isolate*, bool);
+  friend bool v8::internal::parsing::ParseFunction(
+      ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*, bool);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
@@ -265,7 +266,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
-  FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
+                                 Handle<SharedFunctionInfo> shared_info);
   FunctionLiteral* DoParseFunction(ParseInfo* info);
 
   // Called by ParseProgram after setting up the scanner.

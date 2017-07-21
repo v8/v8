@@ -411,7 +411,7 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
           isolate->factory()->NewSharedFunctionInfoForLiteral(info->literal(),
                                                               info->script());
       shared->set_is_toplevel(true);
-      parse_info->set_shared_info(shared);
+      info->set_shared_info(shared);
     }
   }
   SetSharedFunctionFlagsFromLiteral(info->literal(), info->shared_info());
@@ -430,30 +430,13 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   return status;
 }
 
-bool Renumber(ParseInfo* parse_info,
+bool Renumber(ParseInfo* info,
               Compiler::EagerInnerFunctionLiterals* eager_literals) {
-  RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
+  RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
                                      &RuntimeCallStats::CompileRenumber);
-
-  // CollectTypeProfile uses its own feedback slots. If we have existing
-  // FeedbackMetadata, we can only collect type profile, if the feedback vector
-  // has the appropriate slots.
-  bool collect_type_profile;
-  if (parse_info->shared_info().is_null() ||
-      parse_info->shared_info()->feedback_metadata()->length() == 0) {
-    collect_type_profile =
-        FLAG_type_profile && parse_info->script()->IsUserJavaScript();
-  } else {
-    collect_type_profile =
-        parse_info->shared_info()->feedback_metadata()->HasTypeProfileSlot();
-  }
-
-  if (!AstNumbering::Renumber(parse_info->stack_limit(), parse_info->zone(),
-                              parse_info->literal(), eager_literals,
-                              collect_type_profile)) {
-    return false;
-  }
-  return true;
+  return AstNumbering::Renumber(info->stack_limit(), info->zone(),
+                                info->literal(), eager_literals,
+                                info->collect_type_profile());
 }
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
@@ -512,11 +495,10 @@ bool CompileUnoptimizedInnerFunctions(
     } else {
       // Otherwise generate unoptimized code now.
       ParseInfo parse_info(script);
-      CompilationInfo info(parse_info.zone(), &parse_info, isolate,
+      CompilationInfo info(parse_info.zone(), &parse_info, isolate, shared,
                            Handle<JSFunction>::null());
       parse_info.set_toplevel(false);
       parse_info.set_literal(literal);
-      parse_info.set_shared_info(shared);
       parse_info.set_function_literal_id(shared->function_literal_id());
       parse_info.set_language_mode(literal->scope()->language_mode());
       parse_info.set_ast_value_factory(
@@ -591,17 +573,18 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
   return true;
 }
 
-MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
-    CompilationInfo* info, ConcurrencyMode inner_function_mode) {
+MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
+    CompilationInfo* info, Handle<SharedFunctionInfo> shared_info,
+    ConcurrencyMode inner_function_mode) {
   RuntimeCallTimerScope runtimeTimer(
-      info->isolate(), &RuntimeCallStats::CompileGetUnoptimizedCode);
+      info->isolate(), &RuntimeCallStats::CompileUnoptimizedFunction);
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
   // Parse and update ParseInfo with the results.
   {
-    if (!parsing::ParseAny(
-            info->parse_info(), info->isolate(),
+    if (!parsing::ParseFunction(
+            info->parse_info(), shared_info, info->isolate(),
             inner_function_mode != ConcurrencyMode::kConcurrent)) {
       return MaybeHandle<Code>();
     }
@@ -989,11 +972,11 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     // Function doesn't have any baseline compiled code, compile now.
     DCHECK(!function->shared()->HasBytecodeArray());
 
-    ParseInfo parse_info(handle(function->shared()));
+    Handle<SharedFunctionInfo> shared(function->shared());
+    ParseInfo parse_info(shared);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    CompilationInfo info(&compile_zone, &parse_info, isolate, function);
+    CompilationInfo info(&compile_zone, &parse_info, isolate, shared, function);
     if (FLAG_experimental_preparser_scope_analysis) {
-      Handle<SharedFunctionInfo> shared(function->shared());
       if (shared->HasPreParsedScopeData()) {
         Handle<PreParsedScopeData> data(
             PreParsedScopeData::cast(shared->preparsed_scope_data()));
@@ -1008,7 +991,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
                                               : ConcurrencyMode::kNotConcurrent;
     Handle<Code> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, GetUnoptimizedCode(&info, inner_function_mode), Code);
+        isolate, result,
+        CompileUnoptimizedFunction(&info, shared, inner_function_mode), Code);
 
     if (FLAG_always_opt && !info.shared_info()->HasAsmWasmData()) {
       if (FLAG_trace_opt) {
@@ -1108,8 +1092,12 @@ bool Compiler::Analyze(CompilationInfo* info,
   return Compiler::Analyze(info->parse_info(), info->isolate(), eager_literals);
 }
 
-bool Compiler::ParseAndAnalyze(ParseInfo* info, Isolate* isolate) {
-  if (!parsing::ParseAny(info, isolate)) return false;
+bool Compiler::ParseAndAnalyze(ParseInfo* info,
+                               Handle<SharedFunctionInfo> shared_info,
+                               Isolate* isolate) {
+  if (!parsing::ParseAny(info, shared_info, isolate)) {
+    return false;
+  }
   if (!Compiler::Analyze(info, isolate)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1117,9 +1105,9 @@ bool Compiler::ParseAndAnalyze(ParseInfo* info, Isolate* isolate) {
 }
 
 bool Compiler::ParseAndAnalyze(CompilationInfo* info) {
-  return Compiler::ParseAndAnalyze(info->parse_info(), info->isolate());
+  return Compiler::ParseAndAnalyze(info->parse_info(), info->shared_info(),
+                                   info->isolate());
 }
-
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
   Isolate* isolate = function->GetIsolate();
@@ -1196,12 +1184,21 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
 
   // Start a compilation.
   ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), &parse_info, isolate,
+  CompilationInfo info(parse_info.zone(), &parse_info, isolate, shared,
                        Handle<JSFunction>::null());
   info.MarkAsDebug();
-  if (GetUnoptimizedCode(&info, ConcurrencyMode::kNotConcurrent).is_null()) {
-    isolate->clear_pending_exception();
-    return false;
+  if (parse_info.is_toplevel()) {
+    if (CompileToplevel(&info).is_null()) {
+      isolate->clear_pending_exception();
+      return false;
+    }
+  } else {
+    if (CompileUnoptimizedFunction(&info, shared,
+                                   ConcurrencyMode::kNotConcurrent)
+            .is_null()) {
+      isolate->clear_pending_exception();
+      return false;
+    }
   }
 
   // Check postconditions on success.
@@ -1226,6 +1223,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   ParseInfo parse_info(script);
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
   CompilationInfo info(&compile_zone, &parse_info, isolate,
+                       Handle<SharedFunctionInfo>::null(),
                        Handle<JSFunction>::null());
   info.MarkAsDebug();
 
@@ -1248,18 +1246,21 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
-  if (!info->shared_info()->is_compiled()) {
+  Handle<SharedFunctionInfo> shared_info = info->shared_info();
+  if (!shared_info->is_compiled()) {
+    DCHECK(!info->parse_info()->is_toplevel());
     CompilerDispatcher* dispatcher = info->isolate()->compiler_dispatcher();
-    if (dispatcher->IsEnqueued(info->shared_info())) {
+    if (dispatcher->IsEnqueued(shared_info)) {
       if (!dispatcher->FinishNow(info->shared_info())) return false;
-    } else if (GetUnoptimizedCode(info, ConcurrencyMode::kNotConcurrent)
+    } else if (CompileUnoptimizedFunction(info, shared_info,
+                                          ConcurrencyMode::kNotConcurrent)
                    .is_null()) {
       return false;
     }
   }
-  DCHECK(info->shared_info()->is_compiled());
-  if (info->shared_info()->HasAsmWasmData()) return false;
-  return info->shared_info()->HasBytecodeArray();
+  DCHECK(shared_info->is_compiled());
+  if (shared_info->HasAsmWasmData()) return false;
+  return shared_info->HasBytecodeArray();
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
@@ -1321,6 +1322,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
     CompilationInfo info(&compile_zone, &parse_info, isolate,
+                         Handle<SharedFunctionInfo>::null(),
                          Handle<JSFunction>::null());
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
@@ -1534,6 +1536,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
     CompilationInfo info(&compile_zone, &parse_info, isolate,
+                         Handle<SharedFunctionInfo>::null(),
                          Handle<JSFunction>::null());
     if (resource_options.IsModule()) parse_info.set_module();
     if (compile_options != ScriptCompiler::kNoCompileOptions) {
@@ -1603,6 +1606,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
 
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
   CompilationInfo compile_info(&compile_zone, parse_info, isolate,
+                               Handle<SharedFunctionInfo>::null(),
                                Handle<JSFunction>::null());
 
   // The source was parsed lazily, so compiling for debugging is not possible.

@@ -57,7 +57,6 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_end_position(shared->end_position());
   function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
-  set_shared_info(shared);
   set_module(shared->kind() == FunctionKind::kModule);
 
   Handle<Script> script(Script::cast(shared->script()));
@@ -70,12 +69,14 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
       Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
     set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
   }
-}
 
-ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
-                     std::shared_ptr<Zone> zone)
-    : ParseInfo(shared) {
-  zone_.swap(zone);
+  // CollectTypeProfile uses its own feedback slots. If we have existing
+  // FeedbackMetadata, we can only collect type profile if the feedback vector
+  // has the appropriate slots.
+  set_collect_type_profile(
+      shared->feedback_metadata()->length() == 0
+          ? FLAG_type_profile && script->IsUserJavaScript()
+          : shared->feedback_metadata()->HasTypeProfileSlot());
 }
 
 ParseInfo::ParseInfo(Handle<Script> script)
@@ -88,6 +89,8 @@ ParseInfo::ParseInfo(Handle<Script> script)
 
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+
+  set_collect_type_profile(FLAG_type_profile && script->IsUserJavaScript());
 }
 
 ParseInfo::~ParseInfo() {
@@ -112,7 +115,6 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_end_position(shared->end_position());
   p->function_literal_id_ = shared->function_literal_id();
   p->set_language_mode(shared->language_mode());
-  p->set_shared_info(shared);
   p->set_module(shared->kind() == FunctionKind::kModule);
 
   // BUG(5946): This function exists as a workaround until we can
