@@ -1701,7 +1701,7 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 
 Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
   Handle<PreParsedScopeData> result =
-      Handle<PreParsedScopeData>::cast(NewStruct(PREPARSED_SCOPE_DATA_TYPE));
+      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE));
   result->set_scope_data(PodArray<uint32_t>::cast(*empty_byte_array()));
   result->set_child_data(*empty_fixed_array());
   return result;

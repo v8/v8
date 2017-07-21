@@ -297,166 +297,166 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-#define INSTANCE_TYPE_LIST(V)                                                  \
-  V(INTERNALIZED_STRING_TYPE)                                                  \
-  V(EXTERNAL_INTERNALIZED_STRING_TYPE)                                         \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                                         \
-  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                                \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)                      \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                                   \
-  V(SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                          \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)                \
-  V(STRING_TYPE)                                                               \
-  V(CONS_STRING_TYPE)                                                          \
-  V(EXTERNAL_STRING_TYPE)                                                      \
-  V(SLICED_STRING_TYPE)                                                        \
-  V(THIN_STRING_TYPE)                                                          \
-  V(ONE_BYTE_STRING_TYPE)                                                      \
-  V(CONS_ONE_BYTE_STRING_TYPE)                                                 \
-  V(EXTERNAL_ONE_BYTE_STRING_TYPE)                                             \
-  V(SLICED_ONE_BYTE_STRING_TYPE)                                               \
-  V(THIN_ONE_BYTE_STRING_TYPE)                                                 \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                                   \
-  V(SHORT_EXTERNAL_STRING_TYPE)                                                \
-  V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE)                                       \
-  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                             \
-                                                                               \
-  V(SYMBOL_TYPE)                                                               \
-  V(HEAP_NUMBER_TYPE)                                                          \
-  V(ODDBALL_TYPE)                                                              \
-                                                                               \
-  V(MAP_TYPE)                                                                  \
-  V(CODE_TYPE)                                                                 \
-  V(MUTABLE_HEAP_NUMBER_TYPE)                                                  \
-  V(FOREIGN_TYPE)                                                              \
-  V(BYTE_ARRAY_TYPE)                                                           \
-  V(BYTECODE_ARRAY_TYPE)                                                       \
-  V(FREE_SPACE_TYPE)                                                           \
-                                                                               \
-  V(FIXED_INT8_ARRAY_TYPE)                                                     \
-  V(FIXED_UINT8_ARRAY_TYPE)                                                    \
-  V(FIXED_INT16_ARRAY_TYPE)                                                    \
-  V(FIXED_UINT16_ARRAY_TYPE)                                                   \
-  V(FIXED_INT32_ARRAY_TYPE)                                                    \
-  V(FIXED_UINT32_ARRAY_TYPE)                                                   \
-  V(FIXED_FLOAT32_ARRAY_TYPE)                                                  \
-  V(FIXED_FLOAT64_ARRAY_TYPE)                                                  \
-  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                                            \
-                                                                               \
-  V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
-  V(FILLER_TYPE)                                                               \
-                                                                               \
-  V(ACCESSOR_INFO_TYPE)                                                        \
-  V(ACCESSOR_PAIR_TYPE)                                                        \
-  V(ACCESS_CHECK_INFO_TYPE)                                                    \
-  V(INTERCEPTOR_INFO_TYPE)                                                     \
-  V(FUNCTION_TEMPLATE_INFO_TYPE)                                               \
-  V(OBJECT_TEMPLATE_INFO_TYPE)                                                 \
-  V(ALLOCATION_SITE_TYPE)                                                      \
-  V(ALLOCATION_MEMENTO_TYPE)                                                   \
-  V(SCRIPT_TYPE)                                                               \
-  V(ALIASED_ARGUMENTS_ENTRY_TYPE)                                              \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                                    \
-  V(PROMISE_REACTION_JOB_INFO_TYPE)                                            \
-  V(DEBUG_INFO_TYPE)                                                           \
-  V(STACK_FRAME_INFO_TYPE)                                                     \
-  V(PROTOTYPE_INFO_TYPE)                                                       \
-  V(TUPLE2_TYPE)                                                               \
-  V(TUPLE3_TYPE)                                                               \
-  V(CONTEXT_EXTENSION_TYPE)                                                    \
-  V(MODULE_TYPE)                                                               \
-  V(MODULE_INFO_ENTRY_TYPE)                                                    \
-  V(ASYNC_GENERATOR_REQUEST_TYPE)                                              \
-  V(PREPARSED_SCOPE_DATA_TYPE)                                                 \
-  V(FIXED_ARRAY_TYPE)                                                          \
-  V(PROPERTY_ARRAY_TYPE)                                                       \
-  V(TRANSITION_ARRAY_TYPE)                                                     \
-  V(SHARED_FUNCTION_INFO_TYPE)                                                 \
-  V(CELL_TYPE)                                                                 \
-  V(WEAK_CELL_TYPE)                                                            \
-  V(PROPERTY_CELL_TYPE)                                                        \
-  V(SMALL_ORDERED_HASH_MAP_TYPE)                                               \
-  V(SMALL_ORDERED_HASH_SET_TYPE)                                               \
-                                                                               \
-  V(JS_PROXY_TYPE)                                                             \
-  V(JS_GLOBAL_OBJECT_TYPE)                                                     \
-  V(JS_GLOBAL_PROXY_TYPE)                                                      \
-  V(JS_SPECIAL_API_OBJECT_TYPE)                                                \
-  V(JS_VALUE_TYPE)                                                             \
-  V(JS_MESSAGE_OBJECT_TYPE)                                                    \
-  V(JS_DATE_TYPE)                                                              \
-  V(JS_API_OBJECT_TYPE)                                                        \
-  V(JS_OBJECT_TYPE)                                                            \
-  V(JS_ARGUMENTS_TYPE)                                                         \
-  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
-  V(JS_GENERATOR_OBJECT_TYPE)                                                  \
-  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                                            \
-  V(JS_MODULE_NAMESPACE_TYPE)                                                  \
-  V(JS_ARRAY_TYPE)                                                             \
-  V(JS_ARRAY_BUFFER_TYPE)                                                      \
-  V(JS_TYPED_ARRAY_TYPE)                                                       \
-  V(JS_DATA_VIEW_TYPE)                                                         \
-  V(JS_SET_TYPE)                                                               \
-  V(JS_MAP_TYPE)                                                               \
-  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                                            \
-  V(JS_SET_VALUE_ITERATOR_TYPE)                                                \
-  V(JS_MAP_KEY_ITERATOR_TYPE)                                                  \
-  V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                                            \
-  V(JS_MAP_VALUE_ITERATOR_TYPE)                                                \
-  V(JS_WEAK_MAP_TYPE)                                                          \
-  V(JS_WEAK_SET_TYPE)                                                          \
-  V(JS_PROMISE_CAPABILITY_TYPE)                                                \
-  V(JS_PROMISE_TYPE)                                                           \
-  V(JS_REGEXP_TYPE)                                                            \
-  V(JS_ERROR_TYPE)                                                             \
-  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                                          \
-  V(JS_STRING_ITERATOR_TYPE)                                                   \
-                                                                               \
-  V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                                          \
-  V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                                           \
-  V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                                        \
-                                                                               \
-  V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                    \
-  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                     \
-  V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                   \
-  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                    \
-  V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                   \
-  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                    \
-  V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                  \
-  V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                  \
-  V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)                            \
-                                                                               \
-  V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                 \
-  V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)                           \
-  V(JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                     \
-  V(JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE)                               \
-  V(JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)                              \
-  V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)                        \
-  V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)                                  \
-                                                                               \
-  V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                                        \
-  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                                         \
-  V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                                       \
-  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                                        \
-  V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                                       \
-  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                                        \
-  V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)                                      \
-  V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)                                      \
-  V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)                                \
-                                                                               \
-  V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)                                     \
-  V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)                               \
-  V(JS_FAST_ARRAY_VALUE_ITERATOR_TYPE)                                         \
-  V(JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE)                                   \
-  V(JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)                                  \
-  V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)                            \
-  V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)                                      \
-                                                                               \
-  V(WASM_INSTANCE_TYPE)                                                        \
-  V(WASM_MEMORY_TYPE)                                                          \
-  V(WASM_MODULE_TYPE)                                                          \
-  V(WASM_TABLE_TYPE)                                                           \
-  V(JS_BOUND_FUNCTION_TYPE)                                                    \
+#define INSTANCE_TYPE_LIST(V)                                   \
+  V(INTERNALIZED_STRING_TYPE)                                   \
+  V(EXTERNAL_INTERNALIZED_STRING_TYPE)                          \
+  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                          \
+  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                 \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)       \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
+  V(SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
+  V(STRING_TYPE)                                                \
+  V(CONS_STRING_TYPE)                                           \
+  V(EXTERNAL_STRING_TYPE)                                       \
+  V(SLICED_STRING_TYPE)                                         \
+  V(THIN_STRING_TYPE)                                           \
+  V(ONE_BYTE_STRING_TYPE)                                       \
+  V(CONS_ONE_BYTE_STRING_TYPE)                                  \
+  V(EXTERNAL_ONE_BYTE_STRING_TYPE)                              \
+  V(SLICED_ONE_BYTE_STRING_TYPE)                                \
+  V(THIN_ONE_BYTE_STRING_TYPE)                                  \
+  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                    \
+  V(SHORT_EXTERNAL_STRING_TYPE)                                 \
+  V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
+  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
+                                                                \
+  V(SYMBOL_TYPE)                                                \
+  V(HEAP_NUMBER_TYPE)                                           \
+  V(ODDBALL_TYPE)                                               \
+                                                                \
+  V(MAP_TYPE)                                                   \
+  V(CODE_TYPE)                                                  \
+  V(MUTABLE_HEAP_NUMBER_TYPE)                                   \
+  V(FOREIGN_TYPE)                                               \
+  V(BYTE_ARRAY_TYPE)                                            \
+  V(BYTECODE_ARRAY_TYPE)                                        \
+  V(FREE_SPACE_TYPE)                                            \
+                                                                \
+  V(FIXED_INT8_ARRAY_TYPE)                                      \
+  V(FIXED_UINT8_ARRAY_TYPE)                                     \
+  V(FIXED_INT16_ARRAY_TYPE)                                     \
+  V(FIXED_UINT16_ARRAY_TYPE)                                    \
+  V(FIXED_INT32_ARRAY_TYPE)                                     \
+  V(FIXED_UINT32_ARRAY_TYPE)                                    \
+  V(FIXED_FLOAT32_ARRAY_TYPE)                                   \
+  V(FIXED_FLOAT64_ARRAY_TYPE)                                   \
+  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                             \
+                                                                \
+  V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
+  V(FILLER_TYPE)                                                \
+                                                                \
+  V(ACCESSOR_INFO_TYPE)                                         \
+  V(ACCESSOR_PAIR_TYPE)                                         \
+  V(ACCESS_CHECK_INFO_TYPE)                                     \
+  V(INTERCEPTOR_INFO_TYPE)                                      \
+  V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
+  V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
+  V(ALLOCATION_SITE_TYPE)                                       \
+  V(ALLOCATION_MEMENTO_TYPE)                                    \
+  V(SCRIPT_TYPE)                                                \
+  V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
+  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(DEBUG_INFO_TYPE)                                            \
+  V(STACK_FRAME_INFO_TYPE)                                      \
+  V(PROTOTYPE_INFO_TYPE)                                        \
+  V(TUPLE2_TYPE)                                                \
+  V(TUPLE3_TYPE)                                                \
+  V(CONTEXT_EXTENSION_TYPE)                                     \
+  V(MODULE_TYPE)                                                \
+  V(MODULE_INFO_ENTRY_TYPE)                                     \
+  V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
+  V(PADDING_TYPE_0)                                             \
+  V(FIXED_ARRAY_TYPE)                                           \
+  V(PROPERTY_ARRAY_TYPE)                                        \
+  V(TRANSITION_ARRAY_TYPE)                                      \
+  V(SHARED_FUNCTION_INFO_TYPE)                                  \
+  V(CELL_TYPE)                                                  \
+  V(WEAK_CELL_TYPE)                                             \
+  V(PROPERTY_CELL_TYPE)                                         \
+  V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
+  V(SMALL_ORDERED_HASH_SET_TYPE)                                \
+                                                                \
+  V(JS_PROXY_TYPE)                                              \
+  V(JS_GLOBAL_OBJECT_TYPE)                                      \
+  V(JS_GLOBAL_PROXY_TYPE)                                       \
+  V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
+  V(JS_VALUE_TYPE)                                              \
+  V(JS_MESSAGE_OBJECT_TYPE)                                     \
+  V(JS_DATE_TYPE)                                               \
+  V(JS_API_OBJECT_TYPE)                                         \
+  V(JS_OBJECT_TYPE)                                             \
+  V(JS_ARGUMENTS_TYPE)                                          \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
+  V(JS_GENERATOR_OBJECT_TYPE)                                   \
+  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
+  V(JS_MODULE_NAMESPACE_TYPE)                                   \
+  V(JS_ARRAY_TYPE)                                              \
+  V(JS_ARRAY_BUFFER_TYPE)                                       \
+  V(JS_TYPED_ARRAY_TYPE)                                        \
+  V(JS_DATA_VIEW_TYPE)                                          \
+  V(JS_SET_TYPE)                                                \
+  V(JS_MAP_TYPE)                                                \
+  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
+  V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
+  V(JS_MAP_KEY_ITERATOR_TYPE)                                   \
+  V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                             \
+  V(JS_MAP_VALUE_ITERATOR_TYPE)                                 \
+  V(JS_WEAK_MAP_TYPE)                                           \
+  V(JS_WEAK_SET_TYPE)                                           \
+  V(JS_PROMISE_CAPABILITY_TYPE)                                 \
+  V(JS_PROMISE_TYPE)                                            \
+  V(JS_REGEXP_TYPE)                                             \
+  V(JS_ERROR_TYPE)                                              \
+  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
+  V(JS_STRING_ITERATOR_TYPE)                                    \
+                                                                \
+  V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                           \
+  V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                            \
+  V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                         \
+                                                                \
+  V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
+  V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
+  V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
+  V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
+                                                                \
+  V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)                  \
+  V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
+  V(JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
+  V(JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE)                \
+  V(JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)               \
+  V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)         \
+  V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
+                                                                \
+  V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                          \
+  V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                        \
+  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                        \
+  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)                       \
+  V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)                       \
+  V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)                 \
+                                                                \
+  V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)                      \
+  V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)                \
+  V(JS_FAST_ARRAY_VALUE_ITERATOR_TYPE)                          \
+  V(JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)                   \
+  V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)             \
+  V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)                       \
+                                                                \
+  V(WASM_INSTANCE_TYPE)                                         \
+  V(WASM_MEMORY_TYPE)                                           \
+  V(WASM_MODULE_TYPE)                                           \
+  V(WASM_TABLE_TYPE)                                            \
+  V(JS_BOUND_FUNCTION_TYPE)                                     \
   V(JS_FUNCTION_TYPE)
 
 // Since string types are not consecutive, this macro is used to
@@ -545,8 +545,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
   V(MODULE, Module, module)                                                  \
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
-  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
-  V(PREPARSED_SCOPE_DATA, PreParsedScopeData, preparsed_scope_data)
+  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -715,7 +714,7 @@ enum InstanceType : uint8_t {
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
-  PREPARSED_SCOPE_DATA_TYPE,
+  PADDING_TYPE_0,
   FIXED_ARRAY_TYPE,
   PROPERTY_ARRAY_TYPE,
   TRANSITION_ARRAY_TYPE,
@@ -1073,10 +1072,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSMapIterator)                     \
   V(JSMessageObject)                   \
   V(JSModuleNamespace)                 \
-  V(WasmInstanceObject)                \
-  V(WasmMemoryObject)                  \
-  V(WasmModuleObject)                  \
-  V(WasmTableObject)                   \
   V(JSObject)                          \
   V(JSPromise)                         \
   V(JSPromiseCapability)               \
@@ -1103,6 +1098,7 @@ template <class C> inline bool Is(Object* obj);
   V(ObjectHashTable)                   \
   V(Oddball)                           \
   V(OrderedHashTable)                  \
+  V(PreParsedScopeData)                \
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(RegExpMatchInfo)                   \
@@ -1131,6 +1127,10 @@ template <class C> inline bool Is(Object* obj);
   V(Undetectable)                      \
   V(UniqueName)                        \
   V(UnseededNumberDictionary)          \
+  V(WasmInstanceObject)                \
+  V(WasmMemoryObject)                  \
+  V(WasmModuleObject)                  \
+  V(WasmTableObject)                   \
   V(WeakCell)                          \
   V(WeakFixedArray)                    \
   V(WeakHashTable)

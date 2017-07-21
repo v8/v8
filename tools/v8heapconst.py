@@ -71,7 +71,7 @@ INSTANCE_TYPES = {
   167: "MODULE_TYPE",
   168: "MODULE_INFO_ENTRY_TYPE",
   169: "ASYNC_GENERATOR_REQUEST_TYPE",
-  170: "PREPARSED_SCOPE_DATA_TYPE",
+  170: "PADDING_TYPE_0",
   171: "FIXED_ARRAY_TYPE",
   172: "PROPERTY_ARRAY_TYPE",
   173: "TRANSITION_ARRAY_TYPE",
@@ -267,7 +267,6 @@ KNOWN_MAPS = {
   0x04619: (167, "ModuleMap"),
   0x04671: (168, "ModuleInfoEntryMap"),
   0x046c9: (169, "AsyncGeneratorRequestMap"),
-  0x04721: (170, "PreParsedScopeDataMap"),
 }
 
 # List of known V8 objects.
