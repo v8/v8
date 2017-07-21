@@ -337,6 +337,7 @@ class ShellOptions {
   const char* trace_config;
   const char* lcov_file;
   bool disable_in_process_stack_traces;
+  bool enable_os_system = false;
 };
 
 class Shell : public i::AllStatic {

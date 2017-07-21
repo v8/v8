@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+/// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -2716,6 +2716,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--disable-in-process-stack-traces") == 0) {
       options.disable_in_process_stack_traces = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--enable-os-system") == 0) {
+      options.enable_os_system = true;
       argv[i] = NULL;
     }
   }

@@ -749,9 +749,11 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
-  os_templ->Set(String::NewFromUtf8(isolate, "system", NewStringType::kNormal)
-                    .ToLocalChecked(),
-                FunctionTemplate::New(isolate, System));
+  if (options.enable_os_system) {
+    os_templ->Set(String::NewFromUtf8(isolate, "system", NewStringType::kNormal)
+                      .ToLocalChecked(),
+                  FunctionTemplate::New(isolate, System));
+  }
   os_templ->Set(String::NewFromUtf8(isolate, "chdir", NewStringType::kNormal)
                     .ToLocalChecked(),
                 FunctionTemplate::New(isolate, ChangeDirectory));
