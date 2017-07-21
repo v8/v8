@@ -4129,13 +4129,6 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     // Slow-to-slow migration is trivial.
     object->synchronized_set_map(*new_map);
   } else if (!new_map->is_dictionary_map()) {
-    if (old_map->is_prototype_map()) {
-      DisallowHeapAllocation no_allocation;
-      // Ensure that the object is marked because its old map is going
-      // to drop the descriptor array and the layout descriptor, which
-      // is unsafe for the concurrent marker.
-      object->GetHeap()->NotifyObjectLayoutChange(*object, no_allocation);
-    }
     MigrateFastToFast(object, new_map);
     if (old_map->is_prototype_map()) {
       DCHECK(!old_map->is_stable());
