@@ -1201,48 +1201,36 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
+  ConditionalControlFlowBuilder conditional_builder(
+      builder(), block_coverage_builder_, stmt);
   builder()->SetStatementPosition(stmt);
-
-  int then_slot =
-      AllocateBlockCoverageSlotIfEnabled(stmt, SourceRangeKind::kThen);
-  int else_slot =
-      AllocateBlockCoverageSlotIfEnabled(stmt, SourceRangeKind::kElse);
 
   if (stmt->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
-    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
+    conditional_builder.Then();
     Visit(stmt->then_statement());
   } else if (stmt->condition()->ToBooleanIsFalse()) {
     // Generate else block unconditionally if it exists.
     if (stmt->HasElseStatement()) {
-      BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
+      conditional_builder.Else();
       Visit(stmt->else_statement());
     }
   } else {
     // TODO(oth): If then statement is BreakStatement or
     // ContinueStatement we can reduce number of generated
     // jump/jump_ifs here. See BasicLoops test.
-    BytecodeLabel end_label;
-    BytecodeLabels then_labels(zone()), else_labels(zone());
-    VisitForTest(stmt->condition(), &then_labels, &else_labels,
-                 TestFallthrough::kThen);
+    VisitForTest(stmt->condition(), conditional_builder.then_labels(),
+                 conditional_builder.else_labels(), TestFallthrough::kThen);
 
-    then_labels.Bind(builder());
-    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
+    conditional_builder.Then();
     Visit(stmt->then_statement());
 
     if (stmt->HasElseStatement()) {
-      builder()->Jump(&end_label);
-      else_labels.Bind(builder());
-      BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
+      conditional_builder.JumpToEnd();
+      conditional_builder.Else();
       Visit(stmt->else_statement());
-    } else {
-      else_labels.Bind(builder());
     }
-    builder()->Bind(&end_label);
   }
-  BuildIncrementBlockCoverageCounterIfEnabled(stmt,
-                                              SourceRangeKind::kContinuation);
 }
 
 void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
@@ -1819,35 +1807,27 @@ void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
 }
 
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
-  int then_slot =
-      AllocateBlockCoverageSlotIfEnabled(expr, SourceRangeKind::kThen);
-  int else_slot =
-      AllocateBlockCoverageSlotIfEnabled(expr, SourceRangeKind::kElse);
+  ConditionalControlFlowBuilder conditional_builder(
+      builder(), block_coverage_builder_, expr);
 
   if (expr->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
+    conditional_builder.Then();
     VisitForAccumulatorValue(expr->then_expression());
-    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
   } else if (expr->condition()->ToBooleanIsFalse()) {
     // Generate else block unconditionally if it exists.
+    conditional_builder.Else();
     VisitForAccumulatorValue(expr->else_expression());
-    BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
   } else {
-    BytecodeLabel end_label;
-    BytecodeLabels then_labels(zone()), else_labels(zone());
+    VisitForTest(expr->condition(), conditional_builder.then_labels(),
+                 conditional_builder.else_labels(), TestFallthrough::kThen);
 
-    VisitForTest(expr->condition(), &then_labels, &else_labels,
-                 TestFallthrough::kThen);
-
-    then_labels.Bind(builder());
-    BuildIncrementBlockCoverageCounterIfEnabled(then_slot);
+    conditional_builder.Then();
     VisitForAccumulatorValue(expr->then_expression());
-    builder()->Jump(&end_label);
+    conditional_builder.JumpToEnd();
 
-    else_labels.Bind(builder());
-    BuildIncrementBlockCoverageCounterIfEnabled(else_slot);
+    conditional_builder.Else();
     VisitForAccumulatorValue(expr->else_expression());
-    builder()->Bind(&end_label);
   }
 }
 

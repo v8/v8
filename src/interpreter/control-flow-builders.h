@@ -231,6 +231,49 @@ class V8_EXPORT_PRIVATE TryFinallyBuilder final : public ControlFlowBuilder {
   BytecodeLabels finalization_sites_;
 };
 
+class V8_EXPORT_PRIVATE ConditionalControlFlowBuilder final
+    : public ControlFlowBuilder {
+ public:
+  ConditionalControlFlowBuilder(BytecodeArrayBuilder* builder,
+                                BlockCoverageBuilder* block_coverage_builder,
+                                AstNode* node)
+      : ControlFlowBuilder(builder),
+        end_labels_(builder->zone()),
+        then_labels_(builder->zone()),
+        else_labels_(builder->zone()),
+        node_(node),
+        block_coverage_builder_(block_coverage_builder) {
+    DCHECK(node->IsIfStatement() || node->IsConditional());
+    if (block_coverage_builder != nullptr) {
+      block_coverage_then_slot_ =
+          block_coverage_builder->AllocateBlockCoverageSlot(
+              node, SourceRangeKind::kThen);
+      block_coverage_else_slot_ =
+          block_coverage_builder->AllocateBlockCoverageSlot(
+              node, SourceRangeKind::kElse);
+    }
+  }
+  ~ConditionalControlFlowBuilder();
+
+  BytecodeLabels* then_labels() { return &then_labels_; }
+  BytecodeLabels* else_labels() { return &else_labels_; }
+
+  void Then();
+  void Else();
+
+  void JumpToEnd();
+
+ private:
+  BytecodeLabels end_labels_;
+  BytecodeLabels then_labels_;
+  BytecodeLabels else_labels_;
+
+  AstNode* node_;
+  int block_coverage_then_slot_;
+  int block_coverage_else_slot_;
+  BlockCoverageBuilder* block_coverage_builder_;
+};
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -160,6 +160,41 @@ void TryFinallyBuilder::EndFinally() {
   // Nothing to be done here.
 }
 
+ConditionalControlFlowBuilder::~ConditionalControlFlowBuilder() {
+  if (!else_labels_.is_bound()) else_labels_.Bind(builder());
+  end_labels_.Bind(builder());
+
+  DCHECK(end_labels_.empty() || end_labels_.is_bound());
+  DCHECK(then_labels_.empty() || then_labels_.is_bound());
+  DCHECK(else_labels_.empty() || else_labels_.is_bound());
+
+  // IfStatement requires a continuation counter, Conditional does not (as it
+  // can only contain expressions).
+  if (block_coverage_builder_ != nullptr && node_->IsIfStatement()) {
+    block_coverage_builder_->IncrementBlockCounter(
+        node_, SourceRangeKind::kContinuation);
+  }
+}
+
+void ConditionalControlFlowBuilder::JumpToEnd() {
+  DCHECK(end_labels_.empty());  // May only be called once.
+  builder()->Jump(end_labels_.New());
+}
+
+void ConditionalControlFlowBuilder::Then() {
+  then_labels()->Bind(builder());
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(block_coverage_then_slot_);
+  }
+}
+
+void ConditionalControlFlowBuilder::Else() {
+  else_labels()->Bind(builder());
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(block_coverage_else_slot_);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
