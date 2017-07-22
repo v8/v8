@@ -4084,19 +4084,6 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
   return AllocateFixedTypedArray(0, array_type, false, TENURED);
 }
 
-namespace {
-template <typename T>
-void initialize_length(T* array, int length) {
-  array->set_length(length);
-}
-
-template <>
-void initialize_length<PropertyArray>(PropertyArray* array, int length) {
-  array->initialize_length(length);
-}
-
-}  // namespace
-
 template <typename T>
 AllocationResult Heap::CopyArrayAndGrow(T* src, int grow_by,
                                         PretenureFlag pretenure) {
@@ -4111,7 +4098,7 @@ AllocationResult Heap::CopyArrayAndGrow(T* src, int grow_by,
 
   obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
   T* result = T::cast(obj);
-  initialize_length(result, new_len);
+  result->set_length(new_len);
 
   // Copy the content.
   DisallowHeapAllocation no_gc;
@@ -4172,7 +4159,7 @@ AllocationResult Heap::CopyArrayWithMap(T* src, Map* map) {
   }
 
   // Slow case: Just copy the content one-by-one.
-  initialize_length(result, len);
+  result->set_length(len);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
 }
@@ -4256,7 +4243,7 @@ AllocationResult Heap::AllocatePropertyArray(int length,
 
   result->set_map_after_allocation(property_array_map(), SKIP_WRITE_BARRIER);
   PropertyArray* array = PropertyArray::cast(result);
-  array->initialize_length(length);
+  array->set_length(length);
   MemsetPointer(array->data_start(), undefined_value(), length);
   return result;
 }

@@ -477,19 +477,6 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
 }
 
 // static
-FieldAccess AccessBuilder::ForPropertyArrayLength() {
-  // TODO(gsathya): Update the value range once we add the hash code.
-  FieldAccess access = {kTaggedBase,
-                        PropertyArray::kLengthOffset,
-                        MaybeHandle<Name>(),
-                        MaybeHandle<Map>(),
-                        TypeCache::Get().kPropertyArrayLengthType,
-                        MachineType::TaggedSigned(),
-                        kNoWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForFixedTypedArrayBaseBasePointer() {
   FieldAccess access = {
       kTaggedBase,           FixedTypedArrayBase::kBasePointerOffset,

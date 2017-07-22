@@ -2248,14 +2248,13 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       simplified()->StoreField(AccessBuilder::ForMap()), new_properties,
       jsgraph()->PropertyArrayMapConstant(), effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForPropertyArrayLength()),
+      simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
       new_properties, jsgraph()->Constant(new_length), effect, control);
   for (int i = 0; i < new_length; ++i) {
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
         new_properties, values[i], effect, control);
   }
-  // TODO(gsathya): Update hash code here.
   return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
 }
 

@@ -160,9 +160,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
 
-  // Provides access to PropertyArray::length() field.
-  static FieldAccess ForPropertyArrayLength();
-
   // Provides access to FixedTypedArrayBase::base_pointer() field.
   static FieldAccess ForFixedTypedArrayBaseBasePointer();
 
