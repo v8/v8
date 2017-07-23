@@ -577,6 +577,7 @@ namespace internal {
   /* Map */                                                                    \
   TFS(MapLookupHashIndex, kTable, kKey)                                        \
   TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
+  TFJ(MapSet, 2, kKey, kValue)                                                 \
   TFJ(MapGet, 1, kKey)                                                         \
   TFJ(MapHas, 1, kKey)                                                         \
   CPP(MapClear)                                                                \

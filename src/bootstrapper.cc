@@ -3020,6 +3020,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallFunction(prototype, "get", Builtins::kMapGet, 1, true);
     native_context()->set_map_get(*map_get);
 
+    Handle<JSFunction> map_set =
+        SimpleInstallFunction(prototype, "set", Builtins::kMapSet, 2, true);
+    native_context()->set_map_set(*map_set);
+
     Handle<JSFunction> map_has =
         SimpleInstallFunction(prototype, "has", Builtins::kMapHas, 1, true);
     native_context()->set_map_has(*map_has);
