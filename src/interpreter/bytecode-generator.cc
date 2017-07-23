@@ -3216,7 +3216,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   if (is_spread_call) {
     DCHECK(!implicit_undefined_receiver);
-    builder()->CallWithSpread(callee, args);
+    builder()->CallWithSpread(callee, args, feedback_slot_index);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
              call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);
@@ -3247,9 +3247,9 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 
   // When a super call contains a spread, a CallSuper AST node is only created
   // if there is exactly one spread, and it is the last argument.
+  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
   if (expr->only_last_arg_is_spread()) {
-    // TODO(petermarshall): Collect type on the feedback slot.
-    builder()->ConstructWithSpread(constructor, args_regs);
+    builder()->ConstructWithSpread(constructor, args_regs, feedback_slot_index);
   } else {
     // Call construct.
     // TODO(turbofan): For now we do gather feedback on super constructor
@@ -3258,7 +3258,6 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // is not an ideal solution for super constructor calls, but it gets
     // the job done for now. In the long run we might want to revisit this
     // and come up with a better way.
-    int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
     builder()->Construct(constructor, args_regs, feedback_slot_index);
   }
 }
@@ -3273,12 +3272,11 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   builder()->SetExpressionPosition(expr);
   builder()->LoadAccumulatorWithRegister(constructor);
 
+  int const feedback_slot_index = feedback_index(expr->CallNewFeedbackSlot());
   if (expr->only_last_arg_is_spread()) {
-    // TODO(petermarshall): Collect type on the feedback slot.
-    builder()->ConstructWithSpread(constructor, args);
+    builder()->ConstructWithSpread(constructor, args, feedback_slot_index);
   } else {
-    builder()->Construct(constructor, args,
-                         feedback_index(expr->CallNewFeedbackSlot()));
+    builder()->Construct(constructor, args, feedback_slot_index);
   }
 }
 

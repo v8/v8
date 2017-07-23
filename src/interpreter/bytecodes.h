@@ -178,7 +178,7 @@ namespace interpreter {
   V(CallUndefinedReceiver2, AccumulatorUse::kWrite, OperandType::kReg,         \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kReg,                 \
-    OperandType::kRegList, OperandType::kRegCount)                             \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
     OperandType::kRegList, OperandType::kRegCount)                             \
   V(CallRuntimeForPair, AccumulatorUse::kNone, OperandType::kRuntimeId,        \
@@ -194,7 +194,7 @@ namespace interpreter {
   V(Construct, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(ConstructWithSpread, AccumulatorUse::kReadWrite, OperandType::kReg,        \
-    OperandType::kRegList, OperandType::kRegCount)                             \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \

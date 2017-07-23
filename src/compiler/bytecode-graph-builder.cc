@@ -1504,12 +1504,30 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   Node* callee =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
+  Node* receiver_node = environment()->LookupRegister(receiver);
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
-  const Operator* call =
-      javascript()->CallWithSpread(static_cast<int>(reg_count + 1));
+  interpreter::Register first_arg = interpreter::Register(receiver.index() + 1);
+  int arg_count = static_cast<int>(reg_count) - 1;
+  Node* const* args =
+      GetCallArgumentsFromRegister(callee, receiver_node, first_arg, arg_count);
+  // Slot index of 0 is used indicate no feedback slot is available. Assert
+  // the assumption that slot index 0 is never a valid feedback slot.
+  int const slot_id = bytecode_iterator().GetIndexOperand(3);
+  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
+  VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
-  Node* value = ProcessCallArguments(call, callee, receiver, reg_count);
-  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+  CallFrequency frequency = ComputeCallFrequency(slot_id);
+  const Operator* op = javascript()->CallWithSpread(
+      static_cast<int>(reg_count + 1), frequency, feedback);
+  Node* node = nullptr;
+  if (Node* simplified = TryBuildSimplifiedCall(
+          op, args, static_cast<int>(arg_count), feedback.slot())) {
+    if (environment() == nullptr) return;
+    node = simplified;
+  } else {
+    node = ProcessCallArguments(op, args, 2 + arg_count);
+  }
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitCallJSRuntime() {
@@ -1626,17 +1644,30 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  // Slot index of 0 is used indicate no feedback slot is available. Assert
+  // the assumption that slot index 0 is never a valid feedback slot.
+  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
+  int const slot_id = bytecode_iterator().GetIndexOperand(3);
+  VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
   Node* new_target = environment()->LookupAccumulator();
   Node* callee = environment()->LookupRegister(callee_reg);
 
-  const Operator* op =
-      javascript()->ConstructWithSpread(static_cast<uint32_t>(reg_count + 2));
+  CallFrequency frequency = ComputeCallFrequency(slot_id);
+  const Operator* op = javascript()->ConstructWithSpread(
+      static_cast<uint32_t>(reg_count + 2), frequency, feedback);
   int arg_count = static_cast<int>(reg_count);
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
-  Node* value = ProcessConstructArguments(op, args, 2 + arg_count);
-  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+  Node* node = nullptr;
+  if (Node* simplified = TryBuildSimplifiedConstruct(
+          op, args, static_cast<int>(arg_count), feedback.slot())) {
+    if (environment() == nullptr) return;
+    node = simplified;
+  } else {
+    node = ProcessConstructArguments(op, args, 2 + arg_count);
+  }
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitInvokeIntrinsic() {

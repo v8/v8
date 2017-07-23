@@ -264,7 +264,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|, the receiver in |args[0]| and the arguments in |args[1]|
   // onwards. The final argument must be a spread.
-  BytecodeArrayBuilder& CallWithSpread(Register callable, RegisterList args);
+  BytecodeArrayBuilder& CallWithSpread(Register callable, RegisterList args,
+                                       int feedback_slot);
 
   // Call the Construct operator. The accumulator holds the |new_target|.
   // The |constructor| is in a register and arguments are in |args|.
@@ -275,7 +276,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // the |new_target|. The |constructor| is in a register and arguments are in
   // |args|. The final argument must be a spread.
   BytecodeArrayBuilder& ConstructWithSpread(Register constructor,
-                                            RegisterList args);
+                                            RegisterList args,
+                                            int feedback_slot);
 
   // Call the runtime function with |function_id| and arguments |args|.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,

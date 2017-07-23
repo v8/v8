@@ -593,7 +593,7 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
 }
 
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
-  SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
+  ConstructParameters const& p = ConstructParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   int const spread_index = arg_count;
   int const new_target_index = arg_count + 1;
@@ -664,7 +664,7 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
-  SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
+  CallParameters const& p = CallParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   int const spread_index = static_cast<int>(p.arity() + 1);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

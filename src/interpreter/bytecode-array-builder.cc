@@ -1320,8 +1320,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallAnyReceiver(Register callable,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(Register callable,
-                                                           RegisterList args) {
-  OutputCallWithSpread(callable, args, args.register_count());
+                                                           RegisterList args,
+                                                           int feedback_slot) {
+  OutputCallWithSpread(callable, args, args.register_count(), feedback_slot);
   return *this;
 }
 
@@ -1333,8 +1334,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Construct(Register constructor,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ConstructWithSpread(
-    Register constructor, RegisterList args) {
-  OutputConstructWithSpread(constructor, args, args.register_count());
+    Register constructor, RegisterList args, int feedback_slot_id) {
+  OutputConstructWithSpread(constructor, args, args.register_count(),
+                            feedback_slot_id);
   return *this;
 }
 

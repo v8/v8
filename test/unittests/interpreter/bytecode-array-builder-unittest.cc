@@ -158,7 +158,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
-      .CallWithSpread(reg, reg_list);
+      .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, 1)
@@ -203,7 +203,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
 
   // Emit construct.
-  builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list);
+  builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list, 1);
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)

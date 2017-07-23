@@ -1912,10 +1912,13 @@ IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
   Node* receiver_args_count = BytecodeOperandCount(2);
   Node* receiver_count = Int32Constant(1);
   Node* args_count = Int32Sub(receiver_args_count, receiver_count);
+  Node* slot_id = BytecodeOperandIdx(3);
+  Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
 
   // Call into Runtime function CallWithSpread which does everything.
-  Node* result = CallJSWithSpread(callable, context, receiver_arg, args_count);
+  Node* result = CallJSWithSpread(callable, context, receiver_arg, args_count,
+                                  slot_id, feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1933,9 +1936,12 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
   Node* first_arg_reg = BytecodeOperandReg(1);
   Node* first_arg = RegisterLocation(first_arg_reg);
   Node* args_count = BytecodeOperandCount(2);
+  Node* slot_id = BytecodeOperandIdx(3);
+  Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  Node* result = ConstructWithSpread(constructor, context, new_target,
-                                     first_arg, args_count);
+  Node* result =
+      ConstructWithSpread(constructor, context, new_target, first_arg,
+                          args_count, slot_id, feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }

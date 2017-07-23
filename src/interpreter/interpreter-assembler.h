@@ -117,6 +117,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* IncrementCallCount(compiler::Node* feedback_vector,
                                      compiler::Node* slot_id);
 
+  // Collect CALL_IC feedback for |target| function in the
+  // |feedback_vector| at |slot_id|.
+  void CollectCallFeedback(compiler::Node* target, compiler::Node* context,
+                           compiler::Node* slot_id,
+                           compiler::Node* feedback_vector);
+
   // Call JSFunction or Callable |function| with |arg_count| arguments (not
   // including receiver) and the first argument located at |first_arg|. Type
   // feedback is collected in the slot at index |slot_id|.
@@ -145,7 +151,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* CallJSWithSpread(compiler::Node* function,
                                    compiler::Node* context,
                                    compiler::Node* first_arg,
-                                   compiler::Node* arg_count);
+                                   compiler::Node* arg_count,
+                                   compiler::Node* slot_id,
+                                   compiler::Node* feedback_vector);
 
   // Call constructor |constructor| with |arg_count| arguments (not
   // including receiver) and the first argument located at
@@ -166,7 +174,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                       compiler::Node* context,
                                       compiler::Node* new_target,
                                       compiler::Node* first_arg,
-                                      compiler::Node* arg_count);
+                                      compiler::Node* arg_count,
+                                      compiler::Node* slot_id,
+                                      compiler::Node* feedback_vector);
 
   // Call runtime function with |arg_count| arguments and the first argument
   // located at |first_arg|.

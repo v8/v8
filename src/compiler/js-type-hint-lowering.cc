@@ -261,7 +261,8 @@ Reduction JSTypeHintLowering::ReduceCallOperation(const Operator* op,
                                                   int arg_count, Node* effect,
                                                   Node* control,
                                                   FeedbackSlot slot) const {
-  DCHECK_EQ(IrOpcode::kJSCall, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kJSCall ||
+         op->opcode() == IrOpcode::kJSCallWithSpread);
   DCHECK(!slot.IsInvalid());
   CallICNexus nexus(feedback_vector(), slot);
   if (Node* node = TryBuildSoftDeopt(
@@ -275,7 +276,8 @@ Reduction JSTypeHintLowering::ReduceCallOperation(const Operator* op,
 Reduction JSTypeHintLowering::ReduceConstructOperation(
     const Operator* op, Node* const* args, int arg_count, Node* effect,
     Node* control, FeedbackSlot slot) const {
-  DCHECK_EQ(IrOpcode::kJSConstruct, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kJSConstruct ||
+         op->opcode() == IrOpcode::kJSConstructWithSpread);
   DCHECK(!slot.IsInvalid());
   CallICNexus nexus(feedback_vector(), slot);
   if (Node* node = TryBuildSoftDeopt(
