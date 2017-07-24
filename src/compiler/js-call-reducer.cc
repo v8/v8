@@ -524,9 +524,6 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
     return NoChange();
   }
 
-  // TODO(danno): forEach can throw. Hook up exceptional edges.
-  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
-
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
   dependencies()->AssumePropertyCell(factory()->array_protector());
@@ -624,6 +621,16 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   control = effect = graph()->NewNode(
       javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
       receiver, context, frame_state, effect, control);
+
+  // Update potential {IfException} uses of {node} to point to the above
+  // JavaScript call node within the loop instead.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, control);
+    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    control = graph()->NewNode(common()->IfSuccess(), control);
+    Revisit(on_exception);
+  }
 
   if (IsHoleyElementsKind(kind)) {
     Node* after_call_control = control;
