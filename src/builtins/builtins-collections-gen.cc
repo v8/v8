@@ -966,6 +966,64 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
                                  SmiAdd(number_of_elements, SmiConstant(1)));
 }
 
+TF_BUILTIN(MapDelete, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
+                         "Map.prototype.delete");
+
+  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+
+  VARIABLE(entry_start_position_or_hash, MachineType::PointerRepresentation(),
+           IntPtrConstant(0));
+  Label entry_found(this), not_found(this);
+
+  TryLookupOrderedHashMapIndex(table, key, context,
+                               &entry_start_position_or_hash, &entry_found,
+                               &not_found);
+
+  BIND(&not_found);
+  Return(FalseConstant());
+
+  BIND(&entry_found);
+  // If we found the entry, mark the entry as deleted.
+  StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
+                         TheHoleConstant(), UPDATE_WRITE_BARRIER,
+                         kPointerSize * OrderedHashMap::kHashTableStartIndex);
+  StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
+                         TheHoleConstant(), UPDATE_WRITE_BARRIER,
+                         kPointerSize * (OrderedHashMap::kHashTableStartIndex +
+                                         OrderedHashMap::kValueOffset));
+
+  // Decrement the number of elements, increment the number of deleted elements.
+  Node* const number_of_elements =
+      SmiSub(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset),
+             SmiConstant(1));
+  StoreObjectFieldNoWriteBarrier(table, OrderedHashMap::kNumberOfElementsOffset,
+                                 number_of_elements);
+  Node* const number_of_deleted = SmiAdd(
+      LoadObjectField(table, OrderedHashMap::kNumberOfDeletedElementsOffset),
+      SmiConstant(1));
+  StoreObjectFieldNoWriteBarrier(
+      table, OrderedHashMap::kNumberOfDeletedElementsOffset, number_of_deleted);
+
+  Node* const number_of_buckets =
+      LoadFixedArrayElement(table, OrderedHashMap::kNumberOfBucketsIndex);
+
+  // If there fewer elements than #buckets / 2, shrink the table.
+  Label shrink(this);
+  GotoIf(SmiLessThan(SmiAdd(number_of_elements, number_of_elements),
+                     number_of_buckets),
+         &shrink);
+  Return(TrueConstant());
+
+  BIND(&shrink);
+  CallRuntime(Runtime::kMapShrink, context, receiver);
+  Return(TrueConstant());
+}
+
 TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const context = Parameter(Descriptor::kContext);

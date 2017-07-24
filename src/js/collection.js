@@ -186,41 +186,10 @@ DEFINE_METHODS(
   }
 );
 
-// Harmony Map
-
-//Set up the non-enumerable functions on the Map prototype object.
-DEFINE_METHODS(
-  GlobalMap.prototype,
-  {
-    delete(key) {
-      if (!IS_MAP(this)) {
-        throw %make_type_error(kIncompatibleMethodReceiver,
-                            'Map.prototype.delete', this);
-      }
-      var table = %_JSCollectionGetTable(this);
-      var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-      var hash = GetHash(key);
-      var entry = MapFindEntry(table, numBuckets, key, hash);
-      if (entry === NOT_FOUND) return false;
-
-      var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
-      var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
-      var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
-      FIXED_ARRAY_SET(table, index, %_TheHole());
-      FIXED_ARRAY_SET(table, index + 1, %_TheHole());
-      ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
-      ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
-      if (nof < (numBuckets >>> 1)) %MapShrink(this);
-      return true;
-    }
-  }
-);
-
 // -----------------------------------------------------------------------
 // Exports
 
 %InstallToContext([
-  "map_delete", GlobalMap.prototype.delete,
   "set_add", GlobalSet.prototype.add,
   "set_delete", GlobalSet.prototype.delete,
 ]);

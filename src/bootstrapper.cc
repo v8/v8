@@ -3028,6 +3028,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallFunction(prototype, "has", Builtins::kMapHas, 1, true);
     native_context()->set_map_has(*map_has);
 
+    Handle<JSFunction> map_delete = SimpleInstallFunction(
+        prototype, "delete", Builtins::kMapDelete, 1, true);
+    native_context()->set_map_delete(*map_delete);
+
     SimpleInstallFunction(prototype, "clear", Builtins::kMapClear, 0, true);
     Handle<JSFunction> entries = SimpleInstallFunction(
         prototype, "entries", Builtins::kMapPrototypeEntries, 0, true);
