@@ -2349,6 +2349,33 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
   return array;
 }
 
+void CodeStubAssembler::InitializePropertyArrayLength(Node* property_array,
+                                                      Node* length,
+                                                      ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, IsPropertyArray(property_array));
+  CSA_ASSERT(
+      this, IntPtrOrSmiGreaterThan(length, IntPtrOrSmiConstant(0, mode), mode));
+  CSA_ASSERT(
+      this,
+      IntPtrOrSmiLessThanOrEqual(
+          length, IntPtrOrSmiConstant(PropertyArray::kMaxLength, mode), mode));
+  StoreObjectFieldNoWriteBarrier(property_array, PropertyArray::kLengthOffset,
+                                 ParameterToTagged(length, mode),
+                                 MachineRepresentation::kTaggedSigned);
+}
+
+Node* CodeStubAssembler::LoadPropertyArrayLength(Node* property_array) {
+  // TODO(gsathya): Remove the IsEmptyFixedArray check once we have
+  // proper handling for the Smi case.
+  CSA_SLOW_ASSERT(this, Word32Or(IsEmptyFixedArray(property_array),
+                                 IsPropertyArray(property_array)));
+  Node* const value =
+      LoadObjectField(property_array, PropertyArray::kLengthOffset,
+                      MachineType::TaggedSigned());
+  Node* const length = SmiAnd(value, SmiConstant(PropertyArray::kLengthMask));
+  return length;
+}
+
 Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
                                                ParameterMode mode,
                                                AllocationFlags flags) {
@@ -2361,8 +2388,7 @@ Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
   Heap::RootListIndex map_index = Heap::kPropertyArrayMapRootIndex;
   DCHECK(Heap::RootIsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(array, map_index);
-  StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
-                                 ParameterToTagged(capacity_node, mode));
+  InitializePropertyArrayLength(array, capacity_node, mode);
   return array;
 }
 
