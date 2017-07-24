@@ -889,14 +889,6 @@ ExternalReference ExternalReference::
       FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
 }
 
-ExternalReference
-ExternalReference::incremental_marking_record_write_code_entry_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(IncrementalMarking::RecordWriteOfCodeEntryFromCode)));
-}
-
 ExternalReference ExternalReference::store_buffer_overflow_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(

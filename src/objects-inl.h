@@ -4686,29 +4686,19 @@ AbstractCode* JSFunction::abstract_code() {
   }
 }
 
-Code* JSFunction::code() {
-  return Code::cast(
-      Code::GetObjectFromEntryAddress(FIELD_ADDR(this, kCodeEntryOffset)));
-}
-
+Code* JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
 
 void JSFunction::set_code(Code* value) {
   DCHECK(!GetHeap()->InNewSpace(value));
-  Address entry = value->entry();
-  RELAXED_WRITE_INTPTR_FIELD(this, kCodeEntryOffset,
-                             reinterpret_cast<intptr_t>(entry));
-  GetHeap()->incremental_marking()->RecordWriteOfCodeEntry(
-      this,
-      HeapObject::RawField(this, kCodeEntryOffset),
-      value);
+  WRITE_FIELD(this, kCodeOffset, value);
+  GetHeap()->incremental_marking()->RecordWrite(
+      this, HeapObject::RawField(this, kCodeOffset), value);
 }
 
 
 void JSFunction::set_code_no_write_barrier(Code* value) {
   DCHECK(!GetHeap()->InNewSpace(value));
-  Address entry = value->entry();
-  RELAXED_WRITE_INTPTR_FIELD(this, kCodeEntryOffset,
-                             reinterpret_cast<intptr_t>(entry));
+  WRITE_FIELD(this, kCodeOffset, value);
 }
 
 void JSFunction::ClearOptimizedCodeSlot(const char* reason) {

@@ -195,9 +195,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static void RecordWriteFromCode(HeapObject* obj, Object** slot,
                                   Isolate* isolate);
 
-  static void RecordWriteOfCodeEntryFromCode(JSFunction* host, Object** slot,
-                                             Isolate* isolate);
-
   // Record a slot for compaction.  Returns false for objects that are
   // guaranteed to be rescanned or not guaranteed to survive.
   //
@@ -207,13 +204,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   INLINE(bool BaseRecordWrite(HeapObject* obj, Object* value));
   INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
   INLINE(void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value));
-  INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
-                                     Code* value));
   INLINE(void RecordWrites(HeapObject* obj));
 
   void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
-  void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
 

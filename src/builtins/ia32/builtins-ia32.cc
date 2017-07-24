@@ -553,7 +553,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
     __ mov(edx, ebx);
-    __ jmp(FieldOperand(edi, JSFunction::kCodeEntryOffset));
+    __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
+    __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ jmp(ecx);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -582,17 +584,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ jmp(&stepping_prepared);
 }
 
-static void ReplaceClosureEntryWithOptimizedCode(
-    MacroAssembler* masm, Register optimized_code_entry, Register closure,
+static void ReplaceClosureCodeWithOptimizedCode(
+    MacroAssembler* masm, Register optimized_code, Register closure,
     Register scratch1, Register scratch2, Register scratch3) {
   Register native_context = scratch1;
 
   // Store the optimized code in the closure.
-  __ lea(optimized_code_entry,
-         FieldOperand(optimized_code_entry, Code::kHeaderSize));
-  __ mov(FieldOperand(closure, JSFunction::kCodeEntryOffset),
-         optimized_code_entry);
-  __ RecordWriteCodeEntryField(closure, optimized_code_entry, scratch2);
+  __ mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
+  __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
+  __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
+                      kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Link the closure into the optimized function list.
   __ mov(native_context, NativeContextOperand());
@@ -731,8 +732,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     __ push(edx);
     // The feedback vector is no longer used, so re-use it as a scratch
     // register.
-    ReplaceClosureEntryWithOptimizedCode(masm, optimized_code_entry, closure,
-                                         edx, eax, feedback_vector);
+    ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
+                                        edx, eax, feedback_vector);
+    __ add(optimized_code_entry, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ pop(edx);
     __ pop(eax);
     __ jmp(optimized_code_entry);
@@ -904,9 +906,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ leave();   // Leave the frame so we can tail call.
   __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kCodeOffset));
+  __ mov(FieldOperand(edi, JSFunction::kCodeOffset), ecx);
+  __ mov(eax, ecx);  // Write barrier clobbers eax below.
+  __ RecordWriteField(edi, JSFunction::kCodeOffset, eax, ebx, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
-  __ mov(FieldOperand(edi, JSFunction::kCodeEntryOffset), ecx);
-  __ RecordWriteCodeEntryField(edi, ecx, ebx);
   __ jmp(ecx);
 }
 
@@ -1349,9 +1353,11 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ j(equal, &gotta_call_runtime);
 
   // Install the SFI's code entry.
+  __ mov(FieldOperand(closure, JSFunction::kCodeOffset), entry);
+  __ RecordWriteField(closure, JSFunction::kCodeOffset, entry, ebx,
+                      kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ mov(entry, FieldOperand(closure, JSFunction::kCodeOffset));
   __ lea(entry, FieldOperand(entry, Code::kHeaderSize));
-  __ mov(FieldOperand(closure, JSFunction::kCodeEntryOffset), entry);
-  __ RecordWriteCodeEntryField(closure, entry, ebx);
   __ jmp(entry);
 
   __ bind(&gotta_call_runtime);
@@ -2855,7 +2861,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // eax : expected number of arguments
   // edx : new target (passed through to callee)
   // edi : function (passed through to callee)
-  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
+  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
+  __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(ecx);
 
   // Store offset of return address for deoptimizer.
@@ -2869,7 +2876,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
-  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
+  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
+  __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(ecx);
 
   __ bind(&stack_overflow);

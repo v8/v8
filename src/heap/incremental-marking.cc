@@ -81,17 +81,6 @@ void IncrementalMarking::RecordWriteFromCode(HeapObject* obj, Object** slot,
   isolate->heap()->incremental_marking()->RecordWrite(obj, slot, *slot);
 }
 
-// static
-void IncrementalMarking::RecordWriteOfCodeEntryFromCode(JSFunction* host,
-                                                        Object** slot,
-                                                        Isolate* isolate) {
-  DCHECK(host->IsJSFunction());
-  IncrementalMarking* marking = isolate->heap()->incremental_marking();
-  Code* value = Code::cast(
-      Code::GetObjectFromEntryAddress(reinterpret_cast<Address>(slot)));
-  marking->RecordWriteOfCodeEntry(host, slot, value);
-}
-
 void IncrementalMarking::RecordCodeTargetPatch(Code* host, Address pc,
                                                HeapObject* value) {
   if (IsMarking()) {
@@ -111,16 +100,6 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
   }
 }
 
-
-void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
-                                                    Object** slot,
-                                                    Code* value) {
-  if (BaseRecordWrite(host, value)) {
-    DCHECK(slot != NULL);
-    heap_->mark_compact_collector()->RecordCodeEntrySlot(
-        host, reinterpret_cast<Address>(slot), value);
-  }
-}
 
 void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
                                                  Object* value) {

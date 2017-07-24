@@ -375,15 +375,6 @@ int MarkingVisitor<ConcreteVisitor>::VisitAllocationSite(
 }
 
 template <typename ConcreteVisitor>
-void MarkingVisitor<ConcreteVisitor>::VisitCodeEntry(JSFunction* host,
-                                                     Address entry_address) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-  collector_->RecordCodeEntrySlot(host, entry_address, code);
-  visitor->MarkObject(host, code);
-}
-
-template <typename ConcreteVisitor>
 void MarkingVisitor<ConcreteVisitor>::VisitEmbeddedPointer(Code* host,
                                                            RelocInfo* rinfo) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);

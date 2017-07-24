@@ -165,11 +165,11 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackVector() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionCodeEntry() {
-  FieldAccess access = {kTaggedBase,           JSFunction::kCodeEntryOffset,
+FieldAccess AccessBuilder::ForJSFunctionCode() {
+  FieldAccess access = {kTaggedBase,           JSFunction::kCodeOffset,
                         Handle<Name>(),        MaybeHandle<Map>(),
-                        Type::OtherInternal(), MachineType::Pointer(),
-                        kNoWriteBarrier};
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 

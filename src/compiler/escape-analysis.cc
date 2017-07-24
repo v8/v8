@@ -1611,8 +1611,7 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
     // fields which are hard-coded in {TranslatedState::MaterializeAt} as well.
     if (val->opcode() == IrOpcode::kInt32Constant ||
         val->opcode() == IrOpcode::kInt64Constant) {
-      DCHECK(FieldAccessOf(node->op()).offset == JSFunction::kCodeEntryOffset ||
-             FieldAccessOf(node->op()).offset == Name::kHashFieldOffset);
+      DCHECK(FieldAccessOf(node->op()).offset == Name::kHashFieldOffset);
       val = slot_not_analyzed_;
     }
     object = CopyForModificationAt(object, state, node);

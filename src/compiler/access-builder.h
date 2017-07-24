@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSFunctionFeedbackVector();
 
   // Provides access to JSFunction::code() field.
-  static FieldAccess ForJSFunctionCodeEntry();
+  static FieldAccess ForJSFunctionCode();
 
   // Provides access to JSFunction::next_function_link() field.
   static FieldAccess ForJSFunctionNextFunctionLink();

@@ -89,10 +89,6 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
  public:
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
-  void VisitCodeEntry(JSFunction* host, Address code_entry) final {
-    // Code is not in new space.
-  }
-
   // Special cases for young generation.
 
   V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
@@ -130,7 +126,6 @@ class MarkingVisitor : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
 
   // ObjectVisitor implementation.
-  V8_INLINE void VisitCodeEntry(JSFunction* host, Address entry_address) final;
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCellPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitDebugTarget(Code* host, RelocInfo* rinfo) final;

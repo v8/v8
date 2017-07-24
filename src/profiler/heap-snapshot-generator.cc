@@ -967,11 +967,6 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_end_(HeapObject::RawField(parent_obj_, parent_obj_->Size())),
         parent_(parent),
         next_index_(0) {}
-  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
-    Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-    generator_->SetInternalReference(parent_obj_, parent_, "code", code);
-    generator_->TagCodeObject(code);
-  }
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       int index = static_cast<int>(p - HeapObject::RawField(parent_obj_, 0));
@@ -1122,10 +1117,11 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(js_fun, entry,
                          "context", js_fun->context(),
                          JSFunction::kContextOffset);
+    TagCodeObject(js_fun->code());
+    SetInternalReference(js_fun, entry, "code", js_fun->code(),
+                         JSFunction::kCodeOffset);
     // Ensure no new weak references appeared in JSFunction.
-    STATIC_ASSERT(JSFunction::kCodeEntryOffset ==
-                  JSFunction::kNonWeakFieldsEndOffset);
-    STATIC_ASSERT(JSFunction::kCodeEntryOffset + kPointerSize ==
+    STATIC_ASSERT(JSFunction::kNonWeakFieldsEndOffset ==
                   JSFunction::kNextFunctionLinkOffset);
     STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset + kPointerSize
                  == JSFunction::kSize);

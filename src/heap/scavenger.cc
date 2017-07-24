@@ -52,17 +52,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     }
   }
 
-  inline void VisitCodeEntry(JSFunction* host, Address code_entry_slot) final {
-    // Black allocation is not enabled during Scavenges.
-    DCHECK(!heap_->incremental_marking()->black_allocation());
-
-    if (ObjectMarking::IsBlack(host, MarkingState::Internal(host))) {
-      Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
-      heap_->mark_compact_collector()->RecordCodeEntrySlot(
-          host, code_entry_slot, code);
-    }
-  }
-
  private:
   Heap* const heap_;
   Scavenger* const scavenger_;

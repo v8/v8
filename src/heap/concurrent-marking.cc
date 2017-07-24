@@ -75,13 +75,6 @@ class ConcurrentMarkingVisitor final
     }
   }
 
-  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
-    Address code_entry = base::AsAtomicWord::Relaxed_Load(
-        reinterpret_cast<Address*>(entry_address));
-    Object* code = Code::GetObjectFromCodeEntry(code_entry);
-    VisitPointer(host, &code);
-  }
-
   // ===========================================================================
   // JS object =================================================================
   // ===========================================================================

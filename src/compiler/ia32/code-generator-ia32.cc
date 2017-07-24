@@ -954,7 +954,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(esi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, kWrongFunctionContext);
       }
-      __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
+      __ mov(ecx, FieldOperand(func, JSFunction::kCodeOffset));
+      __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ call(ecx);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;

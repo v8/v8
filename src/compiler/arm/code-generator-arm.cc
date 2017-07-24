@@ -729,7 +729,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, kScratchReg);
         __ Assert(eq, kWrongFunctionContext);
       }
-      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(ip);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());

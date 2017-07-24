@@ -191,13 +191,9 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
       function, JSFunction::kSharedFunctionInfoOffset, shared_info);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
 
-  Node* const code = BitcastTaggedToWord(
-      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset));
-  Node* const code_entry =
-      IntPtrAdd(code, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
-  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeEntryOffset,
-                                 code_entry,
-                                 MachineType::PointerRepresentation());
+  Node* const code =
+      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
+  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
   StoreObjectFieldRoot(function, JSFunction::kNextFunctionLinkOffset,
                        Heap::kUndefinedValueRootIndex);
 }

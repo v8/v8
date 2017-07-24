@@ -5290,10 +5290,9 @@ class JSFunction: public JSObject {
       kPrototypeOrInitialMapOffset + kPointerSize;
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
   static const int kFeedbackVectorOffset = kContextOffset + kPointerSize;
-  static const int kNonWeakFieldsEndOffset =
-      kFeedbackVectorOffset + kPointerSize;
-  static const int kCodeEntryOffset = kNonWeakFieldsEndOffset;
-  static const int kNextFunctionLinkOffset = kCodeEntryOffset + kPointerSize;
+  static const int kCodeOffset = kFeedbackVectorOffset + kPointerSize;
+  static const int kNonWeakFieldsEndOffset = kCodeOffset + kPointerSize;
+  static const int kNextFunctionLinkOffset = kNonWeakFieldsEndOffset;
   static const int kSize = kNextFunctionLinkOffset + kPointerSize;
 
  private:
@@ -7388,9 +7387,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a code target in the instruction stream.
   virtual void VisitCodeTarget(Code* host, RelocInfo* rinfo);
-
-  // Visits a code entry in a JS function.
-  virtual void VisitCodeEntry(JSFunction* host, Address entry_address);
 
   // Visits a global property cell reference in the instruction stream.
   virtual void VisitCellPointer(Code* host, RelocInfo* rinfo);

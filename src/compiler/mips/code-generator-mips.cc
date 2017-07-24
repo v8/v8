@@ -652,9 +652,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ lw(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
       }
-
-      __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Call(at);
+      __ lw(at, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ Call(at, Code::kHeaderSize - kHeapObjectTag);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();

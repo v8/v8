@@ -1402,16 +1402,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     }
   }
 
-  inline void VisitCodeEntry(JSFunction* host,
-                             Address code_entry_slot) override {
-    Address code_entry = Memory::Address_at(code_entry_slot);
-    if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
-      RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(code_entry_slot),
-                                             nullptr, CODE_ENTRY_SLOT,
-                                             code_entry_slot);
-    }
-  }
-
   inline void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
@@ -1540,16 +1530,6 @@ class YoungGenerationRecordMigratedSlotVisitor final
   explicit YoungGenerationRecordMigratedSlotVisitor(
       MarkCompactCollector* collector)
       : RecordMigratedSlotVisitor(collector) {}
-
-  inline void VisitCodeEntry(JSFunction* host, Address code_entry_slot) final {
-    Address code_entry = Memory::Address_at(code_entry_slot);
-    if (Page::FromAddress(code_entry)->IsEvacuationCandidate() &&
-        IsLive(host)) {
-      RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(code_entry_slot),
-                                             nullptr, CODE_ENTRY_SLOT,
-                                             code_entry_slot);
-    }
-  }
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitDebugTarget(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
@@ -3293,10 +3273,6 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
     UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlotInternal);
   }
 
-  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
-    UpdateTypedSlotHelper::UpdateCodeEntry(entry_address, UpdateSlotInternal);
-  }
-
   void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateDebugTarget(rinfo, UpdateSlotInternal);
   }
@@ -4701,19 +4677,6 @@ void MarkCompactCollector::StartSweepSpaces() {
 
   // Deallocate unmarked large objects.
   heap_->lo_space()->FreeUnmarkedObjects();
-}
-
-void MarkCompactCollector::RecordCodeEntrySlot(HeapObject* host, Address slot,
-                                               Code* target) {
-  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
-  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
-  if (target_page->IsEvacuationCandidate() &&
-      !ShouldSkipEvacuationSlotRecording(host)) {
-    // TODO(ulan): remove this check after investigating crbug.com/414964.
-    CHECK(target->IsCode());
-    RememberedSet<OLD_TO_OLD>::InsertTyped(
-        source_page, reinterpret_cast<Address>(host), CODE_ENTRY_SLOT, slot);
-  }
 }
 
 

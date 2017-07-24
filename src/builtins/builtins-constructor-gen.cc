@@ -185,12 +185,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   Handle<Code> lazy_builtin_handle(
       isolate->builtins()->builtin(Builtins::kCompileLazy));
   Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
-  Node* lazy_builtin_entry =
-      IntPtrAdd(BitcastTaggedToWord(lazy_builtin),
-                IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeEntryOffset,
-                                 lazy_builtin_entry,
-                                 MachineType::PointerRepresentation());
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kNextFunctionLinkOffset,
                                  UndefinedConstant());
 

@@ -443,11 +443,6 @@ class MacroAssembler : public TurboAssembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  // Notify the garbage collector that we wrote a code entry into a
-  // JSFunction. Only scratch is clobbered by the operation.
-  void RecordWriteCodeEntryField(Register js_function, Register code_entry,
-                                 Register scratch);
-
   // For page containing |object| mark the region covering the object's map
   // dirty. |object| is the object being stored into, |map| is the Map object
   // that was stored.

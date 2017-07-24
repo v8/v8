@@ -737,7 +737,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, temp);
         __ Assert(eq, kWrongFunctionContext);
       }
-      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ Add(x10, x10, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(x10);
       RecordCallPosition(instr);
       // TODO(titzer): this is ugly. JSSP should be a caller-save register

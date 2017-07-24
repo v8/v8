@@ -734,14 +734,6 @@ void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitCodeEntry(JSFunction* host,
-                                                  Address entry_address) {
-  int skip = OutputRawData(entry_address, kCanReturnSkipInsteadOfSkipping);
-  Code* object = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-  serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
-  bytes_processed_so_far_ += kPointerSize;
-}
-
 void Serializer::ObjectSerializer::VisitCellPointer(Code* host,
                                                     RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);

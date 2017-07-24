@@ -604,7 +604,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
-  void RecordCodeEntrySlot(HeapObject* host, Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
   INLINE(void RecordSlot(HeapObject* object, Object** slot, Object* target));
   INLINE(void ForceRecordSlot(HeapObject* object, Object** slot,

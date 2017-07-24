@@ -13852,13 +13852,6 @@ void ObjectVisitor::VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) {
   }
 }
 
-void ObjectVisitor::VisitCodeEntry(JSFunction* host, Address entry_address) {
-  Object* old_pointer = Code::GetObjectFromEntryAddress(entry_address);
-  Object* new_pointer = old_pointer;
-  VisitPointer(host, &new_pointer);
-  DCHECK_EQ(old_pointer, new_pointer);
-}
-
 void ObjectVisitor::VisitCellPointer(Code* host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::CELL);
   Object* old_pointer = rinfo->target_cell();

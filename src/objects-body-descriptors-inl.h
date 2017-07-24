@@ -161,8 +161,7 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
 template <JSFunction::BodyVisitingPolicy body_visiting_policy>
 class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kNonWeakFieldsEndOffset == kCodeEntryOffset);
-  STATIC_ASSERT(kCodeEntryOffset + kPointerSize == kNextFunctionLinkOffset);
+  STATIC_ASSERT(kNonWeakFieldsEndOffset == kNextFunctionLinkOffset);
   STATIC_ASSERT(kNextFunctionLinkOffset + kPointerSize == kSize);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
@@ -174,7 +173,6 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOrHashOffset, kNonWeakFieldsEndOffset, v);
-    v->VisitCodeEntry(JSFunction::cast(obj), obj->address() + kCodeEntryOffset);
     if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
     }
@@ -186,9 +184,6 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
     Heap* heap = obj->GetHeap();
     IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                    kNonWeakFieldsEndOffset);
-
-    StaticVisitor::VisitCodeEntry(heap, obj, obj->address() + kCodeEntryOffset);
-
     if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
     }

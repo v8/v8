@@ -5113,13 +5113,6 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
-    Object* target = Code::GetObjectFromEntryAddress(entry_address);
-    if (ShouldHaveBeenRecorded(host, target)) {
-      CHECK(InTypedSet(CODE_ENTRY_SLOT, entry_address));
-    }
-  }
-
   void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
     Object* target = rinfo->target_cell();
     if (ShouldHaveBeenRecorded(host, target)) {

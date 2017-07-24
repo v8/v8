@@ -9481,10 +9481,8 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                                                            Node* context) {
   CSA_SLOW_ASSERT(this, IsMap(map));
 
-  Node* const code = BitcastTaggedToWord(
-      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset));
-  Node* const code_entry =
-      IntPtrAdd(code, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
+  Node* const code =
+      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
 
   Node* const fun = Allocate(JSFunction::kSize);
   StoreMapNoWriteBarrier(fun, map);
@@ -9499,8 +9497,7 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeEntryOffset, code_entry,
-                                 MachineType::PointerRepresentation());
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
   StoreObjectFieldRoot(fun, JSFunction::kNextFunctionLinkOffset,
                        Heap::kUndefinedValueRootIndex);
 
