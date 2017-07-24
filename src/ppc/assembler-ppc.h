@@ -304,7 +304,7 @@ class Operand BASE_EMBEDDED {
                           RelocInfo::Mode rmode = kRelocInfo_NONEPTR));
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
   INLINE(explicit Operand(const ExternalReference& f));
-  explicit Operand(Handle<Object> handle);
+  explicit Operand(Handle<HeapObject> handle);
   INLINE(explicit Operand(Smi* value));
 
   // rm

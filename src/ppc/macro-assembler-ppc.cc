@@ -27,7 +27,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
       isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -71,7 +71,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ppc code, never THUMB code
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
@@ -140,7 +140,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
 
 int MacroAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
                              Condition cond) {
-  AllowDeferredHandleDereference using_raw_address;
+  AllowHandleDereference using_location;
   return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
@@ -159,7 +159,7 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   int expected_size = CallSize(code, rmode, cond);
 #endif
 
-  AllowDeferredHandleDereference using_raw_address;
+  AllowHandleDereference using_location;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond);
   DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
 }
@@ -178,18 +178,25 @@ void MacroAssembler::Drop(Register count, Register scratch) {
 
 void MacroAssembler::Call(Label* target) { b(target, SetLK); }
 
-
-void MacroAssembler::Push(Handle<Object> handle) {
+void MacroAssembler::Push(Handle<HeapObject> handle) {
   mov(r0, Operand(handle));
+  push(r0);
+}
+
+void MacroAssembler::Push(Smi* smi) {
+  mov(r0, Operand(smi));
   push(r0);
 }
 
 void MacroAssembler::PushObject(Handle<Object> handle) {
-  mov(r0, Operand(handle));
-  push(r0);
+  if (handle->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(handle));
+  } else {
+    Push(Smi::cast(*handle));
+  }
 }
 
-void MacroAssembler::Move(Register dst, Handle<Object> value) {
+void MacroAssembler::Move(Register dst, Handle<HeapObject> value) {
   mov(dst, Operand(value));
 }
 
@@ -2234,9 +2241,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
     return;
   }
 #endif
-
-  // Check if Abort() has already been initialized.
-  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
   LoadSmiLiteral(r4, Smi::FromInt(static_cast<int>(reason)));
 

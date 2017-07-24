@@ -27,7 +27,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
       isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -164,17 +164,25 @@ void MacroAssembler::Drop(Register count, Register scratch) {
 
 void MacroAssembler::Call(Label* target) { b(r14, target); }
 
-void MacroAssembler::Push(Handle<Object> handle) {
+void MacroAssembler::Push(Handle<HeapObject> handle) {
   mov(r0, Operand(handle));
+  push(r0);
+}
+
+void MacroAssembler::Push(Smi* smi) {
+  mov(r0, Operand(smi));
   push(r0);
 }
 
 void MacroAssembler::PushObject(Handle<Object> handle) {
-  mov(r0, Operand(handle));
-  push(r0);
+  if (handle->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(handle));
+  } else {
+    Push(Smi::cast(*handle));
+  }
 }
 
-void MacroAssembler::Move(Register dst, Handle<Object> value) {
+void MacroAssembler::Move(Register dst, Handle<HeapObject> value) {
   mov(dst, Operand(value));
 }
 
@@ -1999,9 +2007,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
     return;
   }
 #endif
-
-  // Check if Abort() has already been initialized.
-  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
   LoadSmiLiteral(r3, Smi::FromInt(static_cast<int>(reason)));
 

@@ -307,19 +307,11 @@ void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
 // Implementation of Operand and MemOperand
 // See assembler-s390-inl.h for inlined constructors
 
-Operand::Operand(Handle<Object> handle) {
-  AllowDeferredHandleDereference using_raw_address;
+Operand::Operand(Handle<HeapObject> handle) {
+  AllowHandleDereference using_location;
   rm_ = no_reg;
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    // no relocation needed
-    value_.immediate = reinterpret_cast<intptr_t>(obj);
-    rmode_ = kRelocInfo_NONEPTR;
-  }
+  value_.immediate = reinterpret_cast<intptr_t>(handle.location());
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
 Operand Operand::EmbeddedNumber(double value) {
