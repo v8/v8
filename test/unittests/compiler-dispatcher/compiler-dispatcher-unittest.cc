@@ -1019,8 +1019,8 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
     ASSERT_FALSE(shared->is_compiled());
     ParseInfo parse_info(shared);
 
-    ASSERT_TRUE(parsing::ParseAny(&parse_info, shared, i_isolate()));
     DeferredHandleScope handles_scope(i_isolate());
+    ASSERT_TRUE(parsing::ParseAny(&parse_info, shared, i_isolate()));
     { ASSERT_TRUE(Compiler::Analyze(&parse_info, i_isolate())); }
     std::shared_ptr<DeferredHandles> compilation_handles(
         handles_scope.Detach());

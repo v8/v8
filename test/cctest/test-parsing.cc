@@ -834,7 +834,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Rewriter::Rewrite(&info, isolate));
-      i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
+      i::DeclarationScope::Analyze(&info, isolate);
+      i::DeclarationScope::AllocateScopeInfos(&info, isolate,
+                                              i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -10267,7 +10269,9 @@ TEST(LexicalLoopVariable) {
     info.set_allow_lazy_parsing(false);
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info, isolate));
-    i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
+    i::DeclarationScope::Analyze(&info, isolate);
+    i::DeclarationScope::AllocateScopeInfos(&info, isolate,
+                                            i::AnalyzeMode::kRegular);
     CHECK(info.literal() != NULL);
 
     i::DeclarationScope* script_scope = info.literal()->scope();

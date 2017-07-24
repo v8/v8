@@ -41,8 +41,7 @@ struct TestHelper : public HandleAndZoneScope {
     CHECK(parsing::ParseFunction(&parse_info, info.shared_info(),
                                  info.isolate()));
     CHECK(Rewriter::Rewrite(&parse_info, function->GetIsolate()));
-    DeclarationScope::Analyze(&parse_info, info.isolate(),
-                              AnalyzeMode::kRegular);
+    DeclarationScope::Analyze(&parse_info, info.isolate());
 
     DeclarationScope* scope = info.literal()->scope();
     AstValueFactory* factory = parse_info.ast_value_factory();

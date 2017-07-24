@@ -861,7 +861,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
+  static void Analyze(ParseInfo* info, Isolate* isolate);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope contents for lazily compiled functions. In particular,
@@ -869,6 +869,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // yet know what they will resolve to since the outer Scopes are incomplete)
   // and recreates them with the correct Zone with ast_node_factory.
   void AnalyzePartially(AstNodeFactory* ast_node_factory);
+
+  // Allocate ScopeInfos for top scope and any inner scopes that need them.
+  // Does nothing if ScopeInfo is already allocated.
+  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate,
+                                 AnalyzeMode mode);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);
@@ -927,7 +932,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
+  void AllocateVariables(ParseInfo* info);
 
   void SetDefaults();
 

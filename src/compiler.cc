@@ -401,6 +401,10 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   ParseInfo* parse_info = info->parse_info();
   Isolate* isolate = info->isolate();
 
+  // Allocate scope infos for the literal.
+  DeclarationScope::AllocateScopeInfos(parse_info, isolate,
+                                       AnalyzeMode::kRegular);
+
   if (parse_info->is_toplevel()) {
     // Allocate a shared function info and an array for shared function infos
     // for inner functions.
@@ -445,6 +449,8 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
     wasm_data = AsmJs::CompileAsmViaWasm(info);
     if (!wasm_data.is_null()) {
       SetSharedFunctionFlagsFromLiteral(info->literal(), info->shared_info());
+      DeclarationScope::AllocateScopeInfos(info->parse_info(), info->isolate(),
+                                           AnalyzeMode::kRegular);
       info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
       info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
       InstallUnoptimizedCode(info);
@@ -545,13 +551,18 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
     }
   }
 
-  if (info->parse_info()->is_toplevel() &&
-      (ShouldUseFullCodegen(info->literal()) ||
-       InnerFunctionShouldUseFullCodegen(&inner_literals))) {
-    // Full-codegen needs to access SFI when compiling, so allocate the array
-    // now.
-    EnsureSharedFunctionInfosArrayOnScript(info);
+  if (ShouldUseFullCodegen(info->literal()) ||
+      InnerFunctionShouldUseFullCodegen(&inner_literals)) {
     inner_function_mode = ConcurrencyMode::kNotConcurrent;
+
+    // Full-codegen needs to access ScopeInfos when compiling, so allocate now.
+    DeclarationScope::AllocateScopeInfos(info->parse_info(), isolate,
+                                         AnalyzeMode::kRegular);
+    if (info->parse_info()->is_toplevel()) {
+      // Full-codegen needs to access SFI when compiling, so allocate the array
+      // now.
+      EnsureSharedFunctionInfosArrayOnScript(info);
+    }
   }
 
   std::shared_ptr<Zone> parse_zone;
@@ -674,6 +685,8 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info)) return false;
+    DeclarationScope::AllocateScopeInfos(info->parse_info(), isolate,
+                                         AnalyzeMode::kRegular);
     EnsureFeedbackMetadata(info);
   }
 
@@ -729,6 +742,8 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info)) return false;
+    DeclarationScope::AllocateScopeInfos(info->parse_info(), isolate,
+                                         AnalyzeMode::kRegular);
     EnsureFeedbackMetadata(info);
   }
 
@@ -1079,7 +1094,7 @@ bool Compiler::Analyze(ParseInfo* info, Isolate* isolate,
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileAnalyse);
   if (!Rewriter::Rewrite(info, isolate)) return false;
-  DeclarationScope::Analyze(info, isolate, AnalyzeMode::kRegular);
+  DeclarationScope::Analyze(info, isolate);
   if (!Renumber(info, eager_literals)) {
     return false;
   }
