@@ -3311,7 +3311,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        -kPointerSize);
     } else {
-      // Use the XOR trick to swap without a temporary.
+      // Use the XOR trick to swap without a temporary. The xorps may read
+      // from or write to an unaligned address, causing a slowdown, but swaps
+      // between slots should be rare.
       __ Movups(kScratchDoubleReg, src);
       __ Xorps(kScratchDoubleReg, dst);  // scratch contains src ^ dst.
       __ Movups(src, kScratchDoubleReg);

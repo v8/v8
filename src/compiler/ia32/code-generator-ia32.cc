@@ -57,9 +57,9 @@ class IA32OperandConverter : public InstructionOperandConverter {
                    offset.offset() + extra);
   }
 
-  Operand HighOperand(InstructionOperand* op) {
+  Operand OffsetOperand(InstructionOperand* op, int offset) {
     DCHECK(op->IsFPStackSlot());
-    return ToOperand(op, kPointerSize);
+    return ToOperand(op, offset);
   }
 
   Immediate ToImmediate(InstructionOperand* operand) {
@@ -2753,7 +2753,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsFPStackSlot());
         Operand dst0 = g.ToOperand(destination);
-        Operand dst1 = g.HighOperand(destination);
+        Operand dst1 = g.OffsetOperand(destination, kPointerSize);
         __ Move(dst0, Immediate(lower));
         __ Move(dst1, Immediate(upper));
       }
@@ -2877,13 +2877,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     Operand dst0 = g.ToOperand(destination);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kFloat64) {
-      Operand src1 = g.HighOperand(source);
-      Operand dst1 = g.HighOperand(destination);
       __ movsd(kScratchDoubleReg, dst0);  // Save dst in scratch register.
       __ push(src0);  // Then use stack to copy src to destination.
       __ pop(dst0);
-      __ push(src1);
-      __ pop(dst1);
+      __ push(g.OffsetOperand(source, kPointerSize));
+      __ pop(g.OffsetOperand(destination, kPointerSize));
       __ movsd(src0, kScratchDoubleReg);
     } else if (rep == MachineRepresentation::kFloat32) {
       __ movss(kScratchDoubleReg, dst0);  // Save dst in scratch register.
@@ -2892,13 +2890,15 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ movss(src0, kScratchDoubleReg);
     } else {
       DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-      // Use the XOR trick to swap without a temporary.
-      __ movups(kScratchDoubleReg, src0);
-      __ xorps(kScratchDoubleReg, dst0);  // scratch contains src ^ dst.
-      __ movups(src0, kScratchDoubleReg);
-      __ xorps(kScratchDoubleReg, dst0);  // scratch contains src.
-      __ movups(dst0, kScratchDoubleReg);
-      __ xorps(kScratchDoubleReg, src0);  // scratch contains dst.
+      __ movups(kScratchDoubleReg, dst0);  // Save dst in scratch register.
+      __ push(src0);  // Then use stack to copy src to destination.
+      __ pop(dst0);
+      __ push(g.OffsetOperand(source, kPointerSize));
+      __ pop(g.OffsetOperand(destination, kPointerSize));
+      __ push(g.OffsetOperand(source, 2 * kPointerSize));
+      __ pop(g.OffsetOperand(destination, 2 * kPointerSize));
+      __ push(g.OffsetOperand(source, 3 * kPointerSize));
+      __ pop(g.OffsetOperand(destination, 3 * kPointerSize));
       __ movups(src0, kScratchDoubleReg);
     }
   } else {
