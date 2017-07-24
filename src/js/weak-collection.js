@@ -11,15 +11,34 @@
 // -------------------------------------------------------------------
 // Imports
 
-var GetExistingHash;
-var GetHash;
+var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
+var MathRandom = global.Math.random;
 
-utils.Import(function(from) {
-  GetExistingHash = from.GetExistingHash;
-  GetHash = from.GetHash;
-});
+// -------------------------------------------------------------------
+
+function GetExistingHash(key) {
+  if (IS_RECEIVER(key) && !IS_PROXY(key) && !IS_GLOBAL(key)) {
+    var hash = GET_PRIVATE(key, hashCodeSymbol);
+    return hash;
+  }
+  return %GenericHash(key);
+}
+%SetForceInlineFlag(GetExistingHash);
+
+
+function GetHash(key) {
+  var hash = GetExistingHash(key);
+  if (IS_UNDEFINED(hash)) {
+    hash = (MathRandom() * 0x40000000) | 0;
+    if (hash === 0) hash = 1;
+    SET_PRIVATE(key, hashCodeSymbol, hash);
+  }
+  return hash;
+}
+%SetForceInlineFlag(GetHash);
+
 
 // -------------------------------------------------------------------
 // Harmony WeakMap

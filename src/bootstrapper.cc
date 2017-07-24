@@ -3074,6 +3074,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> set_has =
         SimpleInstallFunction(prototype, "has", Builtins::kSetHas, 1, true);
     native_context()->set_set_has(*set_has);
+
+    Handle<JSFunction> set_add =
+        SimpleInstallFunction(prototype, "add", Builtins::kSetAdd, 1, true);
+    native_context()->set_set_add(*set_add);
+
+    Handle<JSFunction> set_delete = SimpleInstallFunction(
+        prototype, "delete", Builtins::kSetDelete, 1, true);
+    native_context()->set_set_delete(*set_delete);
+
     SimpleInstallFunction(prototype, "clear", Builtins::kSetClear, 0, true);
     SimpleInstallFunction(prototype, "entries", Builtins::kSetPrototypeEntries,
                           0, true);

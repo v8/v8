@@ -106,13 +106,20 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
                                             Node* key, Variable* result,
                                             Label* entry_found,
                                             Label* not_found);
-  void TryLookupOrderedHashMapIndex(Node* const table, Node* const key,
-                                    Node* const context, Variable* result,
-                                    Label* if_entry_found, Label* if_not_found);
+
+  template <typename CollectionType>
+  void TryLookupOrderedHashTableIndex(Node* const table, Node* const key,
+                                      Node* const context, Variable* result,
+                                      Label* if_entry_found,
+                                      Label* if_not_found);
 
   Node* NormalizeNumberKey(Node* key);
   void StoreOrderedHashMapNewEntry(Node* const table, Node* const key,
                                    Node* const value, Node* const hash,
+                                   Node* const number_of_buckets,
+                                   Node* const occupancy);
+  void StoreOrderedHashSetNewEntry(Node* const table, Node* const key,
+                                   Node* const hash,
                                    Node* const number_of_buckets,
                                    Node* const occupancy);
 };
@@ -869,9 +876,9 @@ TF_BUILTIN(MapSet, CollectionsBuiltinsAssembler) {
            IntPtrConstant(0));
   Label entry_found(this), not_found(this);
 
-  TryLookupOrderedHashMapIndex(table, key, context,
-                               &entry_start_position_or_hash, &entry_found,
-                               &not_found);
+  TryLookupOrderedHashTableIndex<OrderedHashMap>(table, key, context,
+                                                 &entry_start_position_or_hash,
+                                                 &entry_found, &not_found);
 
   BIND(&entry_found);
   // If we found the entry, we just store the value there.
@@ -980,9 +987,9 @@ TF_BUILTIN(MapDelete, CollectionsBuiltinsAssembler) {
            IntPtrConstant(0));
   Label entry_found(this), not_found(this);
 
-  TryLookupOrderedHashMapIndex(table, key, context,
-                               &entry_start_position_or_hash, &entry_found,
-                               &not_found);
+  TryLookupOrderedHashTableIndex<OrderedHashMap>(table, key, context,
+                                                 &entry_start_position_or_hash,
+                                                 &entry_found, &not_found);
 
   BIND(&not_found);
   Return(FalseConstant());
@@ -1021,6 +1028,165 @@ TF_BUILTIN(MapDelete, CollectionsBuiltinsAssembler) {
 
   BIND(&shrink);
   CallRuntime(Runtime::kMapShrink, context, receiver);
+  Return(TrueConstant());
+}
+
+TF_BUILTIN(SetAdd, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, "Set.prototype.add");
+
+  key = NormalizeNumberKey(key);
+
+  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+
+  VARIABLE(entry_start_position_or_hash, MachineType::PointerRepresentation(),
+           IntPtrConstant(0));
+  Label entry_found(this), not_found(this);
+
+  TryLookupOrderedHashTableIndex<OrderedHashSet>(table, key, context,
+                                                 &entry_start_position_or_hash,
+                                                 &entry_found, &not_found);
+
+  BIND(&entry_found);
+  // The entry was found, there is nothing to do.
+  Return(receiver);
+
+  Label no_hash(this), add_entry(this), store_new_entry(this);
+  BIND(&not_found);
+  {
+    // If we have a hash code, we can start adding the new entry.
+    GotoIf(IntPtrGreaterThanOrEqual(entry_start_position_or_hash.value(),
+                                    IntPtrConstant(0)),
+           &add_entry);
+
+    // Otherwise, go to runtime to compute the hash code.
+    entry_start_position_or_hash.Bind(
+        SmiUntag(CallRuntime(Runtime::kGenericHash, context, key)));
+    Goto(&add_entry);
+  }
+
+  BIND(&add_entry);
+  VARIABLE(number_of_buckets, MachineType::PointerRepresentation());
+  VARIABLE(occupancy, MachineType::PointerRepresentation());
+  VARIABLE(table_var, MachineRepresentation::kTaggedPointer, table);
+  {
+    // Check we have enough space for the entry.
+    number_of_buckets.Bind(SmiUntag(
+        LoadFixedArrayElement(table, OrderedHashSet::kNumberOfBucketsIndex)));
+
+    STATIC_ASSERT(OrderedHashSet::kLoadFactor == 2);
+    Node* const capacity = WordShl(number_of_buckets.value(), 1);
+    Node* const number_of_elements = SmiUntag(
+        LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset));
+    Node* const number_of_deleted = SmiUntag(
+        LoadObjectField(table, OrderedHashSet::kNumberOfDeletedElementsOffset));
+    occupancy.Bind(IntPtrAdd(number_of_elements, number_of_deleted));
+    GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
+
+    // We do not have enough space, grow the table and reload the relevant
+    // fields.
+    CallRuntime(Runtime::kSetGrow, context, receiver);
+    table_var.Bind(LoadObjectField(receiver, JSMap::kTableOffset));
+    number_of_buckets.Bind(SmiUntag(LoadFixedArrayElement(
+        table_var.value(), OrderedHashSet::kNumberOfBucketsIndex)));
+    Node* const new_number_of_elements = SmiUntag(LoadObjectField(
+        table_var.value(), OrderedHashSet::kNumberOfElementsOffset));
+    Node* const new_number_of_deleted = SmiUntag(LoadObjectField(
+        table_var.value(), OrderedHashSet::kNumberOfDeletedElementsOffset));
+    occupancy.Bind(IntPtrAdd(new_number_of_elements, new_number_of_deleted));
+    Goto(&store_new_entry);
+  }
+  BIND(&store_new_entry);
+  // Store the key, value and connect the element to the bucket chain.
+  StoreOrderedHashSetNewEntry(table_var.value(), key,
+                              entry_start_position_or_hash.value(),
+                              number_of_buckets.value(), occupancy.value());
+  Return(receiver);
+}
+
+void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
+    Node* const table, Node* const key, Node* const hash,
+    Node* const number_of_buckets, Node* const occupancy) {
+  Node* const bucket =
+      WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
+  Node* const bucket_entry = LoadFixedArrayElement(
+      table, bucket, OrderedHashSet::kHashTableStartIndex * kPointerSize);
+
+  // Store the entry elements.
+  Node* const entry_start = IntPtrAdd(
+      IntPtrMul(occupancy, IntPtrConstant(OrderedHashSet::kEntrySize)),
+      number_of_buckets);
+  StoreFixedArrayElement(table, entry_start, key, UPDATE_WRITE_BARRIER,
+                         kPointerSize * OrderedHashSet::kHashTableStartIndex);
+  StoreFixedArrayElement(table, entry_start, bucket_entry, SKIP_WRITE_BARRIER,
+                         kPointerSize * (OrderedHashSet::kHashTableStartIndex +
+                                         OrderedHashSet::kChainOffset));
+
+  // Update the bucket head.
+  StoreFixedArrayElement(table, bucket, SmiTag(occupancy), SKIP_WRITE_BARRIER,
+                         OrderedHashSet::kHashTableStartIndex * kPointerSize);
+
+  // Bump the elements count.
+  Node* const number_of_elements =
+      LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset);
+  StoreObjectFieldNoWriteBarrier(table, OrderedHashSet::kNumberOfElementsOffset,
+                                 SmiAdd(number_of_elements, SmiConstant(1)));
+}
+
+TF_BUILTIN(SetDelete, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
+                         "Set.prototype.delete");
+
+  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+
+  VARIABLE(entry_start_position_or_hash, MachineType::PointerRepresentation(),
+           IntPtrConstant(0));
+  Label entry_found(this), not_found(this);
+
+  TryLookupOrderedHashTableIndex<OrderedHashSet>(table, key, context,
+                                                 &entry_start_position_or_hash,
+                                                 &entry_found, &not_found);
+
+  BIND(&not_found);
+  Return(FalseConstant());
+
+  BIND(&entry_found);
+  // If we found the entry, mark the entry as deleted.
+  StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
+                         TheHoleConstant(), UPDATE_WRITE_BARRIER,
+                         kPointerSize * OrderedHashSet::kHashTableStartIndex);
+
+  // Decrement the number of elements, increment the number of deleted elements.
+  Node* const number_of_elements =
+      SmiSub(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset),
+             SmiConstant(1));
+  StoreObjectFieldNoWriteBarrier(table, OrderedHashSet::kNumberOfElementsOffset,
+                                 number_of_elements);
+  Node* const number_of_deleted = SmiAdd(
+      LoadObjectField(table, OrderedHashSet::kNumberOfDeletedElementsOffset),
+      SmiConstant(1));
+  StoreObjectFieldNoWriteBarrier(
+      table, OrderedHashSet::kNumberOfDeletedElementsOffset, number_of_deleted);
+
+  Node* const number_of_buckets =
+      LoadFixedArrayElement(table, OrderedHashSet::kNumberOfBucketsIndex);
+
+  // If there fewer elements than #buckets / 2, shrink the table.
+  Label shrink(this);
+  GotoIf(SmiLessThan(SmiAdd(number_of_elements, number_of_elements),
+                     number_of_buckets),
+         &shrink);
+  Return(TrueConstant());
+
+  BIND(&shrink);
+  CallRuntime(Runtime::kSetShrink, context, receiver);
   Return(TrueConstant());
 }
 
@@ -1392,7 +1558,8 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   }
 }
 
-void CollectionsBuiltinsAssembler::TryLookupOrderedHashMapIndex(
+template <typename CollectionType>
+void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
     Node* const table, Node* const key, Node* const context, Variable* result,
     Label* if_entry_found, Label* if_not_found) {
   Label if_key_smi(this), if_key_string(this), if_key_heap_number(this);
@@ -1401,24 +1568,24 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashMapIndex(
   GotoIf(IsString(key), &if_key_string);
   GotoIf(IsHeapNumber(key), &if_key_heap_number);
 
-  FindOrderedHashTableEntryForOtherKey<OrderedHashMap>(
+  FindOrderedHashTableEntryForOtherKey<CollectionType>(
       context, table, key, result, if_entry_found, if_not_found);
 
   BIND(&if_key_smi);
   {
-    FindOrderedHashTableEntryForSmiKey<OrderedHashMap>(
+    FindOrderedHashTableEntryForSmiKey<CollectionType>(
         table, key, result, if_entry_found, if_not_found);
   }
 
   BIND(&if_key_string);
   {
-    FindOrderedHashTableEntryForStringKey<OrderedHashMap>(
+    FindOrderedHashTableEntryForStringKey<CollectionType>(
         context, table, key, result, if_entry_found, if_not_found);
   }
 
   BIND(&if_key_heap_number);
   {
-    FindOrderedHashTableEntryForHeapNumberKey<OrderedHashMap>(
+    FindOrderedHashTableEntryForHeapNumberKey<CollectionType>(
         context, table, key, result, if_entry_found, if_not_found);
   }
 }
@@ -1432,8 +1599,8 @@ TF_BUILTIN(MapLookupHashIndex, CollectionsBuiltinsAssembler) {
            IntPtrConstant(0));
   Label entry_found(this), not_found(this);
 
-  TryLookupOrderedHashMapIndex(table, key, context, &entry_start_position,
-                               &entry_found, &not_found);
+  TryLookupOrderedHashTableIndex<OrderedHashMap>(
+      table, key, context, &entry_start_position, &entry_found, &not_found);
 
   BIND(&entry_found);
   Node* index = IntPtrAdd(entry_start_position.value(),

@@ -874,6 +874,8 @@ namespace internal {
   /* Set */                                                                    \
   TFJ(SetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(SetHas, 1, kKey)                                                         \
+  TFJ(SetAdd, 1, kKey)                                                         \
+  TFJ(SetDelete, 1, kKey)                                                      \
   CPP(SetClear)                                                                \
   /* ES #sec-set.prototype.entries */                                          \
   TFJ(SetPrototypeEntries, 0)                                                  \

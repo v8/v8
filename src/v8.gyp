@@ -2312,7 +2312,6 @@
           'js/array.js',
           'js/string.js',
           'js/typedarray.js',
-          'js/collection.js',
           'js/weak-collection.js',
           'js/messages.js',
           'js/templates.js',
