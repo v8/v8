@@ -625,6 +625,6 @@ class WasmModuleBuilder {
   }
 
   toModule(debug = false) {
-    return new WebAssembly.Module(this.toBuffer());
+    return new WebAssembly.Module(this.toBuffer(debug));
   }
 }
