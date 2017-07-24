@@ -1813,6 +1813,7 @@ class ScavengingTask final : public ItemParallelJob::Task {
   void RunInParallel() final {
     double scavenging_time = 0.0;
     {
+      barrier_->Start();
       TimedScope scope(&scavenging_time);
       ScavengingItem* item = nullptr;
       while ((item = GetItem<ScavengingItem>()) != nullptr) {
@@ -1922,7 +1923,7 @@ void Heap::Scavenge() {
   const bool is_logging = IsLogging(isolate());
   const bool is_incremental_marking = incremental_marking()->IsMarking();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
-  Scavenger::Barrier barrier(num_scavenge_tasks);
+  Scavenger::Barrier barrier;
   CopiedList copied_list(num_scavenge_tasks);
   PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {

@@ -26,7 +26,12 @@ class Scavenger {
  public:
   class Barrier {
    public:
-    explicit Barrier(int tasks) : tasks_(tasks), waiting_(0), done_(false) {}
+    Barrier() : tasks_(0), waiting_(0), done_(false) {}
+
+    void Start() {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      tasks_++;
+    }
 
     void NotifyAll() {
       base::LockGuard<base::Mutex> guard(&mutex_);
