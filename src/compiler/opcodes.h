@@ -135,6 +135,7 @@
   V(JSCreateIterResultObject)     \
   V(JSCreateKeyValueArray)        \
   V(JSCreateLiteralArray)         \
+  V(JSCreateEmptyLiteralArray)    \
   V(JSCreateLiteralObject)        \
   V(JSCreateLiteralRegExp)        \
   V(JSLoadProperty)               \

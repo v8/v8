@@ -488,6 +488,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadNativeContext(Node* context);
 
   Node* LoadJSArrayElementsMap(ElementsKind kind, Node* native_context);
+  Node* LoadJSArrayElementsMap(Node* kind, Node* native_context);
 
   // Load the "prototype" property of a JSFunction.
   Node* LoadJSFunctionPrototype(Node* function, Label* if_bailout);
@@ -949,31 +950,31 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   ToIntegerTruncationMode mode = kNoTruncation);
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
-  // field |T| in |word32|. Returns result as an uint32 node.
-  template <typename T>
+  // field |BitField| in |word32|. Returns result as an uint32 node.
+  template <typename BitField>
   Node* DecodeWord32(Node* word32) {
-    return DecodeWord32(word32, T::kShift, T::kMask);
+    return DecodeWord32(word32, BitField::kShift, BitField::kMask);
   }
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
-  // field |T| in |word|. Returns result as a word-size node.
-  template <typename T>
+  // field |BitField| in |word|. Returns result as a word-size node.
+  template <typename BitField>
   Node* DecodeWord(Node* word) {
-    return DecodeWord(word, T::kShift, T::kMask);
+    return DecodeWord(word, BitField::kShift, BitField::kMask);
   }
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
-  // field |T| in |word32|. Returns result as a word-size node.
-  template <typename T>
+  // field |BitField| in |word32|. Returns result as a word-size node.
+  template <typename BitField>
   Node* DecodeWordFromWord32(Node* word32) {
-    return DecodeWord<T>(ChangeUint32ToWord(word32));
+    return DecodeWord<BitField>(ChangeUint32ToWord(word32));
   }
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
-  // field |T| in |word|. Returns result as an uint32 node.
-  template <typename T>
+  // field |BitField| in |word|. Returns result as an uint32 node.
+  template <typename BitField>
   Node* DecodeWord32FromWord(Node* word) {
-    return TruncateWordToWord32(DecodeWord<T>(word));
+    return TruncateWordToWord32(DecodeWord<BitField>(word));
   }
 
   // Decodes an unsigned (!) value from |word32| to an uint32 node.
@@ -981,6 +982,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Decodes an unsigned (!) value from |word| to a word-size node.
   Node* DecodeWord(Node* word, uint32_t shift, uint32_t mask);
+
+  // Returns a node that contains the updated values of a |BitField|.
+  template <typename BitField>
+  Node* UpdateWord(Node* word, Node* value) {
+    return UpdateWord(word, value, BitField::kShift, BitField::kMask);
+  }
+
+  // Returns a node that contains the updated {value} inside {word} starting
+  // at {shift} and fitting in {mask}.
+  Node* UpdateWord(Node* word, Node* value, uint32_t shift, uint32_t mask);
 
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>
@@ -1301,6 +1312,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load type feedback vector from the stub caller's frame.
   Node* LoadFeedbackVectorForStub();
+
+  Node* LoadFeedbackVector(Node* closure);
+  Node* LoadFeedbackVectorSlot(Node* closure, Node* smi_index);
+  void StoreFeedbackVectorSlot(Node* closure, Node* smi_index, Node* value);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id,

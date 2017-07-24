@@ -4011,6 +4011,95 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
         WeakCell::cast(site->dependent_code()->object_at(0))->cleared());
 }
 
+TEST(AllocationSiteCreation) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  int prev_count = 0;
+  int count = 0;
+
+  // Array literals.
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("(function f1() { return []; })()");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(1, count - prev_count);
+
+  prev_count = count;
+  CompileRun("(function f2() { return [1, 2]; })()");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(1, count - prev_count);
+
+  prev_count = count;
+  CompileRun("(function f3() { return [[1], [2]]; })()");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(3, count - prev_count);
+
+  prev_count = count;
+  CompileRun(
+      "(function f4() { "
+      "return [0, [1, 1.1, 1.2, "
+      "], 1.5, [2.1, 2.2], 3];"
+      "})()");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(3, count - prev_count);
+
+  // Object literals have lazy AllocationSites
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("function f5() { return {}; }; f5(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(0, count - prev_count);
+  // Allocation-sites + boilerplates are created on the second run only.
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("f5(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(1, count - prev_count);
+
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("function f6() { return {a:1}; }; f6(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(0, count - prev_count);
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("f6(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(1, count - prev_count);
+
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("function f7() { return {a:1, b:2}; }; f7(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(0, count - prev_count);
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("f7(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(1, count - prev_count);
+
+  prev_count = AllocationSitesCount(heap);
+  CompileRun(
+      "function f8() {"
+      "return {a:{}, b:{ a:2, c:{ d:{f:{}}} } }; "
+      "}; f8(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(0, count - prev_count);
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("f8(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(6, count - prev_count);
+
+  // We currently eagerly create allocation sites if there are sub-arrays.
+  prev_count = AllocationSitesCount(heap);
+  CompileRun(
+      "function f9() {"
+      "return {a:[1, 2, 3], b:{ a:2, c:{ d:{f:[]} } }}; "
+      "}; f9(); ");
+  count = AllocationSitesCount(heap);
+  CHECK_EQ(6, count - prev_count);
+  prev_count = AllocationSitesCount(heap);
+  CompileRun("f9(); ");
+  count = AllocationSitesCount(heap);
+  // No new AllocationSites created on the second invocation.
+  CHECK_EQ(0, count - prev_count);
+}
 
 TEST(CellsInOptimizedCodeAreWeak) {
   if (FLAG_always_opt || !FLAG_opt) return;

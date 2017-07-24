@@ -636,6 +636,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
                                      int literal_flags, int literal_index,
                                      int number_of_elements);
+  const Operator* CreateEmptyLiteralArray(int literal_index);
+
   const Operator* CreateLiteralObject(Handle<BoilerplateDescription> constant,
                                       int literal_flags, int literal_index,
                                       int number_of_properties);
