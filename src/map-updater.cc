@@ -123,6 +123,22 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
     new_field_type_ = field_type;
   }
 
+  if (IsTransitionableFastElementsKind(new_elements_kind_) &&
+      Map::IsInplaceGeneralizableField(new_constness_, new_representation_,
+                                       *new_field_type_)) {
+    // We don't support propagation of field generalization through elements
+    // kind transitions because they are inserted into the transition tree
+    // before field transitions. In order to avoid complexity of handling
+    // such a case we ensure that all maps with transitionable elements kinds
+    // do not have fields that can be generalized in-place (without creation
+    // of a new map).
+    if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
+      new_constness_ = kMutable;
+    }
+    DCHECK(representation.IsHeapObject());
+    new_field_type_ = FieldType::Any(isolate_);
+  }
+
   if (TryRecofigureToDataFieldInplace() == kEnd) return result_map_;
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
