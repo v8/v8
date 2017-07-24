@@ -1504,7 +1504,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map, Handle<String> name,
         (*map == *isolate()->sloppy_function_with_readonly_prototype_map()) ||
         (*map == *isolate()->strict_function_map()) ||
         (*map == *isolate()->strict_function_without_prototype_map()) ||
-        (*map == *isolate()->wasm_function_map()) ||
         (*map == *isolate()->native_function_map()));
   }
 #endif

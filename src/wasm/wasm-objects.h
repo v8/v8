@@ -194,21 +194,11 @@ class WasmInstanceObject : public JSObject {
 // A WASM function that is wrapped and exported to JavaScript.
 class WasmExportedFunction : public JSFunction {
  public:
-  DECL_OOL_QUERY(WasmExportedFunction)
-  DECL_OOL_CAST(WasmExportedFunction)
+  WasmInstanceObject* instance();
+  int function_index();
 
-  DECL_ACCESSORS(instance, WasmInstanceObject)
-  DECL_INT_ACCESSORS(function_index)
-
-  enum {  // --
-    kInstanceIndex,
-    kFunctionIndexIndex,
-    kFieldCount
-  };
-
-  static const int kSize = JSFunction::kSize + kFieldCount * kPointerSize;
-  DEF_OFFSET(Instance)
-  DEF_OFFSET(FunctionIndex)
+  static WasmExportedFunction* cast(Object* object);
+  static bool IsWasmExportedFunction(Object* object);
 
   static Handle<WasmExportedFunction> New(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance,
@@ -698,10 +688,6 @@ ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
 ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo, kDebugInfoOffset)
 ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
           kDirectlyCalledInstancesOffset)
-
-// WasmExportedFunction
-ACCESSORS(WasmExportedFunction, instance, WasmInstanceObject, kInstanceOffset)
-SMI_ACCESSORS(WasmExportedFunction, function_index, kFunctionIndexOffset)
 
 // WasmSharedModuleData
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,

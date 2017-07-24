@@ -865,32 +865,14 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
 void WasmJs::Install(Isolate* isolate) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
-  // Check if the map is already installed and do nothing otherwise.
-  if (context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) return;
-
-  // Install Maps.
-  Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
-
-  InstanceType instance_type = prev_map->instance_type();
-  int embedder_fields = JSObject::GetEmbedderFieldCount(*prev_map);
-  CHECK_EQ(0, embedder_fields);
-  int pre_allocated =
-      prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
-  int instance_size = 0;
-  int in_object_properties = WasmExportedFunction::kFieldCount;
-  JSFunction::CalculateInstanceSizeHelper(instance_type, embedder_fields,
-                                          in_object_properties, &instance_size,
-                                          &in_object_properties);
-
-  int unused_property_fields = in_object_properties - pre_allocated;
-  Handle<Map> map = Map::CopyInitialMap(
-      prev_map, instance_size, in_object_properties, unused_property_fields);
-
-  context->set_wasm_function_map(*map);
+  // Install the JS API once only.
+  Object* prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
+  if (!prev->IsUndefined(isolate)) {
+    DCHECK(prev->IsJSFunction());
+    return;
+  }
 
   Factory* factory = isolate->factory();
-
-  // Install the JS API.
 
   // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
