@@ -486,9 +486,9 @@ var failWithMessage;
    assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
       if (typeof code === 'function') {
-        code();
+        return code();
       } else {
-        eval(code);
+        return eval(code);
       }
     } catch (e) {
       failWithMessage("threw an exception: " + (e.message || e));

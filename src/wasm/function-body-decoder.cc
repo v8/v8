@@ -639,13 +639,13 @@ class WasmFullDecoder : public WasmDecoder {
       if (control_.size() > 1) {
         error(control_.back().pc, "unterminated control structure");
       } else {
-        error("function body must end with \"end\" opcode.");
+        error("function body must end with \"end\" opcode");
       }
       return TraceFailed();
     }
 
     if (!last_end_found_) {
-      error("function body must end with \"end\" opcode.");
+      error("function body must end with \"end\" opcode");
       return false;
     }
 
