@@ -219,6 +219,14 @@ void V8InjectedScriptHost::subtypeCallback(
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "promise"));
     return;
   }
+  if (value->IsArrayBuffer() || value->IsSharedArrayBuffer()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "arraybuffer"));
+    return;
+  }
+  if (value->IsDataView()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "dataview"));
+    return;
+  }
   std::unique_ptr<StringBuffer> subtype =
       unwrapInspector(info)->client()->valueSubtype(value);
   if (subtype) {

@@ -627,9 +627,15 @@ InjectedScript.prototype = {
             return className;
         }
 
-        if (subtype === "map" || subtype === "set") {
+        if (subtype === "map" || subtype === "set" || subtype === "blob") {
             if (typeof obj.size === "number")
                 return className + "(" + obj.size + ")";
+            return className;
+        }
+
+        if (subtype === "arraybuffer" || subtype === "dataview") {
+            if (typeof obj.byteLength === "number")
+                return className + "(" + obj.byteLength + ")";
             return className;
         }
 
