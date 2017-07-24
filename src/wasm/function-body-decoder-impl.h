@@ -101,11 +101,11 @@ struct BlockTypeOperand {
     } else {
       // Handle multi-value blocks.
       if (!CHECKED_COND(FLAG_experimental_wasm_mv)) {
-        decoder->error(pc + 1, "invalid block arity > 1");
+        decoder->error(pc + 1) << "invalid block arity > 1";
         return;
       }
       if (!CHECKED_COND(val == kMultivalBlock)) {
-        decoder->error(pc + 1, "invalid block type");
+        decoder->error(pc + 1) << "invalid block type";
         return;
       }
       // Decode and check the types vector of the block.
@@ -123,7 +123,7 @@ struct BlockTypeOperand {
         val = decoder->read_u8<checked>(pc + offset, "block type");
         decode_local_type(val, &type);
         if (!CHECKED_COND(type != kWasmStmt)) {
-          decoder->error(pc + offset, "invalid block type");
+          decoder->error(pc + offset) << "invalid block type";
           return;
         }
       }
@@ -187,8 +187,8 @@ struct CallIndirectOperand {
     index = decoder->read_u32v<checked>(pc + 1, &len, "signature index");
     table_index = decoder->read_u8<checked>(pc + 1 + len, "table index");
     if (!CHECKED_COND(table_index == 0)) {
-      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
-                      table_index);
+      decoder->error(pc + 1 + len)
+          << "expected table index 0, found " << table_index;
     }
     length = 1 + len;
   }
@@ -211,7 +211,7 @@ struct MemoryIndexOperand {
   inline MemoryIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->read_u8<checked>(pc + 1, "memory index");
     if (!CHECKED_COND(index == 0)) {
-      decoder->errorf(pc + 1, "expected memory index 0, found %u", index);
+      decoder->error(pc + 1) << "expected memory index 0, found " << index;
     }
   }
 };
@@ -279,10 +279,9 @@ struct MemoryAccessOperand {
     alignment =
         decoder->read_u32v<checked>(pc + 1, &alignment_length, "alignment");
     if (!CHECKED_COND(alignment <= max_alignment)) {
-      decoder->errorf(pc + 1,
-                      "invalid alignment; expected maximum alignment is %u, "
-                      "actual alignment is %u",
-                      max_alignment, alignment);
+      decoder->error(pc + 1)
+          << "invalid alignment; expected maximum alignment is "
+          << max_alignment << ", actual alignment is " << alignment;
     }
     unsigned offset_length;
     offset = decoder->read_u32v<checked>(pc + 1 + alignment_length,
