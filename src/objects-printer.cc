@@ -79,7 +79,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
-    case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
       break;
@@ -644,7 +643,7 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, IsHashTable() ? "HashTable" : "FixedArray");
+  HeapObject::PrintHeader(os, "FixedArray");
   os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
   PrintFixedArrayElements(os, this);

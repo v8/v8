@@ -3781,7 +3781,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_extension(*extension);
       return object;
     }
-    case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE: {
       Handle<Object> lengthObject = materializer.FieldAt(value_index);
       int32_t array_length = 0;
@@ -3919,6 +3918,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PADDING_TYPE_0:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:

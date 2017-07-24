@@ -1336,7 +1336,7 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     Node* object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(this, Word32Or(IsFixedArray(object), IsHashTable(object)));
+  CSA_SLOW_ASSERT(this, IsFixedArray(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   int32_t header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
@@ -1526,9 +1526,8 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 WriteBarrierMode barrier_mode,
                                                 int additional_offset,
                                                 ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(
-      this, Word32Or(IsHashTable(object),
-                     Word32Or(IsFixedArray(object), IsPropertyArray(object))));
+  CSA_SLOW_ASSERT(this,
+                  Word32Or(IsFixedArray(object), IsPropertyArray(object)));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
@@ -3556,7 +3555,7 @@ Node* CodeStubAssembler::IsFixedDoubleArray(Node* object) {
 }
 
 Node* CodeStubAssembler::IsHashTable(Node* object) {
-  return HasInstanceType(object, HASH_TABLE_TYPE);
+  return WordEqual(LoadMap(object), LoadRoot(Heap::kHashTableMapRootIndex));
 }
 
 Node* CodeStubAssembler::IsDictionary(Node* object) {

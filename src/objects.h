@@ -365,10 +365,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_TYPE)                                                \
   V(MODULE_INFO_ENTRY_TYPE)                                     \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
+  V(PADDING_TYPE_0)                                             \
   V(FIXED_ARRAY_TYPE)                                           \
-  V(HASH_TABLE_TYPE)                                            \
-  V(TRANSITION_ARRAY_TYPE)                                      \
   V(PROPERTY_ARRAY_TYPE)                                        \
+  V(TRANSITION_ARRAY_TYPE)                                      \
   V(SHARED_FUNCTION_INFO_TYPE)                                  \
   V(CELL_TYPE)                                                  \
   V(WEAK_CELL_TYPE)                                             \
@@ -712,10 +712,10 @@ enum InstanceType : uint8_t {
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
+  PADDING_TYPE_0,
   FIXED_ARRAY_TYPE,
-  HASH_TABLE_TYPE,
-  TRANSITION_ARRAY_TYPE,
   PROPERTY_ARRAY_TYPE,
+  TRANSITION_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   CELL_TYPE,
   WEAK_CELL_TYPE,

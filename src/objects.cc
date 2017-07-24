@@ -2984,7 +2984,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FREE_SPACE_TYPE:
       return kVisitFreeSpace;
 
-    case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
       return kVisitFixedArray;
 
@@ -3274,9 +3273,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case MAP_TYPE:
       os << "<Map(" << ElementsKindToString(Map::cast(this)->elements_kind())
          << ")>";
-      break;
-    case HASH_TABLE_TYPE:
-      os << "<HashTable[" << FixedArray::cast(this)->length() << "]>";
       break;
     case FIXED_ARRAY_TYPE:
       os << "<FixedArray[" << FixedArray::cast(this)->length() << "]>";
@@ -12804,7 +12800,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case FIXED_DOUBLE_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case FREE_SPACE_TYPE:
-    case HASH_TABLE_TYPE:
     case HEAP_NUMBER_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
