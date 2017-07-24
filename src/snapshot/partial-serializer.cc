@@ -163,6 +163,11 @@ void PartialSerializer::SerializeEmbedderFields() {
 void PartialSerializer::CheckRehashability(HeapObject* table) {
   DCHECK(table->IsHashTable());
   if (!can_be_rehashed_) return;
+  if (table->IsUnseededNumberDictionary()) return;
+  if (table->IsOrderedHashMap() &&
+      OrderedHashMap::cast(table)->NumberOfElements() == 0) {
+    return;
+  }
   // We can only correctly rehash if the global dictionary is the only hash
   // table that we deserialize.
   if (table == rehashable_global_dictionary_) return;

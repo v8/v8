@@ -1679,6 +1679,7 @@ class V8Heap(object):
     "MAP_TYPE": Map,
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
+    "HASH_TABLE_TYPE": FixedArray,
     "JS_FUNCTION_TYPE": JSFunction,
     "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
     "SCRIPT_TYPE": Script,
