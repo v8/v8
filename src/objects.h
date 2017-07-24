@@ -2434,12 +2434,8 @@ class JSObject: public JSReceiver {
 
   // Get the header size for a JSObject.  Used to compute the index of
   // embedder fields as well as the number of embedder fields.
-  // The |function_has_prototype_slot| parameter is needed only for
-  // JSFunction objects.
-  static int GetHeaderSize(InstanceType instance_type,
-                           bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map* map);
-  inline int GetHeaderSize() const;
+  static int GetHeaderSize(InstanceType instance_type);
+  inline int GetHeaderSize();
 
   static inline int GetEmbedderFieldCount(const Map* map);
   inline int GetEmbedderFieldCount() const;
@@ -5207,8 +5203,6 @@ class JSFunction: public JSObject {
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();
 
-  inline bool has_prototype_slot() const;
-
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
@@ -5253,7 +5247,6 @@ class JSFunction: public JSObject {
       int requested_embedder_fields, int* instance_size,
       int* in_object_properties);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          bool has_prototype_slot,
                                           int requested_embedder_fields,
                                           int requested_in_object_properties,
                                           int* instance_size,
@@ -5290,27 +5283,18 @@ class JSFunction: public JSObject {
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSFunction> function);
 
-// Layout description.
-// The last properties (from kStartOfWeakFieldsOffset to kEndOfWeakFieldsOffset)
-// are weak and have special handling during garbage collection.
-#define JS_FUNCTION_FIELDS(V)                              \
-  /* Pointer fields. */                                    \
-  V(kSharedFunctionInfoOffset, kPointerSize)               \
-  V(kContextOffset, kPointerSize)                          \
-  V(kFeedbackVectorOffset, kPointerSize)                   \
-  V(kEndOfStrongFieldsOffset, 0)                           \
-  /* Weak pointer fields. */                               \
-  V(kStartOfWeakFieldsOffset, 0)                           \
-  V(kCodeEntryOffset, kPointerSize)                        \
-  V(kNextFunctionLinkOffset, kPointerSize)                 \
-  V(kEndOfWeakFieldsOffset, 0)                             \
-  /* Size of JSFunction object without prototype field. */ \
-  V(kSizeWithoutPrototype, 0)                              \
-  V(kPrototypeOrInitialMapOffset, kPointerSize)            \
-  /* Size of JSFunction object with prototype field. */    \
-  V(kSizeWithPrototype, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_FUNCTION_FIELDS)
+  // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
+  // kSize) is weak and has special handling during garbage collection.
+  static const int kPrototypeOrInitialMapOffset = JSObject::kHeaderSize;
+  static const int kSharedFunctionInfoOffset =
+      kPrototypeOrInitialMapOffset + kPointerSize;
+  static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
+  static const int kFeedbackVectorOffset = kContextOffset + kPointerSize;
+  static const int kNonWeakFieldsEndOffset =
+      kFeedbackVectorOffset + kPointerSize;
+  static const int kCodeEntryOffset = kNonWeakFieldsEndOffset;
+  static const int kNextFunctionLinkOffset = kCodeEntryOffset + kPointerSize;
+  static const int kSize = kNextFunctionLinkOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
