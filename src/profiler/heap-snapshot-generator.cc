@@ -1091,21 +1091,19 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     }
   } else if (obj->IsJSFunction()) {
     JSFunction* js_fun = JSFunction::cast(js_obj);
-    Object* proto_or_map = js_fun->prototype_or_initial_map();
-    if (!proto_or_map->IsTheHole(heap_->isolate())) {
-      if (!proto_or_map->IsMap()) {
-        SetPropertyReference(
-            obj, entry,
-            heap_->prototype_string(), proto_or_map,
-            NULL,
-            JSFunction::kPrototypeOrInitialMapOffset);
-      } else {
-        SetPropertyReference(
-            obj, entry,
-            heap_->prototype_string(), js_fun->prototype());
-        SetInternalReference(
-            obj, entry, "initial_map", proto_or_map,
-            JSFunction::kPrototypeOrInitialMapOffset);
+    if (js_fun->has_prototype_slot()) {
+      Object* proto_or_map = js_fun->prototype_or_initial_map();
+      if (!proto_or_map->IsTheHole(heap_->isolate())) {
+        if (!proto_or_map->IsMap()) {
+          SetPropertyReference(obj, entry, heap_->prototype_string(),
+                               proto_or_map, NULL,
+                               JSFunction::kPrototypeOrInitialMapOffset);
+        } else {
+          SetPropertyReference(obj, entry, heap_->prototype_string(),
+                               js_fun->prototype());
+          SetInternalReference(obj, entry, "initial_map", proto_or_map,
+                               JSFunction::kPrototypeOrInitialMapOffset);
+        }
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
@@ -1124,11 +1122,11 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          JSFunction::kContextOffset);
     // Ensure no new weak references appeared in JSFunction.
     STATIC_ASSERT(JSFunction::kCodeEntryOffset ==
-                  JSFunction::kNonWeakFieldsEndOffset);
+                  JSFunction::kStartOfWeakFieldsOffset);
     STATIC_ASSERT(JSFunction::kCodeEntryOffset + kPointerSize ==
                   JSFunction::kNextFunctionLinkOffset);
-    STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset + kPointerSize
-                 == JSFunction::kSize);
+    STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset + kPointerSize ==
+                  JSFunction::kEndOfWeakFieldsOffset);
   } else if (obj->IsJSGlobalObject()) {
     JSGlobalObject* global_obj = JSGlobalObject::cast(obj);
     SetInternalReference(global_obj, entry, "native_context",

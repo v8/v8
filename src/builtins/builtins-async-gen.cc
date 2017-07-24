@@ -34,9 +34,11 @@ Node* AsyncBuiltinsAssembler::Await(
         native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
     Node* const instance_size = LoadMapInstanceSize(map);
     // Assert that the strict function map has an instance size is
-    // JSFunction::kSize
-    CSA_ASSERT(this, WordEqual(instance_size, IntPtrConstant(JSFunction::kSize /
-                                                             kPointerSize)));
+    // JSFunction::kSizeWithoutPrototype.
+    CSA_ASSERT(this,
+               WordEqual(instance_size,
+                         IntPtrConstant(JSFunction::kSizeWithoutPrototype /
+                                        kPointerSize)));
   }
 #endif
 
@@ -62,8 +64,9 @@ Node* AsyncBuiltinsAssembler::Await(
   static const int kResolveClosureOffset =
       kThrowawayPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kRejectClosureOffset =
-      kResolveClosureOffset + JSFunction::kSize;
-  static const int kTotalSize = kRejectClosureOffset + JSFunction::kSize;
+      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
+  static const int kTotalSize =
+      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
 
   Node* const base = AllocateInNewSpace(kTotalSize);
   Node* const closure_context = base;

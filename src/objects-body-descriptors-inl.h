@@ -161,38 +161,52 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
 template <JSFunction::BodyVisitingPolicy body_visiting_policy>
 class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kNonWeakFieldsEndOffset == kCodeEntryOffset);
+  STATIC_ASSERT(kStartOfWeakFieldsOffset == kCodeEntryOffset);
   STATIC_ASSERT(kCodeEntryOffset + kPointerSize == kNextFunctionLinkOffset);
-  STATIC_ASSERT(kNextFunctionLinkOffset + kPointerSize == kSize);
+  STATIC_ASSERT(kNextFunctionLinkOffset + kPointerSize ==
+                kEndOfWeakFieldsOffset);
+  STATIC_ASSERT(kPrototypeOrInitialMapOffset == kEndOfWeakFieldsOffset);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
-    if (offset < kSize) return true;
+    if (offset < kSizeWithoutPrototype) return true;
+    if (offset < kSizeWithPrototype && obj->map()->has_prototype_slot()) {
+      return true;
+    }
     return IsValidSlotImpl(obj, offset);
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOrHashOffset, kNonWeakFieldsEndOffset, v);
-    v->VisitCodeEntry(JSFunction::cast(obj), obj->address() + kCodeEntryOffset);
+    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfStrongFieldsOffset, v);
+    JSFunction* function = JSFunction::cast(obj);
+    v->VisitCodeEntry(function, obj->address() + kCodeEntryOffset);
+    int header_size = function->GetHeaderSize();
     if (body_visiting_policy == kIgnoreWeakness) {
-      IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
+      IteratePointers(obj, kNextFunctionLinkOffset, header_size, v);
+    } else if (header_size != kSizeWithoutPrototype) {
+      IteratePointers(obj, kSizeWithoutPrototype, header_size, v);
     }
-    IterateBodyImpl(obj, kSize, object_size, v);
+    IterateBodyImpl(obj, header_size, object_size, v);
   }
 
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
     IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
-                                   kNonWeakFieldsEndOffset);
+                                   kEndOfStrongFieldsOffset);
 
     StaticVisitor::VisitCodeEntry(heap, obj, obj->address() + kCodeEntryOffset);
 
+    int header_size = JSFunction::cast(obj)->GetHeaderSize();
     if (body_visiting_policy == kIgnoreWeakness) {
-      IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
+      IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset,
+                                     kSizeWithoutPrototype);
+    } else if (header_size != kSizeWithoutPrototype) {
+      IteratePointers<StaticVisitor>(heap, obj, kSizeWithoutPrototype,
+                                     header_size);
     }
-    IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
+    IterateBodyImpl<StaticVisitor>(heap, obj, header_size, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
