@@ -855,7 +855,10 @@ class Heap {
     external_memory_concurrently_freed_.Increment(freed);
   }
 
-  void account_external_memory_concurrently_freed();
+  void account_external_memory_concurrently_freed() {
+    external_memory_ -= external_memory_concurrently_freed_.Value();
+    external_memory_concurrently_freed_.SetValue(0);
+  }
 
   void DeoptMarkedAllocationSites();
 

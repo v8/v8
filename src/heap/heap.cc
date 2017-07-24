@@ -2256,14 +2256,6 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
   ArrayBufferTracker::Unregister(this, buffer);
 }
 
-void Heap::account_external_memory_concurrently_freed() {
-  DCHECK_NE(gc_state_, NOT_IN_GC);
-  uint64_t delta = external_memory_concurrently_freed_.Value();
-  external_memory_concurrently_freed_.SetValue(0);
-  reinterpret_cast<v8::Isolate*>(isolate())
-      ->AdjustAmountOfExternalAllocatedMemory(delta);
-}
-
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     old_generation_allocation_limit_ =
