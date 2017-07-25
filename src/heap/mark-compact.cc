@@ -1063,15 +1063,6 @@ class MarkCompactMarkingVisitor final
     }
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* sfi) {
-    if (sfi->ic_age() != heap_->global_ic_age()) {
-      sfi->ResetForNewContext(heap_->global_ic_age());
-    }
-    int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, sfi);
-    SharedFunctionInfo::BodyDescriptor::IterateBody(sfi, size, this);
-    return size;
-  }
-
   // Marks the object black and pushes it on the marking stack.
   V8_INLINE void MarkObject(HeapObject* host, HeapObject* object) {
     collector_->MarkObject(host, object);
