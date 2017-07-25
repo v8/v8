@@ -823,6 +823,7 @@ class RuntimeCallTimer final {
   V(PrototypeObject_DeleteProperty)                 \
   V(RecompileConcurrent)                            \
   V(RecompileSynchronous)                           \
+  V(ReconfigureToDataProperty)                      \
   V(TestCounter1)                                   \
   V(TestCounter2)                                   \
   V(TestCounter3)                                   \
