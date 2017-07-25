@@ -1002,6 +1002,26 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
   return Just(false);
 }
 
+// static
+Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
+                                       Handle<Name> name) {
+  if (object->IsJSModuleNamespace()) {
+    PropertyDescriptor desc;
+    return JSReceiver::GetOwnPropertyDescriptor(object->GetIsolate(), object,
+                                                name, &desc);
+  }
+
+  if (object->IsJSObject()) {  // Shortcut.
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        object->GetIsolate(), object, name, object, LookupIterator::OWN);
+    return HasProperty(&it);
+  }
+
+  Maybe<PropertyAttributes> attributes =
+      JSReceiver::GetOwnPropertyAttributes(object, name);
+  MAYBE_RETURN(attributes, Nothing<bool>());
+  return Just(attributes.FromJust() != ABSENT);
+}
 
 // static
 MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {

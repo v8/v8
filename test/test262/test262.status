@@ -367,8 +367,6 @@
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
 
   # Module-related tests
-  # v8:5487
-  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
   # https://github.com/tc39/ecma262/pull/858
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],

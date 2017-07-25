@@ -236,7 +236,19 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
   Handle<Object> object = args.at(0);
 
-  if (object->IsJSObject()) {
+  if (object->IsJSModuleNamespace()) {
+    if (key.is_null()) {
+      DCHECK(key_is_array_index);
+      // Namespace objects can't have indexed properties.
+      return isolate->heap()->false_value();
+    }
+
+    Maybe<bool> result =
+        JSReceiver::HasOwnProperty(Handle<JSReceiver>::cast(object), key);
+    if (!result.IsJust()) return isolate->heap()->exception();
+    return isolate->heap()->ToBoolean(result.FromJust());
+
+  } else if (object->IsJSObject()) {
     Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
     // Fast case: either the key is a real named property or it is not
     // an array index and there are no interceptors or hidden

@@ -5613,22 +5613,10 @@ Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
 
 
 Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
-                                       Handle<Name> name) {
-  if (object->IsJSObject()) {  // Shortcut
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        object->GetIsolate(), object, name, object, LookupIterator::OWN);
-    return HasProperty(&it);
-  }
-
-  Maybe<PropertyAttributes> attributes =
-      JSReceiver::GetOwnPropertyAttributes(object, name);
-  MAYBE_RETURN(attributes, Nothing<bool>());
-  return Just(attributes.FromJust() != ABSENT);
-}
-
-Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        uint32_t index) {
-  if (object->IsJSObject()) {  // Shortcut
+  if (object->IsJSModuleNamespace()) return Just(false);
+
+  if (object->IsJSObject()) {  // Shortcut.
     LookupIterator it(object->GetIsolate(), object, index, object,
                       LookupIterator::OWN);
     return HasProperty(&it);

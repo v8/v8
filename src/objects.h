@@ -379,6 +379,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
   V(JS_GLOBAL_PROXY_TYPE)                                       \
+  V(JS_MODULE_NAMESPACE_TYPE)                                   \
   V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
   V(JS_VALUE_TYPE)                                              \
   V(JS_MESSAGE_OBJECT_TYPE)                                     \
@@ -389,7 +390,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
   V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
-  V(JS_MODULE_NAMESPACE_TYPE)                                   \
   V(JS_ARRAY_TYPE)                                              \
   V(JS_ARRAY_BUFFER_TYPE)                                       \
   V(JS_TYPED_ARRAY_TYPE)                                        \
@@ -730,6 +730,7 @@ enum InstanceType : uint8_t {
   JS_PROXY_TYPE,          // FIRST_JS_RECEIVER_TYPE
   JS_GLOBAL_OBJECT_TYPE,  // FIRST_JS_OBJECT_TYPE
   JS_GLOBAL_PROXY_TYPE,
+  JS_MODULE_NAMESPACE_TYPE,
   // Like JS_API_OBJECT_TYPE, but requires access checks and/or has
   // interceptors.
   JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
@@ -743,7 +744,6 @@ enum InstanceType : uint8_t {
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,
   JS_ASYNC_GENERATOR_OBJECT_TYPE,
-  JS_MODULE_NAMESPACE_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_TYPED_ARRAY_TYPE,
@@ -2013,8 +2013,8 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static inline Maybe<bool> HasElement(
       Handle<JSReceiver> object, uint32_t index);
 
-  MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(
-      Handle<JSReceiver> object, Handle<Name> name);
+  MUST_USE_RESULT static Maybe<bool> HasOwnProperty(Handle<JSReceiver> object,
+                                                    Handle<Name> name);
   MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(
       Handle<JSReceiver> object, uint32_t index);
 
