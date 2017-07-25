@@ -634,23 +634,24 @@ const char* OpcodeName(uint32_t val) {
 Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
                                          Handle<Code> js_wrapper) {
   DCHECK_EQ(Code::WASM_TO_JS_FUNCTION, js_wrapper->kind());
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(*js_wrapper, mask); !it.done(); it.next()) {
-    HeapObject* obj = it.rinfo()->target_object();
-    if (!obj->IsCallable()) continue;
-#ifdef DEBUG
-    // There should only be this one reference to a callable object.
-    for (it.next(); !it.done(); it.next()) {
-      HeapObject* other = it.rinfo()->target_object();
-      DCHECK(!other->IsCallable());
-    }
-#endif
-    return handle(obj, isolate);
+  Handle<FixedArray> deopt_data(js_wrapper->deoptimization_data(), isolate);
+  DCHECK_EQ(2, deopt_data->length());
+  intptr_t js_imports_table_loc = static_cast<intptr_t>(
+      HeapNumber::cast(deopt_data->get(0))->value_as_bits());
+  Handle<FixedArray> js_imports_table(
+      reinterpret_cast<FixedArray**>(js_imports_table_loc));
+  int index = 0;
+  CHECK(deopt_data->get(1)->ToInt32(&index));
+  DCHECK_GT(js_imports_table->length(), index);
+  Handle<Object> obj(js_imports_table->get(index), isolate);
+  if (obj->IsCallable()) {
+    return Handle<HeapObject>::cast(obj);
+  } else {
+    // If we did not find a callable object, this is not from wasm and obj must
+    // be undefined.
+    DCHECK(obj->IsUndefined(isolate));
+    return Handle<HeapObject>::null();
   }
-  // If we did not find a callable object, then there must be a reference to
-  // the WasmThrowTypeError runtime function.
-  // TODO(clemensh): Check that this is the case.
-  return Handle<HeapObject>::null();
 }
 
 class SideTable;
