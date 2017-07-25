@@ -47,7 +47,7 @@ class AsmJsParser {
   };
   // clang-format on
 
-  typedef std::unordered_set<StandardMember, std::hash<int>> StdlibSet;
+  typedef EnumSet<StandardMember, uint64_t> StdlibSet;
 
   explicit AsmJsParser(Zone* zone, uintptr_t stack_limit,
                        std::unique_ptr<Utf16CharacterStream> stream);
@@ -55,7 +55,7 @@ class AsmJsParser {
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
   WasmModuleBuilder* module_builder() { return module_builder_; }
-  StdlibSet* stdlib_uses() { return &stdlib_uses_; }
+  const StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
 
  private:
   // clang-format off

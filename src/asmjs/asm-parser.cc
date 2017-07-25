@@ -550,7 +550,7 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
 #define V(name, _junk1, _junk2, _junk3)                          \
   case TOK(name):                                                \
     DeclareStdlibFunc(info, VarKind::kSpecial, AsmType::name()); \
-    stdlib_uses_.insert(StandardMember::k##name);                \
+    stdlib_uses_.Add(StandardMember::k##name);                   \
     break;
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -573,14 +573,14 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
                   WasmInitExpr(const_value));               \
-    stdlib_uses_.insert(StandardMember::kMath##name);       \
+    stdlib_uses_.Add(StandardMember::kMath##name);          \
     break;
       STDLIB_MATH_VALUE_LIST(V)
 #undef V
 #define V(name, Name, op, sig)                                      \
   case TOK(name):                                                   \
     DeclareStdlibFunc(info, VarKind::kMath##Name, stdlib_##sig##_); \
-    stdlib_uses_.insert(StandardMember::kMath##Name);               \
+    stdlib_uses_.Add(StandardMember::kMath##Name);                  \
     break;
       STDLIB_MATH_FUNCTION_LIST(V)
 #undef V
@@ -590,11 +590,11 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   } else if (Check(TOK(Infinity))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::infinity()));
-    stdlib_uses_.insert(StandardMember::kInfinity);
+    stdlib_uses_.Add(StandardMember::kInfinity);
   } else if (Check(TOK(NaN))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::quiet_NaN()));
-    stdlib_uses_.insert(StandardMember::kNaN);
+    stdlib_uses_.Add(StandardMember::kNaN);
   } else {
     FAIL("Invalid member of stdlib");
   }

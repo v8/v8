@@ -34,7 +34,7 @@ const char* const AsmJs::kSingleFunctionName = "__single_function__";
 namespace {
 enum WasmDataEntries {
   kWasmDataCompiledModule,
-  kWasmDataUsesArray,
+  kWasmDataUsesBitSet,
   kWasmDataEntryCount,
 };
 
@@ -49,62 +49,69 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
   return value;
 }
 
-bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
-                         wasm::AsmJsParser::StandardMember member,
-                         bool* is_typed_array) {
-  switch (member) {
-    case wasm::AsmJsParser::StandardMember::kInfinity: {
-      Handle<Name> name = isolate->factory()->Infinity_string();
-      Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
-      return value->IsNumber() && std::isinf(value->Number());
-    }
-    case wasm::AsmJsParser::StandardMember::kNaN: {
-      Handle<Name> name = isolate->factory()->NaN_string();
-      Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
-      return value->IsNaN();
-    }
-#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)            \
-  case wasm::AsmJsParser::StandardMember::kMath##FName: {           \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString( \
-        STATIC_CHAR_VECTOR(#fname)));                               \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name); \
-    if (!value->IsJSFunction()) return false;                       \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);      \
-    return func->shared()->code() ==                                \
-           isolate->builtins()->builtin(Builtins::kMath##FName);    \
+bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
+                           wasm::AsmJsParser::StdlibSet members,
+                           bool* is_typed_array) {
+  if (members.Contains(wasm::AsmJsParser::StandardMember::kInfinity)) {
+    members.Remove(wasm::AsmJsParser::StandardMember::kInfinity);
+    Handle<Name> name = isolate->factory()->Infinity_string();
+    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
+    if (!value->IsNumber() || !std::isinf(value->Number())) return false;
   }
-      STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
+  if (members.Contains(wasm::AsmJsParser::StandardMember::kNaN)) {
+    members.Remove(wasm::AsmJsParser::StandardMember::kNaN);
+    Handle<Name> name = isolate->factory()->NaN_string();
+    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
+    if (!value->IsNaN()) return false;
+  }
+#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                   \
+  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
+    members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);       \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(        \
+        STATIC_CHAR_VECTOR(#fname)));                                      \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
+    if (!value->IsJSFunction()) return false;                              \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);             \
+    if (func->shared()->code() !=                                          \
+        isolate->builtins()->builtin(Builtins::kMath##FName)) {            \
+      return false;                                                        \
+    }                                                                      \
+  }
+  STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
-#define STDLIB_MATH_CONST(cname, const_value)                       \
-  case wasm::AsmJsParser::StandardMember::kMath##cname: {           \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString( \
-        STATIC_CHAR_VECTOR(#cname)));                               \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name); \
-    return value->IsNumber() && value->Number() == const_value;     \
+#define STDLIB_MATH_CONST(cname, const_value)                               \
+  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##cname)) {  \
+    members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);        \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(         \
+        STATIC_CHAR_VECTOR(#cname)));                                       \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);         \
+    if (!value->IsNumber() || value->Number() != const_value) return false; \
   }
-      STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
+  STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-#define STDLIB_ARRAY_TYPE(fname, FName)                               \
-  case wasm::AsmJsParser::StandardMember::k##FName: {                 \
-    *is_typed_array = true;                                           \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(   \
-        STATIC_CHAR_VECTOR(#FName)));                                 \
-    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name); \
-    if (!value->IsJSFunction()) return false;                         \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);        \
-    return func.is_identical_to(isolate->fname());                    \
+#define STDLIB_ARRAY_TYPE(fname, FName)                                \
+  if (members.Contains(wasm::AsmJsParser::StandardMember::k##FName)) { \
+    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);       \
+    *is_typed_array = true;                                            \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(    \
+        STATIC_CHAR_VECTOR(#FName)));                                  \
+    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);  \
+    if (!value->IsJSFunction()) return false;                          \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);         \
+    if (!func.is_identical_to(isolate->fname())) return false;         \
   }
-      STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
-      STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)
-      STDLIB_ARRAY_TYPE(int16_array_fun, Int16Array)
-      STDLIB_ARRAY_TYPE(uint16_array_fun, Uint16Array)
-      STDLIB_ARRAY_TYPE(int32_array_fun, Int32Array)
-      STDLIB_ARRAY_TYPE(uint32_array_fun, Uint32Array)
-      STDLIB_ARRAY_TYPE(float32_array_fun, Float32Array)
-      STDLIB_ARRAY_TYPE(float64_array_fun, Float64Array)
+  STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
+  STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)
+  STDLIB_ARRAY_TYPE(int16_array_fun, Int16Array)
+  STDLIB_ARRAY_TYPE(uint16_array_fun, Uint16Array)
+  STDLIB_ARRAY_TYPE(int32_array_fun, Int32Array)
+  STDLIB_ARRAY_TYPE(uint32_array_fun, Uint32Array)
+  STDLIB_ARRAY_TYPE(float32_array_fun, Float32Array)
+  STDLIB_ARRAY_TYPE(float64_array_fun, Float64Array)
 #undef STDLIB_ARRAY_TYPE
-  }
-  UNREACHABLE();
+  // All members accounted for.
+  DCHECK(members.IsEmpty());
+  return true;
 }
 
 void Report(Handle<Script> script, int position, Vector<const char> text,
@@ -171,7 +178,7 @@ void ReportInstantiationFailure(Handle<Script> script, int position,
 //  [1] PrepareJobImpl: The asm.js module source is parsed, validated, and
 //      translated to a valid WebAssembly module. The result are two vectors
 //      representing the encoded module as well as encoded source position
-//      information and a StdlibSet.
+//      information and a StdlibSet bit set.
 //  [2] FinalizeJobImp: The module is handed to WebAssembly which decodes it
 //      into an internal representation and eventually compiles it to machine
 //      code.
@@ -192,7 +199,6 @@ class AsmJsCompilationJob final : public CompilationJob {
  private:
   wasm::ZoneBuffer* module_;
   wasm::ZoneBuffer* asm_offsets_;
-  // TODO(mstarzinger) Replace with a bitvector.
   wasm::AsmJsParser::StdlibSet stdlib_uses_;
 
   double translate_time_;  // Time (milliseconds) taken to execute step [1].
@@ -228,7 +234,7 @@ CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
   parser.module_builder()->WriteTo(*module_);
   asm_offsets_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
   parser.module_builder()->WriteAsmJsOffsetTable(*asm_offsets_);
-  stdlib_uses_.swap(*parser.stdlib_uses());
+  stdlib_uses_ = *parser.stdlib_uses();
 
   size_t compile_zone_size =
       info()->zone()->allocation_size() - compile_zone_start;
@@ -259,12 +265,9 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
 
-  Handle<FixedArray> uses_array = info()->isolate()->factory()->NewFixedArray(
-      static_cast<int>(stdlib_uses_.size()));
-  int count = 0;
-  for (auto i : stdlib_uses_) {
-    uses_array->set(count++, Smi::FromInt(i));
-  }
+  Handle<HeapNumber> uses_bitset =
+      info()->isolate()->factory()->NewHeapNumberFromBits(
+          stdlib_uses_.ToIntegral());
 
   wasm::ErrorThrower thrower(info()->isolate(), "AsmJs::Compile");
   Handle<WasmModuleObject> compiled =
@@ -281,7 +284,7 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
   Handle<FixedArray> result =
       info()->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
   result->set(kWasmDataCompiledModule, *compiled);
-  result->set(kWasmDataUsesArray, *uses_array);
+  result->set(kWasmDataUsesBitSet, *uses_bitset);
   info()->SetAsmWasmData(result);
   info()->SetCode(info()->isolate()->builtins()->InstantiateAsmJs());
 
@@ -302,8 +305,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
                                               Handle<JSArrayBuffer> memory) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
-  Handle<FixedArray> stdlib_uses(
-      FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
+  Handle<HeapNumber> uses_bitset(
+      HeapNumber::cast(wasm_data->get(kWasmDataUsesBitSet)));
   Handle<WasmModuleObject> module(
       WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
   Handle<Script> script(Script::cast(shared->script()));
@@ -313,16 +316,14 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
-  for (int i = 0; i < stdlib_uses->length(); ++i) {
+  wasm::AsmJsParser::StdlibSet stdlib_uses(uses_bitset->value_as_bits());
+  if (!stdlib_uses.IsEmpty()) {  // No checking needed if no uses.
     if (stdlib.is_null()) {
       ReportInstantiationFailure(script, position, "Requires standard library");
       return MaybeHandle<Object>();
     }
-    int member_id = Smi::ToInt(stdlib_uses->get(i));
-    wasm::AsmJsParser::StandardMember member =
-        static_cast<wasm::AsmJsParser::StandardMember>(member_id);
-    if (!IsStdlibMemberValid(isolate, stdlib, member,
-                             &stdlib_use_of_typed_array_present)) {
+    if (!AreStdlibMembersValid(isolate, stdlib, stdlib_uses,
+                               &stdlib_use_of_typed_array_present)) {
       ReportInstantiationFailure(script, position, "Unexpected stdlib member");
       return MaybeHandle<Object>();
     }
