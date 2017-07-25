@@ -5843,7 +5843,7 @@ static void AddClassNegated(const int *elmv,
   ranges->Add(CharacterRange::Range(last, String::kMaxCodePoint), zone);
 }
 
-void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                                     bool add_unicode_case_equivalents,
                                     Zone* zone) {
   if (add_unicode_case_equivalents && (type == 'w' || type == 'W')) {
@@ -5866,7 +5866,7 @@ void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
   AddClassEscape(type, ranges, zone);
 }
 
-void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                                     Zone* zone) {
   switch (type) {
     case 's':

@@ -222,8 +222,8 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("[\\d]", "[0-9]");
   CheckParseEq("[x\\dz]", "[x 0-9 z]");
   CheckParseEq("[\\d-z]", "[0-9 - z]");
-  CheckParseEq("[\\d-\\d]", "[0-9 - 0-9]");
-  CheckParseEq("[z-\\d]", "[z - 0-9]");
+  CheckParseEq("[\\d-\\d]", "[0-9 0-9 -]");
+  CheckParseEq("[z-\\d]", "[0-9 z -]");
   // Control character outside character class.
   CheckParseEq("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
   CheckParseEq("\\c!", "'\\c!'");

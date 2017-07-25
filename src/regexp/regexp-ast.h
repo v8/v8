@@ -80,10 +80,10 @@ class CharacterRange {
   CharacterRange() : from_(0), to_(0) {}
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { DCHECK_NULL(null); }  // NOLINT
-  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+  static void AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                              Zone* zone);
   // Add class escapes. Add case equivalent closure for \w and \W if necessary.
-  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+  static void AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                              bool add_unicode_case_equivalents, Zone* zone);
   static Vector<const int> GetWordBounds();
   static inline CharacterRange Singleton(uc32 value) {
