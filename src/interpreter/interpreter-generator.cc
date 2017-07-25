@@ -3223,10 +3223,11 @@ IGNITION_HANDLER(ExtraWide, InterpreterAssembler) {
 IGNITION_HANDLER(Illegal, InterpreterAssembler) { Abort(kInvalidBytecode); }
 
 // SuspendGenerator <generator> <first input register> <register count>
+// <suspend_id>
 //
 // Exports the register file and stores it into the generator.  Also stores the
-// current context, the state given in the accumulator, and the current bytecode
-// offset (for debugging purposes) into the generator.
+// current context, |suspend_id|, and the current bytecode offset (for debugging
+// purposes) into the generator.
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
 
@@ -3245,7 +3246,7 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* array =
       LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset);
   Node* context = GetContext();
-  Node* state = GetAccumulator();
+  Node* suspend_id = BytecodeOperandUImmSmi(3);
 
   // Bytecode operand 1 should be always 0 (we are always store registers
   // from the beginning).
@@ -3255,7 +3256,8 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(2));
   ExportRegisterFile(array, register_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
-  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
+  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+                   suspend_id);
 
   // Store the bytecode offset in the [input_or_debug_pos] field, to be used by
   // the inspector.

@@ -363,7 +363,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg, reg_list)
+  builder.SuspendGenerator(reg, reg_list, 0)
       .RestoreGeneratorState(reg)
       .RestoreGeneratorRegisters(reg, reg_list);
 

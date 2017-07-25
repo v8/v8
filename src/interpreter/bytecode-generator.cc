@@ -2564,17 +2564,9 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 // accumulator.
 void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
   RegisterList registers(0, register_allocator()->next_register_index());
-  RegisterAllocationScope reg_scope(this);
-  // TODO(caitp): eliminate register to hold output by making SuspendGenerator
-  // take an immediate input.
-  Register output = register_allocator()->NewRegister();
 
   // Save context, registers, and state. Then return.
-  builder()
-      ->StoreAccumulatorInRegister(output)
-      .LoadLiteral(Smi::FromInt(suspend_id))
-      .SuspendGenerator(generator_object_, registers)
-      .LoadAccumulatorWithRegister(output);
+  builder()->SuspendGenerator(generator_object_, registers, suspend_id);
 
   builder()->SetReturnPosition(kNoSourcePosition, info()->literal());
   builder()->Return();  // Hard return (ignore any finally blocks).

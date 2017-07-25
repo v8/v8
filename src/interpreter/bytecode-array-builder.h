@@ -404,7 +404,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Generators.
   BytecodeArrayBuilder& SuspendGenerator(Register generator,
-                                         RegisterList registers);
+                                         RegisterList registers,
+                                         int suspend_id);
   BytecodeArrayBuilder& RestoreGeneratorState(Register generator);
   BytecodeArrayBuilder& RestoreGeneratorRegisters(Register generator,
                                                   RegisterList registers);

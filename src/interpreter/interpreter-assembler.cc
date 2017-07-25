@@ -440,6 +440,10 @@ Node* InterpreterAssembler::BytecodeOperandUImmWord(int operand_index) {
   return ChangeUint32ToWord(BytecodeOperandUImm(operand_index));
 }
 
+Node* InterpreterAssembler::BytecodeOperandUImmSmi(int operand_index) {
+  return SmiFromWord32(BytecodeOperandUImm(operand_index));
+}
+
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
   DCHECK_EQ(OperandType::kImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));

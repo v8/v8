@@ -45,6 +45,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the word-size unsigned immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandUImmWord(int operand_index);
+  // Returns the unsigned smi immediate for bytecode operand |operand_index| in
+  // the current bytecode.
+  compiler::Node* BytecodeOperandUImmSmi(int operand_index);
   // Returns the 32-bit signed immediate for bytecode operand |operand_index|
   // in the current bytecode.
   compiler::Node* BytecodeOperandImm(int operand_index);
