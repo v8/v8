@@ -203,10 +203,6 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
 void V8InspectorImpl::contextDestroyed(v8::Local<v8::Context> context) {
   int contextId = InspectedContext::contextId(context);
   int groupId = contextGroupId(context);
-  contextCollected(groupId, contextId);
-}
-
-void V8InspectorImpl::contextCollected(int groupId, int contextId) {
   m_contextIdToGroupIdMap.erase(contextId);
 
   ConsoleStorageMap::iterator storageIt = m_consoleStorageMap.find(groupId);
