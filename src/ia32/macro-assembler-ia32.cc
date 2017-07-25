@@ -84,18 +84,6 @@ void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
 }
 
 
-void MacroAssembler::StoreRoot(Register source,
-                               Register scratch,
-                               Heap::RootListIndex index) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(isolate());
-  mov(scratch, Immediate(index));
-  mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
-      source);
-}
-
-
 void MacroAssembler::CompareRoot(Register with,
                                  Register scratch,
                                  Heap::RootListIndex index) {

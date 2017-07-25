@@ -233,9 +233,6 @@ class MacroAssembler : public Assembler {
   // Load an object from the root table.
   void LoadRoot(Register destination, Heap::RootListIndex index,
                 Condition cond = al);
-  // Store an object to the root table.
-  void StoreRoot(Register source, Heap::RootListIndex index,
-                 Condition cond = al);
 
   //--------------------------------------------------------------------------
   // S390 Macro Assemblers for Instructions
@@ -953,8 +950,6 @@ class MacroAssembler : public Assembler {
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
-
-  void IsObjectJSStringType(Register object, Register scratch, Label* fail);
 
   // Frame restart support
   void MaybeDropFrames();

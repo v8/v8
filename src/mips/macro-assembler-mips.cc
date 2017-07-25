@@ -71,22 +71,6 @@ void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
 }
 
 
-void MacroAssembler::StoreRoot(Register source,
-                               Heap::RootListIndex index) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
-  sw(source, MemOperand(s6, index << kPointerSizeLog2));
-}
-
-
-void MacroAssembler::StoreRoot(Register source,
-                               Heap::RootListIndex index,
-                               Condition cond,
-                               Register src1, const Operand& src2) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
-  Branch(2, NegateCondition(cond), src1, src2);
-  sw(source, MemOperand(s6, index << kPointerSizeLog2));
-}
-
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
   if (marker_reg.is_valid()) {
     Push(ra, fp, marker_reg);
@@ -4530,18 +4514,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     InvokeFlag flag) {
   li(a1, function);
   InvokeFunction(a1, expected, actual, flag);
-}
-
-
-void MacroAssembler::IsObjectJSStringType(Register object,
-                                          Register scratch,
-                                          Label* fail) {
-  DCHECK(kNotStringTag != 0);
-
-  lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  And(scratch, scratch, Operand(kIsNotStringMask));
-  Branch(fail, ne, scratch, Operand(zero_reg));
 }
 
 

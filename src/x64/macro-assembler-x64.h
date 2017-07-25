@@ -480,7 +480,6 @@ class MacroAssembler : public TurboAssembler {
   void PushAddress(ExternalReference source);
 
   // Operations on roots in the root-array.
-  void StoreRoot(Register source, Heap::RootListIndex index);
   // Load a root value where the index (or part of it) is variable.
   // The variable_offset register is added to the fixed_offset value
   // to get the index into the root-array.

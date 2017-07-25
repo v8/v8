@@ -589,10 +589,6 @@ class MacroAssembler : public TurboAssembler {
   void Load(Register dst, const MemOperand& src, Representation r);
   void Store(Register src, const MemOperand& dst, Representation r);
 
-  // Store an object to the root table.
-  void StoreRoot(Register source, Heap::RootListIndex index,
-                 Condition cond = al);
-
   // ---------------------------------------------------------------------------
   // GC Support
 
@@ -792,10 +788,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
-
-  void IsObjectJSStringType(Register object,
-                            Register scratch,
-                            Label* fail);
 
   // Frame restart support
   void MaybeDropFrames();

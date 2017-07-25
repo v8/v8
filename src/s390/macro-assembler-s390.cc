@@ -255,12 +255,6 @@ void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
   LoadP(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), r0);
 }
 
-void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index,
-                               Condition) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
-  StoreP(source, MemOperand(kRootRegister, index << kPointerSizeLog2));
-}
-
 void MacroAssembler::InNewSpace(Register object, Register scratch,
                                 Condition cond, Label* branch) {
   DCHECK(cond == eq || cond == ne);
@@ -1451,17 +1445,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   InvokeFunction(r3, expected, actual, flag);
 }
 
-void MacroAssembler::IsObjectJSStringType(Register object, Register scratch,
-                                          Label* fail) {
-  DCHECK(kNotStringTag != 0);
-
-  LoadP(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  LoadlB(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  mov(r0, Operand(kIsNotStringMask));
-  AndP(r0, scratch);
-  bne(fail);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -1858,16 +1841,6 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
   cdfbr(double_scratch, result);
   cdbr(double_scratch, double_input);
   bind(&done);
-}
-
-void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
-                                                DoubleRegister double_input,
-                                                Label* done) {
-  ConvertDoubleToInt64(result, double_input);
-
-  // Test for overflow
-  TestIfInt32(result);
-  beq(done);
 }
 
 void MacroAssembler::GetLeastBitsFromSmi(Register dst, Register src,

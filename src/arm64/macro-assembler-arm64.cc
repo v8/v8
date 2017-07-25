@@ -1542,12 +1542,6 @@ void TurboAssembler::LoadRoot(CPURegister destination,
 }
 
 
-void MacroAssembler::StoreRoot(Register source,
-                               Heap::RootListIndex index) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
-  Str(source, MemOperand(root, index << kPointerSizeLog2));
-}
-
 void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
   AllowDeferredHandleDereference heap_object_check;
   if (object->IsHeapObject()) {

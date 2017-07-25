@@ -1726,10 +1726,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Helpers ------------------------------------------------------------------
 
-  // Store an object to the root table.
-  void StoreRoot(Register source,
-                 Heap::RootListIndex index);
-
   static int SafepointRegisterStackIndex(int reg_code);
 
   void LoadInstanceDescriptors(Register map,
@@ -2063,15 +2059,6 @@ class MacroAssembler : public TurboAssembler {
   void JumpIfNotRoot(const Register& obj,
                      Heap::RootListIndex index,
                      Label* if_not_equal);
-
-  // Load and check the instance type of an object for being a string.
-  // Loads the type into the second argument register.
-  // The object and type arguments can be the same register; in that case it
-  // will be overwritten with the type.
-  // Jumps to not_string or string appropriate. If the appropriate label is
-  // NULL, fall through.
-  inline void IsObjectJSStringType(Register object, Register type,
-                                   Label* not_string, Label* string = NULL);
 
   // Compare the contents of a register with an operand, and branch to true,
   // false or fall through, depending on condition.

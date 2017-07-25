@@ -958,13 +958,6 @@ class MacroAssembler : public TurboAssembler {
     Branch(if_not_equal, ne, with, Operand(at));
   }
 
-  // Store an object to the root table.
-  void StoreRoot(Register source,
-                 Heap::RootListIndex index);
-  void StoreRoot(Register source,
-                 Heap::RootListIndex index,
-                 Condition cond, Register src1, const Operand& src2);
-
   // ---------------------------------------------------------------------------
   // GC Support
 
@@ -1316,10 +1309,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
-
-  void IsObjectJSStringType(Register object,
-                            Register scratch,
-                            Label* fail);
 
   // Frame restart support.
   void MaybeDropFrames();

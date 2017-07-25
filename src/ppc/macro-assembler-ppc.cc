@@ -279,14 +279,6 @@ void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
 }
 
 
-void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index,
-                               Condition cond) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
-  DCHECK(cond == al);
-  StoreP(source, MemOperand(kRootRegister, index << kPointerSizeLog2), r0);
-}
-
-
 void MacroAssembler::InNewSpace(Register object, Register scratch,
                                 Condition cond, Label* branch) {
   DCHECK(cond == eq || cond == ne);
@@ -1530,17 +1522,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::IsObjectJSStringType(Register object, Register scratch,
-                                          Label* fail) {
-  DCHECK(kNotStringTag != 0);
-
-  LoadP(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  lbz(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  andi(r0, scratch, Operand(kIsNotStringMask));
-  bne(fail, cr0);
-}
-
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -2067,29 +2048,6 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
   fcfid(double_scratch, double_scratch);
   fcmpu(double_scratch, double_input);
   bind(&done);
-}
-
-void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
-                                                DoubleRegister double_input,
-                                                Label* done) {
-  DoubleRegister double_scratch = kScratchDoubleReg;
-#if !V8_TARGET_ARCH_PPC64
-  Register scratch = ip;
-#endif
-
-  ConvertDoubleToInt64(double_input,
-#if !V8_TARGET_ARCH_PPC64
-                       scratch,
-#endif
-                       result, double_scratch);
-
-// Test for overflow
-#if V8_TARGET_ARCH_PPC64
-  TestIfInt32(result, r0);
-#else
-  TestIfInt32(scratch, result, r0);
-#endif
-  beq(done);
 }
 
 void MacroAssembler::GetLeastBitsFromSmi(Register dst, Register src,

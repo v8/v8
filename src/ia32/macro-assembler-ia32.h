@@ -302,7 +302,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
-  void StoreRoot(Register source, Register scratch, Heap::RootListIndex index);
   void CompareRoot(Register with, Register scratch, Heap::RootListIndex index);
   // These methods can only be used with constant roots (i.e. non-writable
   // and not in new space).

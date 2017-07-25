@@ -179,9 +179,6 @@ class MacroAssembler : public Assembler {
   // Load an object from the root table.
   void LoadRoot(Register destination, Heap::RootListIndex index,
                 Condition cond = al);
-  // Store an object to the root table.
-  void StoreRoot(Register source, Heap::RootListIndex index,
-                 Condition cond = al);
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -628,8 +625,6 @@ class MacroAssembler : public Assembler {
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void IsObjectJSStringType(Register object, Register scratch, Label* fail);
-
   void DebugBreak();
   // Frame restart support
   void MaybeDropFrames();
@@ -828,15 +823,6 @@ class MacroAssembler : public Assembler {
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,
                              Register scratch, DoubleRegister double_scratch);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
-  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
 
   // Overflow handling functions.
   // Usage: call the appropriate arithmetic function and then call one of the
