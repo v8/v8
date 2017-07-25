@@ -1037,19 +1037,19 @@ class CodeRange {
   // Returns false on failure.
   bool SetUp(size_t requested_size);
 
-  bool valid() { return code_range_ != NULL; }
+  bool valid() { return virtual_memory_.IsReserved(); }
   Address start() {
     DCHECK(valid());
-    return static_cast<Address>(code_range_->address());
+    return static_cast<Address>(virtual_memory_.address());
   }
   size_t size() {
     DCHECK(valid());
-    return code_range_->size();
+    return virtual_memory_.size();
   }
   bool contains(Address address) {
     if (!valid()) return false;
-    Address start = static_cast<Address>(code_range_->address());
-    return start <= address && address < start + code_range_->size();
+    Address start = static_cast<Address>(virtual_memory_.address());
+    return start <= address && address < start + virtual_memory_.size();
   }
 
   // Allocates a chunk of memory from the large-object portion of
@@ -1099,7 +1099,7 @@ class CodeRange {
   Isolate* isolate_;
 
   // The reserved range of virtual memory that all code objects are put in.
-  base::VirtualMemory* code_range_;
+  base::VirtualMemory virtual_memory_;
 
   // The global mutex guards free_list_ and allocation_list_ as GC threads may
   // access both lists concurrently to the main thread.

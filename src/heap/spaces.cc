@@ -88,17 +88,14 @@ PauseAllocationObserversScope::~PauseAllocationObserversScope() {
 // -----------------------------------------------------------------------------
 // CodeRange
 
-
 CodeRange::CodeRange(Isolate* isolate)
     : isolate_(isolate),
-      code_range_(NULL),
       free_list_(0),
       allocation_list_(0),
       current_allocation_block_index_(0) {}
 
-
 bool CodeRange::SetUp(size_t requested) {
-  DCHECK(code_range_ == NULL);
+  DCHECK(!virtual_memory_.IsReserved());
 
   if (requested == 0) {
     // When a target requires the code range feature, we put all code objects
@@ -122,38 +119,31 @@ bool CodeRange::SetUp(size_t requested) {
 
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
-  code_range_ = new base::VirtualMemory(
+  base::VirtualMemory reservation(
       requested,
       Max(kCodeRangeAreaAlignment,
           static_cast<size_t>(base::OS::AllocateAlignment())),
       base::OS::GetRandomMmapAddr());
-  CHECK(code_range_ != NULL);
-  if (!code_range_->IsReserved()) {
-    delete code_range_;
-    code_range_ = NULL;
-    return false;
-  }
+  if (!reservation.IsReserved()) return false;
 
   // We are sure that we have mapped a block of requested addresses.
-  DCHECK(code_range_->size() == requested);
-  Address base = reinterpret_cast<Address>(code_range_->address());
+  DCHECK(reservation.size() == requested);
+  Address base = reinterpret_cast<Address>(reservation.address());
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space.
   if (reserved_area > 0) {
-    if (!code_range_->Commit(base, reserved_area, true)) {
-      delete code_range_;
-      code_range_ = NULL;
-      return false;
-    }
+    if (!reservation.Commit(base, reserved_area, true)) return false;
+
     base += reserved_area;
   }
   Address aligned_base = RoundUp(base, MemoryChunk::kAlignment);
-  size_t size = code_range_->size() - (aligned_base - base) - reserved_area;
+  size_t size = reservation.size() - (aligned_base - base) - reserved_area;
   allocation_list_.Add(FreeBlock(aligned_base, size));
   current_allocation_block_index_ = 0;
 
-  LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
+  LOG(isolate_, NewEvent("CodeRange", reservation.address(), requested));
+  virtual_memory_.TakeControl(&reservation);
   return true;
 }
 
@@ -224,7 +214,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   DCHECK(*allocated <= current.size);
   DCHECK(IsAddressAligned(current.start, MemoryChunk::kAlignment));
   if (!isolate_->heap()->memory_allocator()->CommitExecutableMemory(
-          code_range_, current.start, commit_size, *allocated)) {
+          &virtual_memory_, current.start, commit_size, *allocated)) {
     *allocated = 0;
     ReleaseBlock(&current);
     return NULL;
@@ -240,7 +230,7 @@ bool CodeRange::CommitRawMemory(Address start, size_t length) {
 
 
 bool CodeRange::UncommitRawMemory(Address start, size_t length) {
-  return code_range_->Uncommit(start, length);
+  return virtual_memory_.Uncommit(start, length);
 }
 
 
@@ -248,13 +238,12 @@ void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.Add(FreeBlock(address, length));
-  code_range_->Uncommit(address, length);
+  virtual_memory_.Uncommit(address, length);
 }
 
 
 void CodeRange::TearDown() {
-  delete code_range_;  // Frees all memory in the virtual memory range.
-  code_range_ = NULL;
+  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.Free();
   allocation_list_.Free();

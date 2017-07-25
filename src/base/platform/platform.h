@@ -285,11 +285,10 @@ class V8_BASE_EXPORT OS {
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
 
-
 // Represents and controls an area of reserved memory.
 // Control of the reserved memory can be assigned to another VirtualMemory
-// object by assignment or copy-contructing. This removes the reserved memory
-// from the original object.
+// object by calling TakeControl. This removes the reserved memory from the
+// 'from' instance.
 class V8_BASE_EXPORT VirtualMemory {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.

@@ -16,11 +16,7 @@ namespace v8 {
 namespace internal {
 
 StoreBuffer::StoreBuffer(Heap* heap)
-    : heap_(heap),
-      top_(nullptr),
-      current_(0),
-      mode_(NOT_IN_GC),
-      virtual_memory_(nullptr) {
+    : heap_(heap), top_(nullptr), current_(0), mode_(NOT_IN_GC) {
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;
     limit_[i] = nullptr;
@@ -35,10 +31,9 @@ void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
   // aligned to 2x the size.  This lets us use a bit test to detect the end of
   // the area.
-  virtual_memory_ =
-      new base::VirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr());
-  uintptr_t start_as_int =
-      reinterpret_cast<uintptr_t>(virtual_memory_->address());
+  base::VirtualMemory reservation(kStoreBufferSize * 3,
+                                  heap_->GetRandomMmapAddr());
+  uintptr_t start_as_int = reinterpret_cast<uintptr_t>(reservation.address());
   start_[0] =
       reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize));
   limit_[0] = start_[0] + (kStoreBufferSize / kPointerSize);
@@ -46,30 +41,30 @@ void StoreBuffer::SetUp() {
   limit_[1] = start_[1] + (kStoreBufferSize / kPointerSize);
 
   Address* vm_limit = reinterpret_cast<Address*>(
-      reinterpret_cast<char*>(virtual_memory_->address()) +
-      virtual_memory_->size());
+      reinterpret_cast<char*>(reservation.address()) + reservation.size());
 
   USE(vm_limit);
   for (int i = 0; i < kStoreBuffers; i++) {
-    DCHECK(reinterpret_cast<Address>(start_[i]) >= virtual_memory_->address());
-    DCHECK(reinterpret_cast<Address>(limit_[i]) >= virtual_memory_->address());
+    DCHECK(reinterpret_cast<Address>(start_[i]) >= reservation.address());
+    DCHECK(reinterpret_cast<Address>(limit_[i]) >= reservation.address());
     DCHECK(start_[i] <= vm_limit);
     DCHECK(limit_[i] <= vm_limit);
     DCHECK((reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask) == 0);
   }
 
-  if (!virtual_memory_->Commit(reinterpret_cast<Address>(start_[0]),
-                               kStoreBufferSize * kStoreBuffers,
-                               false)) {  // Not executable.
+  if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),
+                          kStoreBufferSize * kStoreBuffers,
+                          false)) {  // Not executable.
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;
   top_ = start_[current_];
+  virtual_memory_.TakeControl(&reservation);
 }
 
 
 void StoreBuffer::TearDown() {
-  delete virtual_memory_;
+  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
   top_ = nullptr;
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;
