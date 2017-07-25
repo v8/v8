@@ -1991,10 +1991,9 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
 // into
 //
 //   {
-//     <let x' be a temporary variable>
-//     for (x' in/of e) {
-//       let/const/var x;
-//       x = x';
+//     var temp;
+//     for (temp in/of e) {
+//       let/const/var x = temp;
 //       b;
 //     }
 //     let x;  // for TDZ
@@ -2013,6 +2012,8 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
     auto descriptor = for_info->parsing_result.descriptor;
     descriptor.declaration_pos = kNoSourcePosition;
     descriptor.initialization_pos = kNoSourcePosition;
+    descriptor.scope = scope();
+    descriptor.declaration_kind = DeclarationDescriptor::LEXICAL_FOR_EACH;
     decl.initializer = factory()->NewVariableProxy(temp);
 
     bool is_for_var_of =
@@ -3043,8 +3044,7 @@ Block* Parser::BuildParameterInitializationBlock(
       // rewrite inner initializers of the pattern to param_scope
       descriptor.scope = param_scope;
       // Rewrite the outer initializer to point to param_scope
-      ReparentParameterExpressionScope(stack_limit(), initial_value,
-                                       param_scope);
+      ReparentExpressionScope(stack_limit(), initial_value, param_scope);
     }
 
     BlockState block_state(&scope_, param_scope);

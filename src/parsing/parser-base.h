@@ -487,7 +487,7 @@ class ParserBase {
   };
 
   struct DeclarationDescriptor {
-    enum Kind { NORMAL, PARAMETER };
+    enum Kind { NORMAL, PARAMETER, LEXICAL_FOR_EACH };
     Scope* scope;
     VariableMode mode;
     int declaration_pos;

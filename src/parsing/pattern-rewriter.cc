@@ -289,11 +289,13 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   set_context(old_context);
 }
 
+// When an extra declaration scope needs to be inserted to account for
+// a sloppy eval in a default parameter or function body, the expressions
+// needs to be in that new inner scope which was added after initial
+// parsing.
 bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
-  // Need to check for a binding context to make sure we have a descriptor.
-  if (IsBindingContext() &&
-      // Only relevant for parameters.
-      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
+  DCHECK(IsBindingContext());
+  if (descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
       // And only when scope is a block scope;
       // without eval, it is a function scope.
       scope()->is_block_scope()) {
@@ -306,13 +308,12 @@ bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
   return false;
 }
 
-// When an extra declaration scope needs to be inserted to account for
-// a sloppy eval in a default parameter or function body, the expressions
-// needs to be in that new inner scope which was added after initial
-// parsing.
 void Parser::PatternRewriter::RewriteParameterScopes(Expression* expr) {
-  if (DeclaresParameterContainingSloppyEval()) {
-    ReparentParameterExpressionScope(parser_->stack_limit(), expr, scope());
+  if (!IsBindingContext()) return;
+  if (DeclaresParameterContainingSloppyEval() ||
+      descriptor_->declaration_kind ==
+          DeclarationDescriptor::LEXICAL_FOR_EACH) {
+    ReparentExpressionScope(parser_->stack_limit(), expr, scope());
   }
 }
 
