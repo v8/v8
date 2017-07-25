@@ -60,7 +60,6 @@ INT_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
 INT_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
               kOptCountAndBailoutReasonOffset)
 INT_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
-INT_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 bool SharedFunctionInfo::has_shared_name() const {
   return raw_name() != kNoSharedNameSentinel;

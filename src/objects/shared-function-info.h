@@ -278,8 +278,6 @@ class SharedFunctionInfo : public HeapObject {
   // drive optimization.
   DECL_INT_ACCESSORS(compiler_hints)
 
-  DECL_INT_ACCESSORS(profiler_ticks)
-
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
   DECL_INT_ACCESSORS(ic_age)
@@ -466,7 +464,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kCompilerHintsOffset, kInt32Size)            \
   V(kOptCountAndBailoutReasonOffset, kInt32Size) \
   V(kCountersOffset, kInt32Size)                 \
-  V(kProfilerTicksOffset, kInt32Size)            \
   /* Total size. */                              \
   V(kSize, 0)
 

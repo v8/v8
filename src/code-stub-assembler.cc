@@ -6355,11 +6355,8 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
     StoreFixedArrayElement(feedback_vector, slot_id, combined_feedback,
                            SKIP_WRITE_BARRIER);
     // Reset profiler ticks.
-    Node* shared_info =
-        LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
-    StoreObjectFieldNoWriteBarrier(
-        shared_info, SharedFunctionInfo::kProfilerTicksOffset, Int32Constant(0),
-        MachineRepresentation::kWord32);
+    StoreFixedArrayElement(feedback_vector, FeedbackVector::kProfilerTicksIndex,
+                           SmiConstant(0), SKIP_WRITE_BARRIER);
     Goto(&end);
   }
 

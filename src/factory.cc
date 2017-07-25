@@ -2539,7 +2539,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 #if V8_SFI_HAS_UNIQUE_ID
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
-  share->set_profiler_ticks(0);
   share->set_counters(0);
 
   // Set integer fields (smi or int, depending on the architecture).
