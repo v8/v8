@@ -69,9 +69,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<Script> script,
                         Handle<SharedFunctionInfo> shared,
-                        FunctionLiteral* literal,
-                        std::shared_ptr<Zone> parse_zone,
-                        std::shared_ptr<DeferredHandles> parse_handles,
+                        FunctionLiteral* literal, ParseInfo* outer_parse_info,
                         std::shared_ptr<DeferredHandles> compile_handles,
                         size_t max_stack_size);
   ~CompilerDispatcherJob();
@@ -139,10 +137,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   std::unique_ptr<ParseInfo> parse_info_;
   std::unique_ptr<Parser> parser_;
 
-  // Members required for compiling a parsed function.
-  std::shared_ptr<Zone> parse_zone_;
-
   // Members required for compiling.
+  std::unique_ptr<Zone> compile_zone_;
   std::unique_ptr<CompilationInfo> compile_info_;
   std::unique_ptr<CompilationJob> compile_job_;
 

@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, Isolate* isolate, bool internalize) {
+bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -34,14 +34,11 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate, bool internalize) {
     info->set_language_mode(info->literal()->language_mode());
   }
   parser.UpdateStatistics(isolate, info->script());
-  if (internalize) {
-    info->ast_value_factory()->Internalize(isolate);
-  }
   return (result != nullptr);
 }
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-                   Isolate* isolate, bool internalize) {
+                   Isolate* isolate) {
   DCHECK(!info->is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
@@ -58,18 +55,14 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
     parser.ReportErrors(isolate, info->script());
   }
   parser.UpdateStatistics(isolate, info->script());
-  if (internalize) {
-    info->ast_value_factory()->Internalize(isolate);
-  }
   return (result != nullptr);
 }
 
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-              Isolate* isolate, bool internalize) {
+              Isolate* isolate) {
   DCHECK(!shared_info.is_null());
-  return info->is_toplevel()
-             ? ParseProgram(info, isolate, internalize)
-             : ParseFunction(info, shared_info, isolate, internalize);
+  return info->is_toplevel() ? ParseProgram(info, isolate)
+                             : ParseFunction(info, shared_info, isolate);
 }
 
 }  // namespace parsing

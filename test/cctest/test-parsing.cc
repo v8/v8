@@ -833,7 +833,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info, isolate));
-      CHECK(i::Rewriter::Rewrite(&info, isolate));
+      CHECK(i::Rewriter::Rewrite(&info));
+      info.ast_value_factory()->Internalize(isolate);
       i::DeclarationScope::Analyze(&info, isolate);
       i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                               i::AnalyzeMode::kRegular);
@@ -10268,7 +10269,7 @@ TEST(LexicalLoopVariable) {
 
     info.set_allow_lazy_parsing(false);
     CHECK(i::parsing::ParseProgram(&info, isolate));
-    CHECK(i::Rewriter::Rewrite(&info, isolate));
+    CHECK(i::Rewriter::Rewrite(&info));
     i::DeclarationScope::Analyze(&info, isolate);
     i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                             i::AnalyzeMode::kRegular);

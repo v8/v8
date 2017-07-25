@@ -8,6 +8,7 @@
 
 #include "include/v8-platform.h"
 #include "src/api.h"
+#include "src/ast/ast-value-factory.h"
 #include "src/base/platform/semaphore.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
@@ -963,7 +964,7 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(dispatcher.Enqueue(script, shared, parse_info.literal(),
-                                 parse_info.zone_shared(), handles, handles));
+                                 &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
   ASSERT_EQ(CompileJobStatus::kAnalyzed,
@@ -990,8 +991,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
-                                        parse_info.zone_shared(), handles,
-                                        handles));
+                                        &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
   ASSERT_EQ(CompileJobStatus::kReadyToCompile,
@@ -1017,8 +1017,8 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
     HandleScope scope(i_isolate());  // Create handles scope for parsing.
 
     ASSERT_FALSE(shared->is_compiled());
-    ParseInfo parse_info(shared);
 
+    ParseInfo parse_info(shared);
     DeferredHandleScope handles_scope(i_isolate());
     ASSERT_TRUE(parsing::ParseAny(&parse_info, shared, i_isolate()));
     { ASSERT_TRUE(Compiler::Analyze(&parse_info, i_isolate())); }
@@ -1026,9 +1026,8 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
         handles_scope.Detach());
 
     ASSERT_FALSE(platform.IdleTaskPending());
-    ASSERT_TRUE(dispatcher.Enqueue(
-        script, shared, parse_info.literal(), parse_info.zone_shared(),
-        parse_info.deferred_handles(), compilation_handles));
+    ASSERT_TRUE(dispatcher.Enqueue(script, shared, parse_info.literal(),
+                                   &parse_info, compilation_handles));
     ASSERT_TRUE(platform.IdleTaskPending());
   }
   // Exit the handles scope and destroy ParseInfo before running the idle task.
@@ -1078,7 +1077,6 @@ TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
           .ToHandleChecked();
   Handle<Script> script = i_isolate()->factory()->NewScript(script_str);
   script->set_type(Script::TYPE_EXTENSION);
-
   Handle<SharedFunctionInfo> shared;
   {
     v8::Context::Scope scope(context);
@@ -1094,14 +1092,14 @@ TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
     { ASSERT_TRUE(Compiler::Analyze(&parse_info, i_isolate())); }
     std::shared_ptr<DeferredHandles> compilation_handles(
         handles_scope.Detach());
+    parse_info.ast_value_factory()->Internalize(i_isolate());
 
     shared = i_isolate()->factory()->NewSharedFunctionInfoForLiteral(
         parse_info.literal(), script);
 
     ASSERT_FALSE(platform.IdleTaskPending());
-    ASSERT_TRUE(dispatcher.Enqueue(
-        script, shared, parse_info.literal(), parse_info.zone_shared(),
-        parse_info.deferred_handles(), compilation_handles));
+    ASSERT_TRUE(dispatcher.Enqueue(script, shared, parse_info.literal(),
+                                   &parse_info, compilation_handles));
     ASSERT_TRUE(platform.IdleTaskPending());
   }
   // Exit the context scope before running the idle task.
@@ -1179,8 +1177,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
-                                        parse_info.zone_shared(), handles,
-                                        handles));
+                                        &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
   ASSERT_EQ(CompileJobStatus::kReadyToCompile,
@@ -1189,8 +1186,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
   // EnqueueAndStep of the same function again (either already parsed or for
   // compile and parse) shouldn't step the job.
   ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
-                                        parse_info.zone_shared(), handles,
-                                        handles));
+                                        &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_EQ(CompileJobStatus::kReadyToCompile,
             GetJobStatus(dispatcher.jobs_.begin()->second));

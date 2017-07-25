@@ -115,7 +115,8 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     info.reset(new ParseInfo(shared_info));
   }
   if (parsing::ParseAny(info.get(), shared_info, isolate_) &&
-      Rewriter::Rewrite(info.get(), isolate_)) {
+      Rewriter::Rewrite(info.get())) {
+    info->ast_value_factory()->Internalize(isolate_);
     DeclarationScope* scope = info->literal()->scope();
     if (!ignore_nested_scopes || collect_non_locals) {
       CollectNonLocals(info.get(), scope);

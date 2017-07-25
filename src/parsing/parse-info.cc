@@ -41,8 +41,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       function_name_(nullptr),
       runtime_call_stats_(nullptr),
       source_range_map_(nullptr),
-      literal_(nullptr),
-      deferred_handles_(nullptr) {}
+      literal_(nullptr) {}
 
 ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
     : ParseInfo(shared->GetIsolate()->allocator()) {
@@ -138,17 +137,6 @@ FunctionKind ParseInfo::function_kind() const {
   return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
 }
 
-void ParseInfo::set_deferred_handles(
-    std::shared_ptr<DeferredHandles> deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
-  deferred_handles_.swap(deferred_handles);
-}
-
-void ParseInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
-  deferred_handles_.reset(deferred_handles);
-}
-
 void ParseInfo::InitFromIsolate(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   set_hash_seed(isolate->heap()->HashSeed());
@@ -191,6 +179,11 @@ std::map<int, ParseInfo*> ParseInfo::child_infos() const {
     rv.insert(std::make_pair(start_position, child_info.get()));
   }
   return rv;
+}
+
+void ParseInfo::ShareZone(ParseInfo* other) {
+  DCHECK_EQ(0, zone_->allocation_size());
+  zone_ = other->zone_;
 }
 
 AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {

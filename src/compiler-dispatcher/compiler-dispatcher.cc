@@ -326,8 +326,7 @@ bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
 
 bool CompilerDispatcher::Enqueue(
     Handle<Script> script, Handle<SharedFunctionInfo> function,
-    FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
-    std::shared_ptr<DeferredHandles> parse_handles,
+    FunctionLiteral* literal, ParseInfo* outer_parse_info,
     std::shared_ptr<DeferredHandles> compile_handles) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherEnqueue");
@@ -341,16 +340,15 @@ bool CompilerDispatcher::Enqueue(
   }
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      isolate_, tracer_.get(), script, function, literal, parse_zone,
-      parse_handles, compile_handles, max_stack_size_));
+      isolate_, tracer_.get(), script, function, literal, outer_parse_info,
+      compile_handles, max_stack_size_));
   Enqueue(std::move(job));
   return true;
 }
 
 bool CompilerDispatcher::EnqueueAndStep(
     Handle<Script> script, Handle<SharedFunctionInfo> function,
-    FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
-    std::shared_ptr<DeferredHandles> parse_handles,
+    FunctionLiteral* literal, ParseInfo* outer_parse_info,
     std::shared_ptr<DeferredHandles> compile_handles) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherEnqueueAndStep");
@@ -364,8 +362,8 @@ bool CompilerDispatcher::EnqueueAndStep(
   }
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      isolate_, tracer_.get(), script, function, literal, parse_zone,
-      parse_handles, compile_handles, max_stack_size_));
+      isolate_, tracer_.get(), script, function, literal, outer_parse_info,
+      compile_handles, max_stack_size_));
   EnqueueAndStep(std::move(job));
   return true;
 }

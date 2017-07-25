@@ -155,6 +155,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
     info.MarkAsOptimizeFromBytecode();
   } else {
     CHECK(Compiler::ParseAndAnalyze(&info));
+    parse_info.ast_value_factory()->Internalize(info.isolate());
   }
   JSFunction::EnsureLiterals(function);
 

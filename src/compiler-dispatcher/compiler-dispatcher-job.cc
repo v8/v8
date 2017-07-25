@@ -134,8 +134,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
 CompilerDispatcherJob::CompilerDispatcherJob(
     Isolate* isolate, CompilerDispatcherTracer* tracer, Handle<Script> script,
     Handle<SharedFunctionInfo> shared, FunctionLiteral* literal,
-    std::shared_ptr<Zone> parse_zone,
-    std::shared_ptr<DeferredHandles> parse_handles,
+    ParseInfo* outer_parse_info,
     std::shared_ptr<DeferredHandles> compile_handles, size_t max_stack_size)
     : status_(CompileJobStatus::kAnalyzed),
       isolate_(isolate),
@@ -144,14 +143,15 @@ CompilerDispatcherJob::CompilerDispatcherJob(
       shared_(isolate_->global_handles()->Create(*shared)),
       max_stack_size_(max_stack_size),
       parse_info_(new ParseInfo(shared_)),
-      parse_zone_(parse_zone),
-      compile_info_(new CompilationInfo(parse_info_->zone(), parse_info_.get(),
+      compile_zone_(new Zone(isolate->allocator(), ZONE_NAME)),
+      compile_info_(new CompilationInfo(compile_zone_.get(), parse_info_.get(),
                                         isolate_, shared_,
                                         Handle<JSFunction>::null())),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   parse_info_->set_literal(literal);
   parse_info_->set_script(script);
-  parse_info_->set_deferred_handles(parse_handles);
+  parse_info_->ShareAstValueFactory(outer_parse_info);
+  parse_info_->ShareZone(outer_parse_info);
   compile_info_->set_deferred_handles(compile_handles);
 
   if (trace_compiler_dispatcher_jobs_) {
@@ -389,28 +389,20 @@ void CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   parser_->UpdateStatistics(isolate_, script);
   parse_info_->UpdateStatisticsAfterBackgroundParse(isolate_);
 
-  DeferredHandleScope scope(isolate_);
-  {
-    parse_info_->ReopenHandlesInNewHandleScope();
-
-    if (!shared_->outer_scope_info()->IsTheHole(isolate_) &&
-        ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
-      Handle<ScopeInfo> outer_scope_info(
-          handle(ScopeInfo::cast(shared_->outer_scope_info())));
-      parse_info_->set_outer_scope_info(outer_scope_info);
-    }
-
-    // Internalize ast values on the main thread.
-    parse_info_->ast_value_factory()->Internalize(isolate_);
-    parser_->HandleSourceURLComments(isolate_, script);
-
-    parse_info_->set_character_stream(nullptr);
-    parse_info_->set_unicode_cache(nullptr);
-    parser_.reset();
-    unicode_cache_.reset();
-    character_stream_.reset();
+  if (!shared_->outer_scope_info()->IsTheHole(isolate_) &&
+      ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
+    Handle<ScopeInfo> outer_scope_info(
+        handle(ScopeInfo::cast(shared_->outer_scope_info())));
+    parse_info_->set_outer_scope_info(outer_scope_info);
   }
-  parse_info_->set_deferred_handles(scope.Detach());
+
+  parser_->HandleSourceURLComments(isolate_, script);
+
+  parse_info_->set_character_stream(nullptr);
+  parse_info_->set_unicode_cache(nullptr);
+  parser_.reset();
+  unicode_cache_.reset();
+  character_stream_.reset();
 }
 
 void CompilerDispatcherJob::AnalyzeOnMainThread() {
@@ -421,8 +413,9 @@ void CompilerDispatcherJob::AnalyzeOnMainThread() {
     PrintF("CompilerDispatcherJob[%p]: Analyzing\n", static_cast<void*>(this));
   }
 
+  compile_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
   compile_info_.reset(new CompilationInfo(
-      parse_info_->zone(), parse_info_.get(), isolate_,
+      compile_zone_.get(), parse_info_.get(), isolate_,
       Handle<SharedFunctionInfo>::null(), Handle<JSFunction>::null()));
 
   DeferredHandleScope scope(isolate_);
@@ -498,7 +491,7 @@ void CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
 
   compile_job_.reset();
   compile_info_.reset();
-  parse_zone_.reset();
+  compile_zone_.reset();
   parse_info_.reset();
 
   status_ = CompileJobStatus::kDone;
@@ -511,7 +504,7 @@ void CompilerDispatcherJob::ResetOnMainThread() {
 
   compile_job_.reset();
   compile_info_.reset();
-  parse_zone_.reset();
+  compile_zone_.reset();
   parser_.reset();
   unicode_cache_.reset();
   character_stream_.reset();
