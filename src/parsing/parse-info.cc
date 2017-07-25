@@ -93,14 +93,6 @@ ParseInfo::ParseInfo(Handle<Script> script)
   set_collect_type_profile(FLAG_type_profile && script->IsUserJavaScript());
 }
 
-ParseInfo::~ParseInfo() {
-  if (ast_value_factory_owned()) {
-    delete ast_value_factory_;
-    set_ast_value_factory_owned(false);
-  }
-  ast_value_factory_ = nullptr;
-}
-
 // static
 ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   Isolate* isolate = shared->GetIsolate();
@@ -199,6 +191,19 @@ std::map<int, ParseInfo*> ParseInfo::child_infos() const {
     rv.insert(std::make_pair(start_position, child_info.get()));
   }
   return rv;
+}
+
+AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
+  if (!ast_value_factory_.get()) {
+    ast_value_factory_.reset(
+        new AstValueFactory(zone(), ast_string_constants(), hash_seed()));
+  }
+  return ast_value_factory();
+}
+
+void ParseInfo::ShareAstValueFactory(ParseInfo* other) {
+  DCHECK(!ast_value_factory_.get());
+  ast_value_factory_ = other->ast_value_factory_;
 }
 
 #ifdef DEBUG

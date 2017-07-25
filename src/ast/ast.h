@@ -3058,9 +3058,6 @@ class AstNodeFactory final BASE_EMBEDDED {
       : zone_(zone), ast_value_factory_(ast_value_factory) {}
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
-  void set_ast_value_factory(AstValueFactory* ast_value_factory) {
-    ast_value_factory_ = ast_value_factory;
-  }
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               Scope* scope, int pos) {

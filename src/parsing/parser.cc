@@ -478,7 +478,7 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
-                         info->extension(), info->ast_value_factory(),
+                         info->extension(), info->GetOrCreateAstValueFactory(),
                          info->runtime_call_stats(), true),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
@@ -528,14 +528,6 @@ Parser::Parser(ParseInfo* info)
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
-  }
-  if (info->ast_value_factory() == NULL) {
-    // info takes ownership of AstValueFactory.
-    info->set_ast_value_factory(new AstValueFactory(
-        zone(), info->ast_string_constants(), info->hash_seed()));
-    info->set_ast_value_factory_owned();
-    ast_value_factory_ = info->ast_value_factory();
-    ast_node_factory_.set_ast_value_factory(ast_value_factory_);
   }
 }
 

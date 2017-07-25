@@ -42,11 +42,18 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
   ParseInfo(Handle<Script> script);
   ParseInfo(Handle<SharedFunctionInfo> shared);
 
-  ~ParseInfo();
+  ~ParseInfo() {}
 
   void InitFromIsolate(Isolate* isolate);
 
   static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+
+  // Either returns the ast-value-factory associcated with this ParseInfo, or
+  // creates and returns a new factory if none exists.
+  AstValueFactory* GetOrCreateAstValueFactory();
+
+  // Sets this parse info to share the same ast value factory as |other|.
+  void ShareAstValueFactory(ParseInfo* other);
 
   Zone* zone() const { return zone_.get(); }
 
@@ -70,8 +77,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
   FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
-  FLAG_ACCESSOR(kAstValueFactoryOwned, ast_value_factory_owned,
-                set_ast_value_factory_owned)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
@@ -136,9 +141,9 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     asm_function_scope_ = scope;
   }
 
-  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
-  void set_ast_value_factory(AstValueFactory* ast_value_factory) {
-    ast_value_factory_ = ast_value_factory;
+  AstValueFactory* ast_value_factory() const {
+    DCHECK(ast_value_factory_.get());
+    return ast_value_factory_.get();
   }
 
   const AstRawString* function_name() const { return function_name_; }
@@ -270,7 +275,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     kIsNamedExpression = 1 << 8,
     kDebug = 1 << 9,
     kSerializing = 1 << 10,
-    kAstValueFactoryOwned = 1 << 11,
     kCollectTypeProfile = 1 << 12,
   };
 
@@ -301,7 +305,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.
   ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
-  AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
+  std::shared_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
