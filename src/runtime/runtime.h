@@ -49,8 +49,6 @@ namespace internal {
   F(HasComplexElements, 1, 1)       \
   F(IsArray, 1, 1)                  \
   F(ArrayIsArray, 1, 1)             \
-  F(FixedArrayGet, 2, 1)            \
-  F(FixedArraySet, 3, 1)            \
   F(ArraySpeciesConstructor, 1, 1)  \
   F(ArrayIncludes_Slow, 3, 1)       \
   F(ArrayIndexOf, 3, 1)             \
@@ -90,15 +88,11 @@ namespace internal {
   F(GetSuperConstructor, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
-  F(StringGetRawHashField, 1, 1)          \
   F(TheHole, 0, 1)                        \
-  F(JSCollectionGetTable, 1, 1)           \
   F(GenericHash, 1, 1)                    \
-  F(SetInitialize, 1, 1)                  \
   F(SetGrow, 1, 1)                        \
   F(SetShrink, 1, 1)                      \
   F(SetIteratorClone, 1, 1)               \
-  F(MapInitialize, 1, 1)                  \
   F(MapShrink, 1, 1)                      \
   F(MapGrow, 1, 1)                        \
   F(MapIteratorClone, 1, 1)               \

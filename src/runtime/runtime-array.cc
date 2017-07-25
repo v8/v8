@@ -17,26 +17,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(FixedArray, object, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  return object->get(index);
-}
-
-
-RUNTIME_FUNCTION(Runtime_FixedArraySet) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_CHECKED(FixedArray, object, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_ARG_CHECKED(Object, value, 2);
-  object->set(index, value);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

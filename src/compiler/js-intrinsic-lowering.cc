@@ -68,10 +68,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineFixedArrayGet:
-      return ReduceFixedArrayGet(node);
-    case Runtime::kInlineFixedArraySet:
-      return ReduceFixedArraySet(node);
     case Runtime::kInlineSubString:
       return ReduceSubString(node);
     case Runtime::kInlineToInteger:
@@ -103,10 +99,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
                                         AccessBuilder::ForJSTypedArrayLength());
     case Runtime::kInlineTypedArrayMaxSizeInHeap:
       return ReduceTypedArrayMaxSizeInHeap(node);
-    case Runtime::kInlineJSCollectionGetTable:
-      return ReduceJSCollectionGetTable(node);
-    case Runtime::kInlineStringGetRawHashField:
-      return ReduceStringGetRawHashField(node);
     case Runtime::kInlineTheHole:
       return ReduceTheHole(node);
     case Runtime::kInlineClassOf:
@@ -283,32 +275,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   return Changed(node);
 }
 
-
-Reduction JSIntrinsicLowering::ReduceFixedArrayGet(Node* node) {
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(
-      node, simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
-      base, index, effect, control);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* store = (graph()->NewNode(
-      simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()), base,
-      index, value, effect, control));
-  ReplaceWithValue(node, value, store);
-  return Changed(store);
-}
-
-
 Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
   return Change(node, CodeFactory::SubString(isolate()), 3);
 }
@@ -413,24 +379,6 @@ Reduction JSIntrinsicLowering::ReduceTypedArrayMaxSizeInHeap(Node* node) {
   Node* value = jsgraph()->Constant(FLAG_typed_array_max_size_in_heap);
   ReplaceWithValue(node, value);
   return Replace(value);
-}
-
-Reduction JSIntrinsicLowering::ReduceJSCollectionGetTable(Node* node) {
-  Node* collection = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(node,
-                simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
-                collection, effect, control);
-}
-
-Reduction JSIntrinsicLowering::ReduceStringGetRawHashField(Node* node) {
-  Node* string = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(node,
-                simplified()->LoadField(AccessBuilder::ForNameHashField()),
-                string, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {

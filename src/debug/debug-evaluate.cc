@@ -307,12 +307,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(CreateObjectLiteral)             \
   V(CreateRegExpLiteral)             \
   /* Collections */                  \
-  V(JSCollectionGetTable)            \
-  V(FixedArrayGet)                   \
-  V(StringGetRawHashField)           \
   V(GenericHash)                     \
-  V(MapInitialize)                   \
-  V(SetInitialize)                   \
   /* Called from builtins */         \
   V(StringParseFloat)                \
   V(StringParseInt)                  \
