@@ -310,7 +310,7 @@ void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
 Operand::Operand(Handle<HeapObject> handle) {
   AllowHandleDereference using_location;
   rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(handle.location());
+  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 

@@ -336,6 +336,8 @@ class Operand BASE_EMBEDDED {
     return is_heap_object_request_;
   }
 
+  RelocInfo::Mode rmode() const { return rmode_; }
+
  private:
   Register rm_;
   union Value {
