@@ -80,6 +80,7 @@ TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
+TYPE_CHECKER(HashTable, HASH_TABLE_TYPE)
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
 TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
@@ -135,6 +136,7 @@ bool HeapObject::IsFixedArrayBase() const {
 bool HeapObject::IsFixedArray() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type == FIXED_ARRAY_TYPE ||
+         instance_type == HASH_TABLE_TYPE ||
          instance_type == TRANSITION_ARRAY_TYPE;
 }
 
@@ -417,10 +419,6 @@ bool HeapObject::IsJSArrayBufferView() const {
 template <>
 inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
-}
-
-bool HeapObject::IsHashTable() const {
-  return map() == GetHeap()->hash_table_map();
 }
 
 bool HeapObject::IsWeakHashTable() const { return IsHashTable(); }
@@ -3204,7 +3202,7 @@ int HeapObject::SizeFromMap(Map* map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (instance_type == FIXED_ARRAY_TYPE ||
+  if (instance_type == FIXED_ARRAY_TYPE || instance_type == HASH_TABLE_TYPE ||
       instance_type == TRANSITION_ARRAY_TYPE) {
     return FixedArray::SizeFor(
         reinterpret_cast<const FixedArray*>(this)->synchronized_length());

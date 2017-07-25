@@ -71,13 +71,14 @@ class ObjectStats {
     size_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
                    [HistogramIndexFromSize(size)]++;
     if (over_allocated > 0) {
+      InstanceType type =
+          array->IsHashTable() ? HASH_TABLE_TYPE : FIXED_ARRAY_TYPE;
       over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
           over_allocated;
       over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
                                [HistogramIndexFromSize(over_allocated)]++;
-      over_allocated_[InstanceType::FIXED_ARRAY_TYPE] += over_allocated;
-      over_allocated_histogram_[InstanceType::FIXED_ARRAY_TYPE]
-                               [HistogramIndexFromSize(over_allocated)]++;
+      over_allocated_[type] += over_allocated;
+      over_allocated_histogram_[type][HistogramIndexFromSize(over_allocated)]++;
     }
     return true;
   }

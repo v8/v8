@@ -2581,9 +2581,9 @@ bool Heap::CreateInitialMaps() {
       roots_[entry.index] = map;
     }
 
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, hash_table)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, ordered_hash_table)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, unseeded_number_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, hash_table)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_table)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, unseeded_number_dictionary)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)

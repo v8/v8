@@ -187,6 +187,8 @@ void StartupSerializer::CheckRehashability(HeapObject* table) {
   if (!can_be_rehashed_) return;
   // We can only correctly rehash if the four hash tables below are the only
   // ones that we deserialize.
+  if (table->IsUnseededNumberDictionary()) return;
+  if (table == isolate_->heap()->empty_ordered_hash_table()) return;
   if (table == isolate_->heap()->empty_slow_element_dictionary()) return;
   if (table == isolate_->heap()->empty_property_dictionary()) return;
   if (table == isolate_->heap()->weak_object_to_code_table()) return;
