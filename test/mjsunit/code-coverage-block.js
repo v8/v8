@@ -2,32 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --ignition --block-coverage --harmony-async-iteration
-// Flags: --no-stress-fullcodegen
-
-// Test precise code coverage.
-
-function GetCoverage(source) {
-  for (var script of %DebugCollectCoverage()) {
-    if (script.script.source == source) return script;
-  }
-  return undefined;
-}
-
-function TestCoverage(name, source, expectation) {
-  source = source.trim();
-  eval(source);
-  %CollectGarbage("collect dead objects");
-  var covfefe = GetCoverage(source);
-  var stringified_result = JSON.stringify(covfefe);
-  var stringified_expectation = JSON.stringify(expectation);
-  if (stringified_result != stringified_expectation) {
-    print(stringified_result.replace(/[}],[{]/g, "},\n {"));
-  }
-  assertEquals(stringified_expectation, stringified_result, name + " failed");
-}
-
-function nop() {}
+// Flags: --allow-natives-syntax --no-always-opt --block-coverage
+// Flags: --no-stress-fullcodegen --harmony-async-iteration
+// Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
 
