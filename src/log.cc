@@ -884,7 +884,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
 
 void Logger::CurrentTimeEvent() {
   if (!log_->IsEnabled()) return;
-  DCHECK(FLAG_log_timer_events || FLAG_prof_cpp);
+  DCHECK(FLAG_log_internal_timer_events);
   Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
   msg.Append("current-time,%d", since_epoch);
@@ -1774,7 +1774,7 @@ bool Logger::SetUp(Isolate* isolate) {
     is_logging_ = true;
   }
 
-  if (FLAG_log_internal_timer_events || FLAG_prof_cpp) timer_.Start();
+  if (FLAG_log_internal_timer_events) timer_.Start();
 
   if (FLAG_prof_cpp) {
     profiler_ = new Profiler(isolate);
