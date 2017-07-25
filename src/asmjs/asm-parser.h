@@ -55,7 +55,7 @@ class AsmJsParser {
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
   WasmModuleBuilder* module_builder() { return module_builder_; }
-  const StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
+  StdlibSet* stdlib_uses() { return &stdlib_uses_; }
 
  private:
   // clang-format off

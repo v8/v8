@@ -13,13 +13,14 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
+class CompilationJob;
 class JSArrayBuffer;
 class SharedFunctionInfo;
 
 // Interface to compile and instantiate for asm.js modules.
 class AsmJs {
  public:
-  static MaybeHandle<FixedArray> CompileAsmViaWasm(CompilationInfo* info);
+  static CompilationJob* NewCompilationJob(CompilationInfo* info);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,
                                                 Handle<SharedFunctionInfo>,
                                                 Handle<FixedArray> wasm_data,

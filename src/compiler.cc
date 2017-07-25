@@ -358,7 +358,10 @@ void InstallUnoptimizedCode(CompilationInfo* info) {
   shared->ReplaceCode(*info->code());
   if (info->has_bytecode_array()) {
     DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
+    DCHECK(!info->has_asm_wasm_data());
     shared->set_bytecode_array(*info->bytecode_array());
+  } else if (info->has_asm_wasm_data()) {
+    shared->set_asm_wasm_data(*info->asm_wasm_data());
   }
 
   // Install coverage info on the shared function info.
@@ -443,29 +446,20 @@ bool Renumber(ParseInfo* info,
                                 info->collect_type_profile());
 }
 
-bool GenerateUnoptimizedCode(CompilationInfo* info) {
-  if (UseAsmWasm(info->scope(), info->shared_info(), info->is_debug())) {
-    MaybeHandle<FixedArray> wasm_data;
-    wasm_data = AsmJs::CompileAsmViaWasm(info);
-    if (!wasm_data.is_null()) {
-      SetSharedFunctionFlagsFromLiteral(info->literal(), info->shared_info());
-      DeclarationScope::AllocateScopeInfos(info->parse_info(), info->isolate(),
-                                           AnalyzeMode::kRegular);
-      info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
-      info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
-      InstallUnoptimizedCode(info);
-      return true;
-    }
-  }
-
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+bool RunUnoptimizedCompilationJob(CompilationJob* job) {
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) return false;
-  if (FinalizeUnoptimizedCompilationJob(job.get()) !=
-      CompilationJob::SUCCEEDED) {
-    return false;
+  return FinalizeUnoptimizedCompilationJob(job) == CompilationJob::SUCCEEDED;
+}
+
+bool GenerateUnoptimizedCode(CompilationInfo* info) {
+  if (UseAsmWasm(info->scope(), info->shared_info(), info->is_debug())) {
+    std::unique_ptr<CompilationJob> job(AsmJs::NewCompilationJob(info));
+    if (RunUnoptimizedCompilationJob(job.get())) return true;
+    // asm.js validation failed, fall through to standard unoptimized compile.
   }
-  return true;
+  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+  return RunUnoptimizedCompilationJob(job.get());
 }
 
 bool CompileUnoptimizedInnerFunctions(
