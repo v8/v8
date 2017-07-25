@@ -636,7 +636,6 @@ bool RelocInfo::RequiresRelocation(Isolate* isolate, const CodeDesc& desc) {
   // generation.
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::kApplyMask;
   RelocIterator it(desc, mode_mask);
   return !it.done();
@@ -655,8 +654,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case CODE_TARGET:
       return "code target";
-    case CELL:
-      return "property cell";
     case RUNTIME_ENTRY:
       return "runtime entry";
     case COMMENT:
@@ -750,9 +747,6 @@ void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case EMBEDDED_OBJECT:
       Object::VerifyPointer(target_object());
-      break;
-    case CELL:
-      Object::VerifyPointer(target_cell());
       break;
     case CODE_TARGET: {
       // convert inline target address to code object

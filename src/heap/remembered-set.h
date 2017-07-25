@@ -245,20 +245,6 @@ class RememberedSet : public AllStatic {
 
 class UpdateTypedSlotHelper {
  public:
-  // Updates a cell slot using an untyped slot callback.
-  // The callback accepts Object** and returns SlotCallbackResult.
-  template <typename Callback>
-  static SlotCallbackResult UpdateCell(RelocInfo* rinfo, Callback callback) {
-    DCHECK(rinfo->rmode() == RelocInfo::CELL);
-    Object* cell = rinfo->target_cell();
-    Object* old_cell = cell;
-    SlotCallbackResult result = callback(&cell);
-    if (cell != old_cell) {
-      rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
-    }
-    return result;
-  }
-
   // Updates a code entry slot using an untyped slot callback.
   // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
@@ -332,10 +318,6 @@ class UpdateTypedSlotHelper {
         RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, NULL);
         return UpdateCodeTarget(&rinfo, callback);
       }
-      case CELL_TARGET_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::CELL, 0, NULL);
-        return UpdateCell(&rinfo, callback);
-      }
       case CODE_ENTRY_SLOT: {
         return UpdateCodeEntry(addr, callback);
       }
@@ -363,8 +345,6 @@ class UpdateTypedSlotHelper {
 inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
   if (RelocInfo::IsCodeTarget(rmode)) {
     return CODE_TARGET_SLOT;
-  } else if (RelocInfo::IsCell(rmode)) {
-    return CELL_TARGET_SLOT;
   } else if (RelocInfo::IsEmbeddedObject(rmode)) {
     return EMBEDDED_OBJECT_SLOT;
   } else if (RelocInfo::IsDebugBreakSlot(rmode)) {

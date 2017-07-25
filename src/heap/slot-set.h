@@ -369,7 +369,6 @@ class SlotSet : public Malloced {
 enum SlotType {
   EMBEDDED_OBJECT_SLOT,
   OBJECT_SLOT,
-  CELL_TARGET_SLOT,
   CODE_TARGET_SLOT,
   CODE_ENTRY_SLOT,
   DEBUG_TARGET_SLOT,

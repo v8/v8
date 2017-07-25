@@ -1395,7 +1395,8 @@ class Assembler : public AssemblerBase {
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
     bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                      !(serializer_enabled() || rmode < RelocInfo::CELL ||
+                      !(serializer_enabled() ||
+                        rmode < RelocInfo::FIRST_SHAREABLE_RELOC_MODE ||
                         is_constant_pool_entry_sharing_blocked());
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }

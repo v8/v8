@@ -404,18 +404,6 @@ void MarkingVisitor<ConcreteVisitor>::VisitEmbeddedPointer(Code* host,
 }
 
 template <typename ConcreteVisitor>
-void MarkingVisitor<ConcreteVisitor>::VisitCellPointer(Code* host,
-                                                       RelocInfo* rinfo) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  DCHECK(rinfo->rmode() == RelocInfo::CELL);
-  Cell* cell = rinfo->target_cell();
-  collector_->RecordRelocSlot(host, rinfo, cell);
-  if (!host->IsWeakObject(cell)) {
-    visitor->MarkObject(host, cell);
-  }
-}
-
-template <typename ConcreteVisitor>
 void MarkingVisitor<ConcreteVisitor>::VisitDebugTarget(Code* host,
                                                        RelocInfo* rinfo) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);

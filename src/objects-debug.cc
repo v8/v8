@@ -1681,13 +1681,10 @@ bool CanLeak(Object* obj, Heap* heap, bool skip_weak_cell) {
 void Code::VerifyEmbeddedObjects(VerifyMode mode) {
   if (kind() == OPTIMIZED_FUNCTION) return;
   Heap* heap = GetIsolate()->heap();
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-             RelocInfo::ModeMask(RelocInfo::CELL);
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   bool skip_weak_cell = (mode == kNoContextSpecificPointers) ? false : true;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    Object* target = it.rinfo()->rmode() == RelocInfo::CELL
-                         ? it.rinfo()->target_cell()
-                         : it.rinfo()->target_object();
+    Object* target = it.rinfo()->target_object();
     CHECK(!CanLeak(target, heap, skip_weak_cell));
   }
 }

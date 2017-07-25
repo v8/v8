@@ -497,7 +497,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, ObjectVisitor* v) {
     int mode_mask = RelocInfo::kCodeTargetMask |
                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                    RelocInfo::ModeMask(RelocInfo::CELL) |
                     RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
@@ -525,7 +524,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj) {
     int mode_mask = RelocInfo::kCodeTargetMask |
                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                    RelocInfo::ModeMask(RelocInfo::CELL) |
                     RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |

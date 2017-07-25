@@ -129,7 +129,6 @@ class MarkingVisitor : public HeapVisitor<int, ConcreteVisitor> {
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCellPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitDebugTarget(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) final;

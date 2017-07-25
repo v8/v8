@@ -395,10 +395,6 @@ class Operand BASE_EMBEDDED {
                    RelocInfo::EXTERNAL_REFERENCE);
   }
 
-  static Operand ForCell(Handle<Cell> cell) {
-    return Operand(reinterpret_cast<int32_t>(cell.address()), RelocInfo::CELL);
-  }
-
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
     return Operand(base, imm.value_.immediate, imm.rmode_);
   }

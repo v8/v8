@@ -5190,15 +5190,6 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
-    Object* target = rinfo->target_cell();
-    if (ShouldHaveBeenRecorded(host, target)) {
-      CHECK(InTypedSet(CELL_TARGET_SLOT, rinfo->pc()) ||
-            (rinfo->IsInConstantPool() &&
-             InTypedSet(OBJECT_SLOT, rinfo->constant_pool_entry_address())));
-    }
-  }
-
   void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
     Object* target =
         Code::GetCodeFromTargetAddress(rinfo->debug_call_address());

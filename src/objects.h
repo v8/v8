@@ -7393,9 +7393,6 @@ class ObjectVisitor BASE_EMBEDDED {
   // Visits a code target in the instruction stream.
   virtual void VisitCodeTarget(Code* host, RelocInfo* rinfo);
 
-  // Visits a global property cell reference in the instruction stream.
-  virtual void VisitCellPointer(Code* host, RelocInfo* rinfo);
-
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) {}
 

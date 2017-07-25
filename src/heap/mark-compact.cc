@@ -190,13 +190,6 @@ class FullMarkingVerifier : public MarkingVerifier {
       VisitPointer(host, &p);
     }
   }
-
-  void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
-    DCHECK(rinfo->rmode() == RelocInfo::CELL);
-    if (!host->IsWeakObject(rinfo->target_cell())) {
-      ObjectVisitor::VisitCellPointer(host, rinfo);
-    }
-  }
 };
 
 class YoungGenerationMarkingVerifier : public MarkingVerifier {
@@ -1483,16 +1476,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 
-  inline void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
-    DCHECK_EQ(host, rinfo->host());
-    DCHECK(rinfo->rmode() == RelocInfo::CELL);
-    Cell* cell = rinfo->target_cell();
-    // The cell is always in old space, we don't have to record the slot in
-    // the old-to-new remembered set.
-    DCHECK(!collector_->heap()->InNewSpace(cell));
-    collector_->RecordRelocSlot(host, rinfo, cell);
-  }
-
   inline void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
@@ -1588,7 +1571,6 @@ class YoungGenerationRecordMigratedSlotVisitor final
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final {
     UNREACHABLE();
   }
-  void VisitCellPointer(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) final {
     UNREACHABLE();
   }
@@ -3229,10 +3211,6 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 
   void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
-  }
-
-  void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateCell(rinfo, UpdateSlotInternal);
   }
 
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
