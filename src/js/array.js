@@ -15,7 +15,6 @@ var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
-var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
 var MinSimple;
 var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
@@ -1353,13 +1352,6 @@ utils.SetUpLockedPrototype(InternalArray, GlobalArray(), [
   "shift", ArrayShift,
   "sort", ArraySort,
   "splice", ArraySplice
-]);
-
-utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
-  "join", ArrayJoin,
-  "pop", ArrayPop,
-  "push", ArrayPush,
-  "shift", ArrayShift
 ]);
 
 // V8 extras get a separate copy of InternalPackedArray. We give them the basic

@@ -4372,7 +4372,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     Handle<JSFunction> array_function =
         InstallInternalArray(utils, "InternalArray", HOLEY_ELEMENTS);
     native_context()->set_internal_array_function(*array_function);
-    InstallInternalArray(utils, "InternalPackedArray", PACKED_ELEMENTS);
   }
 
   // Run the rest of the native scripts.
