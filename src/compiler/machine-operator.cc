@@ -651,7 +651,7 @@ struct MachineOperatorGlobalCache {
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
         : Operator(IrOpcode::kDebugBreak, Operator::kNoThrow, "DebugBreak", 0,
-                   0, 0, 0, 0, 0) {}
+                   1, 1, 0, 1, 0) {}
   };
   DebugBreakOperator kDebugBreak;
 

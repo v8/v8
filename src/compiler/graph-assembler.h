@@ -260,6 +260,9 @@ class GraphAssembler {
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
 
+  // Debugging
+  Node* DebugBreak();
+
   Node* Float64RoundDown(Node* value);
 
   Node* ToNumber(Node* value);

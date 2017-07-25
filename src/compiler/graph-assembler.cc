@@ -130,6 +130,11 @@ Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                               value, current_effect_, current_control_);
 }
 
+Node* GraphAssembler::DebugBreak() {
+  return current_effect_ = graph()->NewNode(machine()->DebugBreak(),
+                                            current_effect_, current_control_);
+}
+
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
   return current_effect_ =
