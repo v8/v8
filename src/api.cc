@@ -7846,6 +7846,16 @@ void WasmModuleObjectBuilderStreaming::Finish() {
                         {wire_bytes.get(), wire_bytes.get() + total_size_});
 }
 
+void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
+  Local<Promise::Resolver> resolver =
+      promise_.Get(isolate_).As<Promise::Resolver>();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+  i::HandleScope scope(i_isolate);
+  Local<Context> context = Utils::ToLocal(handle(i_isolate->context()));
+  auto maybe = resolver->Reject(context, exception);
+  CHECK_IMPLIES(!maybe.FromMaybe(false), i_isolate->has_scheduled_exception());
+}
+
 void WasmModuleObjectBuilder::OnBytesReceived(const uint8_t* bytes,
                                               size_t size) {
   std::unique_ptr<uint8_t[]> cloned_bytes(new uint8_t[size]);

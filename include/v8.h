@@ -4169,11 +4169,7 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(const uint8_t*, size_t size);
   void Finish();
-  // Currently, we don't need an explicit Abort, because there's no
-  // activity happening until Finish is called. Should the connection
-  // be dropped, for example, the network layer is expected to reject
-  // the promise and then this object is destroyed, which, at the moment,
-  // just means the {received_buffers_} are freed.
+  void Abort(Local<Value> exception);
 
  private:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;
