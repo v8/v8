@@ -44,17 +44,41 @@ void CodeStubAssembler::HandleBreakOnNode() {
 }
 
 void CodeStubAssembler::Assert(const NodeGenerator& condition_body,
-                               const char* message, const char* file,
-                               int line) {
+                               const char* message, const char* file, int line,
+                               Node* extra_node1, const char* extra_node1_name,
+                               Node* extra_node2, const char* extra_node2_name,
+                               Node* extra_node3, const char* extra_node3_name,
+                               Node* extra_node4, const char* extra_node4_name,
+                               Node* extra_node5,
+                               const char* extra_node5_name) {
 #if defined(DEBUG)
   if (FLAG_debug_code) {
-    Check(condition_body, message, file, line);
+    Check(condition_body, message, file, line, extra_node1, extra_node1_name,
+          extra_node2, extra_node2_name, extra_node3, extra_node3_name,
+          extra_node4, extra_node4_name, extra_node5, extra_node5_name);
   }
 #endif
 }
 
+#ifdef DEBUG
+namespace {
+void MaybePrintNodeWithName(CodeStubAssembler* csa, Node* node,
+                            const char* node_name) {
+  if (node != nullptr) {
+    csa->CallRuntime(Runtime::kPrintWithNameForAssert, csa->SmiConstant(0),
+                     csa->StringConstant(node_name), node);
+  }
+}
+}  // namespace
+#endif
+
 void CodeStubAssembler::Check(const NodeGenerator& condition_body,
-                              const char* message, const char* file, int line) {
+                              const char* message, const char* file, int line,
+                              Node* extra_node1, const char* extra_node1_name,
+                              Node* extra_node2, const char* extra_node2_name,
+                              Node* extra_node3, const char* extra_node3_name,
+                              Node* extra_node4, const char* extra_node4_name,
+                              Node* extra_node5, const char* extra_node5_name) {
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
   if (message != nullptr && FLAG_code_comments) {
@@ -75,8 +99,18 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
       SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
     }
     CallRuntime(Runtime::kGlobalPrint, SmiConstant(0),
-                HeapConstant(factory()->InternalizeUtf8String(&(buffer[0]))));
+                StringConstant(&(buffer[0])));
   }
+
+#ifdef DEBUG
+  // Only print the extra nodes in debug builds.
+  MaybePrintNodeWithName(this, extra_node1, extra_node1_name);
+  MaybePrintNodeWithName(this, extra_node2, extra_node2_name);
+  MaybePrintNodeWithName(this, extra_node3, extra_node3_name);
+  MaybePrintNodeWithName(this, extra_node4, extra_node4_name);
+  MaybePrintNodeWithName(this, extra_node5, extra_node5_name);
+#endif
+
   DebugBreak();
   Goto(&ok);
   BIND(&ok);

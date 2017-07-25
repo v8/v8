@@ -273,10 +273,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef std::function<Node*()> NodeGenerator;
 
-  void Assert(const NodeGenerator& condition_body, const char* string = nullptr,
-              const char* file = nullptr, int line = 0);
-  void Check(const NodeGenerator& condition_body, const char* string = nullptr,
-             const char* file = nullptr, int line = 0);
+  void Assert(const NodeGenerator& condition_body,
+              const char* message = nullptr, const char* file = nullptr,
+              int line = 0, Node* extra_node1 = nullptr,
+              const char* extra_node1_name = "", Node* extra_node2 = nullptr,
+              const char* extra_node2_name = "", Node* extra_node3 = nullptr,
+              const char* extra_node3_name = "", Node* extra_node4 = nullptr,
+              const char* extra_node4_name = "", Node* extra_node5 = nullptr,
+              const char* extra_node5_name = "");
+  void Check(const NodeGenerator& condition_body, const char* message = nullptr,
+             const char* file = nullptr, int line = 0,
+             Node* extra_node1 = nullptr, const char* extra_node1_name = "",
+             Node* extra_node2 = nullptr, const char* extra_node2_name = "",
+             Node* extra_node3 = nullptr, const char* extra_node3_name = "",
+             Node* extra_node4 = nullptr, const char* extra_node4_name = "",
+             Node* extra_node5 = nullptr, const char* extra_node5_name = "");
 
   Node* Select(Node* condition, const NodeGenerator& true_body,
                const NodeGenerator& false_body, MachineRepresentation rep);
@@ -1728,16 +1739,47 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   (csa)->Check([&] { return (x); }, #x, __FILE__, __LINE__)
 
 #ifdef DEBUG
-#define CSA_ASSERT(csa, x) \
-  (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)             \
-  (csa)->Assert(                                                 \
-      [&] {                                                      \
-        compiler::Node* const argc =                             \
-            (csa)->Parameter(Descriptor::kActualArgumentsCount); \
-        return (csa)->Op(argc, (csa)->Int32Constant(expected));  \
-      },                                                         \
-      "argc " #op " " #expected, __FILE__, __LINE__)
+// Add stringified versions to the given values, except the first. That is,
+// transform
+//   x, a, b, c, d, e, f
+// to
+//   a, "a", b, "b", c, "c", d, "d", e, "e", f, "f"
+//
+// __VA_ARGS__  is ignored to allow the caller to pass through too many
+// parameters, and the first element is ignored to support having no extra
+// values without empty __VA_ARGS__ (which cause all sorts of problems with
+// extra commas).
+#define CSA_ASSERT_STRINGIFY_EXTRA_VALUES_5(_, v1, v2, v3, v4, v5, ...) \
+  v1, #v1, v2, #v2, v3, #v3, v4, #v4, v5, #v5
+
+// Stringify the given variable number of arguments. The arguments are trimmed
+// to 5 if there are too many, and padded with nullptr if there are not enough.
+#define CSA_ASSERT_STRINGIFY_EXTRA_VALUES(...)                                \
+  CSA_ASSERT_STRINGIFY_EXTRA_VALUES_5(__VA_ARGS__, nullptr, nullptr, nullptr, \
+                                      nullptr, nullptr)
+
+#define CSA_ASSERT_GET_CONDITION(x, ...) (x)
+#define CSA_ASSERT_GET_CONDITION_STR(x, ...) #x
+
+// CSA_ASSERT(csa, <condition>, <extra values to print...>)
+
+// We have to jump through some hoops to allow <extra values to print...> to be
+// empty.
+#define CSA_ASSERT(csa, ...)                                                   \
+  (csa)->Assert([&] { return CSA_ASSERT_GET_CONDITION(__VA_ARGS__); },         \
+                CSA_ASSERT_GET_CONDITION_STR(__VA_ARGS__), __FILE__, __LINE__, \
+                CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
+
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                      \
+  (csa)->Assert(                                                          \
+      [&] {                                                               \
+        compiler::Node* const argc =                                      \
+            (csa)->Parameter(Descriptor::kActualArgumentsCount);          \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));           \
+      },                                                                  \
+      "argc " #op " " #expected, __FILE__, __LINE__,                      \
+      SmiFromWord32((csa)->Parameter(Descriptor::kActualArgumentsCount)), \
+      "argc")
 
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
   CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
@@ -1749,7 +1791,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   Variable name(this CSA_DEBUG_INFO(name), __VA_ARGS__);
 
 #else  // DEBUG
-#define CSA_ASSERT(csa, x) ((void)0)
+#define CSA_ASSERT(csa, ...) ((void)0)
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
 #define CSA_DEBUG_INFO(name)
 #define BIND(label) Bind(label);
@@ -1757,12 +1799,12 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #endif  // DEBUG
 
 #ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_ASSERT(csa, x)   \
+#define CSA_SLOW_ASSERT(csa, ...) \
   if (FLAG_enable_slow_asserts) { \
-    CSA_ASSERT(csa, x);           \
+    CSA_ASSERT(csa, __VA_ARGS__); \
   }
 #else
-#define CSA_SLOW_ASSERT(csa, x) ((void)0)
+#define CSA_SLOW_ASSERT(csa, ...) ((void)0)
 #endif
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);

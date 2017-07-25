@@ -604,6 +604,24 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   return args[0];  // return TOS
 }
 
+RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+
+  CONVERT_ARG_CHECKED(String, name, 0);
+
+  PrintF(" * ");
+  StringCharacterStream stream(name);
+  while (stream.HasMore()) {
+    uint16_t character = stream.GetNext();
+    PrintF("%c", character);
+  }
+  PrintF(": ");
+  args[1]->ShortPrint();
+  PrintF("\n");
+
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugTrace) {
   SealHandleScope shs(isolate);
