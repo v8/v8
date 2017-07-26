@@ -19662,10 +19662,27 @@ void Module::StoreVariable(Handle<Module> module, int cell_index,
   module->GetCell(cell_index)->set_value(*value);
 }
 
+#ifdef DEBUG
+void Module::PrintStatusTransition(Status new_status) {
+  if (FLAG_trace_module_status) {
+    OFStream os(stdout);
+    os << "Changing module status from " << status() << " to " << new_status
+       << " for ";
+    script()->GetNameOrSourceURL()->Print(os);
+#ifndef OBJECT_PRINT
+    os << "\n";
+#endif  // OBJECT_PRINT
+  }
+}
+#endif  // DEBUG
+
 void Module::SetStatus(Status new_status) {
   DisallowHeapAllocation no_alloc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
+#ifdef DEBUG
+  PrintStatusTransition(new_status);
+#endif  // DEBUG
   set_status(new_status);
 }
 
@@ -19692,6 +19709,9 @@ void Module::RecordError() {
   set_code(info());
 
   DCHECK(exception()->IsTheHole(isolate));
+#ifdef DEBUG
+  PrintStatusTransition(Module::kErrored);
+#endif  // DEBUG
   set_status(Module::kErrored);
   set_exception(the_exception);
 }

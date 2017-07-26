@@ -1080,6 +1080,8 @@ DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
 DEFINE_BOOL(trace_turbo_escape, false, "enable tracing in escape analysis")
 
 // objects.cc
+DEFINE_BOOL(trace_module_status, false,
+            "Trace status transitions of ECMAScript modules")
 DEFINE_BOOL(trace_normalization, false,
             "prints when objects are turned into dictionaries.")
 

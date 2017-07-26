@@ -5057,6 +5057,11 @@ class Module : public Struct {
   void SetStatus(Status status);
   void RecordError();
 
+#ifdef DEBUG
+  // For --trace-module-status.
+  void PrintStatusTransition(Status new_status);
+#endif  // DEBUG
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
 };
 
