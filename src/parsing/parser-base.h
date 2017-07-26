@@ -643,6 +643,13 @@ class ParserBase {
     return scanner()->peek();
   }
 
+  // Returns the position past the following semicolon (if it exists), and the
+  // position past the end of the current token otherwise.
+  int PositionAfterSemicolon() {
+    return (peek() == Token::SEMICOLON) ? scanner_->peek_location().end_pos
+                                        : scanner_->location().end_pos;
+  }
+
   INLINE(Token::Value PeekAhead()) {
     if (stack_overflow_) return Token::ILLEGAL;
     return scanner()->PeekAhead();
@@ -2940,6 +2947,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   // TODO(verwaest): Come up with a better solution.
   ExpressionT yield =
       factory()->NewYield(expression, pos, Suspend::kOnExceptionThrow);
+  impl()->RecordSuspendSourceRange(yield, PositionAfterSemicolon());
   return yield;
 }
 
@@ -3115,7 +3123,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
 
     ExpressionT value = ParseUnaryExpression(CHECK_OK);
 
-    return factory()->NewAwait(value, await_pos);
+    ExpressionT expr = factory()->NewAwait(value, await_pos);
+    impl()->RecordSuspendSourceRange(expr, PositionAfterSemicolon());
+    return expr;
   } else {
     return ParsePostfixExpression(ok);
   }

@@ -1190,6 +1190,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         node, new (zone()) IterationStatementSourceRanges(body_range));
   }
 
+  V8_INLINE void RecordSuspendSourceRange(Expression* node,
+                                          int32_t continuation_position) {
+    if (source_range_map_ == nullptr) return;
+    source_range_map_->Insert(static_cast<Suspend*>(node),
+                              new (zone())
+                                  SuspendSourceRanges(continuation_position));
+  }
+
   V8_INLINE void RecordSwitchStatementSourceRange(
       Statement* node, int32_t continuation_position) {
     if (source_range_map_ == nullptr) return;

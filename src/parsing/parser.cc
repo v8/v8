@@ -4220,7 +4220,9 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
       is_async_generator() ? IteratorType::kAsync : IteratorType::kNormal;
 
   if (type == IteratorType::kNormal) {
-    return factory()->NewYieldStar(iterable, pos);
+    Expression* expr = factory()->NewYieldStar(iterable, pos);
+    RecordSuspendSourceRange(expr, PositionAfterSemicolon());
+    return expr;
   }
 
   // Forward definition for break/continue statements.
@@ -4557,6 +4559,10 @@ Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
     Block* do_block = factory()->NewBlock(nullptr, 2, false, nopos);
     do_block->statements()->Add(do_block_, zone());
     do_block->statements()->Add(get_value, zone());
+
+    // TODO(jgruber): Collect source ranges for YieldStar within async
+    // generators. The main issue is that we don't have a good dedicated node
+    // to attach to - the DoExpression seems a bit too generic.
 
     Variable* dot_result =
         NewTemporary(ast_value_factory()->dot_result_string());

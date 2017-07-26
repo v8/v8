@@ -1741,29 +1741,13 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
 
-  V8_INLINE void RecordBlockSourceRange(PreParserStatement node,
-                                        int32_t continuation_position) {}
-  V8_INLINE void RecordCaseClauseSourceRange(PreParserStatement node,
-                                             const SourceRange& body_range) {}
-  V8_INLINE void RecordConditionalSourceRange(PreParserExpression node,
-                                              const SourceRange& then_range,
-                                              const SourceRange& else_range) {}
-  V8_INLINE void RecordIfStatementSourceRange(PreParserStatement node,
-                                              const SourceRange& then_range,
-                                              const SourceRange& else_range) {}
-  V8_INLINE void RecordJumpStatementSourceRange(PreParserStatement node,
-                                                int32_t continuation_position) {
-  }
-  V8_INLINE void RecordIterationStatementSourceRange(
-      PreParserStatement node, const SourceRange& body_range) {}
-  V8_INLINE void RecordSwitchStatementSourceRange(
-      PreParserStatement node, int32_t continuation_position) {}
-  V8_INLINE void RecordThrowSourceRange(PreParserStatement node,
-                                        int32_t continuation_position) {}
-  V8_INLINE void RecordTryCatchStatementSourceRange(
-      PreParserStatement node, const SourceRange& body_range) {}
-  V8_INLINE void RecordTryFinallyStatementSourceRange(
-      PreParserStatement node, const SourceRange& body_range) {}
+// Generate empty functions here as the preparser does not collect source
+// ranges for block coverage.
+#define DEFINE_RECORD_SOURCE_RANGE(Name) \
+  template <typename... Ts>              \
+  V8_INLINE void Record##Name##SourceRange(Ts... args) {}
+  AST_SOURCE_RANGE_LIST(DEFINE_RECORD_SOURCE_RANGE)
+#undef DEFINE_RECORD_SOURCE_RANGE
 
   // Preparser's private field members.
 

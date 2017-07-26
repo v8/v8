@@ -8,6 +8,7 @@ let TestCoverage;
 let TestCoverageNoGC;
 
 let nop;
+let gen;
 
 !function() {
   function GetCoverage(source) {
@@ -15,7 +16,7 @@ let nop;
       if (script.script.source == source) return script;
     }
     return undefined;
-  }
+  };
 
   function TestCoverageInternal(name, source, expectation, collect_garbage) {
     source = source.trim();
@@ -28,15 +29,21 @@ let nop;
       print(stringified_result.replace(/[}],[{]/g, "},\n {"));
     }
     assertEquals(stringified_expectation, stringified_result, name + " failed");
-  }
+  };
 
   TestCoverage = function(name, source, expectation) {
     TestCoverageInternal(name, source, expectation, true);
-  }
+  };
 
   TestCoverageNoGC = function(name, source, expectation) {
     TestCoverageInternal(name, source, expectation, false);
-  }
+  };
 
-  nop = function() {}
+  nop = function() {};
+
+  gen = function*() {
+    yield 1;
+    yield 2;
+    yield 3;
+  };
 }();

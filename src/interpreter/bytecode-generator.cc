@@ -2665,6 +2665,8 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   {
     // Resume with next.
     builder()->Bind(jump_table, JSGeneratorObject::kNext);
+    BuildIncrementBlockCoverageCounterIfEnabled(expr,
+                                                SourceRangeKind::kContinuation);
     builder()->LoadAccumulatorWithRegister(input);
   }
 }
@@ -2746,7 +2748,10 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         .StoreAccumulatorInRegister(resume_mode);
 
     {
-      LoopBuilder loop(builder(), block_coverage_builder_, expr);
+      // This loop builder does not construct counters as the loop is not
+      // visible to the user, and we therefore neither pass the block coverage
+      // builder nor the expression.
+      LoopBuilder loop(builder(), nullptr, nullptr);
       VisitIterationHeader(expr->suspend_id(), 1, &loop);
 
       {
@@ -2896,6 +2901,8 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   execution_control()->ReturnAccumulator();
 
   builder()->Bind(&completion_is_output_value);
+  BuildIncrementBlockCoverageCounterIfEnabled(expr,
+                                              SourceRangeKind::kContinuation);
   builder()->LoadAccumulatorWithRegister(output_value);
 }
 
@@ -2903,7 +2910,7 @@ void BytecodeGenerator::VisitAwait(Await* expr) {
   // Rather than HandlerTable::UNCAUGHT, async functions use
   // HandlerTable::ASYNC_AWAIT to communicate that top-level exceptions are
   // transformed into promise rejections. This is necessary to prevent emitting
-  // multiple debbug events for the same uncaught exception. There is no point
+  // multiple debug events for the same uncaught exception. There is no point
   // in the body of an async function where catch prediction is
   // HandlerTable::UNCAUGHT.
   DCHECK(catch_prediction() != HandlerTable::UNCAUGHT);
@@ -2969,6 +2976,8 @@ void BytecodeGenerator::VisitAwait(Await* expr) {
 
   // Resume with next.
   builder()->Bind(&resume_next);
+  BuildIncrementBlockCoverageCounterIfEnabled(expr,
+                                              SourceRangeKind::kContinuation);
   builder()->LoadAccumulatorWithRegister(input);
 }
 
