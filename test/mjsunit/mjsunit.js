@@ -167,6 +167,9 @@ var isCrankshafted;
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
 
+// Used for async tests. See definition below for more documentation.
+var testAsync;
+
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
 
@@ -270,8 +273,7 @@ var failWithMessage;
     throw new MjsUnitAssertionError(message);
   }
 
-
-  function fail(expectedText, found, name_opt) {
+  function formatFailureText(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
     if (name_opt) {
       // Fix this when we ditch the old test runner.
@@ -284,7 +286,10 @@ var failWithMessage;
     } else {
       message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
     }
-    return failWithMessage(message);
+  }
+
+  function fail(expectedText, found, name_opt) {
+    return failWithMessage(formatFailureText(expectedText, found, name_opt));
   }
 
 
@@ -706,4 +711,91 @@ var failWithMessage;
     return error.stack;
   }
 
+  /**
+   * This is to be used through the testAsync helper function defined
+   * below.
+   *
+   * This requires the --allow-natives-syntax flag to allow calling
+   * runtime functions.
+   *
+   * There must be at least one assertion in an async test. A test
+   * with no assertions will fail.
+   *
+   * @example
+   * testAsync(assert => {
+   *   assert.plan(1) // There should be one assertion in this test.
+   *   Promise.resolve(1)
+   *    .then(val => assert.equals(1, val),
+   *          assert.unreachable);
+   * })
+   */
+  class AsyncAssertion {
+    constructor(test, name) {
+      this.expectedAsserts_ = -1;
+      this.actualAsserts_ = 0;
+      this.test_ = test;
+      this.name_ = name || '';
+    }
+
+    /**
+     * Sets the number of expected asserts in the test. The test fails
+     * if the number of asserts computed after running the test is not
+     * equal to this specified value.
+     * @param {number} expectedAsserts
+     */
+    plan(expectedAsserts) {
+      this.expectedAsserts_ = expectedAsserts;
+    }
+
+    fail(expectedText, found) {
+      message = formatFailureText(expectedText, found);
+      message += "\nin test:" + this.name_
+      message += "\n" + Function.prototype.toString.apply(this.test_);
+      eval("%AbortJS(message)");
+    }
+
+    equals(expected, found, name_opt) {
+      this.actualAsserts_++;
+      if (!deepEquals(expected, found)) {
+        this.fail(PrettyPrint(expected), found, name_opt);
+      }
+    }
+
+    unreachable() {
+      let message = "Failure: unreachable in test: " + this.name_;
+      message += "\n" + Function.prototype.toString.apply(this.test_);
+      eval("%AbortJS(message)");
+    }
+
+    done_() {
+      if (this.expectedAsserts_ === -1) {
+        let message = "Please call t.plan(count) to initialize test harness " +
+            "with correct assert count (Note: count > 0)";
+        eval("%AbortJS(message)");
+      }
+
+      if (this.expectedAsserts_ !== this.actualAsserts_) {
+        let message = "Expected asserts: " + this.expectedAsserts_;
+        message += ", Actual asserts: " + this.actualAsserts_;
+        message += "\nin test: " + this.name_;
+        message += "\n" + Function.prototype.toString.apply(this.test_);
+        eval("%AbortJS(message)");
+      }
+    }
+  }
+
+  /** This is used to test async functions and promises.
+   * @param {testCallback} test - test function
+   * @param {string} [name] - optional name of the test
+   *
+   *
+   * @callback testCallback
+   * @param {AsyncAssertion} assert
+   */
+  testAsync = function(test, name) {
+    let assert = new AsyncAssertion(test, name);
+    test(assert);
+    eval("%RunMicrotasks()");
+    assert.done_();
+  }
 })();
