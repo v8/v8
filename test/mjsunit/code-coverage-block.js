@@ -351,12 +351,12 @@ TestCoverage(
 `,
 [{"start":0,"end":849,"count":1},
  {"start":1,"end":801,"count":1},
- {"start":77,"end":87,"count":0},
- {"start":219,"end":232,"count":0},
- {"start":264,"end":274,"count":0},
- {"start":369,"end":380,"count":0},
- {"start":390,"end":414,"count":0},  // TODO(jgruber): Include `catch` in range.
- {"start":513,"end":564,"count":0}]
+ {"start":67,"end":87,"count":0},
+ {"start":219,"end":222,"count":0},
+ {"start":254,"end":274,"count":0},
+ {"start":369,"end":372,"count":0},
+ {"start":390,"end":404,"count":0},
+ {"start":513,"end":554,"count":0}]
 );
 
 TestCoverage("try/catch/finally statements with early return",
@@ -373,10 +373,10 @@ TestCoverage("try/catch/finally statements with early return",
 `,
 [{"start":0,"end":449,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":67,"end":80,"count":0},
+ {"start":67,"end":70,"count":0},
  {"start":89,"end":151,"count":0},
  {"start":201,"end":401,"count":1},
- {"start":267,"end":280,"count":0},
+ {"start":267,"end":270,"count":0},
  {"start":319,"end":401,"count":0}]
 );
 
@@ -408,7 +408,7 @@ TestCoverage(
 `,
 [{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":67,"end":80,"count":0},
+ {"start":67,"end":70,"count":0},
  {"start":89,"end":151,"count":0},
  {"start":201,"end":351,"count":1},
  {"start":284,"end":351,"count":0},
@@ -416,9 +416,8 @@ TestCoverage(
  {"start":569,"end":701,"count":0},
  {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
  {"start":751,"end":1051,"count":1},
- {"start":817,"end":830,"count":0},
+ {"start":817,"end":820,"count":0},
  {"start":861,"end":1051,"count":0}]
-
 );
 
 TestCoverage(
@@ -589,8 +588,8 @@ it.next(); it.return();                   // 0450
 `,
 [{"start":0,"end":449,"count":1},
  {"start":11,"end":351,"count":3},
- {"start":112,"end":262,"count":0},
- {"start":262,"end":272,"count":1},
+ {"start":112,"end":254,"count":0},
+ {"start":254,"end":272,"count":1},
  {"start":272,"end":351,"count":0}]
 );
 
@@ -608,8 +607,8 @@ it.next(); it.throw(42);                  // 0550
 `,
 [{"start":0,"end":449,"count":1},
  {"start":11,"end":351,"count":3},
- {"start":112,"end":164,"count":0},
- {"start":164,"end":310,"count":1},
+ {"start":112,"end":154,"count":0},
+ {"start":154,"end":310,"count":1},
  {"start":310,"end":351,"count":0}]
 );
 
