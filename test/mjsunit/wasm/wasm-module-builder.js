@@ -107,8 +107,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     for (let b of body) {
-      if (typeof b != 'number')
-        throw new Error('invalid body (entries have to be numbers): ' + body);
+      if (typeof b !== 'number' || (b & (~0xFF)) !== 0 )
+        throw new Error('invalid body (entries must be 8 bit numbers): ' + body);
     }
     this.body = body.slice();
     // Automatically add the end for the function block to the body.
@@ -378,9 +378,10 @@ class WasmModuleBuilder {
       if (debug) print("emitting memory @ " + binary.length);
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
-        section.emit_u32v(kResizableMaximumFlag);
+        const has_max = wasm.memory.max !== undefined;
+        section.emit_u32v(has_max ? kResizableMaximumFlag : 0);
         section.emit_u32v(wasm.memory.min);
-        section.emit_u32v(wasm.memory.max);
+        if (has_max) section.emit_u32v(wasm.memory.max);
       });
     }
 
