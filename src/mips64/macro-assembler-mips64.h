@@ -875,6 +875,10 @@ class TurboAssembler : public Assembler {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
+  bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits);
+  bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
+                       Register& scratch, const Operand& rt);
+
   // Common implementation of BranchF functions for the different formats.
   void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,
                      Condition cc, FPURegister cmp1, FPURegister cmp2,

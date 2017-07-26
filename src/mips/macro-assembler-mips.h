@@ -853,6 +853,10 @@ class TurboAssembler : public Assembler {
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);
 
+  bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits);
+  bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
+                       Register& scratch, const Operand& rt);
+
   void BranchShortHelperR6(int32_t offset, Label* L);
   void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
   bool BranchShortHelperR6(int32_t offset, Label* L, Condition cond,

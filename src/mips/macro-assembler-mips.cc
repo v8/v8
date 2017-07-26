@@ -2584,12 +2584,26 @@ Register TurboAssembler::GetRtAsRegisterHelper(const Operand& rt,
   return r2;
 }
 
+bool TurboAssembler::CalculateOffset(Label* L, int32_t& offset,
+                                     OffsetSize bits) {
+  if (!is_near(L, bits)) return false;
+  offset = GetOffset(offset, L, bits);
+  return true;
+}
+
+bool TurboAssembler::CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
+                                     Register& scratch, const Operand& rt) {
+  if (!is_near(L, bits)) return false;
+  scratch = GetRtAsRegisterHelper(rt, scratch);
+  offset = GetOffset(offset, L, bits);
+  return true;
+}
+
 bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
                                          Condition cond, Register rs,
                                          const Operand& rt) {
   DCHECK(L == nullptr || offset == 0);
   Register scratch = rs.is(at) ? t8 : at;
-  OffsetSize bits = OffsetSize::kOffset16;
 
   // Be careful to always use shifted_branch_offset only just before the
   // branch instruction, as the location will be remember for patching the
@@ -2598,32 +2612,24 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
     BlockTrampolinePoolScope block_trampoline_pool(this);
     switch (cond) {
       case cc_always:
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         bc(offset);
         break;
       case eq:
         if (rs.code() == rt.rm().reg_code) {
           // Pre R6 beq is used here to make the code patchable. Otherwise bc
           // should be used which has no condition field so is not patchable.
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           beq(rs, scratch, offset);
           nop();
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
           beqzc(rs, offset);
         } else {
           // We don't want any other register but scratch clobbered.
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           beqc(rs, scratch, offset);
         }
         break;
@@ -2631,23 +2637,17 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rs.code() == rt.rm().reg_code) {
           // Pre R6 bne is used here to make the code patchable. Otherwise we
           // should not generate any instruction.
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           bne(rs, scratch, offset);
           nop();
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
           bnezc(rs, offset);
         } else {
           // We don't want any other register but scratch clobbered.
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           bnec(rs, scratch, offset);
         }
         break;
@@ -2658,49 +2658,35 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rs.code() == rt.rm().reg_code) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           bltzc(scratch, offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
           bgtzc(rs, offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bltc(scratch, rs, offset);
         }
         break;
       case greater_equal:
         // rs >= rt
         if (rs.code() == rt.rm().reg_code) {
-          bits = OffsetSize::kOffset26;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           blezc(scratch, offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
           bgezc(rs, offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bgec(rs, scratch, offset);
         }
         break;
@@ -2709,49 +2695,35 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rs.code() == rt.rm().reg_code) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           bgtzc(scratch, offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
           bltzc(rs, offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bltc(rs, scratch, offset);
         }
         break;
       case less_equal:
         // rs <= rt
         if (rs.code() == rt.rm().reg_code) {
-          bits = OffsetSize::kOffset26;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           bgezc(scratch, offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
           blezc(rs, offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bgec(scratch, rs, offset);
         }
         break;
@@ -2762,49 +2734,35 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rs.code() == rt.rm().reg_code) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
+            return false;
           bnezc(scratch, offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
           bnezc(rs, offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bltuc(scratch, rs, offset);
         }
         break;
       case Ugreater_equal:
         // rs >= rt
         if (rs.code() == rt.rm().reg_code) {
-          bits = OffsetSize::kOffset26;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
+            return false;
           beqzc(scratch, offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset26;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bgeuc(rs, scratch, offset);
         }
         break;
@@ -2813,46 +2771,34 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rs.code() == rt.rm().reg_code) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
+            return false;
           bnezc(scratch, offset);
         } else if (IsZero(rt)) {
           break;  // No code needs to be emitted.
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bltuc(rs, scratch, offset);
         }
         break;
       case Uless_equal:
         // rs <= rt
         if (rs.code() == rt.rm().reg_code) {
-          bits = OffsetSize::kOffset26;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
-          bits = OffsetSize::kOffset26;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset26, scratch, rt))
+            return false;
           bc(offset);
         } else if (IsZero(rt)) {
-          bits = OffsetSize::kOffset21;
-          if (!is_near(L, bits)) return false;
-          offset = GetOffset(offset, L, bits);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
           beqzc(rs, offset);
         } else {
-          bits = OffsetSize::kOffset16;
-          if (!is_near(L, bits)) return false;
-          scratch = GetRtAsRegisterHelper(rt, scratch);
+          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+            return false;
           DCHECK(!rs.is(scratch));
-          offset = GetOffset(offset, L, bits);
           bgeuc(scratch, rs, offset);
         }
         break;
@@ -3129,9 +3075,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
   DCHECK((cond == cc_always && is_int26(offset)) || is_int16(offset));
   switch (cond) {
     case cc_always:
-      bits = OffsetSize::kOffset26;
-      if (!is_near(L, bits)) return false;
-      offset = GetOffset(offset, L, bits);
+      if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
       balc(offset);
       break;
     case eq:
@@ -3153,13 +3097,11 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       if (rs.code() == rt.rm().reg_code) {
         break;  // No code needs to be emitted.
       } else if (rs.is(zero_reg)) {
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          return false;
         bltzalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
         bgtzalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3171,18 +3113,14 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
     case greater_equal:
       // rs >= rt
       if (rs.code() == rt.rm().reg_code) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs.is(zero_reg)) {
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          return false;
         blezalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
         bgezalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3196,13 +3134,11 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       if (rs.code() == rt.rm().reg_code) {
         break;  // No code needs to be emitted.
       } else if (rs.is(zero_reg)) {
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          return false;
         bgtzalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
         bltzalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3214,18 +3150,14 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
     case less_equal:
       // rs <= r2
       if (rs.code() == rt.rm().reg_code) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs.is(zero_reg)) {
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          return false;
         bgezalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
+        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
         blezalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3270,7 +3202,6 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
   }
   return true;
 }
-
 
 // Pre r6 we need to use a bgezal or bltzal, but they can't be used directly
 // with the slt instructions. We could use sub or add instead but we would miss
