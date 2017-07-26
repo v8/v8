@@ -2775,16 +2775,16 @@ class AsyncCompileJob {
 
   // A closure to run a compilation step (either as foreground or background
   // task) and schedule the next step(s), if any.
-  template <TaskType task_type>
   class CompileTask : NON_EXPORTED_BASE(public v8::Task) {
    public:
-    constexpr static TaskType type = task_type;
     AsyncCompileJob* job_ = nullptr;
     CompileTask() {}
     void Run() override = 0;  // Force sub-classes to override Run().
   };
 
-  class SyncCompileTask : public CompileTask<SYNC> {
+  class AsyncCompileTask : public CompileTask {};
+
+  class SyncCompileTask : public CompileTask {
    public:
     void Run() final {
       SaveContext saved_context(job_->isolate_);
@@ -2798,7 +2798,8 @@ class AsyncCompileJob {
 
   template <typename Task, typename... Args>
   void DoSync(Args&&... args) {
-    static_assert(Task::type == SYNC, "Scheduled type must be sync");
+    static_assert(std::is_base_of<SyncCompileTask, Task>::value,
+                  "Scheduled type must be sync");
     Task* task = new Task(std::forward<Args>(args)...);
     task->job_ = this;
     V8::GetCurrentPlatform()->CallOnForegroundThread(
@@ -2807,7 +2808,8 @@ class AsyncCompileJob {
 
   template <typename Task, typename... Args>
   void DoAsync(Args&&... args) {
-    static_assert(Task::type == ASYNC, "Scheduled type must be async");
+    static_assert(std::is_base_of<AsyncCompileTask, Task>::value,
+                  "Scheduled type must be async");
     Task* task = new Task(std::forward<Args>(args)...);
     task->job_ = this;
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -2817,7 +2819,7 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 1: (async) Decode the module.
   //==========================================================================
-  class DecodeModule : public CompileTask<ASYNC> {
+  class DecodeModule : public AsyncCompileTask {
     void Run() override {
       ModuleResult result;
       {
@@ -2958,7 +2960,7 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 3 (async x K tasks): Execute compilation units.
   //==========================================================================
-  class ExecuteCompilationUnits : public CompileTask<ASYNC> {
+  class ExecuteCompilationUnits : public AsyncCompileTask {
     void Run() override {
       TRACE_COMPILE("(3) Compiling...\n");
       for (;;) {
@@ -3011,7 +3013,7 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 4b (async): Wait for all background tasks to finish.
   //==========================================================================
-  class WaitForBackgroundTasks : public CompileTask<ASYNC> {
+  class WaitForBackgroundTasks : public AsyncCompileTask {
    public:
     explicit WaitForBackgroundTasks(ErrorThrower thrower)
         : thrower_(std::move(thrower)) {}
