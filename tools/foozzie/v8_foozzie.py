@@ -20,10 +20,13 @@ import v8_commands
 import v8_suppressions
 
 CONFIGS = dict(
-  default=[],
+  default=[
+    '--suppress-asm-messages',
+  ],
   ignition=[
     '--turbo-filter=~',
     '--noopt',
+    '--suppress-asm-messages',
   ],
   ignition_asm=[
     '--turbo-filter=~',
@@ -37,15 +40,20 @@ CONFIGS = dict(
     '--noopt',
     '--no-lazy',
     '--no-lazy-inner-functions',
+    '--suppress-asm-messages',
   ],
-  ignition_turbo=[],
+  ignition_turbo=[
+    '--suppress-asm-messages',
+  ],
   ignition_turbo_opt=[
     '--always-opt',
+    '--suppress-asm-messages',
   ],
   ignition_turbo_opt_eager=[
     '--always-opt',
     '--no-lazy',
     '--no-lazy-inner-functions',
+    '--suppress-asm-messages',
   ],
 )
 
