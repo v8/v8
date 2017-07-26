@@ -5280,7 +5280,7 @@ BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
 ACCESSORS(JSRegExp, source, Object, kSourceOffset)
-
+ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() {
   Object* data = this->data();
