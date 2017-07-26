@@ -12,6 +12,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
+#include "src/external-reference-table.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
@@ -1762,6 +1763,14 @@ void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
+void MacroAssembler::TailCallBuiltin(Builtins::Name name) {
+  DCHECK(ExternalReferenceTable::HasBuiltin(name));
+  mov(ip, Operand(ExternalReference(Builtins::kConstructProxy, isolate())));
+  LoadP(ip, MemOperand(ip));
+  AddP(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  Jump(ip);
+}
+
 bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
@@ -2141,8 +2150,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
-void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
-  // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
+void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
   TestIfSmi(object);
   Check(ne, kOperandIsASmiAndNotAGeneratorObject, cr0);
@@ -2152,17 +2160,14 @@ void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
   push(object);
   LoadP(map, FieldMemOperand(object, HeapObject::kMapOffset));
 
-  Label async, do_check;
-  tmll(flags, Operand(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
-  bne(&async);
-
   // Check if JSGeneratorObject
-  CompareInstanceType(map, object, JS_GENERATOR_OBJECT_TYPE);
-  b(&do_check);
+  Label do_check;
+  Register instance_type = object;
+  CompareInstanceType(map, instance_type, JS_GENERATOR_OBJECT_TYPE);
+  beq(&do_check);
 
-  bind(&async);
-  // Check if JSAsyncGeneratorObject
-  CompareInstanceType(map, object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+  // Check if JSAsyncGeneratorObject (See MacroAssembler::CompareInstanceType)
+  CmpP(instance_type, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
   bind(&do_check);
   // Restore generator object to register and perform assertion

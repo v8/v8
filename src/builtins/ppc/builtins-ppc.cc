@@ -714,37 +714,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- r3 : the value to pass to the generator
   //  -- r4 : the JSGeneratorObject to resume
   //  -- r5 : the resume mode (tagged)
-  //  -- r6 : the SuspendFlags of the earlier suspend call (tagged)
   //  -- lr : return address
   // -----------------------------------
-  __ SmiUntag(r6);
-  __ AssertGeneratorObject(r4, r6);
+  __ AssertGeneratorObject(r4);
 
   // Store input value into generator object.
-  Label async_await, done_store_input;
-
-  __ andi(r6, r6,
-          Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ cmpi(r6, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ beq(&async_await);
-
   __ StoreP(r3, FieldMemOperand(r4, JSGeneratorObject::kInputOrDebugPosOffset),
             r0);
   __ RecordWriteField(r4, JSGeneratorObject::kInputOrDebugPosOffset, r3, r6,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
-  __ b(&done_store_input);
-
-  __ bind(&async_await);
-  __ StoreP(
-      r3,
-      FieldMemOperand(r4, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset),
-      r0);
-  __ RecordWriteField(r4, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
-                      r3, r6, kLRHasNotBeenSaved, kDontSaveFPRegs);
-  __ b(&done_store_input);
-
-  __ bind(&done_store_input);
-  // `r6` no longer holds SuspendFlags
 
   // Store resume mode into generator object.
   __ StoreP(r5, FieldMemOperand(r4, JSGeneratorObject::kResumeModeOffset), r0);
@@ -2605,24 +2583,6 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
-  //  -- r4 : the constructor to call (checked to be a JSProxy)
-  //  -- r6 : the new target (either the same as the constructor or
-  //          the JSFunction on which new was invoked initially)
-  // -----------------------------------
-
-  // Call into the Runtime for Proxy [[Construct]].
-  __ Push(r4, r6);
-  // Include the pushed new_target, constructor and the receiver.
-  __ addi(r3, r3, Operand(3));
-  // Tail-call to the runtime.
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()));
-}
-
-// static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : the number of arguments (not including the receiver)
@@ -2632,7 +2592,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // -----------------------------------
 
   // Check if target is a Smi.
-  Label non_constructor;
+  Label non_constructor, non_proxy;
   __ JumpIfSmi(r4, &non_constructor);
 
   // Dispatch based on instance type.
@@ -2653,10 +2613,12 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ cmpi(r8, Operand(JS_PROXY_TYPE));
-  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
-          eq);
+  __ bne(&non_proxy);
+
+  __ TailCallBuiltin(Builtins::kConstructProxy);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
+  __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
     __ ShiftLeftImm(r8, r3, Operand(kPointerSizeLog2));

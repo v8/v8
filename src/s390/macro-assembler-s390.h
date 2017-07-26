@@ -999,6 +999,10 @@ class MacroAssembler : public TurboAssembler {
   }
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
+
+  // Tail call a code builtin (jump).
+  void TailCallBuiltin(Builtins::Name name);
+
   void CallStub(CodeStub* stub, Condition cond = al);
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
@@ -1461,9 +1465,9 @@ class MacroAssembler : public TurboAssembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
-  // Abort execution if argument is not a JSGeneratorObject,
+  // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object, Register suspend_flags);
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.

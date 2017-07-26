@@ -58,7 +58,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
       case Constant::kFloat32:
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
-        return Operand::EmbeddedNumber(constant.ToFloat64());
+        return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kInt64:
 #if V8_TARGET_ARCH_S390X
         return Operand(constant.ToInt64());
@@ -2775,7 +2775,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ mov(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kFloat64:
-          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64()));
+          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
         case Constant::kExternalReference:
           __ mov(dst, Operand(src.ToExternalReference()));

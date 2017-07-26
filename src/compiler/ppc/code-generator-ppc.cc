@@ -63,7 +63,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case Constant::kFloat32:
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
-        return Operand::EmbeddedNumber(constant.ToFloat64());
+        return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kInt64:
 #if V8_TARGET_ARCH_PPC64
         return Operand(constant.ToInt64());
@@ -2404,7 +2404,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ mov(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kFloat64:
-          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64()));
+          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
         case Constant::kExternalReference:
           __ mov(dst, Operand(src.ToExternalReference()));
@@ -2445,7 +2445,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           value = Double(static_cast<double>(src.ToFloat32()));
         }
       } else {
-        value = src.ToFloat64();
+        value = Double(src.ToFloat64());
       }
 #else
       value = Double((src.type() == Constant::kFloat32)
