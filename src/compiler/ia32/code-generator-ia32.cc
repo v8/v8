@@ -1904,6 +1904,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(2), i.InputInt8(1));
       break;
     }
+    case kSSEI32x4Shl: {
+      __ pslld(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kAVXI32x4Shl: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpslld(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt8(1));
+      break;
+    }
+    case kSSEI32x4ShrS: {
+      __ psrad(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kAVXI32x4ShrS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsrad(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt8(1));
+      break;
+    }
     case kSSEI32x4Add: {
       __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -1922,6 +1942,71 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpsubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4Mul: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pmulld(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4Mul: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpmulld(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4MinS: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pminsd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4MinS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpminsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4MaxS: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pmaxsd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4MaxS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpmaxsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4ShrU: {
+      __ psrld(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kAVXI32x4ShrU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsrld(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt8(1));
+      break;
+    }
+    case kSSEI32x4MinU: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pminud(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4MinU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpminud(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4MaxU: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pmaxud(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4MaxU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpmaxud(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
       break;
     }
     case kIA32I16x8Splat: {

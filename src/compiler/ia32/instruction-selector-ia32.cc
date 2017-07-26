@@ -1900,7 +1900,17 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_BINOP_LIST(V) \
   V(I32x4Add)              \
-  V(I32x4Sub)
+  V(I32x4Sub)              \
+  V(I32x4Mul)              \
+  V(I32x4MinS)             \
+  V(I32x4MaxS)             \
+  V(I32x4MinU)             \
+  V(I32x4MaxU)
+
+#define SIMD_SHIFT_OPCODES(V) \
+  V(I32x4Shl)                 \
+  V(I32x4ShrS)                \
+  V(I32x4ShrU)
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -1935,6 +1945,20 @@ SIMD_TYPES(VISIT_SIMD_EXTRACT_LANE)
   }
 SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
+
+#define VISIT_SIMD_SHIFT(Opcode)                                              \
+  void InstructionSelector::Visit##Opcode(Node* node) {                       \
+    IA32OperandGenerator g(this);                                             \
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));            \
+    InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node)); \
+    if (IsSupported(AVX)) {                                                   \
+      Emit(kAVX##Opcode, g.DefineAsRegister(node), operand0, operand1);       \
+    } else {                                                                  \
+      Emit(kSSE##Opcode, g.DefineSameAsFirst(node), operand0, operand1);      \
+    }                                                                         \
+  }
+SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
+#undef VISIT_SIMD_SHIFT
 
 #define VISIT_SIMD_BINOP(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {    \

@@ -969,17 +969,9 @@ WASM_SIMD_TEST(I32x4Add) { RunI32x4BinOpTest(kExprI32x4Add, Add); }
 
 WASM_SIMD_TEST(I32x4Sub) { RunI32x4BinOpTest(kExprI32x4Sub, Sub); }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(I32x4Mul) { RunI32x4BinOpTest(kExprI32x4Mul, Mul); }
 
-WASM_SIMD_TEST(S128And) { RunI32x4BinOpTest(kExprS128And, And); }
-
-WASM_SIMD_TEST(S128Or) { RunI32x4BinOpTest(kExprS128Or, Or); }
-
-WASM_SIMD_TEST(S128Xor) { RunI32x4BinOpTest(kExprS128Xor, Xor); }
-
-WASM_SIMD_TEST(I32x4Min) { RunI32x4BinOpTest(kExprI32x4MinS, Minimum); }
+WASM_SIMD_TEST(I32x4MinS) { RunI32x4BinOpTest(kExprI32x4MinS, Minimum); }
 
 WASM_SIMD_TEST(I32x4MaxS) { RunI32x4BinOpTest(kExprI32x4MaxS, Maximum); }
 
@@ -990,6 +982,14 @@ WASM_SIMD_TEST(I32x4MinU) {
 WASM_SIMD_TEST(I32x4MaxU) {
   RunI32x4BinOpTest(kExprI32x4MaxU, UnsignedMaximum);
 }
+
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+WASM_SIMD_TEST(S128And) { RunI32x4BinOpTest(kExprS128And, And); }
+
+WASM_SIMD_TEST(S128Or) { RunI32x4BinOpTest(kExprS128Or, Or); }
+
+WASM_SIMD_TEST(S128Xor) { RunI32x4BinOpTest(kExprS128Xor, Xor); }
 
 void RunI32x4CompareOpTest(WasmOpcode simd_op, Int32CompareOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -1034,6 +1034,8 @@ WASM_SIMD_TEST(I32x4GtU) {
 WASM_SIMD_TEST(I32x4GeU) {
   RunI32x4CompareOpTest(kExprI32x4GeU, UnsignedGreaterEqual);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 void RunI32x4ShiftOpTest(WasmOpcode simd_op, Int32ShiftOp expected_op,
                          int shift) {
@@ -1060,8 +1062,6 @@ WASM_SIMD_TEST(I32x4ShrS) {
 WASM_SIMD_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(kExprI32x4ShrU, LogicalShiftRight, 1);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
