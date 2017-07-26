@@ -286,6 +286,7 @@ class ModuleDecoder : public Decoder {
 
   void StartDecoding(Isolate* isolate) {
     CHECK_NULL(module_);
+    SetCounters(isolate->counters());
     module_.reset(new WasmModule(
         base::make_unique<Zone>(isolate->allocator(), "signatures")));
     module_->min_mem_pages = 0;
@@ -682,6 +683,11 @@ class ModuleDecoder : public Decoder {
     for (uint32_t i = 0; i < functions_count; ++i) {
       uint32_t size = consume_u32v("body size");
       uint32_t offset = pc_offset();
+      auto size_histogram = IsWasm()
+                                ? GetCounters()->wasm_wasm_function_size_bytes()
+                                : GetCounters()->wasm_asm_function_size_bytes();
+      // TODO(bradnelson): Improve histogram handling of size_t.
+      size_histogram->AddSample(static_cast<int>(size));
       consume_bytes(size, "function body");
       if (failed()) break;
       WasmFunction* function =
@@ -851,8 +857,21 @@ class ModuleDecoder : public Decoder {
     return consume_init_expr(nullptr, kWasmStmt);
   }
 
+  bool IsWasm() { return origin_ == kWasmOrigin; }
+
+  Counters* GetCounters() {
+    DCHECK_NOT_NULL(counters_);
+    return counters_;
+  }
+
+  void SetCounters(Counters* counters) {
+    DCHECK_NULL(counters_);
+    counters_ = counters;
+  }
+
  private:
   std::unique_ptr<WasmModule> module_;
+  Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_section_ = kFirstSectionInModule;
   // We store next_section_ as uint8_t instead of SectionCode so that we can
@@ -962,6 +981,11 @@ class ModuleDecoder : public Decoder {
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
                           ModuleBytesEnv* menv, WasmFunction* function) {
+    auto time_counter = IsWasm()
+                            ? GetCounters()->wasm_decode_wasm_function_time()
+                            : GetCounters()->wasm_decode_asm_function_time();
+    TimedHistogramScope wasm_decode_function_time_scope(time_counter);
+
     WasmFunctionName func_name(function,
                                menv->wire_bytes.GetNameOrNull(function));
     if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
@@ -1186,7 +1210,7 @@ class ModuleDecoder : public Decoder {
       case kLocalF64:
         return kWasmF64;
       default:
-        if (origin_ != kAsmJsOrigin && FLAG_experimental_wasm_simd) {
+        if (IsWasm() && FLAG_experimental_wasm_simd) {
           switch (t) {
             case kLocalS128:
               return kWasmS128;
@@ -1321,18 +1345,12 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   const byte* function_end,
                                   Counters* counters) {
   size_t size = function_end - function_start;
-  bool is_wasm = module_env->module_env.is_wasm();
-  auto size_histogram = is_wasm ? counters->wasm_wasm_function_size_bytes()
-                                : counters->wasm_asm_function_size_bytes();
-  size_histogram->AddSample(static_cast<int>(size));
-  auto time_counter = is_wasm ? counters->wasm_decode_wasm_function_time()
-                              : counters->wasm_decode_asm_function_time();
-  TimedHistogramScope wasm_decode_function_time_scope(time_counter);
   if (function_start > function_end)
     return FunctionResult::Error("start > end");
   if (size > kV8MaxWasmFunctionSize)
     return FunctionResult::Error("size > maximum function size: %zu", size);
   ModuleDecoder decoder(function_start, function_end, kWasmOrigin);
+  decoder.SetCounters(counters);
   return decoder.DecodeSingleFunction(zone, module_env,
                                       base::make_unique<WasmFunction>());
 }
