@@ -25,6 +25,7 @@
       'base/functional-unittest.cc',
       'base/ieee754-unittest.cc',
       'base/logging-unittest.cc',
+      'base/macros-unittest.cc',
       'base/iterator-unittest.cc',
       'base/ostreams-unittest.cc',
       'base/platform/condition-variable-unittest.cc',
