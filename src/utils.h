@@ -185,9 +185,15 @@ T JSMin(T x, T y) {
 
 // Returns the absolute value of its argument.
 template <typename T,
-          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+          typename = typename std::enable_if<std::is_signed<T>::value>::type>
 typename std::make_unsigned<T>::type Abs(T a) {
-  return a < 0 ? -a : a;
+  // This is a branch-free implementation of the absolute value function and is
+  // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
+  // behavior with the arithmetic negation operation on signed values as well.
+  typedef typename std::make_unsigned<T>::type unsignedT;
+  unsignedT x = static_cast<unsignedT>(a);
+  unsignedT y = static_cast<unsignedT>(a >> (sizeof(T) * 8 - 1));
+  return (x ^ y) - y;
 }
 
 // Floor(-0.0) == 0.0
