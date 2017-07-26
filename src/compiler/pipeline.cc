@@ -1085,14 +1085,20 @@ struct OsrDeconstructionPhase {
   static const char* phase_name() { return "OSR deconstruction"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    // When the bytecode comes from Ignition, we do the OSR implementation
+    // during the graph building phase.
+    if (data->info()->is_optimizing_from_bytecode()) return;
+
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
     trimmer.TrimGraph(roots.begin(), roots.end());
 
-    // TODO(neis): Use data->osr_helper() here once AST graph builder is gone.
+    // TODO(neis): Remove (the whole OsrDeconstructionPhase) when AST graph
+    // builder is gone.
     OsrHelper osr_helper(data->info());
-    osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
+    osr_helper.Deconstruct(data->info(), data->jsgraph(), data->common(),
+                           temp_zone);
   }
 };
 
