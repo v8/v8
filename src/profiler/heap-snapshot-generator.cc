@@ -1736,6 +1736,7 @@ class RootsReferencesExtractor : public RootVisitor {
       if (is_strong) ++strong_index;
       if (reference_tags_[tags_index].index == all_index) ++tags_index;
     }
+    CHECK_EQ(strong_index, strong_references_.length());
   }
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override {
@@ -1866,13 +1867,10 @@ void V8HeapExplorer::SetContextReference(HeapObject* parent_obj,
                                          int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
-    filler_->SetNamedReference(HeapGraphEdge::kContextVariable,
-                               parent_entry,
-                               names_->GetName(reference_name),
-                               child_entry);
-    MarkVisitedField(parent_obj, field_offset);
-  }
+  if (child_entry == nullptr) return;
+  filler_->SetNamedReference(HeapGraphEdge::kContextVariable, parent_entry,
+                             names_->GetName(reference_name), child_entry);
+  MarkVisitedField(parent_obj, field_offset);
 }
 
 
@@ -1890,12 +1888,9 @@ void V8HeapExplorer::SetNativeBindReference(HeapObject* parent_obj,
                                             Object* child_obj) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
-    filler_->SetNamedReference(HeapGraphEdge::kShortcut,
-                               parent_entry,
-                               reference_name,
-                               child_entry);
-  }
+  if (child_entry == nullptr) return;
+  filler_->SetNamedReference(HeapGraphEdge::kShortcut, parent_entry,
+                             reference_name, child_entry);
 }
 
 
@@ -1905,12 +1900,9 @@ void V8HeapExplorer::SetElementReference(HeapObject* parent_obj,
                                          Object* child_obj) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
-    filler_->SetIndexedReference(HeapGraphEdge::kElement,
-                                 parent_entry,
-                                 index,
-                                 child_entry);
-  }
+  if (child_entry == nullptr) return;
+  filler_->SetIndexedReference(HeapGraphEdge::kElement, parent_entry, index,
+                               child_entry);
 }
 
 
@@ -1921,7 +1913,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == NULL) return;
+  if (child_entry == nullptr) return;
   if (IsEssentialObject(child_obj)) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
                                parent_entry,
@@ -1939,7 +1931,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == NULL) return;
+  if (child_entry == nullptr) return;
   if (IsEssentialObject(child_obj)) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
                                parent_entry,
@@ -1969,7 +1961,7 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
                                       int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == NULL) return;
+  if (child_entry == nullptr) return;
   if (IsEssentialObject(child_obj)) {
     filler_->SetNamedReference(HeapGraphEdge::kWeak,
                                parent_entry,
@@ -1987,7 +1979,7 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
                                       int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == NULL) return;
+  if (child_entry == nullptr) return;
   if (IsEssentialObject(child_obj)) {
     filler_->SetNamedReference(HeapGraphEdge::kWeak,
                                parent_entry,
@@ -2020,25 +2012,23 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                           int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
-    HeapGraphEdge::Type type =
-        reference_name->IsSymbol() || String::cast(reference_name)->length() > 0
-            ? HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
-    const char* name = name_format_string != NULL && reference_name->IsString()
-        ? names_->GetFormatted(
-              name_format_string,
-              String::cast(reference_name)->ToCString(
-                  DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).get()) :
-        names_->GetName(reference_name);
+  if (child_entry == nullptr) return;
+  HeapGraphEdge::Type type =
+      reference_name->IsSymbol() || String::cast(reference_name)->length() > 0
+          ? HeapGraphEdge::kProperty
+          : HeapGraphEdge::kInternal;
+  const char* name =
+      name_format_string != nullptr && reference_name->IsString()
+          ? names_->GetFormatted(
+                name_format_string,
+                String::cast(reference_name)
+                    ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
+                    .get())
+          : names_->GetName(reference_name);
 
-    filler_->SetNamedReference(type,
-                               parent_entry,
-                               name,
-                               child_entry);
-    MarkVisitedField(parent_obj, field_offset);
-  }
+  filler_->SetNamedReference(type, parent_entry, name, child_entry);
+  MarkVisitedField(parent_obj, field_offset);
 }
-
 
 void V8HeapExplorer::SetRootGcRootsReference() {
   filler_->SetIndexedAutoIndexReference(
@@ -2047,16 +2037,14 @@ void V8HeapExplorer::SetRootGcRootsReference() {
       snapshot_->gc_roots());
 }
 
-
 void V8HeapExplorer::SetUserGlobalReference(Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
-  DCHECK(child_entry != NULL);
+  DCHECK(child_entry != nullptr);
   filler_->SetNamedAutoIndexReference(
       HeapGraphEdge::kShortcut,
       snapshot_->root()->index(),
       child_entry);
 }
-
 
 void V8HeapExplorer::SetGcRootsReference(VisitorSynchronization::SyncTag tag) {
   filler_->SetIndexedAutoIndexReference(
@@ -2065,48 +2053,42 @@ void V8HeapExplorer::SetGcRootsReference(VisitorSynchronization::SyncTag tag) {
       snapshot_->gc_subroot(tag));
 }
 
-
 void V8HeapExplorer::SetGcSubrootReference(
     VisitorSynchronization::SyncTag tag, bool is_weak, Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
-    const char* name = GetStrongGcSubrootName(child_obj);
-    if (name != NULL) {
-      filler_->SetNamedReference(
-          HeapGraphEdge::kInternal,
-          snapshot_->gc_subroot(tag)->index(),
-          name,
-          child_entry);
+  if (child_entry == nullptr) return;
+  const char* name = GetStrongGcSubrootName(child_obj);
+  if (name != nullptr) {
+    DCHECK(!is_weak);
+    filler_->SetNamedReference(HeapGraphEdge::kInternal,
+                               snapshot_->gc_subroot(tag)->index(), name,
+                               child_entry);
+  } else {
+    if (is_weak) {
+      filler_->SetNamedAutoIndexReference(HeapGraphEdge::kWeak,
+                                          snapshot_->gc_subroot(tag)->index(),
+                                          child_entry);
     } else {
-      if (is_weak) {
-        filler_->SetNamedAutoIndexReference(
-            HeapGraphEdge::kWeak,
-            snapshot_->gc_subroot(tag)->index(),
-            child_entry);
-      } else {
-        filler_->SetIndexedAutoIndexReference(
-            HeapGraphEdge::kElement,
-            snapshot_->gc_subroot(tag)->index(),
-            child_entry);
-      }
-    }
-
-    // Add a shortcut to JS global object reference at snapshot root.
-    if (child_obj->IsNativeContext()) {
-      Context* context = Context::cast(child_obj);
-      JSGlobalObject* global = context->global_object();
-      if (global->IsJSGlobalObject()) {
-        bool is_debug_object = false;
-        is_debug_object = heap_->isolate()->debug()->IsDebugGlobal(global);
-        if (!is_debug_object && !user_roots_.Contains(global)) {
-          user_roots_.Insert(global);
-          SetUserGlobalReference(global);
-        }
-      }
+      filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
+                                            snapshot_->gc_subroot(tag)->index(),
+                                            child_entry);
     }
   }
-}
 
+  // Add a shortcut to JS global object reference at snapshot root.
+  // That allows the user to easily find global objects. They are
+  // also used as starting points in distance calculations.
+  if (is_weak || !child_obj->IsNativeContext()) return;
+
+  JSGlobalObject* global = Context::cast(child_obj)->global_object();
+  if (!global->IsJSGlobalObject()) return;
+
+  if (heap_->isolate()->debug()->IsDebugGlobal(global)) return;
+  if (user_roots_.Contains(global)) return;
+
+  user_roots_.Insert(global);
+  SetUserGlobalReference(global);
+}
 
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   if (strong_gc_subroot_names_.is_empty()) {
@@ -2133,7 +2115,6 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   return strong_gc_subroot_names_.GetTag(object);
 }
 
-
 void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
@@ -2153,23 +2134,19 @@ class GlobalObjectsEnumerator : public RootVisitor {
  public:
   void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
-      if ((*p)->IsNativeContext()) {
-        Context* context = Context::cast(*p);
-        JSObject* proxy = context->global_proxy();
-        if (proxy->IsJSGlobalProxy()) {
-          Object* global = proxy->map()->prototype();
-          if (global->IsJSGlobalObject()) {
-            objects_.Add(Handle<JSGlobalObject>(JSGlobalObject::cast(global)));
-          }
-        }
-      }
+      if (!(*p)->IsNativeContext()) continue;
+      JSObject* proxy = Context::cast(*p)->global_proxy();
+      if (!proxy->IsJSGlobalProxy()) continue;
+      Object* global = proxy->map()->prototype();
+      if (!global->IsJSGlobalObject()) continue;
+      objects_.push_back(Handle<JSGlobalObject>(JSGlobalObject::cast(global)));
     }
   }
-  int count() { return objects_.length(); }
+  int count() const { return static_cast<int>(objects_.size()); }
   Handle<JSGlobalObject>& at(int i) { return objects_[i]; }
 
  private:
-  List<Handle<JSGlobalObject> > objects_;
+  std::vector<Handle<JSGlobalObject>> objects_;
 };
 
 
@@ -2179,24 +2156,18 @@ void V8HeapExplorer::TagGlobalObjects() {
   HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
-  const char** urls = NewArray<const char*>(enumerator.count());
+  std::vector<const char*> urls(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    if (global_object_name_resolver_) {
-      HandleScope scope(isolate);
-      Handle<JSGlobalObject> global_obj = enumerator.at(i);
-      urls[i] = global_object_name_resolver_->GetName(
-          Utils::ToLocal(Handle<JSObject>::cast(global_obj)));
-    } else {
-      urls[i] = NULL;
-    }
+    urls[i] = global_object_name_resolver_
+                  ? global_object_name_resolver_->GetName(Utils::ToLocal(
+                        Handle<JSObject>::cast(enumerator.at(i))))
+                  : nullptr;
   }
 
   DisallowHeapAllocation no_allocation;
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     objects_tags_.SetTag(*enumerator.at(i), urls[i]);
   }
-
-  DeleteArray(urls);
 }
 
 class GlobalHandlesExtractor : public PersistentHandleVisitor {
