@@ -1572,6 +1572,8 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   BuildIncrementBlockCoverageCounterIfEnabled(stmt, SourceRangeKind::kCatch);
   VisitInScope(stmt->catch_block(), stmt->scope());
   try_control_builder.EndCatch();
+  BuildIncrementBlockCoverageCounterIfEnabled(stmt,
+                                              SourceRangeKind::kContinuation);
 }
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
@@ -1637,6 +1639,8 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Dynamic dispatch after the finally-block.
   commands.ApplyDeferredCommands();
+  BuildIncrementBlockCoverageCounterIfEnabled(stmt,
+                                              SourceRangeKind::kContinuation);
 }
 
 void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {

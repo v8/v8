@@ -355,8 +355,29 @@ TestCoverage(
  {"start":219,"end":232,"count":0},
  {"start":264,"end":274,"count":0},
  {"start":369,"end":380,"count":0},
- {"start":403,"end":414,"count":0},  // TODO(jgruber): Include `catch` in range.
+ {"start":390,"end":414,"count":0},  // TODO(jgruber): Include `catch` in range.
  {"start":513,"end":564,"count":0}]
+);
+
+TestCoverage("try/catch/finally statements with early return",
+`
+!function() {                             // 0000
+  try { throw 42; } catch (e) { return; } // 0050
+  nop();                                  // 0100
+}();                                      // 0150
+!function() {                             // 0200
+  try { throw 42; } catch (e) {}          // 0250
+  finally { return; }                     // 0300
+  nop();                                  // 0350
+}();                                      // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":67,"end":80,"count":0},
+ {"start":89,"end":151,"count":0},
+ {"start":201,"end":401,"count":1},
+ {"start":267,"end":280,"count":0},
+ {"start":319,"end":401,"count":0}]
 );
 
 TestCoverage(
@@ -568,9 +589,9 @@ it.next(); it.return();                   // 0450
 `,
 [{"start":0,"end":449,"count":1},
  {"start":11,"end":351,"count":3},
- {"start":112,"end":253,"count":0},
+ {"start":112,"end":262,"count":0},
  {"start":262,"end":272,"count":1},
- {"start":310,"end":351,"count":0}]  // TODO(jgruber): Missing continuation.
+ {"start":272,"end":351,"count":0}]
 );
 
 TestCoverage("yield expressions (.throw and try/catch/finally)",
@@ -588,9 +609,8 @@ it.next(); it.throw(42);                  // 0550
 [{"start":0,"end":449,"count":1},
  {"start":11,"end":351,"count":3},
  {"start":112,"end":164,"count":0},
- {"start":164,"end":253,"count":1},
- {"start":262,"end":272,"count":1},
- {"start":310,"end":351,"count":0}]  // TODO(jgruber): Missing continuation.
+ {"start":164,"end":310,"count":1},
+ {"start":310,"end":351,"count":0}]
 );
 
 TestCoverage(

@@ -190,8 +190,14 @@ class TryCatchStatementSourceRanges final : public AstNodeSourceRanges {
       : catch_range_(catch_range) {}
 
   SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK(kind == SourceRangeKind::kCatch);
-    return catch_range_;
+    switch (kind) {
+      case SourceRangeKind::kCatch:
+        return catch_range_;
+      case SourceRangeKind::kContinuation:
+        return SourceRange::ContinuationOf(catch_range_);
+      default:
+        UNREACHABLE();
+    }
   }
 
  private:
@@ -204,8 +210,14 @@ class TryFinallyStatementSourceRanges final : public AstNodeSourceRanges {
       : finally_range_(finally_range) {}
 
   SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK(kind == SourceRangeKind::kFinally);
-    return finally_range_;
+    switch (kind) {
+      case SourceRangeKind::kFinally:
+        return finally_range_;
+      case SourceRangeKind::kContinuation:
+        return SourceRange::ContinuationOf(finally_range_);
+      default:
+        UNREACHABLE();
+    }
   }
 
  private:
