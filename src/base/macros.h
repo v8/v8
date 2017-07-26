@@ -9,6 +9,8 @@
 #include "src/base/format-macros.h"
 #include "src/base/logging.h"
 
+// No-op macro which is used to work around MSVC's funky VA_ARGS support.
+#define EXPAND(x) x
 
 // TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
 // have to make sure that only standard-layout types and simple field

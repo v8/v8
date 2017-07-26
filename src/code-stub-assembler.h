@@ -1766,9 +1766,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 // We have to jump through some hoops to allow <extra values to print...> to be
 // empty.
 #define CSA_ASSERT(csa, ...)                                                   \
-  (csa)->Assert([&] { return CSA_ASSERT_GET_CONDITION(__VA_ARGS__); },         \
-                CSA_ASSERT_GET_CONDITION_STR(__VA_ARGS__), __FILE__, __LINE__, \
-                CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
+  (csa)->Assert([&] { return EXPAND(CSA_ASSERT_GET_CONDITION(__VA_ARGS__)); }, \
+                EXPAND(CSA_ASSERT_GET_CONDITION_STR(__VA_ARGS__)), __FILE__,   \
+                __LINE__, CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
 
 #define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                      \
   (csa)->Assert(                                                          \
