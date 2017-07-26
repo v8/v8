@@ -125,9 +125,8 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 // Trigger a trap in wasm, stack should be JS -> wasm -> wasm.
 TEST(CollectDetailedWasmStack_WasmError) {
   TestSignatures sigs;
-  WasmRunner<int> r(kExecuteCompiled);
-  // Set the execution context, such that a runtime error can be thrown.
-  r.SetModuleContext();
+  // Create a WasmRunner with stack checks and traps enabled.
+  WasmRunner<int> r(kExecuteCompiled, "main", true);
 
   BUILD(r, WASM_UNREACHABLE);
   uint32_t wasm_index_1 = r.function()->func_index;

@@ -356,10 +356,13 @@ class TestingModule : public ModuleEnv {
 inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               FunctionSig* sig,
                               SourcePositionTable* source_position_table,
-                              const byte* start, const byte* end) {
+                              const byte* start, const byte* end,
+                              bool runtime_exception_support = false) {
   compiler::WasmGraphBuilder builder(
       module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
       source_position_table);
+  builder.SetRuntimeExceptionSupport(runtime_exception_support);
+
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {
@@ -550,7 +553,8 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
     // Build the TurboFan graph.
     TestBuildingGraph(zone(), &jsgraph, testing_module_, sig,
-                      &source_position_table_, start, end);
+                      &source_position_table_, start, end,
+                      runtime_exception_support_);
     Handle<Code> code = Compile();
     testing_module_->SetFunctionCode(function_index(), code);
 
@@ -586,7 +590,8 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   friend class WasmRunnerBase;
 
   explicit WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
-                                TestingModule* module, const char* name)
+                                TestingModule* module, const char* name,
+                                bool runtime_exception_support)
       : GraphAndBuilders(zone),
         jsgraph(module->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
@@ -595,7 +600,8 @@ class WasmFunctionCompiler : private GraphAndBuilders {
         testing_module_(module),
         local_decls(zone, sig),
         source_position_table_(this->graph()),
-        interpreter_(module->interpreter()) {
+        interpreter_(module->interpreter()),
+        runtime_exception_support_(runtime_exception_support) {
     // Get a new function from the testing module.
     int index = module->AddFunction(sig, Handle<Code>::null(), name);
     function_ = testing_module_->GetFunctionAt(index);
@@ -651,16 +657,19 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   LocalDeclEncoder local_decls;
   SourcePositionTable source_position_table_;
   WasmInterpreter* interpreter_;
+  bool runtime_exception_support_ = false;
 };
 
 // A helper class to build a module around Wasm bytecode, generate machine
 // code, and run that code.
 class WasmRunnerBase : public HandleAndZoneScope {
  public:
-  explicit WasmRunnerBase(WasmExecutionMode execution_mode, int num_params)
+  explicit WasmRunnerBase(WasmExecutionMode execution_mode, int num_params,
+                          bool runtime_exception_support)
       : zone_(&allocator_, ZONE_NAME),
         module_(&zone_, execution_mode),
-        wrapper_(&zone_, num_params) {}
+        wrapper_(&zone_, num_params),
+        runtime_exception_support_(runtime_exception_support) {}
 
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
@@ -683,8 +692,8 @@ class WasmRunnerBase : public HandleAndZoneScope {
   // Returns the index of the previously built function.
   WasmFunctionCompiler& NewFunction(FunctionSig* sig,
                                     const char* name = nullptr) {
-    functions_.emplace_back(
-        new WasmFunctionCompiler(&zone_, sig, &module_, name));
+    functions_.emplace_back(new WasmFunctionCompiler(
+        &zone_, sig, &module_, name, runtime_exception_support_));
     return *functions_.back();
   }
 
@@ -701,16 +710,6 @@ class WasmRunnerBase : public HandleAndZoneScope {
   bool possible_nondeterminism() { return possible_nondeterminism_; }
   TestingModule& module() { return module_; }
   Zone* zone() { return &zone_; }
-
-  // Set the context, such that e.g. runtime functions can be called.
-  void SetModuleContext() {
-    if (!module_.instance->context.is_null()) {
-      CHECK(module_.instance->context.is_identical_to(
-          main_isolate()->native_context()));
-      return;
-    }
-    module_.instance->context = main_isolate()->native_context();
-  }
 
   bool interpret() { return module_.interpret(); }
 
@@ -752,6 +751,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
+  bool runtime_exception_support_ = false;
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in
@@ -763,8 +763,10 @@ template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
   explicit WasmRunner(WasmExecutionMode execution_mode,
-                      const char* main_fn_name = "main")
-      : WasmRunnerBase(execution_mode, sizeof...(ParamTypes)) {
+                      const char* main_fn_name = "main",
+                      bool runtime_exception_support = false)
+      : WasmRunnerBase(execution_mode, sizeof...(ParamTypes),
+                       runtime_exception_support) {
     NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     if (!interpret()) {
       wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());

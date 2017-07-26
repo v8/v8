@@ -192,10 +192,12 @@ Node* WasmGraphBuilder::Int64Constant(int64_t value) {
 
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
                                   Node** effect, Node** control) {
-  if (FLAG_wasm_no_stack_checks) return;
-  // We do not generate stack checks for cctests.
-  if (!module_ || (module_->instance && module_->instance->context.is_null()))
+  // TODO(mtrofin): "!module_" happens when we generate a wrapper.
+  // We should factor wrappers separately from wasm codegen.
+  if (FLAG_wasm_no_stack_checks || !module_ ||
+      !has_runtime_exception_support_) {
     return;
+  }
   if (effect == nullptr) effect = effect_;
   if (control == nullptr) control = control_;
 
@@ -828,9 +830,8 @@ Node* WasmGraphBuilder::BranchExpectFalse(Node* cond, Node** true_node,
                 BranchHint::kFalse);
 }
 
-namespace {
-Builtins::Name GetBuiltinIdForTrap(bool in_cctest, wasm::TrapReason reason) {
-  if (in_cctest) {
+Builtins::Name WasmGraphBuilder::GetBuiltinIdForTrap(wasm::TrapReason reason) {
+  if (!has_runtime_exception_support_) {
     // We use Builtins::builtin_count as a marker to tell the code generator
     // to generate a call to a testing c-function instead of a runtime
     // function. This code should only be called from a cctest.
@@ -847,14 +848,10 @@ Builtins::Name GetBuiltinIdForTrap(bool in_cctest, wasm::TrapReason reason) {
       UNREACHABLE();
   }
 }
-}  // namespace
 
 Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
                                    wasm::WasmCodePosition position) {
-  // TODO(wasm): Introduce a testing flag instead of trying to infer it here.
-  bool in_cctest =
-      !module_ || (module_->instance && module_->instance->context.is_null());
-  int32_t trap_id = GetBuiltinIdForTrap(in_cctest, reason);
+  Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
   Node* node = graph()->NewNode(jsgraph()->common()->TrapIf(trap_id), cond,
                                 Effect(), Control());
   *control_ = node;
@@ -864,10 +861,7 @@ Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
 
 Node* WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
                                     wasm::WasmCodePosition position) {
-  // TODO(wasm): Introduce a testing flag instead of trying to infer it here.
-  bool in_cctest =
-      !module_ || (module_->instance && module_->instance->context.is_null());
-  int32_t trap_id = GetBuiltinIdForTrap(in_cctest, reason);
+  Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
 
   Node* node = graph()->NewNode(jsgraph()->common()->TrapUnless(trap_id), cond,
                                 Effect(), Control());

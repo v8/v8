@@ -229,7 +229,6 @@ struct WasmInstance {
 
   const WasmModule* module;  // static representation of the module.
   // -- Heap allocated --------------------------------------------------------
-  Handle<Context> context;               // JavaScript native context.
   std::vector<Handle<FixedArray>> function_tables;  // indirect function tables.
   std::vector<Handle<FixedArray>>
       signature_tables;                    // indirect signature tables.
@@ -248,8 +247,6 @@ struct WasmInstance {
         function_code(m->functions.size()) {}
 
   void ReopenHandles(Isolate* isolate) {
-    context = handle(*context, isolate);
-
     for (auto& table : function_tables) {
       table = handle(*table, isolate);
     }

@@ -280,6 +280,10 @@ class WasmGraphBuilder {
 
   wasm::ModuleEnv* module_env() const { return module_; }
 
+  void SetRuntimeExceptionSupport(bool value) {
+    has_runtime_exception_support_ = value;
+  }
+
  private:
   static const int kDefaultBufferSize = 16;
 
@@ -299,6 +303,10 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
+  // If the runtime doesn't support exception propagation,
+  // we won't generate stack checks, and trap handling will also
+  // be generated differently.
+  bool has_runtime_exception_support_ = true;
 
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
@@ -440,6 +448,7 @@ class WasmGraphBuilder {
                                       Node** parameters, int parameter_count);
 
   Node* BuildModifyThreadInWasmFlag(bool new_value);
+  Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason);
 };
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,

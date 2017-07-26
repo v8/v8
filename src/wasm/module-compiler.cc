@@ -330,7 +330,6 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObject(
     Vector<const byte> asm_js_offset_table_bytes) {
   Factory* factory = isolate_->factory();
   WasmInstance temp_instance(module_.get());
-  temp_instance.context = isolate_->native_context();
   temp_instance.mem_size = WasmModule::kPageSize * module_->min_mem_pages;
   temp_instance.mem_start = nullptr;
   temp_instance.globals_start = nullptr;
@@ -2062,7 +2061,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     Factory* factory = job_->isolate_->factory();
     job_->temp_instance_.reset(new WasmInstance(module_.get()));
-    job_->temp_instance_->context = job_->context_;
     job_->temp_instance_->mem_size =
         WasmModule::kPageSize * module_->min_mem_pages;
     job_->temp_instance_->mem_start = nullptr;
