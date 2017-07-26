@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAP_INL_H_
 #define V8_OBJECTS_MAP_INL_H_
 
+#include "src/field-type.h"
 #include "src/objects/map.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -25,6 +26,20 @@ InterceptorInfo* Map::GetIndexedInterceptor() {
   DCHECK(has_indexed_interceptor());
   FunctionTemplateInfo* info = GetFunctionTemplateInfo();
   return InterceptorInfo::cast(info->indexed_property_handler());
+}
+
+bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
+                                      Representation representation,
+                                      FieldType* field_type) {
+  if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
+      (constness == kConst)) {
+    // kConst -> kMutable field generalization may happen in-place.
+    return true;
+  }
+  if (representation.IsHeapObject() && !field_type->IsAny()) {
+    return true;
+  }
+  return false;
 }
 
 int NormalizedMapCache::GetIndex(Handle<Map> map) {

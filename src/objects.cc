@@ -4495,20 +4495,6 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
   }
 }
 
-bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
-                                      Representation representation,
-                                      FieldType* field_type) {
-  if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-      (constness == kConst)) {
-    // kConst -> kMutable field generalization may happen in-place.
-    return true;
-  }
-  if (representation.IsHeapObject() && !field_type->IsAny()) {
-    return true;
-  }
-  return false;
-}
-
 // TODO(ishell): remove.
 // static
 Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
