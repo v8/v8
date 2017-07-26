@@ -966,50 +966,6 @@ void MacroAssembler::PopStackHandler() {
 }
 
 
-// Compute the hash code from the untagged key.  This must be kept in sync with
-// ComputeIntegerHash in utils.h and KeyedLoadGenericStub in
-// code-stub-hydrogen.cc
-//
-// Note: r0 will contain hash code
-void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
-  // Xor original key with a seed.
-  if (serializer_enabled()) {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    mov(scratch, Immediate(Heap::kHashSeedRootIndex));
-    mov(scratch,
-        Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
-    SmiUntag(scratch);
-    xor_(r0, scratch);
-  } else {
-    int32_t seed = isolate()->heap()->HashSeed();
-    xor_(r0, Immediate(seed));
-  }
-
-  // hash = ~hash + (hash << 15);
-  mov(scratch, r0);
-  not_(r0);
-  shl(scratch, 15);
-  add(r0, scratch);
-  // hash = hash ^ (hash >> 12);
-  mov(scratch, r0);
-  shr(scratch, 12);
-  xor_(r0, scratch);
-  // hash = hash + (hash << 2);
-  lea(r0, Operand(r0, r0, times_4, 0));
-  // hash = hash ^ (hash >> 4);
-  mov(scratch, r0);
-  shr(scratch, 4);
-  xor_(r0, scratch);
-  // hash = hash * 2057;
-  imul(r0, r0, 2057);
-  // hash = hash ^ (hash >> 16);
-  mov(scratch, r0);
-  shr(scratch, 16);
-  xor_(r0, scratch);
-  and_(r0, 0x3fffffff);
-}
-
 void MacroAssembler::LoadAllocationTopHelper(Register result,
                                              Register scratch,
                                              AllocationFlags flags) {

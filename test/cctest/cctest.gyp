@@ -162,7 +162,6 @@
       'test-func-name-inference.cc',
       'test-global-handles.cc',
       'test-global-object.cc',
-      'test-hashing.cc',
       'test-hashmap.cc',
       'test-heap-profiler.cc',
       'test-identity-map.cc',

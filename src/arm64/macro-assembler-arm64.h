@@ -2078,13 +2078,6 @@ class MacroAssembler : public TurboAssembler {
                     Label* fall_through);
 
   // ---------------------------------------------------------------------------
-  // Inline caching support.
-
-  // Hash the interger value in 'key' register.
-  // It uses the same algorithm as ComputeIntegerHash in utils.h.
-  void GetNumberHash(Register key, Register scratch);
-
-  // ---------------------------------------------------------------------------
   // Frames.
 
   // Load the type feedback vector from a JavaScript frame.

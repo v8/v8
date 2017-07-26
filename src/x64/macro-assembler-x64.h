@@ -1266,11 +1266,6 @@ class MacroAssembler : public TurboAssembler {
   void PopStackHandler();
 
   // ---------------------------------------------------------------------------
-  // Inline caching support
-
-  void GetNumberHash(Register r0, Register scratch);
-
-  // ---------------------------------------------------------------------------
   // Allocation support
 
   // Allocate an object in new space or old space. If the given space

@@ -804,8 +804,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Inline caching support
 
-  void GetNumberHash(Register t0, Register scratch);
-
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
   }

@@ -3253,41 +3253,6 @@ bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
-// Compute the hash code from the untagged key. This must be kept in sync with
-// ComputeIntegerHash in utils.h and KeyedLoadGenericStub in
-// code-stub-hydrogen.cc
-void MacroAssembler::GetNumberHash(Register key, Register scratch) {
-  DCHECK(!AreAliased(key, scratch));
-
-  // Xor original key with a seed.
-  LoadRoot(scratch, Heap::kHashSeedRootIndex);
-  Eor(key, key, Operand::UntagSmi(scratch));
-
-  // The algorithm uses 32-bit integer values.
-  key = key.W();
-  scratch = scratch.W();
-
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash <<1 15);
-  Mvn(scratch, key);
-  Add(key, scratch, Operand(key, LSL, 15));
-  // hash = hash ^ (hash >> 12);
-  Eor(key, key, Operand(key, LSR, 12));
-  // hash = hash + (hash << 2);
-  Add(key, key, Operand(key, LSL, 2));
-  // hash = hash ^ (hash >> 4);
-  Eor(key, key, Operand(key, LSR, 4));
-  // hash = hash * 2057;
-  Mov(scratch, Operand(key, LSL, 11));
-  Add(key, key, Operand(key, LSL, 3));
-  Add(key, key, scratch);
-  // hash = hash ^ (hash >> 16);
-  Eor(key, key, Operand(key, LSR, 16));
-  Bic(key, key, Operand(0xc0000000u));
-}
-
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address,
                                          Register scratch1,

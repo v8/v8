@@ -873,8 +873,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Inline caching support
 
-  void GetNumberHash(Register t0, Register scratch);
-
   inline void MarkCode(NopMarkerTypes type) { nop(type); }
 
   // Check if the given instruction is a 'type' marker.
@@ -885,7 +883,6 @@ class MacroAssembler : public TurboAssembler {
     DCHECK((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER));
     return IsNop(instr, type);
   }
-
 
   static inline int GetCodeMarker(Instr instr) {
     int dst_reg_offset = 12;

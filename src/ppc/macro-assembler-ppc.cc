@@ -1516,46 +1516,6 @@ void MacroAssembler::PopStackHandler() {
 }
 
 
-// Compute the hash code from the untagged key.  This must be kept in sync with
-// ComputeIntegerHash in utils.h and KeyedLoadGenericStub in
-// code-stub-hydrogen.cc
-void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
-  // First of all we assign the hash seed to scratch.
-  LoadRoot(scratch, Heap::kHashSeedRootIndex);
-  SmiUntag(scratch);
-
-  // Xor original key with a seed.
-  xor_(t0, t0, scratch);
-
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  notx(scratch, t0);
-  slwi(t0, t0, Operand(15));
-  add(t0, scratch, t0);
-  // hash = hash ^ (hash >> 12);
-  srwi(scratch, t0, Operand(12));
-  xor_(t0, t0, scratch);
-  // hash = hash + (hash << 2);
-  slwi(scratch, t0, Operand(2));
-  add(t0, t0, scratch);
-  // hash = hash ^ (hash >> 4);
-  srwi(scratch, t0, Operand(4));
-  xor_(t0, t0, scratch);
-  // hash = hash * 2057;
-  mr(r0, t0);
-  slwi(scratch, t0, Operand(3));
-  add(t0, t0, scratch);
-  slwi(scratch, r0, Operand(11));
-  add(t0, t0, scratch);
-  // hash = hash ^ (hash >> 16);
-  srwi(scratch, t0, Operand(16));
-  xor_(t0, t0, scratch);
-  // hash & 0x3fffffff
-  ExtractBitRange(t0, t0, 29, 0);
-}
-
 void MacroAssembler::Allocate(int object_size, Register result,
                               Register scratch1, Register scratch2,
                               Label* gc_required, AllocationFlags flags) {

@@ -1480,47 +1480,6 @@ void MacroAssembler::PopStackHandler() {
   StoreP(r3, MemOperand(ip));
 }
 
-// Compute the hash code from the untagged key.  This must be kept in sync with
-// ComputeIntegerHash in utils.h and KeyedLoadGenericStub in
-// code-stub-hydrogen.cc
-void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
-  // First of all we assign the hash seed to scratch.
-  LoadRoot(scratch, Heap::kHashSeedRootIndex);
-  SmiUntag(scratch);
-
-  // Xor original key with a seed.
-  XorP(t0, scratch);
-
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  LoadRR(scratch, t0);
-  NotP(scratch);
-  sll(t0, Operand(15));
-  AddP(t0, scratch, t0);
-  // hash = hash ^ (hash >> 12);
-  ShiftRight(scratch, t0, Operand(12));
-  XorP(t0, scratch);
-  // hash = hash + (hash << 2);
-  ShiftLeft(scratch, t0, Operand(2));
-  AddP(t0, t0, scratch);
-  // hash = hash ^ (hash >> 4);
-  ShiftRight(scratch, t0, Operand(4));
-  XorP(t0, scratch);
-  // hash = hash * 2057;
-  LoadRR(r0, t0);
-  ShiftLeft(scratch, t0, Operand(3));
-  AddP(t0, t0, scratch);
-  ShiftLeft(scratch, r0, Operand(11));
-  AddP(t0, t0, scratch);
-  // hash = hash ^ (hash >> 16);
-  ShiftRight(scratch, t0, Operand(16));
-  XorP(t0, scratch);
-  // hash & 0x3fffffff
-  ExtractBitRange(t0, t0, 29, 0);
-}
-
 void MacroAssembler::Allocate(int object_size, Register result,
                               Register scratch1, Register scratch2,
                               Label* gc_required, AllocationFlags flags) {

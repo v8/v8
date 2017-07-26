@@ -1080,8 +1080,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Inline caching support.
 
-  void GetNumberHash(Register reg0, Register scratch);
-
   inline void MarkCode(NopMarkerTypes type) { nop(type); }
 
   // Check if the given instruction is a 'type' marker.
