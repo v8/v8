@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE SignatureMap {
   // Allow default construction and move construction (because we have vectors
   // of objects containing SignatureMaps), but disallow copy or assign. It's
   // too easy to get security bugs by accidentally updating a copy of the map.
-  SignatureMap() = default;
+  SignatureMap();
   SignatureMap(SignatureMap&&) = default;
 
   // Gets the index for a signature, assigning a new index if necessary.
@@ -37,6 +37,7 @@ class V8_EXPORT_PRIVATE SignatureMap {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
   uint32_t next_ = 0;
+  std::unique_ptr<base::Mutex> mutex_;
   std::map<FunctionSig*, uint32_t, CompareFunctionSigs> map_;
 
   DISALLOW_COPY_AND_ASSIGN(SignatureMap);
