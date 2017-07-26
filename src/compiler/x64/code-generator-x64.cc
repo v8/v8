@@ -3153,14 +3153,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           } else {
             // TODO(dcarney): don't need scratch in this case.
             int32_t value = src.ToInt32();
-            if (value == 0) {
+            if (RelocInfo::IsWasmSizeReference(src.rmode())) {
+              __ movl(dst, Immediate(value, src.rmode()));
+            } else if (value == 0) {
               __ xorl(dst, dst);
             } else {
-              if (RelocInfo::IsWasmSizeReference(src.rmode())) {
-                __ movl(dst, Immediate(value, src.rmode()));
-              } else {
-                __ movl(dst, Immediate(value));
-              }
+              __ movl(dst, Immediate(value));
             }
           }
           break;
