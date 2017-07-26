@@ -751,12 +751,11 @@ class RuntimeCallTimer final {
 #define FOR_EACH_MANUAL_COUNTER(V)                  \
   V(AccessorGetterCallback)                         \
   V(AccessorNameGetterCallback)                     \
-  V(AccessorNameGetterCallback_ArrayLength)         \
-  V(AccessorNameGetterCallback_BoundFunctionLength) \
-  V(AccessorNameGetterCallback_BoundFunctionName)   \
-  V(AccessorNameGetterCallback_FunctionPrototype)   \
-  V(AccessorNameGetterCallback_StringLength)        \
   V(AccessorNameSetterCallback)                     \
+  V(ArrayLengthGetter)                              \
+  V(ArrayLengthSetter)                              \
+  V(BoundFunctionNameGetter)                        \
+  V(BoundFunctionLengthGetter)                      \
   V(CompileCodeLazy)                                \
   V(CompileDeserialize)                             \
   V(CompileEval)                                    \
@@ -777,6 +776,8 @@ class RuntimeCallTimer final {
   V(CompileWaitForDispatcher)                       \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
+  V(FunctionPrototypeGetter)                        \
+  V(FunctionPrototypeSetter)                        \
   V(GC)                                             \
   V(GC_AllAvailableGarbage)                         \
   V(GC_IncrementalMarkingJob)                       \
@@ -824,6 +825,7 @@ class RuntimeCallTimer final {
   V(RecompileConcurrent)                            \
   V(RecompileSynchronous)                           \
   V(ReconfigureToDataProperty)                      \
+  V(StringLengthGetter)                             \
   V(TestCounter1)                                   \
   V(TestCounter2)                                   \
   V(TestCounter3)                                   \
