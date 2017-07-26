@@ -2979,7 +2979,7 @@ void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
   mov(dst, Operand(smi));
 }
 
-void TurboAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
+void TurboAssembler::LoadDoubleLiteral(DoubleRegister result, Double value,
                                        Register scratch) {
   if (FLAG_enable_embedded_constant_pool && is_constant_pool_available() &&
       !(scratch.is(r0) && ConstantPoolAccessIsInOverflow())) {

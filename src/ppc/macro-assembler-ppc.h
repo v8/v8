@@ -205,7 +205,7 @@ class TurboAssembler : public Assembler {
 
   void LoadDouble(DoubleRegister dst, const MemOperand& mem,
                   Register scratch = no_reg);
-  void LoadDoubleLiteral(DoubleRegister result, double value, Register scratch);
+  void LoadDoubleLiteral(DoubleRegister result, Double value, Register scratch);
 
   // load a literal signed int value <value> to GPR <dst>
   void LoadIntLiteral(Register dst, int value);
