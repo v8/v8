@@ -287,6 +287,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
+  static Type* ObjectIsCallable(Type*, Typer*);
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
   static Type* ObjectIsNaN(Type*, Typer*);
   static Type* ObjectIsNonCallable(Type*, Typer*);
@@ -507,6 +508,12 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 }
 
 // Type checks.
+
+Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
+  if (type->Is(Type::Callable())) return t->singleton_true_;
+  if (!type->Maybe(Type::Callable())) return t->singleton_false_;
+  return Type::Boolean();
+}
 
 Type* Typer::Visitor::ObjectIsDetectableCallable(Type* type, Typer* t) {
   if (type->Is(Type::DetectableCallable())) return t->singleton_true_;
@@ -1949,6 +1956,10 @@ Type* Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
 
 Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   UNREACHABLE();
+}
+
+Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
+  return TypeUnaryOp(node, ObjectIsCallable);
 }
 
 Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {

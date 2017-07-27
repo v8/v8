@@ -345,6 +345,7 @@
   V(StoreElement)                   \
   V(StoreTypedElement)              \
   V(TransitionAndStoreElement)      \
+  V(ObjectIsCallable)               \
   V(ObjectIsDetectableCallable)     \
   V(ObjectIsNaN)                    \
   V(ObjectIsNonCallable)            \

@@ -534,11 +534,32 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
 
+  std::vector<Node*> checkpoint_params(
+      {receiver, fncallback, this_arg, k, original_length});
+  const int stack_parameters = static_cast<int>(checkpoint_params.size());
+
+  // Check whether the given callback function is callable. Note that this has
+  // to happen outside the loop to make sure we also throw on empty arrays.
+  Node* check = graph()->NewNode(simplified()->ObjectIsCallable(), fncallback);
+  Node* check_branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+  Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
+  Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), function, Builtins::kArrayForEachLoopLazyDeoptContinuation,
+      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+      outer_frame_state, ContinuationFrameStateMode::LAZY);
+  Node* check_throw = check_fail = graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kThrowCalledNonCallable), fncallback,
+      context, check_frame_state, effect, check_fail);
+  control = graph()->NewNode(common()->IfTrue(), check_branch);
+
+  // Start the loop.
   Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
   Node* eloop = effect =
       graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
   Node* vloop = k = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  checkpoint_params[3] = k;
 
   control = loop;
   effect = eloop;
@@ -551,10 +572,6 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
   Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
   control = if_true;
-
-  std::vector<Node*> checkpoint_params(
-      {receiver, fncallback, this_arg, k, original_length});
-  const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
   Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), function, Builtins::kArrayForEachLoopEagerDeoptContinuation,
@@ -622,14 +639,26 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
       receiver, context, frame_state, effect, control);
 
-  // Update potential {IfException} uses of {node} to point to the above
-  // JavaScript call node within the loop instead.
+  // Rewire potential exception edges.
   Node* on_exception = nullptr;
   if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    NodeProperties::ReplaceControlInput(on_exception, control);
-    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    // Create appropriate {IfException} and {IfSuccess} nodes.
+    Node* if_exception0 =
+        graph()->NewNode(common()->IfException(), check_throw, check_fail);
+    check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
+    Node* if_exception1 =
+        graph()->NewNode(common()->IfException(), effect, control);
     control = graph()->NewNode(common()->IfSuccess(), control);
-    Revisit(on_exception);
+
+    // Join the exception edges.
+    Node* merge =
+        graph()->NewNode(common()->Merge(2), if_exception0, if_exception1);
+    Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception0,
+                                  if_exception1, merge);
+    Node* phi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         if_exception0, if_exception1, merge);
+    ReplaceWithValue(on_exception, phi, ephi, merge);
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -651,6 +680,13 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
 
   control = if_false;
   effect = eloop;
+
+  // The above %ThrowCalledNonCallable runtime call is an unconditional
+  // throw, making it impossible to return a successful completion in this
+  // case. We simply connect the successful completion to the graph end.
+  Node* terminate =
+      graph()->NewNode(common()->Throw(), check_throw, check_fail);
+  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
 
   ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect, control);
   return Replace(jsgraph()->UndefinedConstant());
@@ -731,11 +767,32 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       array_constructor, array_constructor, original_length, context,
       outer_frame_state, effect, control);
 
+  std::vector<Node*> checkpoint_params(
+      {receiver, fncallback, this_arg, a, k, original_length});
+  const int stack_parameters = static_cast<int>(checkpoint_params.size());
+
+  // Check whether the given callback function is callable. Note that this has
+  // to happen outside the loop to make sure we also throw on empty arrays.
+  Node* check = graph()->NewNode(simplified()->ObjectIsCallable(), fncallback);
+  Node* check_branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+  Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
+  Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), function, Builtins::kArrayMapLoopLazyDeoptContinuation,
+      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+      outer_frame_state, ContinuationFrameStateMode::LAZY);
+  Node* check_throw = check_fail = graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kThrowCalledNonCallable), fncallback,
+      context, check_frame_state, effect, check_fail);
+  control = graph()->NewNode(common()->IfTrue(), check_branch);
+
+  // Start the loop.
   Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
   Node* eloop = effect =
       graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
   Node* vloop = k = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  checkpoint_params[4] = k;
 
   control = loop;
   effect = eloop;
@@ -748,10 +805,6 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
   Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
   control = if_true;
-
-  std::vector<Node*> checkpoint_params(
-      {receiver, fncallback, this_arg, a, k, original_length});
-  const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
   Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), function, Builtins::kArrayMapLoopEagerDeoptContinuation,
@@ -803,14 +856,26 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
       receiver, context, frame_state, effect, control);
 
-  // Update potential {IfException} uses of {node} to point to the above
-  // JavaScript call node within the loop instead.
+  // Rewire potential exception edges.
   Node* on_exception = nullptr;
   if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    NodeProperties::ReplaceControlInput(on_exception, control);
-    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    // Create appropriate {IfException} and {IfSuccess} nodes.
+    Node* if_exception0 =
+        graph()->NewNode(common()->IfException(), check_throw, check_fail);
+    check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
+    Node* if_exception1 =
+        graph()->NewNode(common()->IfException(), effect, control);
     control = graph()->NewNode(common()->IfSuccess(), control);
-    Revisit(on_exception);
+
+    // Join the exception edges.
+    Node* merge =
+        graph()->NewNode(common()->Merge(2), if_exception0, if_exception1);
+    Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception0,
+                                  if_exception1, merge);
+    Node* phi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         if_exception0, if_exception1, merge);
+    ReplaceWithValue(on_exception, phi, ephi, merge);
   }
 
   Handle<Map> double_map(Map::cast(
@@ -829,6 +894,13 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
 
   control = if_false;
   effect = eloop;
+
+  // The above %ThrowCalledNonCallable runtime call is an unconditional
+  // throw, making it impossible to return a successful completion in this
+  // case. We simply connect the successful completion to the graph end.
+  Node* terminate =
+      graph()->NewNode(common()->Throw(), check_throw, check_fail);
+  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
 
   ReplaceWithValue(node, a, effect, control);
   return Replace(a);
