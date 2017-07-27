@@ -116,6 +116,12 @@ function TickProcessor(
           processor: this.processCodeMove },
       'code-delete': { parsers: [parseInt],
           processor: this.processCodeDelete },
+      'code-source-info': {
+          parsers: [parseInt, parseInt, parseInt, parseInt, null, null, null],
+          processor: this.processCodeSourceInfo },
+      'script': {
+          parsers: [parseInt, null],
+          processor: this.processCodeScript },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
       'active-runtime-timer': {
@@ -313,11 +319,20 @@ TickProcessor.prototype.processCodeMove = function(from, to) {
   this.profile_.moveCode(from, to);
 };
 
-
 TickProcessor.prototype.processCodeDelete = function(start) {
   this.profile_.deleteCode(start);
 };
 
+TickProcessor.prototype.processCodeSourceInfo = function(
+    start, script, startPos, endPos, sourcePositions, inliningPositions,
+    inlinedFunctions) {
+  this.profile_.addSourcePositions(start, script, startPos,
+    endPos, sourcePositions, inliningPositions, inlinedFunctions);
+};
+
+TickProcessor.prototype.processCodeScript = function(script, source) {
+  this.profile_.addScriptSource(script, source);
+};
 
 TickProcessor.prototype.processFunctionMove = function(from, to) {
   this.profile_.moveFunc(from, to);
