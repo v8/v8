@@ -11,6 +11,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
+#include "src/compiler-dispatcher/unoptimized-compile-job.h"
 #include "src/flags.h"
 #include "src/objects-inl.h"
 
@@ -26,15 +27,6 @@ bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherForgroundStep");
-
-  // Ensure we are in the correct context for the job.
-  SaveContext save(isolate);
-  if (job->has_context()) {
-    isolate->set_context(job->context());
-  } else {
-    DCHECK(job->CanStepNextOnAnyThread());
-  }
-
   job->StepNextOnMainThread();
 
   DCHECK_EQ(job->IsFailed(), isolate->has_pending_exception());
@@ -170,7 +162,7 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       tracer_(new CompilerDispatcherTracer(isolate_)),
       task_manager_(new CancelableTaskManager()),
       next_job_id_(0),
-      shared_to_job_id_(isolate->heap()),
+      shared_to_unoptimized_job_id_(isolate->heap()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       abort_(false),
       idle_task_scheduled_(false),
@@ -222,14 +214,7 @@ bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
 CompilerDispatcher::JobId CompilerDispatcher::Enqueue(
     std::unique_ptr<CompilerDispatcherJob> job) {
   DCHECK(!job->IsFinished());
-  bool added;
-  JobMap::const_iterator it;
-  std::tie(it, added) =
-      jobs_.insert(std::make_pair(next_job_id_++, std::move(job)));
-  DCHECK(added);
-  if (!it->second->shared().is_null()) {
-    shared_to_job_id_.Set(it->second->shared(), it->first);
-  }
+  JobMap::const_iterator it = InsertJob(std::move(job));
   ConsiderJobForBackgroundProcessing(it->second.get());
   ScheduleIdleTaskIfNeeded();
   return it->first;
@@ -238,15 +223,7 @@ CompilerDispatcher::JobId CompilerDispatcher::Enqueue(
 CompilerDispatcher::JobId CompilerDispatcher::EnqueueAndStep(
     std::unique_ptr<CompilerDispatcherJob> job) {
   DCHECK(!job->IsFinished());
-  bool added;
-  JobMap::const_iterator it;
-  std::tie(it, added) =
-      jobs_.insert(std::make_pair(next_job_id_++, std::move(job)));
-  DCHECK(added);
-  if (!it->second->shared().is_null()) {
-    shared_to_job_id_.Set(it->second->shared(), it->first);
-  }
-  JobId id = it->first;
+  JobMap::const_iterator it = InsertJob(std::move(job));
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: stepping ");
     it->second->ShortPrint();
@@ -257,7 +234,7 @@ CompilerDispatcher::JobId CompilerDispatcher::EnqueueAndStep(
   ConsiderJobForBackgroundProcessing(it->second.get());
   RemoveIfFinished(it);
   ScheduleIdleTaskIfNeeded();
-  return id;
+  return it->first;
 }
 
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
@@ -272,19 +249,17 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
     PrintF(" for parse and compile\n");
   }
 
-  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
       isolate_, tracer_.get(), function, max_stack_size_));
   Enqueue(std::move(job));
   return true;
 }
 
-bool CompilerDispatcher::Enqueue(Handle<String> source, int start_position,
-                                 int end_position, LanguageMode language_mode,
-                                 int function_literal_id, bool native,
-                                 bool module, bool is_named_expression,
-                                 int compiler_hints,
-                                 CompileJobFinishCallback* finish_callback,
-                                 JobId* job_id) {
+bool CompilerDispatcher::Enqueue(
+    Handle<String> source, int start_position, int end_position,
+    LanguageMode language_mode, int function_literal_id, bool native,
+    bool module, bool is_named_expression, int compiler_hints,
+    UnoptimizedCompileJobFinishCallback* finish_callback, JobId* job_id) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherEnqueue");
   if (!CanEnqueue()) return false;
@@ -294,7 +269,7 @@ bool CompilerDispatcher::Enqueue(Handle<String> source, int start_position,
            start_position);
   }
 
-  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
       tracer_.get(), max_stack_size_, source, start_position, end_position,
       language_mode, function_literal_id, native, module, is_named_expression,
       isolate_->heap()->HashSeed(), isolate_->allocator(), compiler_hints,
@@ -318,7 +293,7 @@ bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
     PrintF(" for parse and compile\n");
   }
 
-  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
       isolate_, tracer_.get(), function, max_stack_size_));
   EnqueueAndStep(std::move(job));
   return true;
@@ -339,7 +314,7 @@ bool CompilerDispatcher::Enqueue(
     PrintF(" for compile\n");
   }
 
-  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
       isolate_, tracer_.get(), script, function, literal, outer_parse_info,
       compile_handles, max_stack_size_));
   Enqueue(std::move(job));
@@ -361,7 +336,7 @@ bool CompilerDispatcher::EnqueueAndStep(
     PrintF(" for compile\n");
   }
 
-  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
       isolate_, tracer_.get(), script, function, literal, outer_parse_info,
       compile_handles, max_stack_size_));
   EnqueueAndStep(std::move(job));
@@ -460,7 +435,7 @@ void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {
       it.second->ResetOnMainThread();
     }
     jobs_.clear();
-    shared_to_job_id_.Clear();
+    shared_to_unoptimized_job_id_.Clear();
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
       DCHECK(pending_background_jobs_.empty());
@@ -546,11 +521,12 @@ void CompilerDispatcher::MemoryPressureNotification(
 
 CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared) const {
-  JobId* job_id_ptr = shared_to_job_id_.Find(shared);
+  JobId* job_id_ptr = shared_to_unoptimized_job_id_.Find(shared);
   JobMap::const_iterator job = jobs_.end();
   if (job_id_ptr) {
     job = jobs_.find(*job_id_ptr);
-    DCHECK(job == jobs_.end() || job->second->IsAssociatedWith(shared));
+    DCHECK(job == jobs_.end() ||
+           job->second->AsUnoptimizedCompileJob()->IsAssociatedWith(shared));
   }
   return job;
 }
@@ -751,18 +727,51 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveIfFinished(
   return RemoveJob(job);
 }
 
-CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveJob(
-    CompilerDispatcher::JobMap::const_iterator job) {
-  job->second->ResetOnMainThread();
-  if (!job->second->shared().is_null()) {
-    shared_to_job_id_.Delete(job->second->shared());
+CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::InsertJob(
+    std::unique_ptr<CompilerDispatcherJob> job) {
+  bool added;
+  JobMap::const_iterator it;
+  std::tie(it, added) =
+      jobs_.insert(std::make_pair(next_job_id_++, std::move(job)));
+  DCHECK(added);
+
+  JobId id = it->first;
+  CompilerDispatcherJob* inserted_job = it->second.get();
+
+  // Maps unoptimized jobs' SFIs to their job id.
+  if (inserted_job->type() == CompilerDispatcherJob::kUnoptimizedCompile) {
+    Handle<SharedFunctionInfo> shared =
+        inserted_job->AsUnoptimizedCompileJob()->shared();
+    if (!shared.is_null()) {
+      shared_to_unoptimized_job_id_.Set(shared, id);
+    }
   }
-  job = jobs_.erase(job);
+
+  return it;
+}
+
+CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveJob(
+    CompilerDispatcher::JobMap::const_iterator it) {
+  CompilerDispatcherJob* job = it->second.get();
+  job->ResetOnMainThread();
+
+  // Unmaps unoptimized jobs' SFIs to their job id.
+  if (job->type() == CompilerDispatcherJob::kUnoptimizedCompile) {
+    Handle<SharedFunctionInfo> shared =
+        job->AsUnoptimizedCompileJob()->shared();
+    if (!shared.is_null()) {
+      JobId deleted_id = shared_to_unoptimized_job_id_.Delete(shared);
+      USE(deleted_id);
+      DCHECK_EQ(it->first, deleted_id);
+    }
+  }
+
+  it = jobs_.erase(it);
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
     if (num_background_tasks_ == 0) abort_ = false;
   }
-  return job;
+  return it;
 }
 
 }  // namespace internal
