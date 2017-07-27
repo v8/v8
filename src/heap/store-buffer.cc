@@ -31,8 +31,11 @@ void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
   // aligned to 2x the size.  This lets us use a bit test to detect the end of
   // the area.
-  base::VirtualMemory reservation(kStoreBufferSize * 3,
-                                  heap_->GetRandomMmapAddr());
+  base::VirtualMemory reservation;
+  if (!AllocVirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr(),
+                          &reservation)) {
+    V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
+  }
   uintptr_t start_as_int = reinterpret_cast<uintptr_t>(reservation.address());
   start_[0] =
       reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize));

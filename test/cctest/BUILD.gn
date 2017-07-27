@@ -108,6 +108,7 @@ v8_executable("cctest") {
     "test-access-checks.cc",
     "test-accessor-assembler.cc",
     "test-accessors.cc",
+    "test-allocation.cc",
     "test-api-accessors.cc",
     "test-api-interceptors.cc",
     "test-api.cc",
