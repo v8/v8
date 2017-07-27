@@ -3405,6 +3405,13 @@ Node* CodeStubAssembler::IsUndetectableMap(Node* map) {
   return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsUndetectable);
 }
 
+Node* CodeStubAssembler::IsArrayProtectorCellInvalid() {
+  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
+  Node* cell = LoadRoot(Heap::kArrayProtectorRootIndex);
+  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return WordEqual(cell_value, invalid);
+}
+
 Node* CodeStubAssembler::IsCallable(Node* object) {
   return IsCallableMap(LoadMap(object));
 }

@@ -877,6 +877,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsUnseededNumberDictionary(Node* object);
   Node* IsWeakCell(Node* object);
   Node* IsUndetectableMap(Node* map);
+  Node* IsArrayProtectorCellInvalid();
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);

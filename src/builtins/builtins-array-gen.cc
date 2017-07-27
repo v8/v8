@@ -2230,10 +2230,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&holey_object_values);
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
-      Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-      Node* cell = LoadRoot(Heap::kArrayProtectorRootIndex);
-      Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
-      GotoIf(WordEqual(cell_value, invalid), &generic_values);
+      GotoIf(IsArrayProtectorCellInvalid(), &generic_values);
 
       var_value.Bind(UndefinedConstant());
       Node* value = LoadFixedArrayElement(elements, index, 0, SMI_PARAMETERS);
@@ -2245,10 +2242,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&holey_double_values);
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
-      Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-      Node* cell = LoadRoot(Heap::kArrayProtectorRootIndex);
-      Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
-      GotoIf(WordEqual(cell_value, invalid), &generic_values);
+      GotoIf(IsArrayProtectorCellInvalid(), &generic_values);
 
       var_value.Bind(UndefinedConstant());
       Node* value = LoadFixedDoubleArrayElement(
