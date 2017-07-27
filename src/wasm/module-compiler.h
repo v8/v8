@@ -163,8 +163,7 @@ class ModuleCompiler {
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
       Handle<Script> asm_js_script,
       Vector<const byte> asm_js_offset_table_bytes, Factory* factory,
-      WasmInstance* temp_instance, Handle<FixedArray>* function_tables,
-      Handle<FixedArray>* signature_tables);
+      WasmInstance* temp_instance);
 
   Isolate* isolate_;
   std::unique_ptr<WasmModule> module_;
@@ -348,8 +347,6 @@ class AsyncCompileJob {
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
-  Handle<FixedArray> function_tables_;
-  Handle<FixedArray> signature_tables_;
   Handle<WasmCompiledModule> compiled_module_;
   Handle<FixedArray> code_table_;
   std::unique_ptr<WasmInstance> temp_instance_ = nullptr;
