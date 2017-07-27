@@ -1014,7 +1014,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, kScratchReg);
         __ Assert(eq, kWrongFunctionContext);
       }
-      __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ addi(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(ip);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -2448,9 +2449,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         value = Double(src.ToFloat64());
       }
 #else
-      value = Double((src.type() == Constant::kFloat32)
-                         ? static_cast<double>(src.ToFloat32())
-                         : src.ToFloat64());
+      value = src.type() == Constant::kFloat32
+                  ? Double(static_cast<double>(src.ToFloat32()))
+                  : Double(src.ToFloat64());
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {

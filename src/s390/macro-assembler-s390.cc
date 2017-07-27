@@ -421,67 +421,6 @@ void MacroAssembler::RecordWrite(
   }
 }
 
-void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
-                                               Register code_entry,
-                                               Register scratch) {
-  const int offset = JSFunction::kCodeEntryOffset;
-
-  // Since a code entry (value) is always in old space, we don't need to update
-  // remembered set. If incremental marking is off, there is nothing for us to
-  // do.
-  if (!FLAG_incremental_marking) return;
-
-  DCHECK(js_function.is(r3));
-  DCHECK(code_entry.is(r6));
-  DCHECK(scratch.is(r7));
-  AssertNotSmi(js_function);
-
-  if (emit_debug_code()) {
-    AddP(scratch, js_function, Operand(offset - kHeapObjectTag));
-    LoadP(ip, MemOperand(scratch));
-    CmpP(ip, code_entry);
-    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
-  }
-
-  // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis and stores into young gen.
-  Label done;
-
-  CheckPageFlag(code_entry, scratch,
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
-  CheckPageFlag(js_function, scratch,
-                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
-
-  const Register dst = scratch;
-  AddP(dst, js_function, Operand(offset - kHeapObjectTag));
-
-  // Save caller-saved registers.  js_function and code_entry are in the
-  // caller-saved register list.
-  DCHECK(kJSCallerSaved & js_function.bit());
-  // DCHECK(kJSCallerSaved & code_entry.bit());
-  MultiPush(kJSCallerSaved | code_entry.bit() | r14.bit());
-
-  int argument_count = 3;
-  PrepareCallCFunction(argument_count, code_entry);
-
-  LoadRR(r2, js_function);
-  LoadRR(r3, dst);
-  mov(r4, Operand(ExternalReference::isolate_address(isolate())));
-
-  {
-    AllowExternalCallThatCantCauseGC scope(this);
-    CallCFunction(
-        ExternalReference::incremental_marking_record_write_code_entry_function(
-            isolate()),
-        argument_count);
-  }
-
-  // Restore caller-saved registers (including js_function and code_entry).
-  MultiPop(kJSCallerSaved | code_entry.bit() | r14.bit());
-
-  bind(&done);
-}
-
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address, Register scratch,
                                          SaveFPRegsMode fp_mode,
@@ -1380,7 +1319,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // allow recompilation to take effect without changing any of the
     // call sites.
     Register code = ip;
-    LoadP(code, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
+    LoadP(code, FieldMemOperand(function, JSFunction::kCodeOffset));
+    AddP(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
       CallJSEntry(code);
     } else {
