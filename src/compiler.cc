@@ -288,16 +288,6 @@ bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
   return scope->asm_module();
 }
 
-bool UseCompilerDispatcher(ConcurrencyMode inner_function_mode,
-                           CompilerDispatcher* dispatcher,
-                           DeclarationScope* scope,
-                           Handle<SharedFunctionInfo> shared_info,
-                           bool is_debug, bool will_serialize) {
-  return inner_function_mode == ConcurrencyMode::kConcurrent &&
-         dispatcher->IsEnabled() && !is_debug && !will_serialize &&
-         !UseAsmWasm(scope, shared_info, is_debug);
-}
-
 CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   // Function should have been parsed and analyzed before creating a compilation
   // job.
@@ -454,7 +444,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
 
 bool CompileUnoptimizedInnerFunctions(
     Compiler::EagerInnerFunctionLiterals* literals,
-    ConcurrencyMode inner_function_mode, CompilationInfo* outer_info) {
+    CompilationInfo* outer_info) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileUnoptimizedInnerFunctions");
   Isolate* isolate = outer_info->isolate();
@@ -470,36 +460,24 @@ bool CompileUnoptimizedInnerFunctions(
         Compiler::GetSharedFunctionInfo(literal, script, outer_info);
     if (shared->is_compiled()) continue;
 
-    // Try to enqueue the eager function on the compiler dispatcher.
-    CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
-    if (UseCompilerDispatcher(inner_function_mode, dispatcher, literal->scope(),
-                              shared, is_debug, will_serialize) &&
-        dispatcher->EnqueueAndStep(outer_info->script(), shared, literal,
-                                   outer_info->parse_info(),
-                                   outer_info->deferred_handles())) {
-      // If we have successfully queued up the function for compilation on the
-      // compiler dispatcher then we are done.
-      continue;
-    } else {
-      // Otherwise generate unoptimized code now.
-      ParseInfo parse_info(script);
-      CompilationInfo info(parse_info.zone(), &parse_info, isolate, shared,
-                           Handle<JSFunction>::null());
-      parse_info.set_toplevel(false);
-      parse_info.set_literal(literal);
-      parse_info.set_function_literal_id(shared->function_literal_id());
-      parse_info.set_language_mode(literal->scope()->language_mode());
-      parse_info.set_source_range_map(
-          outer_info->parse_info()->source_range_map());
-      parse_info.ShareAstValueFactory(outer_info->parse_info());
+    // Generate unoptimized code now.
+    ParseInfo parse_info(script);
+    CompilationInfo info(parse_info.zone(), &parse_info, isolate, shared,
+                         Handle<JSFunction>::null());
+    parse_info.set_toplevel(false);
+    parse_info.set_literal(literal);
+    parse_info.set_function_literal_id(shared->function_literal_id());
+    parse_info.set_language_mode(literal->scope()->language_mode());
+    parse_info.set_source_range_map(
+        outer_info->parse_info()->source_range_map());
+    parse_info.ShareAstValueFactory(outer_info->parse_info());
 
-      if (will_serialize) info.PrepareForSerializing();
-      if (is_debug) info.MarkAsDebug();
+    if (will_serialize) info.PrepareForSerializing();
+    if (is_debug) info.MarkAsDebug();
 
-      if (!GenerateUnoptimizedCode(&info)) {
-        if (!isolate->has_pending_exception()) isolate->StackOverflow();
-        return false;
-      }
+    if (!GenerateUnoptimizedCode(&info)) {
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+      return false;
     }
   }
   return true;
@@ -514,27 +492,18 @@ bool InnerFunctionShouldUseFullCodegen(
   return false;
 }
 
-bool CompileUnoptimizedCode(CompilationInfo* info,
-                            ConcurrencyMode inner_function_mode) {
+bool CompileUnoptimizedCode(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
-  {
-    base::Optional<CompilationHandleScope> compilation_handle_scope;
-    if (inner_function_mode == ConcurrencyMode::kConcurrent) {
-      compilation_handle_scope.emplace(info);
-    }
-    if (!Compiler::Analyze(info, &inner_literals)) {
-      if (!isolate->has_pending_exception()) isolate->StackOverflow();
-      return false;
-    }
+  if (!Compiler::Analyze(info, &inner_literals)) {
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return false;
   }
 
   if (ShouldUseFullCodegen(info->literal()) ||
       InnerFunctionShouldUseFullCodegen(&inner_literals)) {
-    inner_function_mode = ConcurrencyMode::kNotConcurrent;
-
     // If we might compile with full-codegen internalize now, otherwise
     // we internalize when finalizing compilation.
     info->parse_info()->ast_value_factory()->Internalize(info->isolate());
@@ -550,16 +519,8 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
     }
   }
 
-  if (inner_function_mode == ConcurrencyMode::kConcurrent) {
-    // Seal the parse zone so that it can be shared by parallel inner function
-    // compilation jobs.
-    DCHECK_NE(info->parse_info()->zone(), info->zone());
-    info->parse_info()->zone()->Seal();
-  }
-
   if (!GenerateUnoptimizedCode(info) ||
-      !CompileUnoptimizedInnerFunctions(&inner_literals, inner_function_mode,
-                                        info)) {
+      !CompileUnoptimizedInnerFunctions(&inner_literals, info)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
   }
@@ -568,8 +529,7 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
 }
 
 MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
-    CompilationInfo* info, Handle<SharedFunctionInfo> shared_info,
-    ConcurrencyMode inner_function_mode) {
+    CompilationInfo* info, Handle<SharedFunctionInfo> shared_info) {
   RuntimeCallTimerScope runtimeTimer(
       info->isolate(), &RuntimeCallStats::CompileUnoptimizedFunction);
   VMState<COMPILER> state(info->isolate());
@@ -582,7 +542,7 @@ MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
   }
 
   // Compile either unoptimized code or bytecode for the interpreter.
-  if (!CompileUnoptimizedCode(info, inner_function_mode)) {
+  if (!CompileUnoptimizedCode(info)) {
     return MaybeHandle<Code>();
   }
 
@@ -972,13 +932,9 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
         shared->set_preparsed_scope_data(isolate->heap()->null_value());
       }
     }
-    ConcurrencyMode inner_function_mode = FLAG_compiler_dispatcher_eager_inner
-                                              ? ConcurrencyMode::kConcurrent
-                                              : ConcurrencyMode::kNotConcurrent;
     Handle<Code> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        CompileUnoptimizedFunction(&info, shared, inner_function_mode), Code);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               CompileUnoptimizedFunction(&info, shared), Code);
 
     if (FLAG_always_opt && !info.shared_info()->HasAsmWasmData()) {
       if (FLAG_trace_opt) {
@@ -1007,10 +963,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
-  ConcurrencyMode inner_function_mode = FLAG_compiler_dispatcher_eager_inner
-                                            ? ConcurrencyMode::kConcurrent
-                                            : ConcurrencyMode::kNotConcurrent;
-
   RuntimeCallTimerScope runtimeTimer(
       isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
                                      : &RuntimeCallStats::CompileScript);
@@ -1036,7 +988,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
                  parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
     // Compile the code.
-    if (!CompileUnoptimizedCode(info, inner_function_mode)) {
+    if (!CompileUnoptimizedCode(info)) {
       return Handle<SharedFunctionInfo>::null();
     }
 
@@ -1172,9 +1124,7 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
       return false;
     }
   } else {
-    if (CompileUnoptimizedFunction(&info, shared,
-                                   ConcurrencyMode::kNotConcurrent)
-            .is_null()) {
+    if (CompileUnoptimizedFunction(&info, shared).is_null()) {
       isolate->clear_pending_exception();
       return false;
     }
@@ -1231,9 +1181,7 @@ bool Compiler::EnsureBytecode(CompilationInfo* info) {
     CompilerDispatcher* dispatcher = info->isolate()->compiler_dispatcher();
     if (dispatcher->IsEnqueued(shared_info)) {
       if (!dispatcher->FinishNow(info->shared_info())) return false;
-    } else if (CompileUnoptimizedFunction(info, shared_info,
-                                          ConcurrencyMode::kNotConcurrent)
-                   .is_null()) {
+    } else if (CompileUnoptimizedFunction(info, shared_info).is_null()) {
       return false;
     }
   }

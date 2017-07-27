@@ -808,8 +808,6 @@ DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 
 // compiler-dispatcher.cc
 DEFINE_BOOL(compiler_dispatcher, false, "enable compiler dispatcher")
-DEFINE_BOOL(compiler_dispatcher_eager_inner, false,
-            "enable background compilation of eager inner functions")
 DEFINE_BOOL(trace_compiler_dispatcher, false,
             "trace compiler dispatcher activity")
 

@@ -97,20 +97,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // true if the job was enqueued.
   bool EnqueueAndStep(Handle<SharedFunctionInfo> function);
 
-  // Enqueue a job for compilation. Function must have already been parsed and
-  // analyzed and be ready for compilation. Returns true if a job was enqueued.
-  bool Enqueue(Handle<Script> script, Handle<SharedFunctionInfo> function,
-               FunctionLiteral* literal, ParseInfo* outer_parse_info,
-               std::shared_ptr<DeferredHandles> compile_handles);
-
-  // Like Enqueue, but also advances the job so that it can potentially
-  // continue running on a background thread (if at all possible). Returns
-  // true if the job was enqueued.
-  bool EnqueueAndStep(Handle<Script> script,
-                      Handle<SharedFunctionInfo> function,
-                      FunctionLiteral* literal, ParseInfo* outer_parse_info,
-                      std::shared_ptr<DeferredHandles> compile_handles);
-
   // Returns true if there is a pending job for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
 

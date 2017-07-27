@@ -299,50 +299,6 @@ bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
   return true;
 }
 
-bool CompilerDispatcher::Enqueue(
-    Handle<Script> script, Handle<SharedFunctionInfo> function,
-    FunctionLiteral* literal, ParseInfo* outer_parse_info,
-    std::shared_ptr<DeferredHandles> compile_handles) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherEnqueue");
-  if (!CanEnqueue(function)) return false;
-  if (IsEnqueued(function)) return true;
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: enqueuing ");
-    function->ShortPrint();
-    PrintF(" for compile\n");
-  }
-
-  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
-      isolate_, tracer_.get(), script, function, literal, outer_parse_info,
-      compile_handles, max_stack_size_));
-  Enqueue(std::move(job));
-  return true;
-}
-
-bool CompilerDispatcher::EnqueueAndStep(
-    Handle<Script> script, Handle<SharedFunctionInfo> function,
-    FunctionLiteral* literal, ParseInfo* outer_parse_info,
-    std::shared_ptr<DeferredHandles> compile_handles) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherEnqueueAndStep");
-  if (!CanEnqueue(function)) return false;
-  if (IsEnqueued(function)) return true;
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: enqueuing ");
-    function->ShortPrint();
-    PrintF(" for compile\n");
-  }
-
-  std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
-      isolate_, tracer_.get(), script, function, literal, outer_parse_info,
-      compile_handles, max_stack_size_));
-  EnqueueAndStep(std::move(job));
-  return true;
-}
-
 bool CompilerDispatcher::IsEnabled() const { return FLAG_compiler_dispatcher; }
 
 bool CompilerDispatcher::IsEnqueued(Handle<SharedFunctionInfo> function) const {

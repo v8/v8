@@ -64,13 +64,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
                         AccountingAllocator* zone_allocator, int compiler_hints,
                         const AstStringConstants* ast_string_constants,
                         UnoptimizedCompileJobFinishCallback* finish_callback);
-  // Creates a UnoptimizedCompileJob in the analyzed state.
-  UnoptimizedCompileJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
-                        Handle<Script> script,
-                        Handle<SharedFunctionInfo> shared,
-                        FunctionLiteral* literal, ParseInfo* outer_parse_info,
-                        std::shared_ptr<DeferredHandles> compile_handles,
-                        size_t max_stack_size);
 
   ~UnoptimizedCompileJob() override;
 

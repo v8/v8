@@ -132,37 +132,6 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
   }
 }
 
-UnoptimizedCompileJob::UnoptimizedCompileJob(
-    Isolate* isolate, CompilerDispatcherTracer* tracer, Handle<Script> script,
-    Handle<SharedFunctionInfo> shared, FunctionLiteral* literal,
-    ParseInfo* outer_parse_info,
-    std::shared_ptr<DeferredHandles> compile_handles, size_t max_stack_size)
-    : status_(Status::kAnalyzed),
-      isolate_(isolate),
-      tracer_(tracer),
-      context_(isolate_->global_handles()->Create(isolate->context())),
-      shared_(isolate_->global_handles()->Create(*shared)),
-      max_stack_size_(max_stack_size),
-      parse_info_(new ParseInfo(shared_)),
-      compile_zone_(new Zone(isolate->allocator(), ZONE_NAME)),
-      compile_info_(new CompilationInfo(compile_zone_.get(), parse_info_.get(),
-                                        isolate_, shared_,
-                                        Handle<JSFunction>::null())),
-      trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
-  parse_info_->set_literal(literal);
-  parse_info_->set_script(script);
-  parse_info_->ShareAstValueFactory(outer_parse_info);
-  parse_info_->ShareZone(outer_parse_info);
-
-  compile_info_->set_deferred_handles(compile_handles);
-
-  if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p] created for ", static_cast<void*>(this));
-    ShortPrint();
-    PrintF(" in Analyzed state.\n");
-  }
-}
-
 UnoptimizedCompileJob::~UnoptimizedCompileJob() {
   DCHECK(status_ == Status::kInitial ||
          (status_ == Status::kReadyToParse && finish_callback_) ||
