@@ -344,8 +344,7 @@ class TestingModule : public ModuleEnv {
     Handle<FixedArray> code_table = isolate_->factory()->NewFixedArray(0);
 
     Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-        isolate_, shared_module_data, code_table, MaybeHandle<FixedArray>(),
-        MaybeHandle<FixedArray>());
+        isolate_, shared_module_data, code_table, {}, {});
     Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
     compiled_module->set_weak_exported_functions(weak_exported);
     DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));

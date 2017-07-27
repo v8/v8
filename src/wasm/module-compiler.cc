@@ -337,23 +337,17 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObject(
 
   // Initialize the indirect tables with placeholders.
   int function_table_count = static_cast<int>(module_->function_tables.size());
-  Handle<FixedArray> function_tables =
-      factory->NewFixedArray(function_table_count, TENURED);
-  Handle<FixedArray> signature_tables =
-      factory->NewFixedArray(function_table_count, TENURED);
   for (int i = 0; i < function_table_count; ++i) {
     temp_instance.function_tables[i] = factory->NewFixedArray(1, TENURED);
     temp_instance.signature_tables[i] = factory->NewFixedArray(1, TENURED);
-    function_tables->set(i, *temp_instance.function_tables[i]);
-    signature_tables->set(i, *temp_instance.signature_tables[i]);
   }
 
   TimedHistogramScope wasm_compile_module_time_scope(
       module_->is_wasm() ? counters()->wasm_compile_wasm_module_time()
                          : counters()->wasm_compile_asm_module_time());
-  return CompileToModuleObjectInternal(
-      thrower, wire_bytes, asm_js_script, asm_js_offset_table_bytes, factory,
-      &temp_instance, &function_tables, &signature_tables);
+  return CompileToModuleObjectInternal(thrower, wire_bytes, asm_js_script,
+                                       asm_js_offset_table_bytes, factory,
+                                       &temp_instance);
 }
 
 namespace {
@@ -562,8 +556,7 @@ void ResolvePromise(Isolate* isolate, Handle<Context> context,
 MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
     Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes,
-    Factory* factory, WasmInstance* temp_instance,
-    Handle<FixedArray>* function_tables, Handle<FixedArray>* signature_tables) {
+    Factory* factory, WasmInstance* temp_instance) {
   ModuleBytesEnv module_env(module_.get(), temp_instance, wire_bytes);
 
   // The {code_table} array contains import wrappers and functions (which
@@ -668,7 +661,8 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate_, shared, code_table, *function_tables, *signature_tables);
+      isolate_, shared, code_table, *module_env.module_env.function_tables,
+      *module_env.module_env.signature_tables);
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
@@ -1912,8 +1906,6 @@ AsyncCompileJob::~AsyncCompileJob() {
 
 void AsyncCompileJob::ReopenHandlesInDeferredScope() {
   DeferredHandleScope deferred(isolate_);
-  function_tables_ = handle(*function_tables_, isolate_);
-  signature_tables_ = handle(*signature_tables_, isolate_);
   code_table_ = handle(*code_table_, isolate_);
   temp_instance_->ReopenHandles(isolate_);
   compiler_->ReopenHandlesInDeferredScope();
@@ -2079,18 +2071,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // Initialize the indirect tables with placeholders.
     int function_table_count =
         static_cast<int>(module_->function_tables.size());
-    job_->function_tables_ =
-        factory->NewFixedArray(function_table_count, TENURED);
-    job_->signature_tables_ =
-        factory->NewFixedArray(function_table_count, TENURED);
     for (int i = 0; i < function_table_count; ++i) {
       job_->temp_instance_->function_tables[i] =
           factory->NewFixedArray(1, TENURED);
       job_->temp_instance_->signature_tables[i] =
           factory->NewFixedArray(1, TENURED);
-      job_->function_tables_->set(i, *job_->temp_instance_->function_tables[i]);
-      job_->signature_tables_->set(i,
-                                   *job_->temp_instance_->signature_tables[i]);
     }
 
     // The {code_table} array contains import wrappers and functions (which
@@ -2302,9 +2287,10 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of
     // this object.
-    job_->compiled_module_ = WasmCompiledModule::New(
-        job_->isolate_, shared, job_->code_table_, job_->function_tables_,
-        job_->signature_tables_);
+    job_->compiled_module_ =
+        WasmCompiledModule::New(job_->isolate_, shared, job_->code_table_,
+                                job_->temp_instance_->function_tables,
+                                job_->temp_instance_->signature_tables);
 
     // Finish the wasm script now and make it public to the debugger.
     script->set_wasm_compiled_module(*job_->compiled_module_);

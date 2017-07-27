@@ -793,8 +793,8 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
     Handle<FixedArray> code_table,
-    MaybeHandle<FixedArray> maybe_empty_function_tables,
-    MaybeHandle<FixedArray> maybe_signature_tables) {
+    const std::vector<Handle<FixedArray>>& function_tables,
+    const std::vector<Handle<FixedArray>>& signature_tables) {
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
   // WasmCompiledModule::cast would fail since fields are not set yet.
@@ -804,15 +804,22 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_shared(shared);
   compiled_module->set_native_context(isolate->native_context());
   compiled_module->set_code_table(code_table);
-  int function_table_count =
-      static_cast<int>(shared->module()->function_tables.size());
+  size_t function_table_count = shared->module()->function_tables.size();
   if (function_table_count > 0) {
-    compiled_module->set_signature_tables(
-        maybe_signature_tables.ToHandleChecked());
-    compiled_module->set_empty_function_tables(
-        maybe_empty_function_tables.ToHandleChecked());
-    compiled_module->set_function_tables(
-        maybe_empty_function_tables.ToHandleChecked());
+    DCHECK_EQ(function_tables.size(), signature_tables.size());
+    DCHECK_EQ(function_tables.size(), function_table_count);
+    int count_as_int = static_cast<int>(function_table_count);
+    Handle<FixedArray> sig_tables =
+        isolate->factory()->NewFixedArray(count_as_int, TENURED);
+    Handle<FixedArray> func_tables =
+        isolate->factory()->NewFixedArray(count_as_int, TENURED);
+    for (int i = 0; i < count_as_int; ++i) {
+      sig_tables->set(i, *(signature_tables[static_cast<size_t>(i)]));
+      func_tables->set(i, *(function_tables[static_cast<size_t>(i)]));
+    }
+    compiled_module->set_signature_tables(sig_tables);
+    compiled_module->set_empty_function_tables(func_tables);
+    compiled_module->set_function_tables(func_tables);
   }
   // TODO(mtrofin): we copy these because the order of finalization isn't
   // reliable, and we need these at Reset (which is called at
