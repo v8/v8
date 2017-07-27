@@ -787,7 +787,7 @@ def Execute(arch, mode, args, options, suites):
   simulator_run = not options.dont_skip_simulator_slow_tests and \
       arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
                'ppc', 'ppc64', 's390', 's390x'] and \
-      ARCH_GUESS and arch != ARCH_GUESS
+      bool(ARCH_GUESS) and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,

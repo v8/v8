@@ -144,14 +144,14 @@
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
-['arch == arm64 and simulator_run == True', {
+['arch == arm64 and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
   'test-api/Threading*': [PASS, SKIP],
-}],  # 'arch == arm64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and mode == debug and simulator_run == True', {
+['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -163,7 +163,7 @@
 
   # BUG(v8:5193): Flaky crash.
   'test-sampler/LibSamplerCollectSample': [SKIP],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True'
+}],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
 ['asan == True', {
@@ -265,11 +265,11 @@
 }],  # 'system == macos'
 
 ##############################################################################
-['arch == arm and simulator_run == True', {
+['arch == arm and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/Threading*': [PASS, SKIP],
-}],  # 'arch == arm and simulator_run == True'
+}],  # 'arch == arm and simulator_run'
 
 ##############################################################################
 ['arch == arm', {
@@ -399,13 +399,13 @@
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
-['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
 
-}],  # 'arch == ppc64 and simulator_run == True'
+}],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
 ['variant == turbofan_opt', {
