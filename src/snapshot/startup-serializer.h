@@ -63,6 +63,7 @@ class StartupSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
+  bool MustBeDeferred(HeapObject* object) override;
 
   // Some roots should not be serialized, because their actual value depends on
   // absolute addresses and they are reset after deserialization, anyway.

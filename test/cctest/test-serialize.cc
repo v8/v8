@@ -184,6 +184,54 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
   isolate->Dispose();
 }
 
+UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
+  DisableAlwaysOpt();
+  v8::SnapshotCreator snapshot_creator;
+  v8::Isolate* isolate = snapshot_creator.GetIsolate();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
+    // Here is interesting retaining path:
+    // - FreeSpaceMap
+    // - Map for Map types itself
+    // - NullValue
+    // - Internalized one byte string
+    // - Map for Internalized one byte string
+    // - WeakCell
+    // - TheHoleValue
+    // - HeapNumber
+    // HeapNumber objects require kDoubleUnaligned on 32-bit
+    // platforms. So, without special measures we're risking to serialize
+    // object, requiring alignment before FreeSpaceMap is fully serialized.
+    v8::internal::Handle<Map> map(
+        internal_isolate->heap()->one_byte_internalized_string_map());
+    Map::WeakCellForMap(map);
+    // Need to avoid DCHECKs inside SnapshotCreator.
+    snapshot_creator.SetDefaultContext(v8::Context::New(isolate));
+  }
+
+  v8::StartupData startup_data = snapshot_creator.CreateBlob(
+      v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &startup_data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  isolate = v8::Isolate::New(params);
+
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
+    env->Enter();
+
+    SanityCheck(isolate);
+  }
+  isolate->Dispose();
+  delete[] startup_data.data;
+}
+
 UNINITIALIZED_TEST(StartupSerializerTwice) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);

@@ -196,5 +196,21 @@ void StartupSerializer::CheckRehashability(HeapObject* table) {
   can_be_rehashed_ = false;
 }
 
+bool StartupSerializer::MustBeDeferred(HeapObject* object) {
+  if (root_has_been_serialized_.test(Heap::kFreeSpaceMapRootIndex) &&
+      root_has_been_serialized_.test(Heap::kOnePointerFillerMapRootIndex) &&
+      root_has_been_serialized_.test(Heap::kTwoPointerFillerMapRootIndex)) {
+    // All required root objects are serialized, so any aligned objects can
+    // be saved without problems.
+    return false;
+  }
+  // Just defer everything except of Map objects until all required roots are
+  // serialized. Some objects may have special alignment requirements, that may
+  // not be fulfilled during deserialization until few first root objects are
+  // serialized. But we must serialize Map objects since deserializer checks
+  // that these root objects are indeed Maps.
+  return !object->IsMap();
+}
+
 }  // namespace internal
 }  // namespace v8
