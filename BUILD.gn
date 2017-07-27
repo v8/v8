@@ -1246,6 +1246,8 @@ v8_source_set("v8_base") {
     "src/compiler-dispatcher/compiler-dispatcher.h",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
+    "src/compiler-dispatcher/unoptimized-compile-job.cc",
+    "src/compiler-dispatcher/unoptimized-compile-job.h",
     "src/compiler.cc",
     "src/compiler.h",
     "src/compiler/access-builder.cc",
