@@ -211,10 +211,9 @@ DEFINE_IMPLICATION(es_staging, harmony)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
   V(harmony_function_tostring, "harmony Function.prototype.toString")   \
-  V(harmony_regexp_dotall, "harmony regexp dotall flag")                \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")             \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
-  V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(harmony_regexp_property, "harmony Unicode regexp property classes") \
   V(harmony_strict_legacy_accessor_builtins,                            \
     "treat __defineGetter__ and related functions as strict")           \
   V(harmony_template_escapes,                                           \
@@ -225,10 +224,11 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_dynamic_import, "harmony dynamic import")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                           \
-  V(harmony_restrictive_generators,                   \
-    "harmony restrictions on generator declarations") \
-  V(harmony_object_rest_spread, "harmony object rest spread properties")
+#define HARMONY_SHIPPING(V)                                              \
+  V(harmony_restrictive_generators,                                      \
+    "harmony restrictions on generator declarations")                    \
+  V(harmony_object_rest_spread, "harmony object rest spread properties") \
+  V(harmony_regexp_dotall, "harmony regexp dotAll flag")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
