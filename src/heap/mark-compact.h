@@ -376,6 +376,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   int NumberOfParallelMarkingTasks(int pages);
 
   MarkingWorklist* worklist_;
+
   YoungGenerationMarkingVisitor* main_marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   std::vector<Page*> new_space_evacuation_pages_;
@@ -388,12 +389,12 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
+  static const int kMainThread = 0;
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
     using ConcurrentMarkingWorklist = Worklist<HeapObject*, 64>;
 
-    static const int kMainThread = 0;
     // The heap parameter is not used but needed to match the sequential case.
     explicit MarkingWorklist(Heap* heap) {}
 
@@ -486,6 +487,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
   };
+
+  using WeakCellWorklist = Worklist<WeakCell*, 64 /* segment size */>;
 
   class RootMarkingVisitor;
 
@@ -639,6 +642,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
 
+  void AddWeakCell(WeakCell* weak_cell) {
+    weak_cells_.Push(kMainThread, weak_cell);
+  }
+
   Sweeper& sweeper() { return sweeper_; }
 
 #ifdef DEBUG
@@ -735,10 +742,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // and deoptimize dependent code of non-live maps.
   void ClearNonLiveReferences() override;
   void MarkDependentCodeForDeoptimization(DependentCode* list);
-  // Find non-live targets of simple transitions in the given list. Clear
-  // transitions to non-live targets and if needed trim descriptors arrays.
-  void ClearSimpleMapTransitions(Object* non_live_map_list);
-  void ClearSimpleMapTransition(Map* map, Map* dead_transition);
+  // Checks if the given weak cell is a simple transition from the parent map
+  // of the given dead target. If so it clears the transition and trims
+  // the descriptor array of the parent if needed.
+  void ClearSimpleMapTransition(WeakCell* potential_transition,
+                                Map* dead_target);
+  void ClearSimpleMapTransition(Map* map, Map* dead_target);
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();
@@ -761,8 +770,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // collections when incremental marking is aborted.
   void AbortWeakCollections();
 
-  void ClearWeakCells(Object** non_live_map_list,
-                      DependentCode** dependent_code_list);
+  // Goes through the list of encountered weak cells and clears those with
+  // dead values. If the value is a dead map and the parent map transitions to
+  // the dead map via weak cell, then this function also clears the map
+  // transition.
+  void ClearWeakCellsAndSimpleMapTransitions(
+      DependentCode** dependent_code_list);
   void AbortWeakCells();
 
   void AbortTransitionArrays();
@@ -816,6 +829,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool have_code_to_deoptimize_;
 
   MarkingWorklist marking_worklist_;
+  WeakCellWorklist weak_cells_;
 
   // Candidates for pages that should be evacuated.
   std::vector<Page*> evacuation_candidates_;

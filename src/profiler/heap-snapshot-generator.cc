@@ -1855,8 +1855,6 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
   if (parent->IsContext() &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK))
     return false;
-  if (parent->IsWeakCell() && field_offset == WeakCell::kNextOffset)
-    return false;
   return true;
 }
 

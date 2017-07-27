@@ -219,7 +219,7 @@ int MarkingVisitor<ConcreteVisitor>::VisitWeakCell(Map* map,
   // Enqueue weak cell in linked list of encountered weak collections.
   // We can ignore weak cells with cleared values because they will always
   // contain smi zero.
-  if (weak_cell->next_cleared() && !weak_cell->cleared()) {
+  if (!weak_cell->cleared()) {
     HeapObject* value = HeapObject::cast(weak_cell->value());
     if (ObjectMarking::IsBlackOrGrey<IncrementalMarking::kAtomicity>(
             value, collector_->marking_state(value))) {
@@ -231,9 +231,7 @@ int MarkingVisitor<ConcreteVisitor>::VisitWeakCell(Map* map,
       // If we do not know about liveness of values of weak cells, we have to
       // process them when we know the liveness of the whole transitive
       // closure.
-      weak_cell->set_next(heap_->encountered_weak_cells(),
-                          UPDATE_WEAK_WRITE_BARRIER);
-      heap_->set_encountered_weak_cells(weak_cell);
+      collector_->AddWeakCell(weak_cell);
     }
   }
   return WeakCell::BodyDescriptor::SizeOf(map, weak_cell);

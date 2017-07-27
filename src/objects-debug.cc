@@ -851,7 +851,6 @@ void PropertyCell::PropertyCellVerify() {
 void WeakCell::WeakCellVerify() {
   CHECK(IsWeakCell());
   VerifyObjectField(kValueOffset);
-  VerifyObjectField(kNextOffset);
 }
 
 

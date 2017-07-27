@@ -6209,12 +6209,6 @@ class WeakCell : public HeapObject {
 
   inline bool cleared() const;
 
-  DECL_ACCESSORS(next, Object)
-
-  inline void clear_next(Object* the_hole_value);
-
-  inline bool next_cleared();
-
   DECL_CAST(WeakCell)
 
   DECL_PRINTER(WeakCell)
@@ -6222,8 +6216,7 @@ class WeakCell : public HeapObject {
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kNextOffset = kValueOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
+  static const int kSize = kValueOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
 

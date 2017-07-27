@@ -748,11 +748,6 @@ class Heap {
   }
   void IterateEncounteredWeakCollections(RootVisitor* visitor);
 
-  void set_encountered_weak_cells(Object* weak_cell) {
-    encountered_weak_cells_ = weak_cell;
-  }
-  Object* encountered_weak_cells() const { return encountered_weak_cells_; }
-
   void set_encountered_transition_arrays(Object* transition_array) {
     encountered_transition_arrays_ = transition_array;
   }
@@ -2281,8 +2276,6 @@ class Heap {
   // marking. It is initialized during marking, destroyed after marking and
   // contains Smi(0) while marking is not active.
   Object* encountered_weak_collections_;
-
-  Object* encountered_weak_cells_;
 
   Object* encountered_transition_arrays_;
 

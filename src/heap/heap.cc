@@ -176,7 +176,6 @@ Heap::Heap()
   set_native_contexts_list(NULL);
   set_allocation_sites_list(Smi::kZero);
   set_encountered_weak_collections(Smi::kZero);
-  set_encountered_weak_cells(Smi::kZero);
   set_encountered_transition_arrays(Smi::kZero);
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
@@ -2723,7 +2722,6 @@ AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   }
   result->set_map_after_allocation(weak_cell_map(), SKIP_WRITE_BARRIER);
   WeakCell::cast(result)->initialize(value);
-  WeakCell::cast(result)->clear_next(the_hole_value());
   return result;
 }
 

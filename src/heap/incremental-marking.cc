@@ -631,44 +631,6 @@ void IncrementalMarking::MarkRoots() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
-void IncrementalMarking::ProcessWeakCells() {
-  DCHECK(!finalize_marking_completed_);
-  DCHECK(IsMarking());
-
-  Object* the_hole_value = heap()->the_hole_value();
-  Object* weak_cell_obj = heap()->encountered_weak_cells();
-  Object* weak_cell_head = Smi::kZero;
-  WeakCell* prev_weak_cell_obj = NULL;
-  while (weak_cell_obj != Smi::kZero) {
-    WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
-    // We do not insert cleared weak cells into the list, so the value
-    // cannot be a Smi here.
-    HeapObject* value = HeapObject::cast(weak_cell->value());
-    // Remove weak cells with live objects from the list, they do not need
-    // clearing.
-    if (ObjectMarking::IsBlackOrGrey<kAtomicity>(value, marking_state(value))) {
-      // Record slot, if value is pointing to an evacuation candidate.
-      Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-      heap_->mark_compact_collector()->RecordSlot(weak_cell, slot, *slot);
-      // Remove entry somewhere after top.
-      if (prev_weak_cell_obj != NULL) {
-        prev_weak_cell_obj->set_next(weak_cell->next());
-      }
-      weak_cell_obj = weak_cell->next();
-      weak_cell->clear_next(the_hole_value);
-    } else {
-      if (weak_cell_head == Smi::kZero) {
-        weak_cell_head = weak_cell;
-      }
-      prev_weak_cell_obj = weak_cell;
-      weak_cell_obj = weak_cell->next();
-    }
-  }
-  // Top may have changed.
-  heap()->set_encountered_weak_cells(weak_cell_head);
-}
-
-
 bool ShouldRetainMap(Map* map, int age) {
   if (age == 0) {
     // The map has aged. Do not retain this map.
@@ -756,7 +718,6 @@ void IncrementalMarking::FinalizeIncrementally() {
     // so we can do it only once at the beginning of the finalization.
     RetainMaps();
   }
-  ProcessWeakCells();
 
   int marking_progress =
       heap_->mark_compact_collector()->marking_worklist()->Size() +

@@ -7065,8 +7065,6 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kWeakCellMapRootIndex));
   StoreMapNoWriteBarrier(cell, Heap::kWeakCellMapRootIndex);
   StoreObjectField(cell, WeakCell::kValueOffset, value);
-  StoreObjectFieldRoot(cell, WeakCell::kNextOffset,
-                       Heap::kTheHoleValueRootIndex);
 
   // Store the WeakCell in the feedback vector.
   StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER, 0,

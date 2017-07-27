@@ -1445,24 +1445,6 @@ void WeakCell::initialize(HeapObject* val) {
 
 bool WeakCell::cleared() const { return value() == Smi::kZero; }
 
-Object* WeakCell::next() const { return READ_FIELD(this, kNextOffset); }
-
-
-void WeakCell::set_next(Object* val, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kNextOffset, val);
-  if (mode == UPDATE_WRITE_BARRIER) {
-    WRITE_BARRIER(GetHeap(), this, kNextOffset, val);
-  }
-}
-
-
-void WeakCell::clear_next(Object* the_hole_value) {
-  DCHECK_EQ(GetHeap()->the_hole_value(), the_hole_value);
-  set_next(the_hole_value, SKIP_WRITE_BARRIER);
-}
-
-bool WeakCell::next_cleared() { return next()->IsTheHole(GetIsolate()); }
-
 int JSObject::GetHeaderSize() {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal

@@ -422,6 +422,7 @@ void MinorMarkCompactCollector::SetUp() {}
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
+  weak_cells_.Clear();
   marking_worklist()->TearDown();
 }
 
@@ -2779,12 +2780,9 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   DependentCode* dependent_code_list;
-  Object* non_live_map_list;
-  ClearWeakCells(&non_live_map_list, &dependent_code_list);
-
+  ClearWeakCellsAndSimpleMapTransitions(&dependent_code_list);
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
-    ClearSimpleMapTransitions(non_live_map_list);
     ClearFullMapTransitions();
   }
 
@@ -2854,40 +2852,27 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization(
   }
 }
 
-
-void MarkCompactCollector::ClearSimpleMapTransitions(
-    Object* non_live_map_list) {
-  Object* the_hole_value = heap()->the_hole_value();
-  Object* weak_cell_obj = non_live_map_list;
-  while (weak_cell_obj != Smi::kZero) {
-    WeakCell* weak_cell = WeakCell::cast(weak_cell_obj);
-    Map* map = Map::cast(weak_cell->value());
-    DCHECK(ObjectMarking::IsWhite(map, MarkingState::Internal(map)));
-    Object* potential_parent = map->constructor_or_backpointer();
-    if (potential_parent->IsMap()) {
-      Map* parent = Map::cast(potential_parent);
-      if (ObjectMarking::IsBlackOrGrey(parent,
-                                       MarkingState::Internal(parent)) &&
-          parent->raw_transitions() == weak_cell) {
-        ClearSimpleMapTransition(parent, map);
-      }
+void MarkCompactCollector::ClearSimpleMapTransition(
+    WeakCell* potential_transition, Map* dead_target) {
+  DCHECK(ObjectMarking::IsWhite(dead_target, marking_state(dead_target)));
+  Object* potential_parent = dead_target->constructor_or_backpointer();
+  if (potential_parent->IsMap()) {
+    Map* parent = Map::cast(potential_parent);
+    if (ObjectMarking::IsBlackOrGrey(parent, marking_state(parent)) &&
+        parent->raw_transitions() == potential_transition) {
+      ClearSimpleMapTransition(parent, dead_target);
     }
-    weak_cell->clear();
-    weak_cell_obj = weak_cell->next();
-    weak_cell->clear_next(the_hole_value);
   }
 }
 
-
 void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
-                                                    Map* dead_transition) {
-  // A previously existing simple transition (stored in a WeakCell) is going
-  // to be cleared. Clear the useless cell pointer, and take ownership
-  // of the descriptor array.
+                                                    Map* dead_target) {
+  // Clear the useless weak cell pointer, and take ownership of the descriptor
+  // array.
   map->set_raw_transitions(Smi::kZero);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   DescriptorArray* descriptors = map->instance_descriptors();
-  if (descriptors == dead_transition->instance_descriptors() &&
+  if (descriptors == dead_target->instance_descriptors() &&
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
     DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
@@ -3081,25 +3066,18 @@ void MarkCompactCollector::AbortWeakCollections() {
   heap()->set_encountered_weak_collections(Smi::kZero);
 }
 
-
-void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
-                                          DependentCode** dependent_code_list) {
+void MarkCompactCollector::ClearWeakCellsAndSimpleMapTransitions(
+    DependentCode** dependent_code_list) {
   Heap* heap = this->heap();
   TRACE_GC(heap->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_CELLS);
-  Object* weak_cell_obj = heap->encountered_weak_cells();
-  Object* the_hole_value = heap->the_hole_value();
   DependentCode* dependent_code_head =
       DependentCode::cast(heap->empty_fixed_array());
-  Object* non_live_map_head = Smi::kZero;
-  while (weak_cell_obj != Smi::kZero) {
-    WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
-    Object* next_weak_cell = weak_cell->next();
-    bool clear_value = true;
-    bool clear_next = true;
+  WeakCell* weak_cell;
+  while (weak_cells_.Pop(kMainThread, &weak_cell)) {
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
     HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (!ObjectMarking::IsBlackOrGrey(value, MarkingState::Internal(value))) {
+    if (!ObjectMarking::IsBlackOrGrey(value, marking_state(value))) {
       // Cells for new-space objects embedded in optimized code are wrapped in
       // WeakCell and put into Heap::weak_object_to_code_table.
       // Such cells do not have any strong references but we want to keep them
@@ -3117,10 +3095,10 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
           RecordSlot(value, slot, *slot);
           slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
           RecordSlot(weak_cell, slot, *slot);
-          clear_value = false;
+        } else {
+          weak_cell->clear();
         }
-      }
-      if (value->IsMap()) {
+      } else if (value->IsMap()) {
         // The map is non-live.
         Map* map = Map::cast(value);
         // Add dependent code to the dependent_code_list.
@@ -3132,43 +3110,22 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
           candidate->set_next_link(dependent_code_head);
           dependent_code_head = candidate;
         }
-        // Add the weak cell to the non_live_map list.
-        weak_cell->set_next(non_live_map_head);
-        non_live_map_head = weak_cell;
-        clear_value = false;
-        clear_next = false;
+        ClearSimpleMapTransition(weak_cell, map);
+        weak_cell->clear();
+      } else {
+        // All other objects.
+        weak_cell->clear();
       }
     } else {
       // The value of the weak cell is alive.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
       RecordSlot(weak_cell, slot, *slot);
-      clear_value = false;
     }
-    if (clear_value) {
-      weak_cell->clear();
-    }
-    if (clear_next) {
-      weak_cell->clear_next(the_hole_value);
-    }
-    weak_cell_obj = next_weak_cell;
   }
-  heap->set_encountered_weak_cells(Smi::kZero);
-  *non_live_map_list = non_live_map_head;
   *dependent_code_list = dependent_code_head;
 }
 
-
-void MarkCompactCollector::AbortWeakCells() {
-  Object* the_hole_value = heap()->the_hole_value();
-  Object* weak_cell_obj = heap()->encountered_weak_cells();
-  while (weak_cell_obj != Smi::kZero) {
-    WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
-    weak_cell_obj = weak_cell->next();
-    weak_cell->clear_next(the_hole_value);
-  }
-  heap()->set_encountered_weak_cells(Smi::kZero);
-}
-
+void MarkCompactCollector::AbortWeakCells() { weak_cells_.Clear(); }
 
 void MarkCompactCollector::AbortTransitionArrays() {
   HeapObject* undefined = heap()->undefined_value();
