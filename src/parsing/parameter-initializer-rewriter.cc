@@ -42,21 +42,24 @@ void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
 
 
 void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
-  if (class_literal->extends() != nullptr) {
-    Visit(class_literal->extends());
-  }
+  class_literal->scope()->ReplaceOuterScope(scope_);
   // No need to visit the constructor since it will have the class
   // scope on its scope chain.
+  DCHECK_EQ(class_literal->constructor()->scope()->outer_scope(),
+            class_literal->scope());
+#if DEBUG
+  // The same goes for the rest of the class, but we do some
+  // sanity checking in debug mode.
   ZoneList<ClassLiteralProperty*>* props = class_literal->properties();
   for (int i = 0; i < props->length(); ++i) {
     ClassLiteralProperty* prop = props->at(i);
-    if (!prop->key()->IsLiteral()) {
-      Visit(prop->key());
-    }
     // No need to visit the values, since all values are functions with
     // the class scope on their scope chain.
     DCHECK(prop->value()->IsFunctionLiteral());
+    DCHECK_EQ(prop->value()->AsFunctionLiteral()->scope()->outer_scope(),
+              class_literal->scope());
   }
+#endif
 }
 
 
