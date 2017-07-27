@@ -40,7 +40,7 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   DISALLOW_COPY_AND_ASSIGN(ScriptResource);
 };
 
-class FinishCallback : public UnoptimizedCompileJobFinishCallback {
+class FinishCallback : public CompileJobFinishCallback {
  public:
   void ParseFinished(std::unique_ptr<ParseInfo> result) override {
     result_ = std::move(result);

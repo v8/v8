@@ -894,8 +894,6 @@
         'compiler-dispatcher/compiler-dispatcher-tracer.h',
         'compiler-dispatcher/optimizing-compile-dispatcher.cc',
         'compiler-dispatcher/optimizing-compile-dispatcher.h',
-        'compiler-dispatcher/unoptimized-compile-job.cc',
-        'compiler-dispatcher/unoptimized-compile-job.h',
         'compiler.cc',
         'compiler.h',
         'contexts-inl.h',

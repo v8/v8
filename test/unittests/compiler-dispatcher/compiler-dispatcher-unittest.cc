@@ -77,15 +77,13 @@ class CompilerDispatcherTest : public TestWithContext {
     CompilerDispatcherTestFlags::RestoreFlags();
   }
 
-  static UnoptimizedCompileJob::Status GetUnoptimizedJobStatus(
-      const CompilerDispatcherJob* job) {
-    CHECK_EQ(CompilerDispatcherJob::kUnoptimizedCompile, job->type());
-    return job->AsUnoptimizedCompileJob()->status();
+  static CompileJobStatus GetJobStatus(const CompilerDispatcherJob* job) {
+    return job->status();
   }
 
-  static UnoptimizedCompileJob::Status GetUnoptimizedJobStatus(
+  static CompileJobStatus GetJobStatus(
       const std::unique_ptr<CompilerDispatcherJob>& job) {
-    return GetUnoptimizedJobStatus(job.get());
+    return GetJobStatus(job.get());
   }
 
  private:
@@ -407,8 +405,8 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
 
   // The job should be scheduled for the main thread.
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Only grant a little idle time and have time advance beyond it in one step.
   platform.RunIdleTask(2.0, 1.0);
@@ -420,8 +418,8 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   // The job should be still scheduled for the main thread, but ready for
   // parsing.
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToParse,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -472,15 +470,15 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -491,8 +489,8 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.BackgroundTasksPending());
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kCompiled,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -516,15 +514,15 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -613,15 +611,15 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -661,15 +659,15 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
   ASSERT_FALSE(shared1->is_compiled());
@@ -738,15 +736,15 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -892,7 +890,7 @@ TEST_F(CompilerDispatcherTest, EnqueueJob) {
       Handle<JSFunction>::cast(test::RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   std::unique_ptr<CompilerDispatcherJob> job(
-      new UnoptimizedCompileJob(i_isolate(), dispatcher.tracer_.get(), shared,
+      new CompilerDispatcherJob(i_isolate(), dispatcher.tracer_.get(), shared,
                                 dispatcher.max_stack_size_));
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   dispatcher.Enqueue(std::move(job));
@@ -907,7 +905,7 @@ TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
   MockPlatform platform(V8::GetCurrentPlatform()->GetTracingController());
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   ASSERT_TRUE(dispatcher.jobs_.empty());
-  ASSERT_TRUE(dispatcher.shared_to_unoptimized_job_id_.empty());
+  ASSERT_TRUE(dispatcher.shared_to_job_id_.empty());
   std::unique_ptr<test::FinishCallback> callback(new test::FinishCallback());
   std::unique_ptr<test::ScriptResource> resource(
       new test::ScriptResource(test_script, strlen(test_script)));
@@ -917,9 +915,9 @@ TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
                                  1, false, false, false, 0, callback.get(),
                                  nullptr));
   ASSERT_TRUE(!dispatcher.jobs_.empty());
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
-  ASSERT_TRUE(dispatcher.shared_to_unoptimized_job_id_.empty());
+  ASSERT_EQ(CompileJobStatus::kReadyToParse,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_TRUE(dispatcher.shared_to_job_id_.empty());
   ASSERT_TRUE(callback->result() == nullptr);
 
   ASSERT_TRUE(platform.IdleTaskPending());
@@ -941,8 +939,8 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToParse,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
@@ -969,8 +967,8 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
                                  &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kAnalyzed,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kAnalyzed,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
@@ -996,8 +994,8 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
                                         &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.BackgroundTasksPending());
@@ -1182,19 +1180,19 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
                                         &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   // EnqueueAndStep of the same function again (either already parsed or for
   // compile and parse) shouldn't step the job.
   ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
                                         &parse_info, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.BackgroundTasksPending());
@@ -1221,20 +1219,20 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus((++dispatcher.jobs_.begin())->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kInitial,
+            GetJobStatus((++dispatcher.jobs_.begin())->second));
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0);
   platform.RunIdleTask(10.0, 0.0);
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus((++dispatcher.jobs_.begin())->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kReadyToCompile,
+            GetJobStatus((++dispatcher.jobs_.begin())->second));
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared2));
@@ -1248,10 +1246,10 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.BackgroundTasksPending());
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
-            GetUnoptimizedJobStatus((++dispatcher.jobs_.begin())->second));
+  ASSERT_EQ(CompileJobStatus::kCompiled,
+            GetJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(CompileJobStatus::kCompiled,
+            GetJobStatus((++dispatcher.jobs_.begin())->second));
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);

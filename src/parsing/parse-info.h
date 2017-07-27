@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/compiler-dispatcher/unoptimized-compile-job.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -35,7 +35,7 @@ class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
+class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
  public:
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   ParseInfo(Handle<Script> script);
