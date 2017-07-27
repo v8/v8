@@ -162,9 +162,6 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
-    StoreMapNoWriteBarrier(elements, Heap::kFixedArrayMapRootIndex);
-    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                   array_length);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_cache, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);

@@ -98,10 +98,6 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, argc_smi, nullptr, argc, INTPTR_PARAMETERS);
 
-    StoreMapNoWriteBarrier(elements, Heap::kFixedArrayMapRootIndex);
-    StoreObjectFieldNoWriteBarrier(elements, FixedArrayBase::kLengthOffset,
-                                   argc_smi);
-
     VARIABLE(index, MachineType::PointerRepresentation());
     index.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
     VariableList list({&index}, zone());

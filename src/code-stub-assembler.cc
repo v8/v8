@@ -2339,7 +2339,15 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
   Node* elements = InnerAllocate(array, elements_offset);
   StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset, elements);
-
+  // Setup elements object.
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
+  Heap::RootListIndex elements_map_index =
+      IsDoubleElementsKind(kind) ? Heap::kFixedDoubleArrayMapRootIndex
+                                 : Heap::kFixedArrayMapRootIndex;
+  DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
+  StoreMapNoWriteBarrier(elements, elements_map_index);
+  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+                                 ParameterToTagged(capacity, capacity_mode));
   return {array, elements};
 }
 
@@ -2389,14 +2397,6 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     // Allocate both array and elements object, and initialize the JSArray.
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         kind, array_map, length, allocation_site, capacity, capacity_mode);
-    // Setup elements object.
-    Heap::RootListIndex elements_map_index =
-        IsDoubleElementsKind(kind) ? Heap::kFixedDoubleArrayMapRootIndex
-                                   : Heap::kFixedArrayMapRootIndex;
-    DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
-    StoreMapNoWriteBarrier(elements, elements_map_index);
-    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                   ParameterToTagged(capacity, capacity_mode));
     // Fill in the elements with holes.
     FillFixedArrayWithValue(kind, elements,
                             IntPtrOrSmiConstant(0, capacity_mode), capacity,
