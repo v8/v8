@@ -424,8 +424,8 @@ class WasmCompiledModule : public FixedArray {
   static Handle<WasmCompiledModule> New(
       Isolate* isolate, Handle<WasmSharedModuleData> shared,
       Handle<FixedArray> code_table,
-      const std::vector<Handle<FixedArray>>& function_tables,
-      const std::vector<Handle<FixedArray>>& signature_tables);
+      MaybeHandle<FixedArray> maybe_empty_function_tables,
+      MaybeHandle<FixedArray> maybe_signature_tables);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
