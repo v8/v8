@@ -328,19 +328,9 @@ List<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
   return &sorted_entries_;
 }
 
-
 void HeapSnapshot::Print(int max_depth) {
   root()->Print("", "", max_depth, 0);
 }
-
-
-size_t HeapSnapshot::RawSnapshotSize() const {
-  return sizeof(*this) + GetMemoryUsedByList(entries_) +
-         edges_.size() * sizeof(decltype(edges_)::value_type) +
-         children_.size() * sizeof(decltype(children_)::value_type) +
-         GetMemoryUsedByList(sorted_entries_);
-}
-
 
 // We split IDs on evens for embedder objects (see
 // HeapObjectsMap::GenerateId) and odds for native objects.
@@ -355,16 +345,12 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
 
 HeapObjectsMap::HeapObjectsMap(Heap* heap)
     : next_id_(kFirstAvailableObjectId), heap_(heap) {
-  // This dummy element solves a problem with entries_map_.
-  // When we do lookup in HashMap we see no difference between two cases:
-  // it has an entry with NULL as the value or it has created
-  // a new entry on the fly with NULL as the default value.
-  // With such dummy element we have a guaranty that all entries_map_ entries
-  // will have the value field grater than 0.
-  // This fact is using in MoveObject method.
-  entries_.Add(EntryInfo(0, NULL, 0));
+  // The dummy element at zero index is needed as entries_map_ cannot hold
+  // an entry with zero value. Otherwise it's impossible to tell if
+  // LookupOrInsert has added a new item or just returning exisiting one
+  // having the value of zero.
+  entries_.Add(EntryInfo(0, nullptr, 0, true));
 }
-
 
 bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
   DCHECK(to != NULL);
@@ -485,114 +471,6 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
   }
 }
 
-
-namespace {
-
-
-struct HeapObjectInfo {
-  HeapObjectInfo(HeapObject* obj, int expected_size)
-    : obj(obj),
-      expected_size(expected_size) {
-  }
-
-  HeapObject* obj;
-  int expected_size;
-
-  bool IsValid() const { return expected_size == obj->Size(); }
-
-  void Print() const {
-    if (expected_size == 0) {
-      PrintF("Untracked object   : %p %6d. Next address is %p\n",
-             static_cast<void*>(obj->address()), obj->Size(),
-             static_cast<void*>(obj->address() + obj->Size()));
-    } else if (obj->Size() != expected_size) {
-      PrintF("Wrong size %6d: %p %6d. Next address is %p\n", expected_size,
-             static_cast<void*>(obj->address()), obj->Size(),
-             static_cast<void*>(obj->address() + obj->Size()));
-    } else {
-      PrintF("Good object      : %p %6d. Next address is %p\n",
-             static_cast<void*>(obj->address()), expected_size,
-             static_cast<void*>(obj->address() + obj->Size()));
-    }
-  }
-};
-
-
-static int comparator(const HeapObjectInfo* a, const HeapObjectInfo* b) {
-  if (a->obj < b->obj) return -1;
-  if (a->obj > b->obj) return 1;
-  return 0;
-}
-
-
-}  // namespace
-
-
-int HeapObjectsMap::FindUntrackedObjects() {
-  List<HeapObjectInfo> heap_objects(1000);
-
-  HeapIterator iterator(heap_);
-  int untracked = 0;
-  for (HeapObject* obj = iterator.next();
-       obj != NULL;
-       obj = iterator.next()) {
-    base::HashMap::Entry* entry =
-        entries_map_.Lookup(obj->address(), ComputePointerHash(obj->address()));
-    if (entry == NULL) {
-      ++untracked;
-      if (FLAG_heap_profiler_trace_objects) {
-        heap_objects.Add(HeapObjectInfo(obj, 0));
-      }
-    } else {
-      int entry_index = static_cast<int>(
-          reinterpret_cast<intptr_t>(entry->value));
-      EntryInfo& entry_info = entries_.at(entry_index);
-      if (FLAG_heap_profiler_trace_objects) {
-        heap_objects.Add(HeapObjectInfo(obj,
-                         static_cast<int>(entry_info.size)));
-        if (obj->Size() != static_cast<int>(entry_info.size))
-          ++untracked;
-      } else {
-        CHECK_EQ(obj->Size(), static_cast<int>(entry_info.size));
-      }
-    }
-  }
-  if (FLAG_heap_profiler_trace_objects) {
-    PrintF("\nBegin HeapObjectsMap::FindUntrackedObjects. %d entries in map.\n",
-           entries_map_.occupancy());
-    heap_objects.Sort(comparator);
-    int last_printed_object = -1;
-    bool print_next_object = false;
-    for (int i = 0; i < heap_objects.length(); ++i) {
-      const HeapObjectInfo& object_info = heap_objects[i];
-      if (!object_info.IsValid()) {
-        ++untracked;
-        if (last_printed_object != i - 1) {
-          if (i > 0) {
-            PrintF("%d objects were skipped\n", i - 1 - last_printed_object);
-            heap_objects[i - 1].Print();
-          }
-        }
-        object_info.Print();
-        last_printed_object = i;
-        print_next_object = true;
-      } else if (print_next_object) {
-        object_info.Print();
-        print_next_object = false;
-        last_printed_object = i;
-      }
-    }
-    if (last_printed_object < heap_objects.length() - 1) {
-      PrintF("Last %d objects were skipped\n",
-             heap_objects.length() - 1 - last_printed_object);
-    }
-    PrintF("End HeapObjectsMap::FindUntrackedObjects. %d entries in map.\n\n",
-           entries_map_.occupancy());
-  }
-  return untracked;
-}
-
-
 SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream,
                                                       int64_t* timestamp_us) {
   UpdateHeapObjectsMap();
@@ -685,13 +563,6 @@ SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));
   }
   return id << 1;
-}
-
-
-size_t HeapObjectsMap::GetUsedMemorySize() const {
-  return sizeof(*this) +
-         sizeof(base::HashMap::Entry) * entries_map_.capacity() +
-         GetMemoryUsedByList(entries_) + GetMemoryUsedByList(time_intervals_);
 }
 
 HeapEntriesMap::HeapEntriesMap() : entries_() {}

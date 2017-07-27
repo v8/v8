@@ -10450,11 +10450,6 @@ void HeapProfiler::SetGetRetainerInfosCallback(
       callback);
 }
 
-size_t HeapProfiler::GetProfilerMemorySize() {
-  return reinterpret_cast<i::HeapProfiler*>(this)->
-      GetMemorySizeUsedByProfiler();
-}
-
 v8::Testing::StressType internal::Testing::stress_type_ =
     v8::Testing::kStressTypeOpt;
 

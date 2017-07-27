@@ -25,8 +25,6 @@ class HeapProfiler {
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler();
 
-  size_t GetMemorySizeUsedByProfiler();
-
   HeapSnapshot* TakeSnapshot(
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);

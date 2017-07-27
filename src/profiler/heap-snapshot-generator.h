@@ -158,7 +158,6 @@ class HeapSnapshot {
   void Delete();
 
   HeapProfiler* profiler() { return profiler_; }
-  size_t RawSnapshotSize() const;
   HeapEntry* root() { return &entries_[root_index_]; }
   HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
   HeapEntry* gc_subroot(int index) {
@@ -235,7 +234,6 @@ class HeapObjectsMap {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream,
                                         int64_t* timestamp_us);
   const List<TimeInterval>& samples() const { return time_intervals_; }
-  size_t GetUsedMemorySize() const;
 
   SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
 
@@ -245,17 +243,14 @@ class HeapObjectsMap {
   static const SnapshotObjectId kGcRootsFirstSubrootId;
   static const SnapshotObjectId kFirstAvailableObjectId;
 
-  int FindUntrackedObjects();
-
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
  private:
   struct EntryInfo {
-  EntryInfo(SnapshotObjectId id, Address addr, unsigned int size)
-      : id(id), addr(addr), size(size), accessed(true) { }
-  EntryInfo(SnapshotObjectId id, Address addr, unsigned int size, bool accessed)
-      : id(id), addr(addr), size(size), accessed(accessed) { }
+    EntryInfo(SnapshotObjectId id, Address addr, unsigned int size,
+              bool accessed)
+        : id(id), addr(addr), size(size), accessed(accessed) {}
     SnapshotObjectId id;
     Address addr;
     unsigned int size;
@@ -271,11 +266,9 @@ class HeapObjectsMap {
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
 };
 
-
 // A typedef for referencing anything that can be snapshotted living
 // in any kind of heap memory.
 typedef void* HeapThing;
-
 
 // An interface that creates HeapEntries by HeapThings.
 class HeapEntriesAllocator {
@@ -283,7 +276,6 @@ class HeapEntriesAllocator {
   virtual ~HeapEntriesAllocator() { }
   virtual HeapEntry* AllocateEntry(HeapThing ptr) = 0;
 };
-
 
 // The HeapEntriesMap instance is used to track a mapping between
 // real heap objects and their representations in heap snapshots.

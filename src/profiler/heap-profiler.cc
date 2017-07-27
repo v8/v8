@@ -135,12 +135,10 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   }
 }
 
-
 SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream,
                                                     int64_t* timestamp_us) {
   return ids_->PushHeapObjectsStats(stream, timestamp_us);
 }
-
 
 void HeapProfiler::StopHeapObjectsTracking() {
   ids_->StopHeapObjectsTracking();
@@ -150,35 +148,19 @@ void HeapProfiler::StopHeapObjectsTracking() {
   }
 }
 
-
-size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
-  size_t size = sizeof(*this);
-  size += names_->GetUsedMemorySize();
-  size += ids_->GetUsedMemorySize();
-  size += GetMemoryUsedByList(snapshots_);
-  for (int i = 0; i < snapshots_.length(); ++i) {
-    size += snapshots_[i]->RawSnapshotSize();
-  }
-  return size;
-}
-
-
 int HeapProfiler::GetSnapshotsCount() {
   return snapshots_.length();
 }
 
-
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
   return snapshots_.at(index);
 }
-
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
   if (!obj->IsHeapObject())
     return v8::HeapProfiler::kUnknownObjectId;
   return ids_->FindEntry(HeapObject::cast(*obj)->address());
 }
-
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
   base::LockGuard<base::Mutex> guard(&profiler_mutex_);
@@ -187,7 +169,6 @@ void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
     allocation_tracker_->address_to_trace()->MoveObject(from, to, size);
   }
 }
-
 
 void HeapProfiler::AllocationEvent(Address addr, int size) {
   DisallowHeapAllocation no_allocation;
