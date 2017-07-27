@@ -476,6 +476,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       Label* if_hole = nullptr);
 
+  // Load a feedback slot from a FeedbackVector.
+  Node* LoadFeedbackVectorSlot(
+      Node* object, Node* index, int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
@@ -538,6 +543,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* StoreFixedDoubleArrayElement(
       Node* object, Node* index, Node* value,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+
+  Node* StoreFeedbackVectorSlot(
+      Node* object, Node* index, Node* value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   void EnsureArrayLengthWritable(Node* map, Label* bailout);
@@ -1324,9 +1335,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load type feedback vector from the stub caller's frame.
   Node* LoadFeedbackVectorForStub();
 
+  // Load type feedback vector for the given closure.
   Node* LoadFeedbackVector(Node* closure);
-  Node* LoadFeedbackVectorSlot(Node* closure, Node* smi_index);
-  void StoreFeedbackVectorSlot(Node* closure, Node* smi_index, Node* value);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id,

@@ -507,11 +507,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  FeedbackSlot slot;
-  if (slot_id >= FeedbackVector::kReservedIndexCount) {
-    slot = feedback_vector()->ToSlot(slot_id);
-  }
-  return VectorSlotPair(feedback_vector(), slot);
+  return VectorSlotPair(feedback_vector(), feedback_vector()->ToSlot(slot_id));
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
@@ -1570,9 +1566,6 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
             receiver_mode);
   PrepareEagerCheckpoint();
 
-  // Slot index of 0 is used indicate no feedback slot is available. Assert
-  // the assumption that slot index 0 is never a valid feedback slot.
-  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
@@ -1715,10 +1708,7 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   int arg_count = static_cast<int>(reg_count) - 1;
   Node* const* args =
       GetCallArgumentsFromRegister(callee, receiver_node, first_arg, arg_count);
-  // Slot index of 0 is used indicate no feedback slot is available. Assert
-  // the assumption that slot index 0 is never a valid feedback slot.
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
-  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
@@ -1818,9 +1808,6 @@ void BytecodeGraphBuilder::VisitConstruct() {
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
-  // Slot index of 0 is used indicate no feedback slot is available. Assert
-  // the assumption that slot index 0 is never a valid feedback slot.
-  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
@@ -1849,9 +1836,6 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
-  // Slot index of 0 is used indicate no feedback slot is available. Assert
-  // the assumption that slot index 0 is never a valid feedback slot.
-  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
@@ -1990,11 +1974,7 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
 // feedback.
 CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   int slot_index = bytecode_iterator().GetIndexOperand(1);
-  if (slot_index == 0) {
-    return CompareOperationHint::kAny;
-  }
-  FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
   DCHECK_EQ(FeedbackSlotKind::kCompareOp, feedback_vector()->GetKind(slot));
   CompareICNexus nexus(feedback_vector(), slot);
   return nexus.GetCompareOperationFeedback();
@@ -2201,7 +2181,6 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
   Node* right = environment()->LookupAccumulator();
 
   int slot_index = bytecode_iterator().GetIndexOperand(1);
-  DCHECK(slot_index != 0);
   FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
   Node* node = nullptr;
   if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {

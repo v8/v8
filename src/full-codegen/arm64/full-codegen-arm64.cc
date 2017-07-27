@@ -144,13 +144,9 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ Ldr(x11, FieldMemOperand(x1, JSFunction::kFeedbackVectorOffset));
     __ Ldr(x11, FieldMemOperand(x11, Cell::kValueOffset));
-    __ Ldr(x10, FieldMemOperand(
-                    x11, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                             FeedbackVector::kHeaderSize));
-    __ Add(x10, x10, Operand(Smi::FromInt(1)));
-    __ Str(x10, FieldMemOperand(
-                    x11, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                             FeedbackVector::kHeaderSize));
+    __ Ldr(w10, FieldMemOperand(x11, FeedbackVector::kInvocationCountOffset));
+    __ Add(w10, w10, Operand(1));
+    __ Str(w10, FieldMemOperand(x11, FeedbackVector::kInvocationCountOffset));
   }
 
   // Reserve space on the stack for locals.
@@ -1029,7 +1025,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadFeedbackVector(x3);
   __ Mov(x10, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
-  __ Str(x10, FieldMemOperand(x3, FixedArray::OffsetOfElementAt(vector_index)));
+  __ Str(x10, FieldMemOperand(x3, FeedbackVector::kFeedbackSlotsOffset +
+                                      vector_index * kPointerSize));
 
   // x0 contains the key. The receiver in x1 is the second argument to the
   // ForInFilter. ForInFilter returns undefined if the receiver doesn't

@@ -456,7 +456,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
                                     Handle<HeapObject> description, int flags) {
   Handle<FeedbackVector> vector(closure->feedback_vector(), isolate);
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
-  CHECK(literals_slot.ToInt() < vector->slot_count());
+  CHECK(literals_slot.ToInt() < vector->length());
   Handle<Object> literal_site(vector->Get(literals_slot), isolate);
   DeepCopyHints copy_hints =
       (flags & AggregateLiteral::kIsShallow) ? kObjectIsShallow : kNoHints;

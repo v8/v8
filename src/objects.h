@@ -96,7 +96,6 @@
 //           - OrderedHashMap
 //         - Context
 //         - FeedbackMetadata
-//         - FeedbackVector
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
@@ -161,6 +160,7 @@
 //       - ModuleInfoEntry
 //       - PreParsedScopeData
 //     - WeakCell
+//     - FeedbackVector
 //
 // Formats of Object*:
 //  Smi:        [31 bit signed int] 0
@@ -367,6 +367,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
   V(FIXED_ARRAY_TYPE)                                           \
   V(HASH_TABLE_TYPE)                                            \
+  V(FEEDBACK_VECTOR_TYPE)                                       \
   V(TRANSITION_ARRAY_TYPE)                                      \
   V(PROPERTY_ARRAY_TYPE)                                        \
   V(SHARED_FUNCTION_INFO_TYPE)                                  \
@@ -714,6 +715,7 @@ enum InstanceType : uint8_t {
   ASYNC_GENERATOR_REQUEST_TYPE,
   FIXED_ARRAY_TYPE,
   HASH_TABLE_TYPE,
+  FEEDBACK_VECTOR_TYPE,
   TRANSITION_ARRAY_TYPE,
   PROPERTY_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -913,7 +915,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
   V(STRING_TABLE_SUB_TYPE)                       \
   V(TEMPLATE_INFO_SUB_TYPE)                      \
-  V(FEEDBACK_VECTOR_SUB_TYPE)                    \
   V(FEEDBACK_METADATA_SUB_TYPE)                  \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
 
@@ -5195,7 +5196,7 @@ class JSFunction: public JSObject {
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
-  // [feedback_vector_cell]: Fixed array holding the feedback vector.
+  // [feedback_vector_cell]: The feedback vector.
   DECL_ACCESSORS(feedback_vector_cell, Cell)
 
   enum FeedbackVectorState {

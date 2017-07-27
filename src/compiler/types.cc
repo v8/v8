@@ -298,6 +298,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case FIXED_DOUBLE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
+    case FEEDBACK_VECTOR_TYPE:
     case TRANSITION_ARRAY_TYPE:
     case PROPERTY_ARRAY_TYPE:
     case FOREIGN_TYPE:

@@ -192,6 +192,13 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
                      FixedArray);
 }
 
+Handle<FeedbackVector> Factory::NewFeedbackVector(
+    Handle<SharedFunctionInfo> shared, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateFeedbackVector(*shared, pretenure),
+      FeedbackVector);
+}
+
 Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
     int boilerplate, int all_properties, int index_keys, bool has_seen_proto) {
   DCHECK_GE(boilerplate, 0);
@@ -1339,6 +1346,11 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
                      FixedDoubleArray);
 }
 
+Handle<FeedbackVector> Factory::CopyFeedbackVector(
+    Handle<FeedbackVector> array) {
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->CopyFeedbackVector(*array),
+                     FeedbackVector);
+}
 
 Handle<Object> Factory::NewNumber(double value,
                                   PretenureFlag pretenure) {

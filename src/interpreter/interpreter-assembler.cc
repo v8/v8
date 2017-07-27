@@ -555,12 +555,12 @@ void InterpreterAssembler::CallEpilogue() {
 Node* InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                                Node* slot_id) {
   Comment("increment call count");
-  Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-  Node* call_count = LoadFixedArrayElement(feedback_vector, call_count_slot);
+  Node* call_count =
+      LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
   Node* new_count = SmiAdd(call_count, SmiConstant(1));
   // Count is Smi, so we don't need a write barrier.
-  return StoreFixedArrayElement(feedback_vector, call_count_slot, new_count,
-                                SKIP_WRITE_BARRIER);
+  return StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
+                                 SKIP_WRITE_BARRIER, kPointerSize);
 }
 
 void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
@@ -574,7 +574,7 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {target} feedback already.
-  Node* feedback_element = LoadFixedArrayElement(feedback_vector, slot_id);
+  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Branch(WordEqual(target, feedback_value), &done, &extra_checks);
 
@@ -632,7 +632,7 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
       // write-barrier is not needed.
       Comment("transition to megamorphic");
       DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
-      StoreFixedArrayElement(
+      StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
@@ -675,7 +675,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
   IncrementCallCount(feedback_vector, slot_id);
 
   // The checks. First, does function match the recorded monomorphic target?
-  Node* feedback_element = LoadFixedArrayElement(feedback_vector, slot_id);
+  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(function, feedback_value);
   GotoIfNot(is_monomorphic, &extra_checks);
@@ -793,7 +793,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
       // MegamorphicSentinel is created as a part of Heap::InitialObjects
       // and will not move during a GC. So it is safe to skip write barrier.
       DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
-      StoreFixedArrayElement(
+      StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
@@ -874,7 +874,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
   GotoIfNot(is_js_function, &call_construct);
 
   // Check if it is a monomorphic constructor.
-  Node* feedback_element = LoadFixedArrayElement(feedback_vector, slot_id);
+  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(constructor, feedback_value);
   allocation_feedback.Bind(UndefinedConstant());
@@ -975,7 +975,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
       // write-barrier is not needed.
       Comment("transition to megamorphic");
       DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
-      StoreFixedArrayElement(
+      StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);

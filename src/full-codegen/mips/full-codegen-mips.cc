@@ -143,13 +143,9 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ lw(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
     __ lw(a0, FieldMemOperand(a0, Cell::kValueOffset));
-    __ lw(t0, FieldMemOperand(
-                  a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                          FeedbackVector::kHeaderSize));
-    __ Addu(t0, t0, Operand(Smi::FromInt(1)));
-    __ sw(t0, FieldMemOperand(
-                  a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                          FeedbackVector::kHeaderSize));
+    __ lw(t0, FieldMemOperand(a0, FeedbackVector::kInvocationCountOffset));
+    __ Addu(t0, t0, Operand(1));
+    __ sw(t0, FieldMemOperand(a0, FeedbackVector::kInvocationCountOffset));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -1030,7 +1026,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadFeedbackVector(a3);
   __ li(a2, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
-  __ sw(a2, FieldMemOperand(a3, FixedArray::OffsetOfElementAt(vector_index)));
+  __ sw(a2, FieldMemOperand(a3, FeedbackVector::kFeedbackSlotsOffset +
+                                    vector_index * kPointerSize));
 
   __ mov(a0, result_register());
   // a0 contains the key. The receiver in a1 is the second argument to the

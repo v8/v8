@@ -1279,7 +1279,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Load the cache state into a5.
   __ dsrl(a5, a3, 32 - kPointerSizeLog2);
   __ Daddu(a5, a2, Operand(a5));
-  __ Ld(a5, FieldMemOperand(a5, FixedArray::kHeaderSize));
+  __ Ld(a5, FieldMemOperand(a5, FeedbackVector::kFeedbackSlotsOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -1325,7 +1325,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ dsrl(a5, a3, 32 - kPointerSizeLog2);
   __ Daddu(a5, a2, Operand(a5));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
-  __ Sd(at, FieldMemOperand(a5, FixedArray::kHeaderSize));
+  __ Sd(at, FieldMemOperand(a5, FeedbackVector::kFeedbackSlotsOffset));
   __ jmp(&done);
 
   // An uninitialized cache is patched with the function.
@@ -1351,9 +1351,11 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Increment the call count for all function calls.
   __ SmiScale(a4, a3, kPointerSizeLog2);
   __ Daddu(a5, a2, Operand(a4));
-  __ Ld(a4, FieldMemOperand(a5, FixedArray::kHeaderSize + kPointerSize));
+  __ Ld(a4, FieldMemOperand(
+                a5, FeedbackVector::kFeedbackSlotsOffset + kPointerSize));
   __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
-  __ Sd(a4, FieldMemOperand(a5, FixedArray::kHeaderSize + kPointerSize));
+  __ Sd(a4, FieldMemOperand(
+                a5, FeedbackVector::kFeedbackSlotsOffset + kPointerSize));
 }
 
 
@@ -1376,7 +1378,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Daddu(a5, a2, at);
   Label feedback_register_initialized;
   // Put the AllocationSite from the feedback vector into a2, or undefined.
-  __ Ld(a2, FieldMemOperand(a5, FixedArray::kHeaderSize));
+  __ Ld(a2, FieldMemOperand(a5, FeedbackVector::kFeedbackSlotsOffset));
   __ Ld(a5, FieldMemOperand(a2, AllocationSite::kMapOffset));
   __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
   __ Branch(&feedback_register_initialized, eq, a5, Operand(at));

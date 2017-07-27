@@ -30,7 +30,8 @@ Node* AccessorAssembler::TryMonomorphicCase(Node* slot, Node* vector,
 
   // TODO(ishell): add helper class that hides offset computations for a series
   // of loads.
-  int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
+  CSA_ASSERT(this, IsFeedbackVector(vector), vector);
+  int32_t header_size = FeedbackVector::kFeedbackSlotsOffset - kHeapObjectTag;
   // Adding |header_size| with a separate IntPtrAdd rather than passing it
   // into ElementOffsetFromIndex() allows it to be folded into a single
   // [base, index, offset] indirect memory access on x64.
@@ -1865,9 +1866,9 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   Node* instance_type = LoadMapInstanceType(receiver_map);
 
   // Optimistically write the state transition to the vector.
-  StoreFixedArrayElement(p->vector, p->slot,
-                         LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
-                         SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  StoreFeedbackVectorSlot(p->vector, p->slot,
+                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
   {
     // Special case for Function.prototype load, because it's very common
@@ -1889,9 +1890,9 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   BIND(&miss);
   {
     // Undo the optimistic state transition.
-    StoreFixedArrayElement(p->vector, p->slot,
-                           LoadRoot(Heap::kuninitialized_symbolRootIndex),
-                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    StoreFeedbackVectorSlot(p->vector, p->slot,
+                            LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                            SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
     TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
                     p->slot, p->vector);
@@ -1931,7 +1932,7 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
     Label* miss, ParameterMode slot_mode) {
   Comment("LoadGlobalIC_TryPropertyCellCase");
 
-  Node* weak_cell = LoadFixedArrayElement(vector, slot, 0, slot_mode);
+  Node* weak_cell = LoadFeedbackVectorSlot(vector, slot, 0, slot_mode);
   CSA_ASSERT(this, HasInstanceType(weak_cell, WEAK_CELL_TYPE));
 
   // Load value or try handler case if the {weak_cell} is cleared.
@@ -1951,8 +1952,8 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
 
   Label call_handler(this), non_smi(this);
 
-  Node* handler =
-      LoadFixedArrayElement(pp->vector, pp->slot, kPointerSize, SMI_PARAMETERS);
+  Node* handler = LoadFeedbackVectorSlot(pp->vector, pp->slot, kPointerSize,
+                                         SMI_PARAMETERS);
   GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
          miss);
 
@@ -2064,8 +2065,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
     GotoIfNot(WordEqual(feedback, p->name), &miss);
     // If the name comparison succeeded, we know we have a fixed array with
     // at least one map/handler pair.
-    Node* array =
-        LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
+    Node* array = LoadFeedbackVectorSlot(p->vector, p->slot, kPointerSize,
+                                         SMI_PARAMETERS);
     HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
                           1);
   }
@@ -2239,10 +2240,10 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
       // We might have a name in feedback, and a fixed array in the next slot.
       Comment("KeyedStoreIC_try_polymorphic_name");
       GotoIfNot(WordEqual(feedback, p->name), &miss);
-      // If the name comparison succeeded, we know we have a FixedArray with
-      // at least one map/handler pair.
-      Node* array = LoadFixedArrayElement(p->vector, p->slot, kPointerSize,
-                                          SMI_PARAMETERS);
+      // If the name comparison succeeded, we know we have a feedback vector
+      // with at least one map/handler pair.
+      Node* array = LoadFeedbackVectorSlot(p->vector, p->slot, kPointerSize,
+                                           SMI_PARAMETERS);
       HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
                             &miss, 1);
     }
@@ -2284,7 +2285,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(receiver);
-  Node* feedback = LoadFixedArrayElement(vector, slot, 0, SMI_PARAMETERS);
+  Node* feedback = LoadFeedbackVectorSlot(vector, slot, 0, SMI_PARAMETERS);
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC_Noninlined(&p, receiver_map, feedback, &var_handler, &if_handler,

@@ -20,6 +20,10 @@
   inline int name() const;       \
   inline void set_##name(int value);
 
+#define DECL_INT32_ACCESSORS(name) \
+  inline int32_t name() const;     \
+  inline void set_##name(int32_t value);
+
 #define DECL_ACCESSORS(name, type)    \
   inline type* name() const;          \
   inline void set_##name(type* value, \
@@ -42,6 +46,12 @@
 #define INT_ACCESSORS(holder, name, offset)                         \
   int holder::name() const { return READ_INT_FIELD(this, offset); } \
   void holder::set_##name(int value) { WRITE_INT_FIELD(this, offset, value); }
+
+#define INT32_ACCESSORS(holder, name, offset)                             \
+  int32_t holder::name() const { return READ_INT32_FIELD(this, offset); } \
+  void holder::set_##name(int32_t value) {                                \
+    WRITE_INT32_FIELD(this, offset, value);                               \
+  }
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \

@@ -604,16 +604,16 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   // Increment the call count.
   // TODO(bmeurer): Would it be beneficial to use Int32Add on 64-bit?
   Comment("increment call count");
-  Node* call_count = LoadFixedArrayElement(vector, slot, 1 * kPointerSize);
+  Node* call_count = LoadFeedbackVectorSlot(vector, slot, 1 * kPointerSize);
   Node* new_count = SmiAdd(call_count, SmiConstant(1));
   // Count is Smi, so we don't need a write barrier.
-  StoreFixedArrayElement(vector, slot, new_count, SKIP_WRITE_BARRIER,
-                         1 * kPointerSize);
+  StoreFeedbackVectorSlot(vector, slot, new_count, SKIP_WRITE_BARRIER,
+                          1 * kPointerSize);
 
   Label call_function(this), extra_checks(this), call(this);
 
   // The checks. First, does function match the recorded monomorphic target?
-  Node* feedback_element = LoadFixedArrayElement(vector, slot);
+  Node* feedback_element = LoadFeedbackVectorSlot(vector, slot);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(target, feedback_value);
   GotoIfNot(is_monomorphic, &extra_checks);
@@ -717,7 +717,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
       // MegamorphicSentinel is created as a part of Heap::InitialObjects
       // and will not move during a GC. So it is safe to skip write barrier.
       DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
-      StoreFixedArrayElement(
+      StoreFeedbackVectorSlot(
           vector, slot,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);

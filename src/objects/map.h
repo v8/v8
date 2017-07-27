@@ -23,6 +23,7 @@ namespace internal {
   V(Code)                  \
   V(ConsString)            \
   V(DataObject)            \
+  V(FeedbackVector)        \
   V(FixedArray)            \
   V(FixedDoubleArray)      \
   V(FixedFloat64Array)     \

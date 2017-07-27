@@ -1367,6 +1367,19 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   }
 }
 
+Node* CodeStubAssembler::LoadFeedbackVectorSlot(Node* object,
+                                                Node* slot_index_node,
+                                                int additional_offset,
+                                                ParameterMode parameter_mode) {
+  CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
+  int32_t header_size =
+      FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
+  Node* offset = ElementOffsetFromIndex(slot_index_node, HOLEY_ELEMENTS,
+                                        parameter_mode, header_size);
+  return Load(MachineType::AnyTagged(), object, offset);
+}
+
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     Node* object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
@@ -1597,6 +1610,28 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
                              FixedArray::kHeaderSize - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kFloat64;
   return StoreNoWriteBarrier(rep, object, offset, value);
+}
+
+Node* CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
+                                                 Node* slot_index_node,
+                                                 Node* value,
+                                                 WriteBarrierMode barrier_mode,
+                                                 int additional_offset,
+                                                 ParameterMode parameter_mode) {
+  CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
+  DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
+         barrier_mode == UPDATE_WRITE_BARRIER);
+  int header_size =
+      FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
+  Node* offset = ElementOffsetFromIndex(slot_index_node, HOLEY_ELEMENTS,
+                                        parameter_mode, header_size);
+  if (barrier_mode == SKIP_WRITE_BARRIER) {
+    return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
+                               value);
+  } else {
+    return Store(object, offset, value);
+  }
 }
 
 void CodeStubAssembler::EnsureArrayLengthWritable(Node* map, Label* bailout) {
@@ -6398,37 +6433,22 @@ Node* CodeStubAssembler::LoadFeedbackVectorForStub() {
   return LoadFeedbackVector(function);
 }
 
-Node* CodeStubAssembler::LoadFeedbackVectorSlot(Node* closure,
-                                                Node* smi_index) {
-  Node* feedback_vector = LoadFeedbackVector(closure);
-  return LoadFixedArrayElement(feedback_vector, smi_index, 0,
-                               CodeStubAssembler::SMI_PARAMETERS);
-}
-
-void CodeStubAssembler::StoreFeedbackVectorSlot(Node* closure, Node* smi_index,
-                                                Node* value) {
-  Node* feedback_vector = LoadFeedbackVector(closure);
-  StoreFixedArrayElement(feedback_vector, smi_index, value,
-                         UPDATE_WRITE_BARRIER, 0,
-                         CodeStubAssembler::SMI_PARAMETERS);
-}
-
 void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
                                        Node* slot_id, Node* function) {
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
-  Node* previous_feedback = LoadFixedArrayElement(feedback_vector, slot_id);
+  Node* previous_feedback = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* combined_feedback = SmiOr(previous_feedback, feedback);
   Label end(this);
 
   GotoIf(SmiEqual(previous_feedback, combined_feedback), &end);
   {
-    StoreFixedArrayElement(feedback_vector, slot_id, combined_feedback,
-                           SKIP_WRITE_BARRIER);
+    StoreFeedbackVectorSlot(feedback_vector, slot_id, combined_feedback,
+                            SKIP_WRITE_BARRIER);
     // Reset profiler ticks.
-    StoreFixedArrayElement(feedback_vector, FeedbackVector::kProfilerTicksIndex,
-                           SmiConstant(0), SKIP_WRITE_BARRIER);
+    StoreObjectFieldNoWriteBarrier(
+        feedback_vector, FeedbackVector::kProfilerTicksOffset, SmiConstant(0));
     Goto(&end);
   }
 
@@ -7050,8 +7070,8 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
   StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list, site);
 
-  StoreFixedArrayElement(feedback_vector, slot, site, UPDATE_WRITE_BARRIER, 0,
-                         CodeStubAssembler::SMI_PARAMETERS);
+  StoreFeedbackVectorSlot(feedback_vector, slot, site, UPDATE_WRITE_BARRIER, 0,
+                          CodeStubAssembler::SMI_PARAMETERS);
   return site;
 }
 
@@ -7067,8 +7087,8 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   StoreObjectField(cell, WeakCell::kValueOffset, value);
 
   // Store the WeakCell in the feedback vector.
-  StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER, 0,
-                         CodeStubAssembler::SMI_PARAMETERS);
+  StoreFeedbackVectorSlot(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER, 0,
+                          CodeStubAssembler::SMI_PARAMETERS);
   return cell;
 }
 

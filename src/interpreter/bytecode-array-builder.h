@@ -566,8 +566,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;
 
-  static int const kNoFeedbackSlot = 0;
-
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };
 

@@ -8,7 +8,12 @@
 #include "src/factory.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/shared-function-info.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -89,33 +94,20 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   return 1;
 }
 
-bool FeedbackVector::is_empty() const {
-  return length() == kReservedIndexCount;
-}
+ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
+          kSharedFunctionInfoOffset)
+ACCESSORS(FeedbackVector, optimized_code_cell, Object, kOptimizedCodeOffset)
+INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
+INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
+INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
 
-int FeedbackVector::slot_count() const {
-  return length() - kReservedIndexCount;
-}
+bool FeedbackVector::is_empty() const { return length() == 0; }
 
 FeedbackMetadata* FeedbackVector::metadata() const {
   return shared_function_info()->feedback_metadata();
 }
 
-SharedFunctionInfo* FeedbackVector::shared_function_info() const {
-  return SharedFunctionInfo::cast(get(kSharedFunctionInfoIndex));
-}
-
-int FeedbackVector::invocation_count() const {
-  return Smi::ToInt(get(kInvocationCountIndex));
-}
-
-void FeedbackVector::clear_invocation_count() {
-  set(kInvocationCountIndex, Smi::kZero);
-}
-
-Object* FeedbackVector::optimized_code_cell() const {
-  return get(kOptimizedCodeIndex);
-}
+void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
 
 Code* FeedbackVector::optimized_code() const {
   Object* slot = optimized_code_cell();
@@ -139,28 +131,39 @@ bool FeedbackVector::has_optimization_marker() const {
   return optimization_marker() != OptimizationMarker::kNone;
 }
 
-int FeedbackVector::profiler_ticks() const {
-  return Smi::ToInt(get(kProfilerTicksIndex));
-}
-
-void FeedbackVector::set_profiler_ticks(int ticks) {
-  set(kProfilerTicksIndex, Smi::FromInt(ticks));
-}
-
 // Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackSlot FeedbackVector::ToSlot(int index) {
-  DCHECK_GE(index, kReservedIndexCount);
-  return FeedbackSlot(index - kReservedIndexCount);
+  DCHECK_GE(index, 0);
+  return FeedbackSlot(index);
 }
 
 Object* FeedbackVector::Get(FeedbackSlot slot) const {
   return get(GetIndex(slot));
 }
 
+Object* FeedbackVector::get(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kFeedbackSlotsOffset + index * kPointerSize;
+  return RELAXED_READ_FIELD(this, offset);
+}
+
 void FeedbackVector::Set(FeedbackSlot slot, Object* value,
                          WriteBarrierMode mode) {
   set(GetIndex(slot), value, mode);
+}
+
+void FeedbackVector::set(int index, Object* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kFeedbackSlotsOffset + index * kPointerSize;
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
+inline Object** FeedbackVector::slots_start() {
+  return HeapObject::RawField(this, kFeedbackSlotsOffset);
 }
 
 // Helper function to transform the feedback to BinaryOperationHint.
@@ -358,5 +361,7 @@ void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
 Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_FEEDBACK_VECTOR_INL_H_

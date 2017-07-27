@@ -3152,8 +3152,8 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
     Node* feedback_vector = LoadFeedbackVector();
     Node* megamorphic_sentinel =
         HeapConstant(FeedbackVector::MegamorphicSentinel(isolate()));
-    StoreFixedArrayElement(feedback_vector, vector_index, megamorphic_sentinel,
-                           SKIP_WRITE_BARRIER);
+    StoreFeedbackVectorSlot(feedback_vector, vector_index, megamorphic_sentinel,
+                            SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.
     Node* context = GetContext();

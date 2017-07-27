@@ -1245,7 +1245,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
   Register feedback_value = scratch3;
   __ Add(feedback, feedback_vector,
          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-  __ Ldr(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
+  __ Ldr(feedback,
+         FieldMemOperand(feedback, FeedbackVector::kFeedbackSlotsOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -1290,7 +1291,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
   __ Add(scratch1, feedback_vector,
          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
   __ LoadRoot(scratch2, Heap::kmegamorphic_symbolRootIndex);
-  __ Str(scratch2, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  __ Str(scratch2,
+         FieldMemOperand(scratch1, FeedbackVector::kFeedbackSlotsOffset));
   __ B(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -1320,7 +1322,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
   // Increment the call count for all function calls.
   __ Add(scratch1, feedback_vector,
          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-  __ Add(scratch1, scratch1, Operand(FixedArray::kHeaderSize + kPointerSize));
+  __ Add(scratch1, scratch1,
+         Operand(FeedbackVector::kFeedbackSlotsOffset + kPointerSize));
   __ Ldr(scratch2, FieldMemOperand(scratch1, 0));
   __ Add(scratch2, scratch2, Operand(Smi::FromInt(1)));
   __ Str(scratch2, FieldMemOperand(scratch1, 0));
@@ -1348,7 +1351,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Add(x5, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
   Label feedback_register_initialized;
   // Put the AllocationSite from the feedback vector into x2, or undefined.
-  __ Ldr(x2, FieldMemOperand(x5, FixedArray::kHeaderSize));
+  __ Ldr(x2, FieldMemOperand(x5, FeedbackVector::kFeedbackSlotsOffset));
   __ Ldr(x5, FieldMemOperand(x2, AllocationSite::kMapOffset));
   __ JumpIfRoot(x5, Heap::kAllocationSiteMapRootIndex,
                 &feedback_register_initialized);

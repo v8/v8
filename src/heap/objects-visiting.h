@@ -21,6 +21,7 @@ namespace internal {
   V(Cell)                        \
   V(Code)                        \
   V(ConsString)                  \
+  V(FeedbackVector)              \
   V(FixedArray)                  \
   V(FixedDoubleArray)            \
   V(FixedFloat64Array)           \

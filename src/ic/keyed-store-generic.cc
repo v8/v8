@@ -980,9 +980,9 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
          &miss);
 
   // Optimistically write the state transition to the vector.
-  StoreFixedArrayElement(vector, slot,
-                         LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
-                         SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  StoreFeedbackVectorSlot(vector, slot,
+                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
   EmitGenericPropertyStore(receiver, receiver_map, &p, &miss, language_mode,
@@ -991,9 +991,9 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
   BIND(&miss);
   {
     // Undo the optimistic state transition.
-    StoreFixedArrayElement(vector, slot,
-                           LoadRoot(Heap::kuninitialized_symbolRootIndex),
-                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    StoreFeedbackVectorSlot(vector, slot,
+                            LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                            SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                     receiver, name);
   }

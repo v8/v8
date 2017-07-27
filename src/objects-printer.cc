@@ -95,6 +95,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayPrint(os);
       break;
+    case FEEDBACK_VECTOR_TYPE:
+      FeedbackVector::cast(this)->FeedbackVectorPrint(os);
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
@@ -753,7 +756,10 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  os << "\n Optimized Code: " << Brief(optimized_code());
+  os << "\n SharedFunctionInfo: " << Brief(shared_function_info());
+  os << "\n Optimized Code: " << Brief(optimized_code_cell());
+  os << "\n Invocation Count: " << invocation_count();
+  os << "\n Profiler Ticks: " << profiler_ticks();
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {

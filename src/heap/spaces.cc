@@ -3413,17 +3413,16 @@ void LargeObjectSpace::Verify() {
     CHECK(map->IsMap());
     CHECK(heap()->map_space()->Contains(map));
 
-    // We have only code, sequential strings, external strings
-    // (sequential strings that have been morphed into external
-    // strings), thin strings (sequential strings that have been
-    // morphed into thin strings), fixed arrays, fixed double arrays,
-    // byte arrays, and free space (right after allocation) in the
-    // large object space.
+    // We have only code, sequential strings, external strings (sequential
+    // strings that have been morphed into external strings), thin strings
+    // (sequential strings that have been morphed into thin strings), fixed
+    // arrays, fixed double arrays, byte arrays, feedback vectors and free space
+    // (right after allocation) in the large object space.
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
           object->IsPropertyArray() || object->IsByteArray() ||
-          object->IsFreeSpace());
+          object->IsFeedbackVector() || object->IsFreeSpace());
 
     // The object itself should look OK.
     object->ObjectVerify();

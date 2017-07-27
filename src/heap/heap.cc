@@ -2498,7 +2498,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, feedback_vector)
+    ALLOCATE_VARSIZE_MAP(FEEDBACK_VECTOR_TYPE, feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
@@ -4202,6 +4202,36 @@ AllocationResult Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
   return obj;
 }
 
+AllocationResult Heap::CopyFeedbackVector(FeedbackVector* src) {
+  int len = src->length();
+  HeapObject* obj = nullptr;
+  {
+    AllocationResult allocation = AllocateRawFeedbackVector(len, NOT_TENURED);
+    if (!allocation.To(&obj)) return allocation;
+  }
+  obj->set_map_after_allocation(feedback_vector_map(), SKIP_WRITE_BARRIER);
+
+  FeedbackVector* result = FeedbackVector::cast(obj);
+
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+
+  // Eliminate the write barrier if possible.
+  if (mode == SKIP_WRITE_BARRIER) {
+    CopyBlock(result->address() + kPointerSize,
+              result->address() + kPointerSize,
+              FeedbackVector::SizeFor(len) - kPointerSize);
+    return result;
+  }
+
+  // Slow case: Just copy the content one-by-one.
+  result->set_shared_function_info(src->shared_function_info());
+  result->set_invocation_count(src->invocation_count());
+  result->set_profiler_ticks(src->profiler_ticks());
+  result->set_optimized_code_cell(src->optimized_code_cell());
+  for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
+  return result;
+}
 
 AllocationResult Heap::AllocateRawFixedArray(int length,
                                              PretenureFlag pretenure) {
@@ -4307,6 +4337,44 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
   return object;
 }
 
+AllocationResult Heap::AllocateRawFeedbackVector(int length,
+                                                 PretenureFlag pretenure) {
+  DCHECK(length >= 0);
+
+  int size = FeedbackVector::SizeFor(length);
+  AllocationSpace space = SelectSpace(pretenure);
+
+  HeapObject* object = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, space);
+    if (!allocation.To(&object)) return allocation;
+  }
+
+  return object;
+}
+
+AllocationResult Heap::AllocateFeedbackVector(SharedFunctionInfo* shared,
+                                              PretenureFlag pretenure) {
+  int length = shared->feedback_metadata()->slot_count();
+
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRawFeedbackVector(length, pretenure);
+    if (!allocation.To(&result)) return allocation;
+  }
+
+  // Initialize the object's map.
+  result->set_map_after_allocation(feedback_vector_map(), SKIP_WRITE_BARRIER);
+  FeedbackVector* vector = FeedbackVector::cast(result);
+  vector->set_shared_function_info(shared);
+  vector->set_optimized_code_cell(Smi::FromEnum(OptimizationMarker::kNone));
+  vector->set_length(length);
+  vector->set_invocation_count(0);
+  vector->set_profiler_ticks(0);
+  // TODO(leszeks): Initialize based on the feedback metadata.
+  MemsetPointer(vector->slots_start(), undefined_value(), length);
+  return vector;
+}
 
 AllocationResult Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.

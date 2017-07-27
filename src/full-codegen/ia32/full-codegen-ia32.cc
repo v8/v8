@@ -123,10 +123,7 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ mov(ecx, FieldOperand(edi, JSFunction::kFeedbackVectorOffset));
     __ mov(ecx, FieldOperand(ecx, Cell::kValueOffset));
-    __ add(
-        FieldOperand(ecx, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                              FeedbackVector::kHeaderSize),
-        Immediate(Smi::FromInt(1)));
+    __ inc(FieldOperand(ecx, FeedbackVector::kInvocationCountOffset));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -956,7 +953,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadFeedbackVector(edx);
-  __ mov(FieldOperand(edx, FixedArray::OffsetOfElementAt(vector_index)),
+  __ mov(FieldOperand(edx, FeedbackVector::kFeedbackSlotsOffset +
+                               vector_index * kPointerSize),
          Immediate(FeedbackVector::MegamorphicSentinel(isolate())));
 
   // eax contains the key.  The receiver in ebx is the second argument to the

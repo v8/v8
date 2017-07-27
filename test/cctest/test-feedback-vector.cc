@@ -70,21 +70,17 @@ TEST(VectorStructure) {
 
     int index = vector->GetIndex(helper.slot(0));
 
-    CHECK_EQ(FeedbackVector::kReservedIndexCount, index);
     CHECK_EQ(helper.slot(0), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3, index);
     CHECK_EQ(helper.slot(3), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(7));
-    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3 +
-                 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
+    CHECK_EQ(3 + 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              index);
     CHECK_EQ(helper.slot(7), vector->ToSlot(index));
 
-    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3 +
-                 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
+    CHECK_EQ(3 + 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              vector->length());
   }
 

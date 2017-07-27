@@ -800,7 +800,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // Load the cache state into ecx.
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
+                           FeedbackVector::kFeedbackSlotsOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -842,9 +842,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ mov(
-      FieldOperand(ebx, edx, times_half_pointer_size, FixedArray::kHeaderSize),
-      Immediate(FeedbackVector::MegamorphicSentinel(isolate)));
+  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
+                      FeedbackVector::kFeedbackSlotsOffset),
+         Immediate(FeedbackVector::MegamorphicSentinel(isolate)));
   __ jmp(&done, Label::kFar);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -869,7 +869,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&done);
   // Increment the call count for all function calls.
   __ add(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize),
+                      FeedbackVector::kFeedbackSlotsOffset + kPointerSize),
          Immediate(Smi::FromInt(1)));
 }
 
@@ -892,7 +892,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   Label feedback_register_initialized;
   // Put the AllocationSite from the feedback vector into ebx, or undefined.
   __ mov(ebx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
+                           FeedbackVector::kFeedbackSlotsOffset));
   Handle<Map> allocation_site_map = isolate()->factory()->allocation_site_map();
   __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
   __ j(equal, &feedback_register_initialized);

@@ -146,7 +146,6 @@ class ObjectStatsCollector {
   void RecordCodeDetails(Code* code);
   void RecordFixedArrayDetails(FixedArray* array);
   void RecordJSCollectionDetails(JSObject* obj);
-  void RecordJSFunctionDetails(JSFunction* function);
   void RecordJSObjectDetails(JSObject* object);
   void RecordJSWeakCollectionDetails(JSWeakCollection* obj);
   void RecordMapDetails(Map* map);

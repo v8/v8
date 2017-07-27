@@ -6,6 +6,7 @@
 #define V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 
 #include "src/assembler-inl.h"
+#include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/hash-table.h"
 #include "src/transitions.h"
@@ -354,6 +355,35 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) {
+    return offset == kSharedFunctionInfoOffset ||
+           offset == kOptimizedCodeOffset || offset >= kFeedbackSlotsOffset;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointer(obj, kSharedFunctionInfoOffset, v);
+    IteratePointer(obj, kOptimizedCodeOffset, v);
+    IteratePointers(obj, kFeedbackSlotsOffset, object_size, v);
+  }
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {
+    Heap* heap = obj->GetHeap();
+    IteratePointer<StaticVisitor>(heap, obj, kSharedFunctionInfoOffset);
+    IteratePointer<StaticVisitor>(heap, obj, kOptimizedCodeOffset);
+    IteratePointers<StaticVisitor>(heap, obj, kFeedbackSlotsOffset,
+                                   object_size);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return FeedbackVector::SizeFor(FeedbackVector::cast(obj)->length());
+  }
+};
+
 template <JSWeakCollection::BodyVisitingPolicy body_visiting_policy>
 class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
@@ -593,6 +623,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<PropertyArray::BodyDescriptor>(p1, p2, p3);
     case TRANSITION_ARRAY_TYPE:
       return Op::template apply<TransitionArray::BodyDescriptor>(p1, p2, p3);
+    case FEEDBACK_VECTOR_TYPE:
+      return Op::template apply<FeedbackVector::BodyDescriptor>(p1, p2, p3);
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_TYPE:

@@ -4235,6 +4235,7 @@ LanguageMode BytecodeGenerator::language_mode() const {
 }
 
 int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
   return FeedbackVector::GetIndex(slot);
 }
 

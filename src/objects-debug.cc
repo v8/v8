@@ -94,6 +94,9 @@ void HeapObject::HeapObjectVerify() {
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
+    case FEEDBACK_VECTOR_TYPE:
+      FeedbackVector::cast(this)->FeedbackVectorVerify();
+      break;
 
 #define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype, size)                      \
     case FIXED_##TYPE##_ARRAY_TYPE:                                            \
@@ -321,6 +324,7 @@ void FreeSpace::FreeSpaceVerify() {
   CHECK(IsFreeSpace());
 }
 
+void FeedbackVector::FeedbackVectorVerify() { CHECK(IsFeedbackVector()); }
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify() {

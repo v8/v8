@@ -126,10 +126,7 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
     __ movp(rcx, FieldOperand(rcx, Cell::kValueOffset));
-    __ SmiAddConstant(
-        FieldOperand(rcx, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                              FeedbackVector::kHeaderSize),
-        Smi::FromInt(1));
+    __ incl(FieldOperand(rcx, FeedbackVector::kInvocationCountOffset));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -982,7 +979,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadFeedbackVector(rdx);
-  __ Move(FieldOperand(rdx, FixedArray::OffsetOfElementAt(vector_index)),
+  __ Move(FieldOperand(rdx, FeedbackVector::kFeedbackSlotsOffset +
+                                vector_index * kPointerSize),
           FeedbackVector::MegamorphicSentinel(isolate()));
 
   // rax contains the key. The receiver in rbx is the second argument to

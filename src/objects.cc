@@ -3014,6 +3014,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case PROPERTY_ARRAY_TYPE:
       return kVisitPropertyArray;
 
+    case FEEDBACK_VECTOR_TYPE:
+      return kVisitFeedbackVector;
+
     case ODDBALL_TYPE:
       return kVisitOddball;
 
@@ -3317,6 +3320,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     case PROPERTY_ARRAY_TYPE:
       os << "<PropertyArray[" << PropertyArray::cast(this)->length() << "]>";
+      break;
+    case FEEDBACK_VECTOR_TYPE:
+      os << "<FeedbackVector[" << FeedbackVector::cast(this)->length() << "]>";
       break;
     case FREE_SPACE_TYPE:
       os << "<FreeSpace[" << FreeSpace::cast(this)->size() << "]>";

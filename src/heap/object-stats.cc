@@ -267,7 +267,6 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsJSCollection()) {
     RecordJSCollectionDetails(JSObject::cast(obj));
   }
-  if (obj->IsJSFunction()) RecordJSFunctionDetails(JSFunction::cast(obj));
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
 
@@ -548,14 +547,6 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   FeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
   if (!feedback_metadata->is_empty()) {
     RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
-                           0);
-  }
-}
-
-void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
-  if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
-    FeedbackVector* feedback_vector = function->feedback_vector();
-    RecordFixedArrayHelper(function, feedback_vector, FEEDBACK_VECTOR_SUB_TYPE,
                            0);
   }
 }

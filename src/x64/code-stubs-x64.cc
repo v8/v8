@@ -687,8 +687,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // Load the cache state into r11.
   __ SmiToInteger32(rdx, rdx);
-  __ movp(r11,
-          FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize));
+  __ movp(r11, FieldOperand(rbx, rdx, times_pointer_size,
+                            FeedbackVector::kFeedbackSlotsOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -731,7 +731,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
+  __ Move(FieldOperand(rbx, rdx, times_pointer_size,
+                       FeedbackVector::kFeedbackSlotsOffset),
           FeedbackVector::MegamorphicSentinel(isolate));
   __ jmp(&done);
 
@@ -754,9 +755,10 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   __ bind(&done);
   // Increment the call count for all function calls.
-  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                 FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(1));
+  __ SmiAddConstant(
+      FieldOperand(rbx, rdx, times_pointer_size,
+                   FeedbackVector::kFeedbackSlotsOffset + kPointerSize),
+      Smi::FromInt(1));
 }
 
 
@@ -777,8 +779,8 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   Label feedback_register_initialized;
   // Put the AllocationSite from the feedback vector into rbx, or undefined.
-  __ movp(rbx,
-          FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize));
+  __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
+                            FeedbackVector::kFeedbackSlotsOffset));
   __ CompareRoot(FieldOperand(rbx, 0), Heap::kAllocationSiteMapRootIndex);
   __ j(equal, &feedback_register_initialized, Label::kNear);
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
