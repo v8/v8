@@ -1920,14 +1920,13 @@ void Heap::Scavenge() {
   const int kMainThreadId = 0;
   Scavenger* scavengers[kMaxScavengerTasks];
   const bool is_logging = IsLogging(isolate());
-  const bool is_incremental_marking = incremental_marking()->IsMarking();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   Scavenger::Barrier barrier;
   CopiedList copied_list(num_scavenge_tasks);
   PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
-    scavengers[i] = new Scavenger(this, is_logging, is_incremental_marking,
-                                  &copied_list, &promotion_list, i);
+    scavengers[i] =
+        new Scavenger(this, is_logging, &copied_list, &promotion_list, i);
     job.AddTask(new ScavengingTask(this, scavengers[i], &barrier));
   }
 

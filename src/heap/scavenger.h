@@ -63,17 +63,8 @@ class Scavenger {
     bool done_;
   };
 
-  Scavenger(Heap* heap, bool is_logging, bool is_incremental_marking,
-            CopiedList* copied_list, PromotionList* promotion_list, int task_id)
-      : heap_(heap),
-        promotion_list_(promotion_list, task_id),
-        copied_list_(copied_list, task_id),
-        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
-        copied_size_(0),
-        promoted_size_(0),
-        allocator_(heap),
-        is_logging_(is_logging),
-        is_incremental_marking_(is_incremental_marking) {}
+  Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
+            PromotionList* promotion_list, int task_id);
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.
@@ -142,8 +133,9 @@ class Scavenger {
   size_t copied_size_;
   size_t promoted_size_;
   LocalAllocator allocator_;
-  bool is_logging_;
-  bool is_incremental_marking_;
+  const bool is_logging_;
+  const bool is_incremental_marking_;
+  const bool is_compacting_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
 };

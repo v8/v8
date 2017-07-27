@@ -58,6 +58,19 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   const bool record_slots_;
 };
 
+Scavenger::Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
+                     PromotionList* promotion_list, int task_id)
+    : heap_(heap),
+      promotion_list_(promotion_list, task_id),
+      copied_list_(copied_list, task_id),
+      local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
+      copied_size_(0),
+      promoted_size_(0),
+      allocator_(heap),
+      is_logging_(is_logging),
+      is_incremental_marking_(heap->incremental_marking()->IsMarking()),
+      is_compacting_(heap->incremental_marking()->IsCompacting()) {}
+
 void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   // We are not collecting slots on new space objects during mutation
   // thus we have to scan for pointers to evacuation candidates when we
@@ -65,9 +78,9 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   // objects. Grey object's slots would be rescanned.
   // White object might not survive until the end of collection
   // it would be a violation of the invariant to record it's slots.
-  const bool record_slots = heap()->incremental_marking()->IsCompacting() &&
-                            ObjectMarking::IsBlack<AccessMode::ATOMIC>(
-                                target, MarkingState::Internal(target));
+  const bool record_slots =
+      is_compacting_ && ObjectMarking::IsBlack<AccessMode::ATOMIC>(
+                            target, MarkingState::Internal(target));
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
