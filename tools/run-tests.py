@@ -114,8 +114,7 @@ VARIANTS = ["default"]
 MORE_VARIANTS = [
   "stress",
   "nooptimization",
-  "fullcode",
-  "asm_wasm",
+  "stress_asm_wasm",
   "wasm_traps",
 ]
 

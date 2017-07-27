@@ -589,11 +589,6 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
-['variant == fullcode', {
-  'es6/array-iterator-turbo': [SKIP],
-}],  # variant == nocranshaft
-
-##############################################################################
 ['variant == stress', {
   'es6/array-iterator-turbo': [SKIP],
 
