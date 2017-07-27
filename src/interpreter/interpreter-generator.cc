@@ -2170,16 +2170,15 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
   int32_t cases[] = {TYPEOF_LITERAL_LIST(CASE)};
 #undef CASE
 
-  Label if_true(this), if_false(this), end(this), abort(this, Label::kDeferred);
+  Label if_true(this), if_false(this), end(this);
 
-  Switch(literal_flag, &abort, cases, labels, arraysize(cases));
+  // We juse use the final label as the default and properly CSA_ASSERT
+  // that the {literal_flag} is valid here; this significantly improves
+  // the generated code (compared to having a default label that aborts).
+  unsigned const num_cases = arraysize(cases);
+  CSA_ASSERT(this, Uint32LessThan(literal_flag, Int32Constant(num_cases)));
+  Switch(literal_flag, labels[num_cases - 1], cases, labels, num_cases - 1);
 
-  BIND(&abort);
-  {
-    Comment("Abort");
-    Abort(BailoutReason::kUnexpectedTestTypeofLiteralFlag);
-    Goto(&if_false);
-  }
   BIND(&if_number);
   {
     Comment("IfNumber");
