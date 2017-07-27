@@ -171,15 +171,15 @@ bool DebugInfo::HasCoverageInfo() const {
 
 bool DebugInfo::ClearCoverageInfo() {
   DCHECK(FLAG_block_coverage);
-  DCHECK(HasCoverageInfo());
-  Isolate* isolate = GetIsolate();
+  if (HasCoverageInfo()) {
+    Isolate* isolate = GetIsolate();
 
-  set_coverage_info(isolate->heap()->undefined_value());
+    set_coverage_info(isolate->heap()->undefined_value());
 
-  int new_flags = flags() & ~kHasCoverageInfo;
-  set_flags(new_flags);
-
-  return new_flags == kNone;
+    int new_flags = flags() & ~kHasCoverageInfo;
+    set_flags(new_flags);
+  }
+  return flags() == kNone;
 }
 
 // Remove the specified break point object.
