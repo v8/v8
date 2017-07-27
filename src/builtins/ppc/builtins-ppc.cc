@@ -1024,11 +1024,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   Register closure = r4;
   Register optimized_code_entry = scratch1;
 
-  const int kOptimizedCodeCellOffset =
-      FeedbackVector::kOptimizedCodeIndex * kPointerSize +
-      FeedbackVector::kHeaderSize;
-  __ LoadP(optimized_code_entry,
-           FieldMemOperand(feedback_vector, kOptimizedCodeCellOffset));
+  __ LoadP(
+      optimized_code_entry,
+      FieldMemOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset));
 
   // Check if the code entry is a Smi. If yes, we interpret it as an
   // optimisation marker. Otherwise, interpret is as a weak cell to a code
@@ -1169,16 +1167,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bne(&switch_to_different_code_kind);
 
   // Increment invocation count for the function.
-  __ LoadP(
-      r8, FieldMemOperand(feedback_vector,
-                          FeedbackVector::kInvocationCountIndex * kPointerSize +
-                              FeedbackVector::kHeaderSize));
-  __ AddSmiLiteral(r8, r8, Smi::FromInt(1), r0);
+  __ LoadP(r8, FieldMemOperand(feedback_vector,
+                               FeedbackVector::kInvocationCountOffset));
+  __ addi(r8, r8, Operand(1));
   __ StoreP(
       r8,
-      FieldMemOperand(feedback_vector,
-                      FeedbackVector::kInvocationCountIndex * kPointerSize +
-                          FeedbackVector::kHeaderSize),
+      FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
       r0);
 
   // Check function data field is actually a BytecodeArray object.

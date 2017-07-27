@@ -139,13 +139,9 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ LoadP(r6, FieldMemOperand(r3, JSFunction::kFeedbackVectorOffset));
     __ LoadP(r6, FieldMemOperand(r6, Cell::kValueOffset));
-    __ LoadP(r1, FieldMemOperand(
-                     r6, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                             FeedbackVector::kHeaderSize));
-    __ AddSmiLiteral(r1, r1, Smi::FromInt(1), r0);
-    __ StoreP(r1, FieldMemOperand(
-                      r6, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                              FeedbackVector::kHeaderSize));
+    __ LoadP(r1, FieldMemOperand(r6, FeedbackVector::kInvocationCountOffset));
+    __ AddP(r1, r1, Operand(1));
+    __ StoreP(r1, FieldMemOperand(r6, FeedbackVector::kInvocationCountOffset));
   }
 
   {
@@ -972,8 +968,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadFeedbackVector(r2);
   __ mov(r4, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
-  __ StoreP(
-      r4, FieldMemOperand(r2, FixedArray::OffsetOfElementAt(vector_index)), r0);
+  __ StoreP(r4,
+            FieldMemOperand(r2, FeedbackVector::kFeedbackSlotsOffset +
+                                    vector_index * kPointerSize),
+            r0);
 
   // Convert the entry to a string or (smi) 0 if it isn't a property
   // any more. If the property has been removed while iterating, we
