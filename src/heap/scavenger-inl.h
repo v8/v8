@@ -239,6 +239,9 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
     HeapObject* dest = first_word.ToForwardingAddress();
     DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
     *p = dest;
+    // We require a relaxed store here since the slot might be in the map
+    // (e.g. LayoutDescriptor) and thus used for checking the layout.
+    base::AsAtomicWord::Relaxed_Store(p, dest);
     return;
   }
 
