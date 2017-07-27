@@ -455,9 +455,14 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
       }
     }
   }
-  // If everything checks out, we may make the assessment.
-  current_assessments->map()[op] =
-      new (zone()) FinalAssessment(virtual_register, assessment);
+  // If everything checks out, we may make the assessment, unless the operand
+  // was redefined in this block: it was initially used for the phi, but then
+  // also used as an output operand.
+  if (current_assessments->map()[op] == nullptr ||
+      current_assessments->map()[op]->kind() == Pending) {
+    current_assessments->map()[op] =
+        new (zone()) FinalAssessment(virtual_register, assessment);
+  }
 }
 
 void RegisterAllocatorVerifier::ValidateFinalAssessment(
