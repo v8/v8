@@ -10,7 +10,6 @@
 
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
-#include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -68,9 +67,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
       protocol::Maybe<protocol::Runtime::ExceptionDetails>*,
-      JavaScriptCallFrames* newCallFrames, protocol::Maybe<bool>* stackChanged,
-      bool* compileError);
-  JavaScriptCallFrames currentCallFrames(int limit = 0);
+      protocol::Maybe<bool>* stackChanged, bool* compileError);
 
   // Each script inherits debug data from v8::Context where it has been
   // compiled.

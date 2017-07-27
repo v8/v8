@@ -5,8 +5,6 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
-#include <functional>
-
 #include "include/v8-debug.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
@@ -319,6 +317,71 @@ class V8_EXPORT_PRIVATE Coverage {
   explicit Coverage(i::Coverage* coverage) : coverage_(coverage) {}
   i::Coverage* coverage_;
 };
+
+class ScopeIterator {
+ public:
+  static std::unique_ptr<ScopeIterator> CreateForFunction(
+      v8::Isolate* isolate, v8::Local<v8::Function> func);
+  static std::unique_ptr<ScopeIterator> CreateForGeneratorObject(
+      v8::Isolate* isolate, v8::Local<v8::Object> generator);
+
+  ScopeIterator() = default;
+  virtual ~ScopeIterator() = default;
+
+  enum ScopeType {
+    ScopeTypeGlobal = 0,
+    ScopeTypeLocal,
+    ScopeTypeWith,
+    ScopeTypeClosure,
+    ScopeTypeCatch,
+    ScopeTypeBlock,
+    ScopeTypeScript,
+    ScopeTypeEval,
+    ScopeTypeModule
+  };
+
+  virtual bool Done() = 0;
+  virtual void Advance() = 0;
+  virtual ScopeType GetType() = 0;
+  virtual v8::Local<v8::Object> GetObject() = 0;
+  virtual v8::Local<v8::Function> GetFunction() = 0;
+  virtual debug::Location GetStartLocation() = 0;
+  virtual debug::Location GetEndLocation() = 0;
+
+  virtual bool SetVariableValue(v8::Local<v8::String> name,
+                                v8::Local<v8::Value> value) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ScopeIterator);
+};
+
+class StackTraceIterator {
+ public:
+  static std::unique_ptr<StackTraceIterator> Create(Isolate* isolate,
+                                                    int index = 0);
+  StackTraceIterator() = default;
+  virtual ~StackTraceIterator() = default;
+
+  virtual bool Done() const = 0;
+  virtual void Advance() = 0;
+
+  virtual int GetContextId() const = 0;
+  virtual v8::Local<v8::Value> GetReceiver() const = 0;
+  virtual v8::Local<v8::Value> GetReturnValue() const = 0;
+  virtual v8::Local<v8::String> GetFunctionName() const = 0;
+  virtual v8::Local<v8::debug::Script> GetScript() const = 0;
+  virtual debug::Location GetSourceLocation() const = 0;
+  virtual v8::Local<v8::Function> GetFunction() const = 0;
+  virtual std::unique_ptr<ScopeIterator> GetScopeIterator() const = 0;
+
+  virtual bool Restart() = 0;
+  virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
+                                             bool throw_on_side_effect) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(StackTraceIterator);
+};
+
 }  // namespace debug
 }  // namespace v8
 

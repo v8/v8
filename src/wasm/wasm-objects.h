@@ -655,9 +655,15 @@ class WasmDebugInfo : public FixedArray {
   // The global scope contains information about globals and the memory.
   // The local scope contains information about parameters, locals, and stack
   // values.
-  static Handle<JSArray> GetScopeDetails(Handle<WasmDebugInfo>,
-                                         Address frame_pointer,
-                                         int frame_index);
+  static Handle<JSObject> GetScopeDetails(Handle<WasmDebugInfo>,
+                                          Address frame_pointer,
+                                          int frame_index);
+  static Handle<JSObject> GetGlobalScopeObject(Handle<WasmDebugInfo>,
+                                               Address frame_pointer,
+                                               int frame_index);
+  static Handle<JSObject> GetLocalScopeObject(Handle<WasmDebugInfo>,
+                                              Address frame_pointer,
+                                              int frame_index);
 };
 
 // TODO(titzer): these should be moved to wasm-objects-inl.h

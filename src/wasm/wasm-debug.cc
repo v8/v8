@@ -439,23 +439,14 @@ class InterpreterHandle {
     interpreter()->UpdateMemory(mem_start, mem_size);
   }
 
-  Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
-                                  Handle<WasmDebugInfo> debug_info) {
-    auto frame = GetInterpretedFrame(frame_pointer, frame_index);
+  Handle<JSObject> GetGlobalScopeObject(wasm::InterpretedFrame* frame,
+                                        Handle<WasmDebugInfo> debug_info) {
     Isolate* isolate = debug_info->GetIsolate();
     Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
-    Handle<FixedArray> global_scope =
-        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
-    global_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
-                      Smi::FromInt(ScopeIterator::ScopeTypeGlobal));
+    // TODO(clemensh): Add globals to the global scope.
     Handle<JSObject> global_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
-    global_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
-                      *global_scope_object);
-
-    // TODO(clemensh): Add globals to the global scope.
-
     if (instance->has_memory_buffer()) {
       Handle<String> name = isolate_->factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("memory"));
@@ -468,16 +459,16 @@ class InterpreterHandle {
                                                uint8_array, NONE)
           .Assert();
     }
+    return global_scope_object;
+  }
 
-    Handle<FixedArray> local_scope =
-        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
-    local_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
-                     Smi::FromInt(ScopeIterator::ScopeTypeLocal));
+  Handle<JSObject> GetLocalScopeObject(wasm::InterpretedFrame* frame,
+                                       Handle<WasmDebugInfo> debug_info) {
+    Isolate* isolate = debug_info->GetIsolate();
+    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
+
     Handle<JSObject> local_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
-    local_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
-                     *local_scope_object);
-
     // Fill parameters and locals.
     int num_params = frame->GetParameterCount();
     int num_locals = frame->GetLocalCount();
@@ -527,6 +518,32 @@ class InterpreterHandle {
           stack_obj, static_cast<uint32_t>(i), value_obj, NONE)
           .Assert();
     }
+    return local_scope_object;
+  }
+
+  Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
+                                  Handle<WasmDebugInfo> debug_info) {
+    auto frame = GetInterpretedFrame(frame_pointer, frame_index);
+    Isolate* isolate = debug_info->GetIsolate();
+    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
+
+    Handle<FixedArray> global_scope =
+        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
+    global_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
+                      Smi::FromInt(ScopeIterator::ScopeTypeGlobal));
+    Handle<JSObject> global_scope_object =
+        GetGlobalScopeObject(frame.get(), debug_info);
+    global_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
+                      *global_scope_object);
+
+    Handle<FixedArray> local_scope =
+        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
+    local_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
+                     Smi::FromInt(ScopeIterator::ScopeTypeLocal));
+    Handle<JSObject> local_scope_object =
+        GetLocalScopeObject(frame.get(), debug_info);
+    local_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
+                     *local_scope_object);
 
     Handle<JSArray> global_jsarr =
         isolate_->factory()->NewJSArrayWithElements(global_scope);
@@ -738,9 +755,24 @@ void WasmDebugInfo::UpdateMemory(JSArrayBuffer* new_memory) {
 }
 
 // static
-Handle<JSArray> WasmDebugInfo::GetScopeDetails(Handle<WasmDebugInfo> debug_info,
-                                               Address frame_pointer,
-                                               int frame_index) {
+Handle<JSObject> WasmDebugInfo::GetScopeDetails(
+    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
   InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
   return interp_handle->GetScopeDetails(frame_pointer, frame_index, debug_info);
+}
+
+// static
+Handle<JSObject> WasmDebugInfo::GetGlobalScopeObject(
+    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
+  InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
+  auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
+  return interp_handle->GetGlobalScopeObject(frame.get(), debug_info);
+}
+
+// static
+Handle<JSObject> WasmDebugInfo::GetLocalScopeObject(
+    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
+  InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
+  auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
+  return interp_handle->GetLocalScopeObject(frame.get(), debug_info);
 }

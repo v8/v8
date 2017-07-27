@@ -9646,10 +9646,6 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
 
 v8::debug::Location debug::Script::GetSourceLocation(int offset) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  if (script->type() == i::Script::TYPE_WASM) {
-    // TODO(clemensh): Return the proper thing for wasm.
-    return v8::debug::Location();
-  }
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
   return debug::Location(info.line, info.column);
@@ -9728,7 +9724,8 @@ int debug::Location::GetColumnNumber() const {
 }
 
 bool debug::Location::IsEmpty() const {
-  return line_number_ == -1 && column_number_ == -1;
+  return line_number_ == v8::Function::kLineOffsetNotFound &&
+         column_number_ == v8::Function::kLineOffsetNotFound;
 }
 
 void debug::GetLoadedScripts(v8::Isolate* v8_isolate,

@@ -40,8 +40,6 @@
       'inspector/injected-script.h',
       'inspector/inspected-context.cc',
       'inspector/inspected-context.h',
-      'inspector/java-script-call-frame.cc',
-      'inspector/java-script-call-frame.h',
       'inspector/remote-object-id.cc',
       'inspector/remote-object-id.h',
       'inspector/script-breakpoint.h',

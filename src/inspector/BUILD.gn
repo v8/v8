@@ -136,8 +136,6 @@ v8_source_set("inspector") {
     "injected-script.h",
     "inspected-context.cc",
     "inspected-context.h",
-    "java-script-call-frame.cc",
-    "java-script-call-frame.h",
     "remote-object-id.cc",
     "remote-object-id.h",
     "script-breakpoint.h",

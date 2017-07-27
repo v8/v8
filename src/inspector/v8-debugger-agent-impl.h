@@ -9,7 +9,6 @@
 
 #include "src/base/macros.h"
 #include "src/debug/interface-types.h"
-#include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 
@@ -179,7 +178,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   protocol::DictionaryValue* m_state;
   protocol::Debugger::Frontend m_frontend;
   v8::Isolate* m_isolate;
-  JavaScriptCallFrames m_pausedCallFrames;
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebugServerBreakpointToBreakpointIdAndSourceMap m_serverBreakpoints;
