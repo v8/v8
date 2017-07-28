@@ -832,8 +832,6 @@ Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
-Type* Typer::Visitor::TypeObjectId(Node* node) { UNREACHABLE(); }
-
 Type* Typer::Visitor::TypeArgumentsElementsState(Node* node) {
   return Type::Internal();
 }

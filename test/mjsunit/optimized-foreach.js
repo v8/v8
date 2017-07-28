@@ -249,17 +249,14 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
 })();
 
 (function() {
-  // TODO(6586): Once we fixed the materailization of receivers for stack trace
-  //             computation, this should be /Array\.forEach/ again.
-  var re = /forEach/;
-  var lazyDeopt = function foobar(deopt) {
+  var re = /Array\.forEach/;
+  var lazyDeopt = function(deopt) {
     var b = [1,2,3];
     var result = 0;
     var sum = function(v,i,o) {
       result += v;
       if (i == 1) {
         var e = new Error();
-        print(e.stack);
         assertTrue(re.exec(e.stack) !== null);
       }
     };
