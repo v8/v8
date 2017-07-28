@@ -570,7 +570,8 @@
       "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
       "tests": [
         {"name": "Debugger.paused"},
-        {"name": "Runtime.evaluate(String16Cstor)"}
+        {"name": "Runtime.evaluate(String16Cstor)"},
+        {"name": "Debugger.getPossibleBreakpoints"}
       ]
     }
   ]
