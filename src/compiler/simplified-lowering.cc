@@ -142,11 +142,9 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
   UNREACHABLE();
 }
 
-
 UseInfo UseInfoForBasePointer(const FieldAccess& access) {
   return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
 }
-
 
 UseInfo UseInfoForBasePointer(const ElementAccess& access) {
   return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
@@ -1014,8 +1012,9 @@ class RepresentationSelector {
         // The target of the call.
         ProcessInput(node, i, UseInfo::Any());
       } else if ((i - 1) < params) {
-        ProcessInput(node, i, TruncatingUseInfoFromRepresentation(
-                                  desc->GetInputType(i).representation()));
+        ProcessInput(node, i,
+                     TruncatingUseInfoFromRepresentation(
+                         desc->GetInputType(i).representation()));
       } else {
         ProcessInput(node, i, UseInfo::AnyTagged());
       }
@@ -1158,8 +1157,8 @@ class RepresentationSelector {
         (*types)[i] =
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
       }
-      NodeProperties::ChangeOp(node,
-                               jsgraph_->common()->TypedObjectState(types));
+      NodeProperties::ChangeOp(node, jsgraph_->common()->TypedObjectState(
+                                         ObjectIdOf(node->op()), types));
     }
     SetOutput(node, MachineRepresentation::kTagged);
   }
@@ -2852,6 +2851,8 @@ class RepresentationSelector {
         return VisitStateValues(node);
       case IrOpcode::kObjectState:
         return VisitObjectState(node);
+      case IrOpcode::kObjectId:
+        return SetOutput(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kTypeGuard: {
         // We just get rid of the sigma here, choosing the best representation
         // for the sigma's type.
@@ -3295,7 +3296,6 @@ void SimplifiedLowering::DoLoadBuffer(Node* node,
   }
 }
 
-
 void SimplifiedLowering::DoStoreBuffer(Node* node) {
   DCHECK_EQ(IrOpcode::kStoreBuffer, node->opcode());
   MachineRepresentation const rep =
@@ -3422,7 +3422,6 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
   Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
   return graph()->NewNode(phi_op, true0, false0, merge0);
 }
-
 
 Node* SimplifiedLowering::Int32Mod(Node* const node) {
   Int32BinopMatcher m(node);
@@ -3555,7 +3554,6 @@ Node* SimplifiedLowering::Uint32Div(Node* const node) {
   Node* div = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, d.if_false);
   return d.Phi(MachineRepresentation::kWord32, zero, div);
 }
-
 
 Node* SimplifiedLowering::Uint32Mod(Node* const node) {
   Uint32BinopMatcher m(node);
