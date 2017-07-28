@@ -87,7 +87,7 @@ TEST_F(UnoptimizedCompileJobTest, ConstructWithoutSFI) {
   std::unique_ptr<test::ScriptResource> resource(
       new test::ScriptResource(test_script, strlen(test_script)));
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      tracer(), FLAG_stack_size,
+      i_isolate()->thread_id().ToInteger(), tracer(), FLAG_stack_size,
       test::CreateSource(i_isolate(), resource.get()), 0,
       static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
       i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
@@ -101,28 +101,28 @@ TEST_F(UnoptimizedCompileJobTest, StateTransitions) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr), FLAG_stack_size));
 
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToParse, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kParsed, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToAnalyze, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kAnalyzed, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToCompile, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kCompiled, job);
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -131,7 +131,7 @@ TEST_F(UnoptimizedCompileJobTest, StateTransitionsParseWithCallback) {
   std::unique_ptr<test::ScriptResource> resource(
       new test::ScriptResource(test_script, strlen(test_script)));
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      tracer(), FLAG_stack_size,
+      i_isolate()->thread_id().ToInteger(), tracer(), FLAG_stack_size,
       test::CreateSource(i_isolate(), resource.get()), 0,
       static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
       i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
@@ -141,7 +141,7 @@ TEST_F(UnoptimizedCompileJobTest, StateTransitionsParseWithCallback) {
   job->StepNextOnBackgroundThread();
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
   ASSERT_TRUE(callback->result() != nullptr);
 }
@@ -152,18 +152,18 @@ TEST_F(UnoptimizedCompileJobTest, SyntaxError) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), FLAG_stack_size));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_TRUE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kFailed, job);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
 
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -177,15 +177,15 @@ TEST_F(UnoptimizedCompileJobTest, ScopeChain) {
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToCompile, job);
 
@@ -197,7 +197,7 @@ TEST_F(UnoptimizedCompileJobTest, ScopeChain) {
   ASSERT_TRUE(var);
   ASSERT_TRUE(var->IsContextSlot());
 
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -216,26 +216,26 @@ TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
 
   Smi* value = Smi::cast(*test::RunJS(isolate(), "f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -250,19 +250,19 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), 100));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_TRUE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kFailed, job);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -277,25 +277,25 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToFinalize) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), 50));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_TRUE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kFailed, job);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -330,15 +330,15 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), 100));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
 
   base::Semaphore semaphore(0);
@@ -347,11 +347,11 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
   V8::GetCurrentPlatform()->CallOnBackgroundThread(background_task,
                                                    Platform::kShortRunningTask);
   semaphore.Wait();
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
 
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
@@ -371,19 +371,19 @@ TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(i_isolate());
   ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
 
@@ -392,7 +392,7 @@ TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
 
   ASSERT_FALSE(e->shared()->HasBaselineCode());
 
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 

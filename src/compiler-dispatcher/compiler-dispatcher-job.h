@@ -36,13 +36,13 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   virtual bool CanStepNextOnAnyThread() = 0;
 
   // Step the job forward by one state on the main thread.
-  virtual void StepNextOnMainThread() = 0;
+  virtual void StepNextOnMainThread(Isolate* isolate) = 0;
 
   // Step the job forward by one state on a background thread.
   virtual void StepNextOnBackgroundThread() = 0;
 
   // Transition from any state to kInitial and free all resources.
-  virtual void ResetOnMainThread() = 0;
+  virtual void ResetOnMainThread(Isolate* isolate) = 0;
 
   // Estimate how long the next step will take using the tracer.
   virtual double EstimateRuntimeOfNextStepInMs() const = 0;

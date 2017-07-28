@@ -56,12 +56,13 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
                         size_t max_stack_size);
   // TODO(wiktorg) document it better once I know how it relates to whole stuff
   // Creates a UnoptimizedCompileJob in ready to parse top-level function state.
-  UnoptimizedCompileJob(CompilerDispatcherTracer* tracer, size_t max_stack_size,
-                        Handle<String> source, int start_position,
-                        int end_position, LanguageMode language_mode,
-                        int function_literal_id, bool native, bool module,
-                        bool is_named_expression, uint32_t hash_seed,
-                        AccountingAllocator* zone_allocator, int compiler_hints,
+  UnoptimizedCompileJob(int main_thread_id, CompilerDispatcherTracer* tracer,
+                        size_t max_stack_size, Handle<String> source,
+                        int start_position, int end_position,
+                        LanguageMode language_mode, int function_literal_id,
+                        bool native, bool module, bool is_named_expression,
+                        uint32_t hash_seed, AccountingAllocator* zone_allocator,
+                        int compiler_hints,
                         const AstStringConstants* ast_string_constants,
                         UnoptimizedCompileJobFinishCallback* finish_callback);
 
@@ -90,13 +91,13 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   }
 
   // Step the job forward by one state on the main thread.
-  void StepNextOnMainThread() override;
+  void StepNextOnMainThread(Isolate* isolate) override;
 
   // Step the job forward by one state on a background thread.
   void StepNextOnBackgroundThread() override;
 
   // Transition from any state to kInitial and free all resources.
-  void ResetOnMainThread() override;
+  void ResetOnMainThread(Isolate* isolate) override;
 
   // Estimate how long the next step will take using the tracer.
   double EstimateRuntimeOfNextStepInMs() const override;
@@ -115,7 +116,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   Status status() const { return status_; }
 
   Status status_;
-  Isolate* isolate_;
+  int main_thread_id_;
   CompilerDispatcherTracer* tracer_;
   Handle<Context> context_;            // Global handle.
   Handle<SharedFunctionInfo> shared_;  // Global handle.
@@ -139,26 +140,26 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   bool trace_compiler_dispatcher_jobs_;
 
   // Transition from kInitial to kReadyToParse.
-  void PrepareToParseOnMainThread();
+  void PrepareToParseOnMainThread(Isolate* isolate);
 
   // Transition from kReadyToParse to kParsed (or kDone if there is
   // finish_callback).
   void Parse();
 
   // Transition from kParsed to kReadyToAnalyze (or kFailed).
-  void FinalizeParsingOnMainThread();
+  void FinalizeParsingOnMainThread(Isolate* isolate);
 
   // Transition from kReadyToAnalyze to kAnalyzed (or kFailed).
-  void AnalyzeOnMainThread();
+  void AnalyzeOnMainThread(Isolate* isolate);
 
   // Transition from kAnalyzed to kReadyToCompile (or kFailed).
-  void PrepareToCompileOnMainThread();
+  void PrepareToCompileOnMainThread(Isolate* isolate);
 
   // Transition from kReadyToCompile to kCompiled.
   void Compile();
 
   // Transition from kCompiled to kDone (or kFailed).
-  void FinalizeCompilingOnMainThread();
+  void FinalizeCompilingOnMainThread(Isolate* isolate);
 
   DISALLOW_COPY_AND_ASSIGN(UnoptimizedCompileJob);
 };

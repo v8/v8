@@ -63,7 +63,7 @@ class TwoByteWrapper : public v8::String::ExternalStringResource {
 }  // namespace
 
 UnoptimizedCompileJob::UnoptimizedCompileJob(
-    CompilerDispatcherTracer* tracer, size_t max_stack_size,
+    int main_thread_id, CompilerDispatcherTracer* tracer, size_t max_stack_size,
     Handle<String> source, int start_position, int end_position,
     LanguageMode language_mode, int function_literal_id, bool native,
     bool module, bool is_named_expression, uint32_t hash_seed,
@@ -71,7 +71,7 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(
     const AstStringConstants* ast_string_constants,
     UnoptimizedCompileJobFinishCallback* finish_callback)
     : status_(Status::kReadyToParse),
-      isolate_(nullptr),
+      main_thread_id_(main_thread_id),
       tracer_(tracer),
       max_stack_size_(max_stack_size),
       finish_callback_(finish_callback),
@@ -115,16 +115,16 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
                                              Handle<SharedFunctionInfo> shared,
                                              size_t max_stack_size)
     : status_(Status::kInitial),
-      isolate_(isolate),
+      main_thread_id_(isolate->thread_id().ToInteger()),
       tracer_(tracer),
-      context_(isolate_->global_handles()->Create(isolate->context())),
-      shared_(isolate_->global_handles()->Create(*shared)),
+      context_(isolate->global_handles()->Create(isolate->context())),
+      shared_(isolate->global_handles()->Create(*shared)),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   DCHECK(!shared_->is_toplevel());
-  HandleScope scope(isolate_);
-  Handle<Script> script(Script::cast(shared_->script()), isolate_);
-  Handle<String> source(String::cast(script->source()), isolate_);
+  HandleScope scope(isolate);
+  Handle<Script> script(Script::cast(shared_->script()), isolate);
+  Handle<String> source(String::cast(script->source()), isolate);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p] created for ", static_cast<void*>(this));
     ShortPrint();
@@ -137,11 +137,11 @@ UnoptimizedCompileJob::~UnoptimizedCompileJob() {
          (status_ == Status::kReadyToParse && finish_callback_) ||
          status_ == Status::kDone);
   if (!shared_.is_null()) {
-    DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+    DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
     i::GlobalHandles::Destroy(Handle<Object>::cast(shared_).location());
   }
   if (!context_.is_null()) {
-    DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+    DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
     i::GlobalHandles::Destroy(Handle<Object>::cast(context_).location());
   }
 }
@@ -151,13 +151,13 @@ bool UnoptimizedCompileJob::IsAssociatedWith(
   return *shared_ == *shared;
 }
 
-void UnoptimizedCompileJob::StepNextOnMainThread() {
+void UnoptimizedCompileJob::StepNextOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
+
   // Ensure we are in the correct context for the job.
-  base::Optional<SaveContext> save;
+  SaveContext save(isolate);
   if (has_context()) {
-    DCHECK_NOT_NULL(isolate_);
-    save.emplace(isolate_);
-    isolate_->set_context(context());
+    isolate->set_context(context());
   } else {
     // Phases which can run off the main thread by definition can't execute any
     // JS code, and so we don't need to enter their context.
@@ -166,25 +166,25 @@ void UnoptimizedCompileJob::StepNextOnMainThread() {
 
   switch (status()) {
     case Status::kInitial:
-      return PrepareToParseOnMainThread();
+      return PrepareToParseOnMainThread(isolate);
 
     case Status::kReadyToParse:
       return Parse();
 
     case Status::kParsed:
-      return FinalizeParsingOnMainThread();
+      return FinalizeParsingOnMainThread(isolate);
 
     case Status::kReadyToAnalyze:
-      return AnalyzeOnMainThread();
+      return AnalyzeOnMainThread(isolate);
 
     case Status::kAnalyzed:
-      return PrepareToCompileOnMainThread();
+      return PrepareToCompileOnMainThread(isolate);
 
     case Status::kReadyToCompile:
       return Compile();
 
     case Status::kCompiled:
-      return FinalizeCompilingOnMainThread();
+      return FinalizeCompilingOnMainThread(isolate);
 
     case Status::kFailed:
     case Status::kDone:
@@ -207,21 +207,22 @@ void UnoptimizedCompileJob::StepNextOnBackgroundThread() {
   }
 }
 
-void UnoptimizedCompileJob::PrepareToParseOnMainThread() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK(status() == Status::kInitial);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToParse);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Preparing to parse\n",
            static_cast<void*>(this));
   }
-  HandleScope scope(isolate_);
+  HandleScope scope(isolate);
   unicode_cache_.reset(new UnicodeCache());
-  Handle<Script> script(Script::cast(shared_->script()), isolate_);
+  Handle<Script> script(Script::cast(shared_->script()), isolate);
   DCHECK(script->type() != Script::TYPE_NATIVE);
 
-  Handle<String> source(String::cast(script->source()), isolate_);
-  parse_info_.reset(new ParseInfo(isolate_->allocator()));
+  Handle<String> source(String::cast(script->source()), isolate);
+  parse_info_.reset(new ParseInfo(isolate->allocator()));
   if (source->IsExternalTwoByteString() || source->IsExternalOneByteString()) {
     character_stream_.reset(ScannerStream::For(
         source, shared_->start_position(), shared_->end_position()));
@@ -233,10 +234,10 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread() {
 
     // Objects in lo_space don't move, so we can just read the contents from
     // any thread.
-    if (isolate_->heap()->lo_space()->Contains(*source)) {
+    if (isolate->heap()->lo_space()->Contains(*source)) {
       // We need to globalize the handle to the flattened string here, in
       // case it's not referenced from anywhere else.
-      source_ = isolate_->global_handles()->Create(*source);
+      source_ = isolate->global_handles()->Create(*source);
       DisallowHeapAllocation no_allocation;
       String::FlatContent content = source->GetFlatContent();
       DCHECK(content.IsFlat());
@@ -271,26 +272,26 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread() {
       ExternalOneByteString::Resource* resource =
           new OneByteWrapper(data, length);
       source_wrapper_.reset(resource);
-      wrapper = isolate_->factory()
+      wrapper = isolate->factory()
                     ->NewExternalStringFromOneByte(resource)
                     .ToHandleChecked();
     } else {
       ExternalTwoByteString::Resource* resource =
           new TwoByteWrapper(data, length);
       source_wrapper_.reset(resource);
-      wrapper = isolate_->factory()
+      wrapper = isolate->factory()
                     ->NewExternalStringFromTwoByte(resource)
                     .ToHandleChecked();
     }
-    wrapper_ = isolate_->global_handles()->Create(*wrapper);
+    wrapper_ = isolate->global_handles()->Create(*wrapper);
 
     character_stream_.reset(
         ScannerStream::For(wrapper_, shared_->start_position() - offset,
                            shared_->end_position() - offset));
   }
-  parse_info_->InitFromIsolate(isolate_);
+  parse_info_->InitFromIsolate(isolate);
   parse_info_->set_character_stream(character_stream_.get());
-  parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
+  parse_info_->set_hash_seed(isolate->heap()->HashSeed());
   parse_info_->set_is_named_expression(shared_->is_named_expression());
   parse_info_->set_compiler_hints(shared_->compiler_hints());
   parse_info_->set_start_position(shared_->start_position());
@@ -305,7 +306,7 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread() {
 
   parser_.reset(new Parser(parse_info_.get()));
   MaybeHandle<ScopeInfo> outer_scope_info;
-  if (!shared_->outer_scope_info()->IsTheHole(isolate_) &&
+  if (!shared_->outer_scope_info()->IsTheHole(isolate) &&
       ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
     outer_scope_info = handle(ScopeInfo::cast(shared_->outer_scope_info()));
   }
@@ -343,8 +344,9 @@ void UnoptimizedCompileJob::Parse() {
   }
 }
 
-void UnoptimizedCompileJob::FinalizeParsingOnMainThread() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK(status() == Status::kParsed);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeParsing);
   if (trace_compiler_dispatcher_jobs_) {
@@ -361,25 +363,25 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread() {
     wrapper_ = Handle<String>::null();
   }
 
-  Handle<Script> script(Script::cast(shared_->script()), isolate_);
+  Handle<Script> script(Script::cast(shared_->script()), isolate);
   parse_info_->set_script(script);
   if (parse_info_->literal() == nullptr) {
-    parser_->ReportErrors(isolate_, script);
+    parser_->ReportErrors(isolate, script);
     status_ = Status::kFailed;
   } else {
     status_ = Status::kReadyToAnalyze;
   }
-  parser_->UpdateStatistics(isolate_, script);
-  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate_);
+  parser_->UpdateStatistics(isolate, script);
+  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate);
 
-  if (!shared_->outer_scope_info()->IsTheHole(isolate_) &&
+  if (!shared_->outer_scope_info()->IsTheHole(isolate) &&
       ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
     Handle<ScopeInfo> outer_scope_info(
         handle(ScopeInfo::cast(shared_->outer_scope_info())));
     parse_info_->set_outer_scope_info(outer_scope_info);
   }
 
-  parser_->HandleSourceURLComments(isolate_, script);
+  parser_->HandleSourceURLComments(isolate, script);
 
   parse_info_->set_character_stream(nullptr);
   parse_info_->set_unicode_cache(nullptr);
@@ -388,40 +390,42 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread() {
   character_stream_.reset();
 }
 
-void UnoptimizedCompileJob::AnalyzeOnMainThread() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK(status() == Status::kReadyToAnalyze);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kAnalyze);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Analyzing\n", static_cast<void*>(this));
   }
 
-  compile_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
+  compile_zone_.reset(new Zone(isolate->allocator(), ZONE_NAME));
   compile_info_.reset(new CompilationInfo(
-      compile_zone_.get(), parse_info_.get(), isolate_,
+      compile_zone_.get(), parse_info_.get(), isolate,
       Handle<SharedFunctionInfo>::null(), Handle<JSFunction>::null()));
 
-  DeferredHandleScope scope(isolate_);
+  DeferredHandleScope scope(isolate);
   {
     if (Compiler::Analyze(compile_info_.get())) {
       status_ = Status::kAnalyzed;
     } else {
       status_ = Status::kFailed;
-      if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
     }
   }
   compile_info_->set_deferred_handles(scope.Detach());
 }
 
-void UnoptimizedCompileJob::PrepareToCompileOnMainThread() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK(status() == Status::kAnalyzed);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
 
   compile_job_.reset(
       Compiler::PrepareUnoptimizedCompilationJob(compile_info_.get()));
   if (!compile_job_.get()) {
-    if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
     status_ = Status::kFailed;
     return;
   }
@@ -451,8 +455,9 @@ void UnoptimizedCompileJob::Compile() {
   status_ = Status::kCompiled;
 }
 
-void UnoptimizedCompileJob::FinalizeCompilingOnMainThread() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK(status() == Status::kCompiled);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeCompiling);
   if (trace_compiler_dispatcher_jobs_) {
@@ -461,11 +466,11 @@ void UnoptimizedCompileJob::FinalizeCompilingOnMainThread() {
   }
 
   {
-    HandleScope scope(isolate_);
+    HandleScope scope(isolate);
     compile_info_->set_shared_info(shared_);
     if (compile_job_->state() == CompilationJob::State::kFailed ||
         !Compiler::FinalizeCompilationJob(compile_job_.release())) {
-      if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
       status_ = Status::kFailed;
       return;
     }
@@ -479,7 +484,7 @@ void UnoptimizedCompileJob::FinalizeCompilingOnMainThread() {
   status_ = Status::kDone;
 }
 
-void UnoptimizedCompileJob::ResetOnMainThread() {
+void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Resetting\n", static_cast<void*>(this));
   }
@@ -494,12 +499,14 @@ void UnoptimizedCompileJob::ResetOnMainThread() {
   finish_callback_ = nullptr;
 
   if (!source_.is_null()) {
-    DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+    DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+    DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
     i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
     source_ = Handle<String>::null();
   }
   if (!wrapper_.is_null()) {
-    DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+    DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+    DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
     i::GlobalHandles::Destroy(Handle<Object>::cast(wrapper_).location());
     wrapper_ = Handle<String>::null();
   }
@@ -540,9 +547,8 @@ double UnoptimizedCompileJob::EstimateRuntimeOfNextStepInMs() const {
 }
 
 void UnoptimizedCompileJob::ShortPrint() {
-  if (isolate_) {
-    DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
-    DCHECK(!shared_.is_null());
+  if (!shared_.is_null()) {
+    DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
     shared_->ShortPrint();
   } else {
     // TODO(wiktorg) more useful info in those cases

@@ -27,7 +27,7 @@ bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherForgroundStep");
-  job->StepNextOnMainThread();
+  job->StepNextOnMainThread(isolate);
 
   DCHECK_EQ(job->IsFailed(), isolate->has_pending_exception());
   if (job->IsFailed() && exception_handling == ExceptionHandling::kSwallow) {
@@ -270,10 +270,11 @@ bool CompilerDispatcher::Enqueue(
   }
 
   std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
-      tracer_.get(), max_stack_size_, source, start_position, end_position,
-      language_mode, function_literal_id, native, module, is_named_expression,
-      isolate_->heap()->HashSeed(), isolate_->allocator(), compiler_hints,
-      isolate_->ast_string_constants(), finish_callback));
+      isolate_->thread_id().ToInteger(), tracer_.get(), max_stack_size_, source,
+      start_position, end_position, language_mode, function_literal_id, native,
+      module, is_named_expression, isolate_->heap()->HashSeed(),
+      isolate_->allocator(), compiler_hints, isolate_->ast_string_constants(),
+      finish_callback));
   JobId id = Enqueue(std::move(job));
   if (job_id != nullptr) {
     *job_id = id;
@@ -388,7 +389,7 @@ void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {
         it.second->ShortPrint();
         PrintF("\n");
       }
-      it.second->ResetOnMainThread();
+      it.second->ResetOnMainThread(isolate_);
     }
     jobs_.clear();
     shared_to_unoptimized_job_id_.Clear();
@@ -709,7 +710,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::InsertJob(
 CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveJob(
     CompilerDispatcher::JobMap::const_iterator it) {
   CompilerDispatcherJob* job = it->second.get();
-  job->ResetOnMainThread();
+  job->ResetOnMainThread(isolate_);
 
   // Unmaps unoptimized jobs' SFIs to their job id.
   if (job->type() == CompilerDispatcherJob::kUnoptimizedCompile) {
