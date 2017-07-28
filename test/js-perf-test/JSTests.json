@@ -334,7 +334,8 @@
       "path": ["Array"],
       "main": "run.js",
       "resources": [
-        "filter.js", "map.js", "every.js", "some.js", "reduce.js", "reduce-right.js"
+        "filter.js", "map.js", "every.js", "join.js", "some.js",
+        "reduce.js", "reduce-right.js", "to-string.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -358,6 +359,10 @@
         {"name": "FastEvery"},
         {"name": "ObjectEvery"},
 	{"name": "OptFastEvery"},
+	      {"name": "SmiJoin"},
+	      {"name": "StringJoin"},
+	      {"name": "SparseSmiJoin"},
+	      {"name": "SparseStringJoin"},
         {"name": "DoubleSome"},
         {"name": "SmiSome"},
         {"name": "FastSome"},
@@ -372,7 +377,11 @@
         {"name": "SmiReduceRight"},
         {"name": "FastReduceRight"},
         {"name": "ObjectReduceRight"},
-	{"name": "OptFastReduceRight"}
+	{"name": "OptFastReduceRight"},
+	      {"name": "SmiToString"},
+	      {"name": "StringToString"},
+	      {"name": "SparseSmiToString"},
+	      {"name": "SparseStringToString"}
       ]
     },
     {
