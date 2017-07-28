@@ -19727,7 +19727,11 @@ MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
                                                    must_resolve, resolve_set);
   if (isolate->has_pending_exception()) {
     DCHECK(result.is_null());
-    module->RecordError();
+    if (must_resolve) module->RecordError();
+    // If {must_resolve} is false and there's an exception, then either that
+    // exception was already recorded where it happened, or it's the
+    // kAmbiguousExport exception (see ResolveExportUsingStarExports) and the
+    // culprit module is still to be determined.
   }
   return result;
 }
