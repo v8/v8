@@ -371,26 +371,12 @@ void SharedFunctionInfo::increment_deopt_count() {
   }
 }
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, opt_reenable_tries,
-                    SharedFunctionInfo::OptReenableTriesBits)
-
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason, opt_count,
                     SharedFunctionInfo::OptCountBits)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
                     disable_optimization_reason,
                     SharedFunctionInfo::DisabledOptimizationReasonBits)
-
-void SharedFunctionInfo::TryReenableOptimization() {
-  int tries = opt_reenable_tries();
-  set_opt_reenable_tries((tries + 1) & OptReenableTriesBits::kMax);
-  // We reenable optimization whenever the number of tries is a large
-  // enough power of 2.
-  if (tries >= 16 && (((tries - 1) & tries) == 0)) {
-    set_optimization_disabled(false);
-    set_deopt_count(0);
-  }
-}
 
 bool SharedFunctionInfo::IsUserJavaScript() {
   Object* script_obj = script();

@@ -13841,10 +13841,6 @@ void Map::StartInobjectSlackTracking() {
 
 void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   set_ic_age(new_ic_age);
-  if (optimization_disabled() && deopt_count() >= FLAG_max_deopt_count) {
-    // Re-enable optimizations if they were disabled due to deopt_count limit.
-    set_optimization_disabled(false);
-  }
   set_opt_count(0);
   set_deopt_count(0);
 }

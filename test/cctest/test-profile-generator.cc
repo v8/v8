@@ -711,12 +711,11 @@ TEST(BailoutReason) {
                                          .As<v8::Function>();
   i::Handle<i::JSFunction> i_function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
-  // Set a high deopt count to trigger bail out.
-  i_function->shared()->set_opt_count(i::FLAG_max_deopt_count + 1);
-  i_function->shared()->set_deopt_count(i::FLAG_max_deopt_count + 1);
+  USE(i_function);
 
   CompileRun(
       "%OptimizeFunctionOnNextCall(Debugger);"
+      "%NeverOptimizeFunction(Debugger);"
       "Debugger();"
       "stopProfiling()");
   CHECK_EQ(1, iprofiler->GetProfilesCount());
@@ -728,11 +727,11 @@ TEST(BailoutReason) {
   // The tree should look like this:
   //  (root)
   //   ""
-  //     kDeoptimizedTooManyTimes
+  //     kOptimizationDisabledForTest
   current = PickChild(current, "");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(!strcmp("Deoptimized too many times", current->GetBailoutReason()));
+  CHECK(!strcmp("Optimization disabled for test", current->GetBailoutReason()));
 }

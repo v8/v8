@@ -344,13 +344,7 @@ class SharedFunctionInfo : public HeapObject {
   DECL_INT_ACCESSORS(deopt_count)
   inline void increment_deopt_count();
 
-  // Number of time we tried to re-enable optimization after it
-  // was disabled due to high number of deoptimizations.
-  DECL_INT_ACCESSORS(opt_reenable_tries)
-
-  inline void TryReenableOptimization();
-
-  // Stores deopt_count, opt_reenable_tries and ic_age as bit-fields.
+  // Stores deopt_count and ic_age as bit-fields.
   inline void set_counters(int value);
   inline int counters() const;
 
@@ -530,7 +524,6 @@ class SharedFunctionInfo : public HeapObject {
 // Bit fields in |counters|.
 #define COUNTERS_BIT_FIELDS(V, _)     \
   V(DeoptCountBits, int, 4, _)        \
-  V(OptReenableTriesBits, int, 18, _) \
   V(ICAgeBits, int, 8, _)
 
   DEFINE_BIT_FIELDS(COUNTERS_BIT_FIELDS)

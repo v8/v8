@@ -165,7 +165,6 @@ namespace internal {
   V(kObjectNotTagged, "The object is not tagged")                              \
   V(kOptimizationDisabled, "Optimization disabled")                            \
   V(kOptimizationDisabledForTest, "Optimization disabled for test")            \
-  V(kDeoptimizedTooManyTimes, "Deoptimized too many times")                    \
   V(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister,                   \
     "Out of virtual registers while trying to allocate temp register")         \
   V(kParseScopeError, "Parse/scope error")                                     \

@@ -768,14 +768,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  // Limit the number of times we try to optimize functions.
-  const int kMaxDeoptCount =
-      FLAG_deopt_every_n_times == 0 ? FLAG_max_deopt_count : 1000;
-  if (info->shared_info()->deopt_count() > kMaxDeoptCount) {
-    info->AbortOptimization(kDeoptimizedTooManyTimes);
-    return MaybeHandle<Code>();
-  }
-
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
@@ -1642,8 +1634,8 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   Handle<SharedFunctionInfo> shared(function->shared());
 
   if (FLAG_always_opt && shared->allows_lazy_compilation() &&
-      !function->shared()->HasAsmWasmData() &&
-      function->shared()->is_compiled()) {
+      !shared->optimization_disabled() && !shared->HasAsmWasmData() &&
+      shared->is_compiled()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);
 
