@@ -945,21 +945,27 @@ class MacroAssembler : public TurboAssembler {
   void Store(Register src, const MemOperand& dst, Representation r);
 
   void PushRoot(Heap::RootListIndex index) {
-    LoadRoot(at, index);
-    Push(at);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    Push(scratch);
   }
 
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
-    LoadRoot(at, index);
-    Branch(if_equal, eq, with, Operand(at));
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    Branch(if_equal, eq, with, Operand(scratch));
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
   void JumpIfNotRoot(Register with, Heap::RootListIndex index,
                      Label* if_not_equal) {
-    LoadRoot(at, index);
-    Branch(if_not_equal, ne, with, Operand(at));
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    Branch(if_not_equal, ne, with, Operand(scratch));
   }
 
   // ---------------------------------------------------------------------------
@@ -1609,9 +1615,11 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     if (SmiValuesAre32Bits()) {
       SmiTag(dst, src);
     } else {
-      SmiTagCheckOverflow(at, src, scratch);
+      UseScratchRegisterScope temps(this);
+      Register scratch1 = temps.Acquire();
+      SmiTagCheckOverflow(scratch1, src, scratch);
       BranchOnOverflow(not_a_smi, scratch);
-      mov(dst, at);
+      mov(dst, scratch1);
     }
   }
 
@@ -1859,30 +1867,30 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
   // Ensure that dd-ed labels following this instruction use 8 bytes aligned
   // addresses.
+  BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
+                         kSwitchTablePrologueSize);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   if (kArchVariant >= kMips64r6) {
-    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
-                           kSwitchTablePrologueSize);
     // Opposite of Align(8) as we have odd number of instructions in this case.
     if ((pc_offset() & 7) == 0) {
       nop();
     }
-    addiupc(at, 5);
-    Dlsa(at, at, index, kPointerSizeLog2);
-    Ld(at, MemOperand(at));
+    addiupc(scratch, 5);
+    Dlsa(scratch, scratch, index, kPointerSizeLog2);
+    Ld(scratch, MemOperand(scratch));
   } else {
     Label here;
-    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
-                           kSwitchTablePrologueSize);
     Align(8);
     push(ra);
     bal(&here);
-    dsll(at, index, kPointerSizeLog2);  // Branch delay slot.
+    dsll(scratch, index, kPointerSizeLog2);  // Branch delay slot.
     bind(&here);
-    daddu(at, at, ra);
+    daddu(scratch, scratch, ra);
     pop(ra);
-    Ld(at, MemOperand(at, 6 * v8::internal::Assembler::kInstrSize));
+    Ld(scratch, MemOperand(scratch, 6 * v8::internal::Assembler::kInstrSize));
   }
-  jr(at);
+  jr(scratch);
   nop();  // Branch delay slot nop.
   for (size_t index = 0; index < case_count; ++index) {
     dd(GetLabelFunction(index));

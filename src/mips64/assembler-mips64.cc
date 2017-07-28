@@ -295,7 +295,8 @@ const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size) {
+    : AssemblerBase(isolate_data, buffer, buffer_size),
+      scratch_register_list_(at.bit()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -2162,12 +2163,14 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
   constexpr int32_t kMaxOffsetForSimpleAdjustment =
       2 * kMinOffsetForSimpleAdjustment;
 
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   if (0 <= src.offset() && src.offset() <= kMaxOffsetForSimpleAdjustment) {
-    daddiu(at, src.rm(), kMinOffsetForSimpleAdjustment);
+    daddiu(scratch, src.rm(), kMinOffsetForSimpleAdjustment);
     src.offset_ -= kMinOffsetForSimpleAdjustment;
   } else if (-kMaxOffsetForSimpleAdjustment <= src.offset() &&
              src.offset() < 0) {
-    daddiu(at, src.rm(), -kMinOffsetForSimpleAdjustment);
+    daddiu(scratch, src.rm(), -kMinOffsetForSimpleAdjustment);
     src.offset_ += kMinOffsetForSimpleAdjustment;
   } else if (kArchVariant == kMips64r6) {
     // On r6 take advantage of the daui instruction, e.g.:
@@ -2190,17 +2193,17 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
       offset_high++;
       overflow_hi16 = (offset_high == -32768);
     }
-    daui(at, src.rm(), static_cast<uint16_t>(offset_high));
+    daui(scratch, src.rm(), static_cast<uint16_t>(offset_high));
 
     if (overflow_hi16) {
-      dahi(at, 1);
+      dahi(scratch, 1);
     }
 
     if (two_accesses && !is_int16(static_cast<int32_t>(
                             offset_low32 + second_access_add_to_offset))) {
       // Avoid overflow in the 16-bit offset of the load/store instruction when
       // adding 4.
-      daddiu(at, at, kDoubleSize);
+      daddiu(scratch, scratch, kDoubleSize);
       offset_low32 -= kDoubleSize;
     }
 
@@ -2216,25 +2219,25 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     constexpr int32_t kMaxOffsetForMediumAdjustment =
         3 * kMinOffsetForSimpleAdjustment;
     if (0 <= src.offset() && src.offset() <= kMaxOffsetForMediumAdjustment) {
-      daddiu(at, src.rm(), kMinOffsetForMediumAdjustment / 2);
-      daddiu(at, at, kMinOffsetForMediumAdjustment / 2);
+      daddiu(scratch, src.rm(), kMinOffsetForMediumAdjustment / 2);
+      daddiu(scratch, scratch, kMinOffsetForMediumAdjustment / 2);
       src.offset_ -= kMinOffsetForMediumAdjustment;
     } else if (-kMaxOffsetForMediumAdjustment <= src.offset() &&
                src.offset() < 0) {
-      daddiu(at, src.rm(), -kMinOffsetForMediumAdjustment / 2);
-      daddiu(at, at, -kMinOffsetForMediumAdjustment / 2);
+      daddiu(scratch, src.rm(), -kMinOffsetForMediumAdjustment / 2);
+      daddiu(scratch, scratch, -kMinOffsetForMediumAdjustment / 2);
       src.offset_ += kMinOffsetForMediumAdjustment;
     } else {
       // Now that all shorter options have been exhausted, load the full 32-bit
       // offset.
       int32_t loaded_offset = RoundDown(src.offset(), kDoubleSize);
-      lui(at, (loaded_offset >> kLuiShift) & kImm16Mask);
-      ori(at, at, loaded_offset & kImm16Mask);  // Load 32-bit offset.
-      daddu(at, at, src.rm());
+      lui(scratch, (loaded_offset >> kLuiShift) & kImm16Mask);
+      ori(scratch, scratch, loaded_offset & kImm16Mask);  // Load 32-bit offset.
+      daddu(scratch, scratch, src.rm());
       src.offset_ -= loaded_offset;
     }
   }
-  src.rm_ = at;
+  src.rm_ = scratch;
 
   DCHECK(is_int16(src.offset()));
   if (two_accesses) {
@@ -3419,9 +3422,11 @@ MSA_BRANCH_LIST(MSA_BRANCH)
     if (is_int10(source.offset())) {                             \
       GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
     } else {                                                     \
-      DCHECK(!rs.rm().is(at));                                   \
-      daddiu(at, source.rm(), source.offset());                  \
-      GenInstrMsaMI10(opcode, 0, at, wd);                        \
+      UseScratchRegisterScope temps(this);                       \
+      Register scratch = temps.Acquire();                        \
+      DCHECK(!rs.rm().is(scratch));                              \
+      daddiu(scratch, source.rm(), source.offset());             \
+      GenInstrMsaMI10(opcode, 0, scratch, wd);                   \
     }                                                            \
   }
 
@@ -4217,6 +4222,25 @@ void Assembler::set_target_value_at(Isolate* isolate, Address pc,
     Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);
   }
 }
+
+UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
+    : available_(assembler->GetScratchRegisterList()),
+      old_available_(*available_) {}
+
+UseScratchRegisterScope::~UseScratchRegisterScope() {
+  *available_ = old_available_;
+}
+
+Register UseScratchRegisterScope::Acquire() {
+  DCHECK(available_ != nullptr);
+  DCHECK(*available_ != 0);
+  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available_));
+  *available_ &= ~(1UL << index);
+
+  return Register::from_code(index);
+}
+
+bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
 
 }  // namespace internal
 }  // namespace v8

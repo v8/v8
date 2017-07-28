@@ -315,7 +315,8 @@ const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size) {
+    : AssemblerBase(isolate_data, buffer, buffer_size),
+      scratch_register_list_(at.bit()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -1983,9 +1984,10 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     // value) fits into int16_t.
     return;
   }
-
-  DCHECK(!src.rm().is(
-      at));  // Must not overwrite the register 'base' while loading 'offset'.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(!src.rm().is(scratch));  // Must not overwrite the register 'base'
+                                  // while loading 'offset'.
 
 #ifdef DEBUG
   // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
@@ -2023,12 +2025,12 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     offset_high += (offset_low < 0)
                        ? 1
                        : 0;  // Account for offset sign extension in load/store.
-    aui(at, src.rm(), static_cast<uint16_t>(offset_high));
+    aui(scratch, src.rm(), static_cast<uint16_t>(offset_high));
     if (two_accesses && !is_int16(static_cast<int32_t>(
                             offset_low + second_access_add_to_offset))) {
       // Avoid overflow in the 16-bit offset of the load/store instruction when
       // adding 4.
-      addiu(at, at, kDoubleSize);
+      addiu(scratch, scratch, kDoubleSize);
       offset_low -= kDoubleSize;
     }
     src.offset_ = offset_low;
@@ -2043,25 +2045,25 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     constexpr int32_t kMaxOffsetForMediumAdjustment =
         3 * kMinOffsetForSimpleAdjustment;
     if (0 <= src.offset() && src.offset() <= kMaxOffsetForMediumAdjustment) {
-      addiu(at, src.rm(), kMinOffsetForMediumAdjustment / 2);
-      addiu(at, at, kMinOffsetForMediumAdjustment / 2);
+      addiu(scratch, src.rm(), kMinOffsetForMediumAdjustment / 2);
+      addiu(scratch, scratch, kMinOffsetForMediumAdjustment / 2);
       src.offset_ -= kMinOffsetForMediumAdjustment;
     } else if (-kMaxOffsetForMediumAdjustment <= src.offset() &&
                src.offset() < 0) {
-      addiu(at, src.rm(), -kMinOffsetForMediumAdjustment / 2);
-      addiu(at, at, -kMinOffsetForMediumAdjustment / 2);
+      addiu(scratch, src.rm(), -kMinOffsetForMediumAdjustment / 2);
+      addiu(scratch, scratch, -kMinOffsetForMediumAdjustment / 2);
       src.offset_ += kMinOffsetForMediumAdjustment;
     } else {
       // Now that all shorter options have been exhausted, load the full 32-bit
       // offset.
       int32_t loaded_offset = RoundDown(src.offset(), kDoubleSize);
-      lui(at, (loaded_offset >> kLuiShift) & kImm16Mask);
-      ori(at, at, loaded_offset & kImm16Mask);  // Load 32-bit offset.
-      addu(at, at, src.rm());
+      lui(scratch, (loaded_offset >> kLuiShift) & kImm16Mask);
+      ori(scratch, scratch, loaded_offset & kImm16Mask);  // Load 32-bit offset.
+      addu(scratch, scratch, src.rm());
       src.offset_ -= loaded_offset;
     }
   }
-  src.rm_ = at;
+  src.rm_ = scratch;
 
   DCHECK(is_int16(src.offset()));
   if (two_accesses) {
@@ -3116,9 +3118,11 @@ MSA_BRANCH_LIST(MSA_BRANCH)
     if (is_int10(source.offset())) {                             \
       GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
     } else {                                                     \
-      DCHECK(!rs.rm().is(at));                                   \
-      addiu(at, source.rm(), source.offset());                   \
-      GenInstrMsaMI10(opcode, 0, at, wd);                        \
+      UseScratchRegisterScope temps(this);                       \
+      Register scratch = temps.Acquire();                        \
+      DCHECK(!rs.rm().is(scratch));                              \
+      addiu(scratch, source.rm(), source.offset());              \
+      GenInstrMsaMI10(opcode, 0, scratch, wd);                   \
     }                                                            \
   }
 
@@ -3788,8 +3792,10 @@ void Assembler::CheckTrampolinePool() {
             // references until associated instructions are emitted and
             // available to be patched.
             RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-            lui(at, lui_offset);
-            jic(at, jic_offset);
+            UseScratchRegisterScope temps(this);
+            Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+            lui(scratch, lui_offset);
+            jic(scratch, jic_offset);
           }
           CheckBuffer();
         }
@@ -3797,17 +3803,19 @@ void Assembler::CheckTrampolinePool() {
         for (int i = 0; i < unbound_labels_count_; i++) {
           uint32_t imm32;
           imm32 = jump_address(&after_pool);
+          UseScratchRegisterScope temps(this);
+          Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
           {
             BlockGrowBufferScope block_buf_growth(this);
             // Buffer growth (and relocation) must be blocked for internal
             // references until associated instructions are emitted and
             // available to be patched.
             RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-            lui(at, (imm32 & kHiMask) >> kLuiShift);
-            ori(at, at, (imm32 & kImm16Mask));
+            lui(scratch, (imm32 & kHiMask) >> kLuiShift);
+            ori(scratch, scratch, (imm32 & kImm16Mask));
           }
           CheckBuffer();
-          jr(at);
+          jr(scratch);
           nop();
         }
       }
@@ -3906,6 +3914,25 @@ void Assembler::set_target_value_at(Isolate* isolate, Address pc,
     Assembler::FlushICache(isolate, pc, 2 * sizeof(int32_t));
   }
 }
+
+UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
+    : available_(assembler->GetScratchRegisterList()),
+      old_available_(*available_) {}
+
+UseScratchRegisterScope::~UseScratchRegisterScope() {
+  *available_ = old_available_;
+}
+
+Register UseScratchRegisterScope::Acquire() {
+  DCHECK(available_ != nullptr);
+  DCHECK(*available_ != 0);
+  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available_));
+  *available_ &= ~(1UL << index);
+
+  return Register::from_code(index);
+}
+
+bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
 
 }  // namespace internal
 }  // namespace v8

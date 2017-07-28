@@ -700,6 +700,8 @@ class Assembler : public AssemblerBase {
 
   static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
 
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+
   // ---------------------------------------------------------------------------
   // Code generation.
 
@@ -2308,6 +2310,8 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
+  RegList scratch_register_list_;
+
   // The following functions help with avoiding allocations of embedded heap
   // objects during the code assembly phase. {RequestHeapObject} records the
   // need for a future heap number allocation or code stub generation. After
@@ -2338,6 +2342,19 @@ class EnsureSpace BASE_EMBEDDED {
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBuffer();
   }
+};
+
+class UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  Register Acquire();
+  bool hasAvailable() const;
+
+ private:
+  RegList* available_;
+  RegList old_available_;
 };
 
 }  // namespace internal

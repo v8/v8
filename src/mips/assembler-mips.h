@@ -703,6 +703,8 @@ class Assembler : public AssemblerBase {
   static constexpr int kTrampolineSlotsSize = 4 * kInstrSize;
 #endif
 
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+
   // ---------------------------------------------------------------------------
   // Code generation.
 
@@ -1977,6 +1979,8 @@ class Assembler : public AssemblerBase {
 
   inline void CheckBuffer();
 
+  RegList scratch_register_list_;
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -2285,6 +2289,19 @@ class EnsureSpace BASE_EMBEDDED {
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBuffer();
   }
+};
+
+class UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  Register Acquire();
+  bool hasAvailable() const;
+
+ private:
+  RegList* available_;
+  RegList old_available_;
 };
 
 }  // namespace internal
