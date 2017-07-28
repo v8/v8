@@ -2098,8 +2098,8 @@ Module::Status Module::GetStatus() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   switch (self->status()) {
     case i::Module::kUninstantiated:
-      return kUninstantiated;
     case i::Module::kPreInstantiating:
+      return kUninstantiated;
     case i::Module::kInstantiating:
       return kInstantiating;
     case i::Module::kInstantiated:
