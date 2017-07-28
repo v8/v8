@@ -1072,7 +1072,8 @@ class MarkCompactMarkingVisitor final
   // Marks the object black without pushing it on the marking stack. Returns
   // true if object needed marking and false otherwise.
   V8_INLINE bool MarkObjectWithoutPush(HeapObject* host, HeapObject* object) {
-    if (ObjectMarking::WhiteToBlack(object, MarkingState::Internal(object))) {
+    if (ObjectMarking::WhiteToBlack(object,
+                                    collector_->marking_state(object))) {
       if (V8_UNLIKELY(FLAG_track_retaining_path)) {
         heap_->AddRetainer(host, object);
       }
@@ -1111,9 +1112,8 @@ class MarkCompactMarkingVisitor final
   // Visit an unmarked object.
   V8_INLINE void VisitUnmarkedObject(HeapObject* obj) {
     DCHECK(heap_->Contains(obj));
-    if (ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj))) {
+    if (ObjectMarking::WhiteToBlack(obj, collector_->marking_state(obj))) {
       Map* map = obj->map();
-      ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
       // Mark the map pointer and the body.
       collector_->MarkObject(obj, map);
       Visit(map, obj);
