@@ -62,6 +62,7 @@
   V(ArgumentsElementsState) \
   V(ArgumentsLengthState)   \
   V(ObjectState)            \
+  V(ObjectId)               \
   V(TypedObjectState)       \
   V(Call)                   \
   V(Parameter)              \

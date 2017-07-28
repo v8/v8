@@ -123,6 +123,23 @@ std::ostream& operator<<(std::ostream&, ParameterInfo const&);
 V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const);
 const ParameterInfo& ParameterInfoOf(const Operator* const);
 
+struct ObjectStateInfo final : std::pair<uint32_t, int> {
+  using std::pair<uint32_t, int>::pair;
+  uint32_t object_id() const { return first; }
+  int size() const { return second; }
+};
+std::ostream& operator<<(std::ostream&, ObjectStateInfo const&);
+size_t hash_value(ObjectStateInfo const& p);
+
+struct TypedObjectStateInfo final
+    : std::pair<uint32_t, const ZoneVector<MachineType>*> {
+  using std::pair<uint32_t, const ZoneVector<MachineType>*>::pair;
+  uint32_t object_id() const { return first; }
+  const ZoneVector<MachineType>* machine_types() const { return second; }
+};
+std::ostream& operator<<(std::ostream&, TypedObjectStateInfo const&);
+size_t hash_value(TypedObjectStateInfo const& p);
+
 class RelocatablePtrConstantInfo final {
  public:
   enum Type { kInt32, kInt64 };
@@ -296,6 +313,8 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
 // IsRestOf(op) is true in the second case.
 bool IsRestOf(Operator const*);
 
+uint32_t ObjectIdOf(Operator const*);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -340,6 +359,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* NumberConstant(volatile double);
   const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
+  const Operator* ObjectId(uint32_t);
 
   const Operator* RelocatableInt32Constant(int32_t value,
                                            RelocInfo::Mode rmode);
@@ -362,8 +382,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                    SparseInputMask bitmask);
   const Operator* ArgumentsElementsState(bool is_rest);
   const Operator* ArgumentsLengthState(bool is_rest);
-  const Operator* ObjectState(int pointer_slots);
-  const Operator* TypedObjectState(const ZoneVector<MachineType>* types);
+  const Operator* ObjectState(int object_id, int pointer_slots);
+  const Operator* TypedObjectState(int object_id,
+                                   const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);

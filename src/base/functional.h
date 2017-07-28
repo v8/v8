@@ -172,7 +172,6 @@ struct hash<T*> : public std::unary_function<T*, size_t> {
   }
 };
 
-
 // base::bit_equal_to is a function object class for bitwise equality
 // comparison, similar to std::equal_to, except that the comparison is performed
 // on the bit representation of the operands.

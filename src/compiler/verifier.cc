@@ -507,6 +507,8 @@ void Verifier::Visitor::Check(Node* node) {
       // still be kStateValues.
       break;
     }
+    case IrOpcode::kObjectId:
+      CheckTypeIs(node, Type::Object());
     case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:
     case IrOpcode::kArgumentsElementsState:
