@@ -30,8 +30,9 @@ TEST(ConcurrentMarking) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
+  ConcurrentMarking::WeakCellWorklist weak_cells;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout);
+      new ConcurrentMarking(heap, &shared, &bailout, &weak_cells);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->EnsureCompleted();
@@ -43,8 +44,9 @@ TEST(ConcurrentMarkingReschedule) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
+  ConcurrentMarking::WeakCellWorklist weak_cells;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout);
+      new ConcurrentMarking(heap, &shared, &bailout, &weak_cells);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->EnsureCompleted();

@@ -642,6 +642,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
 
+  WeakCellWorklist* weak_cells() { return &weak_cells_; }
+
   void AddWeakCell(WeakCell* weak_cell) {
     weak_cells_.Push(kMainThread, weak_cell);
   }

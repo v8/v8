@@ -16,6 +16,7 @@ namespace internal {
 
 class Heap;
 class Isolate;
+class WeakCell;
 
 class ConcurrentMarking {
  public:
@@ -32,9 +33,10 @@ class ConcurrentMarking {
 
   static const int kTasks = 4;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
+  using WeakCellWorklist = Worklist<WeakCell*, 64 /* segment size */>;
 
-  ConcurrentMarking(Heap* heap, MarkingWorklist* shared_,
-                    MarkingWorklist* bailout_);
+  ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
+                    MarkingWorklist* bailout, WeakCellWorklist* weak_cells);
 
   void ScheduleTasks();
   void EnsureCompleted();
@@ -50,6 +52,7 @@ class ConcurrentMarking {
   Heap* heap_;
   MarkingWorklist* shared_;
   MarkingWorklist* bailout_;
+  WeakCellWorklist* weak_cells_;
   TaskLock task_lock_[kTasks + 1];
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;

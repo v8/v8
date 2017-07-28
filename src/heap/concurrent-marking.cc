@@ -48,10 +48,13 @@ class ConcurrentMarkingVisitor final
  public:
   using BaseClass = HeapVisitor<int, ConcurrentMarkingVisitor>;
 
-  explicit ConcurrentMarkingVisitor(ConcurrentMarking::MarkingWorklist* shared,
-                                    ConcurrentMarking::MarkingWorklist* bailout,
-                                    int task_id)
-      : shared_(shared, task_id), bailout_(bailout, task_id) {}
+  explicit ConcurrentMarkingVisitor(
+      ConcurrentMarking::MarkingWorklist* shared,
+      ConcurrentMarking::MarkingWorklist* bailout,
+      ConcurrentMarking::WeakCellWorklist* weak_cells, int task_id)
+      : shared_(shared, task_id),
+        bailout_(bailout, task_id),
+        weak_cells_(weak_cells, task_id) {}
 
   bool ShouldVisit(HeapObject* object) {
     return ObjectMarking::GreyToBlack<AccessMode::ATOMIC>(
@@ -198,9 +201,21 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitWeakCell(Map* map, WeakCell* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
-    return 0;
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    if (!object->cleared()) {
+      HeapObject* value = HeapObject::cast(object->value());
+      if (ObjectMarking::IsBlackOrGrey<AccessMode::ATOMIC>(
+              value, marking_state(value))) {
+        // TODO(ulan): Record slot for value.
+      } else {
+        // If we do not know about liveness of values of weak cells, we have to
+        // process them when we know the liveness of the whole transitive
+        // closure.
+        weak_cells_.Push(object);
+      }
+    }
+    return WeakCell::BodyDescriptor::SizeOf(map, object);
   }
 
   int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
@@ -261,6 +276,7 @@ class ConcurrentMarkingVisitor final
 
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
+  ConcurrentMarking::WeakCellWorklist::View weak_cells_;
   SlotSnapshot slot_snapshot_;
 };
 
@@ -288,10 +304,12 @@ class ConcurrentMarking::Task : public CancelableTask {
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
-                                     MarkingWorklist* bailout)
+                                     MarkingWorklist* bailout,
+                                     WeakCellWorklist* weak_cells)
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
+      weak_cells_(weak_cells),
       pending_task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
@@ -303,7 +321,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 }
 
 void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
-  ConcurrentMarkingVisitor visitor(shared_, bailout_, task_id);
+  ConcurrentMarkingVisitor visitor(shared_, bailout_, weak_cells_, task_id);
   double time_ms;
   size_t bytes_marked = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -332,6 +350,7 @@ void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
       base::LockGuard<base::Mutex> guard(lock);
       bailout_->FlushToGlobal(task_id);
     }
+    weak_cells_->FlushToGlobal(task_id);
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
