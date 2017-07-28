@@ -81,23 +81,6 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   frame_access_state_ = new (zone()) FrameAccessState(frame);
 }
 
-Deoptimizer::BailoutType CodeGenerator::DeoptimizerCallBailout(
-    int deoptimization_id, SourcePosition pos) {
-  DeoptimizeKind deopt_kind = GetDeoptimizationKind(deoptimization_id);
-  switch (deopt_kind) {
-    case DeoptimizeKind::kSoft: {
-      return Deoptimizer::SOFT;
-    }
-    case DeoptimizeKind::kEager: {
-      return Deoptimizer::EAGER;
-    }
-    case DeoptimizeKind::kLazy: {
-      return Deoptimizer::LAZY;
-    }
-    default: { UNREACHABLE(); }
-  }
-}
-
 void CodeGenerator::AssembleCode() {
   CompilationInfo* info = this->info();
 
@@ -208,11 +191,7 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
-  // This nop operation is needed to ensure that the trampoline is not
-  // confused with the pc of the call before deoptimization.
-  // The test regress/regress-259 is an example of where we need it.
-  tasm()->nop();
-  // Assemble deoptimization exits.
+  // Assemble all eager deoptimization exits.
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     tasm()->bind(exit->label());
     int trampoline_pc = tasm()->pc_offset();
@@ -222,7 +201,6 @@ void CodeGenerator::AssembleCode() {
     AssembleDeoptimizerCall(deoptimization_id, exit->pos());
   }
 
-  // TODO(juliana): check if we still need this.
   // Ensure there is space for lazy deoptimization in the code.
   if (info->ShouldEnsureSpaceForLazyDeopt()) {
     int target_offset = tasm()->pc_offset() + Deoptimizer::patch_size();
@@ -673,6 +651,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     DeoptimizationExit* const exit = new (zone())
         DeoptimizationExit(deopt_state_id, current_source_position_);
     deoptimization_exits_.push_back(exit);
+
     safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
   }
 }

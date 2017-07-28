@@ -61,7 +61,6 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
     // TODO(kasperl): Replace the linear search with binary search.
     if (GetPcOffset(i) == pc_offset) return GetEntry(i);
   }
-  UNREACHABLE();
   return SafepointEntry();
 }
 
