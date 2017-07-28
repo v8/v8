@@ -4165,11 +4165,14 @@ class V8_EXPORT WasmCompiledModule : public Object {
 // to simply WasmModuleObjectBuilder
 class V8_EXPORT WasmModuleObjectBuilderStreaming final {
  public:
-  WasmModuleObjectBuilderStreaming(Isolate* isolate, Local<Promise> promise);
+  WasmModuleObjectBuilderStreaming(Isolate* isolate);
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(const uint8_t*, size_t size);
   void Finish();
   void Abort(Local<Value> exception);
+  Local<Promise> GetPromise();
+
+  ~WasmModuleObjectBuilderStreaming();
 
  private:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;

@@ -7806,9 +7806,20 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
 }
 
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
-    Isolate* isolate, Local<Promise> promise)
+    Isolate* isolate)
     : isolate_(isolate) {
-  promise_.Reset(isolate, promise);
+  MaybeLocal<Promise::Resolver> maybe_promise =
+      Promise::Resolver::New(isolate->GetCurrentContext());
+  Local<Promise::Resolver> promise;
+  if (maybe_promise.ToLocal(&promise)) {
+    promise_.Reset(isolate, promise->GetPromise());
+  } else {
+    UNREACHABLE();
+  }
+}
+
+Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {
+  return promise_.Get(isolate_);
 }
 
 void WasmModuleObjectBuilderStreaming::OnBytesReceived(const uint8_t* bytes,
@@ -7846,6 +7857,10 @@ void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
   Local<Context> context = Utils::ToLocal(handle(i_isolate->context()));
   auto maybe = resolver->Reject(context, exception);
   CHECK_IMPLIES(!maybe.FromMaybe(false), i_isolate->has_scheduled_exception());
+}
+
+WasmModuleObjectBuilderStreaming::~WasmModuleObjectBuilderStreaming() {
+  promise_.Reset();
 }
 
 void WasmModuleObjectBuilder::OnBytesReceived(const uint8_t* bytes,
