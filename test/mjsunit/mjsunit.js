@@ -754,7 +754,7 @@ var failWithMessage;
     }
 
     fail(expectedText, found) {
-      message = formatFailureText(expectedText, found);
+      let message = formatFailureText(expectedText, found);
       message += "\nin test:" + this.name_
       message += "\n" + Function.prototype.toString.apply(this.test_);
       eval("%AbortJS(message)");
@@ -771,6 +771,25 @@ var failWithMessage;
       let message = "Failure: unreachable in test: " + this.name_;
       message += "\n" + Function.prototype.toString.apply(this.test_);
       eval("%AbortJS(message)");
+    }
+
+    unexpectedRejection(details) {
+      return (error) => {
+        let message =
+            "Failure: unexpected Promise rejection in test: " + this.name_;
+        if (details) message += "\n    @" + details;
+        if (error instanceof Error) {
+          message += "\n" + String(error.stack);
+        } else {
+          message += "\n" + String(error);
+        }
+        message += "\n\n" + Function.prototype.toString.apply(this.test_);
+        eval("%AbortJS(message)");
+      };
+    }
+
+    drainMicrotasks() {
+      eval("%RunMicrotasks()");
     }
 
     done_() {
