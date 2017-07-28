@@ -45,31 +45,6 @@ Debug.findBreakPointActualLocations = function(breakId) {}
  */
 Debug.findBreakPoint = function(breakId, remove) {}
 
-/** @const */
-var LiveEdit = {}
-
-/**
- * @param {!Script} script
- * @param {string} newSource
- * @param {boolean} previewOnly
- * @return {!{stack_modified: (boolean|undefined)}}
- */
-LiveEdit.SetScriptSource = function(script, newSource, previewOnly, change_log) {}
-
-/** @constructor */
-function Failure() {}
-LiveEdit.Failure = Failure;
-
-Debug.LiveEdit = LiveEdit;
-
-/** @typedef {{
- *    type: string,
- *    syntaxErrorMessage: string,
- *    position: !{start: !{line: number, column: number}},
- *  }}
- */
-var LiveEditErrorDetails;
-
 /** @typedef {{
  *    breakpointId: number,
  *    sourceID: number,

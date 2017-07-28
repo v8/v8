@@ -146,6 +146,8 @@ class V8_EXPORT_PRIVATE Script {
       std::vector<debug::BreakLocation>* locations) const;
   int GetSourceOffset(const debug::Location& location) const;
   v8::debug::Location GetSourceLocation(int offset) const;
+  bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
+                       bool* stack_changed) const;
 };
 
 // Specialization for wasm Scripts.
@@ -171,7 +173,7 @@ class DebugDelegate {
   virtual ~DebugDelegate() {}
   virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
                                     int parent_id, bool created_by_user) {}
-  virtual void ScriptCompiled(v8::Local<Script> script,
+  virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                                      v8::Local<v8::Object> exec_state,

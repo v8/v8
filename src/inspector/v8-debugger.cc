@@ -25,10 +25,6 @@ namespace {
 
 static const int kMaxAsyncTaskStacks = 128 * 1024;
 
-inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
-  return value ? v8::True(isolate) : v8::False(isolate);
-}
-
 v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
                                              v8::Local<v8::Value> value) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -160,8 +156,6 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
 }
 
 }  // namespace
-
-static bool inLiveEditScope = false;
 
 v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
     const char* functionName, int argc, v8::Local<v8::Value> argv[],
@@ -499,96 +493,6 @@ void V8Debugger::clearContinueToLocation() {
   m_continueToLocationStack.reset();
 }
 
-Response V8Debugger::setScriptSource(
-    const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
-    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails,
-    Maybe<bool>* stackChanged, bool* compileError) {
-  class EnableLiveEditScope {
-   public:
-    explicit EnableLiveEditScope(v8::Isolate* isolate) : m_isolate(isolate) {
-      v8::debug::SetLiveEditEnabled(m_isolate, true);
-      inLiveEditScope = true;
-    }
-    ~EnableLiveEditScope() {
-      v8::debug::SetLiveEditEnabled(m_isolate, false);
-      inLiveEditScope = false;
-    }
-
-   private:
-    v8::Isolate* m_isolate;
-  };
-
-  *compileError = false;
-  DCHECK(enabled());
-  v8::HandleScope scope(m_isolate);
-
-  std::unique_ptr<v8::Context::Scope> contextScope;
-  if (!isPaused())
-    contextScope.reset(new v8::Context::Scope(debuggerContext()));
-
-  v8::Local<v8::Value> argv[] = {toV8String(m_isolate, sourceID), newSource,
-                                 v8Boolean(dryRun, m_isolate)};
-
-  v8::Local<v8::Value> v8result;
-  {
-    EnableLiveEditScope enableLiveEditScope(m_isolate);
-    v8::TryCatch tryCatch(m_isolate);
-    tryCatch.SetVerbose(false);
-    v8::MaybeLocal<v8::Value> maybeResult =
-        callDebuggerMethod("liveEditScriptSource", 3, argv, false);
-    if (tryCatch.HasCaught()) {
-      v8::Local<v8::Message> message = tryCatch.Message();
-      if (!message.IsEmpty())
-        return Response::Error(toProtocolStringWithTypeCheck(message->Get()));
-      else
-        return Response::InternalError();
-    }
-    v8result = maybeResult.ToLocalChecked();
-  }
-  DCHECK(!v8result.IsEmpty());
-  v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
-  v8::Local<v8::Object> resultTuple =
-      v8result->ToObject(context).ToLocalChecked();
-  int code = static_cast<int>(resultTuple->Get(context, 0)
-                                  .ToLocalChecked()
-                                  ->ToInteger(context)
-                                  .ToLocalChecked()
-                                  ->Value());
-  switch (code) {
-    case 0: {
-      *stackChanged = resultTuple->Get(context, 1)
-                          .ToLocalChecked()
-                          ->BooleanValue(context)
-                          .FromJust();
-      return Response::OK();
-    }
-    // Compile error.
-    case 1: {
-      *exceptionDetails =
-          protocol::Runtime::ExceptionDetails::create()
-              .setExceptionId(m_inspector->nextExceptionId())
-              .setText(toProtocolStringWithTypeCheck(
-                  resultTuple->Get(context, 2).ToLocalChecked()))
-              .setLineNumber(static_cast<int>(resultTuple->Get(context, 3)
-                                                  .ToLocalChecked()
-                                                  ->ToInteger(context)
-                                                  .ToLocalChecked()
-                                                  ->Value()) -
-                             1)
-              .setColumnNumber(static_cast<int>(resultTuple->Get(context, 4)
-                                                    .ToLocalChecked()
-                                                    ->ToInteger(context)
-                                                    .ToLocalChecked()
-                                                    ->Value()) -
-                               1)
-              .build();
-      *compileError = true;
-      return Response::OK();
-    }
-  }
-  return Response::InternalError();
-}
-
 void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
                                     v8::Local<v8::Object> executionState,
                                     v8::Local<v8::Value> exception,
@@ -687,7 +591,7 @@ void V8Debugger::v8OOMCallback(void* data) {
 }
 
 void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
-                                bool has_compile_error) {
+                                bool is_live_edited, bool has_compile_error) {
   int contextId;
   if (!script->ContextId().To(&contextId)) return;
   if (script->IsWasm()) {
@@ -703,11 +607,11 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
     v8::Isolate* isolate = m_isolate;
     m_inspector->forEachSession(
         m_inspector->contextGroupId(contextId),
-        [&isolate, &script,
-         &has_compile_error](V8InspectorSessionImpl* session) {
+        [&isolate, &script, &has_compile_error,
+         &is_live_edited](V8InspectorSessionImpl* session) {
           if (!session->debuggerAgent()->enabled()) return;
           session->debuggerAgent()->didParseSource(
-              V8DebuggerScript::Create(isolate, script, inLiveEditScope),
+              V8DebuggerScript::Create(isolate, script, is_live_edited),
               !has_compile_error);
         });
   }

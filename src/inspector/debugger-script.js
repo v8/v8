@@ -58,45 +58,6 @@ DebuggerScript.removeBreakpoint = function(execState, info)
     Debug.findBreakPoint(info.breakpointId, true);
 }
 
-// Returns array in form:
-//      [ 0, <v8_result_report> ] in case of success
-//   or [ 1, <general_error_message>, <compiler_message>, <line_number>, <column_number> ] in case of compile error, numbers are 1-based.
-// or throws exception with message.
-/**
- * @param {number} scriptId
- * @param {string} newSource
- * @param {boolean} preview
- * @return {!Array<*>}
- */
-DebuggerScript.liveEditScriptSource = function(scriptId, newSource, preview)
-{
-    var scripts = Debug.scripts();
-    var scriptToEdit = null;
-    for (var i = 0; i < scripts.length; i++) {
-        if (scripts[i].id == scriptId) {
-            scriptToEdit = scripts[i];
-            break;
-        }
-    }
-    if (!scriptToEdit)
-        throw("Script not found");
-
-    var changeLog = [];
-    try {
-        var result = Debug.LiveEdit.SetScriptSource(scriptToEdit, newSource, preview, changeLog);
-        return [0, result.stack_modified];
-    } catch (e) {
-        if (e instanceof Debug.LiveEdit.Failure && "details" in e) {
-            var details = /** @type {!LiveEditErrorDetails} */(e.details);
-            if (details.type === "liveedit_compile_error") {
-                var startPosition = details.position.start;
-                return [1, String(e), String(details.syntaxErrorMessage), Number(startPosition.line), Number(startPosition.column)];
-            }
-        }
-        throw e;
-    }
-}
-
 /**
  * @param {!ExecutionState} execState
  */

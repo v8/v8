@@ -64,11 +64,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
                               std::unique_ptr<protocol::Debugger::Location>,
                               const String16& targetCallFramess);
 
-  Response setScriptSource(
-      const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
-      protocol::Maybe<protocol::Runtime::ExceptionDetails>*,
-      protocol::Maybe<bool>* stackChanged, bool* compileError);
-
   // Each script inherits debug data from v8::Context where it has been
   // compiled.
   // Only scripts whose debug data matches |contextGroupId| will be reported.
@@ -161,7 +156,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   // v8::debug::DebugEventListener implementation.
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
                             int parentId, bool createdByUser) override;
-  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,

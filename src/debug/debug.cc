@@ -612,9 +612,9 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   return has_break_points_at_all;
 }
 
-
 MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
-                                        Handle<Object> args[]) {
+                                        Handle<Object> args[],
+                                        bool catch_exceptions) {
   AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   AssertDebugContext();
@@ -623,10 +623,14 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(isolate_, holder, name).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
-  MaybeHandle<Object> maybe_exception;
-  return Execution::TryCall(isolate_, fun, undefined, argc, args,
-                            Execution::MessageHandling::kReport,
-                            &maybe_exception);
+  if (catch_exceptions) {
+    MaybeHandle<Object> maybe_exception;
+    return Execution::TryCall(isolate_, fun, undefined, argc, args,
+                              Execution::MessageHandling::kReport,
+                              &maybe_exception);
+  } else {
+    return Execution::Call(isolate_, fun, undefined, argc, args);
+  }
 }
 
 
@@ -2025,6 +2029,30 @@ bool Debug::AllFramesOnStackAreBlackboxed() {
   return true;
 }
 
+bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
+                            bool preview, bool* stack_changed) {
+  DebugScope debug_scope(this);
+  set_live_edit_enabled(true);
+  Handle<Object> script_wrapper = Script::GetWrapper(script);
+  Handle<Object> argv[] = {script_wrapper, source,
+                           isolate_->factory()->ToBoolean(preview),
+                           isolate_->factory()->NewJSArray(0)};
+  Handle<Object> result;
+  if (!CallFunction("SetScriptSource", arraysize(argv), argv, false)
+           .ToHandle(&result)) {
+    isolate_->OptionalRescheduleException(false);
+    set_live_edit_enabled(false);
+    return false;
+  }
+  set_live_edit_enabled(false);
+  Handle<Object> stack_changed_value =
+      JSReceiver::GetProperty(isolate_, Handle<JSObject>::cast(result),
+                              "stack_modified")
+          .ToHandleChecked();
+  *stack_changed = stack_changed_value->IsTrue(isolate_);
+  return true;
+}
+
 void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
                              int parent_id) {
   if (in_debug_scope() || ignore_events()) return;
@@ -2060,6 +2088,7 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
+                                  live_edit_enabled(),
                                   event != v8::AfterCompile);
 }
 
@@ -2338,6 +2367,7 @@ void LegacyDebugDelegate::PromiseEventOccurred(
 }
 
 void LegacyDebugDelegate::ScriptCompiled(v8::Local<v8::debug::Script> script,
+                                         bool is_live_edited,
                                          bool is_compile_error) {
   Handle<Object> event_data;
   v8::DebugEvent event = is_compile_error ? v8::CompileError : v8::AfterCompile;

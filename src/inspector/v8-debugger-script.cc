@@ -160,6 +160,20 @@ class ActualScript : public V8DebuggerScript {
     m_sourceMappingURL = sourceMappingURL;
   }
 
+  void setSource(const String16& newSource, bool preview,
+                 bool* stackChanged) override {
+    DCHECK(!isModule());
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
+    if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview,
+                                                  stackChanged)) {
+      return;
+    }
+    if (preview) return;
+    m_source = newSource;
+    m_hash = String16();
+  }
+
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
       bool restrictToFunction,
@@ -256,6 +270,7 @@ class WasmVirtualScript : public V8DebuggerScript {
   bool isLiveEdit() const override { return false; }
   bool isModule() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
+  void setSource(const String16&, bool, bool*) override { UNREACHABLE(); }
 
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,

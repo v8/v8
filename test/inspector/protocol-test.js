@@ -213,14 +213,14 @@ InspectorTest.Session = class {
     }
   }
 
-  logSourceLocation(location) {
+  logSourceLocation(location, forceSourceRequest) {
     var scriptId = location.scriptId;
     if (!this._scriptMap || !this._scriptMap.has(scriptId)) {
       InspectorTest.log("setupScriptMap should be called before Protocol.Debugger.enable.");
       InspectorTest.completeTest();
     }
     var script = this._scriptMap.get(scriptId);
-    if (!script.scriptSource) {
+    if (!script.scriptSource || forceSourceRequest) {
       return this.Protocol.Debugger.getScriptSource({ scriptId })
           .then(message => script.scriptSource = message.result.scriptSource)
           .then(dumpSourceWithLocation);

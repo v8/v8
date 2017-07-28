@@ -349,6 +349,13 @@ class Debug {
 
   bool AllFramesOnStackAreBlackboxed();
 
+  // Set new script source, throw an exception if error occurred. When preview
+  // is true: try to set source, throw exception if any without actual script
+  // change. stack_changed is true if after editing script on pause stack is
+  // changed and client should request stack trace again.
+  bool SetScriptSource(Handle<Script> script, Handle<String> source,
+                       bool preview, bool* stack_changed);
+
   // Threading support.
   char* ArchiveDebug(char* to);
   char* RestoreDebug(char* from);
@@ -492,7 +499,8 @@ class Debug {
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
-                                   Handle<Object> args[]);
+                                   Handle<Object> args[],
+                                   bool catch_exceptions = true);
 
   inline void AssertDebugContext() {
     DCHECK(isolate_->context() == *debug_context());
@@ -614,7 +622,7 @@ class LegacyDebugDelegate : public v8::debug::DebugDelegate {
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
                             int parent_id, bool created_by_user) override;
-  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,

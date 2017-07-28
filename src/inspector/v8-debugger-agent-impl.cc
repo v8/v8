@@ -248,6 +248,62 @@ Response buildScopes(v8::debug::ScopeIterator* iterator,
   return Response::OK();
 }
 
+bool liveEditExceptionToDetails(
+    V8InspectorImpl* inspector, v8::Local<v8::Context> context,
+    v8::Local<v8::Value> exceptionValue,
+    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
+  if (!exceptionValue->IsObject()) return false;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::Object> exception = exceptionValue.As<v8::Object>();
+  v8::Local<v8::Value> detailsValue;
+  if (!exception->Get(context, toV8String(isolate, "details"))
+           .ToLocal(&detailsValue) ||
+      !detailsValue->IsObject()) {
+    return false;
+  }
+  v8::Local<v8::Object> details = detailsValue.As<v8::Object>();
+  v8::Local<v8::Value> message;
+  if (!details->Get(context, toV8String(isolate, "syntaxErrorMessage"))
+           .ToLocal(&message) ||
+      !message->IsString()) {
+    return false;
+  }
+  v8::Local<v8::Value> positionValue;
+  if (!details->Get(context, toV8String(isolate, "position"))
+           .ToLocal(&positionValue) ||
+      !positionValue->IsObject()) {
+    return false;
+  }
+  v8::Local<v8::Value> startPositionValue;
+  if (!positionValue.As<v8::Object>()
+           ->Get(context, toV8String(isolate, "start"))
+           .ToLocal(&startPositionValue) ||
+      !startPositionValue->IsObject()) {
+    return false;
+  }
+  v8::Local<v8::Object> startPosition = startPositionValue.As<v8::Object>();
+  v8::Local<v8::Value> lineValue;
+  if (!startPosition->Get(context, toV8String(isolate, "line"))
+           .ToLocal(&lineValue) ||
+      !lineValue->IsInt32()) {
+    return false;
+  }
+  v8::Local<v8::Value> columnValue;
+  if (!startPosition->Get(context, toV8String(isolate, "column"))
+           .ToLocal(&columnValue) ||
+      !columnValue->IsInt32()) {
+    return false;
+  }
+  *exceptionDetails =
+      protocol::Runtime::ExceptionDetails::create()
+          .setExceptionId(inspector->nextExceptionId())
+          .setText(toProtocolString(message.As<v8::String>()))
+          .setLineNumber(lineValue->Int32Value(context).FromJust() - 1)
+          .setColumnNumber(columnValue->Int32Value(context).FromJust() - 1)
+          .build();
+  return true;
+}
+
 }  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
@@ -675,18 +731,36 @@ Response V8DebuggerAgentImpl::setScriptSource(
     // TODO(kozyatinskiy): LiveEdit should support ES6 module
     return Response::Error("Editing module's script is not supported.");
   }
+  int contextId = it->second->executionContextId();
+  int contextGroupId = m_inspector->contextGroupId(contextId);
+  InspectedContext* inspected =
+      m_inspector->getContext(contextGroupId, contextId);
+  if (!inspected) {
+    return Response::InternalError();
+  }
+  v8::HandleScope handleScope(m_isolate);
+  v8::Local<v8::Context> context = inspected->context();
+  v8::Context::Scope contextScope(context);
+  v8::TryCatch tryCatch(m_isolate);
 
-  v8::HandleScope handles(m_isolate);
-  v8::Local<v8::String> newSource = toV8String(m_isolate, newContent);
-  bool compileError = false;
-  Response response = m_debugger->setScriptSource(
-      scriptId, newSource, dryRun.fromMaybe(false), optOutCompileError,
-      stackChanged, &compileError);
-  if (!response.isSuccess() || compileError) return response;
-
-  it->second->setSource(newContent);
+  bool stackChangedValue = false;
+  it->second->setSource(newContent, dryRun.fromMaybe(false),
+                        &stackChangedValue);
+  if (tryCatch.HasCaught()) {
+    if (liveEditExceptionToDetails(m_inspector, context, tryCatch.Exception(),
+                                   optOutCompileError)) {
+      return Response::OK();
+    }
+    v8::Local<v8::Message> message = tryCatch.Message();
+    if (!message.IsEmpty())
+      return Response::Error(toProtocolStringWithTypeCheck(message->Get()));
+    else
+      return Response::InternalError();
+  } else {
+    *stackChanged = stackChangedValue;
+  }
   std::unique_ptr<Array<CallFrame>> callFrames;
-  response = currentCallFrames(&callFrames);
+  Response response = currentCallFrames(&callFrames);
   if (!response.isSuccess()) return response;
   *newCallFrames = std::move(callFrames);
   *asyncStackTrace = currentAsyncStackTrace();

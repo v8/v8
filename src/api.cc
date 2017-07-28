@@ -9666,6 +9666,14 @@ v8::debug::Location debug::Script::GetSourceLocation(int offset) const {
   return debug::Location(info.line, info.column);
 }
 
+bool debug::Script::SetScriptSource(v8::Local<v8::String> newSource,
+                                    bool preview, bool* stack_changed) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  return isolate->debug()->SetScriptSource(
+      script, Utils::OpenHandle(*newSource), preview, stack_changed);
+}
+
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
   CHECK(script->IsWasm());
   return static_cast<WasmScript*>(script);
