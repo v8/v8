@@ -199,9 +199,16 @@ int MarkingVisitor<ConcreteVisitor>::VisitTransitionArray(
   if (array->HasPrototypeTransitions()) {
     visitor->VisitPointer(array, array->GetPrototypeTransitionsSlot());
   }
-  int num_transitions = TransitionArray::NumberOfTransitions(array);
+  int num_transitions = array->number_of_entries();
   for (int i = 0; i < num_transitions; ++i) {
     visitor->VisitPointer(array, array->GetKeySlot(i));
+    // A TransitionArray can hold maps or (transitioning StoreIC) handlers.
+    // Maps have custom weak handling; handlers (which in turn weakly point
+    // to maps) are marked strongly for now, and will be cleared during
+    // compaction when the maps they refer to are dead.
+    if (!array->GetRawTarget(i)->IsMap()) {
+      visitor->VisitPointer(array, array->GetTargetSlot(i));
+    }
   }
   // Enqueue the array in linked list of encountered transition arrays if it is
   // not already in the list.

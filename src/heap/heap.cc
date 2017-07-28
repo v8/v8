@@ -3448,10 +3448,11 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     int new_size = ByteArray::SizeFor(len - elements_to_trim);
     bytes_to_trim = ByteArray::SizeFor(len) - new_size;
     DCHECK_GE(bytes_to_trim, 0);
+  } else if (object->IsFixedArray() || object->IsTransitionArray()) {
+    bytes_to_trim = elements_to_trim * kPointerSize;
   } else {
-    const int element_size =
-        object->IsFixedArray() ? kPointerSize : kDoubleSize;
-    bytes_to_trim = elements_to_trim * element_size;
+    DCHECK(object->IsFixedDoubleArray());
+    bytes_to_trim = elements_to_trim * kDoubleSize;
   }
 
 

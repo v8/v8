@@ -135,9 +135,7 @@ bool HeapObject::IsFixedArrayBase() const {
 
 bool HeapObject::IsFixedArray() const {
   InstanceType instance_type = map()->instance_type();
-  return instance_type == FIXED_ARRAY_TYPE ||
-         instance_type == HASH_TABLE_TYPE ||
-         instance_type == TRANSITION_ARRAY_TYPE;
+  return instance_type == FIXED_ARRAY_TYPE || instance_type == HASH_TABLE_TYPE;
 }
 
 bool HeapObject::IsSloppyArgumentsElements() const { return IsFixedArray(); }
@@ -1730,7 +1728,7 @@ void FixedArray::set(int index, Smi* value) {
 
 void FixedArray::set(int index, Object* value) {
   DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray());
+  DCHECK(IsFixedArray() || IsTransitionArray());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
@@ -4242,9 +4240,10 @@ Object* Map::GetBackPointer() const {
   return GetIsolate()->heap()->undefined_value();
 }
 
-Map* Map::ElementsTransitionMap() const {
-  return TransitionArray::SearchSpecial(
-      this, GetHeap()->elements_transition_symbol());
+Map* Map::ElementsTransitionMap() {
+  DisallowHeapAllocation no_gc;
+  return TransitionsAccessor(this, &no_gc)
+      .SearchSpecial(GetHeap()->elements_transition_symbol());
 }
 
 

@@ -1250,8 +1250,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
 
 void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   Object* raw_transitions_or_prototype_info = map->raw_transitions();
-  if (TransitionArray::IsFullTransitionArray(
-          raw_transitions_or_prototype_info)) {
+  if (raw_transitions_or_prototype_info->IsTransitionArray()) {
     TransitionArray* transitions =
         TransitionArray::cast(raw_transitions_or_prototype_info);
     if (map->CanTransition() && transitions->HasPrototypeTransitions()) {
@@ -1262,8 +1261,9 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
     TagObject(transitions, "(transition array)");
     SetInternalReference(map, entry, "transitions", transitions,
                          Map::kTransitionsOrPrototypeInfoOffset);
-  } else if (TransitionArray::IsSimpleTransition(
-                 raw_transitions_or_prototype_info)) {
+  } else if (raw_transitions_or_prototype_info->IsWeakCell() ||
+             raw_transitions_or_prototype_info->IsTuple3() ||
+             raw_transitions_or_prototype_info->IsFixedArray()) {
     TagObject(raw_transitions_or_prototype_info, "(transition)");
     SetInternalReference(map, entry, "transition",
                          raw_transitions_or_prototype_info,

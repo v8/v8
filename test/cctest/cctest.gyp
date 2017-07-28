@@ -192,6 +192,7 @@
       'test-trace-event.cc',
       'test-traced-value.cc',
       'test-transitions.cc',
+      'test-transitions.h',
       'test-typedarrays.cc',
       'test-types.cc',
       'test-unbound-queue.cc',

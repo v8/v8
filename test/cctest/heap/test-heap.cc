@@ -53,7 +53,7 @@
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/test-feedback-vector.h"
-
+#include "test/cctest/test-transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -2855,7 +2855,8 @@ TEST(OptimizedAllocationArrayLiterals) {
 
 
 static int CountMapTransitions(Map* map) {
-  return TransitionArray::NumberOfTransitions(map->raw_transitions());
+  DisallowHeapAllocation no_gc;
+  return TransitionsAccessor(map, &no_gc).NumberOfTransitions();
 }
 
 
@@ -3044,11 +3045,14 @@ TEST(TransitionArraySimpleToFull) {
   CompileRun("o = new F;"
              "root = new F");
   root = GetByName("root");
-  CHECK(TransitionArray::IsSimpleTransition(root->map()->raw_transitions()));
+  {
+    DisallowHeapAllocation no_gc;
+    CHECK(TestTransitionsAccessor(root->map(), &no_gc).IsWeakCellEncoding());
+  }
   AddPropertyTo(2, root, "happy");
 
   // Count number of live transitions after marking.  Note that one transition
-  // is left, because 'o' still holds an instance of one transition target.
+  // is left, because 'root' still holds an instance of one transition target.
   int transitions_after = CountMapTransitions(
       Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);

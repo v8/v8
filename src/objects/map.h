@@ -276,7 +276,7 @@ class Map : public HeapObject {
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
   bool DictionaryElementsInPrototypeChainOnly();
 
-  inline Map* ElementsTransitionMap() const;
+  inline Map* ElementsTransitionMap();
 
   inline FixedArrayBase* GetInitialElements() const;
 

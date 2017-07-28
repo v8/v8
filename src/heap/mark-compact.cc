@@ -31,6 +31,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/transitions-inl.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -2784,13 +2785,13 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
   }
 
-  DependentCode* dependent_code_list;
-  ClearWeakCellsAndSimpleMapTransitions(&dependent_code_list);
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
+    // ClearFullMapTransitions must be called before WeakCells are cleared.
     ClearFullMapTransitions();
   }
-
+  DependentCode* dependent_code_list;
+  ClearWeakCellsAndSimpleMapTransitions(&dependent_code_list);
   MarkDependentCodeForDeoptimization(dependent_code_list);
 
   ClearWeakCollections();
@@ -2863,8 +2864,10 @@ void MarkCompactCollector::ClearSimpleMapTransition(
   Object* potential_parent = dead_target->constructor_or_backpointer();
   if (potential_parent->IsMap()) {
     Map* parent = Map::cast(potential_parent);
+    DisallowHeapAllocation no_gc_obviously;
     if (ObjectMarking::IsBlackOrGrey(parent, marking_state(parent)) &&
-        parent->raw_transitions() == potential_transition) {
+        TransitionsAccessor(parent, &no_gc_obviously)
+            .HasSimpleTransitionTo(potential_transition)) {
       ClearSimpleMapTransition(parent, dead_target);
     }
   }
@@ -2885,16 +2888,15 @@ void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
   }
 }
 
-
 void MarkCompactCollector::ClearFullMapTransitions() {
   HeapObject* undefined = heap()->undefined_value();
   Object* obj = heap()->encountered_transition_arrays();
   while (obj != Smi::kZero) {
     TransitionArray* array = TransitionArray::cast(obj);
     int num_transitions = array->number_of_entries();
-    DCHECK_EQ(TransitionArray::NumberOfTransitions(array), num_transitions);
     if (num_transitions > 0) {
       Map* map = array->GetTarget(0);
+      DCHECK_NOT_NULL(map);  // WeakCells aren't cleared yet.
       Map* parent = Map::cast(map->constructor_or_backpointer());
       bool parent_is_alive =
           ObjectMarking::IsBlackOrGrey(parent, MarkingState::Internal(parent));
@@ -2911,7 +2913,6 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   }
   heap()->set_encountered_transition_arrays(Smi::kZero);
 }
-
 
 bool MarkCompactCollector::CompactTransitionArray(
     Map* map, TransitionArray* transitions, DescriptorArray* descriptors) {
@@ -2933,8 +2934,14 @@ bool MarkCompactCollector::CompactTransitionArray(
         transitions->SetKey(transition_index, key);
         Object** key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);
-        // Target slots do not need to be recorded since maps are not compacted.
-        transitions->SetTarget(transition_index, transitions->GetTarget(i));
+        Object* raw_target = transitions->GetRawTarget(i);
+        transitions->SetTarget(transition_index, raw_target);
+        // Maps are not compacted, but for cached handlers the target slot
+        // must be recorded.
+        if (!raw_target->IsMap()) {
+          Object** target_slot = transitions->GetTargetSlot(transition_index);
+          RecordSlot(transitions, target_slot, raw_target);
+        }
       }
       transition_index++;
     }
@@ -2948,7 +2955,7 @@ bool MarkCompactCollector::CompactTransitionArray(
   // such that number_of_transitions() == 0. If this assumption changes,
   // TransitionArray::Insert() will need to deal with the case that a transition
   // array disappeared during GC.
-  int trim = TransitionArray::Capacity(transitions) - transition_index;
+  int trim = transitions->Capacity() - transition_index;
   if (trim > 0) {
     heap_->RightTrimFixedArray(transitions,
                                trim * TransitionArray::kTransitionSize);
