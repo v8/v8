@@ -320,8 +320,21 @@ class Expectations {
                            Handle<FieldType> heap_type) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
-    SetDataField(property_index, attributes, constness, representation,
-                 heap_type);
+    PropertyConstness expected_constness = constness;
+    Representation expected_representation = representation;
+    Handle<FieldType> expected_heap_type = heap_type;
+    if (IsTransitionableFastElementsKind(map->elements_kind())) {
+      // Maps with transitionable elements kinds must have non in-place
+      // generalizable fields.
+      if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
+        expected_constness = kMutable;
+      }
+      if (representation.IsHeapObject() && heap_type->IsClass()) {
+        expected_heap_type = FieldType::Any(isolate_);
+      }
+    }
+    SetDataField(property_index, attributes, expected_constness,
+                 expected_representation, expected_heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
     return Map::CopyWithField(map, name, heap_type, attributes, constness,
@@ -1786,8 +1799,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
 // where "p2A" and "p2B" differ only in the representation/field type.
 //
 static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
-    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
-    bool expected_field_type_dependency = true) {
+    const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
@@ -1849,7 +1861,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
                             expected.representation, expected.type);
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
-  CHECK_EQ(expected_field_type_dependency, dependencies.HasAborted());
+  CHECK(!dependencies.HasAborted());
   dependencies.Rollback();  // Properly cleanup compilation info.
 
   CHECK(!new_map->is_deprecated());
@@ -2010,7 +2022,7 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
     TestReconfigureElementsKind_GeneralizeFieldTrivial(
         {kConst, Representation::HeapObject(), any_type},
         {kConst, Representation::HeapObject(), new_type},
-        {kConst, Representation::HeapObject(), any_type}, false);
+        {kConst, Representation::HeapObject(), any_type});
 
     if (FLAG_modify_map_inplace) {
       // kConst to kMutable migration does not create a new map, therefore
@@ -2031,12 +2043,12 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
     TestReconfigureElementsKind_GeneralizeFieldTrivial(
         {kMutable, Representation::HeapObject(), any_type},
         {kConst, Representation::HeapObject(), new_type},
-        {kMutable, Representation::HeapObject(), any_type}, false);
+        {kMutable, Representation::HeapObject(), any_type});
   }
   TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {kMutable, Representation::HeapObject(), any_type},
       {kMutable, Representation::HeapObject(), new_type},
-      {kMutable, Representation::HeapObject(), any_type}, false);
+      {kMutable, Representation::HeapObject(), any_type});
 }
 
 TEST(ReconfigureElementsKind_GeneralizeHeapObjectFieldToTagged) {
