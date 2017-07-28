@@ -347,7 +347,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
  private:
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
-  class RootMarkingVisitorSeedOnly;
   class RootMarkingVisitor;
 
   static const int kNumMarkers = 8;

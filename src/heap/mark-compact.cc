@@ -349,6 +349,55 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 // MarkCompactCollectorBase, MinorMarkCompactCollector, MarkCompactCollector
 // =============================================================================
 
+namespace {
+
+// This root visitor walks all roots and creates items bundling objects that
+// are then processed later on. Slots have to be dereferenced as they could
+// live on the native (C++) stack, which requires filtering out the indirection.
+template <class BatchedItem>
+class RootMarkingVisitorSeedOnly : public RootVisitor {
+ public:
+  explicit RootMarkingVisitorSeedOnly(ItemParallelJob* job) : job_(job) {
+    buffered_objects_.reserve(kBufferSize);
+  }
+
+  void VisitRootPointer(Root root, Object** p) override {
+    if (!(*p)->IsHeapObject()) return;
+    AddObject(*p);
+  }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) {
+      if (!(*p)->IsHeapObject()) continue;
+      AddObject(*p);
+    }
+  }
+
+  void FlushObjects() {
+    job_->AddItem(new BatchedItem(std::move(buffered_objects_)));
+    // Moving leaves the container in a valid but unspecified state. Reusing the
+    // container requires a call without precondition that resets the state.
+    buffered_objects_.clear();
+    buffered_objects_.reserve(kBufferSize);
+  }
+
+ private:
+  // Bundling several objects together in items avoids issues with allocating
+  // and deallocating items; both are operations that are performed on the main
+  // thread.
+  static const int kBufferSize = 128;
+
+  void AddObject(Object* object) {
+    buffered_objects_.push_back(object);
+    if (buffered_objects_.size() == kBufferSize) FlushObjects();
+  }
+
+  ItemParallelJob* job_;
+  std::vector<Object*> buffered_objects_;
+};
+
+}  // namespace
+
 static int NumberOfAvailableCores() {
   return Max(
       1, static_cast<int>(
@@ -2327,51 +2376,6 @@ class GlobalHandlesMarkingItem : public MarkingItem {
   size_t end_;
 };
 
-// This root visitor walks all roots and creates items bundling objects that
-// are then processed later on. Slots have to be dereferenced as they could
-// live on the native (C++) stack, which requires filtering out the indirection.
-class MinorMarkCompactCollector::RootMarkingVisitorSeedOnly
-    : public RootVisitor {
- public:
-  explicit RootMarkingVisitorSeedOnly(ItemParallelJob* job) : job_(job) {
-    buffered_objects_.reserve(kBufferSize);
-  }
-
-  void VisitRootPointer(Root root, Object** p) override {
-    if (!(*p)->IsHeapObject()) return;
-    AddObject(*p);
-  }
-
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      if (!(*p)->IsHeapObject()) continue;
-      AddObject(*p);
-    }
-  }
-
-  void FlushObjects() {
-    job_->AddItem(new BatchedRootMarkingItem(std::move(buffered_objects_)));
-    // Moving leaves the container in a valid but unspecified state. Reusing the
-    // container requires a call without precondition that resets the state.
-    buffered_objects_.clear();
-    buffered_objects_.reserve(kBufferSize);
-  }
-
- private:
-  // Bundling several objects together in items avoids issues with allocating
-  // and deallocating items; both are operations that are performed on the main
-  // thread.
-  static const int kBufferSize = 128;
-
-  void AddObject(Object* object) {
-    buffered_objects_.push_back(object);
-    if (buffered_objects_.size() == kBufferSize) FlushObjects();
-  }
-
-  ItemParallelJob* job_;
-  std::vector<Object*> buffered_objects_;
-};
-
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
       worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
@@ -2419,7 +2423,8 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
       // Create batches of roots.
-      RootMarkingVisitorSeedOnly root_seed_visitor(&job);
+      RootMarkingVisitorSeedOnly<BatchedRootMarkingItem> root_seed_visitor(
+          &job);
       heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
       // Create batches of global handles.
       SeedGlobalHandles<GlobalHandlesMarkingItem>(isolate()->global_handles(),
