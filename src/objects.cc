@@ -13989,6 +13989,18 @@ void Code::CopyFrom(const CodeDesc& desc) {
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
+  if (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization()) {
+    DeoptimizationInputData* deopt_table =
+        DeoptimizationInputData::cast(deoptimization_data());
+    int pc_offset = static_cast<int>(pc - instruction_start());
+    // When the return pc has been replaced by a trampoline there won't be
+    // a safepoint for this trampoline. Thus we need to use the return pc that
+    // _used to be_ on the stack to get the right SafepointEntry.
+    int ret_pc = deopt_table->TrampolinePcToReturnPc(pc_offset);
+    if (ret_pc != -1) {
+      return table.FindEntry(instruction_start() + ret_pc);
+    }
+  }
   return table.FindEntry(pc);
 }
 
@@ -14404,6 +14416,16 @@ void Code::PrintExtraICState(std::ostream& os,  // NOLINT
 }
 
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+
+int DeoptimizationInputData::TrampolinePcToReturnPc(int pc_offset) {
+  int deopt_total = DeoptCount();
+  for (int i = 0; i < deopt_total; i++) {
+    if (TrampolinePc(i)->value() == pc_offset) {
+      return Pc(i)->value();
+    }
+  }
+  return -1;
+}
 
 #ifdef ENABLE_DISASSEMBLER
 

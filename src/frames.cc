@@ -1478,6 +1478,19 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
   if (stack_slots) *stack_slots = code->stack_slots();
+
+  // When the return pc has been replaced by a trampoline there won't be
+  // an handler for this trampoline. Thus we need to use the return pc that
+  // _used to be_ on the stack to get the right ExceptionHandler.
+  if (code->kind() == Code::OPTIMIZED_FUNCTION &&
+      code->marked_for_deoptimization()) {
+    DeoptimizationInputData* deopt_table =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    int ret_pc = deopt_table->TrampolinePcToReturnPc(pc_offset);
+    if (ret_pc != -1) {
+      return table->LookupReturn(ret_pc);
+    }
+  }
   return table->LookupReturn(pc_offset);
 }
 
