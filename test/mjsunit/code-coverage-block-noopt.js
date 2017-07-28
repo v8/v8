@@ -21,4 +21,23 @@ f(); f(); f(); f(); f(); f();             // 0150
  {"start":50,"end":76,"count":8}]
 );
 
+// In contrast to the corresponding test in -opt.js, f is not optimized here
+// and therefore reports its invocation count correctly.
+TestCoverage("Partial coverage collection",
+`
+!function() {                             // 0000
+  function f(x) {                         // 0050
+    if (x) { nop(); } else { nop(); }     // 0100
+  }                                       // 0150
+  f(true); f(true);                       // 0200
+  %OptimizeFunctionOnNextCall(f);         // 0250
+  %DebugCollectCoverage();                // 0300
+  f(false);                               // 0350
+}();                                      // 0400
+`,
+[{"start":52,"end":153,"count":1},
+ {"start":111,"end":121,"count":0}]
+);
+
+
 %DebugToggleBlockCoverage(false);

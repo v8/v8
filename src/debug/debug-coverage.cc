@@ -474,19 +474,24 @@ Coverage* Coverage::Collect(Isolate* isolate,
             break;
         }
       }
-      // Only include a function range if it has a non-0 count, or
-      // if it is directly nested inside a function with non-0 count.
-      if (count != 0 ||
-          (!nesting.empty() && functions->at(nesting.back()).count != 0)) {
-        Handle<String> name(info->DebugName(), isolate);
-        nesting.push_back(functions->size());
-        functions->emplace_back(start, end, count, name);
 
-        if (FLAG_block_coverage && IsBlockMode(collectionMode) &&
-            info->HasCoverageInfo()) {
-          CoverageFunction* function = &functions->back();
-          CollectBlockCoverage(isolate, function, info, collectionMode);
-        }
+      Handle<String> name(info->DebugName(), isolate);
+      CoverageFunction function(start, end, count, name);
+
+      if (FLAG_block_coverage && IsBlockMode(collectionMode) &&
+          info->HasCoverageInfo()) {
+        CollectBlockCoverage(isolate, &function, info, collectionMode);
+      }
+
+      // Only include a function range if itself or its parent function is
+      // covered, or if it contains non-trivial block coverage.
+      bool is_covered = (count != 0);
+      bool parent_is_covered =
+          (!nesting.empty() && functions->at(nesting.back()).count != 0);
+      bool has_block_coverage = !function.blocks.empty();
+      if (is_covered || parent_is_covered || has_block_coverage) {
+        nesting.push_back(functions->size());
+        functions->emplace_back(function);
       }
     }
 

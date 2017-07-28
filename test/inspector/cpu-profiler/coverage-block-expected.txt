@@ -929,6 +929,27 @@ Running test: testPreciseBinaryCoverage
             [0] : {
                 functions : [
                     [0] : {
+                        functionName : fib
+                        isBlockCoverage : true
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                            [1] : {
+                                count : 1
+                                endOffset : 41
+                                startOffset : 32
+                            }
+                            [2] : {
+                                count : 1
+                                endOffset : 71
+                                startOffset : 41
+                            }
+                        ]
+                    }
+                    [1] : {
                         functionName : is_optimized
                         isBlockCoverage : true
                         ranges : [
