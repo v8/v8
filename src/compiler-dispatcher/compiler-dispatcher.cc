@@ -226,7 +226,7 @@ CompilerDispatcher::JobId CompilerDispatcher::EnqueueAndStep(
   JobMap::const_iterator it = InsertJob(std::move(job));
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: stepping ");
-    it->second->ShortPrint();
+    it->second->ShortPrintOnMainThread();
     PrintF("\n");
   }
   DoNextStepOnMainThread(isolate_, it->second.get(),
@@ -331,7 +331,7 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(
 bool CompilerDispatcher::FinishNow(CompilerDispatcherJob* job) {
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: finishing ");
-    job->ShortPrint();
+    job->ShortPrintOnMainThread();
     PrintF(" now\n");
   }
   WaitForJobIfRunningOnBackground(job);
@@ -386,7 +386,7 @@ void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {
       WaitForJobIfRunningOnBackground(it.second.get());
       if (trace_compiler_dispatcher_) {
         PrintF("CompilerDispatcher: aborted ");
-        it.second->ShortPrint();
+        it.second->ShortPrintOnMainThread();
         PrintF("\n");
       }
       it.second->ResetOnMainThread(isolate_);
@@ -434,7 +434,7 @@ void CompilerDispatcher::AbortInactiveJobs() {
     }
     if (trace_compiler_dispatcher_) {
       PrintF("CompilerDispatcher: aborted ");
-      job->second->ShortPrint();
+      job->second->ShortPrintOnMainThread();
       PrintF("\n");
     }
     it = RemoveJob(job);
@@ -676,7 +676,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveIfFinished(
   if (trace_compiler_dispatcher_) {
     bool result = !job->second->IsFailed();
     PrintF("CompilerDispatcher: finished working on ");
-    job->second->ShortPrint();
+    job->second->ShortPrintOnMainThread();
     PrintF(": %s\n", result ? "success" : "failure");
     tracer_->DumpStatistics();
   }

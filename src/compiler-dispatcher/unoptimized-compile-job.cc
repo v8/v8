@@ -105,7 +105,7 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(
 
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p] created for ", static_cast<void*>(this));
-    ShortPrint();
+    ShortPrintOnMainThread();
     PrintF(" in ready to parse state.\n");
   }
 }
@@ -127,7 +127,7 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
   Handle<String> source(String::cast(script->source()), isolate);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p] created for ", static_cast<void*>(this));
-    ShortPrint();
+    ShortPrintOnMainThread();
     PrintF(" in initial state.\n");
   }
 }
@@ -546,9 +546,9 @@ double UnoptimizedCompileJob::EstimateRuntimeOfNextStepInMs() const {
   UNREACHABLE();
 }
 
-void UnoptimizedCompileJob::ShortPrint() {
+void UnoptimizedCompileJob::ShortPrintOnMainThread() {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   if (!shared_.is_null()) {
-    DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
     shared_->ShortPrint();
   } else {
     // TODO(wiktorg) more useful info in those cases

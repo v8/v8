@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   // Even though the name does not imply this, ShortPrint() must only be invoked
   // on the main thread.
-  virtual void ShortPrint() = 0;
+  virtual void ShortPrintOnMainThread() = 0;
 
   // Casts to implementations.
   const UnoptimizedCompileJob* AsUnoptimizedCompileJob() const;

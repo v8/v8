@@ -102,9 +102,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   // Estimate how long the next step will take using the tracer.
   double EstimateRuntimeOfNextStepInMs() const override;
 
-  // Even though the name does not imply this, ShortPrint() must only be invoked
-  // on the main thread.
-  void ShortPrint() override;
+  void ShortPrintOnMainThread() override;
 
  private:
   friend class CompilerDispatcherTest;
