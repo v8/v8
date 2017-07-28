@@ -1430,7 +1430,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
       } else {
         // The receiver is not in a stack slot nor in a literal.  We give up.
         it.Skip(Translation::NumberOfOperandsFor(opcode));
-        // TODO(6586): Materializing a captured object (or duplicated
+        // TODO(3029): Materializing a captured object (or duplicated
         // object) is hard, we return undefined for now. This breaks the
         // produced stack trace, as constructor frames aren't marked as
         // such anymore.
