@@ -1090,7 +1090,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
      << shared()->internal_formal_parameter_count();
   os << "\n - kind = " << shared()->kind();
   os << "\n - context = " << Brief(context());
-  os << "\n - feedback vector cell = " << Brief(feedback_vector_cell());
   os << "\n - code = " << Brief(code());
   if (IsInterpreted()) {
     os << "\n - interpreted";
@@ -1100,6 +1099,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   }
   shared()->PrintSourceCode(os);
   JSObjectPrintBody(os, this);
+  os << "\n - feedback vector: ";
+  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
+    feedback_vector()->FeedbackVectorPrint(os);
+  } else {
+    os << "not available\n";
+  }
 }
 
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
