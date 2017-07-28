@@ -290,6 +290,11 @@ class Map : public HeapObject {
                               PropertyConstness new_constness,
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
+  // Returns true if |descriptor|'th property is a field that may be generalized
+  // by just updating current map.
+  static inline bool IsInplaceGeneralizableField(PropertyConstness constness,
+                                                 Representation representation,
+                                                 FieldType* field_type);
 
   static Handle<Map> ReconfigureProperty(Handle<Map> map, int modify_index,
                                          PropertyKind new_kind,
@@ -719,6 +724,7 @@ class Map : public HeapObject {
                                 Handle<Name> name, SimpleTransitionFlag flag);
 
   bool EquivalentToForTransition(Map* other);
+  bool EquivalentToForElementsKindTransition(Map* other);
   static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   static Handle<Map> ShareDescriptor(Handle<Map> map,
                                      Handle<DescriptorArray> descriptors,

@@ -249,7 +249,6 @@ enum SimpleTransitionFlag {
   SPECIAL_TRANSITION
 };
 
-
 // Indicates whether we are only interested in the descriptors of a particular
 // map, or in all descriptors in the descriptor array.
 enum DescriptorFlag {

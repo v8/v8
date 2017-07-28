@@ -3289,6 +3289,16 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
   if (map->instance_type() == JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
     representation = Representation::Tagged();
     type = FieldType::Any(isolate);
+  } else if (IsTransitionableFastElementsKind(map->elements_kind()) &&
+             IsInplaceGeneralizableField(constness, representation, *type)) {
+    // We don't support propagation of field generalization through elements
+    // kind transitions because they are inserted into the transition tree
+    // before field transitions. In order to avoid complexity of handling
+    // such a case we ensure that all maps with transitionable elements kinds
+    // do not have fields that can be generalized in-place (without creation
+    // of a new map).
+    DCHECK(representation.IsHeapObject());
+    type = FieldType::Any(isolate);
   }
 
   Handle<Object> wrapped_type(WrapFieldType(type));
@@ -3935,7 +3945,6 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
   return new_map;
 }
 
-
 void Map::DeprecateTransitionTree() {
   if (is_deprecated()) return;
   Object* transitions = raw_transitions();
@@ -4078,7 +4087,6 @@ Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
   return FieldType::Any(isolate);
 }
 
-
 // static
 void Map::GeneralizeField(Handle<Map> map, int modify_index,
                           PropertyConstness new_constness,
@@ -4112,8 +4120,8 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
 
   // Determine the field owner.
   Handle<Map> field_owner(map->FindFieldOwner(modify_index), isolate);
-  Handle<DescriptorArray> descriptors(
-      field_owner->instance_descriptors(), isolate);
+  Handle<DescriptorArray> descriptors(field_owner->instance_descriptors(),
+                                      isolate);
   DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
 
   new_field_type =
@@ -4860,7 +4868,7 @@ Map* Map::FindElementsKindTransitionedMap(MapHandles const& candidates) {
   if (IsTransitionableFastElementsKind(kind)) {
     // Check the state of the root map.
     Map* root_map = FindRootMap();
-    if (!EquivalentToForTransition(root_map)) return nullptr;
+    if (!EquivalentToForElementsKindTransition(root_map)) return nullptr;
     root_map = root_map->LookupElementsTransitionMap(kind);
     DCHECK_NOT_NULL(root_map);
     // Starting from the next existing elements kind transition try to
@@ -12048,7 +12056,7 @@ bool Map::EquivalentToForTransition(Map* other) {
   if (!CheckEquivalent(this, other)) return false;
   if (instance_type() == JS_FUNCTION_TYPE) {
     // JSFunctions require more checks to ensure that sloppy function is
-    // not equvalent to strict function.
+    // not equivalent to strict function.
     int nof = Min(NumberOfOwnDescriptors(), other->NumberOfOwnDescriptors());
     return instance_descriptors()->IsEqualUpTo(other->instance_descriptors(),
                                                nof);
@@ -12056,6 +12064,25 @@ bool Map::EquivalentToForTransition(Map* other) {
   return true;
 }
 
+bool Map::EquivalentToForElementsKindTransition(Map* other) {
+  if (!EquivalentToForTransition(other)) return false;
+#ifdef DEBUG
+  // Ensure that we don't try to generate elements kind transitions from maps
+  // with fields that may be generalized in-place. This must already be handled
+  // during addition of a new field.
+  DescriptorArray* descriptors = instance_descriptors();
+  int nof = NumberOfOwnDescriptors();
+  for (int i = 0; i < nof; i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.location() == kField) {
+      DCHECK(!IsInplaceGeneralizableField(details.constness(),
+                                          details.representation(),
+                                          descriptors->GetFieldType(i)));
+    }
+  }
+#endif
+  return true;
+}
 
 bool Map::EquivalentToForNormalization(Map* other,
                                        PropertyNormalizationMode mode) {
