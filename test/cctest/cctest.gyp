@@ -126,7 +126,6 @@
       'test-access-checks.cc',
       'test-accessor-assembler.cc',
       'test-accessors.cc',
-      'test-allocation.cc',
       'test-api.cc',
       'test-api.h',
       'test-api-accessors.cc',

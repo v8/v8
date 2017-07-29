@@ -25,6 +25,7 @@
 namespace v8 {
 namespace internal {
 
+
 // ----------------------------------------------------------------------------
 // HeapObjectIterator
 
@@ -118,14 +119,12 @@ bool CodeRange::SetUp(size_t requested) {
 
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
-  base::VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(
-          requested,
-          Max(kCodeRangeAreaAlignment,
-              static_cast<size_t>(base::OS::AllocateAlignment())),
-          base::OS::GetRandomMmapAddr(), &reservation)) {
-    return false;
-  }
+  base::VirtualMemory reservation(
+      requested,
+      Max(kCodeRangeAreaAlignment,
+          static_cast<size_t>(base::OS::AllocateAlignment())),
+      base::OS::GetRandomMmapAddr());
+  if (!reservation.IsReserved()) return false;
 
   // We are sure that we have mapped a block of requested addresses.
   DCHECK(reservation.size() == requested);
@@ -454,10 +453,9 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
 Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
                                               void* hint,
                                               base::VirtualMemory* controller) {
-  base::VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(size, alignment, hint, &reservation))
-    return nullptr;
+  base::VirtualMemory reservation(size, alignment, hint);
 
+  if (!reservation.IsReserved()) return nullptr;
   const Address base =
       RoundUp(static_cast<Address>(reservation.address()), alignment);
   if (base + size != reservation.end()) {
