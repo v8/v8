@@ -141,7 +141,7 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
   MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from, marking_state(from));
   MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to, marking_state(to));
 
-  if (black_allocation() && Marking::IsBlack(new_mark_bit)) {
+  if (black_allocation() && Marking::IsBlack<kAtomicity>(new_mark_bit)) {
     // Nothing to do if the object is in black area.
     return;
   }
