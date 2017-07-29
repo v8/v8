@@ -539,8 +539,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
    private:
     static const int kAllocationSpaces = LAST_PAGED_SPACE + 1;
 
-    static ClearOldToNewSlotsMode GetClearOldToNewSlotsMode(Page* p);
-
     template <typename Callback>
     void ForAllSweepingSpaces(Callback callback) {
       for (int i = 0; i < kAllocationSpaces; i++) {

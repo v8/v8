@@ -3681,18 +3681,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
   }
 };
 
-MarkCompactCollector::Sweeper::ClearOldToNewSlotsMode
-MarkCompactCollector::Sweeper::GetClearOldToNewSlotsMode(Page* p) {
-  AllocationSpace identity = p->owner()->identity();
-  if (p->slot_set<OLD_TO_NEW>() &&
-      (identity == OLD_SPACE || identity == MAP_SPACE)) {
-    return MarkCompactCollector::Sweeper::CLEAR_REGULAR_SLOTS;
-  } else if (p->typed_slot_set<OLD_TO_NEW>() && identity == CODE_SPACE) {
-    return MarkCompactCollector::Sweeper::CLEAR_TYPED_SLOTS;
-  }
-  return MarkCompactCollector::Sweeper::DO_NOT_CLEAR;
-}
-
 int MarkCompactCollector::Sweeper::RawSweep(
     Page* p, FreeListRebuildingMode free_list_mode,
     FreeSpaceTreatmentMode free_space_mode) {
@@ -3705,9 +3693,14 @@ int MarkCompactCollector::Sweeper::RawSweep(
   // Sweeper takes the marking state of the full collector.
   const MarkingState state = MarkingState::Internal(p);
 
-  // If there are old-to-new slots in that page, we have to filter out slots
-  // that are in dead memory which is freed by the sweeper.
-  ClearOldToNewSlotsMode slots_clearing_mode = GetClearOldToNewSlotsMode(p);
+  bool non_empty_untyped_slots = p->slot_set<OLD_TO_NEW>() != nullptr ||
+                                 p->slot_set<OLD_TO_OLD>() != nullptr;
+
+  // TODO(ulan): we don't have to clear type old-to-old slots in code space
+  // because the concurrent marker doesn't mark code objects. This requires
+  // the write barrier for code objects to check the color of the code object.
+  bool non_empty_typed_slots = p->typed_slot_set<OLD_TO_NEW>() != nullptr ||
+                               p->typed_slot_set<OLD_TO_OLD>() != nullptr;
 
   // The free ranges map is used for filtering typed slots.
   std::map<uint32_t, uint32_t> free_ranges;
@@ -3751,11 +3744,13 @@ int MarkCompactCollector::Sweeper::RawSweep(
         p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                         ClearRecordedSlots::kNo);
       }
-
-      if (slots_clearing_mode == CLEAR_REGULAR_SLOTS) {
+      if (non_empty_untyped_slots) {
         RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
                                                SlotSet::KEEP_EMPTY_BUCKETS);
-      } else if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
+        RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
+                                               SlotSet::KEEP_EMPTY_BUCKETS);
+      }
+      if (non_empty_typed_slots) {
         free_ranges.insert(std::pair<uint32_t, uint32_t>(
             static_cast<uint32_t>(free_start - p->address()),
             static_cast<uint32_t>(free_end - p->address())));
@@ -3790,10 +3785,13 @@ int MarkCompactCollector::Sweeper::RawSweep(
                                       ClearRecordedSlots::kNo);
     }
 
-    if (slots_clearing_mode == CLEAR_REGULAR_SLOTS) {
+    if (non_empty_untyped_slots) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
                                              SlotSet::KEEP_EMPTY_BUCKETS);
-    } else if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
+      RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
+                                             SlotSet::KEEP_EMPTY_BUCKETS);
+    }
+    if (non_empty_typed_slots) {
       free_ranges.insert(std::pair<uint32_t, uint32_t>(
           static_cast<uint32_t>(free_start - p->address()),
           static_cast<uint32_t>(p->area_end() - p->address())));
@@ -3801,10 +3799,14 @@ int MarkCompactCollector::Sweeper::RawSweep(
   }
 
   // Clear invalid typed slots after collection all free ranges.
-  if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
-    TypedSlotSet* typed_slot_set = p->typed_slot_set<OLD_TO_NEW>();
-    if (typed_slot_set != nullptr) {
-      typed_slot_set->RemoveInvaldSlots(free_ranges);
+  if (!free_ranges.empty()) {
+    TypedSlotSet* old_to_new = p->typed_slot_set<OLD_TO_NEW>();
+    if (old_to_new != nullptr) {
+      old_to_new->RemoveInvaldSlots(free_ranges);
+    }
+    TypedSlotSet* old_to_old = p->typed_slot_set<OLD_TO_OLD>();
+    if (old_to_old != nullptr) {
+      old_to_old->RemoveInvaldSlots(free_ranges);
     }
   }
 
