@@ -87,7 +87,7 @@ Heap::Heap()
       // semispace_size_ should be a power of 2 and old_generation_size_ should
       // be a multiple of Page::kPageSize.
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
-      initial_semispace_size_(1 * MB),
+      initial_semispace_size_(kMinSemiSpaceSizeInKB * KB),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       initial_max_old_generation_size_(max_old_generation_size_),
       initial_old_generation_size_(max_old_generation_size_ /
@@ -5496,6 +5496,12 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
   // for containment.
   max_semi_space_size_ = base::bits::RoundUpToPowerOfTwo32(
       static_cast<uint32_t>(max_semi_space_size_));
+
+  if (max_semi_space_size_ == kMaxSemiSpaceSizeInKB * KB) {
+    // Start with at least 1*MB semi-space on machines with a lot of memory.
+    initial_semispace_size_ =
+        Max(initial_semispace_size_, static_cast<size_t>(1 * MB));
+  }
 
   if (FLAG_min_semi_space_size > 0) {
     size_t initial_semispace_size =
