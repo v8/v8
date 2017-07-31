@@ -316,7 +316,7 @@ bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
   Isolate* const isolate = shared_info->GetIsolate();
   Code* const construct_stub = shared_info->construct_stub();
-  return construct_stub == *isolate->builtins()->ConstructedNonConstructable();
+  return construct_stub == *BUILTIN_CODE(isolate, ConstructedNonConstructable);
 }
 
 }  // namespace

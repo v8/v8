@@ -286,7 +286,7 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
   result->set(kWasmDataCompiledModule, *compiled);
   result->set(kWasmDataUsesBitSet, *uses_bitset);
   info()->SetAsmWasmData(result);
-  info()->SetCode(info()->isolate()->builtins()->InstantiateAsmJs());
+  info()->SetCode(BUILTIN_CODE(info()->isolate(), InstantiateAsmJs));
 
   ReportCompilationSuccess(info()->script(), info()->literal()->position(),
                            translate_time_, compile_time_, module_->size());

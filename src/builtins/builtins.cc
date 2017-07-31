@@ -99,9 +99,9 @@ const char* Builtins::Lookup(byte* pc) {
 Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
   switch (scope_type) {
     case ScopeType::EVAL_SCOPE:
-      return FastNewFunctionContextEval();
+      return builtin_handle(kFastNewFunctionContextEval);
     case ScopeType::FUNCTION_SCOPE:
-      return FastNewFunctionContextFunction();
+      return builtin_handle(kFastNewFunctionContextFunction);
     default:
       UNREACHABLE();
   }
@@ -112,9 +112,9 @@ Handle<Code> Builtins::NewCloneShallowArray(
     AllocationSiteMode allocation_mode) {
   switch (allocation_mode) {
     case TRACK_ALLOCATION_SITE:
-      return FastCloneShallowArrayTrack();
+      return builtin_handle(kFastCloneShallowArrayTrack);
     case DONT_TRACK_ALLOCATION_SITE:
-      return FastCloneShallowArrayDontTrack();
+      return builtin_handle(kFastCloneShallowArrayDontTrack);
     default:
       UNREACHABLE();
   }
@@ -124,11 +124,11 @@ Handle<Code> Builtins::NewCloneShallowArray(
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:
-      return NonPrimitiveToPrimitive_Default();
+      return builtin_handle(kNonPrimitiveToPrimitive_Default);
     case ToPrimitiveHint::kNumber:
-      return NonPrimitiveToPrimitive_Number();
+      return builtin_handle(kNonPrimitiveToPrimitive_Number);
     case ToPrimitiveHint::kString:
-      return NonPrimitiveToPrimitive_String();
+      return builtin_handle(kNonPrimitiveToPrimitive_String);
   }
   UNREACHABLE();
 }
@@ -136,9 +136,9 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
 Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
-      return OrdinaryToPrimitive_Number();
+      return builtin_handle(kOrdinaryToPrimitive_Number);
     case OrdinaryToPrimitiveHint::kString:
-      return OrdinaryToPrimitive_String();
+      return builtin_handle(kOrdinaryToPrimitive_String);
   }
   UNREACHABLE();
 }
@@ -173,27 +173,27 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
       return Callable(code, BuiltinDescriptor(isolate));
     }
     case kArrayForEach: {
-      Handle<Code> code = isolate->builtins()->ArrayForEach();
+      Handle<Code> code = BUILTIN_CODE(isolate, ArrayForEach);
       return Callable(code, BuiltinDescriptor(isolate));
     }
     case kArrayForEachLoopEagerDeoptContinuation: {
       Handle<Code> code =
-          isolate->builtins()->ArrayForEachLoopEagerDeoptContinuation();
+          BUILTIN_CODE(isolate, ArrayForEachLoopEagerDeoptContinuation);
       return Callable(code, BuiltinDescriptor(isolate));
     }
     case kArrayForEachLoopLazyDeoptContinuation: {
       Handle<Code> code =
-          isolate->builtins()->ArrayForEachLoopLazyDeoptContinuation();
+          BUILTIN_CODE(isolate, ArrayForEachLoopLazyDeoptContinuation);
       return Callable(code, BuiltinDescriptor(isolate));
     }
     case kArrayMapLoopEagerDeoptContinuation: {
       Handle<Code> code =
-          isolate->builtins()->ArrayMapLoopEagerDeoptContinuation();
+          BUILTIN_CODE(isolate, ArrayMapLoopEagerDeoptContinuation);
       return Callable(code, BuiltinDescriptor(isolate));
     }
     case kArrayMapLoopLazyDeoptContinuation: {
       Handle<Code> code =
-          isolate->builtins()->ArrayMapLoopLazyDeoptContinuation();
+          BUILTIN_CODE(isolate, ArrayMapLoopLazyDeoptContinuation);
       return Callable(code, BuiltinDescriptor(isolate));
     }
     default:
@@ -248,19 +248,10 @@ bool Builtins::HasCppImplementation(int index) {
   return (kind == CPP || kind == API);
 }
 
-// TODO(jgruber): Replace with a CodeFor(name) accessor to emit less code.
-#define DEFINE_BUILTIN_ACCESSOR(Name, ...)                                    \
-  Handle<Code> Builtins::Name() {                                             \
-    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##Name)); \
-    return Handle<Code>(code_address);                                        \
-  }
-BUILTIN_LIST_ALL(DEFINE_BUILTIN_ACCESSOR)
-#undef DEFINE_BUILTIN_ACCESSOR
-
 Handle<Code> Builtins::JSConstructStubGeneric() {
   return FLAG_harmony_restrict_constructor_return
-             ? JSConstructStubGenericRestrictedReturn()
-             : JSConstructStubGenericUnrestrictedReturn();
+             ? builtin_handle(kJSConstructStubGenericRestrictedReturn)
+             : builtin_handle(kJSConstructStubGenericUnrestrictedReturn);
 }
 
 // static

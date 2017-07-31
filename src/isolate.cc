@@ -1322,7 +1322,8 @@ Object* Isolate::UnwindAndFindHandler() {
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
 
-        Code* code = *builtins()->InterpreterEnterBytecodeDispatch();
+        Code* code =
+            builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
         return FoundHandler(context, code, 0, return_sp, frame->fp());
       }
 

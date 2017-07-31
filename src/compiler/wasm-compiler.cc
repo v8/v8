@@ -215,7 +215,7 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   Diamond stack_check(graph(), jsgraph()->common(), check, BranchHint::kTrue);
   stack_check.Chain(*control);
 
-  Handle<Code> code = jsgraph()->isolate()->builtins()->WasmStackGuard();
+  Handle<Code> code = BUILTIN_CODE(jsgraph()->isolate(), WasmStackGuard);
   CallInterfaceDescriptor idesc =
       WasmRuntimeCallDescriptor(jsgraph()->isolate());
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -2271,7 +2271,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
   // TODO(wasm): Always use the illegal builtin, except for testing.
   Handle<Code> code = module_->instance
                           ? module_->GetFunctionCode(index)
-                          : jsgraph()->isolate()->builtins()->Illegal();
+                          : BUILTIN_CODE(jsgraph()->isolate(), Illegal);
   DCHECK(!code.is_null());
   args[0] = HeapConstant(code);
   wasm::FunctionSig* sig = module_->GetFunctionSignature(index);

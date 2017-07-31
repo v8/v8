@@ -2483,7 +2483,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
-  Handle<Code> code = isolate()->builtins()->CompileLazy();
+  Handle<Code> code = BUILTIN_CODE(isolate(), CompileLazy);
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
   Handle<SharedFunctionInfo> result =
       NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
@@ -2533,14 +2533,14 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
-    code = isolate()->builtins()->Illegal();
+    code = BUILTIN_CODE(isolate(), Illegal);
   }
   share->set_code(*code);
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =
       is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
-                     : isolate()->builtins()->ConstructedNonConstructable();
+                     : BUILTIN_CODE(isolate(), ConstructedNonConstructable);
   share->SetConstructStub(*construct_stub);
   share->set_instance_class_name(*Object_string());
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);

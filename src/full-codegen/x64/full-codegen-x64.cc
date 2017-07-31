@@ -251,14 +251,14 @@ void FullCodeGenerator::Generate() {
       __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     }
     if (is_strict(language_mode()) || !has_simple_parameters()) {
-      __ call(isolate()->builtins()->FastNewStrictArguments(),
+      __ call(BUILTIN_CODE(isolate(), FastNewStrictArguments),
               RelocInfo::CODE_TARGET);
       RestoreContext();
     } else if (literal()->has_duplicate_parameters()) {
       __ Push(rdi);
       __ CallRuntime(Runtime::kNewSloppyArguments_Generic);
     } else {
-      __ call(isolate()->builtins()->FastNewSloppyArguments(),
+      __ call(BUILTIN_CODE(isolate(), FastNewSloppyArguments),
               RelocInfo::CODE_TARGET);
       RestoreContext();
     }
@@ -287,7 +287,7 @@ void FullCodeGenerator::Generate() {
     Label ok;
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(above_equal, &ok, Label::kNear);
-    __ call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+    __ call(BUILTIN_CODE(isolate(), StackCheck), RelocInfo::CODE_TARGET);
     __ bind(&ok);
   }
 
@@ -345,7 +345,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   {
     PredictableCodeSizeScope predictible_code_size_scope(masm_, kJnsOffset);
     DontEmitDebugCodeScope dont_emit_debug_code_scope(masm_);
-    __ call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+    __ call(BUILTIN_CODE(isolate(), InterruptCheck), RelocInfo::CODE_TARGET);
 
     // Record a mapping of this PC offset to the OSR id.  This is used to find
     // the AST id from the unoptimized code in order to use it as a key into
@@ -374,7 +374,7 @@ void FullCodeGenerator::EmitProfilingCounterHandlingForReturnSequence(
   if (!is_tail_call) {
     __ Push(rax);
   }
-  __ call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+  __ call(BUILTIN_CODE(isolate(), InterruptCheck), RelocInfo::CODE_TARGET);
   if (!is_tail_call) {
     __ Pop(rax);
   }
@@ -886,7 +886,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
   __ j(equal, &exit);
   __ bind(&convert);
-  __ Call(isolate()->builtins()->ToObject(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ToObject), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ bind(&done_convert);
   __ Push(rax);
@@ -986,7 +986,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // rax contains the key. The receiver in rbx is the second argument to
   // ForInFilter. ForInFilter returns undefined if the receiver doesn't
   // have the key or returns the name-converted key.
-  __ Call(isolate()->builtins()->ForInFilter(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ForInFilter), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ JumpIfRoot(result_register(), Heap::kUndefinedValueRootIndex,
                 loop_statement.continue_label());
@@ -1994,7 +1994,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForTypeofValue(expr->expression());
       }
       __ movp(rbx, rax);
-      __ Call(isolate()->builtins()->Typeof(), RelocInfo::CODE_TARGET);
+      __ Call(BUILTIN_CODE(isolate(), Typeof), RelocInfo::CODE_TARGET);
       context()->Plug(rax);
       break;
     }
@@ -2050,7 +2050,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Convert old value into a number.
-  __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ToNumber), RelocInfo::CODE_TARGET);
   RestoreContext();
 
   // Save result for postfix expressions.
@@ -2244,7 +2244,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForAccumulatorValue(expr->right());
       SetExpressionPosition(expr);
       PopOperand(rdx);
-      __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
+      __ Call(BUILTIN_CODE(isolate(), InstanceOf), RelocInfo::CODE_TARGET);
       RestoreContext();
       __ CompareRoot(rax, Heap::kTrueValueRootIndex);
       Split(equal, if_true, if_false, fall_through);
@@ -2415,9 +2415,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   if (*jns_instr_address == kJnsInstruction) {
     DCHECK_EQ(kJnsOffset, *(call_target_address - 2));
-    DCHECK_EQ(isolate->builtins()->InterruptCheck()->entry(),
-              Assembler::target_address_at(call_target_address,
-                                           unoptimized_code));
+    DCHECK_EQ(
+        BUILTIN_CODE(isolate, InterruptCheck)->entry(),
+        Assembler::target_address_at(call_target_address, unoptimized_code));
     return INTERRUPT;
   }
 
@@ -2425,7 +2425,7 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
   DCHECK_EQ(kNopByteTwo, *(call_target_address - 2));
 
   DCHECK_EQ(
-      isolate->builtins()->OnStackReplacement()->entry(),
+      BUILTIN_CODE(isolate, OnStackReplacement)->entry(),
       Assembler::target_address_at(call_target_address, unoptimized_code));
   return ON_STACK_REPLACEMENT;
 }
