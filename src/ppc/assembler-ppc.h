@@ -304,11 +304,14 @@ class Operand BASE_EMBEDDED {
                           RelocInfo::Mode rmode = kRelocInfo_NONEPTR));
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
   INLINE(explicit Operand(const ExternalReference& f));
-  explicit Operand(Handle<Object> handle);
+  explicit Operand(Handle<HeapObject> handle);
   INLINE(explicit Operand(Smi* value));
 
   // rm
   INLINE(explicit Operand(Register rm));
+
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
@@ -316,15 +319,36 @@ class Operand BASE_EMBEDDED {
   bool must_output_reloc_info(const Assembler* assembler) const;
 
   inline intptr_t immediate() const {
-    DCHECK(!rm_.is_valid());
-    return imm_;
+    DCHECK(IsImmediate());
+    DCHECK(!IsHeapObjectRequest());
+    return value_.immediate;
+  }
+  bool IsImmediate() const { return !rm_.is_valid(); }
+
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(IsHeapObjectRequest());
+    return value_.heap_object_request;
   }
 
   Register rm() const { return rm_; }
 
+  bool IsHeapObjectRequest() const {
+    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_object_request_,
+                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                       rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
+  }
+
  private:
   Register rm_;
-  intptr_t imm_;  // valid if rm_ == no_reg
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    intptr_t immediate;                     // otherwise
+  } value_;                                 // valid if rm_ == no_reg
+  bool is_heap_object_request_ = false;
+
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -1519,6 +1543,12 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
+  friend class RegExpMacroAssemblerPPC;
+  friend class RelocInfo;
+  friend class CodePatcher;
+  friend class BlockTrampolinePoolScope;
+  friend class EnsureSpace;
+
   // The following functions help with avoiding allocations of embedded heap
   // objects during the code assembly phase. {RequestHeapObject} records the
   // need for a future heap number allocation or code stub generation. After
@@ -1527,16 +1557,10 @@ class Assembler : public AssemblerBase {
   // associated with each request). That is, for each request, it will patch the
   // dummy heap object handle that we emitted during code assembly with the
   // actual heap object handle.
-
   void RequestHeapObject(HeapObjectRequest request);
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
-  friend class RegExpMacroAssemblerPPC;
-  friend class RelocInfo;
-  friend class CodePatcher;
-  friend class BlockTrampolinePoolScope;
-  friend class EnsureSpace;
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 

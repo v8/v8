@@ -344,19 +344,19 @@ void RelocInfo::Visit(Heap* heap) {
 // Operand constructors
 Operand::Operand(intptr_t immediate, RelocInfo::Mode rmode) {
   rm_ = no_reg;
-  imm_ = immediate;
+  value_.immediate = immediate;
   rmode_ = rmode;
 }
 
 Operand::Operand(const ExternalReference& f) {
   rm_ = no_reg;
-  imm_ = reinterpret_cast<intptr_t>(f.address());
+  value_.immediate = reinterpret_cast<intptr_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
-  imm_ = reinterpret_cast<intptr_t>(value);
+  value_.immediate = reinterpret_cast<intptr_t>(value);
   rmode_ = kRelocInfo_NONEPTR;
 }
 
@@ -377,7 +377,8 @@ int32_t Assembler::emit_code_target(Handle<Code> target,
   RecordRelocInfo(rmode);
 
   int current = code_targets_.length();
-  if (current > 0 && code_targets_.last().is_identical_to(target)) {
+  if (current > 0 && !target.is_null() &&
+      code_targets_.last().is_identical_to(target)) {
     // Optimization if we keep jumping to the same code target.
     current--;
   } else {

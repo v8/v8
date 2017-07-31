@@ -27,7 +27,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
       isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
+        Handle<HeapObject>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -71,7 +71,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ppc code, never THUMB code
-  AllowDeferredHandleDereference embedding_raw_address;
+  AllowHandleDereference using_location;
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
@@ -126,7 +126,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
 #endif
   // This can likely be optimized to make use of bc() with 24bit relative
   //
-  // RecordRelocInfo(x.rmode_, x.imm_);
+  // RecordRelocInfo(x.rmode_, x.immediate);
   // bc( BA, .... offset, LKset);
   //
 
@@ -140,7 +140,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
 
 int MacroAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
                              Condition cond) {
-  AllowDeferredHandleDereference using_raw_address;
+  AllowHandleDereference using_location;
   return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
@@ -150,15 +150,16 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 
+  Label start;
+  bind(&start);
+
 #ifdef DEBUG
   // Check the expected size before generating code to ensure we assume the same
   // constant pool availability (e.g., whether constant pool is full or not).
   int expected_size = CallSize(code, rmode, cond);
-  Label start;
-  bind(&start);
 #endif
 
-  AllowDeferredHandleDereference using_raw_address;
+  AllowHandleDereference using_location;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond);
   DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
 }
@@ -177,18 +178,25 @@ void MacroAssembler::Drop(Register count, Register scratch) {
 
 void MacroAssembler::Call(Label* target) { b(target, SetLK); }
 
-
-void MacroAssembler::Push(Handle<Object> handle) {
+void MacroAssembler::Push(Handle<HeapObject> handle) {
   mov(r0, Operand(handle));
+  push(r0);
+}
+
+void MacroAssembler::Push(Smi* smi) {
+  mov(r0, Operand(smi));
   push(r0);
 }
 
 void MacroAssembler::PushObject(Handle<Object> handle) {
-  mov(r0, Operand(handle));
-  push(r0);
+  if (handle->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(handle));
+  } else {
+    Push(Smi::cast(*handle));
+  }
 }
 
-void MacroAssembler::Move(Register dst, Handle<Object> value) {
+void MacroAssembler::Move(Register dst, Handle<HeapObject> value) {
   mov(dst, Operand(value));
 }
 
@@ -2007,6 +2015,16 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
+void MacroAssembler::CallStubDelayed(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+
+  // Block constant pool for the call instruction sequence.
+  ConstantPoolUnavailableScope constant_pool_unavailable(this);
+
+  mov(ip, Operand::EmbeddedCode(stub));
+  mtctr(ip);
+  bctrl();
+}
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
@@ -2231,6 +2249,17 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst, Register src,
   rlwinm(dst, src, 0, 32 - num_least_bits, 31);
 }
 
+void MacroAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                                        SaveFPRegsMode save_doubles) {
+  const Runtime::Function* f = Runtime::FunctionForId(fid);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r3, Operand(f->nargs));
+  mov(r4, Operand(ExternalReference(f, isolate())));
+  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
+}
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
@@ -2352,9 +2381,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
     return;
   }
 #endif
-
-  // Check if Abort() has already been initialized.
-  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
 
   LoadSmiLiteral(r4, Smi::FromInt(static_cast<int>(reason)));
 
@@ -3521,7 +3547,8 @@ void MacroAssembler::And(Register ra, Register rs, const Operand& rb,
   if (rb.is_reg()) {
     and_(ra, rs, rb.rm(), rc);
   } else {
-    if (is_uint16(rb.imm_) && RelocInfo::IsNone(rb.rmode_) && rc == SetRC) {
+    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
+        rc == SetRC) {
       andi(ra, rs, rb);
     } else {
       // mov handles the relocation.
@@ -3537,7 +3564,8 @@ void MacroAssembler::Or(Register ra, Register rs, const Operand& rb, RCBit rc) {
   if (rb.is_reg()) {
     orx(ra, rs, rb.rm(), rc);
   } else {
-    if (is_uint16(rb.imm_) && RelocInfo::IsNone(rb.rmode_) && rc == LeaveRC) {
+    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
+        rc == LeaveRC) {
       ori(ra, rs, rb);
     } else {
       // mov handles the relocation.
@@ -3554,7 +3582,8 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
   if (rb.is_reg()) {
     xor_(ra, rs, rb.rm(), rc);
   } else {
-    if (is_uint16(rb.imm_) && RelocInfo::IsNone(rb.rmode_) && rc == LeaveRC) {
+    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
+        rc == LeaveRC) {
       xori(ra, rs, rb);
     } else {
       // mov handles the relocation.

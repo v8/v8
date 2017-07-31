@@ -2315,7 +2315,6 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
                                                      Zone* zone) {
-  UNIMPLEMENTED_PPC();
   if (masm->isolate()->function_entry_hook() != NULL) {
     PredictableCodeSizeScope predictable(masm,
 #if V8_TARGET_ARCH_PPC64
@@ -2323,10 +2322,9 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
 #else
                                          11 * Assembler::kInstrSize);
 #endif
-    ProfileEntryHookStub stub(masm->isolate());
     __ mflr(r0);
     __ Push(r0, ip);
-    __ CallStub(&stub);
+    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     __ Pop(r0, ip);
     __ mtlr(r0);
   }
