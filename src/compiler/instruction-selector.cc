@@ -482,21 +482,39 @@ class StateObjectDeduplicator {
   static const size_t kNotDuplicated = SIZE_MAX;
 
   size_t GetObjectId(Node* node) {
+    DCHECK(node->opcode() == IrOpcode::kTypedObjectState ||
+           node->opcode() == IrOpcode::kObjectId ||
+           node->opcode() == IrOpcode::kArgumentsElementsState);
     for (size_t i = 0; i < objects_.size(); ++i) {
-      if (objects_[i] == node) {
+      if (objects_[i] == node) return i;
+      // ObjectId nodes are the Turbofan way to express objects with the same
+      // identity in the deopt info. So they should always be mapped to
+      // previously appearing TypedObjectState nodes.
+      if (HasObjectId(objects_[i]) && HasObjectId(node) &&
+          ObjectIdOf(objects_[i]->op()) == ObjectIdOf(node->op())) {
         return i;
       }
     }
+    DCHECK(node->opcode() == IrOpcode::kTypedObjectState ||
+           node->opcode() == IrOpcode::kArgumentsElementsState);
     return kNotDuplicated;
   }
 
   size_t InsertObject(Node* node) {
+    DCHECK(node->opcode() == IrOpcode::kTypedObjectState ||
+           node->opcode() == IrOpcode::kObjectId ||
+           node->opcode() == IrOpcode::kArgumentsElementsState);
     size_t id = objects_.size();
     objects_.push_back(node);
     return id;
   }
 
  private:
+  static bool HasObjectId(Node* node) {
+    return node->opcode() == IrOpcode::kTypedObjectState ||
+           node->opcode() == IrOpcode::kObjectId;
+  }
+
   ZoneVector<Node*> objects_;
 };
 
@@ -527,9 +545,11 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
     case IrOpcode::kObjectState: {
       UNREACHABLE();
     }
-    case IrOpcode::kTypedObjectState: {
+    case IrOpcode::kTypedObjectState:
+    case IrOpcode::kObjectId: {
       size_t id = deduplicator->GetObjectId(input);
       if (id == StateObjectDeduplicator::kNotDuplicated) {
+        DCHECK(input->opcode() == IrOpcode::kTypedObjectState);
         size_t entries = 0;
         id = deduplicator->InsertObject(input);
         StateValueList* nested = values->PushRecursiveField(zone, id);

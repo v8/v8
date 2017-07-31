@@ -80,6 +80,7 @@
       'compiler/node-test-utils.h',
       'compiler/node-unittest.cc',
       'compiler/opcodes-unittest.cc',
+      'compiler/persistent-unittest.cc',
       'compiler/regalloc/register-allocator-unittest.cc',
       'compiler/schedule-unittest.cc',
       'compiler/scheduler-unittest.cc',
