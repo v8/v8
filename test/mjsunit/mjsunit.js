@@ -286,6 +286,7 @@ var failWithMessage;
     } else {
       message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
     }
+    return message;
   }
 
   function fail(expectedText, found, name_opt) {
