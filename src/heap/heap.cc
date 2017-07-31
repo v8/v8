@@ -1940,10 +1940,6 @@ void Heap::Scavenge() {
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
       &JSObject::IsUnmodifiedApiObject);
 
-  std::vector<MemoryChunk*> pages;
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-      this, [&pages](MemoryChunk* chunk) { pages.push_back(chunk); });
-
   {
     // Copy roots.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
