@@ -12,13 +12,18 @@ bool DebugInfo::IsEmpty() const { return flags() == kNone; }
 
 bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
 
+bool DebugInfo::IsPreparedForBreakpoints() const {
+  DCHECK(HasBreakInfo());
+  return (flags() & kPreparedForBreakpoints) != 0;
+}
+
 bool DebugInfo::ClearBreakInfo() {
   Isolate* isolate = GetIsolate();
 
   set_debug_bytecode_array(isolate->heap()->undefined_value());
   set_break_points(isolate->heap()->empty_fixed_array());
 
-  int new_flags = flags() & ~kHasBreakInfo;
+  int new_flags = flags() & ~kHasBreakInfo & ~kPreparedForBreakpoints;
   set_flags(new_flags);
 
   return new_flags == kNone;

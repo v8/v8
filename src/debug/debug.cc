@@ -666,6 +666,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureBreakInfo(shared)) return true;
+  CHECK(PrepareFunctionForBreakPoints(shared));
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
   DCHECK(*source_position >= 0);
@@ -703,6 +704,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   // Make sure the function has set up the debug info.
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(result);
   if (!EnsureBreakInfo(shared)) return false;
+  CHECK(PrepareFunctionForBreakPoints(shared));
 
   // Find position within function. The script position might be before the
   // source position of the first function.
@@ -810,6 +812,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
   if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureBreakInfo(shared)) return;
+  CHECK(PrepareFunctionForBreakPoints(shared));
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Flood the function with break points.
   if (debug_info->HasDebugCode()) {
@@ -1254,7 +1257,14 @@ class RedirectActiveFunctions : public ThreadVisitor {
 
 
 bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
+  // To prepare bytecode for debugging, we already need to have the debug
+  // info (containing the debug copy) upfront, but since we do not recompile,
+  // preparing for break points cannot fail.
   DCHECK(shared->is_compiled());
+  DCHECK(shared->HasDebugInfo());
+  DCHECK(shared->HasBreakInfo());
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
+  if (debug_info->IsPreparedForBreakpoints()) return true;
 
   if (isolate_->concurrent_recompilation_enabled()) {
     isolate_->optimizing_compile_dispatcher()->Flush(
@@ -1311,6 +1321,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
   isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
 
+  debug_info->set_flags(debug_info->flags() |
+                        DebugInfo::kPreparedForBreakpoints);
   return true;
 }
 
@@ -1519,12 +1531,7 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   if (!shared->is_compiled() && !Compiler::CompileDebugCode(shared)) {
     return false;
   }
-
-  // To prepare bytecode for debugging, we already need to have the debug
-  // info (containing the debug copy) upfront, but since we do not recompile,
-  // preparing for break points cannot fail.
   CreateBreakInfo(shared);
-  CHECK(PrepareFunctionForBreakPoints(shared));
   return true;
 }
 

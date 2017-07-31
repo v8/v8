@@ -20,7 +20,8 @@ class DebugInfo : public Struct {
   enum Flag {
     kNone = 0,
     kHasBreakInfo = 1 << 0,
-    kHasCoverageInfo = 1 << 1,
+    kPreparedForBreakpoints = 1 << 1,
+    kHasCoverageInfo = 2 << 1,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -40,6 +41,8 @@ class DebugInfo : public Struct {
   // --------------------
 
   bool HasBreakInfo() const;
+
+  bool IsPreparedForBreakpoints() const;
 
   // Clears all fields related to break points. Returns true iff the
   // DebugInfo is now empty.
