@@ -14297,15 +14297,10 @@ void Code::PrintDeoptLocation(FILE* out, Address pc) {
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
   class SourcePosition pos = info.position;
   if (info.deopt_reason != DeoptimizeReason::kNoReason || pos.IsKnown()) {
-    if (FLAG_hydrogen_track_positions) {
-      PrintF(out, "            ;;; deoptimize at %d_%d: %s\n", pos.InliningId(),
-             pos.ScriptOffset(), DeoptimizeReasonToString(info.deopt_reason));
-    } else {
-      PrintF(out, "            ;;; deoptimize at ");
-      OFStream outstr(out);
-      pos.Print(outstr, this);
-      PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
-    }
+    PrintF(out, "            ;;; deoptimize at ");
+    OFStream outstr(out);
+    pos.Print(outstr, this);
+    PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
 }
 

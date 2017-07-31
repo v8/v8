@@ -1177,12 +1177,8 @@ DEFINE_BOOL(redirect_code_traces, false,
 DEFINE_STRING(redirect_code_traces_to, NULL,
               "output deopt information and disassembly into the given file")
 
-DEFINE_BOOL(hydrogen_track_positions, false,
-            "track source code positions when building IR")
-
 DEFINE_BOOL(print_opt_source, false,
             "print source code of optimized and inlined functions")
-DEFINE_IMPLICATION(hydrogen_track_positions, print_opt_source)
 
 //
 // Disassembler only flags
@@ -1231,7 +1227,6 @@ DEFINE_BOOL(sodium, false,
 DEFINE_IMPLICATION(sodium, print_code_stubs)
 DEFINE_IMPLICATION(sodium, print_code)
 DEFINE_IMPLICATION(sodium, print_opt_code)
-DEFINE_IMPLICATION(sodium, hydrogen_track_positions)
 DEFINE_IMPLICATION(sodium, code_comments)
 
 DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
