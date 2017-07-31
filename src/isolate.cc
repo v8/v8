@@ -2667,10 +2667,11 @@ namespace {
 void PrintBuiltinSizes(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (Builtins::IsCpp(i) || Builtins::IsApi(i)) continue;
     const char* name = builtins->name(i);
+    const char* kind = Builtins::KindNameOf(i);
     Code* code = builtins->builtin(static_cast<Builtins::Name>(i));
-    PrintF(stdout, "Builtin, %s, %d\n", name, code->instruction_size());
+    PrintF(stdout, "%s Builtin, %s, %d\n", kind, name,
+           code->instruction_size());
   }
 }
 }  // namespace

@@ -44,6 +44,9 @@ class Builtins {
         builtin_count
   };
 
+  // The different builtin kinds are documented in builtins-definitions.h.
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG };
+
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
 
@@ -77,11 +80,9 @@ class Builtins {
 
   Handle<Code> builtin_handle(Name name);
 
-  static int GetBuiltinParameterCount(Name name);
-
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
-  static int GetStackParameterCount(Isolate* isolate, Name name);
+  static int GetStackParameterCount(Name name);
 
   static const char* name(int index);
 
@@ -89,8 +90,10 @@ class Builtins {
   // Address otherwise.
   static Address CppEntryOf(int index);
 
+  static Kind KindOf(int index);
+  static const char* KindNameOf(int index);
+
   static bool IsCpp(int index);
-  static bool IsApi(int index);
   static bool HasCppImplementation(int index);
 
   bool is_initialized() const { return initialized_; }
