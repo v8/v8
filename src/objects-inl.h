@@ -3690,17 +3690,16 @@ inline bool Code::is_hydrogen_stub() const {
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
   Builtins* builtins = GetIsolate()->builtins();
-  return this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-         this ==
-             builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
-         this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  return this == *builtins->InterpreterEntryTrampoline() ||
+         this == *builtins->InterpreterEnterBytecodeAdvance() ||
+         this == *builtins->InterpreterEnterBytecodeDispatch();
 }
 
 inline bool Code::checks_optimization_marker() const {
   Builtins* builtins = GetIsolate()->builtins();
-  return this == builtins->builtin(Builtins::kCompileLazy) ||
-         this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-         this == builtins->builtin(Builtins::kCheckOptimizationMarker);
+  return this == *builtins->CompileLazy() ||
+         this == *builtins->InterpreterEntryTrampoline() ||
+         this == *builtins->CheckOptimizationMarker();
 }
 
 inline bool Code::has_unwinding_info() const {

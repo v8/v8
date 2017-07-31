@@ -513,7 +513,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
   // Allocate the empty function as the prototype for function according to
   // ES#sec-properties-of-the-function-prototype-object
-  Handle<Code> code(BUILTIN_CODE(isolate, EmptyFunction));
+  Handle<Code> code(isolate->builtins()->EmptyFunction());
   Handle<JSFunction> empty_function =
       factory->NewFunction(empty_function_map, factory->empty_string(), code);
   empty_function->shared()->set_language_mode(STRICT);
@@ -567,7 +567,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
     return restricted_properties_thrower_;
   }
   Handle<String> name(factory()->empty_string());
-  Handle<Code> code = BUILTIN_CODE(isolate(), StrictPoisonPillThrower);
+  Handle<Code> code(builtins()->StrictPoisonPillThrower());
   Handle<JSFunction> function =
       factory()->NewFunctionWithoutPrototype(name, code, STRICT);
   function->shared()->DontAdaptArguments();
@@ -1088,7 +1088,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
 
   if (js_global_object_template.is_null()) {
     Handle<String> name(factory()->empty_string());
-    Handle<Code> code = BUILTIN_CODE(isolate(), Illegal);
+    Handle<Code> code(builtins()->Illegal());
     Handle<JSObject> prototype =
         factory()->NewFunctionPrototype(isolate()->object_function());
     js_global_object_function =
@@ -1118,7 +1118,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   Handle<JSFunction> global_proxy_function;
   if (global_proxy_template.IsEmpty()) {
     Handle<String> name(factory()->empty_string());
-    Handle<Code> code = BUILTIN_CODE(isolate(), Illegal);
+    Handle<Code> code(builtins()->Illegal());
     global_proxy_function =
         factory()->NewFunction(name, code, JS_GLOBAL_PROXY_TYPE,
                                JSGlobalProxy::SizeWithEmbedderFields(0));
@@ -1201,7 +1201,7 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   error_fun->shared()->set_instance_class_name(*factory->Error_string());
   error_fun->shared()->DontAdaptArguments();
   error_fun->shared()->set_construct_stub(
-      *BUILTIN_CODE(isolate, ErrorConstructor));
+      *isolate->builtins()->ErrorConstructor());
   error_fun->shared()->set_length(1);
 
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
@@ -1285,6 +1285,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Isolate* isolate = global_object->GetIsolate();
   Factory* factory = isolate->factory();
+  Builtins* builtins = isolate->builtins();
 
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
@@ -1406,8 +1407,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Function instances are sloppy by default.
     function_fun->set_prototype_or_initial_map(*isolate->sloppy_function_map());
     function_fun->shared()->DontAdaptArguments();
-    function_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, FunctionConstructor));
+    function_fun->shared()->SetConstructStub(*builtins->FunctionConstructor());
     function_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, function_fun,
                                      Context::FUNCTION_FUNCTION_INDEX);
@@ -1452,7 +1452,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- A s y n c F r o m S y n c I t e r a t o r
-    Handle<Code> code(BUILTIN_CODE(isolate, AsyncIteratorValueUnwrap));
+    Handle<Code> code(builtins->AsyncIteratorValueUnwrap());
     Handle<SharedFunctionInfo> info =
         factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
     info->set_internal_formal_parameter_count(1);
@@ -1471,14 +1471,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                              Builtins::kAsyncGeneratorAwaitUncaught, 1, false);
     native_context()->set_async_generator_await_uncaught(*await_uncaught);
 
-    Handle<Code> code(BUILTIN_CODE(isolate, AsyncGeneratorAwaitResolveClosure));
+    Handle<Code> code(builtins->AsyncGeneratorAwaitResolveClosure());
     Handle<SharedFunctionInfo> info =
         factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
     info->set_internal_formal_parameter_count(1);
     info->set_length(1);
     native_context()->set_async_generator_await_resolve_shared_fun(*info);
 
-    code = BUILTIN_CODE(isolate, AsyncGeneratorAwaitRejectClosure);
+    code = builtins->AsyncGeneratorAwaitRejectClosure();
     info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
     info->set_internal_formal_parameter_count(1);
     info->set_length(1);
@@ -1671,7 +1671,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kNumberConstructor);
     number_fun->shared()->DontAdaptArguments();
     number_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, NumberConstructor_ConstructStub));
+        *builtins->NumberConstructor_ConstructStub());
     number_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);
@@ -1788,7 +1788,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Builtins::kBooleanConstructor);
     boolean_fun->shared()->DontAdaptArguments();
     boolean_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, BooleanConstructor_ConstructStub));
+        *builtins->BooleanConstructor_ConstructStub());
     boolean_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, boolean_fun,
                                      Context::BOOLEAN_FUNCTION_INDEX);
@@ -1815,7 +1815,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         global, "String", JS_VALUE_TYPE, JSValue::kSize,
         isolate->initial_object_prototype(), Builtins::kStringConstructor);
     string_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, StringConstructor_ConstructStub));
+        *builtins->StringConstructor_ConstructStub());
     string_fun->shared()->DontAdaptArguments();
     string_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, string_fun,
@@ -1958,7 +1958,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
         factory->the_hole_value(), Builtins::kSymbolConstructor);
     symbol_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, SymbolConstructor_ConstructStub));
+        *builtins->SymbolConstructor_ConstructStub());
     symbol_fun->shared()->set_length(0);
     symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
@@ -2024,7 +2024,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, date_fun,
                                      Context::DATE_FUNCTION_INDEX);
     date_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, DateConstructor_ConstructStub));
+        *builtins->DateConstructor_ConstructStub());
     date_fun->shared()->set_length(7);
     date_fun->shared()->DontAdaptArguments();
 
@@ -2148,10 +2148,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {
-    Handle<Code> code(BUILTIN_CODE(isolate, PromiseGetCapabilitiesExecutor));
+    Handle<Code> code(builtins->PromiseGetCapabilitiesExecutor());
     Handle<SharedFunctionInfo> info =
         factory->NewSharedFunctionInfo(factory->empty_string(), code, true);
-    info->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    info->SetConstructStub(*builtins->JSBuiltinsConstructStub());
     info->set_instance_class_name(isolate->heap()->Object_string());
     info->set_internal_formal_parameter_count(2);
     info->set_length(2);
@@ -2172,7 +2172,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::PROMISE_FUNCTION_INDEX);
 
     Handle<SharedFunctionInfo> shared(promise_fun->shared(), isolate);
-    shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    shared->SetConstructStub(*builtins->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->Object_string());
     shared->set_internal_formal_parameter_count(1);
     shared->set_length(1);
@@ -2269,14 +2269,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {
-      Handle<Code> code(BUILTIN_CODE(isolate, PromiseResolveClosure));
+      Handle<Code> code(builtins->PromiseResolveClosure());
       Handle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
       info->set_internal_formal_parameter_count(1);
       info->set_length(1);
       native_context()->set_promise_resolve_shared_fun(*info);
 
-      code = BUILTIN_CODE(isolate, PromiseRejectClosure);
+      code = builtins->PromiseRejectClosure();
       info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
       info->set_internal_formal_parameter_count(1);
@@ -2285,7 +2285,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {
-      Handle<Code> code(BUILTIN_CODE(isolate, PromiseAllResolveElementClosure));
+      Handle<Code> code(builtins->PromiseAllResolveElementClosure());
       Handle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
       info->set_internal_formal_parameter_count(1);
@@ -2312,7 +2312,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::REGEXP_FUNCTION_INDEX);
 
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate);
-    shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    shared->SetConstructStub(*builtins->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->RegExp_string());
     shared->set_internal_formal_parameter_count(2);
     shared->set_length(2);
@@ -2488,8 +2488,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- E r r o r
     InstallError(isolate, global, factory->Error_string(),
                  Context::ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeError),
-                     Context::MAKE_ERROR_INDEX);
+    InstallMakeError(isolate, builtins->MakeError(), Context::MAKE_ERROR_INDEX);
   }
 
   {  // -- E v a l E r r o r
@@ -2500,7 +2499,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- R a n g e E r r o r
     InstallError(isolate, global, factory->RangeError_string(),
                  Context::RANGE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeRangeError),
+    InstallMakeError(isolate, builtins->MakeRangeError(),
                      Context::MAKE_RANGE_ERROR_INDEX);
   }
 
@@ -2512,21 +2511,21 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- S y n t a x E r r o r
     InstallError(isolate, global, factory->SyntaxError_string(),
                  Context::SYNTAX_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeSyntaxError),
+    InstallMakeError(isolate, builtins->MakeSyntaxError(),
                      Context::MAKE_SYNTAX_ERROR_INDEX);
   }
 
   {  // -- T y p e E r r o r
     InstallError(isolate, global, factory->TypeError_string(),
                  Context::TYPE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeTypeError),
+    InstallMakeError(isolate, builtins->MakeTypeError(),
                      Context::MAKE_TYPE_ERROR_INDEX);
   }
 
   {  // -- U R I E r r o r
     InstallError(isolate, global, factory->URIError_string(),
                  Context::URI_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeURIError),
+    InstallMakeError(isolate, builtins->MakeURIError(),
                      Context::MAKE_URI_ERROR_INDEX);
   }
 
@@ -2938,7 +2937,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, data_view_fun,
                                      Context::DATA_VIEW_FUN_INDEX);
     data_view_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, DataViewConstructor_ConstructStub));
+        *builtins->DataViewConstructor_ConstructStub());
     data_view_fun->shared()->set_length(3);
     data_view_fun->shared()->DontAdaptArguments();
 
@@ -3017,7 +3016,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::JS_MAP_FUN_INDEX);
 
     Handle<SharedFunctionInfo> shared(js_map_fun->shared(), isolate);
-    shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    shared->SetConstructStub(*builtins->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->Map_string());
     shared->DontAdaptArguments();
     shared->set_length(0);
@@ -3072,7 +3071,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::JS_SET_FUN_INDEX);
 
     Handle<SharedFunctionInfo> shared(js_set_fun->shared(), isolate);
-    shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    shared->SetConstructStub(*builtins->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->Set_string());
     shared->DontAdaptArguments();
     shared->set_length(0);
@@ -3202,7 +3201,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     proxy_function_map->set_is_constructor(true);
 
     Handle<String> name = factory->Proxy_string();
-    Handle<Code> code(BUILTIN_CODE(isolate, ProxyConstructor));
+    Handle<Code> code(builtins->ProxyConstructor());
     Handle<JSFunction> proxy_function =
         factory->NewFunction(proxy_function_map, name, code);
 
@@ -3210,7 +3209,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               factory->null_value());
 
     proxy_function->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, ProxyConstructor_ConstructStub));
+        *builtins->ProxyConstructor_ConstructStub());
     proxy_function->shared()->set_internal_formal_parameter_count(2);
     proxy_function->shared()->set_length(2);
 
@@ -3300,7 +3299,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->Arguments_string();
-    Handle<Code> code(BUILTIN_CODE(isolate, Illegal));
+    Handle<Code> code(builtins->Illegal());
     Handle<JSFunction> function =
         factory->NewFunctionWithoutPrototype(arguments_string, code, STRICT);
     function->shared()->set_instance_class_name(*arguments_string);
@@ -3670,6 +3669,7 @@ void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
 void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                      Handle<JSObject> container) {
   Factory* factory = isolate->factory();
+  Builtins* builtins = isolate->builtins();
   HandleScope scope(isolate);
   Handle<Context> native_context = isolate->native_context();
 #define EXPORT_PRIVATE_SYMBOL(NAME)                                       \
@@ -3707,7 +3707,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         native_context->generator_function_map());
     generator_function_function->shared()->DontAdaptArguments();
     generator_function_function->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, GeneratorFunctionConstructor));
+        *builtins->GeneratorFunctionConstructor());
     generator_function_function->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(
         isolate, generator_function_function,
@@ -3737,7 +3737,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         native_context->async_generator_function_map());
     async_generator_function_function->shared()->DontAdaptArguments();
     async_generator_function_function->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, AsyncGeneratorFunctionConstructor));
+        *builtins->AsyncGeneratorFunctionConstructor());
     async_generator_function_function->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(
         isolate, async_generator_function_function,
@@ -3972,7 +3972,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         native_context->async_function_map());
     async_function_constructor->shared()->DontAdaptArguments();
     async_function_constructor->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, AsyncFunctionConstructor));
+        *builtins->AsyncFunctionConstructor());
     async_function_constructor->shared()->set_length(1);
     native_context->set_async_function_constructor(*async_function_constructor);
     JSObject::ForceSetPrototype(async_function_constructor,
@@ -4001,7 +4001,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     }
 
     {
-      Handle<Code> code(BUILTIN_CODE(isolate, AsyncFunctionAwaitRejectClosure));
+      Handle<Code> code(builtins->AsyncFunctionAwaitRejectClosure());
       Handle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
       info->set_internal_formal_parameter_count(1);
@@ -4010,8 +4010,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     }
 
     {
-      Handle<Code> code(
-          BUILTIN_CODE(isolate, AsyncFunctionAwaitResolveClosure));
+      Handle<Code> code(builtins->AsyncFunctionAwaitResolveClosure());
       Handle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
       info->set_internal_formal_parameter_count(1);
@@ -4183,7 +4182,7 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   native_context()->set_promise_prototype_map(*prototype_map);
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseThenFinally);
+    Handle<Code> code(builtins()->PromiseThenFinally());
     Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
         factory()->empty_string(), code, false);
     info->set_internal_formal_parameter_count(1);
@@ -4193,7 +4192,7 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   }
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseCatchFinally);
+    Handle<Code> code(builtins()->PromiseCatchFinally());
     Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
         factory()->empty_string(), code, false);
     info->set_internal_formal_parameter_count(1);
@@ -4203,7 +4202,7 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   }
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseValueThunkFinally);
+    Handle<Code> code(builtins()->PromiseValueThunkFinally());
     Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
         factory()->empty_string(), code, false);
     info->set_internal_formal_parameter_count(0);
@@ -4212,7 +4211,7 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   }
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseThrowerFinally);
+    Handle<Code> code(builtins()->PromiseThrowerFinally());
     Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
         factory()->empty_string(), code, false);
     info->set_internal_formal_parameter_count(0);
@@ -4269,9 +4268,8 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(Handle<String> name,
       CreateFunction(isolate(), name, JS_ARRAY_BUFFER_TYPE,
                      JSArrayBuffer::kSizeWithEmbedderFields, prototype,
                      Builtins::kArrayBufferConstructor);
-  Handle<Code> code =
-      BUILTIN_CODE(isolate(), ArrayBufferConstructor_ConstructStub);
-  array_buffer_fun->shared()->SetConstructStub(*code);
+  array_buffer_fun->shared()->SetConstructStub(
+      *builtins()->ArrayBufferConstructor_ConstructStub());
   array_buffer_fun->shared()->DontAdaptArguments();
   array_buffer_fun->shared()->set_length(1);
   array_buffer_fun->shared()->set_instance_class_name(*name);

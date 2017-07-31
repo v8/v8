@@ -17,21 +17,20 @@ Handle<Code> Builtins::InterpreterPushArgsThenCall(
     case InterpreterPushArgsMode::kJSFunction:
       switch (receiver_mode) {
         case ConvertReceiverMode::kNullOrUndefined:
-          return builtin_handle(
-              kInterpreterPushUndefinedAndArgsThenCallFunction);
+          return InterpreterPushUndefinedAndArgsThenCallFunction();
         case ConvertReceiverMode::kNotNullOrUndefined:
         case ConvertReceiverMode::kAny:
-          return builtin_handle(kInterpreterPushArgsThenCallFunction);
+          return InterpreterPushArgsThenCallFunction();
       }
     case InterpreterPushArgsMode::kWithFinalSpread:
-      return builtin_handle(kInterpreterPushArgsThenCallWithFinalSpread);
+      return InterpreterPushArgsThenCallWithFinalSpread();
     case InterpreterPushArgsMode::kOther:
       switch (receiver_mode) {
         case ConvertReceiverMode::kNullOrUndefined:
-          return builtin_handle(kInterpreterPushUndefinedAndArgsThenCall);
+          return InterpreterPushUndefinedAndArgsThenCall();
         case ConvertReceiverMode::kNotNullOrUndefined:
         case ConvertReceiverMode::kAny:
-          return builtin_handle(kInterpreterPushArgsThenCall);
+          return InterpreterPushArgsThenCall();
       }
   }
   UNREACHABLE();
@@ -41,11 +40,11 @@ Handle<Code> Builtins::InterpreterPushArgsThenConstruct(
     InterpreterPushArgsMode mode) {
   switch (mode) {
     case InterpreterPushArgsMode::kJSFunction:
-      return builtin_handle(kInterpreterPushArgsThenConstructFunction);
+      return InterpreterPushArgsThenConstructFunction();
     case InterpreterPushArgsMode::kWithFinalSpread:
-      return builtin_handle(kInterpreterPushArgsThenConstructWithFinalSpread);
+      return InterpreterPushArgsThenConstructWithFinalSpread();
     case InterpreterPushArgsMode::kOther:
-      return builtin_handle(kInterpreterPushArgsThenConstruct);
+      return InterpreterPushArgsThenConstruct();
   }
   UNREACHABLE();
 }

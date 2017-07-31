@@ -244,9 +244,10 @@ int CodeBreakIterator::code_offset() {
 void CodeBreakIterator::SetDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
+  Builtins* builtins = isolate()->builtins();
   Handle<Code> target = debug_break_type == DEBUG_BREAK_SLOT_AT_RETURN
-                            ? BUILTIN_CODE(isolate(), Return_DebugBreak)
-                            : BUILTIN_CODE(isolate(), Slot_DebugBreak);
+                            ? builtins->Return_DebugBreak()
+                            : builtins->Slot_DebugBreak();
   DebugCodegen::PatchDebugBreakSlot(isolate(), rinfo()->pc(), target);
 }
 

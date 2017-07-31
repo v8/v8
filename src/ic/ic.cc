@@ -1098,7 +1098,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
            ->has_non_instance_prototype()) {
     Handle<Code> stub;
     TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
-    return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);
+    return isolate()->builtins()->LoadIC_FunctionPrototype();
   }
 
   Handle<Map> map = receiver_map();
@@ -1395,12 +1395,12 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map) {
   }
   if (receiver_map->IsStringMap()) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringStub);
-    return BUILTIN_CODE(isolate(), KeyedLoadIC_IndexedString);
+    return isolate()->builtins()->KeyedLoadIC_IndexedString();
   }
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
-    return BUILTIN_CODE(isolate(), KeyedLoadIC_Slow);
+    return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
   ElementsKind elements_kind = receiver_map->elements_kind();
@@ -2126,7 +2126,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
-      handler = BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
+      handler = isolate()->builtins()->KeyedStoreIC_Slow();
 
     } else {
       {

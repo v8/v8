@@ -47,7 +47,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   script->set_shared_function_infos(*infos);
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       isolate->factory()->NewStringFromAsciiChecked("f"),
-      BUILTIN_CODE(isolate, CompileLazy), false);
+      isolate->builtins()->CompileLazy(), false);
   shared->set_end_position(source->length());
   shared->set_outer_scope_info(ScopeInfo::Empty(isolate));
   shared->set_function_literal_id(1);

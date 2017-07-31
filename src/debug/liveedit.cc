@@ -901,7 +901,7 @@ void LiveEdit::ReplaceFunctionCode(
         // Start using new bytecode everywhere.
         shared_info->set_bytecode_array(new_shared_info->bytecode_array());
         ReplaceCodeObject(old_code,
-                          BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+                          isolate->builtins()->InterpreterEntryTrampoline());
       } else {
         // Start using new FCG code everywhere.
         // Rely on self-healing for places that used to run bytecode.

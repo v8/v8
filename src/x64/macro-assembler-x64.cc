@@ -483,9 +483,9 @@ void TurboAssembler::Abort(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   } else {
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   }
   // Control will not return here.
   int3();
@@ -3586,7 +3586,7 @@ void MacroAssembler::MaybeDropFrames() {
       ExternalReference::debug_restart_fp_address(isolate());
   Load(rbx, restart_fp);
   testp(rbx, rbx);
-  j(not_zero, BUILTIN_CODE(isolate(), FrameDropperTrampoline),
+  j(not_zero, isolate()->builtins()->FrameDropperTrampoline(),
     RelocInfo::CODE_TARGET);
 }
 
@@ -3776,7 +3776,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
-    Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
+    Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
       Call(adaptor, RelocInfo::CODE_TARGET);
       if (!*definitely_mismatches) {
@@ -3842,7 +3842,7 @@ void TurboAssembler::Prologue(bool code_pre_aging) {
       kNoCodeAgeSequenceLength);
   if (code_pre_aging) {
     // Pre-age the code.
-    Call(BUILTIN_CODE(isolate(), MarkCodeAsExecutedOnce),
+    Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
          RelocInfo::CODE_AGE_SEQUENCE);
     Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
   } else {

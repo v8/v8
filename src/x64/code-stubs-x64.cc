@@ -621,8 +621,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(rsi);
-      __ Call(strict() ? BUILTIN_CODE(isolate(), StrictEqual)
-                       : BUILTIN_CODE(isolate(), Equal),
+      __ Call(strict() ? isolate()->builtins()->StrictEqual()
+                       : isolate()->builtins()->Equal(),
               RelocInfo::CODE_TARGET);
       __ Pop(rsi);
     }
@@ -800,7 +800,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   __ bind(&non_function);
   __ movp(rdx, rdi);
-  __ Jump(BUILTIN_CODE(isolate(), Construct), RelocInfo::CODE_TARGET);
+  __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 bool CEntryStub::NeedsImmovableCode() {

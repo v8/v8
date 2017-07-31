@@ -14,11 +14,11 @@ namespace internal {
 Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
-      return builtin_handle(kCallFunction_ReceiverIsNullOrUndefined);
+      return CallFunction_ReceiverIsNullOrUndefined();
     case ConvertReceiverMode::kNotNullOrUndefined:
-      return builtin_handle(kCallFunction_ReceiverIsNotNullOrUndefined);
+      return CallFunction_ReceiverIsNotNullOrUndefined();
     case ConvertReceiverMode::kAny:
-      return builtin_handle(kCallFunction_ReceiverIsAny);
+      return CallFunction_ReceiverIsAny();
   }
   UNREACHABLE();
 }
@@ -26,11 +26,11 @@ Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
 Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
-      return builtin_handle(kCall_ReceiverIsNullOrUndefined);
+      return Call_ReceiverIsNullOrUndefined();
     case ConvertReceiverMode::kNotNullOrUndefined:
-      return builtin_handle(kCall_ReceiverIsNotNullOrUndefined);
+      return Call_ReceiverIsNotNullOrUndefined();
     case ConvertReceiverMode::kAny:
-      return builtin_handle(kCall_ReceiverIsAny);
+      return Call_ReceiverIsAny();
   }
   UNREACHABLE();
 }

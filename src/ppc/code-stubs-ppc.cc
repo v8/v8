@@ -626,8 +626,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ Push(cp);
-      __ Call(strict() ? BUILTIN_CODE(isolate(), StrictEqual)
-                       : BUILTIN_CODE(isolate(), Equal),
+      __ Call(strict() ? isolate()->builtins()->StrictEqual()
+                       : isolate()->builtins()->Equal(),
               RelocInfo::CODE_TARGET);
       __ Pop(cp);
     }
@@ -1360,7 +1360,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   __ bind(&non_function);
   __ mr(r6, r4);
-  __ Jump(BUILTIN_CODE(isolate(), Construct), RelocInfo::CODE_TARGET);
+  __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 

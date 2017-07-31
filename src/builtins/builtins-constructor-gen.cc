@@ -20,17 +20,17 @@ namespace internal {
 
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructVarargs(masm,
-                                  BUILTIN_CODE(masm->isolate(), Construct));
+                                  masm->isolate()->builtins()->Construct());
 }
 
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructForwardVarargs(
-      masm, BUILTIN_CODE(masm->isolate(), Construct));
+      masm, masm->isolate()->builtins()->Construct());
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructForwardVarargs(
-      masm, BUILTIN_CODE(masm->isolate(), ConstructFunction));
+      masm, masm->isolate()->builtins()->ConstructFunction());
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {

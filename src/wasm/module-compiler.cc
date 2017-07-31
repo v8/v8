@@ -572,8 +572,8 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // Otherwise: Initialize with the illegal builtin. All call sites will be
   // patched at instantiation.
   Handle<Code> init_builtin = lazy_compile
-                                  ? BUILTIN_CODE(isolate_, WasmCompileLazy)
-                                  : BUILTIN_CODE(isolate_, Illegal);
+                                  ? isolate_->builtins()->WasmCompileLazy()
+                                  : isolate_->builtins()->Illegal();
   for (int i = 0, e = static_cast<int>(module_->functions.size()); i < e; ++i) {
     code_table->set(i, *init_builtin);
     temp_instance->function_code[i] = init_builtin;
@@ -2085,7 +2085,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     // Initialize {code_table_} with the illegal builtin. All call sites
     // will be patched at instantiation.
-    Handle<Code> illegal_builtin = BUILTIN_CODE(job_->isolate_, Illegal);
+    Handle<Code> illegal_builtin = job_->isolate_->builtins()->Illegal();
     // TODO(wasm): Fix this for lazy compilation.
     for (uint32_t i = 0; i < module_->functions.size(); ++i) {
       job_->code_table_->set(static_cast<int>(i), *illegal_builtin);

@@ -18,12 +18,12 @@ namespace compiler {
 
 Node* JSGraph::AllocateInNewSpaceStubConstant() {
   return CACHED(kAllocateInNewSpaceStubConstant,
-                HeapConstant(BUILTIN_CODE(isolate(), AllocateInNewSpace)));
+                HeapConstant(isolate()->builtins()->AllocateInNewSpace()));
 }
 
 Node* JSGraph::AllocateInOldSpaceStubConstant() {
   return CACHED(kAllocateInOldSpaceStubConstant,
-                HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldSpace)));
+                HeapConstant(isolate()->builtins()->AllocateInOldSpace()));
 }
 
 Node* JSGraph::ArrayConstructorStubConstant() {
@@ -33,7 +33,7 @@ Node* JSGraph::ArrayConstructorStubConstant() {
 
 Node* JSGraph::ToNumberBuiltinConstant() {
   return CACHED(kToNumberBuiltinConstant,
-                HeapConstant(BUILTIN_CODE(isolate(), ToNumber)));
+                HeapConstant(isolate()->builtins()->ToNumber()));
 }
 
 Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
