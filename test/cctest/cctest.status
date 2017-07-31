@@ -316,6 +316,8 @@
   'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
+  # TODO(ppc): Implement load/store reverse byte instructions
+  'test-run-wasm-simd/RunWasmCompiled_SimdLoadStoreLoad': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
