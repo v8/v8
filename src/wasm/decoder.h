@@ -37,34 +37,6 @@ namespace wasm {
 // a buffer of bytes.
 class Decoder {
  public:
-  class ErrorFormatter {
-   public:
-    // Allow move, but nothing else.
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ErrorFormatter);
-    ~ErrorFormatter() {
-      if (!decoder_) return;
-      DCHECK(decoder_->ok());
-
-      decoder_->error_offset_ = decoder_->pc_offset(pc_);
-      decoder_->error_msg_ = message_builder_.str();
-      decoder_->onFirstError();
-    }
-
-    template <typename T>
-    ErrorFormatter& operator<<(T&& arg) {
-      if (decoder_) message_builder_ << std::forward<T>(arg);
-      return *this;
-    }
-
-   private:
-    friend class Decoder;
-    std::ostringstream message_builder_;
-    const byte* pc_;
-    Decoder* decoder_;
-    ErrorFormatter(const byte* pc, Decoder* decoder)
-        : pc_(pc), decoder_(decoder) {}
-  };
-
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
       : start_(start), pc_(start), end_(end), buffer_offset_(buffer_offset) {}
   Decoder(const byte* start, const byte* pc, const byte* end,
@@ -76,7 +48,7 @@ class Decoder {
   inline bool check(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
     if (V8_UNLIKELY(pc + length > end_)) {
-      error(pc) << msg;
+      error(pc, msg);
       return false;
     }
     return true;
@@ -153,13 +125,13 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
-  uint32_t consume_u32v(const char* name = "uint32_t") {
+  uint32_t consume_u32v(const char* name = nullptr) {
     uint32_t length = 0;
     return read_leb<uint32_t, true, true, true>(pc_, &length, name);
   }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
-  int32_t consume_i32v(const char* name = "int32_t") {
+  int32_t consume_i32v(const char* name = nullptr) {
     uint32_t length = 0;
     return read_leb<int32_t, true, true, true>(pc_, &length, name);
   }
@@ -179,27 +151,40 @@ class Decoder {
   bool checkAvailable(int size) {
     intptr_t pc_overflow_value = std::numeric_limits<intptr_t>::max() - size;
     if (size < 0 || (intptr_t)pc_ > pc_overflow_value) {
-      error(pc_) << "reading " << size << " bytes would underflow/overflow";
+      errorf(pc_, "reading %d bytes would underflow/overflow", size);
       return false;
     } else if (pc_ < start_ || end_ < (pc_ + size)) {
-      error(pc_) << "expected " << size << " bytes, fell off end";
+      errorf(pc_, "expected %d bytes, fell off end", size);
       return false;
     } else {
       return true;
     }
   }
 
-  // ErrorFormatter sets internal error state in its destructor.
-  ErrorFormatter error(const byte* pc = nullptr) {
+  void error(const char* msg) { errorf(pc_, "%s", msg); }
+
+  void error(const byte* pc, const char* msg) { errorf(pc, "%s", msg); }
+
+  // Sets internal error state.
+  void PRINTF_FORMAT(3, 4) errorf(const byte* pc, const char* format, ...) {
     // Only report the first error.
-    if (!ok()) return {nullptr, nullptr};
+    if (!ok()) return;
 #if DEBUG
     if (FLAG_wasm_break_on_decoder_error) {
       base::OS::DebugBreak();
     }
 #endif
-
-    return {pc ? pc : pc_, this};
+    constexpr int kMaxErrorMsg = 256;
+    EmbeddedVector<char, kMaxErrorMsg> buffer;
+    va_list arguments;
+    va_start(arguments, format);
+    int len = VSNPrintF(buffer, format, arguments);
+    CHECK_LT(0, len);
+    va_end(arguments);
+    error_msg_.assign(buffer.start(), len);
+    DCHECK_GE(pc, start_);
+    error_offset_ = static_cast<uint32_t>(pc - start_) + buffer_offset_;
+    onFirstError();
   }
 
   // Behavior triggered on first error, overridden in subclasses.
@@ -248,11 +233,9 @@ class Decoder {
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
-  uint32_t pc_offset(const byte* pc) const {
-    DCHECK_GE(pc, start_);
-    return static_cast<uint32_t>(pc - start_) + buffer_offset_;
+  uint32_t pc_offset() const {
+    return static_cast<uint32_t>(pc_ - start_) + buffer_offset_;
   }
-  uint32_t pc_offset() const { return pc_offset(pc_); }
   uint32_t buffer_offset() const { return buffer_offset_; }
   // Takes an offset relative to the module start and returns an offset relative
   // to the current buffer of the decoder.
@@ -335,7 +318,7 @@ class Decoder {
     *length = byte_index + (at_end ? 0 : 1);
     if (checked && (at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
-      error(pc) << "expected " << name;
+      errorf(pc, "expected %s", name);
       result = 0;
     }
     if (is_last_byte) {
@@ -355,7 +338,7 @@ class Decoder {
       if (!checked) {
         DCHECK(valid_extra_bits);
       } else if (!valid_extra_bits) {
-        error(pc) << "extra bits in varint";
+        error(pc, "extra bits in varint");
         result = 0;
       }
     }

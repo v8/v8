@@ -35,18 +35,18 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#define CHECK_PROTOTYPE_OPCODE(flag)                                         \
-  if (module_ != nullptr && module_->is_asm_js()) {                          \
-    error() << "Opcode not supported for asmjs modules";                     \
-  }                                                                          \
-  if (!FLAG_experimental_wasm_##flag) {                                      \
-    error() << "Invalid opcode (enable with --experimental-wasm-" #flag ")"; \
-    break;                                                                   \
+#define CHECK_PROTOTYPE_OPCODE(flag)                                     \
+  if (module_ != nullptr && module_->is_asm_js()) {                      \
+    error("Opcode not supported for asmjs modules");                     \
+  }                                                                      \
+  if (!FLAG_experimental_wasm_##flag) {                                  \
+    error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
+    break;                                                               \
   }
 
-#define PROTOTYPE_NOT_FUNCTIONAL(opcode)        \
-  error() << "Prototype still not functional: " \
-          << WasmOpcodes::OpcodeName(opcode);
+#define PROTOTYPE_NOT_FUNCTIONAL(opcode)            \
+  errorf(pc_, "Prototype still not functional: %s", \
+         WasmOpcodes::OpcodeName(opcode));
 
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
@@ -194,7 +194,7 @@ class WasmDecoder : public Decoder {
       if (decoder->failed()) return false;
 
       if ((count + type_list->size()) > kV8MaxWasmFunctionLocals) {
-        decoder->error(decoder->pc() - 1) << "local count too large";
+        decoder->error(decoder->pc() - 1, "local count too large");
         return false;
       }
       byte code = decoder->consume_u8("local type");
@@ -218,7 +218,7 @@ class WasmDecoder : public Decoder {
           type = kWasmS128;
           break;
         default:
-          decoder->error(decoder->pc() - 1) << "invalid local type";
+          decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
       }
       type_list->insert(type_list->end(), count, type);
@@ -279,7 +279,7 @@ class WasmDecoder : public Decoder {
       }
       return true;
     }
-    error(pc + 1) << "invalid local index: " << operand.index;
+    errorf(pc + 1, "invalid local index: %u", operand.index);
     return false;
   }
 
@@ -289,7 +289,7 @@ class WasmDecoder : public Decoder {
       operand.type = operand.global->type;
       return true;
     }
-    error(pc + 1) << "invalid global index: " << operand.index;
+    errorf(pc + 1, "invalid global index: %u", operand.index);
     return false;
   }
 
@@ -305,7 +305,7 @@ class WasmDecoder : public Decoder {
     if (Complete(pc, operand)) {
       return true;
     }
-    error(pc + 1) << "invalid function index: " << operand.index;
+    errorf(pc + 1, "invalid function index: %u", operand.index);
     return false;
   }
 
@@ -319,13 +319,13 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, CallIndirectOperand<true>& operand) {
     if (module_ == nullptr || module_->function_tables.empty()) {
-      error() << "function table has to exist to execute call_indirect";
+      error("function table has to exist to execute call_indirect");
       return false;
     }
     if (Complete(pc, operand)) {
       return true;
     }
-    error(pc + 1) << "invalid signature index: #" << operand.index;
+    errorf(pc + 1, "invalid signature index: #%u", operand.index);
     return false;
   }
 
@@ -335,15 +335,15 @@ class WasmDecoder : public Decoder {
       operand.target = &control[control.size() - operand.depth - 1];
       return true;
     }
-    error(pc + 1) << "invalid break depth: " << operand.depth;
+    errorf(pc + 1, "invalid break depth: %u", operand.depth);
     return false;
   }
 
   bool Validate(const byte* pc, BranchTableOperand<true>& operand,
                 size_t block_depth) {
     if (operand.table_count >= kV8MaxWasmFunctionSize) {
-      error(pc + 1) << "invalid table count (> max function size): "
-                    << operand.table_count;
+      errorf(pc + 1, "invalid table count (> max function size): %u",
+             operand.table_count);
       return false;
     }
     return checkAvailable(operand.table_count);
@@ -372,7 +372,7 @@ class WasmDecoder : public Decoder {
         break;
     }
     if (operand.lane < 0 || operand.lane >= num_lanes) {
-      error(pc_ + 2) << "invalid lane index";
+      error(pc_ + 2, "invalid lane index");
       return false;
     } else {
       return true;
@@ -403,7 +403,7 @@ class WasmDecoder : public Decoder {
         break;
     }
     if (operand.shift < 0 || operand.shift >= max_shift) {
-      error(pc_ + 2) << "invalid shift amount";
+      error(pc_ + 2, "invalid shift amount");
       return false;
     } else {
       return true;
@@ -416,7 +416,7 @@ class WasmDecoder : public Decoder {
       max_lane = std::max(max_lane, operand.shuffle[i]);
     // Shuffle indices must be in [0..31] for a 16 lane shuffle.
     if (max_lane > 2 * kSimd128Size) {
-      error(pc_ + 2) << "invalid shuffle mask";
+      error(pc_ + 2, "invalid shuffle mask");
       return false;
     } else {
       return true;
@@ -515,7 +515,7 @@ class WasmDecoder : public Decoder {
           case kExprS8x16Shuffle:
             return 2 + kSimd128Size;
           default:
-            decoder->error(pc) << "invalid SIMD opcode";
+            decoder->error(pc, "invalid SIMD opcode");
             return 2;
         }
       }
@@ -621,7 +621,7 @@ class WasmFullDecoder : public WasmDecoder {
     control_.clear();
 
     if (end_ < pc_) {
-      error() << "function body end < start";
+      error("function body end < start");
       return false;
     }
 
@@ -637,15 +637,15 @@ class WasmFullDecoder : public WasmDecoder {
       // Generate a better error message whether the unterminated control
       // structure is the function body block or an innner structure.
       if (control_.size() > 1) {
-        error(control_.back().pc) << "unterminated control structure";
+        error(control_.back().pc, "unterminated control structure");
       } else {
-        error() << "function body must end with \"end\" opcode";
+        error("function body must end with \"end\" opcode");
       }
       return TraceFailed();
     }
 
     if (!last_end_found_) {
-      error() << "function body must end with \"end\" opcode";
+      error("function body must end with \"end\" opcode");
       return false;
     }
 
@@ -747,7 +747,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   bool CheckHasMemory() {
     if (!module_->has_memory) {
-      error(pc_ - 1) << "memory instruction with no memory";
+      error(pc_ - 1, "memory instruction with no memory");
     }
     return module_->has_memory;
   }
@@ -843,18 +843,18 @@ class WasmFullDecoder : public WasmDecoder {
             len = 1 + operand.length;
 
             if (control_.empty()) {
-              error() << "catch does not match any try";
+              error("catch does not match any try");
               break;
             }
 
             Control* c = &control_.back();
             if (!c->is_try()) {
-              error() << "catch does not match any try";
+              error("catch does not match any try");
               break;
             }
 
             if (c->try_info->catch_env == nullptr) {
-              error() << "catch already present for try with catch";
+              error(pc_, "catch already present for try with catch");
               break;
             }
 
@@ -915,16 +915,16 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprElse: {
             if (control_.empty()) {
-              error() << "else does not match any if";
+              error("else does not match any if");
               break;
             }
             Control* c = &control_.back();
             if (!c->is_if()) {
-              error() << "else does not match an if";
+              error(pc_, "else does not match an if");
               break;
             }
             if (c->false_env == nullptr) {
-              error() << "else already present for if";
+              error(pc_, "else already present for if");
               break;
             }
             FallThruTo(c);
@@ -936,7 +936,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprEnd: {
             if (control_.empty()) {
-              error() << "end does not match any if, try, or block";
+              error("end does not match any if, try, or block");
               return;
             }
             const char* name = "block:end";
@@ -954,11 +954,11 @@ class WasmFullDecoder : public WasmDecoder {
                 // End the true branch of a one-armed if.
                 Goto(c->false_env, c->end_env);
                 if (!c->unreachable && stack_.size() != c->stack_depth) {
-                  error() << "end of if expected empty stack";
+                  error("end of if expected empty stack");
                   stack_.resize(c->stack_depth);
                 }
                 if (c->merge.arity > 0) {
-                  error() << "non-void one-armed if";
+                  error("non-void one-armed if");
                 }
                 name = "if:merge";
               } else {
@@ -970,7 +970,7 @@ class WasmFullDecoder : public WasmDecoder {
 
               // validate that catch was seen.
               if (c->try_info->catch_env != nullptr) {
-                error(pc_) << "missing catch in try";
+                error(pc_, "missing catch in try");
                 break;
               }
             }
@@ -981,7 +981,7 @@ class WasmFullDecoder : public WasmDecoder {
             if (control_.size() == 1) {
               // If at the last (implicit) control, check we are at end.
               if (pc_ + 1 != end_) {
-                error(pc_ + 1) << "trailing code after function end";
+                error(pc_ + 1, "trailing code after function end");
                 break;
               }
               last_end_found_ = true;
@@ -1058,7 +1058,7 @@ class WasmFullDecoder : public WasmDecoder {
                   const byte* pos = iterator.pc();
                   uint32_t target = iterator.next();
                   if (target >= control_.size()) {
-                    error(pos) << "improper branch in br_table";
+                    error(pos, "improper branch in br_table");
                     break;
                   }
                   ssa_env_ = Split(copy);
@@ -1074,18 +1074,18 @@ class WasmFullDecoder : public WasmDecoder {
                   if (i == 0) {
                     merge = current;
                   } else if (merge->arity != current->arity) {
-                    error(pos) << "inconsistent arity in br_table target " << i
-                               << " (previous was " << merge->arity
-                               << ", this one " << current->arity << ")";
+                    errorf(pos,
+                           "inconsistent arity in br_table target %d"
+                           " (previous was %u, this one %u)",
+                           i, merge->arity, current->arity);
                   } else if (control_.back().unreachable) {
                     for (uint32_t j = 0; ok() && j < merge->arity; ++j) {
                       if ((*merge)[j].type != (*current)[j].type) {
-                        error(pos)
-                            << "type error in br_table target " << i
-                            << " operand " << j << " (previous expected "
-                            << WasmOpcodes::TypeName((*merge)[j].type)
-                            << ", this one "
-                            << WasmOpcodes::TypeName((*current)[j].type) << ")";
+                        errorf(pos,
+                               "type error in br_table target %d operand %d"
+                               " (previous expected %s, this one %s)",
+                               i, j, WasmOpcodes::TypeName((*merge)[j].type),
+                               WasmOpcodes::TypeName((*current)[j].type));
                       }
                     }
                   }
@@ -1096,7 +1096,7 @@ class WasmFullDecoder : public WasmDecoder {
                 const byte* pos = iterator.pc();
                 uint32_t target = iterator.next();
                 if (target >= control_.size()) {
-                  error(pos) << "improper branch in br_table";
+                  error(pos, "improper branch in br_table");
                   break;
                 }
                 BreakTo(target);
@@ -1191,8 +1191,8 @@ class WasmFullDecoder : public WasmDecoder {
                 Value val = Pop(0, operand.type);
                 BUILD(SetGlobal, operand.index, val.node);
               } else {
-                error() << "immutable global #" << operand.index
-                        << " cannot be assigned";
+                errorf(pc_, "immutable global #%u cannot be assigned",
+                       operand.index);
               }
             }
             len = 1 + operand.length;
@@ -1275,7 +1275,7 @@ class WasmFullDecoder : public WasmDecoder {
               Value val = Pop(0, kWasmI32);
               Push(kWasmI32, BUILD(GrowMemory, val.node));
             } else {
-              error() << "grow_memory is not supported for asmjs modules";
+              error("grow_memory is not supported for asmjs modules");
             }
             len = 1 + operand.length;
             break;
@@ -1323,7 +1323,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kAtomicPrefix: {
             if (module_ == nullptr || !module_->is_asm_js()) {
-              error() << "Atomics are allowed only in AsmJs modules";
+              error("Atomics are allowed only in AsmJs modules");
               break;
             }
             CHECK_PROTOTYPE_OPCODE(threads);
@@ -1344,7 +1344,7 @@ class WasmFullDecoder : public WasmDecoder {
                 BuildSimpleOperator(opcode, sig);
               }
             } else {
-              error() << "Invalid opcode";
+              error("Invalid opcode");
               return;
             }
           }
@@ -1418,7 +1418,7 @@ class WasmFullDecoder : public WasmDecoder {
 #endif
       pc_ += len;
     }  // end decode loop
-    if (pc_ > end_ && ok()) error() << "Beyond end of code";
+    if (pc_ > end_ && ok()) error("Beyond end of code");
   }
 
   void FinishFunction() {
@@ -1638,7 +1638,7 @@ class WasmFullDecoder : public WasmDecoder {
           TFNode* node = BUILD(SimdOp, opcode, inputs.data());
           Push(GetReturnType(sig), node);
         } else {
-          error() << "invalid simd opcode";
+          error("invalid simd opcode");
         }
       }
     }
@@ -1696,10 +1696,9 @@ class WasmFullDecoder : public WasmDecoder {
   Value Pop(int index, ValueType expected) {
     Value val = Pop();
     if (val.type != expected && val.type != kWasmVar && expected != kWasmVar) {
-      error(val.pc) << SafeOpcodeNameAt(pc_) << "[" << index
-                    << "] expected type " << WasmOpcodes::TypeName(expected)
-                    << ", found " << SafeOpcodeNameAt(val.pc) << " of type "
-                    << WasmOpcodes::TypeName(val.type);
+      errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
+             SafeOpcodeNameAt(pc_), index, WasmOpcodes::TypeName(expected),
+             SafeOpcodeNameAt(val.pc), WasmOpcodes::TypeName(val.type));
     }
     return val;
   }
@@ -1710,7 +1709,7 @@ class WasmFullDecoder : public WasmDecoder {
       // Popping past the current control start in reachable code.
       Value val = {pc_, nullptr, kWasmVar};
       if (!control_.back().unreachable) {
-        error(pc_) << SafeOpcodeNameAt(pc_) << " found empty stack";
+        errorf(pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
       }
       return val;
     }
@@ -1730,9 +1729,11 @@ class WasmFullDecoder : public WasmDecoder {
       // Merge the value(s) into the end of the block.
       size_t expected = control_.back().stack_depth + c->merge.arity;
       if (stack_.size() < expected && !control_.back().unreachable) {
-        error() << "expected at least " << c->merge.arity
-                << " values on the stack for br to @" << startrel(c->pc)
-                << ", found " << stack_.size() - c->stack_depth;
+        errorf(
+            pc_,
+            "expected at least %u values on the stack for br to @%d, found %d",
+            c->merge.arity, startrel(c->pc),
+            static_cast<int>(stack_.size() - c->stack_depth));
         return;
       }
       MergeValuesInto(c);
@@ -1749,9 +1750,8 @@ class WasmFullDecoder : public WasmDecoder {
       c->unreachable = false;
       return;
     }
-    error() << "expected " << c->merge.arity
-            << " elements on the stack for fallthru to @",
-        startrel(c->pc);
+    errorf(pc_, "expected %u elements on the stack for fallthru to @%d",
+           c->merge.arity, startrel(c->pc));
   }
 
   inline Value& GetMergeValueFromStack(Control* c, size_t i) {
@@ -1764,8 +1764,8 @@ class WasmFullDecoder : public WasmDecoder {
     int arity = static_cast<int>(c->merge.arity);
     if (c->stack_depth + arity < stack_.size() ||
         (c->stack_depth + arity != stack_.size() && !c->unreachable)) {
-      error() << "expected " << arity
-              << " elements on the stack for fallthru to @" << startrel(c->pc);
+      errorf(pc_, "expected %d elements on the stack for fallthru to @%d",
+             arity, startrel(c->pc));
       return;
     }
     // Typecheck the values left on the stack.
@@ -1775,9 +1775,9 @@ class WasmFullDecoder : public WasmDecoder {
       Value& val = GetMergeValueFromStack(c, i);
       Value& old = c->merge[i];
       if (val.type != old.type) {
-        error() << "type error in merge[" << i << "] (expected "
-                << WasmOpcodes::TypeName(old.type) << ", got "
-                << WasmOpcodes::TypeName(val.type) << ")";
+        errorf(pc_, "type error in merge[%zu] (expected %s, got %s)", i,
+               WasmOpcodes::TypeName(old.type),
+               WasmOpcodes::TypeName(val.type));
         return;
       }
     }
@@ -1795,9 +1795,9 @@ class WasmFullDecoder : public WasmDecoder {
       Value& val = GetMergeValueFromStack(c, i);
       Value& old = c->merge[i];
       if (val.type != old.type && val.type != kWasmVar) {
-        error() << "type error in merge[" << i << "] (expected "
-                << WasmOpcodes::TypeName(old.type) << ", got "
-                << WasmOpcodes::TypeName(val.type) << ")";
+        errorf(pc_, "type error in merge[%zu] (expected %s, got %s)", i,
+               WasmOpcodes::TypeName(old.type),
+               WasmOpcodes::TypeName(val.type));
         return;
       }
       if (builder_ && reachable) {

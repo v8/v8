@@ -56,20 +56,3 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       () => builder.instantiate(), WebAssembly.CompileError,
       /Duplicate export name 'foo' for global 0 and function 0/);
 })();
-
-(function veryLongExportName() {
-  // Regression test for crbug.com/740023.
-  var export_name = 'abc';
-  while (export_name.length < 8192) {
-    export_name = export_name.concat(export_name);
-  }
-  var builder = new WasmModuleBuilder();
-  var global = builder.addGlobal(kWasmI64, false);
-  global.exportAs(export_name);
-  global.exportAs(export_name);
-  var error_msg =
-      'Duplicate export name \'' + export_name + '\' for global 0 and global 0';
-  assertThrows(
-      () => builder.instantiate(), WebAssembly.CompileError,
-      new RegExp(error_msg));
-})();

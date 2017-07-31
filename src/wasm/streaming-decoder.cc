@@ -237,31 +237,35 @@ StreamingDecoder::DecodeVarInt32::Next(StreamingDecoder* streaming) {
     return nullptr;
   }
   if (value() > max_value_) {
-    streaming->decoder()->error(buffer())
-        << "size > maximum function size: " << value();
+    streaming->decoder()->errorf(buffer(), "size > maximum function size: %zu",
+                                 value());
     return nullptr;
   }
 
   return NextWithValue(streaming);
 }
 
+#define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
 // Decode the module header. The error state of the decoder stores the result.
 void StreamingDecoder::DecodeModuleHeader::CheckHeader(Decoder* decoder) {
   // TODO(ahaas): Share code with the module-decoder.
   decoder->Reset(buffer(), buffer() + size());
   uint32_t magic_word = decoder->consume_u32("wasm magic");
   if (magic_word != kWasmMagic) {
-    decoder->error(buffer())
-        << "expected magic word " << AsHexBytes(kWasmMagic, 4) << ", found "
-        << AsHexBytes(magic_word, 4);
+    decoder->errorf(buffer(),
+                    "expected magic word %02x %02x %02x %02x, "
+                    "found %02x %02x %02x %02x",
+                    BYTES(kWasmMagic), BYTES(magic_word));
   }
   uint32_t magic_version = decoder->consume_u32("wasm version");
   if (magic_version != kWasmVersion) {
-    decoder->error(buffer())
-        << "expected version " << AsHexBytes(kWasmVersion, 4) << ", found "
-        << AsHexBytes(magic_version, 4);
+    decoder->errorf(buffer(),
+                    "expected version %02x %02x %02x %02x, "
+                    "found %02x %02x %02x %02x",
+                    BYTES(kWasmVersion), BYTES(magic_version));
   }
 }
+#undef BYTES
 
 std::unique_ptr<StreamingDecoder::DecodingState>
 StreamingDecoder::DecodeModuleHeader::Next(StreamingDecoder* streaming) {
@@ -305,7 +309,7 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     memcpy(section_buffer_->bytes() + section_buffer_->payload_offset(),
            buffer(), bytes_needed());
   } else {
-    streaming->decoder()->error() << "Invalid code section length";
+    streaming->decoder()->error("Invalid code section length");
     return base::make_unique<DecodeSectionID>();
   }
 
@@ -326,17 +330,17 @@ StreamingDecoder::DecodeFunctionLength::NextWithValue(
   if (section_buffer_->length() >= buffer_offset_ + bytes_needed()) {
     memcpy(section_buffer_->bytes() + buffer_offset_, buffer(), bytes_needed());
   } else {
-    streaming->decoder()->error() << "Invalid code section length";
+    streaming->decoder()->error("Invalid code section length");
     return base::make_unique<DecodeSectionID>();
   }
 
   // {value} is the length of the function.
   if (value() == 0) {
-    streaming->decoder()->error(buffer()) << "Invalid function length (0)";
+    streaming->decoder()->errorf(buffer(), "Invalid function length (0)");
     return nullptr;
   } else if (buffer_offset() + bytes_needed() + value() >
              section_buffer()->length()) {
-    streaming->decoder()->error(buffer()) << "not enough code section bytes";
+    streaming->decoder()->errorf(buffer(), "not enough code section bytes");
     return nullptr;
   }
 
@@ -356,9 +360,9 @@ StreamingDecoder::DecodeFunctionBody::Next(StreamingDecoder* streaming) {
       streaming->decoder()->Reset(
           section_buffer()->bytes(),
           section_buffer()->bytes() + section_buffer()->length());
-      streaming->decoder()->error(section_buffer()->bytes() + buffer_offset() +
-                                  size())
-          << "not all code section bytes were used";
+      streaming->decoder()->errorf(
+          section_buffer()->bytes() + buffer_offset() + size(),
+          "not all code section bytes were used");
       return nullptr;
     }
     return base::make_unique<DecodeSectionID>();
