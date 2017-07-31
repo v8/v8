@@ -135,6 +135,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     return malloc(length);
 #endif
   }
+  using ArrayBufferAllocatorBase::Free;
   void Free(void* data, size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
