@@ -1341,17 +1341,9 @@ class ParserBase {
   // depending on the current function type.
   inline StatementT BuildReturnStatement(ExpressionT expr, int pos,
                                          int end_pos = kNoSourcePosition) {
-    if (impl()->IsEmptyExpression(expr)) {
-      expr = impl()->GetLiteralUndefined(kNoSourcePosition);
-    } else if (is_async_generator()) {
-      // In async generators, if there is an explicit operand to the return
-      // statement, await the operand.
-      expr = factory()->NewAwait(expr, kNoSourcePosition);
-    }
-    if (is_async_function()) {
-      return factory()->NewAsyncReturnStatement(expr, pos, end_pos);
-    }
-    return factory()->NewReturnStatement(expr, pos, end_pos);
+    return is_async_function()
+               ? factory()->NewAsyncReturnStatement(expr, pos, end_pos)
+               : factory()->NewReturnStatement(expr, pos, end_pos);
   }
 
   // Validation per ES6 object literals.
@@ -2949,12 +2941,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
 
   if (delegating) {
     return impl()->RewriteYieldStar(expression, pos);
-  }
-
-  if (is_async_generator()) {
-    // Per https://github.com/tc39/proposal-async-iteration/pull/102, the yield
-    // operand must be Await-ed in async generators.
-    expression = factory()->NewAwait(expression, pos);
   }
 
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
@@ -5235,6 +5221,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
       tok == Token::RBRACE || tok == Token::EOS) {
     if (IsDerivedConstructor(function_state_->kind())) {
       return_value = impl()->ThisExpression(loc.beg_pos);
+    } else {
+      return_value = impl()->GetLiteralUndefined(position());
     }
   } else {
     return_value = ParseExpression(true, CHECK_OK);

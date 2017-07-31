@@ -1483,20 +1483,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     info->set_internal_formal_parameter_count(1);
     info->set_length(1);
     native_context()->set_async_generator_await_reject_shared_fun(*info);
-
-    info = factory->NewSharedFunctionInfo(
-        factory->empty_string(),
-        isolate->builtins()->AsyncGeneratorReturnResolveClosure(), false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
-    native_context()->set_async_generator_return_resolve_shared_fun(*info);
-
-    info = factory->NewSharedFunctionInfo(
-        factory->empty_string(),
-        isolate->builtins()->AsyncGeneratorReturnRejectClosure(), false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
-    native_context()->set_async_generator_return_reject_shared_fun(*info);
   }
 
   {  // --- A r r a y ---

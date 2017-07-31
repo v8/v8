@@ -1346,7 +1346,7 @@ bytecodes: [
                 B(TestEqualStrictNoFeedback), R(23),
                 B(JumpIfTrue), U8(5),
                 B(Ldar), R(22),
-                B(ReThrow),
+  /*   45 E> */ B(ReThrow),
                 B(LdaZero),
                 B(Star), R(6),
                 B(JumpLoop), U8(118), I8(0),

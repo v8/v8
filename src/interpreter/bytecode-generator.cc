@@ -1578,7 +1578,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // We can't know whether the finally block will override ("catch") an
-  // exception thrown in the try block, so we just adopt the outer prediction.
+  // exception thrown in the try bblock, so we just adopt the outer prediction.
   TryFinallyBuilder try_control_builder(builder(), catch_prediction());
 
   // We keep a record of all paths that enter the finally-block to be able to
@@ -2661,7 +2661,6 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     builder()->LoadAccumulatorWithRegister(input);
     if (IsAsyncGeneratorFunction(function_kind())) {
       // Async generator methods will produce the iter result object.
-      BuildAwait(expr->await_return_value_suspend_id());
       execution_control()->AsyncReturnAccumulator();
     } else {
       execution_control()->ReturnAccumulator();
@@ -2912,7 +2911,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   builder()->LoadAccumulatorWithRegister(output_value);
 }
 
-void BytecodeGenerator::BuildAwait(int suspend_id) {
+void BytecodeGenerator::VisitAwait(Await* expr) {
   // Rather than HandlerTable::UNCAUGHT, async functions use
   // HandlerTable::ASYNC_AWAIT to communicate that top-level exceptions are
   // transformed into promise rejections. This is necessary to prevent emitting
@@ -2921,6 +2920,8 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
   // HandlerTable::UNCAUGHT.
   DCHECK(catch_prediction() != HandlerTable::UNCAUGHT);
 
+  builder()->SetExpressionPosition(expr);
+  VisitForAccumulatorValue(expr->expression());
   {
     // Await(operand) and suspend.
     RegisterAllocationScope register_scope(this);
@@ -2957,7 +2958,7 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
     builder()->CallJSRuntime(await_builtin_context_index, args);
   }
 
-  BuildSuspendPoint(suspend_id);
+  BuildSuspendPoint(expr->suspend_id());
 
   Register input = register_allocator()->NewRegister();
   Register resume_mode = register_allocator()->NewRegister();
@@ -2975,19 +2976,14 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
   // Resume with "throw" completion (rethrow the received value).
   // TODO(leszeks): Add a debug-only check that the accumulator is
   // JSGeneratorObject::kThrow.
+  builder()->SetExpressionPosition(expr);
   builder()->LoadAccumulatorWithRegister(input).ReThrow();
 
   // Resume with next.
   builder()->Bind(&resume_next);
-  builder()->LoadAccumulatorWithRegister(input);
-}
-
-void BytecodeGenerator::VisitAwait(Await* expr) {
-  builder()->SetExpressionPosition(expr);
-  VisitForAccumulatorValue(expr->expression());
-  BuildAwait(expr->suspend_id());
   BuildIncrementBlockCoverageCounterIfEnabled(expr,
                                               SourceRangeKind::kContinuation);
+  builder()->LoadAccumulatorWithRegister(input);
 }
 
 void BytecodeGenerator::VisitThrow(Throw* expr) {
