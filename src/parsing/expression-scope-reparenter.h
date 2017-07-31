@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
-#define V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
+#ifndef V8_PARSING_EXPRESSION_SCOPE_REPARENTER_H_
+#define V8_PARSING_EXPRESSION_SCOPE_REPARENTER_H_
 
 #include <stdint.h>
 
@@ -27,4 +27,4 @@ void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
+#endif  // V8_PARSING_EXPRESSION_SCOPE_REPARENTER_H_

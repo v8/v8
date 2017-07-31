@@ -5,7 +5,7 @@
 #include "src/ast/ast.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/parsing/parameter-initializer-rewriter.h"
+#include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parser.h"
 
 namespace v8 {

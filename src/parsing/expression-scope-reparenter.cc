@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/parsing/parameter-initializer-rewriter.h"
+#include "src/parsing/expression-scope-reparenter.h"
 
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -13,7 +13,6 @@ namespace v8 {
 namespace internal {
 
 namespace {
-
 
 class Rewriter final : public AstTraversalVisitor<Rewriter> {
  public:
@@ -40,7 +39,6 @@ void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
   function_literal->scope()->ReplaceOuterScope(scope_);
 }
 
-
 void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
   class_literal->scope()->ReplaceOuterScope(scope_);
   // No need to visit the constructor since it will have the class
@@ -62,7 +60,6 @@ void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
 #endif
 }
 
-
 void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (!proxy->is_resolved()) {
     if (scope_->outer_scope()->RemoveUnresolved(proxy)) {
@@ -75,7 +72,6 @@ void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   }
 }
 
-
 void Rewriter::VisitBlock(Block* stmt) {
   if (stmt->scope() != nullptr)
     stmt->scope()->ReplaceOuterScope(scope_);
@@ -83,18 +79,15 @@ void Rewriter::VisitBlock(Block* stmt) {
     VisitStatements(stmt->statements());
 }
 
-
 void Rewriter::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
   stmt->scope()->ReplaceOuterScope(scope_);
 }
 
-
 void Rewriter::VisitWithStatement(WithStatement* stmt) {
   Visit(stmt->expression());
   stmt->scope()->ReplaceOuterScope(scope_);
 }
-
 
 }  // anonymous namespace
 
@@ -115,7 +108,6 @@ void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
   Rewriter rewriter(stack_limit, expr, scope);
   rewriter.Run();
 }
-
 
 }  // namespace internal
 }  // namespace v8
