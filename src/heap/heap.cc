@@ -4228,9 +4228,10 @@ AllocationResult Heap::CopyFeedbackVector(FeedbackVector* src) {
 
   // Slow case: Just copy the content one-by-one.
   result->set_shared_function_info(src->shared_function_info());
+  result->set_optimized_code_cell(src->optimized_code_cell());
   result->set_invocation_count(src->invocation_count());
   result->set_profiler_ticks(src->profiler_ticks());
-  result->set_optimized_code_cell(src->optimized_code_cell());
+  result->set_deopt_count(src->deopt_count());
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
 }
@@ -4373,6 +4374,7 @@ AllocationResult Heap::AllocateFeedbackVector(SharedFunctionInfo* shared,
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
+  vector->set_deopt_count(0);
   // TODO(leszeks): Initialize based on the feedback metadata.
   MemsetPointer(vector->slots_start(), undefined_value(), length);
   return vector;

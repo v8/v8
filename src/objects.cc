@@ -13852,7 +13852,6 @@ void Map::StartInobjectSlackTracking() {
 
 void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   set_ic_age(new_ic_age);
-  set_deopt_count(0);
 }
 
 void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {

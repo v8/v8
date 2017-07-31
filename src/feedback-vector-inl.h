@@ -100,6 +100,7 @@ ACCESSORS(FeedbackVector, optimized_code_cell, Object, kOptimizedCodeOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
 INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
 INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
+INT32_ACCESSORS(FeedbackVector, deopt_count, kDeoptCountOffset)
 
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
@@ -108,6 +109,13 @@ FeedbackMetadata* FeedbackVector::metadata() const {
 }
 
 void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
+
+void FeedbackVector::increment_deopt_count() {
+  int count = deopt_count();
+  if (count < std::numeric_limits<int32_t>::max()) {
+    set_deopt_count(count + 1);
+  }
+}
 
 Code* FeedbackVector::optimized_code() const {
   Object* slot = optimized_code_cell();

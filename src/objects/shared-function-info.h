@@ -337,10 +337,6 @@ class SharedFunctionInfo : public HeapObject {
   Handle<Object> GetSourceCode();
   Handle<Object> GetSourceCodeHarmony();
 
-  // Number of times the function was deoptimized.
-  DECL_INT_ACCESSORS(deopt_count)
-  inline void increment_deopt_count();
-
   // Stores deopt_count, ic_age and bailout_reason as bit-fields.
   DECL_INT_ACCESSORS(counters_and_bailout_reason)
 
@@ -515,7 +511,6 @@ class SharedFunctionInfo : public HeapObject {
 
 // Bit fields in |counters_and_bailout_reason|.
 #define COUNTERS_AND_BAILOUT_REASON_BIT_FIELDS(V, _) \
-  V(DeoptCountBits, int, 4, _)                       \
   V(ICAgeBits, int, 8, _)                            \
   V(DisabledOptimizationReasonBits, BailoutReason, 8, _)
 

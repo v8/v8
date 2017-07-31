@@ -359,21 +359,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters_and_bailout_reason, ic_age,
                     SharedFunctionInfo::ICAgeBits)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters_and_bailout_reason,
-                    deopt_count, SharedFunctionInfo::DeoptCountBits)
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters_and_bailout_reason,
                     disable_optimization_reason,
                     SharedFunctionInfo::DisabledOptimizationReasonBits)
-
-void SharedFunctionInfo::increment_deopt_count() {
-  int value = counters_and_bailout_reason();
-  int deopt_count = DeoptCountBits::decode(value);
-  // Saturate the deopt count when incrementing, rather than overflowing.
-  if (deopt_count < DeoptCountBits::kMax) {
-    set_counters_and_bailout_reason(
-        DeoptCountBits::update(value, deopt_count + 1));
-  }
-}
 
 bool SharedFunctionInfo::IsUserJavaScript() {
   Object* script_obj = script();

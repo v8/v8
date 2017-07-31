@@ -243,13 +243,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       if (!code->marked_for_deoptimization()) return;
 
       // Unlink this function.
-      SharedFunctionInfo* shared = function->shared();
       if (!code->deopt_already_counted()) {
-        shared->increment_deopt_count();
+        function->feedback_vector()->increment_deopt_count();
         code->set_deopt_already_counted(true);
       }
 
-      function->set_code(shared->code());
+      function->set_code(function->shared()->code());
 
       if (FLAG_trace_deopt) {
         CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());
@@ -535,7 +534,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       // that can eventually lead to disabling optimization for a function.
       isolate->counters()->soft_deopts_executed()->Increment();
     } else if (function != nullptr) {
-      function->shared()->increment_deopt_count();
+      function->feedback_vector()->increment_deopt_count();
     }
   }
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {

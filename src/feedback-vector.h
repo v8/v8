@@ -148,7 +148,11 @@ class FeedbackVector : public HeapObject {
   // runtime profiler.
   DECL_INT32_ACCESSORS(profiler_ticks)
 
+  // [deopt_count]: The number of times this function has deoptimized.
+  DECL_INT32_ACCESSORS(deopt_count)
+
   inline void clear_invocation_count();
+  inline void increment_deopt_count();
 
   inline Code* optimized_code() const;
   inline OptimizationMarker optimization_marker() const;
@@ -243,6 +247,7 @@ class FeedbackVector : public HeapObject {
   V(kLengthOffset, kInt32Size)               \
   V(kInvocationCountOffset, kInt32Size)      \
   V(kProfilerTicksOffset, kInt32Size)        \
+  V(kDeoptCountOffset, kInt32Size)           \
   V(kUnalignedHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_VECTOR_FIELDS)
