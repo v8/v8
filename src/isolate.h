@@ -110,12 +110,13 @@ namespace wasm {
 class CompilationManager;
 }
 
-#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate)    \
-  do {                                                    \
-    Isolate* __isolate__ = (isolate);                     \
-    if (__isolate__->has_scheduled_exception()) {         \
-      return __isolate__->PromoteScheduledException();    \
-    }                                                     \
+#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
+  do {                                                 \
+    Isolate* __isolate__ = (isolate);                  \
+    DCHECK(!__isolate__->has_pending_exception());     \
+    if (__isolate__->has_scheduled_exception()) {      \
+      return __isolate__->PromoteScheduledException(); \
+    }                                                  \
   } while (false)
 
 // Macros for MaybeHandle.
@@ -123,6 +124,7 @@ class CompilationManager;
 #define RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, value) \
   do {                                                      \
     Isolate* __isolate__ = (isolate);                       \
+    DCHECK(!__isolate__->has_pending_exception());          \
     if (__isolate__->has_scheduled_exception()) {           \
       __isolate__->PromoteScheduledException();             \
       return value;                                         \
@@ -160,6 +162,7 @@ class CompilationManager;
       DCHECK(__isolate__->has_pending_exception()); \
       return __isolate__->heap()->exception();      \
     }                                               \
+    DCHECK(!__isolate__->has_pending_exception());  \
     return *__result__;                             \
   } while (false)
 
