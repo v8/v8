@@ -237,8 +237,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Deoptimization support.
   bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
 
-  bool ExpectsJSReceiverAsReceiver();
-
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
 

@@ -201,10 +201,6 @@ CompilationInfo::SourcePositionRecordingMode() const {
              : SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS;
 }
 
-bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
-  return is_sloppy(parse_info()->language_mode()) && !parse_info()->is_native();
-}
-
 bool CompilationInfo::has_context() const { return !closure().is_null(); }
 
 Context* CompilationInfo::context() const {

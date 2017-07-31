@@ -105,14 +105,6 @@ void FullCodeGenerator::Generate() {
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm_);
 
-  if (FLAG_debug_code && info->ExpectsJSReceiverAsReceiver()) {
-    StackArgumentsAccessor args(rsp, info->scope()->num_parameters());
-    __ movp(rcx, args.GetReceiverOperand());
-    __ AssertNotSmi(rcx);
-    __ CmpObjectType(rcx, FIRST_JS_RECEIVER_TYPE, rcx);
-    __ Assert(above_equal, kSloppyFunctionExpectsJSReceiverReceiver);
-  }
-
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).

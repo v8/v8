@@ -180,8 +180,6 @@ namespace internal {
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
-  V(kSloppyFunctionExpectsJSReceiverReceiver,                                  \
-    "Sloppy function expects JSReceiver as receiver.")                         \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kSpreadCall, "Call with spread argument")                                  \
