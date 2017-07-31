@@ -5220,7 +5220,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
                 case Neon16: {
                   uint16_t src[8];
                   get_neon_register(Vm, src);
-                  for (int i = 0; i < 4; i++) {
+                  for (int i = 0; i < 2; i++) {
                     std::swap(src[i * 4], src[i * 4 + 3]);
                     std::swap(src[i * 4 + 1], src[i * 4 + 2]);
                   }
