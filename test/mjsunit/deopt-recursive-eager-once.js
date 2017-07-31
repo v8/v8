@@ -15,7 +15,6 @@ function foo(i, deopt = false) {
     }
 }
 
-assertEquals(0, %GetOptimizationCount(foo));
 assertEquals(0, %GetDeoptCount(foo));
 
 foo(10);
@@ -24,11 +23,9 @@ foo(10);
 foo(10);
 
 assertOptimized(foo);
-assertEquals(1, %GetOptimizationCount(foo));
 assertEquals(0, %GetDeoptCount(foo));
 
 foo(10, true);
 
 assertUnoptimized(foo);
-assertEquals(1, %GetOptimizationCount(foo));
 assertEquals(1, %GetDeoptCount(foo));

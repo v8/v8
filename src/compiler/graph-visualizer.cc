@@ -34,18 +34,15 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
                                                  const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
+  int optimization_id = info->optimization_id();
   if (strlen(debug_name.get()) > 0) {
-    if (info->has_shared_info()) {
-      int attempt = info->shared_info()->opt_count();
-      SNPrintF(filename, "turbo-%s-%i", debug_name.get(), attempt);
-    } else {
-      SNPrintF(filename, "turbo-%s", debug_name.get());
-    }
+    SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
   } else if (info->has_shared_info()) {
-    int attempt = info->shared_info()->opt_count();
-    SNPrintF(filename, "turbo-%p-%i", static_cast<void*>(info), attempt);
+    SNPrintF(filename, "turbo-%p-%i",
+             static_cast<void*>(info->shared_info()->address()),
+             optimization_id);
   } else {
-    SNPrintF(filename, "turbo-none-%s", phase);
+    SNPrintF(filename, "turbo-none-%i", optimization_id);
   }
   EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;

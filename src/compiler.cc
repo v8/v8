@@ -166,11 +166,6 @@ void CompilationJob::RecordUnoptimizedCompilationStats() const {
 void CompilationJob::RecordOptimizedCompilationStats() const {
   DCHECK(info()->IsOptimizing());
   Handle<JSFunction> function = info()->closure();
-  if (!function->IsOptimized()) {
-    // Concurrent recompilation and OSR may race.  Increment only once.
-    int opt_count = function->shared()->opt_count();
-    function->shared()->set_opt_count(opt_count + 1);
-  }
   double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
   double ms_optimize = time_taken_to_execute_.InMillisecondsF();
   double ms_codegen = time_taken_to_finalize_.InMillisecondsF();

@@ -546,7 +546,6 @@
 ['deopt_fuzzer == True', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
-  'assert-opt-and-deopt': [SKIP],
   'never-optimize': [SKIP],
   'regress/regress-2185-2': [SKIP],
   'readonly': [SKIP],

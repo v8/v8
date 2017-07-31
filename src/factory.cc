@@ -2554,7 +2554,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 #if V8_SFI_HAS_UNIQUE_ID
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
-  share->set_counters(0);
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
@@ -2565,7 +2564,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_function_token_position(0);
   // All compiler hints default to false or 0.
   share->set_compiler_hints(0);
-  share->set_opt_count_and_bailout_reason(0);
+  share->set_counters_and_bailout_reason(0);
   share->set_kind(kind);
 
   share->set_preparsed_scope_data(*null_value());

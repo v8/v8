@@ -2265,7 +2265,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   CcTest::CollectAllGarbage();
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
-  CHECK_EQ(0, f->shared()->opt_count());
+  CHECK_EQ(0, f->shared()->deopt_count());
   CHECK_EQ(0, f->feedback_vector()->profiler_ticks());
 }
 
@@ -2308,7 +2308,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   CcTest::CollectAllGarbage();
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
-  CHECK_EQ(0, f->shared()->opt_count());
+  CHECK_EQ(0, f->shared()->deopt_count());
   CHECK_EQ(0, f->feedback_vector()->profiler_ticks());
 }
 

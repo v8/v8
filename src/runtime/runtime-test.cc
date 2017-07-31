@@ -362,6 +362,16 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
     }
   }
+
+  if (function->IsMarkedForOptimization()) {
+    status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
+  } else if (function->IsInOptimizationQueue()) {
+    status |=
+        static_cast<int>(OptimizationStatus::kMarkedForConcurrentOptimization);
+  } else if (function->IsInOptimizationQueue()) {
+    status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
+  }
+
   if (function->IsOptimized()) {
     status |= static_cast<int>(OptimizationStatus::kOptimized);
     if (function->code()->is_turbofanned()) {
@@ -371,9 +381,28 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (function->IsInterpreted()) {
     status |= static_cast<int>(OptimizationStatus::kInterpreted);
   }
+
+  // Additionally, detect activations of this frame on the stack, and report the
+  // status of the topmost frame.
+  JavaScriptFrame* frame = nullptr;
+  JavaScriptFrameIterator it(isolate);
+  while (!it.done()) {
+    if (it.frame()->function() == *function) {
+      frame = it.frame();
+      break;
+    }
+    it.Advance();
+  }
+  if (frame != nullptr) {
+    status |= static_cast<int>(OptimizationStatus::kIsExecuting);
+    if (frame->is_optimized()) {
+      status |=
+          static_cast<int>(OptimizationStatus::kTopmostFrameIsTurboFanned);
+    }
+  }
+
   return Smi::FromInt(status);
 }
-
 
 RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   DCHECK_EQ(0, args.length());
@@ -382,14 +411,6 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
     isolate->optimizing_compile_dispatcher()->Unblock();
   }
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return Smi::FromInt(function->shared()->opt_count());
 }
 
 RUNTIME_FUNCTION(Runtime_GetDeoptCount) {

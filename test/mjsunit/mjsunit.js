@@ -146,7 +146,12 @@ var V8OptimizationStatus = {
   kMaybeDeopted: 1 << 3,
   kOptimized: 1 << 4,
   kTurboFanned: 1 << 5,
-  kInterpreted: 1 << 6
+  kInterpreted: 1 << 6,
+  kMarkedForOptimization: 1 << 7,
+  kMarkedForConcurrentOptimization: 1 << 8,
+  kOptimizingConcurrently: 1 << 9,
+  kIsExecuting: 1 << 10,
+  kTopmostFrameIsTurboFanned: 1 << 11,
 };
 
 // Returns true if --no-opt mode is on.
