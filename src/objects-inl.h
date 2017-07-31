@@ -4937,15 +4937,15 @@ CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
 #undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
-  WRITE_FIELD(this, kRelocationInfoOffset, NULL);
-  WRITE_FIELD(this, kHandlerTableOffset, NULL);
-  WRITE_FIELD(this, kDeoptimizationDataOffset, NULL);
-  WRITE_FIELD(this, kSourcePositionTableOffset, NULL);
+  WRITE_FIELD(this, kRelocationInfoOffset, nullptr);
+  WRITE_FIELD(this, kHandlerTableOffset, nullptr);
+  WRITE_FIELD(this, kDeoptimizationDataOffset, nullptr);
+  WRITE_FIELD(this, kSourcePositionTableOffset, nullptr);
   // Do not wipe out major/minor keys on a code stub or IC
   if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
-    WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
+    WRITE_FIELD(this, kTypeFeedbackInfoOffset, nullptr);
   }
-  WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
+  WRITE_FIELD(this, kNextCodeLinkOffset, nullptr);
 }
 
 Object* Code::type_feedback_info() const {
