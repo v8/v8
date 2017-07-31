@@ -2248,10 +2248,10 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Fall through when we need to inform the incremental marker.
 }
 
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
+void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
-  if (masm->isolate()->function_entry_hook() != NULL) {
-    PredictableCodeSizeScope predictable(masm,
+  if (tasm->isolate()->function_entry_hook() != NULL) {
+    PredictableCodeSizeScope predictable(tasm,
 #if V8_TARGET_ARCH_S390X
                                          40);
 #elif V8_HOST_ARCH_S390
@@ -2259,10 +2259,10 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(MacroAssembler* masm,
 #else
                                          32);
 #endif
-    __ CleanseP(r14);
-    __ Push(r14, ip);
-    __ CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    __ Pop(r14, ip);
+    tasm->CleanseP(r14);
+    tasm->Push(r14, ip);
+    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
+    tasm->Pop(r14, ip);
   }
 }
 
@@ -2402,24 +2402,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
   // r2 - number of arguments
   // r3 - constructor?
   // sp[0] - last argument
-  Label normal_sequence;
-  if (mode == DONT_OVERRIDE) {
-    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(PACKED_ELEMENTS == 2);
-    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
-    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
-    STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
-
-    // is the low bit set? If so, we are holey and that is good.
-    __ AndP(r0, r5, Operand(1));
-    __ bne(&normal_sequence);
-  }
-
-  // look at the first argument
-  __ LoadP(r7, MemOperand(sp, 0));
-  __ CmpP(r7, Operand::Zero());
-  __ beq(&normal_sequence);
+  STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(PACKED_ELEMENTS == 2);
+  STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+  STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
+  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
 
   if (mode == DISABLE_ALLOCATION_SITES) {
     ElementsKind initial = GetInitialFastElementsKind();
@@ -2428,12 +2416,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ArraySingleArgumentConstructorStub stub_holey(
         masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub_holey);
-
-    __ bind(&normal_sequence);
-    ArraySingleArgumentConstructorStub stub(masm->isolate(), initial,
-                                            DISABLE_ALLOCATION_SITES);
-    __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
+    Label normal_sequence;
+    // is the low bit set? If so, we are holey and that is good.
+    __ AndP(r0, r5, Operand(1));
+    __ bne(&normal_sequence);
+
     // We are going to create a holey array, but our kind is non-holey.
     // Fix kind and retry (only if we have an allocation site in the slot).
     __ AddP(r5, r5, Operand(1));
