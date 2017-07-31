@@ -103,6 +103,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceTheHole(node);
     case Runtime::kInlineClassOf:
       return ReduceClassOf(node);
+    case Runtime::kInlineStringMaxLength:
+      return ReduceStringMaxLength(node);
     default:
       break;
   }
@@ -392,6 +394,12 @@ Reduction JSIntrinsicLowering::ReduceClassOf(Node* node) {
   node->TrimInputCount(2);
   NodeProperties::ChangeOp(node, javascript()->ClassOf());
   return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceStringMaxLength(Node* node) {
+  Node* value = jsgraph()->Constant(String::kMaxLength);
+  ReplaceWithValue(node, value);
+  return Replace(value);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,

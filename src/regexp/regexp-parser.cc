@@ -77,7 +77,9 @@ void RegExpParser::Advance() {
   if (has_next()) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
-      if (FLAG_abort_on_stack_overflow) FATAL("Aborting on stack overflow");
+      if (FLAG_abort_on_stack_or_string_length_overflow) {
+        FATAL("Aborting on stack overflow");
+      }
       ReportError(CStrVector(
           MessageTemplate::TemplateString(MessageTemplate::kStackOverflow)));
     } else if (zone()->excess_allocation()) {

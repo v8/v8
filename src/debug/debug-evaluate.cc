@@ -296,6 +296,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowSymbolIteratorInvalid)      \
   V(ThrowIteratorResultNotAnObject)  \
   V(NewTypeError)                    \
+  V(ThrowInvalidStringLength)        \
   /* Strings */                      \
   V(StringCharCodeAt)                \
   V(StringIndexOf)                   \
@@ -336,7 +337,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(MaxSmi)                          \
   V(NewObject)                       \
   V(FinalizeInstanceSize)            \
-  V(HasInPrototypeChain)
+  V(HasInPrototypeChain)             \
+  V(StringMaxLength)
 
 #define CASE(Name)       \
   case Runtime::k##Name: \

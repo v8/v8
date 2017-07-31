@@ -1438,6 +1438,9 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
 }
 
 Handle<Object> Factory::NewInvalidStringLengthError() {
+  if (FLAG_abort_on_stack_or_string_length_overflow) {
+    FATAL("Aborting on invalid string length");
+  }
   // Invalidate the "string length" protector.
   if (isolate()->IsStringLengthOverflowIntact()) {
     isolate()->InvalidateStringLengthOverflowProtector();

@@ -157,7 +157,7 @@ DEFINE_METHODS(
 
       // The maximum string length is stored in a smi, so a longer repeat
       // must result in a range error.
-      if (n > %_MaxSmi()) throw %make_range_error(kInvalidStringLength);
+      if (n > %_StringMaxLength()) %ThrowInvalidStringLength();
 
       var r = "";
       while (true) {

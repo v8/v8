@@ -79,6 +79,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   // TODO(turbofan): JavaScript builtins support; drop once all uses of
   // %_ClassOf in JavaScript builtins are eliminated.
   Reduction ReduceClassOf(Node* node);
+  Reduction ReduceStringMaxLength(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
