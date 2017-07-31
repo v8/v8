@@ -17,6 +17,7 @@
 #include "src/debug/debug.h"
 #include "src/eh-frame.h"
 #include "src/objects-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -95,6 +96,14 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
     print_ast = FLAG_print_ast;
     ftype = "user-defined";
   }
+
+  if (!FLAG_trace_codegen && !print_ast) return;
+
+  // Requires internalizing the AST, so make sure we are on the main thread.
+  DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
+  AllowDeferredHandleDereference allow_deref;
+  AllowHeapAllocation allow_gc;
+  info->parse_info()->ast_value_factory()->Internalize(info->isolate());
 
   if (FLAG_trace_codegen || print_ast) {
     std::unique_ptr<char[]> name = info->GetDebugName();

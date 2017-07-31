@@ -150,6 +150,7 @@ InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
       background_execute_counter_("CompileBackgroundIgnition") {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
+  // TODO(5203): Move code out of codegen.cc once FCG goes away.
   CodeGenerator::MakeCodePrologue(info(), "interpreter");
   return SUCCEEDED;
 }
