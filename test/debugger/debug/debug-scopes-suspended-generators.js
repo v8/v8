@@ -276,14 +276,13 @@ function *gen10() {
 g = gen10();
 g.next();
 CheckScopeChain([debug.ScopeType.Block,
-                 debug.ScopeType.Block,
                  debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
-CheckScopeContent({i: 0}, 1, g);
+CheckScopeContent({i: 0}, 0, g);
 
 g.next();
-CheckScopeContent({i: 1}, 1, g);
+CheckScopeContent({i: 1}, 0, g);
 
 // Nested generators.
 

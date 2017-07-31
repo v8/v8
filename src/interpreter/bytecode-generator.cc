@@ -731,6 +731,7 @@ class BytecodeGenerator::CurrentScope final {
   CurrentScope(BytecodeGenerator* generator, Scope* scope)
       : generator_(generator), outer_scope_(generator->current_scope()) {
     if (scope != nullptr) {
+      DCHECK_EQ(outer_scope_, scope->outer_scope());
       generator_->set_current_scope(scope);
     }
   }

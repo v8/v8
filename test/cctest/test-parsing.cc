@@ -3603,9 +3603,9 @@ TEST(MaybeAssignedInsideLoop) {
       {1, "for (let j=x; j<10; ++j) { [foo] = [j] }", top},
       {1, "for (let j=x; j<10; ++j) { var foo = j }", top},
       {1, "for (let j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0, 0}},
+      {0, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0}},
       {0, "for (let j=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0, 0}},
+      {0, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0}},
       {0, "for (let j=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
       {0, "for (let j=x; j<10; ++j) { function foo() {return j} }", {0, 0, 0}},
 
@@ -3613,9 +3613,9 @@ TEST(MaybeAssignedInsideLoop) {
       {1, "for (let {j}=x; j<10; ++j) { [foo] = [j] }", top},
       {1, "for (let {j}=x; j<10; ++j) { var foo = j }", top},
       {1, "for (let {j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0, 0}},
+      {0, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0}},
       {0, "for (let {j}=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0, 0}},
+      {0, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0}},
       {0, "for (let {j}=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
       {0, "for (let {j}=x; j<10; ++j) { function foo(){return j} }", {0, 0, 0}},
 
@@ -10312,7 +10312,7 @@ TEST(LexicalLoopVariable) {
       CHECK_NOT_NULL(loop_var);
       CHECK(loop_var->IsStackLocal());
       CHECK_EQ(loop_block->ContextLocalCount(), 0);
-      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 0);
+      CHECK_NULL(loop_block->inner_scope());
     });
   }
 
