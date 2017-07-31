@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_TEMPLATE_UTILS_H
+#define V8_BASE_TEMPLATE_UTILS_H
+
 #include <array>
 #include <memory>
 
@@ -54,3 +57,5 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 }  // namespace base
 }  // namespace v8
+
+#endif  // V8_BASE_TEMPLATE_UTILS_H
