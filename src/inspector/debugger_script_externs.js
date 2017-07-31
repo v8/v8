@@ -7,8 +7,6 @@
  */
 var Debug = {};
 
-Debug.clearAllBreakPoints = function() {}
-
 /** @return {!Array<!Script>} */
 Debug.scripts = function() {}
 

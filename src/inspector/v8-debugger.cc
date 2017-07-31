@@ -204,7 +204,6 @@ void V8Debugger::enable() {
 void V8Debugger::disable() {
   if (--m_enableCount) return;
   DCHECK(enabled());
-  clearBreakpoints();
   clearContinueToLocation();
   m_debuggerScript.Reset();
   m_debuggerContext.Reset();
@@ -317,18 +316,6 @@ void V8Debugger::removeBreakpoint(const String16& breakpointId) {
               .ToLocalChecked());
   v8::debug::Call(debuggerContext(), removeBreakpointFunction, info)
       .ToLocalChecked();
-}
-
-void V8Debugger::clearBreakpoints() {
-  v8::HandleScope scope(m_isolate);
-  v8::Local<v8::Context> context = debuggerContext();
-  v8::Context::Scope contextScope(context);
-
-  v8::Local<v8::Function> clearBreakpoints = v8::Local<v8::Function>::Cast(
-      m_debuggerScript.Get(m_isolate)
-          ->Get(context, toV8StringInternalized(m_isolate, "clearBreakpoints"))
-          .ToLocalChecked());
-  v8::debug::Call(debuggerContext(), clearBreakpoints).ToLocalChecked();
 }
 
 void V8Debugger::setBreakpointsActive(bool active) {

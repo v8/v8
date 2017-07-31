@@ -59,14 +59,6 @@ DebuggerScript.removeBreakpoint = function(execState, info)
 }
 
 /**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.clearBreakpoints = function(execState)
-{
-    Debug.clearAllBreakPoints();
-}
-
-/**
  * @param {!Array<!BreakPoint>|undefined} breakpoints
  */
 DebuggerScript.getBreakpointNumbers = function(breakpoints)

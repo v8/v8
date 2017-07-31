@@ -115,7 +115,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
                                                v8::Local<v8::Value> argv[],
                                                bool catchExceptions);
   v8::Local<v8::Context> debuggerContext() const;
-  void clearBreakpoints();
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
 
