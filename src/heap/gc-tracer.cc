@@ -459,14 +459,15 @@ void GCTracer::PrintNVP() const {
           "heap.external.prologue=%.2f "
           "heap.external.epilogue=%.2f "
           "heap.external_weak_global_handles=%.2f "
+          "fast_promote=%.2f "
           "scavenge=%.2f "
-          "evacuate=%.2f "
-          "old_new=%.2f "
-          "weak=%.2f "
-          "roots=%.2f "
-          "semispace=%.2f "
-          "steps_count=%d "
-          "steps_took=%.1f "
+          "scavenge.roots=%.2f "
+          "scavenge.weak=%.2f "
+          "scavenge.weak_global_handles.identify=%.2f"
+          "scavenge.weak_global_handles.process=%.2f"
+          "scavenge.parallel=%.2f "
+          "incremental.steps_count=%d "
+          "incremental.steps_took=%.1f "
           "scavenge_throughput=%.f "
           "total_size_before=%" PRIuS
           " "
@@ -498,12 +499,15 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
+          current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
-          current_.scopes[Scope::SCAVENGER_EVACUATE],
-          current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS],
-          current_.scopes[Scope::SCAVENGER_WEAK],
-          current_.scopes[Scope::SCAVENGER_ROOTS],
-          current_.scopes[Scope::SCAVENGER_SEMISPACE],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
+          current_
+              .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY],
+          current_
+              .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
           current_.scopes[Scope::MC_INCREMENTAL],

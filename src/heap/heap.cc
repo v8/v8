@@ -1746,7 +1746,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 };
 
 void Heap::EvacuateYoungGeneration() {
-  TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_EVACUATE);
+  TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_FAST_PROMOTE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   if (!FLAG_concurrent_marking) {
@@ -1937,36 +1937,40 @@ void Heap::Scavenge() {
 
   RootScavengeVisitor root_scavenge_visitor(this, scavengers[kMainThreadId]);
 
-  isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-      &JSObject::IsUnmodifiedApiObject);
-
+  {
+    // Identify weak unmodified handles. Requires an unmodified graph.
+    TRACE_GC(tracer(),
+             GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
+    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+        &JSObject::IsUnmodifiedApiObject);
+  }
   {
     // Copy roots.
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
     IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
   }
-
   {
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-    job.Run();
-  }
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_WEAK);
+    // Weak collections are held strongly by the Scavenger.
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK);
     IterateEncounteredWeakCollections(&root_scavenge_visitor);
   }
-
   {
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
+    // Parallel phase scavenging all copied and promoted objects.
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
+    job.Run();
+    DCHECK(copied_list.IsGlobalEmpty());
+    DCHECK(promotion_list.IsGlobalEmpty());
+  }
+  {
+    // Scavenge weak global handles.
+    TRACE_GC(tracer(),
+             GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
+    isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
+        &IsUnscavengedHeapObject);
+    isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
+        &root_scavenge_visitor);
     scavengers[kMainThreadId]->Process();
   }
-
-  isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
-      &IsUnscavengedHeapObject);
-
-  isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-      &root_scavenge_visitor);
-  scavengers[kMainThreadId]->Process();
 
   for (int i = 0; i < num_scavenge_tasks; i++) {
     scavengers[i]->Finalize();
