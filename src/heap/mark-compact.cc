@@ -4121,37 +4121,16 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedPointers() {
-    // A map slot might point to new space and be required for iterating
-    // an object concurrently by another task. Hence, we need to update
-    // those slots using atomics.
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
-      if (chunk_->owner() == heap_->map_space()) {
-        RememberedSet<OLD_TO_NEW>::Iterate(
-            chunk_,
-            [this](Address slot) {
-              return CheckAndUpdateOldToNewSlot<AccessMode::ATOMIC>(slot);
-            },
-            SlotSet::PREFREE_EMPTY_BUCKETS);
-      } else {
         RememberedSet<OLD_TO_NEW>::Iterate(
             chunk_,
             [this](Address slot) {
               return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(slot);
             },
             SlotSet::PREFREE_EMPTY_BUCKETS);
-      }
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
-      if (chunk_->owner() == heap_->map_space()) {
-        RememberedSet<OLD_TO_OLD>::Iterate(
-            chunk_,
-            [](Address slot) {
-              return UpdateSlot<AccessMode::ATOMIC>(
-                  reinterpret_cast<Object**>(slot));
-            },
-            SlotSet::PREFREE_EMPTY_BUCKETS);
-      } else {
         RememberedSet<OLD_TO_OLD>::Iterate(
             chunk_,
             [](Address slot) {
@@ -4159,7 +4138,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                   reinterpret_cast<Object**>(slot));
             },
             SlotSet::PREFREE_EMPTY_BUCKETS);
-      }
     }
   }
 
