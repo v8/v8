@@ -20,6 +20,7 @@ namespace internal {
 
 class AliasedArgumentsEntry;
 class BreakPointInfo;
+class BreakPoint;
 class BoilerplateDescription;
 class ConstantElementsPair;
 class CoverageInfo;
@@ -365,6 +366,7 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Script> NewScript(Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
+  Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
   Handle<StackFrameInfo> NewStackFrameInfo();
   Handle<SourcePositionTableWithFrameCache>
   NewSourcePositionTableWithFrameCache(

@@ -21,7 +21,7 @@
 #include "src/inspector/v8-regex.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
-#include "src/inspector/v8-value-copier.h"
+#include "src/inspector/v8-value-utils.h"
 
 #include "include/v8-inspector.h"
 
@@ -538,14 +538,12 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
       debuggerBreakpointIdsIterator =
           m_breakpointIdToDebuggerBreakpointIds.find(breakpointId);
   if (debuggerBreakpointIdsIterator ==
-      m_breakpointIdToDebuggerBreakpointIds.end())
+      m_breakpointIdToDebuggerBreakpointIds.end()) {
     return;
-  const std::vector<String16>& ids = debuggerBreakpointIdsIterator->second;
-  for (size_t i = 0; i < ids.size(); ++i) {
-    const String16& debuggerBreakpointId = ids[i];
-
-    m_debugger->removeBreakpoint(debuggerBreakpointId);
-    m_serverBreakpoints.erase(debuggerBreakpointId);
+  }
+  for (const auto& id : debuggerBreakpointIdsIterator->second) {
+    v8::debug::RemoveBreakpoint(m_isolate, id);
+    m_serverBreakpoints.erase(id);
   }
   m_breakpointIdToDebuggerBreakpointIds.erase(breakpointId);
 }
@@ -610,8 +608,18 @@ Response V8DebuggerAgentImpl::continueToLocation(
     Maybe<String16> targetCallFrames) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
+  ScriptsMap::iterator it = m_scripts.find(location->getScriptId());
+  if (it == m_scripts.end()) {
+    return Response::Error("Cannot continue to specified location");
+  }
+  V8DebuggerScript* script = it->second.get();
+  int contextId = script->executionContextId();
+  InspectedContext* inspected = m_inspector->getContext(contextId);
+  if (!inspected)
+    return Response::Error("Cannot continue to specified location");
+  v8::Context::Scope contextScope(inspected->context());
   return m_debugger->continueToLocation(
-      m_session->contextGroupId(), std::move(location),
+      m_session->contextGroupId(), script, std::move(location),
       targetCallFrames.fromMaybe(
           protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
 }
@@ -666,23 +674,34 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
   CHECK(!breakpoint.script_id.isEmpty());
   ScriptsMap::iterator scriptIterator = m_scripts.find(breakpoint.script_id);
   if (scriptIterator == m_scripts.end()) return nullptr;
-  if (breakpoint.line_number < scriptIterator->second->startLine() ||
-      scriptIterator->second->endLine() < breakpoint.line_number)
+  V8DebuggerScript* script = scriptIterator->second.get();
+  if (breakpoint.line_number < script->startLine() ||
+      script->endLine() < breakpoint.line_number)
     return nullptr;
 
   // Translate from protocol location to v8 location for the debugger.
   ScriptBreakpoint translatedBreakpoint = breakpoint;
-  adjustBreakpointLocation(*scriptIterator->second, hint,
-                           &translatedBreakpoint);
+  adjustBreakpointLocation(*script, hint, &translatedBreakpoint);
   m_debugger->wasmTranslation()->TranslateProtocolLocationToWasmScriptLocation(
       &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
       &translatedBreakpoint.column_number);
 
-  int actualLineNumber;
-  int actualColumnNumber;
-  String16 debuggerBreakpointId = m_debugger->setBreakpoint(
-      translatedBreakpoint, &actualLineNumber, &actualColumnNumber);
-  if (debuggerBreakpointId.isEmpty()) return nullptr;
+  v8::debug::BreakpointId debuggerBreakpointId;
+  v8::debug::Location location(translatedBreakpoint.line_number,
+                               translatedBreakpoint.column_number);
+  int contextId = script->executionContextId();
+  InspectedContext* inspected = m_inspector->getContext(contextId);
+  if (!inspected) return nullptr;
+
+  {
+    v8::Context::Scope contextScope(inspected->context());
+    if (!script->setBreakpoint(translatedBreakpoint.condition, &location,
+                               &debuggerBreakpointId)) {
+      return nullptr;
+    }
+  }
+  int actualLineNumber = location.GetLineNumber();
+  int actualColumnNumber = location.GetColumnNumber();
 
   // Translate back from v8 location to protocol location for the return value.
   m_debugger->wasmTranslation()->TranslateWasmScriptLocationToProtocolLocation(
@@ -734,9 +753,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
     return Response::Error("Editing module's script is not supported.");
   }
   int contextId = it->second->executionContextId();
-  int contextGroupId = m_inspector->contextGroupId(contextId);
-  InspectedContext* inspected =
-      m_inspector->getContext(contextGroupId, contextId);
+  InspectedContext* inspected = m_inspector->getContext(contextId);
   if (!inspected) {
     return Response::InternalError();
   }
@@ -1251,11 +1268,10 @@ void V8DebuggerAgentImpl::didParseSource(
   }
 }
 
-void V8DebuggerAgentImpl::didPause(int contextId,
-                                   v8::Local<v8::Value> exception,
-                                   const std::vector<String16>& hitBreakpoints,
-                                   bool isPromiseRejection, bool isUncaught,
-                                   bool isOOMBreak, bool isAssert) {
+void V8DebuggerAgentImpl::didPause(
+    int contextId, v8::Local<v8::Value> exception,
+    const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
+    bool isPromiseRejection, bool isUncaught, bool isOOMBreak, bool isAssert) {
   v8::HandleScope handles(m_isolate);
 
   std::vector<BreakReason> hitReasons;
@@ -1292,9 +1308,9 @@ void V8DebuggerAgentImpl::didPause(int contextId,
   std::unique_ptr<Array<String16>> hitBreakpointIds = Array<String16>::create();
 
   bool hasDebugCommandBreakpointReason = false;
-  for (const auto& point : hitBreakpoints) {
+  for (const auto& id : hitBreakpoints) {
     DebugServerBreakpointToBreakpointIdAndSourceMap::iterator
-        breakpointIterator = m_serverBreakpoints.find(point);
+        breakpointIterator = m_serverBreakpoints.find(id);
     if (breakpointIterator != m_serverBreakpoints.end()) {
       const String16& localId = breakpointIterator->second.first;
       hitBreakpointIds->addItem(localId);

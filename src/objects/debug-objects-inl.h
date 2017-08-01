@@ -18,6 +18,7 @@ namespace internal {
 CAST_ACCESSOR(BreakPointInfo)
 CAST_ACCESSOR(DebugInfo)
 CAST_ACCESSOR(CoverageInfo)
+CAST_ACCESSOR(BreakPoint)
 
 SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -28,6 +29,9 @@ ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
 
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionOffset)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsOffset)
+
+SMI_ACCESSORS(BreakPoint, id, kIdOffset)
+ACCESSORS(BreakPoint, condition, String, kConditionOffset)
 
 bool DebugInfo::HasDebugBytecodeArray() {
   return debug_bytecode_array()->IsBytecodeArray();

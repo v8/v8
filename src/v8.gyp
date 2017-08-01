@@ -526,7 +526,6 @@
         'v8_libsampler',
         'inspector/inspector.gyp:protocol_generated_sources#target',
         'inspector/inspector.gyp:inspector_injected_script#target',
-        'inspector/inspector.gyp:inspector_debugger_script#target',
       ],
       'objs': ['foo.o'],
       'variables': {

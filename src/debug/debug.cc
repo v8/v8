@@ -381,6 +381,7 @@ void Debug::ThreadInit() {
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::kZero;
   thread_local_.async_task_count_ = 0;
+  thread_local_.last_breakpoint_id_ = 0;
   clear_suspended_generator();
   thread_local_.restart_fp_ = nullptr;
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
@@ -507,9 +508,7 @@ void Debug::Break(JavaScriptFrame* frame) {
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
-    Handle<JSArray> jsarr = isolate_->factory()->NewJSArrayWithElements(
-        break_points_hit.ToHandleChecked());
-    OnDebugBreak(jsarr);
+    OnDebugBreak(break_points_hit.ToHandleChecked());
     return;
   }
 
@@ -558,7 +557,7 @@ void Debug::Break(JavaScriptFrame* frame) {
 
   if (step_break) {
     // Notify the debug event listeners.
-    OnDebugBreak(isolate_->factory()->undefined_value());
+    OnDebugBreak(isolate_->factory()->empty_fixed_array());
   } else {
     // Re-prepare to continue.
     PrepareStep(step_action);
@@ -637,6 +636,27 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
 bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   Factory* factory = isolate_->factory();
   HandleScope scope(isolate_);
+
+  // TODO(kozyatinskiy): replace this if by DCHEK once the JS debug API has been
+  // removed.
+  if (break_point_object->IsBreakPoint()) {
+    Handle<BreakPoint> break_point =
+        Handle<BreakPoint>::cast(break_point_object);
+    if (!break_point->condition()->length()) return true;
+    Handle<String> condition(break_point->condition());
+    Handle<Object> result;
+    // Since we call CheckBreakpoint only for deoptimized frame on top of stack,
+    // we can use 0 as index of inlined frame.
+    if (!DebugEvaluate::Local(isolate_, break_frame_id(),
+                              /* inlined_jsframe_index */ 0, condition, false)
+             .ToHandle(&result)) {
+      if (isolate_->has_pending_exception()) {
+        isolate_->clear_pending_exception();
+      }
+      return false;
+    }
+    return result->BooleanValue();
+  }
 
   // Ignore check if break point object is not a JSObject.
   if (!break_point_object->IsJSObject()) return true;
@@ -796,6 +816,20 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
       return;
     }
   }
+}
+
+bool Debug::SetBreakpoint(Handle<Script> script, Handle<String> condition,
+                          int* offset, int* id) {
+  *id = ++thread_local_.last_breakpoint_id_;
+  Handle<BreakPoint> breakpoint =
+      isolate_->factory()->NewBreakPoint(*id, condition);
+  return SetBreakPointForScript(script, breakpoint, offset);
+}
+
+void Debug::RemoveBreakpoint(int id) {
+  Handle<BreakPoint> breakpoint = isolate_->factory()->NewBreakPoint(
+      id, isolate_->factory()->empty_string());
+  ClearBreakPoint(breakpoint);
 }
 
 // Clear out all the debug break code.
@@ -1879,7 +1913,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
       v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise), uncaught);
 }
 
-void Debug::OnDebugBreak(Handle<Object> break_points_hit) {
+void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
+  DCHECK(!break_points_hit.is_null());
   // The caller provided for DebugScope.
   AssertDebugContext();
   // Bail out if there is no listener for this event
@@ -1899,10 +1934,33 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit) {
   // Bail out and don't call debugger if exception.
   if (!MakeExecutionState().ToHandle(&exec_state)) return;
 
+  std::vector<int> inspector_break_points_hit;
+  int inspector_break_points_count = 0;
+  // This array contains breakpoints installed using JS debug API.
+  for (int i = 0; i < break_points_hit->length(); ++i) {
+    Object* break_point = break_points_hit->get(i);
+    if (break_point->IsBreakPoint()) {
+      inspector_break_points_hit.push_back(BreakPoint::cast(break_point)->id());
+      ++inspector_break_points_count;
+    } else {
+      break_points_hit->set(i - inspector_break_points_count, break_point);
+    }
+  }
+  int break_points_length =
+      break_points_hit->length() - inspector_break_points_count;
+  Handle<Object> break_points;
+  if (break_points_length) {
+    break_points_hit->Shrink(break_points_length);
+    break_points = isolate_->factory()->NewJSArrayWithElements(
+        break_points_hit, PACKED_ELEMENTS, break_points_length);
+  } else {
+    break_points = isolate_->factory()->undefined_value();
+  }
+
   debug_delegate_->BreakProgramRequested(
       GetDebugEventContext(isolate_),
       v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
-      v8::Utils::ToLocal(break_points_hit));
+      v8::Utils::ToLocal(break_points), inspector_break_points_hit);
 }
 
 
@@ -2240,7 +2298,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  OnDebugBreak(isolate_->factory()->undefined_value());
+  OnDebugBreak(isolate_->factory()->empty_fixed_array());
 }
 
 #ifdef DEBUG
@@ -2386,7 +2444,8 @@ void LegacyDebugDelegate::ScriptCompiled(v8::Local<v8::debug::Script> script,
 
 void LegacyDebugDelegate::BreakProgramRequested(
     v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
-    v8::Local<v8::Value> break_points_hit) {
+    v8::Local<v8::Value> break_points_hit,
+    const std::vector<debug::BreakpointId>&) {
   Handle<Object> event_data;
   if (isolate_->debug()
           ->MakeBreakEvent(v8::Utils::OpenHandle(*break_points_hit))

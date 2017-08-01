@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8VALUECOPIER_H_
-#define V8_INSPECTOR_V8VALUECOPIER_H_
+#ifndef V8_INSPECTOR_V8VALUEUTILS_H_
+#define V8_INSPECTOR_V8VALUEUTILS_H_
 
 #include "src/inspector/protocol/Protocol.h"
 
@@ -11,9 +11,6 @@
 
 namespace v8_inspector {
 
-v8::MaybeLocal<v8::Value> copyValueFromDebuggerContext(
-    v8::Isolate*, v8::Local<v8::Context> debuggerContext,
-    v8::Local<v8::Context> toContext, v8::Local<v8::Value>);
 v8::Maybe<bool> createDataProperty(v8::Local<v8::Context>,
                                    v8::Local<v8::Object>,
                                    v8::Local<v8::Name> key,
@@ -26,4 +23,4 @@ protocol::Response toProtocolValue(v8::Local<v8::Context>, v8::Local<v8::Value>,
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8VALUECOPIER_H_
+#endif  // V8_INSPECTOR_V8VALUEUTILS_H_

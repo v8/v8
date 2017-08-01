@@ -237,6 +237,10 @@ class ActualScript : public V8DebuggerScript {
     return String16();
   }
 
+  v8::Local<v8::debug::Script> script() const override {
+    return m_script.Get(m_isolate);
+  }
+
   String16 m_sourceMappingURL;
   bool m_isLiveEdit = false;
   bool m_isModule = false;
@@ -264,6 +268,7 @@ class WasmVirtualScript : public V8DebuggerScript {
     m_endLine = num_lines;
     m_endColumn = static_cast<int>(source.length()) - last_newline - 1;
     m_source = std::move(source);
+    m_executionContextId = script->ContextId().ToChecked();
   }
 
   const String16& sourceMappingURL() const override { return emptyString(); }
@@ -319,6 +324,10 @@ class WasmVirtualScript : public V8DebuggerScript {
     return singleEmptyString;
   }
 
+  v8::Local<v8::debug::Script> script() const override {
+    return m_script.Get(m_isolate);
+  }
+
   v8::Global<v8::debug::WasmScript> m_script;
   WasmTranslation* m_wasmTranslation;
 };
@@ -359,6 +368,12 @@ const String16& V8DebuggerScript::hash() const {
 
 void V8DebuggerScript::setSourceURL(const String16& sourceURL) {
   m_sourceURL = sourceURL;
+}
+
+bool V8DebuggerScript::setBreakpoint(const String16& condition,
+                                     v8::debug::Location* loc, int* id) const {
+  v8::HandleScope scope(m_isolate);
+  return script()->SetBreakpoint(toV8String(m_isolate, condition), loc, id);
 }
 
 }  // namespace v8_inspector

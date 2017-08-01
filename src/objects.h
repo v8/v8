@@ -151,6 +151,7 @@
 //         - ObjectTemplateInfo
 //       - Script
 //       - DebugInfo
+//       - BreakPoint
 //       - BreakPointInfo
 //       - StackFrameInfo
 //       - SourcePositionTableWithFrameCache
@@ -1004,6 +1005,7 @@ template <class C> inline bool Is(Object* obj);
   V(ArrayList)                         \
   V(BoilerplateDescription)            \
   V(Boolean)                           \
+  V(BreakPoint)                        \
   V(BreakPointInfo)                    \
   V(ByteArray)                         \
   V(BytecodeArray)                     \

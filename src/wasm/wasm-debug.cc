@@ -337,9 +337,7 @@ class InterpreterHandle {
         // We hit one or several breakpoints. Clear stepping, notify the
         // listeners and return.
         ClearStepping();
-        Handle<Object> hit_breakpoints_js =
-            isolate_->factory()->NewJSArrayWithElements(breakpoints);
-        isolate_->debug()->OnDebugBreak(hit_breakpoints_js);
+        isolate_->debug()->OnDebugBreak(breakpoints);
         return;
       }
     }
@@ -364,7 +362,7 @@ class InterpreterHandle {
     }
     if (!hit_step) return;
     ClearStepping();
-    isolate_->debug()->OnDebugBreak(isolate_->factory()->undefined_value());
+    isolate_->debug()->OnDebugBreak(isolate_->factory()->empty_fixed_array());
   }
 
   int GetTopPosition(Handle<WasmCompiledModule> compiled_module) {

@@ -2688,6 +2688,14 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   return new_break_point_info;
 }
 
+Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
+  Handle<BreakPoint> new_break_point =
+      Handle<BreakPoint>::cast(NewStruct(TUPLE2_TYPE));
+  new_break_point->set_id(id);
+  new_break_point->set_condition(*condition);
+  return new_break_point;
+}
+
 Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
   Handle<StackFrameInfo> stack_frame_info =
       Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));

@@ -84,8 +84,13 @@ class V8DebuggerScript {
   virtual int offset(int lineNumber, int columnNumber) const = 0;
   virtual v8::debug::Location location(int offset) const = 0;
 
+  bool setBreakpoint(const String16& condition, v8::debug::Location* location,
+                     int* id) const;
+
  protected:
   V8DebuggerScript(v8::Isolate*, String16 id, String16 url);
+
+  virtual v8::Local<v8::debug::Script> script() const = 0;
 
   String16 m_id;
   String16 m_url;

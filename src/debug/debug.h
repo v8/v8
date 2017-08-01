@@ -256,7 +256,7 @@ class DebugFeatureTracker {
 class Debug {
  public:
   // Debug event triggers.
-  void OnDebugBreak(Handle<Object> break_points_hit);
+  void OnDebugBreak(Handle<FixedArray> break_points_hit);
 
   void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
@@ -287,6 +287,10 @@ class Debug {
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
+
+  bool SetBreakpoint(Handle<Script> script, Handle<String> condition,
+                     int* offset, int* id);
+  void RemoveBreakpoint(int id);
 
   // The parameter is either a BreakPointInfo object, or a FixedArray of
   // BreakPointInfo objects.
@@ -596,6 +600,9 @@ class Debug {
     Address restart_fp_;
 
     int async_task_count_;
+
+    // Last used inspector breakpoint id.
+    int last_breakpoint_id_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -626,7 +633,8 @@ class LegacyDebugDelegate : public v8::debug::DebugDelegate {
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,
-                             v8::Local<v8::Value> break_points_hit) override;
+                             v8::Local<v8::Value> break_points_hit,
+                             const std::vector<debug::BreakpointId>&) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Object> exec_state,
                        v8::Local<v8::Value> exception,

@@ -94,6 +94,7 @@ enum ExceptionBreakState {
  */
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
 
+void RemoveBreakpoint(Isolate* isolate, BreakpointId id);
 void SetBreakPointsActive(Isolate* isolate, bool is_active);
 
 enum StepAction {
@@ -148,6 +149,8 @@ class V8_EXPORT_PRIVATE Script {
   v8::debug::Location GetSourceLocation(int offset) const;
   bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
                        bool* stack_changed) const;
+  bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
+                     BreakpointId* id) const;
 };
 
 // Specialization for wasm Scripts.
@@ -175,9 +178,13 @@ class DebugDelegate {
                                     int parent_id, bool created_by_user) {}
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
-  virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                                     v8::Local<v8::Object> exec_state,
-                                     v8::Local<v8::Value> break_points_hit) {}
+  // |break_points_hit| contains installed by JS debug API breakpoint objects.
+  // |inspector_break_points_hit| contains id of breakpoints installed with
+  // debug::Script::SetBreakpoint API.
+  virtual void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
+      v8::Local<v8::Value> break_points_hit,
+      const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,

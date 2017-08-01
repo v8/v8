@@ -185,6 +185,21 @@ class CoverageInfo : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CoverageInfo);
 };
 
+// Holds breakpoint related information. This object is used by inspector.
+class BreakPoint : public Tuple2 {
+ public:
+  DECL_INT_ACCESSORS(id)
+  DECL_ACCESSORS(condition, String)
+
+  DECL_CAST(BreakPoint)
+
+  static const int kIdOffset = kValue1Offset;
+  static const int kConditionOffset = kValue2Offset;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPoint);
+};
+
 }  // namespace internal
 }  // namespace v8
 
