@@ -1146,16 +1146,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // x2: receiver.
   // x3: argc.
   // x4: argv.
-  ExternalReference entry(type() == StackFrame::ENTRY_CONSTRUCT
-                              ? Builtins::kJSConstructEntryTrampoline
-                              : Builtins::kJSEntryTrampoline,
-                          isolate());
-  __ Mov(x10, entry);
 
-  // Call the JSEntryTrampoline.
-  __ Ldr(x11, MemOperand(x10));  // Dereference the address.
-  __ Add(x12, x11, Code::kHeaderSize - kHeapObjectTag);
-  __ Blr(x12);
+  if (type() == StackFrame::ENTRY_CONSTRUCT) {
+    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
+            RelocInfo::CODE_TARGET);
+  } else {
+    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
+  }
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();

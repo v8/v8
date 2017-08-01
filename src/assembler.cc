@@ -837,10 +837,6 @@ ExternalReference::ExternalReference(
   : address_(Redirect(isolate, fun->address(), type)) {}
 
 
-ExternalReference::ExternalReference(Builtins::Name name, Isolate* isolate)
-  : address_(isolate->builtins()->builtin_address(name)) {}
-
-
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
     : ExternalReference(Runtime::FunctionForId(id), isolate) {}
 

@@ -1199,17 +1199,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // args
 
   if (type() == StackFrame::ENTRY_CONSTRUCT) {
-    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
-                                      isolate);
-    __ li(t0, Operand(construct_entry));
+    __ Call(BUILTIN_CODE(isolate, JSConstructEntryTrampoline),
+            RelocInfo::CODE_TARGET);
   } else {
-    ExternalReference entry(Builtins::kJSEntryTrampoline, masm->isolate());
-    __ li(t0, Operand(entry));
+    __ Call(BUILTIN_CODE(isolate, JSEntryTrampoline), RelocInfo::CODE_TARGET);
   }
-  __ lw(t9, MemOperand(t0));  // Deref address.
-
-  // Call JSEntryTrampoline.
-  __ Call(t9, Code::kHeaderSize - kHeapObjectTag);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();

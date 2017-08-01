@@ -1155,16 +1155,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // reference to the trampoline code directly in this stub, because the
   // builtin stubs may not have been generated yet.
   if (type() == StackFrame::ENTRY_CONSTRUCT) {
-    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
-                                      isolate());
-    __ mov(edx, Immediate(construct_entry));
+    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
+            RelocInfo::CODE_TARGET);
   } else {
-    ExternalReference entry(Builtins::kJSEntryTrampoline, isolate());
-    __ mov(edx, Immediate(entry));
+    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
   }
-  __ mov(edx, Operand(edx, 0));  // deref address
-  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
-  __ call(edx);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();

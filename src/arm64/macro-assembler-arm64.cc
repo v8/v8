@@ -1778,14 +1778,6 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::TailCallBuiltin(Builtins::Name name) {
-  DCHECK(ExternalReferenceTable::HasBuiltin(name));
-  Mov(x5, ExternalReference(Builtins::kConstructProxy, isolate()));
-  Ldr(x5, MemOperand(x5));
-  Add(x6, x5, Code::kHeaderSize - kHeapObjectTag);
-  Br(x6);
-}
-
 void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                                         SaveFPRegsMode save_doubles) {
   const Runtime::Function* f = Runtime::FunctionForId(fid);

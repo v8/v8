@@ -823,8 +823,6 @@ class ExternalReference BASE_EMBEDDED {
 
   ExternalReference(ApiFunction* ptr, Type type, Isolate* isolate);
 
-  ExternalReference(Builtins::Name name, Isolate* isolate);
-
   ExternalReference(Runtime::FunctionId id, Isolate* isolate);
 
   ExternalReference(const Runtime::Function* f, Isolate* isolate);

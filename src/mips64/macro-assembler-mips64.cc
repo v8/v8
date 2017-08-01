@@ -4924,14 +4924,6 @@ void MacroAssembler::TailCallStub(CodeStub* stub,
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
-void MacroAssembler::TailCallBuiltin(Builtins::Name name) {
-  DCHECK(ExternalReferenceTable::HasBuiltin(name));
-  li(t2, Operand(ExternalReference(Builtins::kConstructProxy, isolate())));
-  Ld(t2, MemOperand(t2));
-  Daddu(t2, t2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  Jump(t2);
-}
-
 bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame() || !stub->SometimesSetsUpAFrame();
 }

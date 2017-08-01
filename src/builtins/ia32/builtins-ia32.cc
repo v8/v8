@@ -2567,10 +2567,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Call the [[BoundTargetFunction]] via the Call builtin.
   __ mov(edi, FieldOperand(edi, JSBoundFunction::kBoundTargetFunctionOffset));
-  __ mov(ecx, Operand::StaticVariable(ExternalReference(
-                  Builtins::kCall_ReceiverIsAny, masm->isolate())));
-  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
-  __ jmp(ecx);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Call_ReceiverIsAny),
+          RelocInfo::CODE_TARGET);
 }
 
 // static
@@ -2598,11 +2596,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // Call CallProxy external builtin
   __ CmpInstanceType(ecx, JS_PROXY_TYPE);
   __ j(not_equal, &non_function);
-
-  __ mov(ecx, Operand::StaticVariable(
-                  ExternalReference(Builtins::kCallProxy, masm->isolate())));
-  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
-  __ jmp(ecx);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -2668,10 +2662,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Construct the [[BoundTargetFunction]] via the Construct builtin.
   __ mov(edi, FieldOperand(edi, JSBoundFunction::kBoundTargetFunctionOffset));
-  __ mov(ecx, Operand::StaticVariable(
-                  ExternalReference(Builtins::kConstruct, masm->isolate())));
-  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
-  __ jmp(ecx);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
 }
 
 // static
@@ -2706,8 +2697,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // Only dispatch to proxies after checking whether they are constructors.
   __ CmpInstanceType(ecx, JS_PROXY_TYPE);
   __ j(not_equal, &non_proxy);
-
-  __ TailCallBuiltin(Builtins::kConstructProxy);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
+          RelocInfo::CODE_TARGET);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   __ bind(&non_proxy);

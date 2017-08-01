@@ -2404,11 +2404,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Call the [[BoundTargetFunction]] via the Call builtin.
   __ Ld(a1, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
-  __ li(at, Operand(ExternalReference(Builtins::kCall_ReceiverIsAny,
-                                      masm->isolate())));
-  __ Ld(at, MemOperand(at));
-  __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Call_ReceiverIsAny),
+          RelocInfo::CODE_TARGET);
 }
 
 // static
@@ -2433,10 +2430,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ Branch(&non_callable, eq, t1, Operand(zero_reg));
 
   __ Branch(&non_function, ne, t2, Operand(JS_PROXY_TYPE));
-  __ li(t2, Operand(ExternalReference(Builtins::kCallProxy, masm->isolate())));
-  __ Ld(t2, MemOperand(t2));
-  __ Daddu(t2, t2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(t2);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -2562,10 +2556,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Construct the [[BoundTargetFunction]] via the Construct builtin.
   __ Ld(a1, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
-  __ li(at, Operand(ExternalReference(Builtins::kConstruct, masm->isolate())));
-  __ Ld(at, MemOperand(at));
-  __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
 }
 
 // static
@@ -2599,8 +2590,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ Branch(&non_proxy, ne, t2, Operand(JS_PROXY_TYPE));
-
-  __ TailCallBuiltin(Builtins::kConstructProxy);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
+          RelocInfo::CODE_TARGET);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   __ bind(&non_proxy);

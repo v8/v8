@@ -39,6 +39,8 @@ class SetupIsolateDelegate {
  protected:
   static void SetupBuiltinsInternal(Isolate* isolate);
   static void AddBuiltin(Builtins* builtins, int index, Code* code);
+  static void PopulateWithPlaceholders(Isolate* isolate);
+  static void ReplacePlaceholders(Isolate* isolate);
 };
 
 }  // namespace internal

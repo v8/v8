@@ -2489,11 +2489,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Call the [[BoundTargetFunction]] via the Call builtin.
   __ Ldr(x1, FieldMemOperand(x1, JSBoundFunction::kBoundTargetFunctionOffset));
-  __ Mov(x10,
-         ExternalReference(Builtins::kCall_ReceiverIsAny, masm->isolate()));
-  __ Ldr(x11, MemOperand(x10));
-  __ Add(x12, x11, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(x12);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Call_ReceiverIsAny),
+          RelocInfo::CODE_TARGET);
 }
 
 // static
@@ -2520,11 +2517,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // Check if target is a proxy and call CallProxy external builtin
   __ Cmp(x5, JS_PROXY_TYPE);
   __ B(ne, &non_function);
-
-  __ Mov(x5, ExternalReference(Builtins::kCallProxy, masm->isolate()));
-  __ Ldr(x5, MemOperand(x5));
-  __ Add(x6, x5, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(x6);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -2591,10 +2584,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Construct the [[BoundTargetFunction]] via the Construct builtin.
   __ Ldr(x1, FieldMemOperand(x1, JSBoundFunction::kBoundTargetFunctionOffset));
-  __ Mov(x10, ExternalReference(Builtins::kConstruct, masm->isolate()));
-  __ Ldr(x11, MemOperand(x10));
-  __ Add(x12, x11, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(x12);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
 }
 
 // static
@@ -2628,8 +2618,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // Only dispatch to proxies after checking whether they are constructors.
   __ Cmp(x5, JS_PROXY_TYPE);
   __ B(ne, &non_proxy);
-
-  __ TailCallBuiltin(Builtins::kConstructProxy);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
+          RelocInfo::CODE_TARGET);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   __ bind(&non_proxy);

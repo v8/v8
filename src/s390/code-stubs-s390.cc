@@ -1116,26 +1116,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // r5: argc
   // r6: argv
   if (type() == StackFrame::ENTRY_CONSTRUCT) {
-    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
-                                      isolate());
-    __ mov(ip, Operand(construct_entry));
+    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
+            RelocInfo::CODE_TARGET);
   } else {
-    ExternalReference entry(Builtins::kJSEntryTrampoline, isolate());
-    __ mov(ip, Operand(entry));
+    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
   }
-  __ LoadP(ip, MemOperand(ip));  // deref address
-
-  // Branch and link to JSEntryTrampoline.
-  // the address points to the start of the code object, skip the header
-  __ AddP(ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-  Label return_addr;
-  // __ basr(r14, ip);
-  __ larl(r14, &return_addr);
-  __ b(ip);
-  __ bind(&return_addr);
-
-  // Unlink this frame from the handler chain.
-  __ PopStackHandler();
 
   __ bind(&exit);  // r2 holds result
   // Check if the current stack frame is marked as the outermost JS frame.

@@ -1000,9 +1000,6 @@ class MacroAssembler : public TurboAssembler {
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
 
-  // Tail call a code builtin (jump).
-  void TailCallBuiltin(Builtins::Name name);
-
   void CallStub(CodeStub* stub, Condition cond = al);
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);

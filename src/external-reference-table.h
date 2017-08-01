@@ -39,8 +39,6 @@ class ExternalReferenceTable {
   static const char* ResolveSymbol(void* address,
                                    std::vector<char**>* = nullptr);
 
-  static bool HasBuiltin(Builtins::Name name);
-
  private:
   struct ExternalReferenceEntry {
     Address address;

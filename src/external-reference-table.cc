@@ -345,12 +345,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "StoreBuffer::StoreBufferOverflow");
 }
 
-#define BUILTIN_LIST_EXTERNAL_REFS(DEF) \
-  BUILTIN_LIST_C(DEF)                   \
-  BUILTIN_LIST_A(DEF)                   \
-  DEF(CallProxy)                        \
-  DEF(ConstructProxy)
-
 void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
   struct CBuiltinEntry {
     Address address;
@@ -365,35 +359,7 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
     Add(ExternalReference(c_builtins[i].address, isolate).address(),
         c_builtins[i].name);
   }
-
-  struct BuiltinEntry {
-    Builtins::Name id;
-    const char* name;
-  };
-  static const BuiltinEntry builtins[] = {
-#define DEF_ENTRY(Name, ...) {Builtins::k##Name, "Builtin_" #Name},
-      BUILTIN_LIST_EXTERNAL_REFS(DEF_ENTRY)
-#undef DEF_ENTRY
-  };
-  for (unsigned i = 0; i < arraysize(builtins); ++i) {
-    Add(isolate->builtins()->builtin_address(builtins[i].id), builtins[i].name);
-  }
 }
-
-bool ExternalReferenceTable::HasBuiltin(Builtins::Name name) {
-  switch (name) {
-#define CASE_FOUND(Name)  \
-  case Builtins::k##Name: \
-    return true;
-    BUILTIN_LIST_EXTERNAL_REFS(CASE_FOUND)
-#undef CASE_FOUND
-    default:
-      return false;
-  }
-  UNREACHABLE();
-}
-
-#undef BUILTIN_LIST_EXTERNAL_REFS
 
 void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
   struct RuntimeEntry {
