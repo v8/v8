@@ -4605,10 +4605,17 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   }
 }
 
-void Heap::NotifyObjectLayoutChange(HeapObject* object,
+void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
                                     const DisallowHeapAllocation&) {
+  DCHECK(InOldSpace(object) || InNewSpace(object));
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
+    if (InOldSpace(object)) {
+      // The concurrent marker might have recorded slots for the object.
+      // Register this object as invalidated to filter out the slots.
+      MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+      chunk->RegisterObjectWithInvalidatedSlots(object, size);
+    }
   }
 #ifdef VERIFY_HEAP
   DCHECK(pending_layout_change_object_ == nullptr);
