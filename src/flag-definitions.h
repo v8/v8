@@ -339,7 +339,6 @@ DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
               "written (by default, the table is not written to a file)")
 
 // Flags for Crankshaft.
-DEFINE_STRING(hydrogen_filter, "*", "optimization filter")
 DEFINE_BOOL(use_allocation_folding, true, "use allocation folding")
 DEFINE_BOOL(use_local_allocation_folding, false, "only fold in basic blocks")
 DEFINE_BOOL(use_write_barrier_elimination, true,
@@ -358,11 +357,6 @@ DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
 DEFINE_BOOL(trace_environment_liveness, false,
             "trace liveness of local variable slots")
-DEFINE_BOOL(trace_hydrogen, false, "trace generated hydrogen to file")
-DEFINE_STRING(trace_hydrogen_filter, "*", "hydrogen tracing filter")
-DEFINE_BOOL(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
-DEFINE_STRING(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
-DEFINE_STRING(trace_phase, "HLZ", "trace generated IR for specified phases")
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_verify_store_elimination, false,
             "verify store elimination more rigorously")

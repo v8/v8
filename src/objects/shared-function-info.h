@@ -253,7 +253,7 @@ class SharedFunctionInfo : public HeapObject {
   // The function cannot cause any side effects.
   bool HasNoSideEffect();
 
-  // Used for flags such as --hydrogen-filter.
+  // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
 
   // Position of the 'function' token in the script source.

@@ -3145,7 +3145,6 @@ int Shell::Main(int argc, char* argv[]) {
   } else {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
-  SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
   int result = 0;

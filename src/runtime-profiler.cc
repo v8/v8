@@ -135,8 +135,7 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
 
 static void TraceRecompile(JSFunction* function, const char* reason,
                            const char* type) {
-  if (FLAG_trace_opt &&
-      function->shared()->PassesFilter(FLAG_hydrogen_filter)) {
+  if (FLAG_trace_opt) {
     PrintF("[marking ");
     function->ShortPrint();
     PrintF(" for %s recompilation, reason: %s", type, reason);
