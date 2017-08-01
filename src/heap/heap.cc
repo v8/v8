@@ -1042,7 +1042,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     InvokeOutOfMemoryCallback();
   }
   RuntimeCallTimerScope runtime_timer(
-      isolate(), &RuntimeCallStats::GC_AllAvailableGarbage);
+      isolate(), &RuntimeCallStats::GC_Custom_AllAvailableGarbage);
   if (isolate()->concurrent_recompilation_enabled()) {
     // The optimizing compiler may be unnecessarily holding on to memory.
     DisallowHeapAllocation no_recursive_gc;
@@ -1122,7 +1122,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate());
-  RuntimeCallTimerScope runtime_timer(isolate(), &RuntimeCallStats::GC);
 
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);

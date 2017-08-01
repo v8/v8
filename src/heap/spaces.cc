@@ -3042,8 +3042,8 @@ HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
 
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   VMState<GC> state(heap()->isolate());
-  RuntimeCallTimerScope runtime_timer(heap()->isolate(),
-                                      &RuntimeCallStats::GC_SlowAllocateRaw);
+  RuntimeCallTimerScope runtime_timer(
+      heap()->isolate(), &RuntimeCallStats::GC_Custom_SlowAllocateRaw);
   return RawSlowAllocateRaw(size_in_bytes);
 }
 

@@ -43,7 +43,7 @@ void IncrementalMarkingJob::Task::Step(Heap* heap) {
 void IncrementalMarkingJob::Task::RunInternal() {
   VMState<GC> state(isolate());
   RuntimeCallTimerScope runtime_timer(
-      isolate(), &RuntimeCallStats::GC_IncrementalMarkingJob);
+      isolate(), &RuntimeCallStats::GC_Custom_IncrementalMarkingJob);
 
   Heap* heap = isolate()->heap();
   IncrementalMarking* incremental_marking = heap->incremental_marking();

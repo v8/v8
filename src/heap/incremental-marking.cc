@@ -27,7 +27,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address, size_t) {
   VMState<GC> state(incremental_marking_.heap()->isolate());
   RuntimeCallTimerScope runtime_timer(
       incremental_marking_.heap()->isolate(),
-      &RuntimeCallStats::GC_IncrementalMarkingObserver);
+      &RuntimeCallStats::GC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
 }
 

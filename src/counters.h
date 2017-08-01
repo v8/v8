@@ -11,6 +11,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/globals.h"
+#include "src/heap-symbols.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
@@ -601,6 +602,8 @@ class RuntimeCallTimer final {
   base::TimeDelta elapsed_;
 };
 
+#define FOR_EACH_GC_COUNTER(V) TRACER_SCOPES(V)
+
 #define FOR_EACH_API_COUNTER(V)                            \
   V(ArrayBuffer_Cast)                                      \
   V(ArrayBuffer_Neuter)                                    \
@@ -778,11 +781,10 @@ class RuntimeCallTimer final {
   V(FunctionCallback)                               \
   V(FunctionPrototypeGetter)                        \
   V(FunctionPrototypeSetter)                        \
-  V(GC)                                             \
-  V(GC_AllAvailableGarbage)                         \
-  V(GC_IncrementalMarkingJob)                       \
-  V(GC_IncrementalMarkingObserver)                  \
-  V(GC_SlowAllocateRaw)                             \
+  V(GC_Custom_AllAvailableGarbage)                  \
+  V(GC_Custom_IncrementalMarkingJob)                \
+  V(GC_Custom_IncrementalMarkingObserver)           \
+  V(GC_Custom_SlowAllocateRaw)                      \
   V(GCEpilogueCallback)                             \
   V(GCPrologueCallback)                             \
   V(GenericNamedPropertyDefinerCallback)            \
@@ -888,6 +890,9 @@ class RuntimeCallStats final : public ZoneObject {
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
   V8_EXPORT_PRIVATE RuntimeCallStats();
 
+#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter GC_##name;
+  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter name;
   FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER

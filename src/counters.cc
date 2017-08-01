@@ -435,6 +435,9 @@ void RuntimeCallTimer::Snapshot() {
 
 RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
   static const char* const kNames[] = {
+#define CALL_BUILTIN_COUNTER(name) "GC_" #name,
+      FOR_EACH_GC_COUNTER(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
 #define CALL_RUNTIME_COUNTER(name) #name,
       FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
@@ -448,7 +451,7 @@ RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
       FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) #name,
-      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
   };
   for (int i = 0; i < counters_count; i++) {
@@ -458,6 +461,9 @@ RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
 
 // static
 const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
+#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::GC_##name,
+    FOR_EACH_GC_COUNTER(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
 #define CALL_RUNTIME_COUNTER(name) &RuntimeCallStats::name,
     FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
@@ -472,7 +478,7 @@ const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
     FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::Handler_##name,
-    FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+    FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 };
 
