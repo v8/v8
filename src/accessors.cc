@@ -782,7 +782,7 @@ static Handle<Object> ArgumentsForInlinedFunction(
   Factory* factory = isolate->factory();
 
   TranslatedState translated_values(frame);
-  translated_values.Prepare(false, frame->fp());
+  translated_values.Prepare(frame->fp());
 
   int argument_count = 0;
   TranslatedFrame* translated_frame =

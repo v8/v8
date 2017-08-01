@@ -111,7 +111,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   CHECK(frame->is_optimized());
 
   TranslatedState translated_values(frame);
-  translated_values.Prepare(false, frame->fp());
+  translated_values.Prepare(frame->fp());
 
   TranslatedState::iterator frame_it = translated_values.end();
   int counter = jsframe_index;
@@ -1877,8 +1877,7 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
     if (frame_index != 0) it->Advance();
   }
-  translated_state_.Prepare(it->frame()->has_adapted_arguments(),
-                            reinterpret_cast<Address>(stack_fp_));
+  translated_state_.Prepare(reinterpret_cast<Address>(stack_fp_));
 
   for (auto& materialization : values_to_materialize_) {
     Handle<Object> value = materialization.value_->GetValue();
@@ -3496,9 +3495,7 @@ void TranslatedState::Init(Address input_frame_pointer,
             Translation::BEGIN);
 }
 
-
-void TranslatedState::Prepare(bool has_adapted_arguments,
-                              Address stack_frame_pointer) {
+void TranslatedState::Prepare(Address stack_frame_pointer) {
   for (auto& frame : frames_) frame.Handlify();
 
   stack_frame_pointer_ = stack_frame_pointer;

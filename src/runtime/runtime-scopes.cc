@@ -353,7 +353,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
   if (functions.length() > 1) {
     int inlined_jsframe_index = functions.length() - 1;
     TranslatedState translated_values(frame);
-    translated_values.Prepare(false, frame->fp());
+    translated_values.Prepare(frame->fp());
 
     int argument_count = 0;
     TranslatedFrame* translated_frame =
