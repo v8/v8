@@ -27,6 +27,7 @@ namespace internal {
 // moving the objects through various spaces during GC phases.
 
 TEST(ArrayBuffer_OnlyMC) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -54,6 +55,7 @@ TEST(ArrayBuffer_OnlyMC) {
 }
 
 TEST(ArrayBuffer_OnlyScavenge) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -83,6 +85,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
 }
 
 TEST(ArrayBuffer_ScavengeAndMC) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -115,8 +118,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 
 TEST(ArrayBuffer_Compaction) {
   if (FLAG_never_compact) return;
-  FLAG_concurrent_marking = false;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   LocalContext env;
@@ -156,6 +158,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = false;
 #endif  // VERIFY_HEAP
+  ManualGCScope manual_gc_scope;
 
   CcTest::InitializeVM();
   LocalContext env;
@@ -267,6 +270,7 @@ TEST(ArrayBuffer_LivePromotion) {
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
   // copy.
   CcTest::InitializeVM();
