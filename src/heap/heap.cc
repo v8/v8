@@ -6400,6 +6400,7 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
   if (!page->InNewSpace()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     store_buffer()->DeleteEntry(slot_addr);
+    RememberedSet<OLD_TO_OLD>::Remove(page, slot_addr);
   }
 }
 
@@ -6420,6 +6421,8 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   if (!page->InNewSpace()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     store_buffer()->DeleteEntry(start, end);
+    RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end,
+                                           SlotSet::FREE_EMPTY_BUCKETS);
   }
 }
 
