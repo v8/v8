@@ -361,7 +361,7 @@ const int kNoSourcePosition = -1;
 const int kNoDeoptimizationId = -1;
 
 // Deoptimize bailout kind.
-enum class DeoptimizeKind : uint8_t { kEager, kSoft, kLazy };
+enum class DeoptimizeKind : uint8_t { kEager, kSoft };
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
@@ -371,8 +371,6 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Eager";
     case DeoptimizeKind::kSoft:
       return os << "Soft";
-    case DeoptimizeKind::kLazy:
-      return os << "Lazy";
   }
   UNREACHABLE();
 }

@@ -18,10 +18,9 @@ struct Register;
 
 class SafepointEntry BASE_EMBEDDED {
  public:
-  SafepointEntry() : info_(0), bits_(NULL), trampoline_pc_(-1) {}
+  SafepointEntry() : info_(0), bits_(NULL) {}
 
-  SafepointEntry(unsigned info, uint8_t* bits, int trampoline_pc)
-      : info_(info), bits_(bits), trampoline_pc_(trampoline_pc) {
+  SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
     DCHECK(is_valid());
   }
 
@@ -41,15 +40,10 @@ class SafepointEntry BASE_EMBEDDED {
     return DeoptimizationIndexField::decode(info_);
   }
 
-  int trampoline_pc() { return trampoline_pc_; }
-
-  void set_trampoline_pc(int trampoline_pc) { trampoline_pc_ = trampoline_pc; }
-
   static const int kArgumentsFieldBits = 3;
   static const int kSaveDoublesFieldBits = 1;
   static const int kDeoptIndexBits =
       32 - kArgumentsFieldBits - kSaveDoublesFieldBits;
-
   class DeoptimizationIndexField:
     public BitField<int, 0, kDeoptIndexBits> {};  // NOLINT
   class ArgumentsField:
@@ -82,8 +76,6 @@ class SafepointEntry BASE_EMBEDDED {
  private:
   unsigned info_;
   uint8_t* bits_;
-  // It needs to be an integer as it is -1 for eager deoptimizations.
-  int trampoline_pc_;
 };
 
 
@@ -92,7 +84,8 @@ class SafepointTable BASE_EMBEDDED {
   explicit SafepointTable(Code* code);
 
   int size() const {
-    return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
+    return kHeaderSize +
+           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_));
   }
   unsigned length() const { return length_; }
   unsigned entry_size() const { return entry_size_; }
@@ -102,17 +95,11 @@ class SafepointTable BASE_EMBEDDED {
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
-  unsigned GetTrampolinePcOffset(unsigned index) const {
-    DCHECK(index < length_);
-    return Memory::int_at(GetTrampolineLocation(index));
-  }
-
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
-    int trampoline_pc = Memory::int_at(GetTrampolineLocation(index));
-    return SafepointEntry(info, bits, trampoline_pc);
+    return SafepointEntry(info, bits);
   }
 
   // Returns the entry for the given pc.
@@ -123,26 +110,22 @@ class SafepointTable BASE_EMBEDDED {
  private:
   static const uint8_t kNoRegisters = 0xFF;
 
-  // Layout information
   static const int kLengthOffset = 0;
   static const int kEntrySizeOffset = kLengthOffset + kIntSize;
   static const int kHeaderSize = kEntrySizeOffset + kIntSize;
-  static const int kPcOffset = 0;
-  static const int kDeoptimizationIndexOffset = kPcOffset + kIntSize;
-  static const int kTrampolinePcOffset = kDeoptimizationIndexOffset + kIntSize;
-  static const int kFixedEntrySize = kTrampolinePcOffset + kIntSize;
+
+  static const int kPcSize = kIntSize;
+  static const int kDeoptimizationIndexSize = kIntSize;
+  static const int kPcAndDeoptimizationIndexSize =
+      kPcSize + kDeoptimizationIndexSize;
 
   Address GetPcOffsetLocation(unsigned index) const {
-    return pc_and_deoptimization_indexes_ + (index * kFixedEntrySize);
+    return pc_and_deoptimization_indexes_ +
+           (index * kPcAndDeoptimizationIndexSize);
   }
 
-  // TODO(juliana): rename this to GetDeoptimizationIndexLocation
   Address GetInfoLocation(unsigned index) const {
-    return GetPcOffsetLocation(index) + kDeoptimizationIndexOffset;
-  }
-
-  Address GetTrampolineLocation(unsigned index) const {
-    return GetPcOffsetLocation(index) + kTrampolinePcOffset;
+    return GetPcOffsetLocation(index) + kPcSize;
   }
 
   static void PrintBits(std::ostream& os,  // NOLINT
@@ -224,18 +207,12 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // entry must be enough to hold all the pointer indexes.
   void Emit(Assembler* assembler, int bits_per_entry);
 
-  // Find the Deoptimization Info with pc offset {pc} and update its
-  // trampoline field. Calling this function ensures that the safepoint
-  // table contains the trampoline PC (trampoline} that replaced the
-  // return PC {pc} on the stack.
-  void UpdateDeoptimizationInfo(int pc, int trampoline);
 
  private:
   struct DeoptimizationInfo {
     unsigned pc;
     unsigned arguments;
     bool has_doubles;
-    int trampoline;
   };
 
   uint32_t EncodeExceptPC(const DeoptimizationInfo& info, unsigned index);

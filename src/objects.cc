@@ -14423,16 +14423,6 @@ void Code::PrintExtraICState(std::ostream& os,  // NOLINT
 
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
-int DeoptimizationInputData::TrampolinePcToReturnPc(int pc_offset) {
-  int deopt_total = DeoptCount();
-  for (int i = 0; i < deopt_total; i++) {
-    if (TrampolinePc(i)->value() == pc_offset) {
-      return Pc(i)->value();
-    }
-  }
-  return -1;
-}
-
 #ifdef ENABLE_DISASSEMBLER
 
 namespace {

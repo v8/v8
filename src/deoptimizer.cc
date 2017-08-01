@@ -222,9 +222,10 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   }
 }
 
+
 // Unlink functions referring to code marked for deoptimization, then move
 // marked code from the optimized code list to the deoptimized code list,
-// and replace pc on the stack for codes marked for deoptimization.
+// and patch code for lazy deopt.
 void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   DisallowHeapAllocation no_allocation;
 
@@ -305,7 +306,10 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 #endif
 
   // Move marked code from the optimized code list to the deoptimized
-  // code list.
+  // code list, collecting them into a ZoneList.
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  ZoneList<Code*> codes(10, &zone);
+
   // Walk over all optimized code objects in this native context.
   Code* prev = NULL;
   Object* element = context->OptimizedCodeListHead();
@@ -315,6 +319,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     Object* next = code->next_code_link();
 
     if (code->marked_for_deoptimization()) {
+      // Put the code into the list for later patching.
+      codes.Add(code, &zone);
+
       if (prev != NULL) {
         // Skip this code in the optimized code list.
         prev->set_next_code_link(next);
@@ -333,24 +340,26 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-  // Finds the with activations of codes marked for deoptimization, search for
-  // the trampoline to the deoptimizer call respective to each code, and use it
-  // to replace the current pc on the stack.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
-       it.Advance()) {
-    if (it.frame()->type() == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
-      if (code->kind() == Code::OPTIMIZED_FUNCTION &&
-          code->marked_for_deoptimization()) {
-        // Obtain the trampoline to the deoptimizer call.
-        SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
-        int trampoline_pc = safepoint.trampoline_pc();
-        DCHECK_IMPLIES(code == topmost_optimized_code,
-                       safe_to_deopt_topmost_optimized_code);
-        // Replace the current pc on the stack with the trampoline.
-        it.frame()->set_pc(code->instruction_start() + trampoline_pc);
-      }
+  // We need a handle scope only because of the macro assembler,
+  // which is used in code patching in EnsureCodeForDeoptimizationEntry.
+  HandleScope scope(isolate);
+
+  // Now patch all the codes for deoptimization.
+  for (int i = 0; i < codes.length(); i++) {
+#ifdef DEBUG
+    if (codes[i] == topmost_optimized_code) {
+      DCHECK(safe_to_deopt_topmost_optimized_code);
     }
+#endif
+    // It is finally time to die, code object.
+
+    // Do platform-specific patching to force any activations to lazy deopt.
+    PatchCodeForDeoptimization(isolate, codes[i]);
+
+    // We might be in the middle of incremental marking with compaction.
+    // Tell collector to treat this code object in a special way and
+    // ignore all slots that might have been recorded on it.
+    isolate->heap()->mark_compact_collector()->InvalidateCode(codes[i]);
   }
 }
 
@@ -986,7 +995,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     DebugPrintOutputSlot(reinterpret_cast<intptr_t>(smi_bytecode_offset),
                          frame_index, output_offset, "bytecode offset @ ");
     PrintF(trace_scope_->file(), "%d\n", bytecode_offset);
-    PrintF(trace_scope_->file(), "  (input #0)\n");
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
 

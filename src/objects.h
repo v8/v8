@@ -3590,8 +3590,6 @@ class DeoptimizationInputData: public FixedArray {
 
   inline int DeoptCount();
 
-  int TrampolinePcToReturnPc(int pc_offset);
-
   static const int kNotInlinedIndex = -1;
 
   // Returns the inlined function at the given position in LiteralArray, or the
