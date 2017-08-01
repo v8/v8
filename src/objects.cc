@@ -20131,7 +20131,10 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
                                      ZoneForwardList<Handle<Module>>* stack,
                                      unsigned* dfs_index) {
   Isolate* isolate = module->GetIsolate();
-  DCHECK_NE(module->status(), kErrored);
+  if (module->status() == kErrored) {
+    isolate->Throw(module->GetException());
+    return MaybeHandle<Object>();
+  }
   if (module->status() >= kEvaluating) {
     return isolate->factory()->undefined_value();
   }
