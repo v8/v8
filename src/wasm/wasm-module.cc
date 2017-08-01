@@ -179,9 +179,6 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
     TRACE_CHAIN(wasm_module->compiled_module());
     TRACE("}\n");
   }
-  Foreign* js_imports_foreign = owner->js_imports_table();
-  GlobalHandles::Destroy(
-      reinterpret_cast<Object**>(js_imports_foreign->foreign_address()));
   compiled_module->reset_weak_owning_instance();
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
   TRACE("}\n");
@@ -401,6 +398,7 @@ void wasm::UpdateDispatchTables(Isolate* isolate,
     }
   }
 }
+
 
 void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
                     Handle<WasmTableObject> table, int32_t index,
