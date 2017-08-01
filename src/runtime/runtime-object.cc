@@ -160,8 +160,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, map->instance_size(),
-                                              no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_allocation);
     Object* filler = isolate->heap()->one_pointer_filler_map();
     FieldIndex index = FieldIndex::ForPropertyIndex(map, details.field_index());
     JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
