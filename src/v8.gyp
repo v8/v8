@@ -1295,6 +1295,7 @@
         'regexp/regexp-utils.h',
         'register-configuration.cc',
         'register-configuration.h',
+        'reglist.h',
         'runtime-profiler.cc',
         'runtime-profiler.h',
         'runtime/runtime-array.cc',

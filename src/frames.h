@@ -19,21 +19,6 @@ class Debug;
 class ObjectVisitor;
 class StringStream;
 
-#if V8_TARGET_ARCH_ARM64
-typedef uint64_t RegList;
-#else
-typedef uint32_t RegList;
-#endif
-
-// Get the number of registers in a given register list.
-int NumRegs(RegList list);
-
-void SetUpJSCallerSavedCodeData();
-
-// Return the code of the n-th saved register available to JavaScript.
-int JSCallerSavedCode(int n);
-
-
 // Forward declarations.
 class ExternalCallbackScope;
 class Isolate;

@@ -1853,6 +1853,7 @@ v8_source_set("v8_base") {
     "src/regexp/regexp-utils.h",
     "src/register-configuration.cc",
     "src/register-configuration.h",
+    "src/reglist.h",
     "src/runtime-profiler.cc",
     "src/runtime-profiler.h",
     "src/runtime/runtime-array.cc",

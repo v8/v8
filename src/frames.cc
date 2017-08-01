@@ -2184,31 +2184,6 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
 // -------------------------------------------------------------------------
 
 
-int NumRegs(RegList reglist) { return base::bits::CountPopulation(reglist); }
-
-
-struct JSCallerSavedCodeData {
-  int reg_code[kNumJSCallerSaved];
-};
-
-JSCallerSavedCodeData caller_saved_code_data;
-
-void SetUpJSCallerSavedCodeData() {
-  int i = 0;
-  for (int r = 0; r < kNumRegs; r++)
-    if ((kJSCallerSaved & (1 << r)) != 0)
-      caller_saved_code_data.reg_code[i++] = r;
-
-  DCHECK(i == kNumJSCallerSaved);
-}
-
-
-int JSCallerSavedCode(int n) {
-  DCHECK(0 <= n && n < kNumJSCallerSaved);
-  return caller_saved_code_data.reg_code[n];
-}
-
-
 #define DEFINE_WRAPPER(type, field)                              \
 class field##_Wrapper : public ZoneObject {                      \
  public:  /* NOLINT */                                           \

@@ -8,21 +8,6 @@
 namespace v8 {
 namespace internal {
 
-const int kNumRegs = 16;
-const RegList kJSCallerSaved =
-    1 << 0 |  // rax
-    1 << 1 |  // rcx
-    1 << 2 |  // rdx
-    1 << 3 |  // rbx - used as a caller-saved register in JavaScript code
-    1 << 7;   // rdi - callee function
-
-const int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-const int kNumSafepointRegisters = 16;
-
-// ----------------------------------------------------
-
 class EntryFrameConstants : public AllStatic {
  public:
 #ifdef _WIN64
@@ -67,7 +52,6 @@ class JavaScriptFrameConstants : public AllStatic {
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
-
 
 }  // namespace internal
 }  // namespace v8

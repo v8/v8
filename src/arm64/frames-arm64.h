@@ -11,23 +11,6 @@
 namespace v8 {
 namespace internal {
 
-const int kNumRegs = kNumberOfRegisters;
-// Registers x0-x17 are caller-saved.
-const int kNumJSCallerSaved = 18;
-const RegList kJSCallerSaved = 0x3ffff;
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of eight.
-// TODO(all): Refine this number.
-const int kNumSafepointRegisters = 32;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-#define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
-#define kNumSafepointSavedRegisters \
-  CPURegList::GetSafepointSavedRegisters().Count();
-
 class EntryFrameConstants : public AllStatic {
  public:
   static const int kCallerFPOffset =
@@ -56,7 +39,6 @@ class JavaScriptFrameConstants : public AllStatic {
 
   static const int kFunctionOffset = StandardFrameConstants::kFunctionOffset;
 };
-
 
 }  // namespace internal
 }  // namespace v8

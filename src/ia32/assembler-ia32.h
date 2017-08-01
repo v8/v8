@@ -87,6 +87,22 @@ namespace internal {
   V(xmm6)                               \
   V(xmm7)
 
+// Note that the bit values must match those used in actual instruction encoding
+const int kNumRegs = 8;
+
+// Caller-saved registers
+const RegList kJSCallerSaved =
+    1 << 0 |  // eax
+    1 << 1 |  // ecx
+    1 << 2 |  // edx
+    1 << 3 |  // ebx - used as a caller-saved register in JavaScript code
+    1 << 7;   // edi - callee function
+
+const int kNumJSCallerSaved = 5;
+
+// Number of registers for which space is reserved in safepoints.
+const int kNumSafepointRegisters = 8;
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-

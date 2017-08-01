@@ -8,29 +8,6 @@
 namespace v8 {
 namespace internal {
 
-
-// Register lists
-// Note that the bit values must match those used in actual instruction encoding
-const int kNumRegs = 8;
-
-
-// Caller-saved registers
-const RegList kJSCallerSaved =
-  1 << 0 |  // eax
-  1 << 1 |  // ecx
-  1 << 2 |  // edx
-  1 << 3 |  // ebx - used as a caller-saved register in JavaScript code
-  1 << 7;   // edi - callee function
-
-const int kNumJSCallerSaved = 5;
-
-
-// Number of registers for which space is reserved in safepoints.
-const int kNumSafepointRegisters = 8;
-
-// ----------------------------------------------------
-
-
 class EntryFrameConstants : public AllStatic {
  public:
   static const int kCallerFPOffset      = -6 * kPointerSize;
@@ -70,7 +47,6 @@ class JavaScriptFrameConstants : public AllStatic {
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
-
 
 }  // namespace internal
 }  // namespace v8

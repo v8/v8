@@ -83,6 +83,19 @@ namespace internal {
 // The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
 constexpr int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
+const int kNumRegs = 16;
+const RegList kJSCallerSaved =
+    1 << 0 |  // rax
+    1 << 1 |  // rcx
+    1 << 2 |  // rdx
+    1 << 3 |  // rbx - used as a caller-saved register in JavaScript code
+    1 << 7;   // rdi - callee function
+
+const int kNumJSCallerSaved = 5;
+
+// Number of registers for which space is reserved in safepoints.
+const int kNumSafepointRegisters = 16;
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-

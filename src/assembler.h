@@ -45,6 +45,7 @@
 #include "src/label.h"
 #include "src/log.h"
 #include "src/register-configuration.h"
+#include "src/reglist.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -58,6 +59,11 @@ namespace internal {
 class Isolate;
 class SourcePosition;
 class StatsCounter;
+
+void SetUpJSCallerSavedCodeData();
+
+// Return the code of the n-th saved register available to JavaScript.
+int JSCallerSavedCode(int n);
 
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.

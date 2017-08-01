@@ -21,7 +21,6 @@
 namespace v8 {
 namespace internal {
 
-
 // -----------------------------------------------------------------------------
 // Registers.
 // clang-format off
@@ -69,6 +68,23 @@ namespace internal {
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
+
+const int kNumRegs = kNumberOfRegisters;
+// Registers x0-x17 are caller-saved.
+const int kNumJSCallerSaved = 18;
+const RegList kJSCallerSaved = 0x3ffff;
+
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of eight.
+// TODO(all): Refine this number.
+const int kNumSafepointRegisters = 32;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+#define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
+#define kNumSafepointSavedRegisters \
+  CPURegList::GetSafepointSavedRegisters().Count();
 
 // Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.

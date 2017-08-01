@@ -266,7 +266,5 @@ bool RegisterConfiguration::AreAliases(MachineRepresentation rep, int index,
   return index >> shift == other_index;
 }
 
-#undef REGISTER_COUNT
-
 }  // namespace internal
 }  // namespace v8
