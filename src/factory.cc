@@ -1652,10 +1652,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
-    info->ResetForNewContext(isolate()->heap()->global_ic_age());
-  }
-
   if (context_or_undefined->IsContext()) {
     // Give compiler a chance to pre-initialize.
     Compiler::PostInstantiation(result, pretenure);
@@ -1689,9 +1685,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
             *info, "new function from shared function info");
   }
   result->set_feedback_vector_cell(*vector);
-  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
-    info->ResetForNewContext(isolate()->heap()->global_ic_age());
-  }
 
   if (context_or_undefined->IsContext()) {
     // Give compiler a chance to pre-initialize.
@@ -2566,7 +2559,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_function_token_position(0);
   // All compiler hints default to false or 0.
   share->set_compiler_hints(0);
-  share->set_counters_and_bailout_reason(0);
+  share->set_bailout_reason(0);
   share->set_kind(kind);
 
   share->set_preparsed_scope_data(*null_value());

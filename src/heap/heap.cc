@@ -106,7 +106,6 @@ Heap::Heap()
       out_of_memory_callback_data_(nullptr),
       contexts_disposed_(0),
       number_of_disposed_maps_(0),
-      global_ic_age_(0),
       new_space_(nullptr),
       old_space_(NULL),
       code_space_(NULL),
@@ -1232,7 +1231,6 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     isolate()->optimizing_compile_dispatcher()->Flush(
         OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
   }
-  AgeInlineCaches();
   number_of_disposed_maps_ = retained_maps()->Length();
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   return ++contexts_disposed_;
@@ -6759,10 +6757,6 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
       reinterpret_cast<Address>(p);
   remembered_unmapped_pages_index_++;
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
-}
-
-void Heap::AgeInlineCaches() {
-  global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
 }
 
 void Heap::RegisterStrongRoots(Object** start, Object** end) {

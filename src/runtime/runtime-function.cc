@@ -151,8 +151,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target_shared->set_end_position(source_shared->end_position());
   bool was_native = target_shared->native();
   target_shared->set_compiler_hints(source_shared->compiler_hints());
-  target_shared->set_counters_and_bailout_reason(
-      source_shared->counters_and_bailout_reason());
+  target_shared->set_bailout_reason(source_shared->bailout_reason());
   target_shared->set_native(was_native);
   target_shared->set_function_literal_id(source_shared->function_literal_id());
 

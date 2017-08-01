@@ -1501,8 +1501,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     } else {
       isolate->debug()->OnAfterCompile(script);
     }
-  } else if (result->ic_age() != isolate->heap()->global_ic_age()) {
-    result->ResetForNewContext(isolate->heap()->global_ic_age());
   }
   return result;
 }

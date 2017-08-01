@@ -58,7 +58,7 @@ INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
 INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
-INT_ACCESSORS(SharedFunctionInfo, counters_and_bailout_reason,
+INT_ACCESSORS(SharedFunctionInfo, bailout_reason,
               kCountersAndBailoutReasonOffset)
 
 bool SharedFunctionInfo::has_shared_name() const {
@@ -355,10 +355,7 @@ void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
   set_function_identifier(inferred_name);
 }
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters_and_bailout_reason, ic_age,
-                    SharedFunctionInfo::ICAgeBits)
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters_and_bailout_reason,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, bailout_reason,
                     disable_optimization_reason,
                     SharedFunctionInfo::DisabledOptimizationReasonBits)
 

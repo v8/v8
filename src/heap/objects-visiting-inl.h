@@ -286,9 +286,6 @@ template <typename ConcreteVisitor>
 int MarkingVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
     Map* map, SharedFunctionInfo* sfi) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (sfi->ic_age() != heap_->global_ic_age()) {
-    sfi->ResetForNewContext(heap_->global_ic_age());
-  }
   int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, sfi);
   SharedFunctionInfo::BodyDescriptor::IterateBody(sfi, size, visitor);
   return size;

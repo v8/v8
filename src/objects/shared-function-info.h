@@ -278,10 +278,6 @@ class SharedFunctionInfo : public HeapObject {
   // drive optimization.
   DECL_INT_ACCESSORS(compiler_hints)
 
-  // Inline cache age is used to infer whether the function survived a context
-  // disposal or not. In the former case we reset the opt_count.
-  DECL_INT_ACCESSORS(ic_age)
-
   // Indicates if this function can be lazy compiled.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
@@ -337,8 +333,8 @@ class SharedFunctionInfo : public HeapObject {
   Handle<Object> GetSourceCode();
   Handle<Object> GetSourceCodeHarmony();
 
-  // Stores deopt_count, ic_age and bailout_reason as bit-fields.
-  DECL_INT_ACCESSORS(counters_and_bailout_reason)
+  // Stores bailout_reason as a bit-field.
+  DECL_INT_ACCESSORS(bailout_reason)
 
   inline BailoutReason disable_optimization_reason() const;
   inline void set_disable_optimization_reason(BailoutReason reason);
@@ -373,8 +369,6 @@ class SharedFunctionInfo : public HeapObject {
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
-
-  void ResetForNewContext(int new_ic_age);
 
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
@@ -484,6 +478,8 @@ class SharedFunctionInfo : public HeapObject {
   V(IsAsmWasmBrokenBit, bool, 1, _)        \
   V(FunctionMapIndexBits, int, 5, _)       \
   /* Bits 26-31 are unused. */
+  // TODO(leszeks): Move DisabledOptimizationReason into here once there is
+  // space.
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
@@ -509,13 +505,12 @@ class SharedFunctionInfo : public HeapObject {
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
 #undef DEBUGGER_HINTS_BIT_FIELDS
 
-// Bit fields in |counters_and_bailout_reason|.
-#define COUNTERS_AND_BAILOUT_REASON_BIT_FIELDS(V, _) \
-  V(ICAgeBits, int, 8, _)                            \
+// Bit fields in |bailout_reason|.
+#define BAILOUT_REASON_BIT_FIELDS(V, _) \
   V(DisabledOptimizationReasonBits, BailoutReason, 8, _)
 
-  DEFINE_BIT_FIELDS(COUNTERS_AND_BAILOUT_REASON_BIT_FIELDS)
-#undef COUNTERS_AND_BAILOUT_REASON_BIT_FIELDS
+  DEFINE_BIT_FIELDS(BAILOUT_REASON_BIT_FIELDS)
+#undef BAILOUT_REASON_BIT_FIELDS
 
  private:
   // [raw_name]: Function name string or kNoSharedNameSentinel.
