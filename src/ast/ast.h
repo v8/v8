@@ -2275,10 +2275,24 @@ class Suspend : public Expression {
 };
 
 class Yield final : public Suspend {
+ public:
+  inline int await_return_value_suspend_id() const {
+    DCHECK_NE(await_return_value_suspend_id_, -1);
+    return await_return_value_suspend_id_;
+  }
+  void set_await_return_value_suspend_id(int id) {
+    await_return_value_suspend_id_ = id;
+  }
+
  private:
   friend class AstNodeFactory;
   Yield(Expression* expression, int pos, OnAbruptResume on_abrupt_resume)
-      : Suspend(kYield, expression, pos, on_abrupt_resume) {}
+      : Suspend(kYield, expression, pos, on_abrupt_resume),
+        await_return_value_suspend_id_(-1) {}
+
+  // TODO(caitp): remove from class once `await` handled by AsyncGeneratorReturn
+  // stub.
+  int await_return_value_suspend_id_;
 };
 
 class YieldStar final : public Suspend {

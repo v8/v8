@@ -140,7 +140,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildGeneratorPrologue();
   void BuildSuspendPoint(int suspend_id);
 
-  void BuildAbruptResume(Suspend* expr);
+  void BuildAwait(int suspend_id);
+
   void BuildGetIterator(Expression* iterable, IteratorType hint,
                         FeedbackSlot load_slot, FeedbackSlot call_slot,
                         FeedbackSlot async_load_slot,

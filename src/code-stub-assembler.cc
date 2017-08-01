@@ -1128,6 +1128,15 @@ Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
   return Word32NotEqual(LoadInstanceType(object), Int32Constant(instance_type));
 }
 
+Node* CodeStubAssembler::TaggedDoesntHaveInstanceType(Node* any_tagged,
+                                                      InstanceType type) {
+  /* return Phi <TaggedIsSmi(val), DoesntHaveInstanceType(val, type)> */
+  Node* tagged_is_smi = TaggedIsSmi(any_tagged);
+  return Select(tagged_is_smi, [=]() { return tagged_is_smi; },
+                [=]() { return DoesntHaveInstanceType(any_tagged, type); },
+                MachineRepresentation::kBit);
+}
+
 Node* CodeStubAssembler::LoadProperties(Node* object) {
   return LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
 }

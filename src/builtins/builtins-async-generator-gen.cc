@@ -418,8 +418,8 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
            LoadGeneratorState(generator));
   VARIABLE(var_next, MachineRepresentation::kTagged,
            LoadFirstAsyncGeneratorRequestFromQueue(generator));
-  Variable* labels[] = {&var_state, &var_next};
-  Label start(this, 2, labels);
+  Variable* loop_variables[] = {&var_state, &var_next};
+  Label start(this, 2, loop_variables);
   Goto(&start);
   BIND(&start);
 
@@ -453,10 +453,10 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
            &fulfill_promise, &reject_promise);
 
     BIND(&fulfill_promise);
-    CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator,
-                LoadValueFromAsyncGeneratorRequest(next), TrueConstant());
-    var_next.Bind(LoadFirstAsyncGeneratorRequestFromQueue(generator));
-    Goto(&start);
+    // Unwrap Promise values for "return" in state "suspendedStart".
+    // This simulates `return await request.[[Completion]].[[Value]]`
+    TailCallBuiltin(Builtins::kAsyncGeneratorReturnProcessor, context,
+                    generator);
 
     BIND(&reject_promise);
     CallBuiltin(Builtins::kAsyncGeneratorReject, context, generator,
@@ -495,19 +495,35 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
                   HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
   CSA_ASSERT(this, IsGeneratorNotSuspendedForAwait(generator));
 
+  // If this assertion fails, the `value` component was not Awaited as it should
+  // have been, per https://github.com/tc39/proposal-async-iteration/pull/102/.
+  CSA_SLOW_ASSERT(this, TaggedDoesntHaveInstanceType(value, JS_PROMISE_TYPE));
+
   Node* const next = TakeFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const promise = LoadPromiseFromAsyncGeneratorRequest(next);
 
-  Node* const wrapper = AllocateAndInitJSPromise(context);
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapper, value);
+  // Let iteratorResult be CreateIterResultObject(value, done).
+  Node* const iter_result = Allocate(JSIteratorResult::kSize);
+  {
+    Node* map = LoadContextElement(LoadNativeContext(context),
+                                   Context::ITERATOR_RESULT_MAP_INDEX);
+    StoreMapNoWriteBarrier(iter_result, map);
+    StoreObjectFieldRoot(iter_result, JSIteratorResult::kPropertiesOrHashOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+    StoreObjectFieldRoot(iter_result, JSIteratorResult::kElementsOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+    StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kValueOffset,
+                                   value);
+    StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kDoneOffset,
+                                   done);
+  }
 
-  Node* const on_fulfilled =
-      CreateUnwrapClosure(LoadNativeContext(context), done);
+  // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
+  CallBuiltin(Builtins::kResolveNativePromise, context, promise, iter_result);
 
   // Per spec, AsyncGeneratorResolve() returns undefined. However, for the
   // benefit of %TraceExit(), return the Promise.
-  Return(CallBuiltin(Builtins::kPerformNativePromiseThen, context, wrapper,
-                     on_fulfilled, UndefinedConstant(), promise));
+  Return(promise);
 }
 
 TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
@@ -521,6 +537,66 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
 
   Return(CallBuiltin(Builtins::kRejectNativePromise, context, promise, value,
                      TrueConstant()));
+}
+
+TF_BUILTIN(AsyncGeneratorReturnProcessor, AsyncGeneratorBuiltinsAssembler) {
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const req = LoadFirstAsyncGeneratorRequestFromQueue(generator);
+
+  CSA_SLOW_ASSERT(this, SmiEqual(LoadResumeTypeFromAsyncGeneratorRequest(req),
+                                 SmiConstant(JSGeneratorObject::kReturn)));
+
+  ContextInitializer init_closure_context = [&](Node* context) {
+    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
+                                      generator);
+  };
+
+  const bool kIsPredictedAsCaught = false;
+
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(req);
+  Node* const value = LoadValueFromAsyncGeneratorRequest(req);
+  Node* const promise = Await(
+      context, generator, value, outer_promise, AwaitContext::kLength,
+      init_closure_context, Context::ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN,
+      Context::ASYNC_GENERATOR_RETURN_REJECT_SHARED_FUN, kIsPredictedAsCaught);
+
+  CSA_SLOW_ASSERT(this, IsGeneratorNotSuspendedForAwait(generator));
+  StoreObjectField(generator, JSAsyncGeneratorObject::kAwaitedPromiseOffset,
+                   promise);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(AsyncGeneratorReturnResolveClosure,
+           AsyncGeneratorBuiltinsAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const generator =
+      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+
+  CSA_SLOW_ASSERT(this, IsGeneratorSuspendedForAwait(generator));
+  ClearAwaitedPromise(generator);
+
+  //  Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *true*).
+  CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator, value,
+              TrueConstant());
+
+  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+}
+
+TF_BUILTIN(AsyncGeneratorReturnRejectClosure, AsyncGeneratorBuiltinsAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const generator =
+      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+
+  CSA_SLOW_ASSERT(this, IsGeneratorSuspendedForAwait(generator));
+  ClearAwaitedPromise(generator);
+
+  // Return ! AsyncGeneratorReject(_F_.[[Generator]], _reason_).
+  CallBuiltin(Builtins::kAsyncGeneratorReject, context, generator, value);
+
+  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
 }
 
 }  // namespace internal

@@ -393,6 +393,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Compare the instance the type of the object against the provided one.
   Node* HasInstanceType(Node* object, InstanceType type);
   Node* DoesntHaveInstanceType(Node* object, InstanceType type);
+  Node* TaggedDoesntHaveInstanceType(Node* any_tagged, InstanceType type);
   // Load the properties backing store of a JSObject.
   Node* LoadProperties(Node* object);
   // Load the elements backing store of a JSObject.
