@@ -125,6 +125,19 @@ const int kStackSpaceRequiredForCompilation = 40;
 #define V8_SFI_HAS_UNIQUE_ID 1
 #endif
 
+// Superclass for classes only using static method functions.
+// The subclass of AllStatic cannot be instantiated at all.
+class AllStatic {
+#ifdef DEBUG
+ public:
+  AllStatic() = delete;
+#endif
+};
+
+// DEPRECATED
+// TODO(leszeks): Delete this during a quiet period
+#define BASE_EMBEDDED
+
 typedef uint8_t byte;
 typedef byte* Address;
 

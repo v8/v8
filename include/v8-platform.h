@@ -133,6 +133,15 @@ class Platform {
   virtual ~Platform() = default;
 
   /**
+   * Enables the embedder to respond in cases where V8 can't allocate large
+   * blocks of memory. V8 retries the failed allocation once after calling this
+   * method. On success, execution continues; otherwise V8 exits with a fatal
+   * error.
+   * Embedder overrides of this function must NOT call back into V8.
+   */
+  virtual void OnCriticalMemoryPressure() {}
+
+  /**
    * Gets the number of threads that are used to execute background tasks. Is
    * used to estimate the number of tasks a work package should be split into.
    * A return value of 0 means that there are no background threads available.
