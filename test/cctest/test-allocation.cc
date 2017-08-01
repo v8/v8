@@ -23,54 +23,27 @@ using v8::Task;
 
 namespace {
 
-// Minimal implementation of platform that can receive OOM callbacks.
-class MockAllocationPlatform : public v8::Platform {
+// Implementation of v8::Platform that can register OOM callbacks.
+class AllocationPlatform : public TestPlatform {
  public:
-  MockAllocationPlatform() { current_platform = this; }
-  virtual ~MockAllocationPlatform() {}
+  AllocationPlatform() {
+    current_platform = this;
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+  virtual ~AllocationPlatform() = default;
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {}
-
-  void CallOnForegroundThread(Isolate* isolate, Task* task) override {}
-
-  void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {}
-
-  double MonotonicallyIncreasingTime() override { return 0.0; }
-
-  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {}
-
-  bool IdleTasksEnabled(Isolate* isolate) override { return false; }
-
-  v8::TracingController* GetTracingController() override {
-    return &tracing_controller_;
-  }
-
-  bool PendingIdleTask() { return false; }
-
-  void PerformIdleTask(double idle_time_in_seconds) {}
-
-  bool PendingDelayedTask() { return false; }
-
-  void PerformDelayedTask() {}
-
-  static MockAllocationPlatform* current_platform;
+  static AllocationPlatform* current_platform;
   bool oom_callback_called = false;
-
- private:
-  v8::TracingController tracing_controller_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockAllocationPlatform);
 };
 
-MockAllocationPlatform* MockAllocationPlatform::current_platform = nullptr;
+AllocationPlatform* AllocationPlatform::current_platform = nullptr;
 
 bool DidCallOnCriticalMemoryPressure() {
-  return MockAllocationPlatform::current_platform &&
-         MockAllocationPlatform::current_platform->oom_callback_called;
+  return AllocationPlatform::current_platform &&
+         AllocationPlatform::current_platform->oom_callback_called;
 }
 
 // No OS should be able to malloc/new this number of bytes. Generate enough
@@ -112,25 +85,16 @@ void OnAlignedAllocOOM(const char* location, const char* message) {
 }  // namespace
 
 TEST(AccountingAllocatorOOM) {
-  // TODO(bbudge) Implement a TemporaryPlatformScope to simplify test code.
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockAllocationPlatform platform;
-  i::V8::SetPlatformForTesting(&platform);
-
+  AllocationPlatform platform;
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
   v8::internal::Segment* result = allocator.GetSegment(GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 TEST(MallocedOperatorNewOOM) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockAllocationPlatform platform;
-  i::V8::SetPlatformForTesting(&platform);
-
+  AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnMallocedOperatorNewOOM);
   // On failure, this won't return, since a Malloced::New failure is fatal.
@@ -138,15 +102,10 @@ TEST(MallocedOperatorNewOOM) {
   void* result = v8::internal::Malloced::New(GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 TEST(NewArrayOOM) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockAllocationPlatform platform;
-  i::V8::SetPlatformForTesting(&platform);
-
+  AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnNewArrayOOM);
   // On failure, this won't return, since a NewArray failure is fatal.
@@ -154,15 +113,10 @@ TEST(NewArrayOOM) {
   int8_t* result = v8::internal::NewArray<int8_t>(GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 TEST(AlignedAllocOOM) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockAllocationPlatform platform;
-  i::V8::SetPlatformForTesting(&platform);
-
+  AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnAlignedAllocOOM);
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
@@ -171,15 +125,10 @@ TEST(AlignedAllocOOM) {
                                             v8::base::OS::AllocateAlignment());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 TEST(AllocVirtualMemoryOOM) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockAllocationPlatform platform;
-  i::V8::SetPlatformForTesting(&platform);
-
+  AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   v8::base::VirtualMemory result;
   bool success =
@@ -187,15 +136,10 @@ TEST(AllocVirtualMemoryOOM) {
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());
   CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 TEST(AlignedAllocVirtualMemoryOOM) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockAllocationPlatform platform;
-  i::V8::SetPlatformForTesting(&platform);
-
+  AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   v8::base::VirtualMemory result;
   bool success = v8::internal::AlignedAllocVirtualMemory(
@@ -204,8 +148,6 @@ TEST(AlignedAllocVirtualMemoryOOM) {
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());
   CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 #endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&

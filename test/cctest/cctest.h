@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/flags.h"
 #include "src/utils.h"
@@ -632,6 +633,60 @@ class ManualGCScope {
   bool flag_concurrent_marking_;
   bool flag_concurrent_sweeping_;
   bool flag_stress_incremental_marking_;
+};
+
+// This is an abstract base class that can be overridden to implement a test
+// platform. It delegates all operations to a given platform at the time
+// of construction.
+class TestPlatform : public v8::Platform {
+ public:
+  // v8::Platform implementation.
+  void OnCriticalMemoryPressure() override {
+    old_platform_->OnCriticalMemoryPressure();
+  }
+
+  void CallOnBackgroundThread(v8::Task* task,
+                              ExpectedRuntime expected_runtime) override {
+    old_platform_->CallOnBackgroundThread(task, expected_runtime);
+  }
+
+  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
+    old_platform_->CallOnForegroundThread(isolate, task);
+  }
+
+  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
+                                     double delay_in_seconds) override {
+    old_platform_->CallDelayedOnForegroundThread(isolate, task,
+                                                 delay_in_seconds);
+  }
+
+  double MonotonicallyIncreasingTime() override {
+    return old_platform_->MonotonicallyIncreasingTime();
+  }
+
+  void CallIdleOnForegroundThread(v8::Isolate* isolate,
+                                  v8::IdleTask* task) override {
+    old_platform_->CallIdleOnForegroundThread(isolate, task);
+  }
+
+  bool IdleTasksEnabled(v8::Isolate* isolate) override {
+    return old_platform_->IdleTasksEnabled(isolate);
+  }
+
+  v8::TracingController* GetTracingController() override {
+    return old_platform_->GetTracingController();
+  }
+
+ protected:
+  TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
+  ~TestPlatform() { i::V8::SetPlatformForTesting(old_platform_); }
+
+  v8::Platform* old_platform() const { return old_platform_; }
+
+ private:
+  v8::Platform* old_platform_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestPlatform);
 };
 
 #endif  // ifndef CCTEST_H_
