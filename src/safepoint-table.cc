@@ -42,8 +42,7 @@ SafepointTable::SafepointTable(Code* code) {
   length_ = Memory::uint32_at(header + kLengthOffset);
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
-  entries_ = pc_and_deoptimization_indexes_ +
-             (length_ * kPcAndDeoptimizationIndexSize);
+  entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
   DCHECK(entry_size_ > 0);
   STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);
@@ -59,8 +58,11 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   if (len == 1 && GetPcOffset(0) == kMaxUInt32) return GetEntry(0);
   for (unsigned i = 0; i < len; i++) {
     // TODO(kasperl): Replace the linear search with binary search.
-    if (GetPcOffset(i) == pc_offset) return GetEntry(i);
+    if (GetPcOffset(i) == pc_offset || GetTrampolinePcOffset(i) == pc_offset) {
+      return GetEntry(i);
+    }
   }
+  UNREACHABLE();
   return SafepointEntry();
 }
 
@@ -115,6 +117,7 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
   info.pc = assembler->pc_offset();
   info.arguments = arguments;
   info.has_doubles = (kind & Safepoint::kWithDoubles);
+  info.trampoline = -1;
   deoptimization_info_.Add(info, zone_);
   deopt_index_list_.Add(Safepoint::kNoDeoptimizationIndex, zone_);
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
@@ -140,6 +143,20 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
   return offset_;
 }
 
+void SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline) {
+  int index = -1;
+  for (int i = 0; i < deoptimization_info_.length(); i++) {
+    if (static_cast<int>(deoptimization_info_[i].pc) == pc) {
+      index = i;
+      break;
+    }
+  }
+  DCHECK(index >= 0);
+  DCHECK(index < deoptimization_info_.length());
+  if (index >= 0) {
+    deoptimization_info_[index].trampoline = trampoline;
+  }
+}
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
@@ -166,6 +183,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
     assembler->dd(deoptimization_info_[i].pc);
     assembler->dd(EncodeExceptPC(deoptimization_info_[i],
                                  deopt_index_list_[i]));
+    assembler->dd(deoptimization_info_[i].trampoline);
   }
 
   // Emit table of bitmaps.
