@@ -16,6 +16,7 @@
   V(CompactionPartiallyAbortedPageWithStoreBufferEntries) \
   V(CompactionSpaceDivideMultiplePages)                   \
   V(CompactionSpaceDivideSinglePage)                      \
+  V(InvalidatedSlots)                                     \
   V(TestNewSpaceRefsInCopiedCode)                         \
   V(GCFlags)                                              \
   V(MarkCompactCollector)                                 \

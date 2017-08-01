@@ -96,6 +96,7 @@
       'heap/test-concurrent-marking.cc',
       'heap/test-heap.cc',
       'heap/test-incremental-marking.cc',
+      'heap/test-invalidated-slots.cc',
       'heap/test-lab.cc',
       'heap/test-mark-compact.cc',
       'heap/test-page-promotion.cc',
