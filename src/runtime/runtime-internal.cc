@@ -393,7 +393,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 }
 
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
-                              CallPrinter::IteratorHint* hint) {
+                              CallPrinter::ErrorHint* hint) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     ParseInfo info(location.shared());
@@ -401,7 +401,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
-      *hint = printer.GetIteratorHint();
+      *hint = printer.GetErrorHint();
       if (str->length() > 0) return str;
     } else {
       isolate->clear_pending_exception();
@@ -410,22 +410,32 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   return Object::TypeOf(isolate, object);
 }
 
-void UpdateIteratorTemplate(CallPrinter::IteratorHint hint,
-                            MessageTemplate::Template* id) {
-  if (hint == CallPrinter::IteratorHint::kNormal) {
-    *id = MessageTemplate::kNotIterable;
-  }
+MessageTemplate::Template UpdateErrorTemplate(
+    CallPrinter::ErrorHint hint, MessageTemplate::Template default_id) {
+  switch (hint) {
+    case CallPrinter::ErrorHint::kNormalIterator:
+      return MessageTemplate::kNotIterable;
 
-  if (hint == CallPrinter::IteratorHint::kAsync) {
-    *id = MessageTemplate::kNotAsyncIterable;
+    case CallPrinter::ErrorHint::kCallAndNormalIterator:
+      return MessageTemplate::kNotCallableOrIterable;
+
+    case CallPrinter::ErrorHint::kAsyncIterator:
+      return MessageTemplate::kNotAsyncIterable;
+
+    case CallPrinter::ErrorHint::kCallAndAsyncIterator:
+      return MessageTemplate::kNotCallableOrAsyncIterable;
+
+    case CallPrinter::ErrorHint::kNone:
+      return default_id;
   }
+  return default_id;
 }
 
 }  // namespace
 
 MaybeHandle<Object> Runtime::ThrowIteratorError(Isolate* isolate,
                                                 Handle<Object> object) {
-  CallPrinter::IteratorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
   MessageTemplate::Template id = MessageTemplate::kNonObjectPropertyLoad;
 
@@ -435,7 +445,7 @@ MaybeHandle<Object> Runtime::ThrowIteratorError(Isolate* isolate,
                     Object);
   }
 
-  UpdateIteratorTemplate(hint, &id);
+  id = UpdateErrorTemplate(hint, id);
   THROW_NEW_ERROR(isolate, NewTypeError(id, callsite), Object);
 }
 
@@ -443,10 +453,10 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  CallPrinter::IteratorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
   MessageTemplate::Template id = MessageTemplate::kCalledNonCallable;
-  UpdateIteratorTemplate(hint, &id);
+  id = UpdateErrorTemplate(hint, id);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
 
@@ -462,7 +472,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  CallPrinter::IteratorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
   MessageTemplate::Template id = MessageTemplate::kNotConstructor;
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
