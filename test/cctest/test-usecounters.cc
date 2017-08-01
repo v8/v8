@@ -17,6 +17,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 }
 
 TEST(DefineGetterSetterThrowUseCount) {
+  i::FLAG_harmony_strict_legacy_accessor_builtins = false;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
