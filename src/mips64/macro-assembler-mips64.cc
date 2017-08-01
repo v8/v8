@@ -4397,18 +4397,6 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
 }
 
-void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
-                                                Register end_address,
-                                                Register filler) {
-  Label loop, entry;
-  Branch(&entry);
-  bind(&loop);
-  Sd(filler, MemOperand(current_address));
-  Daddu(current_address, current_address, kPointerSize);
-  bind(&entry);
-  Branch(&loop, ult, current_address, Operand(end_address));
-}
-
 void MacroAssembler::SubNanPreservePayloadAndSign_s(FPURegister fd,
                                                     FPURegister fs,
                                                     FPURegister ft) {
@@ -5444,16 +5432,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
        bd);
 }
 
-void MacroAssembler::SetCounter(StatsCounter* counter, int value,
-                                Register scratch1, Register scratch2) {
-  if (FLAG_native_code_counters && counter->Enabled()) {
-    li(scratch1, Operand(value));
-    li(scratch2, Operand(ExternalReference(counter)));
-    Sw(scratch1, MemOperand(scratch2));
-  }
-}
-
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK(value > 0);
@@ -6330,36 +6308,6 @@ int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
   return stack_passed_words;
 }
 
-
-void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
-                                               Register index,
-                                               Register value,
-                                               Register scratch,
-                                               uint32_t encoding_mask) {
-  Label is_object;
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch1 = temps.Acquire();
-    SmiTst(string, scratch1);
-    Check(ne, kNonObject, scratch1, Operand(zero_reg));
-
-    Ld(scratch1, FieldMemOperand(string, HeapObject::kMapOffset));
-    Lbu(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-
-    andi(scratch1, scratch1, kStringRepresentationMask | kStringEncodingMask);
-    li(scratch, Operand(encoding_mask));
-    Check(eq, kUnexpectedStringType, scratch1, Operand(scratch));
-
-    // TODO(plind): requires Smi size check code for mips32.
-
-    Ld(scratch1, FieldMemOperand(string, String::kLengthOffset));
-    Check(lt, kIndexIsTooLarge, index, Operand(scratch1));
-  }
-
-  DCHECK(Smi::kZero == 0);
-  Check(ge, kIndexIsNegative, index, Operand(zero_reg));
-}
-
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           int num_double_arguments,
                                           Register scratch) {
@@ -6649,88 +6597,6 @@ void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
   bind(&done);
 }
 
-
-void MacroAssembler::ClampDoubleToUint8(Register result_reg,
-                                        DoubleRegister input_reg,
-                                        DoubleRegister temp_double_reg) {
-  Label above_zero;
-  Label done;
-  Label in_bounds;
-
-  Move(temp_double_reg, 0.0);
-  BranchF(&above_zero, NULL, gt, input_reg, temp_double_reg);
-
-  // Double value is less than zero, NaN or Inf, return 0.
-  mov(result_reg, zero_reg);
-  Branch(&done);
-
-  // Double value is >= 255, return 255.
-  bind(&above_zero);
-  Move(temp_double_reg, 255.0);
-  BranchF(&in_bounds, NULL, le, input_reg, temp_double_reg);
-  li(result_reg, Operand(255));
-  Branch(&done);
-
-  // In 0-255 range, round and truncate.
-  bind(&in_bounds);
-  cvt_w_d(temp_double_reg, input_reg);
-  mfc1(result_reg, temp_double_reg);
-  bind(&done);
-}
-
-void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
-                                                     Register scratch_reg,
-                                                     Label* no_memento_found) {
-  Label map_check;
-  Label top_check;
-  ExternalReference new_space_allocation_top_adr =
-      ExternalReference::new_space_allocation_top_address(isolate());
-  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
-  const int kMementoLastWordOffset =
-      kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
-
-  // Bail out if the object is not in new space.
-  JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
-  // If the object is in new space, we need to check whether it is on the same
-  // page as the current top.
-  Daddu(scratch_reg, receiver_reg, Operand(kMementoLastWordOffset));
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand(new_space_allocation_top_adr));
-    Ld(scratch, MemOperand(scratch));
-    Xor(scratch_reg, scratch_reg, Operand(scratch));
-  }
-  And(scratch_reg, scratch_reg, Operand(~Page::kPageAlignmentMask));
-  Branch(&top_check, eq, scratch_reg, Operand(zero_reg));
-  // The object is on a different page than allocation top. Bail out if the
-  // object sits on the page boundary as no memento can follow and we cannot
-  // touch the memory following it.
-  Daddu(scratch_reg, receiver_reg, Operand(kMementoLastWordOffset));
-  Xor(scratch_reg, scratch_reg, Operand(receiver_reg));
-  And(scratch_reg, scratch_reg, Operand(~Page::kPageAlignmentMask));
-  Branch(no_memento_found, ne, scratch_reg, Operand(zero_reg));
-  // Continue with the actual map check.
-  jmp(&map_check);
-  // If top is on the same page as the current object, we need to check whether
-  // we are below top.
-  bind(&top_check);
-  Daddu(scratch_reg, receiver_reg, Operand(kMementoLastWordOffset));
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand(new_space_allocation_top_adr));
-    Ld(scratch, MemOperand(scratch));
-    Branch(no_memento_found, ge, scratch_reg, Operand(scratch));
-  }
-  // Memento map check.
-  bind(&map_check);
-  Ld(scratch_reg, MemOperand(receiver_reg, kMementoMapOffset));
-  Branch(no_memento_found, ne, scratch_reg,
-         Operand(isolate()->factory()->allocation_memento_map()));
-}
-
-
 Register GetRegisterThatIsNotOneOf(Register reg1,
                                    Register reg2,
                                    Register reg3,
@@ -6818,37 +6684,6 @@ void CodePatcher::ChangeBranchCondition(Instr current_instr,
                                         uint32_t new_opcode) {
   current_instr = (current_instr & ~kOpcodeMask) | new_opcode;
   masm_.emit(current_instr);
-}
-
-
-void MacroAssembler::TruncatingDiv(Register result,
-                                   Register dividend,
-                                   int32_t divisor) {
-  DCHECK(!dividend.is(result));
-  DCHECK(!dividend.is(at));
-  DCHECK(!result.is(at));
-  base::MagicNumbersForDivision<uint32_t> mag =
-  base::SignedDivisionByConstant(static_cast<uint32_t>(divisor));
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand(static_cast<int32_t>(mag.multiplier)));
-    Mulh(result, dividend, Operand(scratch));
-  }
-  bool neg = (mag.multiplier & (static_cast<uint32_t>(1) << 31)) != 0;
-  if (divisor > 0 && neg) {
-    Addu(result, result, Operand(dividend));
-  }
-  if (divisor < 0 && !neg && mag.multiplier > 0) {
-    Subu(result, result, Operand(dividend));
-  }
-  if (mag.shift > 0) sra(result, result, mag.shift);
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    srl(scratch, dividend, 31);
-    Addu(result, result, Operand(scratch));
-  }
 }
 
 

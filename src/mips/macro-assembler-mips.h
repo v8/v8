@@ -1226,12 +1226,6 @@ class MacroAssembler : public TurboAssembler {
   // Must preserve the result register.
   void PopStackHandler();
 
-  // Initialize fields with filler values.  Fields starting at |current_address|
-  // not including |end_address| are overwritten with the value in |filler|.  At
-  // the end the loop, |current_address| takes the value of |end_address|.
-  void InitializeFieldsWithFiller(Register current_address,
-                                  Register end_address, Register filler);
-
   // -------------------------------------------------------------------------
   // Support functions.
 
@@ -1389,15 +1383,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     const char* name;
   };
 
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged and at gets clobbered. Dividend and result must be different.
-  void TruncatingDiv(Register result, Register dividend, int32_t divisor);
-
   // -------------------------------------------------------------------------
   // StatsCounter support.
 
-  void SetCounter(StatsCounter* counter, int value,
-                  Register scratch1, Register scratch2);
   void IncrementCounter(StatsCounter* counter, int value,
                         Register scratch1, Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value,
@@ -1523,12 +1511,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
 
-  void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,
-                                 Register value,
-                                 Register scratch,
-                                 uint32_t encoding_mask);
-
   // Checks if both objects are sequential one-byte strings and jumps to label
   // if either is not. Assumes that neither object is a smi.
   void JumpIfNonSmisNotBothSequentialOneByteStrings(Register first,
@@ -1545,11 +1527,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                                              Label* not_flat_one_byte_strings);
 
   void ClampUint8(Register output_reg, Register input_reg);
-
-  void ClampDoubleToUint8(Register result_reg,
-                          DoubleRegister input_reg,
-                          DoubleRegister temp_double_reg);
-
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
@@ -1598,15 +1575,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Expects object in a0 and returns map with validated enum cache
   // in a0.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated AllocationMemento
-  // object that can be checked for in order to pretransition to another type.
-  // On entry, receiver_reg should point to the array object. scratch_reg gets
-  // clobbered. If no info is present jump to no_memento_found, otherwise fall
-  // through.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Label* no_memento_found);
 
  private:
   // Helper functions for generating invokes.
