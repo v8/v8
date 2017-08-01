@@ -25,6 +25,10 @@ namespace compiler {
 class CodeAssemblerState;
 }
 
+// Convenience macro to avoid generating named accessors for all builtins.
+#define BUILTIN_CODE(isolate, name) \
+  (isolate)->builtins()->builtin_handle(Builtins::k##name)
+
 class Builtins {
  public:
   ~Builtins();
@@ -50,11 +54,6 @@ class Builtins {
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
 
-#define DECLARE_BUILTIN_ACCESSOR(Name, ...) \
-  V8_EXPORT_PRIVATE Handle<Code> Name();
-  BUILTIN_LIST_ALL(DECLARE_BUILTIN_ACCESSOR)
-#undef DECLARE_BUILTIN_ACCESSOR
-
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
@@ -78,7 +77,7 @@ class Builtins {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
-  Handle<Code> builtin_handle(Name name);
+  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(Name name);
 
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 

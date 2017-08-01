@@ -209,7 +209,7 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
             ? Handle<AbstractCode>::cast(info->bytecode_array())
             : Handle<AbstractCode>::cast(info->code());
     if (abstract_code.is_identical_to(
-            info->isolate()->builtins()->CompileLazy())) {
+            BUILTIN_CODE(info->isolate(), CompileLazy))) {
       return;
     }
     int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
@@ -804,9 +804,9 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       // Set the optimization marker and return a code object which checks it.
       function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
       if (function->IsInterpreted()) {
-        return isolate->builtins()->InterpreterEntryTrampoline();
+        return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
       } else {
-        return isolate->builtins()->CheckOptimizationMarker();
+        return BUILTIN_CODE(isolate, CheckOptimizationMarker);
       }
     }
   } else {

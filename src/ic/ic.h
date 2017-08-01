@@ -264,7 +264,7 @@ class LoadIC : public IC {
 
  protected:
   virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->LoadIC_Slow();
+    return BUILTIN_CODE(isolate(), LoadIC_Slow);
   }
 
   // Update the inline cache and the global stub cache based on the
@@ -305,7 +305,7 @@ class LoadGlobalIC : public LoadIC {
 
  protected:
   Handle<Code> slow_stub() const override {
-    return isolate()->builtins()->LoadGlobalIC_Slow();
+    return BUILTIN_CODE(isolate(), LoadGlobalIC_Slow);
   }
 };
 
@@ -356,7 +356,7 @@ class StoreIC : public IC {
   // Stub accessors.
   Handle<Code> slow_stub() const {
     // All StoreICs share the same slow stub.
-    return isolate()->builtins()->KeyedStoreIC_Slow();
+    return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
   }
 
   // Update the inline cache and the global stub cache based on the

@@ -1207,12 +1207,12 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     name_string = class_name->IsString() ? Handle<String>::cast(class_name)
                                          : isolate->factory()->empty_string();
   }
-  Handle<Code> code = isolate->builtins()->HandleApiCall();
+  Handle<Code> code = BUILTIN_CODE(isolate, HandleApiCall);
   bool is_constructor = !info->remove_prototype();
   Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
       name_string, code, is_constructor);
   if (is_constructor) {
-    result->SetConstructStub(*isolate->builtins()->JSConstructStubApi());
+    result->SetConstructStub(*BUILTIN_CODE(isolate, JSConstructStubApi));
   }
 
   result->set_length(info->length());
@@ -13799,7 +13799,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   DCHECK(lit->kind() == shared_info->kind());
   if (!IsConstructable(lit->kind())) {
     shared_info->SetConstructStub(
-        *shared_info->GetIsolate()->builtins()->ConstructedNonConstructable());
+        *BUILTIN_CODE(shared_info->GetIsolate(), ConstructedNonConstructable));
   }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_asm_function(lit->scope()->asm_function());
@@ -14272,42 +14272,40 @@ Code::Age Code::GetAge() {
 
 Code::Age Code::GetAgeOfCodeAgeStub(Code* code) {
   Isolate* isolate = code->GetIsolate();
-  Builtins* builtins = isolate->builtins();
-#define HANDLE_CODE_AGE(AGE)                            \
-  if (code == *builtins->Make##AGE##CodeYoungAgain()) { \
-    return k##AGE##CodeAge;                             \
+#define HANDLE_CODE_AGE(AGE)                                       \
+  if (code == *BUILTIN_CODE(isolate, Make##AGE##CodeYoungAgain)) { \
+    return k##AGE##CodeAge;                                        \
   }
   CODE_AGE_LIST(HANDLE_CODE_AGE)
 #undef HANDLE_CODE_AGE
-  if (code == *builtins->MarkCodeAsExecutedOnce()) {
+  if (code == *BUILTIN_CODE(isolate, MarkCodeAsExecutedOnce)) {
     return kNotExecutedCodeAge;
   }
-  if (code == *builtins->MarkCodeAsExecutedTwice()) {
+  if (code == *BUILTIN_CODE(isolate, MarkCodeAsExecutedTwice)) {
     return kExecutedOnceCodeAge;
   }
-  if (code == *builtins->MarkCodeAsToBeExecutedOnce()) {
+  if (code == *BUILTIN_CODE(isolate, MarkCodeAsToBeExecutedOnce)) {
     return kToBeExecutedOnceCodeAge;
   }
   UNREACHABLE();
 }
 
 Code* Code::GetCodeAgeStub(Isolate* isolate, Age age) {
-  Builtins* builtins = isolate->builtins();
   switch (age) {
-#define HANDLE_CODE_AGE(AGE)                       \
-  case k##AGE##CodeAge: {                          \
-    return *builtins->Make##AGE##CodeYoungAgain(); \
+#define HANDLE_CODE_AGE(AGE)                                  \
+  case k##AGE##CodeAge: {                                     \
+    return *BUILTIN_CODE(isolate, Make##AGE##CodeYoungAgain); \
   }
     CODE_AGE_LIST(HANDLE_CODE_AGE)
 #undef HANDLE_CODE_AGE
     case kNotExecutedCodeAge: {
-      return *builtins->MarkCodeAsExecutedOnce();
+      return *BUILTIN_CODE(isolate, MarkCodeAsExecutedOnce);
     }
     case kExecutedOnceCodeAge: {
-      return *builtins->MarkCodeAsExecutedTwice();
+      return *BUILTIN_CODE(isolate, MarkCodeAsExecutedTwice);
     }
     case kToBeExecutedOnceCodeAge: {
-      return *builtins->MarkCodeAsToBeExecutedOnce();
+      return *BUILTIN_CODE(isolate, MarkCodeAsToBeExecutedOnce);
     }
     default:
       UNREACHABLE();

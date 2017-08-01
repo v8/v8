@@ -295,7 +295,7 @@ void FullCodeGenerator::Generate() {
     Label ok;
     __ LoadRoot(at, Heap::kStackLimitRootIndex);
     __ Branch(&ok, hs, sp, Operand(at));
-    Handle<Code> stack_check = isolate()->builtins()->StackCheck();
+    Handle<Code> stack_check = BUILTIN_CODE(isolate(), StackCheck);
     PredictableCodeSizeScope predictable(
         masm_, masm_->CallSize(stack_check, RelocInfo::CODE_TARGET));
     __ Call(stack_check, RelocInfo::CODE_TARGET);
@@ -364,7 +364,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   __ slt(at, a3, zero_reg);
   __ beq(at, zero_reg, &ok);
   // Call will emit a li t9 first, so it is safe to use the delay slot.
-  __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), InterruptCheck), RelocInfo::CODE_TARGET);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
   // the deoptimization input data found in the optimized code.
@@ -391,7 +391,7 @@ void FullCodeGenerator::EmitProfilingCounterHandlingForReturnSequence(
   if (!is_tail_call) {
     __ push(v0);
   }
-  __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), InterruptCheck), RelocInfo::CODE_TARGET);
   if (!is_tail_call) {
     __ pop(v0);
   }
@@ -925,7 +925,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);  // In delay slot.
   __ Branch(&exit, eq, a0, Operand(at));
   __ bind(&convert);
-  __ Call(isolate()->builtins()->ToObject(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ToObject), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ mov(a0, v0);
   __ bind(&done_convert);
@@ -1026,7 +1026,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // a0 contains the key. The receiver in a1 is the second argument to the
   // ForInFilter. ForInFilter returns undefined if the receiver doesn't
   // have the key or returns the name-converted key.
-  __ Call(isolate()->builtins()->ForInFilter(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ForInFilter), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ Branch(loop_statement.continue_label(), eq, result_register(),
@@ -2070,7 +2070,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForTypeofValue(expr->expression());
       }
       __ mov(a3, v0);
-      __ Call(isolate()->builtins()->Typeof(), RelocInfo::CODE_TARGET);
+      __ Call(BUILTIN_CODE(isolate(), Typeof), RelocInfo::CODE_TARGET);
       context()->Plug(v0);
       break;
     }
@@ -2129,7 +2129,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   __ mov(a0, v0);
 
   // Convert old value into a number.
-  __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ToNumber), RelocInfo::CODE_TARGET);
   RestoreContext();
 
   // Save result for postfix expressions.
@@ -2326,7 +2326,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       SetExpressionPosition(expr);
       __ mov(a0, result_register());
       PopOperand(a1);
-      __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
+      __ Call(BUILTIN_CODE(isolate(), InstanceOf), RelocInfo::CODE_TARGET);
       RestoreContext();
       __ LoadRoot(a4, Heap::kTrueValueRootIndex);
       Split(eq, v0, Operand(a4), if_true, if_false, fall_through);
@@ -2503,9 +2503,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
   DCHECK(Assembler::IsBeq(Assembler::instr_at(branch_address + kInstrSize)));
   if (!Assembler::IsAddImmediate(Assembler::instr_at(branch_address))) {
     DCHECK(reinterpret_cast<uint64_t>(
-        Assembler::target_address_at(pc_immediate_load_address)) ==
+               Assembler::target_address_at(pc_immediate_load_address)) ==
            reinterpret_cast<uint64_t>(
-               isolate->builtins()->InterruptCheck()->entry()));
+               BUILTIN_CODE(isolate, InterruptCheck)->entry()));
     return INTERRUPT;
   }
 
@@ -2514,7 +2514,7 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
   DCHECK(reinterpret_cast<uint64_t>(
              Assembler::target_address_at(pc_immediate_load_address)) ==
          reinterpret_cast<uint64_t>(
-             isolate->builtins()->OnStackReplacement()->entry()));
+             BUILTIN_CODE(isolate, OnStackReplacement)->entry()));
   return ON_STACK_REPLACEMENT;
 }
 

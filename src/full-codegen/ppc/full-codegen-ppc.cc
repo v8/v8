@@ -295,7 +295,7 @@ void FullCodeGenerator::Generate() {
     __ LoadRoot(ip, Heap::kStackLimitRootIndex);
     __ cmpl(sp, ip);
     __ bc_short(ge, &ok);
-    __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+    __ Call(BUILTIN_CODE(isolate(), StackCheck), RelocInfo::CODE_TARGET);
     __ bind(&ok);
   }
 
@@ -357,7 +357,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
     // BackEdgeTable::PatchAt manipulates this sequence.
     __ cmpi(r6, Operand::Zero());
     __ bc_short(ge, &ok);
-    __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+    __ Call(BUILTIN_CODE(isolate(), InterruptCheck), RelocInfo::CODE_TARGET);
 
     // Record a mapping of this PC offset to the OSR id.  This is used to find
     // the AST id from the unoptimized code in order to use it as a key into
@@ -387,7 +387,7 @@ void FullCodeGenerator::EmitProfilingCounterHandlingForReturnSequence(
   if (!is_tail_call) {
     __ push(r3);
   }
-  __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), InterruptCheck), RelocInfo::CODE_TARGET);
   if (!is_tail_call) {
     __ pop(r3);
   }
@@ -893,7 +893,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
   __ beq(&exit);
   __ bind(&convert);
-  __ Call(isolate()->builtins()->ToObject(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ToObject), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ bind(&done_convert);
   __ push(r3);
@@ -2028,7 +2028,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForTypeofValue(expr->expression());
       }
       __ mr(r6, r3);
-      __ Call(isolate()->builtins()->Typeof(), RelocInfo::CODE_TARGET);
+      __ Call(BUILTIN_CODE(isolate(), Typeof), RelocInfo::CODE_TARGET);
       context()->Plug(r3);
       break;
     }
@@ -2085,7 +2085,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Convert old value into a number.
-  __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  __ Call(BUILTIN_CODE(isolate(), ToNumber), RelocInfo::CODE_TARGET);
   RestoreContext();
 
   // Save result for postfix expressions.
@@ -2282,7 +2282,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForAccumulatorValue(expr->right());
       SetExpressionPosition(expr);
       PopOperand(r4);
-      __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
+      __ Call(BUILTIN_CODE(isolate(), InstanceOf), RelocInfo::CODE_TARGET);
       RestoreContext();
       __ CompareRoot(r3, Heap::kTrueValueRootIndex);
       Split(eq, if_true, if_false, fall_through);
@@ -2450,14 +2450,14 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 #endif
 
   if (Assembler::IsCmpImmediate(Assembler::instr_at(cmp_address))) {
-    DCHECK(interrupt_address == isolate->builtins()->InterruptCheck()->entry());
+    DCHECK(interrupt_address == BUILTIN_CODE(isolate, InterruptCheck)->entry());
     return INTERRUPT;
   }
 
   DCHECK(Assembler::IsCrSet(Assembler::instr_at(cmp_address)));
 
   DCHECK(interrupt_address ==
-         isolate->builtins()->OnStackReplacement()->entry());
+         BUILTIN_CODE(isolate, OnStackReplacement)->entry());
   return ON_STACK_REPLACEMENT;
 }
 }  // namespace internal
