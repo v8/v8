@@ -19857,6 +19857,17 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
 
 bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
                          v8::Module::ResolveCallback callback) {
+#ifdef DEBUG
+  if (FLAG_trace_module_status) {
+    OFStream os(stdout);
+    os << "Instantiating module ";
+    module->script()->GetNameOrSourceURL()->Print(os);
+#ifndef OBJECT_PRINT
+    os << "\n";
+#endif  // OBJECT_PRINT
+  }
+#endif  // DEBUG
+
   Isolate* isolate = module->GetIsolate();
   if (module->status() == kErrored) {
     isolate->Throw(module->GetException());
@@ -20072,6 +20083,17 @@ bool Module::FinishInstantiate(Handle<Module> module,
 }
 
 MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
+#ifdef DEBUG
+  if (FLAG_trace_module_status) {
+    OFStream os(stdout);
+    os << "Evaluating module ";
+    module->script()->GetNameOrSourceURL()->Print(os);
+#ifndef OBJECT_PRINT
+    os << "\n";
+#endif  // OBJECT_PRINT
+  }
+#endif  // DEBUG
+
   Isolate* isolate = module->GetIsolate();
   if (module->status() == kErrored) {
     isolate->Throw(module->GetException());
