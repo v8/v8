@@ -3402,11 +3402,12 @@ int TranslatedState::CreateNextTranslatedValue(
   return translated_value.GetChildrenCount();
 }
 
-TranslatedState::TranslatedState(JavaScriptFrame* frame)
+TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : isolate_(nullptr), stack_frame_pointer_(nullptr) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
-      static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
+      static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
+          &deopt_index);
   DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());

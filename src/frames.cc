@@ -1370,98 +1370,68 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
     return JavaScriptFrame::Summarize(frames);
   }
 
-  DisallowHeapAllocation no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* const data = GetDeoptimizationData(&deopt_index);
   if (deopt_index == Safepoint::kNoDeoptimizationIndex) {
-    DCHECK(data == nullptr);
+    CHECK_NULL(data);
     if (mode == FrameSummary::kApproximateSummary) {
       return JavaScriptFrame::Summarize(frames, mode);
     }
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
-  FixedArray* const literal_array = data->LiteralArray();
 
-  TranslationIterator it(data->TranslationByteArray(),
-                         data->TranslationIndex(deopt_index)->value());
-  Translation::Opcode frame_opcode =
-      static_cast<Translation::Opcode>(it.Next());
-  DCHECK_EQ(Translation::BEGIN, frame_opcode);
-  it.Next();  // Drop frame count.
-  int jsframe_count = it.Next();
+  // Prepare iteration over translation. Note that the below iteration might
+  // materialize objects without storing them back to the Isolate, this will
+  // lead to objects being re-materialized again for each summary.
+  TranslatedState translated(this);
+  translated.Prepare(fp());
 
   // We create the summary in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
   bool is_constructor = IsConstructor();
-  while (jsframe_count != 0) {
-    frame_opcode = static_cast<Translation::Opcode>(it.Next());
-    if (frame_opcode == Translation::INTERPRETED_FRAME ||
-        frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
-      jsframe_count--;
-      BailoutId const bailout_id = BailoutId(it.Next());
-      SharedFunctionInfo* const shared_info =
-          SharedFunctionInfo::cast(literal_array->get(it.Next()));
-      it.Next();  // Skip height.
+  for (auto it = translated.begin(); it != translated.end(); it++) {
+    if (it->kind() == TranslatedFrame::kInterpretedFunction ||
+        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
+      Handle<SharedFunctionInfo> shared_info = it->shared_info();
 
       // The translation commands are ordered and the function is always
       // at the first position, and the receiver is next.
-      Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+      TranslatedFrame::iterator translated_values = it->begin();
 
-      // Get the correct function in the optimized frame.
-      JSFunction* function;
-      if (opcode == Translation::LITERAL) {
-        function = JSFunction::cast(literal_array->get(it.Next()));
-      } else {
-        CHECK_EQ(opcode, Translation::STACK_SLOT);
-        function = JSFunction::cast(StackSlotAt(it.Next()));
-      }
-      DCHECK_EQ(shared_info, function->shared());
+      // Get or materialize the correct function in the optimized frame.
+      Handle<JSFunction> function =
+          Handle<JSFunction>::cast(translated_values->GetValue());
+      translated_values++;
 
-      // If we are at a call, the receiver is always in a stack slot.
-      // Otherwise we are not guaranteed to get the receiver value.
-      opcode = static_cast<Translation::Opcode>(it.Next());
+      // Get or materialize the correct receiver in the optimized frame.
+      Handle<Object> receiver = translated_values->GetValue();
+      translated_values++;
 
-      // Get the correct receiver in the optimized frame.
-      Object* receiver;
-      if (opcode == Translation::LITERAL) {
-        receiver = literal_array->get(it.Next());
-      } else if (opcode == Translation::STACK_SLOT) {
-        receiver = StackSlotAt(it.Next());
-      } else {
-        // The receiver is not in a stack slot nor in a literal.  We give up.
-        it.Skip(Translation::NumberOfOperandsFor(opcode));
-        // TODO(6586): Materializing a captured object (or duplicated
-        // object) is hard, we return undefined for now. This breaks the
-        // produced stack trace, as constructor frames aren't marked as
-        // such anymore.
-        receiver = isolate()->heap()->undefined_value();
-      }
-
-      AbstractCode* abstract_code;
-
+      // Determine the underlying code object and the position within it from
+      // the translation corresponding to the frame type in question.
+      Handle<AbstractCode> abstract_code;
       unsigned code_offset;
-      if (frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
+      if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
         code_offset = 0;
-        abstract_code = AbstractCode::cast(isolate()->builtins()->builtin(
-            Builtins::GetBuiltinFromBailoutId(bailout_id)));
+        abstract_code =
+            handle(AbstractCode::cast(isolate()->builtins()->builtin(
+                       Builtins::GetBuiltinFromBailoutId(it->node_id()))),
+                   isolate());
       } else {
-        DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
-        code_offset = bailout_id.ToInt();  // Points to current bytecode.
-        abstract_code = AbstractCode::cast(shared_info->bytecode_array());
+        DCHECK_EQ(it->kind(), TranslatedFrame::kInterpretedFunction);
+        code_offset = it->node_id().ToInt();  // Points to current bytecode.
+        abstract_code = handle(shared_info->abstract_code(), isolate());
       }
-      FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver,
-                                                   function, abstract_code,
+
+      // Append full summary of the encountered JS frame.
+      FrameSummary::JavaScriptFrameSummary summary(isolate(), *receiver,
+                                                   *function, *abstract_code,
                                                    code_offset, is_constructor);
       frames->Add(summary);
       is_constructor = false;
-    } else if (frame_opcode == Translation::CONSTRUCT_STUB_FRAME) {
-      // The next encountered JS_FRAME will be marked as a constructor call.
-      it.Skip(Translation::NumberOfOperandsFor(frame_opcode));
-      DCHECK(!is_constructor);
+    } else if (it->kind() == TranslatedFrame::kConstructStub) {
+      // The next encountered JS frame will be marked as a constructor call.
       is_constructor = true;
-    } else {
-      // Skip over operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(frame_opcode));
     }
   }
   DCHECK(!is_constructor);

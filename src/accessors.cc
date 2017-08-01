@@ -822,7 +822,6 @@ static Handle<Object> ArgumentsForInlinedFunction(
 
 static int FindFunctionInFrame(JavaScriptFrame* frame,
                                Handle<JSFunction> function) {
-  DisallowHeapAllocation no_allocation;
   List<FrameSummary> frames(2);
   frame->Summarize(&frames);
   for (int i = frames.length() - 1; i >= 0; i--) {

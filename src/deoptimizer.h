@@ -244,7 +244,7 @@ class TranslatedFrame {
 class TranslatedState {
  public:
   TranslatedState();
-  explicit TranslatedState(JavaScriptFrame* frame);
+  explicit TranslatedState(const JavaScriptFrame* frame);
 
   void Prepare(Address stack_frame_pointer);
 
