@@ -1847,6 +1847,73 @@ void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
   }
 }
 
+template <typename T>
+void Simulator::TraceMemRd(int64_t addr, T value) {
+  if (::v8::internal::FLAG_trace_sim) {
+    switch (sizeof(T)) {
+      case 1:
+        SNPrintF(trace_buf_,
+                 "%08" PRIx8 " <-- [%08" PRIx64 "]    (%" PRIu64
+                 ")    int8:%" PRId8 " uint8:%" PRIu8,
+                 static_cast<uint8_t>(value), addr, icount_,
+                 static_cast<int8_t>(value), static_cast<uint8_t>(value));
+        break;
+      case 2:
+        SNPrintF(trace_buf_,
+                 "%08" PRIx16 " <-- [%08" PRIx64 "]    (%" PRIu64
+                 ")    int16:%" PRId16 " uint16:%" PRIu16,
+                 static_cast<uint16_t>(value), addr, icount_,
+                 static_cast<int16_t>(value), static_cast<uint16_t>(value));
+        break;
+      case 4:
+        SNPrintF(trace_buf_,
+                 "%08" PRIx32 " <-- [%08" PRIx64 "]    (%" PRIu64
+                 ")    int32:%" PRId32 " uint32:%" PRIu32,
+                 static_cast<uint32_t>(value), addr, icount_,
+                 static_cast<int32_t>(value), static_cast<uint32_t>(value));
+        break;
+      case 8:
+        SNPrintF(trace_buf_,
+                 "%08" PRIx64 " <-- [%08" PRIx64 "]    (%" PRIu64
+                 ")    int64:%" PRId64 " uint64:%" PRIu64,
+                 static_cast<uint64_t>(value), addr, icount_,
+                 static_cast<int64_t>(value), static_cast<uint64_t>(value));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+template <typename T>
+void Simulator::TraceMemWr(int64_t addr, T value) {
+  if (::v8::internal::FLAG_trace_sim) {
+    switch (sizeof(T)) {
+      case 1:
+        SNPrintF(trace_buf_,
+                 "      %02" PRIx8 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                 static_cast<uint8_t>(value), addr, icount_);
+        break;
+      case 2:
+        SNPrintF(trace_buf_,
+                 "    %04" PRIx16 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                 static_cast<uint16_t>(value), addr, icount_);
+        break;
+      case 4:
+        SNPrintF(trace_buf_,
+                 "%08" PRIx32 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                 static_cast<uint32_t>(value), addr, icount_);
+        break;
+      case 8:
+        SNPrintF(trace_buf_,
+                 "%16" PRIx64 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                 static_cast<uint64_t>(value), addr, icount_);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
 
 // TODO(plind): sign-extend and zero-extend not implmented properly
 // on all the ReadXX functions, I don't think re-interpret cast does it.
@@ -2058,6 +2125,35 @@ void Simulator::WriteB(int64_t addr, int8_t value) {
   *ptr = value;
 }
 
+template <typename T>
+T Simulator::ReadMem(int64_t addr, Instruction* instr) {
+  int alignment_mask = (1 << sizeof(T)) - 1;
+  if ((addr & alignment_mask) == 0 || kArchVariant == kMips64r6) {
+    T* ptr = reinterpret_cast<T*>(addr);
+    TraceMemRd(addr, *ptr);
+    return *ptr;
+  }
+  PrintF("Unaligned read of type sizeof(%ld) at 0x%08lx, pc=0x%08" V8PRIxPTR
+         "\n",
+         sizeof(T), addr, reinterpret_cast<intptr_t>(instr));
+  base::OS::Abort();
+  return 0;
+}
+
+template <typename T>
+void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
+  int alignment_mask = (1 << sizeof(T)) - 1;
+  if ((addr & alignment_mask) == 0 || kArchVariant == kMips64r6) {
+    T* ptr = reinterpret_cast<T*>(addr);
+    *ptr = value;
+    TraceMemWr(addr, value);
+    return;
+  }
+  PrintF("Unaligned write of type sizeof(%ld) at 0x%08lx, pc=0x%08" V8PRIxPTR
+         "\n",
+         sizeof(T), addr, reinterpret_cast<intptr_t>(instr));
+  base::OS::Abort();
+}
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
@@ -4965,13 +5061,65 @@ void Simulator::DecodeTypeMsaMI10() {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaMI10Mask;
+  int64_t s10 = (static_cast<int64_t>(instr_.MsaImmMI10Value()) << 54) >> 54;
+  int64_t rs = get_register(instr_.WsValue());
+  int64_t addr;
+  msa_reg_t wd;
+
+#define MSA_MI10_LOAD(elem, num_of_lanes, T)       \
+  for (int i = 0; i < num_of_lanes; ++i) {         \
+    addr = rs + (s10 + i) * sizeof(T);             \
+    wd.elem[i] = ReadMem<T>(addr, instr_.instr()); \
+  }                                                \
+  set_msa_register(instr_.WdValue(), wd.elem);
+
+#define MSA_MI10_STORE(elem, num_of_lanes, T)      \
+  get_msa_register(instr_.WdValue(), wd.elem);     \
+  for (int i = 0; i < num_of_lanes; ++i) {         \
+    addr = rs + (s10 + i) * sizeof(T);             \
+    WriteMem<T>(addr, wd.elem[i], instr_.instr()); \
+  }
+
   if (opcode == MSA_LD) {
-    UNIMPLEMENTED();
+    switch (DecodeMsaDataFormat()) {
+      case MSA_BYTE:
+        MSA_MI10_LOAD(b, kMSALanesByte, int8_t);
+        break;
+      case MSA_HALF:
+        MSA_MI10_LOAD(h, kMSALanesHalf, int16_t);
+        break;
+      case MSA_WORD:
+        MSA_MI10_LOAD(w, kMSALanesWord, int32_t);
+        break;
+      case MSA_DWORD:
+        MSA_MI10_LOAD(d, kMSALanesDword, int64_t);
+        break;
+      default:
+        UNREACHABLE();
+    }
   } else if (opcode == MSA_ST) {
-    UNIMPLEMENTED();
+    switch (DecodeMsaDataFormat()) {
+      case MSA_BYTE:
+        MSA_MI10_STORE(b, kMSALanesByte, int8_t);
+        break;
+      case MSA_HALF:
+        MSA_MI10_STORE(h, kMSALanesHalf, int16_t);
+        break;
+      case MSA_WORD:
+        MSA_MI10_STORE(w, kMSALanesWord, int32_t);
+        break;
+      case MSA_DWORD:
+        MSA_MI10_STORE(d, kMSALanesDword, int64_t);
+        break;
+      default:
+        UNREACHABLE();
+    }
   } else {
     UNREACHABLE();
   }
+
+#undef MSA_MI10_LOAD
+#undef MSA_MI10_STORE
 }
 
 void Simulator::DecodeTypeMsa3R() {

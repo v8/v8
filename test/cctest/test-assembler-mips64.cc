@@ -8437,4 +8437,76 @@ TEST(MSA_ldi) {
 #undef LDI_DF
 }
 
+template <typename T, typename InstFunc>
+void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  T in_test_vector[1024];
+  T out_test_vector[1024];
+
+  T* in_array_middle = in_test_vector + arraysize(in_test_vector) / 2;
+  T* out_array_middle = out_test_vector + arraysize(out_test_vector) / 2;
+
+  v8::base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  for (unsigned int i = 0; i < arraysize(in_test_vector); i++) {
+    in_test_vector[i] = static_cast<T>(rand_gen.NextInt());
+    out_test_vector[i] = 0;
+  }
+
+  GenerateVectorInstructionFunc(assm);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, in_array_middle, out_array_middle, 0, 0, 0));
+
+  CHECK_EQ(memcmp(in_test_vector, out_test_vector, arraysize(in_test_vector)),
+           0);
+}
+
+TEST(MSA_load_store_vector) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  run_msa_mi10<uint8_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 16) {
+      __ ld_b(w0, MemOperand(a0, i));
+      __ st_b(w0, MemOperand(a1, i));
+    }
+  });
+  run_msa_mi10<uint16_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 8) {
+      __ ld_h(w0, MemOperand(a0, i));
+      __ st_h(w0, MemOperand(a1, i));
+    }
+  });
+  run_msa_mi10<uint32_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 4) {
+      __ ld_w(w0, MemOperand(a0, i));
+      __ st_w(w0, MemOperand(a1, i));
+    }
+  });
+  run_msa_mi10<uint64_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 2) {
+      __ ld_d(w0, MemOperand(a0, i));
+      __ st_d(w0, MemOperand(a1, i));
+    }
+  });
+#undef LDI_DF
+}
+
 #undef __
