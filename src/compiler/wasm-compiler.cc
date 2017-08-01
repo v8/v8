@@ -1830,12 +1830,18 @@ Node* WasmGraphBuilder::Throw(Node* input) {
                             arraysize(parameters));
 }
 
+Node* WasmGraphBuilder::Rethrow() {
+  SetNeedsStackCheck();
+  Node* result = BuildCallToRuntime(Runtime::kWasmRethrow, nullptr, 0);
+  return result;
+}
+
 Node* WasmGraphBuilder::Catch(Node* input, wasm::WasmCodePosition position) {
   SetNeedsStackCheck();
   CommonOperatorBuilder* common = jsgraph()->common();
 
   Node* parameters[] = {input};  // caught value
-  Node* value = BuildCallToRuntime(Runtime::kWasmGetCaughtExceptionValue,
+  Node* value = BuildCallToRuntime(Runtime::kWasmSetCaughtExceptionValue,
                                    parameters, arraysize(parameters));
 
   Node* is_smi;

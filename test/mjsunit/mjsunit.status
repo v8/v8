@@ -177,9 +177,6 @@
 
   # BUG(v8:6306).
   'wasm/huge-memory': [SKIP],
-
-  # BUG(v8:6577).
-  'wasm/exceptions': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {

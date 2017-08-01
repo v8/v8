@@ -186,6 +186,9 @@ class FunctionBodyDecoderTest : public TestWithZone {
 };
 
 namespace {
+
+constexpr size_t kMaxByteSizedLeb128 = 127;
+
 // A helper for tests that require a module environment for functions,
 // globals, or memories.
 class TestModuleEnv : public ModuleEnv {
@@ -196,12 +199,12 @@ class TestModuleEnv : public ModuleEnv {
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
-    CHECK(mod.globals.size() <= 127);
+    CHECK(mod.globals.size() <= kMaxByteSizedLeb128);
     return static_cast<byte>(mod.globals.size() - 1);
   }
   byte AddSignature(FunctionSig* sig) {
     mod.signatures.push_back(sig);
-    CHECK(mod.signatures.size() <= 127);
+    CHECK(mod.signatures.size() <= kMaxByteSizedLeb128);
     return static_cast<byte>(mod.signatures.size() - 1);
   }
   byte AddFunction(FunctionSig* sig) {
@@ -212,13 +215,18 @@ class TestModuleEnv : public ModuleEnv {
                              {0, 0},   // code
                              false,    // import
                              false});  // export
-    CHECK(mod.functions.size() <= 127);
+    CHECK(mod.functions.size() <= kMaxByteSizedLeb128);
     return static_cast<byte>(mod.functions.size() - 1);
   }
   byte AddImport(FunctionSig* sig) {
     byte result = AddFunction(sig);
     mod.functions[result].imported = true;
     return result;
+  }
+  byte AddException(WasmExceptionSig* sig) {
+    mod.exceptions.emplace_back(sig);
+    CHECK(mod.signatures.size() <= kMaxByteSizedLeb128);
+    return static_cast<byte>(mod.exceptions.size() - 1);
   }
 
   void InitializeMemory() {
@@ -2233,28 +2241,53 @@ TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
-  // TODO(kschimpf): Need to fix throw to use declared exception.
-  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow);
+  TestModuleEnv module_env;
+  module = &module_env;
 
-  EXPECT_FAILURE(i_d, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
-  EXPECT_FAILURE(i_f, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
-  EXPECT_FAILURE(l_l, WASM_GET_LOCAL(0), kExprThrow, WASM_I64V(0));
+  module_env.AddException(sigs.v_v());
+  module_env.AddException(sigs.v_i());
+  AddLocals(kWasmI32, 1);
+
+  EXPECT_VERIFIES(v_v, kExprThrow, 0);
+
+  // exception index out of range.
+  EXPECT_FAILURE(v_v, kExprThrow, 2);
+
+  // TODO(kschimpf): Fix when we can create exceptions with values.
+  EXPECT_FAILURE(v_v, WASM_I32V(0), kExprThrow, 1);
+
+  // TODO(kschimpf): Add more tests.
 }
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
   // TODO(titzer): unreachable code after throw should validate.
-  // EXPERIMENTAL_FLAG_SCOPE(eh);
-  // EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, kExprSetLocal, 0);
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  TestModuleEnv module_env;
+  module = &module_env;
+
+  module_env.AddException(sigs.v_v());
+  module_env.AddException(sigs.v_i());
+  AddLocals(kWasmI32, 1);
+  EXPECT_VERIFIES(i_i, kExprThrow, 0, WASM_GET_LOCAL(0));
+
+  // TODO(kschimpf): Add more (block-level) tests of unreachable to see
+  // if they validate.
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
 
-#define WASM_CATCH(local) kExprCatch, static_cast<byte>(local)
+#define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
+
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.AddException(sigs.v_v());
+  module_env.AddException(sigs.v_v());
+
   // TODO(kschimpf): Need to fix catch to use declared exception.
-  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
 
   // Missing catch.
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);
@@ -2263,7 +2296,8 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0));
 
   // Double catch.
-  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), WASM_CATCH(0), kExprEnd);
+  // TODO(kschimpf): Fix this to verify.
+  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), WASM_CATCH(1), kExprEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
@@ -2416,7 +2450,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(1, kExprSelect);
   EXPECT_LENGTH(2, kExprBr);
   EXPECT_LENGTH(2, kExprBrIf);
-  EXPECT_LENGTH(1, kExprThrow);
+  EXPECT_LENGTH(2, kExprThrow);
   EXPECT_LENGTH(2, kExprTry);
   EXPECT_LENGTH(2, kExprCatch);
 }
