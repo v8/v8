@@ -607,6 +607,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
+  if (may_have_interesting_symbols()) os << "\n - may_have_interesting_symbols";
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";

@@ -3646,6 +3646,11 @@ Node* CodeStubAssembler::IsSymbol(Node* object) {
   return IsSymbolMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsPrimitiveInstanceType(Node* instance_type) {
+  return Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_PRIMITIVE_TYPE));
+}
+
 Node* CodeStubAssembler::IsPrivateSymbol(Node* object) {
   return Select(
       IsSymbol(object),

@@ -959,6 +959,7 @@ void Genesis::CreateJSProxyMaps() {
   Handle<Map> proxy_map =
       factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize, PACKED_ELEMENTS);
   proxy_map->set_dictionary_map(true);
+  proxy_map->set_may_have_interesting_symbols(true);
   native_context()->set_proxy_map(*proxy_map);
 
   Handle<Map> proxy_callable_map = Map::Copy(proxy_map, "callable Proxy");
@@ -1111,6 +1112,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
 
   js_global_object_function->initial_map()->set_is_prototype_map(true);
   js_global_object_function->initial_map()->set_dictionary_map(true);
+  js_global_object_function->initial_map()->set_may_have_interesting_symbols(
+      true);
   Handle<JSGlobalObject> global_object =
       factory()->NewJSGlobalObject(js_global_object_function);
 
@@ -1135,6 +1138,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   global_proxy_function->initial_map()->set_is_access_check_needed(true);
   global_proxy_function->initial_map()->set_has_hidden_prototype(true);
+  global_proxy_function->initial_map()->set_may_have_interesting_symbols(true);
   native_context()->set_global_proxy_function(*global_proxy_function);
 
   // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
@@ -1384,7 +1388,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Builtins::kObjectPrototypePropertyIsEnumerable, 1, false);
     Handle<JSFunction> object_to_string = SimpleInstallFunction(
         isolate->initial_object_prototype(), factory->toString_string(),
-        Builtins::kObjectProtoToString, 0, true);
+        Builtins::kObjectPrototypeToString, 0, true);
     native_context()->set_object_to_string(*object_to_string);
     Handle<JSFunction> object_value_of = SimpleInstallFunction(
         isolate->initial_object_prototype(), "valueOf",
@@ -5289,6 +5293,7 @@ Genesis::Genesis(Isolate* isolate,
       JS_GLOBAL_PROXY_TYPE, proxy_size, HOLEY_SMI_ELEMENTS);
   global_proxy_map->set_is_access_check_needed(true);
   global_proxy_map->set_has_hidden_prototype(true);
+  global_proxy_map->set_may_have_interesting_symbols(true);
 
   // A remote global proxy has no native context.
   global_proxy->set_native_context(heap()->null_value());

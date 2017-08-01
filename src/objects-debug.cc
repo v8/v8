@@ -438,6 +438,18 @@ void Map::MapVerify() {
   SLOW_DCHECK(TransitionsAccessor(this, &no_gc).IsConsistentWithBackPointers());
   SLOW_DCHECK(!FLAG_unbox_double_fields ||
               layout_descriptor()->IsConsistentWithMap(this));
+  if (!may_have_interesting_symbols()) {
+    CHECK(!has_named_interceptor());
+    CHECK(!is_dictionary_map());
+    CHECK(!is_access_check_needed());
+    DescriptorArray* const descriptors = instance_descriptors();
+    for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
+      CHECK(!descriptors->GetKey(i)->IsInterestingSymbol());
+    }
+  }
+  CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_symbols());
+  CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_symbols());
+  CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_symbols());
 }
 
 

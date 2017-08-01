@@ -143,7 +143,7 @@ class Map : public HeapObject {
   class IsMigrationTarget : public BitField<bool, 25, 1> {};
   class ImmutablePrototype : public BitField<bool, 26, 1> {};
   class NewTargetIsBase : public BitField<bool, 27, 1> {};
-  // Bit 28 is free.
+  class MayHaveInterestingSymbols : public BitField<bool, 28, 1> {};
 
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
@@ -218,6 +218,13 @@ class Map : public HeapObject {
   // This property is implemented according to ES6, section 7.2.4.
   inline void set_is_constructor(bool value);
   inline bool is_constructor() const;
+
+  // Tells whether the instance with this map may have properties for
+  // interesting symbols on it.
+  // An "interesting symbol" is one for which Name::IsInterestingSymbol()
+  // returns true, i.e. a well-known symbol like @@toStringTag.
+  inline void set_may_have_interesting_symbols(bool value);
+  inline bool may_have_interesting_symbols() const;
 
   // Tells whether the instance with this map has a hidden prototype.
   inline void set_has_hidden_prototype(bool value);

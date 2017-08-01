@@ -860,6 +860,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsName(Node* object);
   Node* IsNativeContext(Node* object);
   Node* IsOneByteStringInstanceType(Node* instance_type);
+  Node* IsPrimitiveInstanceType(Node* instance_type);
   Node* IsPrivateSymbol(Node* object);
   Node* IsPropertyArray(Node* object);
   Node* IsPropertyCell(Node* object);

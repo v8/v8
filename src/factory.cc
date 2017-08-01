@@ -1901,6 +1901,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // Create a new map for the global object.
   Handle<Map> new_map = Map::CopyDropDescriptors(map);
+  new_map->set_may_have_interesting_symbols(true);
   new_map->set_dictionary_map(true);
 
   // Set up the global object as a normalized object.
@@ -2422,6 +2423,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, size);
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
+  map->set_may_have_interesting_symbols(true);
   CALL_HEAP_FUNCTION(
       isolate(), isolate()->heap()->AllocateJSObjectFromMap(*map, NOT_TENURED),
       JSGlobalProxy);

@@ -3500,6 +3500,14 @@ bool Map::new_target_is_base() const {
   return NewTargetIsBase::decode(bit_field3());
 }
 
+void Map::set_may_have_interesting_symbols(bool value) {
+  set_bit_field3(MayHaveInterestingSymbols::update(bit_field3(), value));
+}
+
+bool Map::may_have_interesting_symbols() const {
+  return MayHaveInterestingSymbols::decode(bit_field3());
+}
+
 void Map::set_construction_counter(int value) {
   set_bit_field3(ConstructionCounter::update(bit_field3(), value));
 }
@@ -4223,6 +4231,11 @@ void Map::AppendDescriptor(Descriptor* desc) {
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
   descriptors->Append(desc);
   SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
+
+  // Properly mark the map if the {desc} is an "interesting symbol".
+  if (desc->GetKey()->IsInterestingSymbol()) {
+    set_may_have_interesting_symbols(true);
+  }
 
 // This function does not support appending double field descriptors and
 // it should never try to (otherwise, layout descriptor must be updated too).

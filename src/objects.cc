@@ -6084,6 +6084,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   // Allocate new map.
   Handle<Map> new_map = Map::CopyDropDescriptors(old_map);
+  new_map->set_may_have_interesting_symbols(new_map->has_named_interceptor() ||
+                                            new_map->is_access_check_needed());
   new_map->set_dictionary_map(false);
 
   NotifyMapChange(old_map, new_map, isolate);
@@ -6133,6 +6135,11 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
     CHECK(k->IsUniqueName());
     Handle<Name> key(k, isolate);
+
+    // Properly mark the {new_map} if the {key} is an "interesting symbol".
+    if (key->IsInterestingSymbol()) {
+      new_map->set_may_have_interesting_symbols(true);
+    }
 
     Object* value = dictionary->ValueAt(index);
 
@@ -8879,6 +8886,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
 
   result->set_dictionary_map(true);
   result->set_migration_target(false);
+  result->set_may_have_interesting_symbols(true);
   result->set_construction_counter(kNoSlackTracking);
 
 #ifdef VERIFY_HEAP
@@ -8988,6 +8996,11 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   Handle<Map> result = CopyDropDescriptors(map);
   Handle<Name> name = descriptor->GetKey();
 
+  // Properly mark the {result} if the {name} is an "interesting symbol".
+  if (name->IsInterestingSymbol()) {
+    result->set_may_have_interesting_symbols(true);
+  }
+
   // Ensure there's space for the new descriptor in the shared descriptor array.
   if (descriptors->NumberOfSlackDescriptors() == 0) {
     int old_size = descriptors->number_of_descriptors();
@@ -9085,13 +9098,18 @@ Handle<Map> Map::CopyReplaceDescriptors(
 
   Handle<Map> result = CopyDropDescriptors(map);
 
+  // Properly mark the {result} if the {name} is an "interesting symbol".
+  Handle<Name> name;
+  if (maybe_name.ToHandle(&name) && name->IsInterestingSymbol()) {
+    result->set_may_have_interesting_symbols(true);
+  }
+
   if (!map->is_prototype_map()) {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(map).CanHaveMoreTransitions()) {
       result->InitializeDescriptors(*descriptors, *layout_descriptor);
 
-      Handle<Name> name;
-      CHECK(maybe_name.ToHandle(&name));
+      DCHECK(!maybe_name.is_null());
       ConnectTransition(map, result, name, simple_flag);
     } else {
       descriptors->GeneralizeAllFields();
@@ -9195,6 +9213,9 @@ void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
+  if (name->IsInterestingSymbol()) {
+    child->set_may_have_interesting_symbols(true);
+  }
   ConnectTransition(parent, child, name, SIMPLE_PROPERTY_TRANSITION);
 }
 

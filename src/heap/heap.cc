@@ -2594,7 +2594,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, native_context)
-    native_context_map()->set_dictionary_map(true);
     native_context_map()->set_visitor_id(kVisitNativeContext);
 
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
@@ -2922,6 +2921,9 @@ void Heap::CreateInitialObjects() {
   roots_[k##name##RootIndex] = *name;
     WELL_KNOWN_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
+
+    // Mark "Interesting Symbols" appropriately.
+    to_string_tag_symbol->set_is_interesting_symbol(true);
   }
 
   Handle<NameDictionary> empty_property_dictionary =

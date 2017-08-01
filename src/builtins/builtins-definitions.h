@@ -737,7 +737,7 @@ namespace internal {
   CPP(ObjectLookupSetter)                                                      \
   CPP(ObjectPreventExtensions)                                                 \
   /* ES6 #sec-object.prototype.tostring */                                     \
-  TFJ(ObjectProtoToString, 0)                                                  \
+  TFJ(ObjectPrototypeToString, 0)                                              \
   /* ES6 #sec-object.prototype.valueof */                                      \
   TFJ(ObjectPrototypeValueOf, 0)                                               \
   TFJ(ObjectPrototypeIsPrototypeOf, 1, kValue)                                 \
