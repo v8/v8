@@ -594,11 +594,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void AbortCompaction();
 
-  INLINE(static bool ShouldSkipEvacuationSlotRecording(Object* host)) {
-    return Page::FromAddress(reinterpret_cast<Address>(host))
-        ->ShouldSkipEvacuationSlotRecording();
-  }
-
   static inline bool IsOnEvacuationCandidate(HeapObject* obj) {
     return Page::FromAddress(reinterpret_cast<Address>(obj))
         ->IsEvacuationCandidate();
@@ -606,9 +601,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
-  INLINE(void RecordSlot(HeapObject* object, Object** slot, Object* target));
-  INLINE(void ForceRecordSlot(HeapObject* object, Object** slot,
-                              Object* target));
+  V8_INLINE static void RecordSlot(HeapObject* object, Object** slot,
+                                   Object* target);
   void RecordLiveSlotsOnPage(Page* page);
 
   void UpdateSlots(SlotsBuffer* buffer);

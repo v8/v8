@@ -1253,7 +1253,6 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
-    MarkCompactCollector* collector = heap_->mark_compact_collector();
     Object* the_hole = heap_->the_hole_value();
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
@@ -1267,7 +1266,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
         } else {
           // StringTable contains only old space strings.
           DCHECK(!heap_->InNewSpace(o));
-          collector->RecordSlot(table_, p, o);
+          MarkCompactCollector::RecordSlot(table_, p, o);
         }
       }
     }
@@ -3150,7 +3149,7 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
   if (target_page->IsEvacuationCandidate() &&
       (rinfo->host() == NULL ||
-       !ShouldSkipEvacuationSlotRecording(rinfo->host()))) {
+       !source_page->ShouldSkipEvacuationSlotRecording())) {
     RelocInfo::Mode rmode = rinfo->rmode();
     Address addr = rinfo->pc();
     SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
@@ -3824,7 +3823,7 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
   RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, start, end);
 
   if (heap_->incremental_marking()->IsCompacting() &&
-      !ShouldSkipEvacuationSlotRecording(code)) {
+      !page->ShouldSkipEvacuationSlotRecording()) {
     DCHECK(compacting_);
 
     // If the object is white than no slots were recorded on it yet.
