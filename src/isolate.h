@@ -326,6 +326,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   Context* context_;
   ThreadId thread_id_;
   Object* pending_exception_;
+  // TODO(kschimpf): Change this to a stack of caught exceptions (rather than
+  // just innermost catching try block).
+  Object* wasm_caught_exception_;
 
   // Communication channel between Isolate::FindHandler and the CEntryStub.
   Context* pending_handler_context_;
@@ -601,6 +604,11 @@ class Isolate {
   inline Object* pending_exception();
   inline void set_pending_exception(Object* exception_obj);
   inline void clear_pending_exception();
+
+  // Interface to wasm caught exception.
+  inline Object* get_wasm_caught_exception() const;
+  inline void set_wasm_caught_exception(Object* exception_obj);
+  inline void clear_wasm_caught_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
 

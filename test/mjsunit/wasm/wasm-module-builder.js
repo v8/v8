@@ -153,6 +153,7 @@ class WasmModuleBuilder {
     this.imports = [];
     this.exports = [];
     this.globals = [];
+    this.exceptions = [];
     this.functions = [];
     this.function_table = [];
     this.function_table_length = 0;
@@ -206,6 +207,13 @@ class WasmModuleBuilder {
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
     return glob;
+  }
+
+  addException(type) {
+    if (type.results.length != 0)
+      throw new Error('Invalid exception signature: ' + type);
+    this.exceptions.push(type);
+    return this.exceptions.length - 1;
   }
 
   addFunction(name, type) {
@@ -482,6 +490,20 @@ class WasmModuleBuilder {
           section.emit_u32v(init.array.length);
           for (let index of init.array) {
             section.emit_u32v(index);
+          }
+        }
+      });
+    }
+
+    // Add exceptions.
+    if (wasm.exceptions.length > 0) {
+      if (debug) print("emitting exceptions @ " + binary.length);
+      binary.emit_section(kExceptionSectionCode, section => {
+        section.emit_u32v(wasm.exceptions.length);
+        for (let type of wasm.exceptions) {
+          section.emit_u32v(type.params.length);
+          for (let param of type.params) {
+            section.enit_u8(param);
           }
         }
       });

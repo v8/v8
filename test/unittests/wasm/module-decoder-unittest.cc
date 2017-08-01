@@ -50,9 +50,15 @@ namespace wasm {
 #define EMPTY_FUNCTION_SIGNATURES_SECTION SECTION(Function, 1), 0
 #define EMPTY_FUNCTION_BODIES_SECTION SECTION(Code, 1), 0
 #define SECTION_NAMES(size) SECTION(Unknown, size + 5), 4, 'n', 'a', 'm', 'e'
-#define SECTION_EXCEPTIONS(size) \
-  SECTION(Unknown, size + 10), 9, 'e', 'x', 'c', 'e', 'p', 't', 'i', 'o', 'n'
+#define SECTION_EXCEPTIONS(size) SECTION(Exception, size)
 #define EMPTY_NAMES_SECTION SECTION_NAMES(1), 0
+
+#define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
+  do {                                                                   \
+    ModuleResult result = DecodeModule((data), (data) + sizeof((data))); \
+    EXPECT_FALSE(result.ok());                                           \
+    EXPECT_EQ(0u, result.val->exceptions.size());                        \
+  } while (0)
 
 #define X1(...) __VA_ARGS__
 #define X2(...) __VA_ARGS__, __VA_ARGS__
@@ -369,92 +375,62 @@ TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {
       SECTION_EXCEPTIONS(1), 0,
   };
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
-  {
-    // Should decode exception section with no exceptions
-    EXPERIMENTAL_FLAG_SCOPE(eh);
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(0u, result.val->exceptions.size());
-  }
-  {
-    // Should read exception section as unknown section.
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(0u, result.val->exceptions.size());
-  }
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(0u, result.val->exceptions.size());
 }
 
 TEST_F(WasmModuleVerifyTest, OneI32Exception) {
   static const byte data[] = {
       SECTION_EXCEPTIONS(3), 1,
-      1,  // except[0] (i32)
-      kLocalI32,
+      // except[0] (i32)
+      1, kLocalI32,
   };
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
-  {
-    // Should decode to exactly one exception
-    EXPERIMENTAL_FLAG_SCOPE(eh);
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(1u, result.val->exceptions.size());
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(1u, result.val->exceptions.size());
 
-    const WasmException& e0 = result.val->exceptions.front();
-    EXPECT_EQ(1u, e0.sig->parameter_count());
-    EXPECT_EQ(MachineRepresentation::kWord32, e0.sig->GetParam(0));
-  }
-  {
-    // Should read exception section as unknown section.
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(0u, result.val->exceptions.size());
-  }
+  const WasmException& e0 = result.val->exceptions.front();
+  EXPECT_EQ(1u, e0.sig->parameter_count());
+  EXPECT_EQ(MachineRepresentation::kWord32, e0.sig->GetParam(0));
 }
 
 TEST_F(WasmModuleVerifyTest, TwoExceptions) {
-  static const byte data[] = {SECTION_EXCEPTIONS(6),
-                              2,
-                              2,  // except[0] (f32, i64)
-                              kLocalF32,
-                              kLocalI64,
-                              1,  // except[1] (i32)
-                              kLocalI32};
-  {
-    // Should decode to exactly two exceptions
-    EXPERIMENTAL_FLAG_SCOPE(eh);
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(2u, result.val->exceptions.size());
-    const WasmException& e0 = result.val->exceptions.front();
-    EXPECT_EQ(2u, e0.sig->parameter_count());
-    EXPECT_EQ(MachineRepresentation::kFloat32, e0.sig->GetParam(0));
-    EXPECT_EQ(MachineRepresentation::kWord64, e0.sig->GetParam(1));
-  }
-  {
-    // Should read exception section as unknown section.
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(0u, result.val->exceptions.size());
-  }
+  static const byte data[] = {SECTION_EXCEPTIONS(6), 2,
+                              // except[0] (f32, i64)
+                              2, kLocalF32, kLocalI64,
+                              // except[1] (i32)
+                              1, kLocalI32};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(2u, result.val->exceptions.size());
+  const WasmException& e0 = result.val->exceptions.front();
+  EXPECT_EQ(2u, e0.sig->parameter_count());
+  EXPECT_EQ(MachineRepresentation::kFloat32, e0.sig->GetParam(0));
+  EXPECT_EQ(MachineRepresentation::kWord64, e0.sig->GetParam(1));
+  const WasmException& e1 = result.val->exceptions.back();
+  EXPECT_EQ(MachineRepresentation::kWord32, e1.sig->GetParam(0));
 }
 
 TEST_F(WasmModuleVerifyTest, Exception_invalid_type) {
   static const byte data[] = {SECTION_EXCEPTIONS(3), 1,
-                              1,  // except[0] (?)
-                              64};
+                              // except[0] (?)
+                              1, 64};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
-  {
-    // Should fail decoding exception section.
-    EXPERIMENTAL_FLAG_SCOPE(eh);
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_FALSE(result.ok());
-  }
-  {
-    // Should read exception section as unknown section.
-    ModuleResult result = DecodeModule(data, data + sizeof(data));
-    EXPECT_OK(result);
-    EXPECT_EQ(0u, result.val->exceptions.size());
-  }
+  // Should fail decoding exception section.
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
 }
 
 TEST_F(WasmModuleVerifyTest, OneSignature) {

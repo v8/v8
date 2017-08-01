@@ -142,6 +142,8 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
+  // TODO(kschimpf): Change this to build a runtime exception with
+  // wasm properties, instead of just an integer.
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(lower, 0);
@@ -156,7 +158,15 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   return isolate->Throw(*isolate->factory()->NewNumberFromInt(thrown_value));
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGetCaughtExceptionValue) {
+RUNTIME_FUNCTION(Runtime_WasmRethrow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Object* exception = isolate->get_wasm_caught_exception();
+  isolate->clear_wasm_caught_exception();
+  return isolate->Throw(exception);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmSetCaughtExceptionValue) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Object* exception = args[0];
@@ -164,6 +174,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetCaughtExceptionValue) {
   // Number or a Smi (which we have just converted to a Number.) This logic
   // lives in Isolate::is_catchable_by_wasm(Object*).
   CHECK(exception->IsNumber());
+  isolate->set_wasm_caught_exception(exception);
   return exception;
 }
 

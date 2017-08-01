@@ -31,9 +31,9 @@ namespace wasm {
 #endif
 namespace {
 
-const char kNameString[] = "name";
-
-const char kExceptionString[] = "exception";
+constexpr char kNameString[] = "name";
+constexpr char kExceptionString[] = "exception";
+constexpr char kUnknownString[] = "<unknown>";
 
 template <size_t N>
 constexpr size_t num_chars(const char (&)[N]) {
@@ -71,9 +71,10 @@ const char* SectionName(SectionCode code) {
     case kNameSectionCode:
       return kNameString;
     case kExceptionSectionCode:
-      return kExceptionString;
+      if (FLAG_experimental_wasm_eh) return kExceptionString;
+      return kUnknownString;
     default:
-      return "<unknown>";
+      return kUnknownString;
   }
 }
 
@@ -218,11 +219,6 @@ class WasmSectionIterator {
           strncmp(reinterpret_cast<const char*>(section_name_start),
                   kNameString, num_chars(kNameString)) == 0) {
         section_code = kNameSectionCode;
-      } else if (FLAG_experimental_wasm_eh &&
-                 string.length() == num_chars(kExceptionString) &&
-                 strncmp(reinterpret_cast<const char*>(section_name_start),
-                         kExceptionString, num_chars(kExceptionString)) == 0) {
-        section_code = kExceptionSectionCode;
       }
     } else if (!IsValidSectionCode(section_code)) {
       decoder_.errorf(decoder_.pc(), "unknown section code #0x%02x",
@@ -332,9 +328,25 @@ class ModuleDecoder : public Decoder {
       errorf(pc(), "unexpected section: %s", SectionName(section_code));
       return;
     }
-    if (section_code != kUnknownSectionCode) {
-      next_section_ = section_code;
-      ++next_section_;
+
+    switch (section_code) {
+      case kUnknownSectionCode:
+        break;
+      case kExceptionSectionCode:
+        // Note: kExceptionSectionCode > kCodeSectionCode, but must appear
+        // before the code section. Hence, treat it as a special case.
+        if (++number_of_exception_sections > 1) {
+          errorf(pc(), "Multiple exception sections not allowed");
+          return;
+        } else if (next_section_ >= kCodeSectionCode) {
+          errorf(pc(), "Exception section must appear before the code section");
+          return;
+        }
+        break;
+      default:
+        next_section_ = section_code;
+        ++next_section_;
+        break;
     }
 
     switch (section_code) {
@@ -377,7 +389,11 @@ class ModuleDecoder : public Decoder {
         DecodeNameSection();
         break;
       case kExceptionSectionCode:
-        DecodeExceptionSection();
+        if (FLAG_experimental_wasm_eh) {
+          DecodeExceptionSection();
+        } else {
+          errorf(pc(), "unexpected section: %s", SectionName(section_code));
+        }
         break;
       default:
         errorf(pc(), "unexpected section: %s", SectionName(section_code));
@@ -877,6 +893,7 @@ class ModuleDecoder : public Decoder {
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_section_ = kFirstSectionInModule;
+  uint32_t number_of_exception_sections = 0;
   // We store next_section_ as uint8_t instead of SectionCode so that we can
   // increment it. This static_assert should make sure that SectionCode does not
   // get bigger than uint8_t accidentially.
