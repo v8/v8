@@ -12,6 +12,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -59,7 +60,7 @@ void InstantiateCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  ErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
 
   i::Handle<i::WasmModuleObject> module_obj = ToWasmModuleObjectUnchecked(
       v8::Utils::OpenHandle(v8::Object::Cast(*module)));
