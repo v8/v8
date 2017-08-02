@@ -1807,6 +1807,8 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   // through the self_reference parameter.
   code->CopyFrom(desc);
 
+  code->clear_padding();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) code->ObjectVerify();
 #endif
@@ -2562,6 +2564,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_kind(kind);
 
   share->set_preparsed_scope_data(*null_value());
+
+  share->clear_padding();
 
   // Link into the list.
   Handle<Object> new_noscript_list =

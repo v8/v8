@@ -2774,6 +2774,11 @@ void ByteArray::set_uint32(int index, uint32_t value) {
   WRITE_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size, value);
 }
 
+void ByteArray::clear_padding() {
+  int data_size = length() + kHeaderSize;
+  memset(address() + data_size, 0, Size() - data_size);
+}
+
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
@@ -2866,6 +2871,11 @@ ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(BytecodeArray, source_position_table, Object,
           kSourcePositionTableOffset)
+
+void BytecodeArray::clear_padding() {
+  int data_size = kHeaderSize + length();
+  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+}
 
 Address BytecodeArray::GetFirstBytecodeAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
@@ -4960,6 +4970,13 @@ void Code::WipeOutHeader() {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, nullptr);
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, nullptr);
+}
+
+void Code::clear_padding() {
+  memset(address() + kHeaderPaddingStart, 0, kHeaderSize - kHeaderPaddingStart);
+  Address data_end =
+      has_unwinding_info() ? unwinding_info_end() : instruction_end();
+  memset(data_end, 0, CodeSize() - (data_end - address()));
 }
 
 Object* Code::type_feedback_info() const {

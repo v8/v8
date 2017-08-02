@@ -528,6 +528,12 @@ void Serializer::ObjectSerializer::Serialize() {
   if (object_->IsExternalString()) {
     SerializeExternalString();
     return;
+  } else if (object_->IsSeqOneByteString()) {
+    // Clear padding bytes at the end. Done here to avoid having to do this
+    // at allocation sites in generated code.
+    SeqOneByteString::cast(object_)->clear_padding();
+  } else if (object_->IsSeqTwoByteString()) {
+    SeqTwoByteString::cast(object_)->clear_padding();
   }
 
   // We cannot serialize typed array objects correctly.
@@ -788,6 +794,10 @@ int Serializer::ObjectSerializer::OutputRawData(
     if (is_code_object) object_start = PrepareCode();
 
     const char* description = is_code_object ? "Code" : "Byte";
+#ifdef MEMORY_SANITIZER
+    // Check that we do not serialize uninitialized memory.
+    __msan_check_mem_is_initialized(object_start + base, bytes_to_output);
+#endif  // MEMORY_SANITIZER
     sink_->PutRaw(object_start + base, bytes_to_output, description);
   }
   if (to_skip != 0 && return_skip == kIgnoringReturn) {

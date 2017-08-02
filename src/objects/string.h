@@ -496,6 +496,10 @@ class SeqOneByteString : public SeqString {
 
   inline uint8_t* GetChars();
 
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  void clear_padding();
+
   DECL_CAST(SeqOneByteString)
 
   // Garbage collection support.  This method is called by the
@@ -534,6 +538,10 @@ class SeqTwoByteString : public SeqString {
   inline Address GetCharsAddress();
 
   inline uc16* GetChars();
+
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  void clear_padding();
 
   // For regexp code.
   const uint16_t* SeqTwoByteStringGetData(unsigned start);

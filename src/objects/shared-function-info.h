@@ -315,6 +315,10 @@ class SharedFunctionInfo : public HeapObject {
   // this shared function info.
   DECL_INT_ACCESSORS(function_map_index)
 
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  inline void clear_padding();
+
   // Recalculates the |map_index| value after modifications of this shared info.
   inline void UpdateFunctionMapIndex();
 

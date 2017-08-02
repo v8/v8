@@ -165,6 +165,10 @@ void SharedFunctionInfo::set_function_map_index(int index) {
   set_compiler_hints(FunctionMapIndexBits::update(compiler_hints(), index));
 }
 
+void SharedFunctionInfo::clear_padding() {
+  memset(this->address() + kSize, 0, kAlignedSize - kSize);
+}
+
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index = Context::FunctionMapIndex(
       language_mode(), kind(), has_shared_name(), needs_home_object());

@@ -12038,6 +12038,15 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   return string;
 }
 
+void SeqOneByteString::clear_padding() {
+  int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
+  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+}
+
+void SeqTwoByteString::clear_padding() {
+  int data_size = SeqString::kHeaderSize + length() * kUC16Size;
+  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+}
 
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could

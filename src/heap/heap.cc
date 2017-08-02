@@ -3263,6 +3263,7 @@ AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 
   result->set_map_after_allocation(byte_array_map(), SKIP_WRITE_BARRIER);
   ByteArray::cast(result)->set_length(length);
+  ByteArray::cast(result)->clear_padding();
   return result;
 }
 
@@ -3297,6 +3298,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_handler_table(empty_fixed_array());
   instance->set_source_position_table(empty_byte_array());
   CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
+  instance->clear_padding();
 
   return result;
 }
