@@ -102,6 +102,7 @@ class InjectedScript final {
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*);
   v8::Local<v8::Value> lastEvaluationResult() const;
+  void setLastEvaluationResult(v8::Local<v8::Value> result);
 
   int bindObject(v8::Local<v8::Value>, const String16& groupName);
 

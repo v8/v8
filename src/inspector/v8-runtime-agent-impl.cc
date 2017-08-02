@@ -115,7 +115,7 @@ class ProtocolPromiseHandler {
             ? info[0]
             : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue(
-        handler->wrapObject(value));
+        handler->wrapObject(value, true));
     if (!wrappedValue) return;
     handler->m_callback->sendSuccess(
         std::move(wrappedValue), Maybe<protocol::Runtime::ExceptionDetails>());
@@ -132,7 +132,7 @@ class ProtocolPromiseHandler {
             : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
 
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue(
-        handler->wrapObject(value));
+        handler->wrapObject(value, false));
     if (!wrappedValue) return;
 
     String16 message;
@@ -200,7 +200,7 @@ class ProtocolPromiseHandler {
   }
 
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapObject(
-      v8::Local<v8::Value> value) {
+      v8::Local<v8::Value> value, bool success) {
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) {
@@ -212,6 +212,9 @@ class ProtocolPromiseHandler {
     if (!response.isSuccess()) {
       m_callback->sendFailure(response);
       return nullptr;
+    }
+    if (success && m_objectGroup == "console") {
+      scope.injectedScript()->setLastEvaluationResult(value);
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     response = scope.injectedScript()->wrapObject(

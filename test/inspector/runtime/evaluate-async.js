@@ -89,5 +89,14 @@ InspectorTest.runTestSuite([
     Protocol.Runtime.evaluate({ expression: "throw 239", awaitPromise: true })
       .then(result => InspectorTest.logMessage(result))
       .then(() => next());
-  }
+  },
+
+  function testLastEvaluatedResult(next)
+  {
+    Protocol.Runtime.evaluate({ expression: 'Promise.resolve(42)', awaitPromise: true, objectGroup: 'console' })
+      .then(result => InspectorTest.logMessage(result))
+      .then(() => Protocol.Runtime.evaluate({ expression: '$_', includeCommandLineAPI: true }))
+      .then(result => InspectorTest.logMessage(result))
+      .then(() => next());
+  },
 ]);

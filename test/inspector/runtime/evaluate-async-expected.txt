@@ -181,3 +181,25 @@ Running test: testExceptionInEvaluate
         }
     }
 }
+
+Running test: testLastEvaluatedResult
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}

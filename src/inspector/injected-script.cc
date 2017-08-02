@@ -313,6 +313,10 @@ v8::Local<v8::Value> InjectedScript::lastEvaluationResult() const {
   return m_lastEvaluationResult.Get(m_context->isolate());
 }
 
+void InjectedScript::setLastEvaluationResult(v8::Local<v8::Value> result) {
+  m_lastEvaluationResult.Reset(m_context->isolate(), result);
+}
+
 Response InjectedScript::resolveCallArgument(
     protocol::Runtime::CallArgument* callArgument,
     v8::Local<v8::Value>* result) {
