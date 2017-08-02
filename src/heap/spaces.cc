@@ -543,12 +543,12 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->flags_ = Flags(NO_FLAGS);
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
-  base::AsAtomicWord::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
-  base::AsAtomicWord::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
-  base::AsAtomicWord::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
-                                    nullptr);
-  base::AsAtomicWord::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
-                                    nullptr);
+  base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
+  base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
+  base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
+                                       nullptr);
+  base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
+                                       nullptr);
   chunk->skip_list_ = nullptr;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
@@ -1236,7 +1236,7 @@ template SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
   SlotSet* slot_set = AllocateAndInitializeSlotSet(size_, address());
-  SlotSet* old_slot_set = base::AsAtomicWord::Release_CompareAndSwap(
+  SlotSet* old_slot_set = base::AsAtomicPointer::Release_CompareAndSwap(
       &slot_set_[type], nullptr, slot_set);
   if (old_slot_set != nullptr) {
     delete[] slot_set;
@@ -1264,7 +1264,7 @@ template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_OLD>();
 template <RememberedSetType type>
 TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
   TypedSlotSet* typed_slot_set = new TypedSlotSet(address());
-  TypedSlotSet* old_value = base::AsAtomicWord::Release_CompareAndSwap(
+  TypedSlotSet* old_value = base::AsAtomicPointer::Release_CompareAndSwap(
       &typed_slot_set_[type], nullptr, typed_slot_set);
   if (old_value != nullptr) {
     delete typed_slot_set;

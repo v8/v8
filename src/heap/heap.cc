@@ -1277,13 +1277,13 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
     if (dst < src) {
       for (int i = 0; i < len; i++) {
-        base::AsAtomicWord::Relaxed_Store(
-            dst + i, base::AsAtomicWord::Relaxed_Load(src + i));
+        base::AsAtomicPointer::Relaxed_Store(
+            dst + i, base::AsAtomicPointer::Relaxed_Load(src + i));
       }
     } else {
       for (int i = len - 1; i >= 0; i--) {
-        base::AsAtomicWord::Relaxed_Store(
-            dst + i, base::AsAtomicWord::Relaxed_Load(src + i));
+        base::AsAtomicPointer::Relaxed_Store(
+            dst + i, base::AsAtomicPointer::Relaxed_Load(src + i));
       }
     }
   } else {
@@ -4250,7 +4250,7 @@ AllocationResult Heap::AllocateRawFixedArray(int length,
       FLAG_use_marking_progress_bar) {
     MemoryChunk* chunk =
         MemoryChunk::FromAddress(result.ToObjectChecked()->address());
-    chunk->SetFlag(MemoryChunk::HAS_PROGRESS_BAR);
+    chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
   }
   return result;
 }
