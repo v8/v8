@@ -9064,6 +9064,10 @@ void Map::TraceAllTransitions(Map* map) {
 void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
                             Handle<Name> name, SimpleTransitionFlag flag) {
   Isolate* isolate = parent->GetIsolate();
+  DCHECK_IMPLIES(name->IsInterestingSymbol(),
+                 child->may_have_interesting_symbols());
+  DCHECK_IMPLIES(parent->may_have_interesting_symbols(),
+                 child->may_have_interesting_symbols());
   // Do not track transitions during bootstrap except for element transitions.
   if (isolate->bootstrapper()->IsActive() &&
       !name.is_identical_to(isolate->factory()->elements_transition_symbol())) {
@@ -9216,7 +9220,7 @@ void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
-  if (name->IsInterestingSymbol()) {
+  if (parent->may_have_interesting_symbols() || name->IsInterestingSymbol()) {
     child->set_may_have_interesting_symbols(true);
   }
   ConnectTransition(parent, child, name, SIMPLE_PROPERTY_TRANSITION);
