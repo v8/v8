@@ -42,12 +42,12 @@ class CodeGeneratorTester : public InitializedHandleScope {
                                  int first_unused_stack_slot,
                                  CodeGeneratorTester::PushTypeFlag push_type) {
     generator_.AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
-#if defined(V8_TARGET_ARCH_ARM)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
+    defined(V8_TARGET_ARCH_PPC)
     // Only folding register pushes is supported on ARM.
     bool supported = ((push_type & CodeGenerator::kRegisterPush) == push_type);
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) || \
-    defined(V8_TARGET_ARCH_X87) || defined(V8_TARGET_ARCH_S390X) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
+    defined(V8_TARGET_ARCH_X87)
     bool supported = ((push_type & CodeGenerator::kScalarPush) == push_type);
 #else
     bool supported = false;
