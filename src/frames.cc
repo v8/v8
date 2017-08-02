@@ -1431,10 +1431,10 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
       is_constructor = false;
     } else if (it->kind() == TranslatedFrame::kConstructStub) {
       // The next encountered JS frame will be marked as a constructor call.
+      DCHECK(!is_constructor);
       is_constructor = true;
     }
   }
-  DCHECK(!is_constructor);
 }
 
 
