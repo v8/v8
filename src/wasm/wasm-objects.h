@@ -39,10 +39,6 @@ class WasmInstanceObject;
   INLINE(bool has_##name());                \
   DECL_ACCESSORS(name, type)
 
-#define DECL_OPTIONAL_GETTER(name, type) \
-  INLINE(bool has_##name());             \
-  DECL_GETTER(name, type)
-
 #define DEF_SIZE(parent)                                                     \
   static const int kSize = parent::kHeaderSize + kFieldCount * kPointerSize; \
   static const int kParentSize = parent::kHeaderSize;                        \
@@ -257,7 +253,7 @@ class WasmSharedModuleData : public FixedArray {
       Handle<ByteArray> asm_js_offset_table);
 
  private:
-  DECL_OPTIONAL_GETTER(lazy_compilation_orchestrator, Foreign)
+  DECL_OPTIONAL_ACCESSORS(lazy_compilation_orchestrator, Foreign)
   friend class WasmCompiledModule;
 };
 
@@ -669,6 +665,12 @@ CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)           \
+  bool holder::has_##name() {                                    \
+    return !READ_FIELD(this, offset)->IsUndefined(GetIsolate()); \
+  }                                                              \
+  ACCESSORS(holder, name, type, offset)
+
 // WasmModuleObject
 ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
@@ -681,17 +683,20 @@ ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
-ACCESSORS(WasmMemoryObject, instances, WeakFixedArray, kInstancesOffset)
+OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakFixedArray,
+                   kInstancesOffset)
 
 // WasmInstanceObject
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
-ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
-          kMemoryObjectOffset)
-ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer, kMemoryBufferOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
+                   kMemoryObjectOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer,
+                   kMemoryBufferOffset)
 ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
           kGlobalsBufferOffset)
-ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo, kDebugInfoOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
+                   kDebugInfoOffset)
 ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
           kDirectlyCalledInstancesOffset)
 
@@ -699,38 +704,21 @@ ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,
           kModuleBytesOffset)
 ACCESSORS(WasmSharedModuleData, script, Script, kScriptOffset)
-ACCESSORS(WasmSharedModuleData, asm_js_offset_table, ByteArray,
-          kAsmJsOffsetTableOffset)
-ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
-          kBreakPointInfosOffset)
+OPTIONAL_ACCESSORS(WasmSharedModuleData, asm_js_offset_table, ByteArray,
+                   kAsmJsOffsetTableOffset)
+OPTIONAL_ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
+                   kBreakPointInfosOffset)
 
-#define OPTIONAL_ACCESSOR(holder, name, offset)                  \
-  bool holder::has_##name() {                                    \
-    return !READ_FIELD(this, offset)->IsUndefined(GetIsolate()); \
-  }
+OPTIONAL_ACCESSORS(WasmSharedModuleData, lazy_compilation_orchestrator, Foreign,
+                   kLazyCompilationOrchestratorOffset)
 
-OPTIONAL_ACCESSOR(WasmInstanceObject, debug_info, kDebugInfoOffset)
-OPTIONAL_ACCESSOR(WasmInstanceObject, memory_buffer, kMemoryBufferOffset)
-OPTIONAL_ACCESSOR(WasmInstanceObject, memory_object, kMemoryObjectOffset)
+OPTIONAL_ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
 
-OPTIONAL_ACCESSOR(WasmMemoryObject, instances, kInstancesOffset)
-
-OPTIONAL_ACCESSOR(WasmSharedModuleData, breakpoint_infos,
-                  kBreakPointInfosOffset)
-OPTIONAL_ACCESSOR(WasmSharedModuleData, asm_js_offset_table,
-                  kAsmJsOffsetTableOffset)
-OPTIONAL_ACCESSOR(WasmSharedModuleData, lazy_compilation_orchestrator,
-                  kLazyCompilationOrchestratorOffset)
-
-ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
-
-OPTIONAL_ACCESSOR(WasmDebugInfo, locals_names, kLocalsNamesOffset)
-
+#undef OPTIONAL_ACCESSORS
 #undef DECL_OOL_QUERY
 #undef DECL_OOL_CAST
 #undef DECL_GETTER
 #undef DECL_OPTIONAL_ACCESSORS
-#undef DECL_OPTIONAL_GETTER
 
 #include "src/objects/object-macros-undef.h"
 

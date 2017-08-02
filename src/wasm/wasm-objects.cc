@@ -605,10 +605,6 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
   return Handle<WasmSharedModuleData>::cast(arr);
 }
 
-Foreign* WasmSharedModuleData::lazy_compilation_orchestrator() {
-  return Foreign::cast(get(kLazyCompilationOrchestratorIndex));
-}
-
 bool WasmSharedModuleData::is_asm_js() {
   bool asm_js = module()->is_asm_js();
   DCHECK_EQ(asm_js, script()->IsUserJavaScript());
@@ -784,7 +780,7 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
   LazyCompilationOrchestrator* orch = new LazyCompilationOrchestrator();
   Handle<Managed<LazyCompilationOrchestrator>> orch_handle =
       Managed<LazyCompilationOrchestrator>::New(isolate, orch);
-  shared->set(kLazyCompilationOrchestratorIndex, *orch_handle);
+  shared->set_lazy_compilation_orchestrator(*orch_handle);
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
