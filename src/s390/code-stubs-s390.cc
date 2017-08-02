@@ -1122,7 +1122,10 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
   }
 
+  // Unlink this frame from the handler chain.
+  __ PopStackHandler();
   __ bind(&exit);  // r2 holds result
+
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(r7);
