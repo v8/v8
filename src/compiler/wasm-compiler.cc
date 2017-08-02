@@ -2989,6 +2989,10 @@ void WasmGraphBuilder::EnsureFunctionTableNodes() {
 Node* WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
   // TODO(eholk): generate code to modify the thread-local storage directly,
   // rather than calling the runtime.
+  //
+  // Note that the runtime functions also toggle the wasm_execution_time
+  // counters. Make sure this behavior is preserved if we avoid the runtime
+  // call.
   if (!trap_handler::UseTrapHandler()) {
     return *control_;
   }
