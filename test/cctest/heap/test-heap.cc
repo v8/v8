@@ -1595,11 +1595,11 @@ TEST(TestSizeOfRegExpCode) {
   int initial_size = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
   CompileRun("'foo'.match(reg_exp_source);");
-  CcTest::CollectAllGarbage();
+  CcTest::CollectAllAvailableGarbage();
   int size_with_regexp = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
   CompileRun("'foo'.match(half_size_reg_exp);");
-  CcTest::CollectAllGarbage();
+  CcTest::CollectAllAvailableGarbage();
   int size_with_optimized_regexp =
       static_cast<int>(CcTest::heap()->SizeOfObjects());
 
