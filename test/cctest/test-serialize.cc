@@ -42,10 +42,11 @@
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/snapshot/deserializer.h"
 #include "src/snapshot/natives.h"
+#include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/snapshot/startup-deserializer.h"
 #include "src/snapshot/startup-serializer.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -137,7 +138,7 @@ v8::Isolate* InitializeFromBlob(Vector<const byte> blob) {
   v8::Isolate* v8_isolate = NULL;
   {
     SnapshotData snapshot_data(blob);
-    Deserializer deserializer(&snapshot_data);
+    StartupDeserializer deserializer(&snapshot_data);
     TestIsolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -377,10 +378,10 @@ UNINITIALIZED_TEST(PartialSerializerObject) {
     Handle<JSGlobalProxy> global_proxy = Handle<JSGlobalProxy>::null();
     {
       SnapshotData snapshot_data(partial_blob);
-      Deserializer deserializer(&snapshot_data);
+      PartialDeserializer deserializer(&snapshot_data);
       root = deserializer
-                 .DeserializePartial(isolate, global_proxy,
-                                     v8::DeserializeInternalFieldsCallback())
+                 .Deserialize(isolate, global_proxy,
+                              v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(root->IsString());
     }
@@ -388,10 +389,10 @@ UNINITIALIZED_TEST(PartialSerializerObject) {
     Handle<Object> root2;
     {
       SnapshotData snapshot_data(partial_blob);
-      Deserializer deserializer(&snapshot_data);
+      PartialDeserializer deserializer(&snapshot_data);
       root2 = deserializer
-                  .DeserializePartial(isolate, global_proxy,
-                                      v8::DeserializeInternalFieldsCallback())
+                  .Deserialize(isolate, global_proxy,
+                               v8::DeserializeInternalFieldsCallback())
                   .ToHandleChecked();
       CHECK(root2->IsString());
       CHECK(root.is_identical_to(root2));
@@ -473,10 +474,10 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
-      Deserializer deserializer(&snapshot_data);
+      PartialDeserializer deserializer(&snapshot_data);
       root = deserializer
-                 .DeserializePartial(isolate, global_proxy,
-                                     v8::DeserializeInternalFieldsCallback())
+                 .Deserialize(isolate, global_proxy,
+                              v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
@@ -485,10 +486,10 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
     Handle<Object> root2;
     {
       SnapshotData snapshot_data(partial_blob);
-      Deserializer deserializer(&snapshot_data);
+      PartialDeserializer deserializer(&snapshot_data);
       root2 = deserializer
-                  .DeserializePartial(isolate, global_proxy,
-                                      v8::DeserializeInternalFieldsCallback())
+                  .Deserialize(isolate, global_proxy,
+                               v8::DeserializeInternalFieldsCallback())
                   .ToHandleChecked();
       CHECK(root2->IsContext());
       CHECK(!root.is_identical_to(root2));
@@ -591,10 +592,10 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
-      Deserializer deserializer(&snapshot_data);
+      PartialDeserializer deserializer(&snapshot_data);
       root = deserializer
-                 .DeserializePartial(isolate, global_proxy,
-                                     v8::DeserializeInternalFieldsCallback())
+                 .Deserialize(isolate, global_proxy,
+                              v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);

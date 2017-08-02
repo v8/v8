@@ -11,7 +11,7 @@
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/snapshot/deserializer.h"
+#include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
 #include "src/visitors.h"
@@ -194,7 +194,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  Deserializer deserializer(&scd);
+  ObjectDeserializer deserializer(&scd, false);
   deserializer.AddAttachedObject(source);
   Vector<const uint32_t> code_stub_keys = scd.CodeStubKeys();
   for (int i = 0; i < code_stub_keys.length(); i++) {
@@ -204,7 +204,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   // Deserialize.
   Handle<HeapObject> as_heap_object;
-  if (!deserializer.DeserializeObject(isolate).ToHandle(&as_heap_object)) {
+  if (!deserializer.Deserialize(isolate).ToHandle(&as_heap_object)) {
     // Deserializing may fail if the reservations cannot be fulfilled.
     if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
@@ -265,7 +265,7 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
-  Deserializer deserializer(&scd, true);
+  ObjectDeserializer deserializer(&scd, true);
   deserializer.AddAttachedObject(isolate->native_context());
 
   MaybeHandle<String> maybe_wire_bytes_as_string =
@@ -283,7 +283,7 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
         CodeStub::GetCode(isolate, stub_keys[i]).ToHandleChecked());
   }
 
-  MaybeHandle<HeapObject> obj = deserializer.DeserializeObject(isolate);
+  MaybeHandle<HeapObject> obj = deserializer.Deserialize(isolate);
   if (obj.is_null() || !obj.ToHandleChecked()->IsFixedArray()) return nothing;
   // Cast without type checks, as the module wrapper is not there yet.
   Handle<WasmCompiledModule> compiled_module(

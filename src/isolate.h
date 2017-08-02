@@ -46,8 +46,8 @@ class AddressToIndexHashMap;
 class AstStringConstants;
 class BasicBlockProfiler;
 class Bootstrapper;
-class CancelableTaskManager;
 class CallInterfaceDescriptorData;
+class CancelableTaskManager;
 class CodeAgingHelper;
 class CodeEventDispatcher;
 class CodeGenerator;
@@ -55,15 +55,15 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
-class CompilerDispatcher;
 class CompilationStatistics;
+class CompilerDispatcher;
 class ContextSlotCache;
 class Counters;
 class CpuFeatures;
 class CpuProfiler;
+class Debug;
 class DeoptimizerData;
 class DescriptorLookupCache;
-class Deserializer;
 class EmptyStatement;
 class ExternalCallbackScope;
 class ExternalReferenceTable;
@@ -76,11 +76,15 @@ class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
 class OptimizingCompileDispatcher;
+class PromiseOnStack;
+class Redirection;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
 class SaveContext;
 class SetupIsolateDelegate;
+class Simulator;
+class StartupDeserializer;
 class StatsTable;
 class StringTracker;
 class StubCache;
@@ -89,18 +93,13 @@ class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
 class UnicodeCache;
+
 template <StateTag Tag> class VMState;
 
 // 'void function pointer', used to roundtrip the
 // ExternalReference::ExternalReferenceRedirector since we can not include
 // assembler.h, where it is defined, here.
 typedef void* ExternalReferenceRedirectorPointer();
-
-
-class Debug;
-class PromiseOnStack;
-class Redirection;
-class Simulator;
 
 namespace interpreter {
 class Interpreter;
@@ -543,7 +542,7 @@ class Isolate {
   void InitializeLoggingAndCounters();
   bool InitializeCounters();  // Returns false if already initialized.
 
-  bool Init(Deserializer* des);
+  bool Init(StartupDeserializer* des);
 
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != NULL; }

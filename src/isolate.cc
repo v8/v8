@@ -45,7 +45,7 @@
 #include "src/runtime-profiler.h"
 #include "src/setup-isolate.h"
 #include "src/simulator.h"
-#include "src/snapshot/deserializer.h"
+#include "src/snapshot/startup-deserializer.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/v8.h"
 #include "src/version.h"
@@ -2679,7 +2679,7 @@ void PrintBuiltinSizes(Isolate* isolate) {
 }
 }  // namespace
 
-bool Isolate::Init(Deserializer* des) {
+bool Isolate::Init(StartupDeserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;

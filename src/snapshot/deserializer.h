@@ -28,9 +28,23 @@ class Heap;
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
 class Deserializer : public SerializerDeserializer {
  public:
+  ~Deserializer() override;
+
+  // Add an object to back an attached reference. The order to add objects must
+  // mirror the order they are added in the serializer.
+  void AddAttachedObject(Handle<HeapObject> attached_object) {
+    attached_objects_.Add(attached_object);
+  }
+
+  void SetRehashability(bool v) { can_rehash_ = v; }
+
+ protected:
+  // This section is temporary while the deserializer is being refactored into
+  // {object,partial,object}-deserializer.h.
+
   // Create a deserializer from a snapshot byte source.
   template <class Data>
-  explicit Deserializer(Data* data, bool deserializing_user_code = false)
+  Deserializer(Data* data, bool deserializing_user_code)
       : isolate_(NULL),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
@@ -44,8 +58,6 @@ class Deserializer : public SerializerDeserializer {
     DecodeReservation(data->Reservations());
   }
 
-  ~Deserializer() override;
-
   // Deserialize the snapshot into an empty heap.
   void Deserialize(Isolate* isolate);
 
@@ -56,14 +68,6 @@ class Deserializer : public SerializerDeserializer {
 
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> DeserializeObject(Isolate* isolate);
-
-  // Add an object to back an attached reference. The order to add objects must
-  // mirror the order they are added in the serializer.
-  void AddAttachedObject(Handle<HeapObject> attached_object) {
-    attached_objects_.Add(attached_object);
-  }
-
-  void SetRehashability(bool v) { can_rehash_ = v; }
 
  private:
   void VisitRootPointers(Root root, Object** start, Object** end) override;

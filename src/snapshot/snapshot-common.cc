@@ -10,8 +10,9 @@
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/objects-inl.h"
-#include "src/snapshot/deserializer.h"
+#include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/snapshot/startup-deserializer.h"
 #include "src/version.h"
 
 namespace v8 {
@@ -40,7 +41,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   const v8::StartupData* blob = isolate->snapshot_blob();
   Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData snapshot_data(startup_data);
-  Deserializer deserializer(&snapshot_data);
+  StartupDeserializer deserializer(&snapshot_data);
   deserializer.SetRehashability(ExtractRehashability(blob));
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
@@ -62,10 +63,10 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   Vector<const byte> context_data =
       ExtractContextData(blob, static_cast<int>(context_index));
   SnapshotData snapshot_data(context_data);
-  Deserializer deserializer(&snapshot_data);
+  PartialDeserializer deserializer(&snapshot_data);
   deserializer.SetRehashability(ExtractRehashability(blob));
 
-  MaybeHandle<Object> maybe_context = deserializer.DeserializePartial(
+  MaybeHandle<Object> maybe_context = deserializer.Deserialize(
       isolate, global_proxy, embedder_fields_deserializer);
   Handle<Object> result;
   if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();

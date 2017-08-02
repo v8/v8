@@ -521,7 +521,6 @@ class Struct;
 class FeedbackVector;
 class Variable;
 class RelocInfo;
-class Deserializer;
 class MessageLocation;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
