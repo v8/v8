@@ -555,6 +555,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                        nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
                                        nullptr);
+  chunk->invalidated_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
@@ -1222,6 +1223,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   ReleaseSlotSet<OLD_TO_OLD>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
+  ReleaseInvalidatedSlots();
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
 }
@@ -1289,6 +1291,30 @@ void MemoryChunk::ReleaseTypedSlotSet() {
   if (typed_slot_set) {
     typed_slot_set_[type] = nullptr;
     delete typed_slot_set;
+  }
+}
+
+InvalidatedSlots* MemoryChunk::AllocateInvalidatedSlots() {
+  DCHECK_NULL(invalidated_slots_);
+  invalidated_slots_ = new InvalidatedSlots();
+  return invalidated_slots_;
+}
+
+void MemoryChunk::ReleaseInvalidatedSlots() {
+  if (invalidated_slots_) {
+    delete invalidated_slots_;
+    invalidated_slots_ = nullptr;
+  }
+}
+
+void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
+                                                     int size) {
+  if (!ShouldSkipEvacuationSlotRecording()) {
+    if (invalidated_slots() == nullptr) {
+      AllocateInvalidatedSlots();
+    }
+    int old_size = (*invalidated_slots())[object];
+    (*invalidated_slots())[object] = std::max(old_size, size);
   }
 }
 
