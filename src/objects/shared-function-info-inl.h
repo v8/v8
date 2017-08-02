@@ -58,8 +58,6 @@ INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
 INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
-INT_ACCESSORS(SharedFunctionInfo, bailout_reason,
-              kCountersAndBailoutReasonOffset)
 
 bool SharedFunctionInfo::has_shared_name() const {
   return raw_name() != kNoSharedNameSentinel;
@@ -102,8 +100,14 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline,
                     SharedFunctionInfo::ForceInlineBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, optimization_disabled,
-                    SharedFunctionInfo::OptimizationDisabledBit)
+
+bool SharedFunctionInfo::optimization_disabled() const {
+  return disable_optimization_reason() != BailoutReason::kNoReason;
+}
+
+BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
+  return DisabledOptimizationReasonBits::decode(compiler_hints());
+}
 
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 2);
@@ -354,10 +358,6 @@ void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
   DCHECK(function_identifier()->IsUndefined(GetIsolate()) || HasInferredName());
   set_function_identifier(inferred_name);
 }
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, bailout_reason,
-                    disable_optimization_reason,
-                    SharedFunctionInfo::DisabledOptimizationReasonBits)
 
 bool SharedFunctionInfo::IsUserJavaScript() {
   Object* script_obj = script();

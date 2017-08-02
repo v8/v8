@@ -281,12 +281,6 @@ class SharedFunctionInfo : public HeapObject {
   // Indicates if this function can be lazy compiled.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
-  // Indicates whether optimizations have been disabled for this
-  // shared function info. If a function is repeatedly optimized or if
-  // we cannot optimize the function we disable optimization to avoid
-  // spending time attempting to optimize it again.
-  DECL_BOOLEAN_ACCESSORS(optimization_disabled)
-
   // Indicates the language mode.
   inline LanguageMode language_mode();
   inline void set_language_mode(LanguageMode language_mode);
@@ -324,6 +318,14 @@ class SharedFunctionInfo : public HeapObject {
   // Recalculates the |map_index| value after modifications of this shared info.
   inline void UpdateFunctionMapIndex();
 
+  // Indicates whether optimizations have been disabled for this shared function
+  // info. If we cannot optimize the function we disable optimization to avoid
+  // spending time attempting to optimize it again.
+  inline bool optimization_disabled() const;
+
+  // The reason why optimization was disabled.
+  inline BailoutReason disable_optimization_reason() const;
+
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
   void DisableOptimization(BailoutReason reason);
@@ -332,12 +334,6 @@ class SharedFunctionInfo : public HeapObject {
   bool HasSourceCode() const;
   Handle<Object> GetSourceCode();
   Handle<Object> GetSourceCodeHarmony();
-
-  // Stores bailout_reason as a bit-field.
-  DECL_INT_ACCESSORS(bailout_reason)
-
-  inline BailoutReason disable_optimization_reason() const;
-  inline void set_disable_optimization_reason(BailoutReason reason);
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();
@@ -414,33 +410,32 @@ class SharedFunctionInfo : public HeapObject {
 #endif
 
 // Layout description.
-#define SHARED_FUNCTION_INFO_FIELDS(V)           \
-  /* Pointer fields. */                          \
-  V(kCodeOffset, kPointerSize)                   \
-  V(kNameOffset, kPointerSize)                   \
-  V(kScopeInfoOffset, kPointerSize)              \
-  V(kOuterScopeInfoOffset, kPointerSize)         \
-  V(kConstructStubOffset, kPointerSize)          \
-  V(kInstanceClassNameOffset, kPointerSize)      \
-  V(kFunctionDataOffset, kPointerSize)           \
-  V(kScriptOffset, kPointerSize)                 \
-  V(kDebugInfoOffset, kPointerSize)              \
-  V(kFunctionIdentifierOffset, kPointerSize)     \
-  V(kFeedbackMetadataOffset, kPointerSize)       \
-  V(kPreParsedScopeDataOffset, kPointerSize)     \
-  V(kEndOfPointerFieldsOffset, 0)                \
-  /* Raw data fields. */                         \
-  V(kFunctionLiteralIdOffset, kInt32Size)        \
-  V(kUniqueIdOffset, kUniqueIdFieldSize)         \
-  V(kLengthOffset, kInt32Size)                   \
-  V(kFormalParameterCountOffset, kInt32Size)     \
-  V(kExpectedNofPropertiesOffset, kInt32Size)    \
-  V(kStartPositionAndTypeOffset, kInt32Size)     \
-  V(kEndPositionOffset, kInt32Size)              \
-  V(kFunctionTokenPositionOffset, kInt32Size)    \
-  V(kCompilerHintsOffset, kInt32Size)            \
-  V(kCountersAndBailoutReasonOffset, kInt32Size) \
-  /* Total size. */                              \
+#define SHARED_FUNCTION_INFO_FIELDS(V)        \
+  /* Pointer fields. */                       \
+  V(kCodeOffset, kPointerSize)                \
+  V(kNameOffset, kPointerSize)                \
+  V(kScopeInfoOffset, kPointerSize)           \
+  V(kOuterScopeInfoOffset, kPointerSize)      \
+  V(kConstructStubOffset, kPointerSize)       \
+  V(kInstanceClassNameOffset, kPointerSize)   \
+  V(kFunctionDataOffset, kPointerSize)        \
+  V(kScriptOffset, kPointerSize)              \
+  V(kDebugInfoOffset, kPointerSize)           \
+  V(kFunctionIdentifierOffset, kPointerSize)  \
+  V(kFeedbackMetadataOffset, kPointerSize)    \
+  V(kPreParsedScopeDataOffset, kPointerSize)  \
+  V(kEndOfPointerFieldsOffset, 0)             \
+  /* Raw data fields. */                      \
+  V(kFunctionLiteralIdOffset, kInt32Size)     \
+  V(kUniqueIdOffset, kUniqueIdFieldSize)      \
+  V(kLengthOffset, kInt32Size)                \
+  V(kFormalParameterCountOffset, kInt32Size)  \
+  V(kExpectedNofPropertiesOffset, kInt32Size) \
+  V(kStartPositionAndTypeOffset, kInt32Size)  \
+  V(kEndPositionOffset, kInt32Size)           \
+  V(kFunctionTokenPositionOffset, kInt32Size) \
+  V(kCompilerHintsOffset, kInt32Size)         \
+  /* Total size. */                           \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -469,7 +464,6 @@ class SharedFunctionInfo : public HeapObject {
   V(FunctionKindBits, FunctionKind, 10, _) \
   V(HasDuplicateParametersBit, bool, 1, _) \
   V(AllowLazyCompilationBit, bool, 1, _)   \
-  V(OptimizationDisabledBit, bool, 1, _)   \
   V(UsesArgumentsBit, bool, 1, _)          \
   V(NeedsHomeObjectBit, bool, 1, _)        \
   V(ForceInlineBit, bool, 1, _)            \
@@ -477,12 +471,13 @@ class SharedFunctionInfo : public HeapObject {
   V(IsDeclarationBit, bool, 1, _)          \
   V(IsAsmWasmBrokenBit, bool, 1, _)        \
   V(FunctionMapIndexBits, int, 5, _)       \
-  /* Bits 26-31 are unused. */
-  // TODO(leszeks): Move DisabledOptimizationReason into here once there is
-  // space.
+  V(DisabledOptimizationReasonBits, BailoutReason, 7, _)
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
+
+  // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
+  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
 
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.
@@ -504,16 +499,6 @@ class SharedFunctionInfo : public HeapObject {
 
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
 #undef DEBUGGER_HINTS_BIT_FIELDS
-
-// Bit fields in |bailout_reason|.
-#define BAILOUT_REASON_BIT_FIELDS(V, _) \
-  V(DisabledOptimizationReasonBits, BailoutReason, 7, _)
-
-  DEFINE_BIT_FIELDS(BAILOUT_REASON_BIT_FIELDS)
-#undef BAILOUT_REASON_BIT_FIELDS
-
-  // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
-  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
 
  private:
   // [raw_name]: Function name string or kNoSharedNameSentinel.
