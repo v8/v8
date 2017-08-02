@@ -814,7 +814,7 @@ void LiveRange::Print(const RegisterConfiguration* config,
 
 
 void LiveRange::Print(bool with_children) const {
-  Print(RegisterConfiguration::Turbofan(), with_children);
+  Print(RegisterConfiguration::Default(), with_children);
 }
 
 

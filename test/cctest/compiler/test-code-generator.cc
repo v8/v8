@@ -93,7 +93,7 @@ class CodeGeneratorTester : public InitializedHandleScope {
 };
 
 TEST(AssembleTailCallGap) {
-  const RegisterConfiguration* conf = RegisterConfiguration::Turbofan();
+  const RegisterConfiguration* conf = RegisterConfiguration::Default();
 
   // This test assumes at least 4 registers are allocatable.
   CHECK(conf->num_allocatable_general_registers() >= 4);

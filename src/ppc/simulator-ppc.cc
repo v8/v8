@@ -23,7 +23,7 @@
 namespace v8 {
 namespace internal {
 
-const auto GetRegConfig = RegisterConfiguration::Crankshaft;
+const auto GetRegConfig = RegisterConfiguration::Default;
 
 // static
 base::LazyInstance<Simulator::GlobalMonitor>::type Simulator::global_monitor_ =

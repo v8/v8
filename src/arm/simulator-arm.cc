@@ -244,8 +244,7 @@ void ArmDebugger::Debug() {
               value = GetRegisterValue(i);
               PrintF(
                   "%3s: 0x%08x %10d",
-                  RegisterConfiguration::Crankshaft()->GetGeneralRegisterName(
-                      i),
+                  RegisterConfiguration::Default()->GetGeneralRegisterName(i),
                   value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) &&
                   i < 8 &&

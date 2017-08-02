@@ -28,9 +28,7 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   static const int kMaxFPRegisters = 32;
 
   // Default RegisterConfigurations for the target architecture.
-  // TODO(mstarzinger): Crankshaft is gone.
-  static const RegisterConfiguration* Crankshaft();
-  static const RegisterConfiguration* Turbofan();
+  static const RegisterConfiguration* Default();
 
   RegisterConfiguration(int num_general_registers, int num_double_registers,
                         int num_allocatable_general_registers,
