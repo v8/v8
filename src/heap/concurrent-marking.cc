@@ -65,7 +65,7 @@ class ConcurrentMarkingVisitor final
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** slot = start; slot < end; slot++) {
-      Object* object = base::AsAtomicPointer::Relaxed_Load(slot);
+      Object* object = base::AsAtomicWord::Relaxed_Load(slot);
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
       MarkCompactCollector::RecordSlot(host, slot, object);

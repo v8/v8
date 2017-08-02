@@ -171,7 +171,6 @@ const int kSizetSize = sizeof(size_t);
 const int kFloatSize = sizeof(float);
 const int kDoubleSize = sizeof(double);
 const int kIntptrSize = sizeof(intptr_t);
-const int kUIntptrSize = sizeof(uintptr_t);
 const int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 const int kRegisterSize = kPointerSize + kPointerSize;
