@@ -143,7 +143,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return UnalignedLoad(rep, base, IntPtrConstant(0));
   }
   Node* UnalignedLoad(MachineType rep, Node* base, Node* index) {
-    if (machine()->UnalignedLoadSupported(rep, 1)) {
+    if (machine()->UnalignedLoadSupported(rep)) {
       return AddNode(machine()->Load(rep), base, index);
     } else {
       return AddNode(machine()->UnalignedLoad(rep), base, index);
@@ -155,7 +155,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
                        Node* value) {
     MachineType t = MachineType::TypeForRepresentation(rep);
-    if (machine()->UnalignedStoreSupported(t, 1)) {
+    if (machine()->UnalignedStoreSupported(t)) {
       return AddNode(machine()->Store(StoreRepresentation(
                          rep, WriteBarrierKind::kNoWriteBarrier)),
                      base, index, value);

@@ -452,10 +452,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void BreakOnNode(int node_id);
 
-  bool UnalignedLoadSupported(const MachineType& machineType,
-                              uint8_t alignment) const;
-  bool UnalignedStoreSupported(const MachineType& machineType,
-                               uint8_t alignment) const;
+  bool UnalignedLoadSupported(const MachineType& machineType) const;
+  bool UnalignedStoreSupported(const MachineType& machineType) const;
 
  protected:
   void RegisterCallGenerationCallbacks(

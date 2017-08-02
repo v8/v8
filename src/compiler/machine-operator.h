@@ -167,16 +167,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
    public:
     enum UnalignedAccessSupport { kNoSupport, kSomeSupport, kFullSupport };
 
-    bool IsUnalignedLoadSupported(const MachineType& machineType,
-                                  uint8_t alignment) const {
-      return IsUnalignedSupported(unalignedLoadUnsupportedTypes_, machineType,
-                                  alignment);
+    bool IsUnalignedLoadSupported(const MachineType& machineType) const {
+      return IsUnalignedSupported(unalignedLoadUnsupportedTypes_, machineType);
     }
 
-    bool IsUnalignedStoreSupported(const MachineType& machineType,
-                                   uint8_t alignment) const {
-      return IsUnalignedSupported(unalignedStoreUnsupportedTypes_, machineType,
-                                  alignment);
+    bool IsUnalignedStoreSupported(const MachineType& machineType) const {
+      return IsUnalignedSupported(unalignedStoreUnsupportedTypes_, machineType);
     }
 
     static AlignmentRequirements FullUnalignedAccessSupport() {
@@ -204,8 +200,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
           unalignedStoreUnsupportedTypes_(unalignedStoreUnsupportedTypes) {}
 
     bool IsUnalignedSupported(const Vector<MachineType>& unsupported,
-                              const MachineType& machineType,
-                              uint8_t alignment) const {
+                              const MachineType& machineType) const {
       // All accesses of bytes in memory are aligned.
       DCHECK_NE(machineType.representation(), MachineRepresentation::kWord8);
       if (unalignedSupport_ == kFullSupport) {
@@ -637,16 +632,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   bool Is64() const { return word() == MachineRepresentation::kWord64; }
   MachineRepresentation word() const { return word_; }
 
-  bool UnalignedLoadSupported(const MachineType& machineType,
-                              uint8_t alignment) {
-    return alignment_requirements_.IsUnalignedLoadSupported(machineType,
-                                                            alignment);
+  bool UnalignedLoadSupported(const MachineType& machineType) {
+    return alignment_requirements_.IsUnalignedLoadSupported(machineType);
   }
 
-  bool UnalignedStoreSupported(const MachineType& machineType,
-                               uint8_t alignment) {
-    return alignment_requirements_.IsUnalignedStoreSupported(machineType,
-                                                             alignment);
+  bool UnalignedStoreSupported(const MachineType& machineType) {
+    return alignment_requirements_.IsUnalignedStoreSupported(machineType);
   }
 
 // Pseudo operators that translate to 32/64-bit operators depending on the
