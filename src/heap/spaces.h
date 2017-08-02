@@ -2714,7 +2714,7 @@ class NewSpace : public Space {
   void RecordAllocation(HeapObject* obj);
   void RecordPromotion(HeapObject* obj);
 
-  // Return whether the operation succeded.
+  // Return whether the operation succeeded.
   bool CommitFromSpaceIfNeeded() {
     if (from_space_.is_committed()) return true;
     return from_space_.Commit();

@@ -9724,7 +9724,7 @@ static void UnreachableGetter(
 static void UnreachableSetter(Local<String>,
                               Local<Value>,
                               const v8::PropertyCallbackInfo<void>&) {
-  CHECK(false);  // This function should nto be called.
+  CHECK(false);  // This function should not be called.
 }
 
 

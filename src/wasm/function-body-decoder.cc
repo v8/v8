@@ -455,7 +455,7 @@ class WasmDecoder : public Decoder {
       }
 
       case kExprTry:
-      case kExprIf:  // fall thru
+      case kExprIf:  // fall through
       case kExprLoop:
       case kExprBlock: {
         BlockTypeOperand<true> operand(decoder, pc);

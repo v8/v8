@@ -702,7 +702,7 @@ TEST(OrderedHashMapDeletion) {
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key2));
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key3));
 
-  // Delete non existant key from non new hash table
+  // Delete non existent key from non new hash table
   CHECK(!OrderedHashMap::Delete(isolate, *map, *key3));
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
@@ -712,7 +712,7 @@ TEST(OrderedHashMapDeletion) {
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key2));
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key3));
 
-  // Delete non existant key from non empty hash table
+  // Delete non existent key from non empty hash table
   map = OrderedHashMap::Shrink(map);
   map = OrderedHashMap::Add(map, key1, value);
   Verify(map);
@@ -852,7 +852,7 @@ TEST(OrderedHashSetDeletion) {
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key2));
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key3));
 
-  // Delete non existant key from non new hash table
+  // Delete non existent key from non new hash table
   CHECK(!OrderedHashSet::Delete(isolate, *set, *key3));
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
@@ -862,7 +862,7 @@ TEST(OrderedHashSetDeletion) {
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key2));
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key3));
 
-  // Delete non existant key from non empty hash table
+  // Delete non existent key from non empty hash table
   set = OrderedHashSet::Shrink(set);
   set = OrderedHashSet::Add(set, key1);
   Verify(set);

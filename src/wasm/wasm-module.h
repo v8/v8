@@ -525,9 +525,9 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
 // Then triggers WasmCompiledModule::CompileLazy, taking care of correctly
 // patching the call site or indirect function tables.
 // Returns either the Code object that has been lazily compiled, or Illegal if
-// an error occured. In the latter case, a pending exception has been set, which
-// will be triggered when returning from the runtime function, i.e. the Illegal
-// builtin will never be called.
+// an error occurred. In the latter case, a pending exception has been set,
+// which will be triggered when returning from the runtime function, i.e. the
+// Illegal builtin will never be called.
 Handle<Code> CompileLazy(Isolate* isolate);
 
 // This class orchestrates the lazy compilation of wasm functions. It is

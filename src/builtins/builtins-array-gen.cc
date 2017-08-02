@@ -764,7 +764,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
            &runtime);
 
     // We need to be conservative and start with holey because the builtins
-    // that create output arrays aren't gauranteed to be called for every
+    // that create output arrays aren't guaranteed to be called for every
     // element in the input array (maybe the callback deletes an element).
     const ElementsKind elements_kind =
         GetHoleyElementsKind(GetInitialFastElementsKind());

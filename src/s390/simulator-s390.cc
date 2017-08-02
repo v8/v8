@@ -2408,7 +2408,7 @@ void Simulator::PrintStopInfo(uint32_t code) {
 #define CheckOverflowForIntSub(src1, src2, type) \
   OverflowFromSigned<type>(src1 - src2, src1, src2, false);
 
-// Method for checking overflow on unsigned addtion
+// Method for checking overflow on unsigned addition
 #define CheckOverflowForUIntAdd(src1, src2) \
   ((src1) + (src2) < (src1) || (src1) + (src2) < (src2))
 
@@ -2514,7 +2514,7 @@ void Simulator::Execute() {
     }
   } else {
     // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instuction count.
+    // we reach the particular instruction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
@@ -4177,7 +4177,7 @@ EVALUATE(STM) {
   // Store Multiple 32-bits.
   int offset = d2;
   // Regs roll around if r3 is less than r1.
-  // Artifically increase r3 by 16 so we can calculate
+  // Artificially increase r3 by 16 so we can calculate
   // the number of regs stored properly.
   if (r3 < r1) r3 += 16;
 
@@ -4259,7 +4259,7 @@ EVALUATE(LM) {
   // Store Multiple 32-bits.
   int offset = d2;
   // Regs roll around if r3 is less than r1.
-  // Artifically increase r3 by 16 so we can calculate
+  // Artificially increase r3 by 16 so we can calculate
   // the number of regs stored properly.
   if (r3 < r1) r3 += 16;
 
@@ -8782,7 +8782,7 @@ EVALUATE(LMG) {
   int offset = d2;
 
   // Regs roll around if r3 is less than r1.
-  // Artifically increase r3 by 16 so we can calculate
+  // Artificially increase r3 by 16 so we can calculate
   // the number of regs stored properly.
   if (r3 < r1) r3 += 16;
 
@@ -8948,7 +8948,7 @@ EVALUATE(STMG) {
   int offset = d2;
 
   // Regs roll around if r3 is less than r1.
-  // Artifically increase r3 by 16 so we can calculate
+  // Artificially increase r3 by 16 so we can calculate
   // the number of regs stored properly.
   if (r3 < r1) r3 += 16;
 
@@ -9159,7 +9159,7 @@ EVALUATE(STMY) {
   int offset = d2;
 
   // Regs roll around if r3 is less than r1.
-  // Artifically increase r3 by 16 so we can calculate
+  // Artificially increase r3 by 16 so we can calculate
   // the number of regs stored properly.
   if (r3 < r1) r3 += 16;
 
@@ -9186,7 +9186,7 @@ EVALUATE(LMY) {
   int offset = d2;
 
   // Regs roll around if r3 is less than r1.
-  // Artifically increase r3 by 16 so we can calculate
+  // Artificially increase r3 by 16 so we can calculate
   // the number of regs stored properly.
   if (r3 < r1) r3 += 16;
 

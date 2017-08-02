@@ -617,11 +617,11 @@ class WasmDebugInfo : public FixedArray {
 
   void PrepareStep(StepAction);
 
-  // Execute the specified funtion in the interpreter. Read arguments from
+  // Execute the specified function in the interpreter. Read arguments from
   // arg_buffer.
   // The frame_pointer will be used to identify the new activation of the
   // interpreter for unwinding and frame inspection.
-  // Returns true if exited regularly, false if a trap occured. In the latter
+  // Returns true if exited regularly, false if a trap occurred. In the latter
   // case, a pending exception will have been set on the isolate.
   bool RunInterpreter(Address frame_pointer, int func_index,
                       uint8_t* arg_buffer);

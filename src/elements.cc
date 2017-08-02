@@ -2265,7 +2265,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           }
           return Just(false);
         } else {
-          // Seach for The Hole in HOLEY_DOUBLE_ELEMENTS
+          // Search for The Hole in HOLEY_DOUBLE_ELEMENTS
           DCHECK_EQ(Subclass::kind(), HOLEY_DOUBLE_ELEMENTS);
           auto elements = FixedDoubleArray::cast(receiver->elements());
 

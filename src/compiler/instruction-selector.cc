@@ -467,7 +467,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
           return g->UseUniqueSlot(input);
         case FrameStateInputKind::kAny:
           // Currently deopts "wrap" other operations, so the deopt's inputs
-          // are potentially needed untill the end of the deoptimising code.
+          // are potentially needed until the end of the deoptimising code.
           return g->UseAnyAtEnd(input);
       }
   }

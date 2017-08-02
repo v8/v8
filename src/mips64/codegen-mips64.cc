@@ -209,7 +209,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // one word at a time. Set a2 to count how many bytes we have to copy
     // after all the word chunks are copied and a3 to the dst pointer after
     // all the word chunks have been copied. We will loop, incrementing a0
-    // and a1 untill a0 equals a3.
+    // and a1 until a0 equals a3.
     __ bind(&chk1w);
     __ andi(a2, t8, loadstore_chunk - 1);
     __ beq(a2, t8, &lastb);

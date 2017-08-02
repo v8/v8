@@ -105,7 +105,7 @@ static bool supportsSTFLE() {
   static uint32_t auxv_hwcap = 0;
 
   if (!read_tried) {
-    // Open the AUXV (auxilliary vector) psuedo-file
+    // Open the AUXV (auxiliary vector) pseudo-file
     int fd = open("/proc/self/auxv", O_RDONLY);
 
     read_tried = true;
@@ -1472,7 +1472,7 @@ void Assembler::risbgn(Register dst, Register src, const Operand& startBit,
 // ---------------------------
 // Move Character Instructions
 // ---------------------------
-// Move charactor - mem to mem operation
+// Move character - mem to mem operation
 void Assembler::mvc(const MemOperand& opnd1, const MemOperand& opnd2,
                     uint32_t length) {
   ss_form(MVC, length - 1, opnd1.getBaseRegister(), opnd1.getDisplacement(),

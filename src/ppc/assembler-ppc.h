@@ -871,8 +871,8 @@ class Assembler : public AssemblerBase {
   void b(Label* L, LKBit lk = LeaveLK) { b(branch_offset(L), lk); }
 
   inline CRegister cmpi_optimization(CRegister cr) {
-    // Check whether the branch is preceeded by an optimizable cmpi against 0.
-    // The cmpi can be deleted if it is also preceeded by an instruction that
+    // Check whether the branch is preceded by an optimizable cmpi against 0.
+    // The cmpi can be deleted if it is also preceded by an instruction that
     // sets the register used by the compare and supports a dot form.
     unsigned int sradi_mask = kOpcodeMask | kExt2OpcodeVariant2Mask;
     unsigned int srawi_mask = kOpcodeMask | kExt2OpcodeMask;

@@ -404,7 +404,7 @@ void Assembler::CheckForEmitInForbiddenSlot() {
     CheckBuffer();
   }
   if (IsPrevInstrCompactBranch()) {
-    // Nop instruction to preceed a CTI in forbidden slot:
+    // Nop instruction to precede a CTI in forbidden slot:
     Instr nop = SPECIAL | SLL;
     *reinterpret_cast<Instr*>(pc_) = nop;
     pc_ += kInstrSize;
@@ -417,7 +417,7 @@ void Assembler::CheckForEmitInForbiddenSlot() {
 void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
   if (IsPrevInstrCompactBranch()) {
     if (Instruction::IsForbiddenAfterBranchInstr(x)) {
-      // Nop instruction to preceed a CTI in forbidden slot:
+      // Nop instruction to precede a CTI in forbidden slot:
       Instr nop = SPECIAL | SLL;
       *reinterpret_cast<Instr*>(pc_) = nop;
       pc_ += kInstrSize;

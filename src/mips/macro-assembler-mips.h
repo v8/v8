@@ -487,7 +487,7 @@ class TurboAssembler : public Assembler {
                             Register scratch);
   void PrepareCallCFunction(int num_reg_arguments, Register scratch);
 
-  // Arguments 1-4 are placed in registers a0 thru a3 respectively.
+  // Arguments 1-4 are placed in registers a0 through a3 respectively.
   // Arguments 5..n are stored to stack using following:
   //  sw(t0, CFunctionArgumentOperand(5));
 

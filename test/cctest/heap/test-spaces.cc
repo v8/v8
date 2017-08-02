@@ -678,11 +678,11 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK(filler->IsFreeSpace());
-  size_t shrinked = page->ShrinkToHighWaterMark();
-  size_t should_have_shrinked =
+  size_t shrunk = page->ShrinkToHighWaterMark();
+  size_t should_have_shrunk =
       RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
                 base::OS::CommitPageSize());
-  CHECK_EQ(should_have_shrinked, shrinked);
+  CHECK_EQ(should_have_shrunk, shrunk);
 }
 
 TEST(ShrinkPageToHighWaterMarkNoFiller) {
@@ -702,8 +702,8 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   CcTest::heap()->old_space()->ResetFreeList();
   CcTest::heap()->old_space()->EmptyAllocationInfo();
 
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0u, shrinked);
+  const size_t shrunk = page->ShrinkToHighWaterMark();
+  CHECK_EQ(0u, shrunk);
 }
 
 TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
@@ -728,8 +728,8 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
 
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0u, shrinked);
+  const size_t shrunk = page->ShrinkToHighWaterMark();
+  CHECK_EQ(0u, shrunk);
 }
 
 TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
@@ -754,8 +754,8 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
 
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0u, shrinked);
+  const size_t shrunk = page->ShrinkToHighWaterMark();
+  CHECK_EQ(0u, shrunk);
 }
 
 }  // namespace internal

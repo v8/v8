@@ -951,7 +951,7 @@ class MacroAssembler : public TurboAssembler {
                     Label* on_not_smi_result = NULL,
                     Label::Distance near_jump = Label::kFar);
   // Shifts a smi value to the right, shifting in zero bits at the top, and
-  // returns the unsigned intepretation of the result if that is a smi.
+  // returns the unsigned interpretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
   void SmiShiftLogicalRight(Register dst,
                             Register src1,
@@ -959,7 +959,7 @@ class MacroAssembler : public TurboAssembler {
                             Label* on_not_smi_result,
                             Label::Distance near_jump = Label::kFar);
   // Shifts a smi value to the right, sign extending the top, and
-  // returns the signed intepretation of the result. That will always
+  // returns the signed interpretation of the result. That will always
   // be a valid smi value, since it's numerically smaller than the
   // original.
   // Uses and clobbers rcx, so dst may not be rcx.

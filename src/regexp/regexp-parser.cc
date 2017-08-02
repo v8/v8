@@ -238,7 +238,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         builder = state->builder();
 
         builder->AddAtom(body);
-        // For compatability with JSC and ES3, we allow quantifiers after
+        // For compatibility with JSC and ES3, we allow quantifiers after
         // lookaheads, and break in all cases.
         break;
       }

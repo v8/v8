@@ -237,7 +237,7 @@ class V8_BASE_EXPORT OS {
   static void StrNCpy(char* dest, int length, const char* src, size_t n);
 
   // Support for the profiler.  Can do nothing, in which case ticks
-  // occuring in shared libraries will not be properly accounted for.
+  // occurring in shared libraries will not be properly accounted for.
   struct SharedLibraryAddress {
     SharedLibraryAddress(const std::string& library_path, uintptr_t start,
                          uintptr_t end)

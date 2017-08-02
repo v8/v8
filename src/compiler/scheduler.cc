@@ -1396,7 +1396,7 @@ class ScheduleLateNodeVisitor {
         block->loop_depth(), min_block->id().ToInt());
 
     // Hoist nodes out of loops if possible. Nodes can be hoisted iteratively
-    // into enclosing loop pre-headers until they would preceed their schedule
+    // into enclosing loop pre-headers until they would precede their schedule
     // early position.
     BasicBlock* hoist_block = GetHoistBlock(block);
     if (hoist_block &&

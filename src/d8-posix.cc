@@ -359,7 +359,7 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
 // we don't get here before the child has closed stdout and most programs don't
 // do that before they exit.
 //
-// We're disabling usage of waitid in Mac OS X because it doens't work for us:
+// We're disabling usage of waitid in Mac OS X because it doesn't work for us:
 // a parent process hangs on waiting while a child process is already a zombie.
 // See http://code.google.com/p/v8/issues/detail?id=401.
 #if defined(WNOWAIT) && !defined(ANDROID) && !defined(__APPLE__) \

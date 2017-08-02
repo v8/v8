@@ -2234,7 +2234,7 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
     // block.
     int phi_vreg = phi->virtual_register();
     live->Remove(phi_vreg);
-    // Select a hint from a predecessor block that preceeds this block in the
+    // Select a hint from a predecessor block that precedes this block in the
     // rpo order. In order of priority:
     // - Avoid hints from deferred blocks.
     // - Prefer hints from allocated (or explicit) operands.

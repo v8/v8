@@ -4794,7 +4794,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       !serializer_enabled() && !emit_debug_code()) {
     return;
   } else if (rmode == RelocInfo::CODE_AGE_SEQUENCE) {
-    // Don't record psuedo relocation info for code age sequence mode.
+    // Don't record pseudo relocation info for code age sequence mode.
     return;
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);

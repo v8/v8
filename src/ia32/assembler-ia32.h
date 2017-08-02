@@ -1804,7 +1804,7 @@ class Assembler : public AssemblerBase {
                   byte escape1, byte escape2, byte opcode);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w);
-  // Most BMI instructions are similiar.
+  // Most BMI instructions are similar.
   void bmi1(byte op, Register reg, Register vreg, const Operand& rm);
   void bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg,
             const Operand& rm);

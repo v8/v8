@@ -489,7 +489,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
 
   // NOTE: The code for computing the value may seem a bit complex at
   // first glance. It is structured to use 32-bit multiply-and-add
-  // loops as long as possible to avoid loosing precision.
+  // loops as long as possible to avoid losing precision.
 
   double v = 0.0;
   bool done = false;

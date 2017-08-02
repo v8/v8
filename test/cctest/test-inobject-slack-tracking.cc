@@ -525,7 +525,7 @@ TEST(SubclassBasicNoInlineNew) {
 }
 
 
-// Creates class hierachy of length matching the |hierarchy_desc| length and
+// Creates class hierarchy of length matching the |hierarchy_desc| length and
 // with the number of fields at i'th level equal to |hierarchy_desc[i]|.
 static void CreateClassHierarchy(const std::vector<int>& hierarchy_desc) {
   std::ostringstream os;

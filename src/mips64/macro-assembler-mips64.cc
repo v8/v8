@@ -3895,7 +3895,7 @@ int TurboAssembler::CallSize(Register target, Condition cond, Register rs,
 }
 
 
-// Note: To call gcc-compiled C code on mips, you must call thru t9.
+// Note: To call gcc-compiled C code on mips, you must call through t9.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt, BranchDelaySlot bd) {
 #ifdef DEBUG

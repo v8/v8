@@ -189,9 +189,9 @@ class InterpreterHandle {
     return interpreter()->GetThread(0)->GetFrameCount();
   }
 
-  // Returns true if exited regularly, false if a trap/exception occured and was
-  // not handled inside this activation. In the latter case, a pending exception
-  // will have been set on the isolate.
+  // Returns true if exited regularly, false if a trap/exception occurred and
+  // was not handled inside this activation. In the latter case, a pending
+  // exception will have been set on the isolate.
   bool Execute(Handle<WasmInstanceObject> instance_object,
                Address frame_pointer, uint32_t func_index,
                uint8_t* arg_buffer) {

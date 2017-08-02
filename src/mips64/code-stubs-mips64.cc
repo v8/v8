@@ -554,7 +554,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (kArchVariant != kMips64r6) {
     __ c(OLT, D, f12, f14);
     __ Movt(v0, a4);
-    // Use previous check to store conditionally to v0 oposite condition
+    // Use previous check to store conditionally to v0 opposite condition
     // (GREATER). If rhs is equal to lhs, this will be corrected in next
     // check.
     __ Movf(v0, a5);
@@ -1698,7 +1698,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   // Test if less (unordered case is already handled).
   __ BranchF(&fpu_lt, NULL, lt, f0, f2);
 
-  // Otherwise it's greater, so just fall thru, and return.
+  // Otherwise it's greater, so just fall through, and return.
   DCHECK(is_int16(GREATER) && is_int16(EQUAL) && is_int16(LESS));
   __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(GREATER));

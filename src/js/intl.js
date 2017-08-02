@@ -748,7 +748,7 @@ function canonicalizeLanguageTag(localeID) {
 
   // ECMA 402 6.2.3
   var tag = %CanonicalizeLanguageTag(localeString);
-  // TODO(jshin): This should not happen because the structual validity
+  // TODO(jshin): This should not happen because the structural validity
   // is already checked. If that's the case, remove this.
   if (tag === 'invalid-tag') {
     throw %make_range_error(kInvalidLanguageTag, localeString);
@@ -797,7 +797,7 @@ function initializeLocaleList(locales) {
 }
 
 /**
- * Check the structual Validity of the language tag per ECMA 402 6.2.2:
+ * Check the structural Validity of the language tag per ECMA 402 6.2.2:
  *   - Well-formed per RFC 5646 2.1
  *   - There are no duplicate variant subtags
  *   - There are no duplicate singletion (extension) subtags

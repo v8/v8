@@ -80,7 +80,7 @@ var assertArrayEquals;
 var assertPropertiesEqual;
 
 // Assert that the string conversion of the found value is equal to
-// the expected string. Only kept for backwards compatability, please
+// the expected string. Only kept for backwards compatibility, please
 // check the real structure of the found value.
 var assertToStringEquals;
 

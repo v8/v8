@@ -3976,7 +3976,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
       int object_index = slot->object_index();
       TranslatedState::ObjectPosition pos = object_positions_[object_index];
 
-      // Make sure the duplicate is refering to a previous object.
+      // Make sure the duplicate is referring to a previous object.
       CHECK(pos.frame_index_ < frame_index ||
             (pos.frame_index_ == frame_index &&
              pos.value_index_ < *value_index - 1));

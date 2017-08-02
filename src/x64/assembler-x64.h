@@ -2492,7 +2492,7 @@ class Assembler : public AssemblerBase {
     arithmetic_op(0x31, src, dst, size);
   }
 
-  // Most BMI instructions are similiar.
+  // Most BMI instructions are similar.
   void bmi1q(byte op, Register reg, Register vreg, Register rm);
   void bmi1q(byte op, Register reg, Register vreg, const Operand& rm);
   void bmi1l(byte op, Register reg, Register vreg, Register rm);

@@ -61,7 +61,7 @@ ARCH_GUESS = utils.DefaultArch()
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
-# invoked in seperate steps on the bots.
+# invoked in separate steps on the bots.
 TEST_MAP = {
   # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [

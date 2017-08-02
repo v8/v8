@@ -373,7 +373,7 @@ class RelocInfo {
     NUMBER_OF_MODES,
     NONE32,             // never recorded 32-bit value
     NONE64,             // never recorded 64-bit value
-    CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
+    CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explicitly by
                         // code aging.
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,

@@ -619,7 +619,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   Register args_count = scratch1;
   Register return_pc = scratch2;
 
-  // Get the arguments + reciever count.
+  // Get the arguments + receiver count.
   __ mov(args_count,
          Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ mov(args_count,

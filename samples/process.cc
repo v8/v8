@@ -305,7 +305,7 @@ bool JsHttpRequestProcessor::Process(HttpRequest* request) {
 
 
 JsHttpRequestProcessor::~JsHttpRequestProcessor() {
-  // Dispose the persistent handles.  When noone else has any
+  // Dispose the persistent handles.  When no one else has any
   // references to the objects stored in the handles they will be
   // automatically reclaimed.
   context_.Reset();

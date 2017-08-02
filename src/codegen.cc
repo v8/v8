@@ -195,7 +195,7 @@ static int PrintFunctionSource(CompilationInfo* info,
 }
 
 // Print information for the given inlining: which function was inlined and
-// where the inlining occured.
+// where the inlining occurred.
 static void PrintInlinedFunctionInfo(
     CompilationInfo* info, int source_id, int inlining_id,
     const CompilationInfo::InlinedFunctionHolder& h) {

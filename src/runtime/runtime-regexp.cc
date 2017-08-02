@@ -643,7 +643,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
 
-  // Number of parts added by compiled replacement plus preceeding
+  // Number of parts added by compiled replacement plus preceding
   // string and possibly suffix after last match.  It is possible for
   // all components to use two elements when encoded as two smis.
   const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);

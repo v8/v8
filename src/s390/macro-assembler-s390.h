@@ -1438,7 +1438,7 @@ class MacroAssembler : public TurboAssembler {
   void AssertSmi(Register object);
 
 #if V8_TARGET_ARCH_S390X
-  // Ensure it is permissable to read/write int value directly from
+  // Ensure it is permissible to read/write int value directly from
   // upper half of the smi.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);

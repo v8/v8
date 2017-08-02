@@ -1008,7 +1008,7 @@ void ReportBootstrappingException(Handle<Object> exception,
   // We are bootstrapping and caught an error where the location is set
   // and we have a script for the location.
   // In this case we could have an extension (or an internal error
-  // somewhere) and we print out the line number at which the error occured
+  // somewhere) and we print out the line number at which the error occurred
   // to the console for easier debugging.
   int line_number =
       location->script()->GetLineNumber(location->start_pos()) + 1;

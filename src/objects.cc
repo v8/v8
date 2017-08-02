@@ -13762,7 +13762,7 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info
-  // is there because we flush non-optimized code thereby loosing the
+  // is there because we flush non-optimized code thereby losing the
   // non-optimizable information for the code. When the code is
   // regenerated and set on the shared function info it is marked as
   // non-optimizable if optimization is disabled for the shared

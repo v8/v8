@@ -325,7 +325,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   // Make sure to set the current context to the context before the debugger was
   // entered (if the debugger is entered). The reason for switching context here
   // is that for some property lookups (accessors and interceptors) callbacks
-  // into the embedding application can occour, and the embedding application
+  // into the embedding application can occur, and the embedding application
   // could have the assumption that its own native context is the current
   // context and not some internal debugger context.
   SaveContext save(isolate);

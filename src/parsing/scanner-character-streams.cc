@@ -509,7 +509,7 @@ class Utf8ChunkSource : public ChunkSource {
       if (V8_LIKELY(t < kUtf8Bom)) {
         decoded_data[decoded_len++] = static_cast<uc16>(t);
       } else if (V8_UNLIKELY(is_at_first_char_ && t == kUtf8Bom)) {
-        // Skip BOM at the beggining of the stream
+        // Skip BOM at the beginning of the stream
         is_at_first_char_ = false;
       } else if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
         decoded_data[decoded_len++] = static_cast<uc16>(t);

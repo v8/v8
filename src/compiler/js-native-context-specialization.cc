@@ -573,7 +573,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
 
-          // Check {value} map agains the {property_cell} map.
+          // Check {value} map against the {property_cell} map.
           effect =
               graph()->NewNode(simplified()->CheckMaps(
                                    CheckMapsFlag::kNone,
@@ -2289,12 +2289,12 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
   DCHECK_EQ(0, receiver_maps->size());
   // See if we can infer a concrete type for the {receiver}.
   if (InferReceiverMaps(receiver, effect, receiver_maps)) {
-    // We can assume that the {receiver} still has the infered {receiver_maps}.
+    // We can assume that the {receiver} still has the inferred {receiver_maps}.
     return true;
   }
   // Try to extract some maps from the {nexus}.
   if (nexus.ExtractMaps(receiver_maps) != 0) {
-    // Try to filter impossible candidates based on infered root map.
+    // Try to filter impossible candidates based on inferred root map.
     Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
       receiver_maps->erase(

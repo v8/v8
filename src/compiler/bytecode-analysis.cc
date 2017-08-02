@@ -424,7 +424,7 @@ int BytecodeAnalysis::GetLoopOffsetFor(int offset) const {
   if (loop_end_to_header == end_to_header_.end()) {
     return -1;
   }
-  // If the header preceeds the offset, this is the loop
+  // If the header precedes the offset, this is the loop
   //
   //   .> header  <--loop_end_to_header
   //   |

@@ -483,7 +483,7 @@
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
   # We do not expose Array.prototype.values due to webcompat issues.
-  # Most recent incompatability: https://crbug.com/615873
+  # Most recent incompatibility: https://crbug.com/615873
   # https://code.google.com/p/v8/issues/detail?id=4247
   'built-ins/Array/prototype/Symbol.iterator': [FAIL],
   'built-ins/Array/prototype/values/returns-iterator': [FAIL],

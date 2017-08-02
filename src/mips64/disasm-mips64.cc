@@ -2895,7 +2895,7 @@ void Decoder::DecodeTypeMsa2RF(Instruction* instr) {
 
 // Disassemble the instruction at *instr_ptr into the output buffer.
 // All instructions are one word long, except for the simulator
-// psuedo-instruction stop(msg). For that one special case, we return
+// pseudo-instruction stop(msg). For that one special case, we return
 // size larger than one kInstrSize.
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);

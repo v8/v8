@@ -19,7 +19,7 @@ class Factory;
 
 namespace compiler {
 
-// Foward declarations.
+// Forward declarations.
 class CommonOperatorBuilder;
 struct FieldAccess;
 class Graph;

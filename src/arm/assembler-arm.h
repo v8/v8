@@ -866,7 +866,7 @@ class Assembler : public AssemblerBase {
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
   // Patched debug break slot code is:
-  //  ldr  ip, [pc, #0]   @ emited address and start
+  //  ldr  ip, [pc, #0]   @ emitted address and start
   //  blx  ip
   static constexpr int kPatchDebugBreakSlotAddressOffset = 2 * kInstrSize;
 

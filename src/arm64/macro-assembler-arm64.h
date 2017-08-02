@@ -2390,7 +2390,7 @@ class MacroAssembler : public TurboAssembler {
 };
 
 
-// Use this scope when you need a one-to-one mapping bewteen methods and
+// Use this scope when you need a one-to-one mapping between methods and
 // instructions. This scope prevents the MacroAssembler from being called and
 // literal pools from being emitted. It also asserts the number of instructions
 // emitted is what you specified when creating the scope.

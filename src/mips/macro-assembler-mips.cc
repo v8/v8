@@ -1724,7 +1724,7 @@ void TurboAssembler::Neg_d(FPURegister fd, FPURegister fs) {
 
 void TurboAssembler::Cvt_d_uw(FPURegister fd, Register rs,
                               FPURegister scratch) {
-  // In FP64Mode we do convertion from long.
+  // In FP64Mode we do conversion from long.
   if (IsFp64Mode()) {
     mtc1(rs, scratch);
     Mthc1(zero_reg, scratch);
@@ -3532,7 +3532,7 @@ int TurboAssembler::CallSize(Register target, int16_t offset, Condition cond,
 }
 
 
-// Note: To call gcc-compiled C code on mips, you must call thru t9.
+// Note: To call gcc-compiled C code on mips, you must call through t9.
 void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
                           Register rs, const Operand& rt, BranchDelaySlot bd) {
   DCHECK(is_int16(offset));
@@ -3572,7 +3572,7 @@ void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
 #endif
 }
 
-// Note: To call gcc-compiled C code on mips, you must call thru t9.
+// Note: To call gcc-compiled C code on mips, you must call through t9.
 void TurboAssembler::Call(Register target, Register base, int16_t offset,
                           Condition cond, Register rs, const Operand& rt,
                           BranchDelaySlot bd) {
@@ -5216,7 +5216,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (save_doubles) {
-    // The stack  must be allign to 0 modulo 8 for stores with sdc1.
+    // The stack  must be align to 0 modulo 8 for stores with sdc1.
     DCHECK(kDoubleSize == frame_alignment);
     if (frame_alignment > 0) {
       DCHECK(base::bits::IsPowerOfTwo(frame_alignment));

@@ -2488,7 +2488,7 @@ static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind, T& result) {
     result = a;
   } else if (b == a) {
     // Handle -0.0 == 0.0 case.
-    // std::signbit() returns int 0 or 1 so substracting MaxMinKind::kMax
+    // std::signbit() returns int 0 or 1 so subtracting MaxMinKind::kMax
     // negates the result.
     result = std::signbit(b) - static_cast<int>(kind) ? b : a;
   } else {
@@ -6031,7 +6031,7 @@ void Simulator::Execute() {
     }
   } else {
     // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instuction count.
+    // we reach the particular instruction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;

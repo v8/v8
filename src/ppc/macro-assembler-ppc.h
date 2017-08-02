@@ -1274,7 +1274,7 @@ class MacroAssembler : public TurboAssembler {
 
 
 #if V8_TARGET_ARCH_PPC64
-  // Ensure it is permissable to read/write int value directly from
+  // Ensure it is permissible to read/write int value directly from
   // upper half of the smi.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);

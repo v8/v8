@@ -530,7 +530,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* label);
 
   // Not implemented as the illegal bytecode is used inside internally
-  // to indicate a bytecode field is not valid or an error has occured
+  // to indicate a bytecode field is not valid or an error has occurred
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 

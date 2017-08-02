@@ -3119,7 +3119,7 @@ class InspectionWebFormatter(object):
         self.output_find_results(f, unaligned_res)
 
       if len(aligned_res) + len(unaligned_res) == 0:
-        f.write("<h3>No occurences of 0x%x found in the dump</h3>" % address)
+        f.write("<h3>No occurrences of 0x%x found in the dump</h3>" % address)
 
       self.output_footer(f)
 

@@ -952,7 +952,7 @@ function InnerArraySort(array, length, comparefn) {
       obj[i] = UNDEFINED;
     }
     for (i = length - num_holes; i < length; i++) {
-      // For compatability with Webkit, do not expose elements in the prototype.
+      // For compatibility with Webkit, do not expose elements in the prototype.
       if (i in %object_get_prototype_of(obj)) {
         obj[i] = UNDEFINED;
       } else {
