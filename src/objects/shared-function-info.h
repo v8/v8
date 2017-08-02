@@ -507,10 +507,13 @@ class SharedFunctionInfo : public HeapObject {
 
 // Bit fields in |bailout_reason|.
 #define BAILOUT_REASON_BIT_FIELDS(V, _) \
-  V(DisabledOptimizationReasonBits, BailoutReason, 8, _)
+  V(DisabledOptimizationReasonBits, BailoutReason, 7, _)
 
   DEFINE_BIT_FIELDS(BAILOUT_REASON_BIT_FIELDS)
 #undef BAILOUT_REASON_BIT_FIELDS
+
+  // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
+  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
 
  private:
   // [raw_name]: Function name string or kNoSharedNameSentinel.
