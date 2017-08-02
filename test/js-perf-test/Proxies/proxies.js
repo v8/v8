@@ -192,3 +192,40 @@ newBenchmark("GetPropertyOfProxyWithTrap", {
     return value === SOME_OTHER_NUMBER;
   }
 });
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+
+newBenchmark("HasOnProxyWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = ('prop' in p);
+    }
+  },
+  teardown() {
+    return value === true;
+  }
+});
+// ----------------------------------------------------------------------------
+
+newBenchmark("HasOnProxyWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      has: function(target, propertyKey) {
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = ('prop' in p);
+    }
+  },
+  teardown() {
+    return value === true;
+  }
+});

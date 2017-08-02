@@ -24,7 +24,9 @@
         {"name": "ConstructProxyWithoutTrap"},
         {"name": "ConstructProxyWithTrap"},
         {"name": "GetPropertyOfProxyWithoutTrap"},
-        {"name": "GetPropertyOfProxyWithTrap"}
+        {"name": "GetPropertyOfProxyWithTrap"},
+        {"name": "HasOnProxyWithoutTrap"},
+        {"name": "HasOnProxyWithTrap"}
       ]
     },
     {
