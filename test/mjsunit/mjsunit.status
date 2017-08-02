@@ -245,6 +245,9 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+
+  # BUG(chromium:751825): Crashes flakily.
+  'wasm/js-api': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
