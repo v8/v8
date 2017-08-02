@@ -13,7 +13,6 @@ namespace internal {
 namespace wasm {
 
 struct WasmGlobal;
-struct WasmException;
 
 // Use this macro to check a condition if checked == true, and DCHECK the
 // condition otherwise.
@@ -32,17 +31,6 @@ struct LocalIndexOperand {
 
   inline LocalIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<checked>(pc + 1, &length, "local index");
-  }
-};
-
-template <bool checked>
-struct ExceptionIndexOperand {
-  uint32_t index;
-  const WasmException* exception = nullptr;
-  unsigned length;
-
-  inline ExceptionIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<checked>(pc + 1, &length, "exception index");
   }
 };
 

@@ -52,19 +52,18 @@ let kDeclNoLocals = 0;
 
 // Section declaration constants
 let kUnknownSectionCode = 0;
-let kTypeSectionCode = 1;        // Function signature declarations
-let kImportSectionCode = 2;      // Import declarations
-let kFunctionSectionCode = 3;    // Function declarations
-let kTableSectionCode = 4;       // Indirect function table and other tables
-let kMemorySectionCode = 5;      // Memory attributes
-let kGlobalSectionCode = 6;      // Global declarations
-let kExportSectionCode = 7;      // Exports
-let kStartSectionCode = 8;       // Start function declaration
-let kElementSectionCode = 9;     // Elements section
-let kCodeSectionCode = 10;       // Function code
-let kDataSectionCode = 11;       // Data segments
-let kNameSectionCode = 12;       // Name section (encoded as string)
-let kExceptionSectionCode = 13;  // Exception section (must appear before code section)
+let kTypeSectionCode = 1;      // Function signature declarations
+let kImportSectionCode = 2;    // Import declarations
+let kFunctionSectionCode = 3;  // Function declarations
+let kTableSectionCode = 4;     // Indirect function table and other tables
+let kMemorySectionCode = 5;    // Memory attributes
+let kGlobalSectionCode = 6;    // Global declarations
+let kExportSectionCode = 7;    // Exports
+let kStartSectionCode = 8;     // Start function declaration
+let kElementSectionCode = 9;  // Elements section
+let kCodeSectionCode = 10;      // Function code
+let kDataSectionCode = 11;     // Data segments
+let kNameSectionCode = 12;     // Name section (encoded as string)
 
 // Name section types
 let kModuleNameCode = 0;
@@ -358,7 +357,8 @@ function assertTraps(trap, code) {
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
-function assertWasmThrows(values, code) {
+function assertWasmThrows(value, code) {
+  assertEquals('number', typeof value);
   try {
     if (typeof code === 'function') {
       code();
@@ -366,11 +366,10 @@ function assertWasmThrows(values, code) {
       eval(code);
     }
   } catch (e) {
-    // TODO(kschimpf): Extract values from the exception.
-    let e_values = [];
-    assertEquals(values, e_values);
+    assertEquals('number', typeof e);
+    assertEquals(value, e);
     // Success.
     return;
   }
-  throw new MjsUnitAssertionError('Did not throw, expected: ' + values);
+  throw new MjsUnitAssertionError('Did not throw, expected: ' + value);
 }

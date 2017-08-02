@@ -103,7 +103,6 @@ void ThreadLocalTop::InitializeInternal() {
   // These members are re-initialized later after deserialization
   // is complete.
   pending_exception_ = NULL;
-  wasm_caught_exception_ = NULL;
   rethrowing_message_ = false;
   pending_message_obj_ = NULL;
   scheduled_exception_ = NULL;
@@ -216,7 +215,6 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitRootPointer(Root::kTop, &thread->pending_exception_);
-  v->VisitRootPointer(Root::kTop, &thread->wasm_caught_exception_);
   v->VisitRootPointer(Root::kTop, &thread->pending_message_obj_);
   v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(thread->context_)));
   v->VisitRootPointer(Root::kTop, &thread->scheduled_exception_);

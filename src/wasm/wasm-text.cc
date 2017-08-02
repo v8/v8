@@ -143,14 +143,9 @@ void wasm::PrintWasmText(const WasmModule *module,
       }
       case kExprGetLocal:
       case kExprSetLocal:
-      case kExprTeeLocal: {
-        LocalIndexOperand<false> operand(&i, i.pc());
-        os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
-        break;
-      }
-      case kExprThrow:
+      case kExprTeeLocal:
       case kExprCatch: {
-        ExceptionIndexOperand<false> operand(&i, i.pc());
+        LocalIndexOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
@@ -188,6 +183,7 @@ void wasm::PrintWasmText(const WasmModule *module,
       case kExprGrowMemory:
       case kExprDrop:
       case kExprSelect:
+      case kExprThrow:
         os << WasmOpcodes::OpcodeName(opcode);
         break;
 
