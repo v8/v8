@@ -16,6 +16,10 @@
   V(CompactionPartiallyAbortedPageWithStoreBufferEntries) \
   V(CompactionSpaceDivideMultiplePages)                   \
   V(CompactionSpaceDivideSinglePage)                      \
+  V(InvalidatedSlotsNoInvalidatedRanges)                  \
+  V(InvalidatedSlotsSomeInvalidatedRanges)                \
+  V(InvalidatedSlotsAllInvalidatedRanges)                 \
+  V(InvalidatedSlotsAfterTrimming)                        \
   V(TestNewSpaceRefsInCopiedCode)                         \
   V(GCFlags)                                              \
   V(MarkCompactCollector)                                 \
@@ -66,11 +70,15 @@ class HeapTester {
   HEAP_TEST_METHODS(DECLARE_STATIC)
 #undef HEAP_TEST_METHODS
 
-  /* test-alloc.cc */
+  // test-alloc.cc
   static AllocationResult AllocateAfterFailures();
   static Handle<Object> TestAllocateAfterFailures();
 
-  /* test-api.cc */
+  // test-invalidated-slots.cc
+  static Page* AllocateByteArraysOnPage(Heap* heap,
+                                        std::vector<ByteArray*>* byte_arrays);
+
+  // test-api.cc
   static void ResetWeakHandle(bool global_gc);
 };
 
