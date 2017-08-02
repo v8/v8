@@ -120,8 +120,7 @@ class RememberedSet : public AllStatic {
     while ((chunk = it.next()) != nullptr) {
       SlotSet* slots = chunk->slot_set<type>();
       TypedSlotSet* typed_slots = chunk->typed_slot_set<type>();
-      if (slots != nullptr || typed_slots != nullptr ||
-          chunk->invalidated_slots() != nullptr) {
+      if (slots != nullptr || typed_slots != nullptr) {
         callback(chunk);
       }
     }
@@ -231,7 +230,6 @@ class RememberedSet : public AllStatic {
     while ((chunk = it.next()) != nullptr) {
       chunk->ReleaseSlotSet<OLD_TO_OLD>();
       chunk->ReleaseTypedSlotSet<OLD_TO_OLD>();
-      chunk->ReleaseInvalidatedSlots();
     }
   }
 
