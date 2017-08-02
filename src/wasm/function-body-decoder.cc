@@ -1369,18 +1369,13 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kAtomicPrefix: {
-            if (module_ == nullptr || !module_->is_asm_js()) {
-              error("Atomics are allowed only in AsmJs modules");
-              break;
-            }
             CHECK_PROTOTYPE_OPCODE(threads);
-            len = 2;
-            byte atomic_opcode = read_u8<true>(pc_ + 1, "atomic index");
-            opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);
-            sig = WasmOpcodes::AtomicSignature(opcode);
-            if (sig) {
-              BuildAtomicOperator(opcode);
-            }
+            len++;
+            byte atomic_index = read_u8<true>(pc_ + 1, "atomic index");
+            opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_index);
+            TRACE("  @%-4d #%-20s|", startrel(pc_),
+                  WasmOpcodes::OpcodeName(opcode));
+            len += DecodeAtomicOpcode(opcode);
             break;
           }
           default: {
@@ -1692,7 +1687,22 @@ class WasmFullDecoder : public WasmDecoder {
     return len;
   }
 
-  void BuildAtomicOperator(WasmOpcode opcode) { UNIMPLEMENTED(); }
+  unsigned DecodeAtomicOpcode(WasmOpcode opcode) {
+    unsigned len = 0;
+    FunctionSig* sig = WasmOpcodes::AtomicSignature(opcode);
+    if (sig != nullptr) {
+      compiler::NodeVector inputs(sig->parameter_count(), zone_);
+      for (int i = static_cast<int>(sig->parameter_count() - 1); i >= 0; --i) {
+        Value val = Pop(i, sig->GetParam(i));
+        inputs[i] = val.node;
+      }
+      TFNode* node = BUILD(AtomicOp, opcode, inputs, position());
+      Push(GetReturnType(sig), node);
+    } else {
+      error("invalid atomic opcode");
+    }
+    return len;
+  }
 
   void DoReturn() {
     int count = static_cast<int>(sig_->return_count());

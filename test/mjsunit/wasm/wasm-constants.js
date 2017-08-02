@@ -320,6 +320,16 @@ let kExprI64ReinterpretF64 = 0xbd;
 let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
 
+// Prefix opcodes
+let kAtomicPrefix = 0xfe;
+
+let kExprI32AtomicAdd = 0x1e;
+let kExprI32AtomicAdd8U = 0x20;
+let kExprI32AtomicAdd16U = 0x21;
+let kExprI32AtomicSub = 0x25;
+let kExprI32AtomicSub8U = 0x27;
+let kExprI32AtomicSub16U = 0x28;
+
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;
 let kTrapDivByZero            = 2;

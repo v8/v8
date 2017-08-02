@@ -271,6 +271,9 @@ class WasmGraphBuilder {
 
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
+  Node* AtomicOp(wasm::WasmOpcode opcode, const NodeVector& inputs,
+                 wasm::WasmCodePosition position);
+
   bool has_simd() const { return has_simd_; }
 
   wasm::ModuleEnv* module_env() const { return module_; }

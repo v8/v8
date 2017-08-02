@@ -3748,6 +3748,60 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
                           inputs[0], inputs[1]);
 }
 
+Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode,
+                                 const NodeVector& inputs,
+                                 wasm::WasmCodePosition position) {
+  Node* node;
+  switch (opcode) {
+    case wasm::kExprI32AtomicAdd: {
+      BoundsCheckMem(MachineType::Uint32(), inputs[0], 0, position);
+      node = graph()->NewNode(
+          jsgraph()->machine()->AtomicAdd(MachineType::Uint32()), MemBuffer(0),
+          inputs[0], inputs[1], *effect_, *control_);
+      break;
+    }
+    case wasm::kExprI32AtomicSub: {
+      BoundsCheckMem(MachineType::Uint32(), inputs[0], 0, position);
+      node = graph()->NewNode(
+          jsgraph()->machine()->AtomicSub(MachineType::Uint32()), MemBuffer(0),
+          inputs[0], inputs[1], *effect_, *control_);
+      break;
+    }
+    case wasm::kExprI32AtomicAdd16U: {
+      BoundsCheckMem(MachineType::Uint16(), inputs[0], 0, position);
+      node = graph()->NewNode(
+          jsgraph()->machine()->AtomicAdd(MachineType::Uint16()), MemBuffer(0),
+          inputs[0], inputs[1], *effect_, *control_);
+      break;
+    }
+    case wasm::kExprI32AtomicSub16U: {
+      BoundsCheckMem(MachineType::Uint16(), inputs[0], 0, position);
+      node = graph()->NewNode(
+          jsgraph()->machine()->AtomicSub(MachineType::Uint16()), MemBuffer(0),
+          inputs[0], inputs[1], *effect_, *control_);
+      break;
+    }
+    case wasm::kExprI32AtomicAdd8U: {
+      BoundsCheckMem(MachineType::Uint8(), inputs[0], 0, position);
+      node = graph()->NewNode(
+          jsgraph()->machine()->AtomicAdd(MachineType::Uint8()), MemBuffer(0),
+          inputs[0], inputs[1], *effect_, *control_);
+      break;
+    }
+    case wasm::kExprI32AtomicSub8U: {
+      BoundsCheckMem(MachineType::Uint8(), inputs[0], 0, position);
+      node = graph()->NewNode(
+          jsgraph()->machine()->AtomicSub(MachineType::Uint8()), MemBuffer(0),
+          inputs[0], inputs[1], *effect_, *control_);
+      break;
+    }
+    default:
+      FATAL_UNSUPPORTED_OPCODE(opcode);
+  }
+  *effect_ = node;
+  return node;
+}
+
 static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                       Isolate* isolate, Handle<Code> code,
                                       const char* message, uint32_t index,
