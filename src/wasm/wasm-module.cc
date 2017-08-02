@@ -248,8 +248,11 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
 
   void* allocation_base = nullptr;  // Set by TryAllocateBackingStore
   size_t allocation_length = 0;     // Set by TryAllocateBackingStore
-  void* memory = TryAllocateBackingStore(isolate, size, enable_guard_regions,
-                                         allocation_base, allocation_length);
+  // Do not reserve memory till non zero memory is encountered.
+  void* memory =
+      (size == 0) ? nullptr
+                  : TryAllocateBackingStore(isolate, size, enable_guard_regions,
+                                            allocation_base, allocation_length);
 
   if (size > 0 && memory == nullptr) {
     return Handle<JSArrayBuffer>::null();
@@ -446,11 +449,6 @@ bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
 void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
                                          Handle<JSArrayBuffer> buffer,
                                          bool free_memory) {
-  int64_t byte_length =
-      buffer->byte_length()->IsNumber()
-          ? static_cast<uint32_t>(buffer->byte_length()->Number())
-          : 0;
-  if (buffer.is_null() || byte_length == 0) return;
   const bool is_external = buffer->is_external();
   DCHECK(!buffer->is_neuterable());
   if (!is_external) {

@@ -16,8 +16,14 @@ const known_failures = {
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
   "'WebAssembly.Instance.prototype.exports' accessor property":
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
-  "'WebAssembly.Memory.prototype.grow' method":
-    'https://bugs.chromium.org/p/v8/issues/detail?id=6546'
+  "'WebAssembly.Module.prototype' object":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=6647',
+  "'WebAssembly.Instance.prototype' object":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=6647',
+  "'WebAssembly.Memory.prototype' object":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=6647',
+  "'WebAssembly.Table.prototype' object":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=6647'
 };
 
 let failures = [];
@@ -62,10 +68,36 @@ function promise_test(func, description) {
   });
 }
 
-let assert_equals = assertEquals;
-let assert_not_equals = assertNotEquals;
 let assert_true = assertEquals.bind(null, true);
 let assert_false = assertEquals.bind(null, false);
+
+function same_value(x, y) {
+  if (y !== y) {
+    // NaN case
+    return x!==x;
+  }
+  if (x === 0 && y === 0) {
+    // Distinguish +0 and -0
+    return 1/x === 1/y;
+  }
+  return x === y;
+}
+
+let assert_equals = function(expected, found, description) {
+  if (typeof found != typeof expected) {
+    assert_true(false, "assert_equals", description,
+        "expected (" + typeof expected + ") ${expected} but got (" +
+        typeof found + ") ${found}", {expected:expected, found:found});
+  }
+  assert_true(same_value(found, expected), "assert_equals", description,
+      "expected ${expected} but got ${found}",
+      {expected:expected, found:found});
+}
+
+let assert_not_equals = function(expected, found, description) {
+  assert_true(!same_value(found, expected), "assert_not_equals", description,
+      "got disallowed value ${found}", {found:found});
+}
 
 function assert_unreached(description) {
   throw new Error(`unreachable:\n${description}`);
