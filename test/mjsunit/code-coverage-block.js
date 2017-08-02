@@ -69,7 +69,7 @@ TestCoverage(
 `,
 [{"start":0,"end":399,"count":1},
  {"start":1,"end":351,"count":1},
- {"start":161,"end":351,"count":0}]
+ {"start":161,"end":350,"count":0}]
 );
 
 TestCoverage(
@@ -178,7 +178,7 @@ TestCoverage(
  {"start":81,"end":253,"count":10},
  {"start":163,"end":253,"count":0},
  {"start":460,"end":553,"count":0},
- {"start":761,"end":951,"count":0}]
+ {"start":761,"end":950,"count":0}]
 );
 
 TestCoverage(
@@ -216,7 +216,7 @@ TestCoverage(
 [{"start":0,"end":299,"count":1},
  {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
  {"start":83,"end":153,"count":4},
- {"start":153,"end":201,"count":1}]
+ {"start":153,"end":200,"count":1}]
 );
 
 TestCoverage(
@@ -278,7 +278,7 @@ TestCoverage(
  {"start":117,"end":303,"count":10},
  {"start":213,"end":303,"count":0},
  {"start":510,"end":603,"count":0},
- {"start":811,"end":1001,"count":0}]
+ {"start":811,"end":1000,"count":0}]
 );
 
 TestCoverage(
@@ -311,7 +311,7 @@ TestCoverage(
  {"start":105,"end":303,"count":10},
  {"start":213,"end":303,"count":0},
  {"start":510,"end":603,"count":0},
- {"start":811,"end":1001,"count":0}]
+ {"start":811,"end":1000,"count":0}]
 );
 
 TestCoverage(
@@ -323,9 +323,9 @@ TestCoverage(
 `,
 [{"start":0,"end":149,"count":1},
  {"start":1,"end":37,"count":1},
- {"start":28,"end":37,"count":0},
+ {"start":28,"end":36,"count":0},
  {"start":51,"end":122,"count":1},
- {"start":81,"end":122,"count":0}]
+ {"start":81,"end":121,"count":0}]
 );
 
 TestCoverage(
@@ -374,10 +374,10 @@ TestCoverage("try/catch/finally statements with early return",
 [{"start":0,"end":449,"count":1},
  {"start":1,"end":151,"count":1},
  {"start":67,"end":70,"count":0},
- {"start":89,"end":151,"count":0},
+ {"start":89,"end":150,"count":0},
  {"start":201,"end":401,"count":1},
  {"start":267,"end":270,"count":0},
- {"start":319,"end":401,"count":0}]
+ {"start":319,"end":400,"count":0}]
 );
 
 TestCoverage(
@@ -409,15 +409,15 @@ TestCoverage(
 [{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
  {"start":67,"end":70,"count":0},
- {"start":89,"end":151,"count":0},
+ {"start":89,"end":150,"count":0},
  {"start":201,"end":351,"count":1},
- {"start":284,"end":351,"count":0},
+ {"start":284,"end":350,"count":0},
  {"start":401,"end":701,"count":1},
- {"start":569,"end":701,"count":0},
+ {"start":569,"end":700,"count":0},
  {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
  {"start":751,"end":1051,"count":1},
  {"start":817,"end":820,"count":0},
- {"start":861,"end":1051,"count":0}]
+ {"start":861,"end":1050,"count":0}]
 );
 
 TestCoverage(
@@ -550,7 +550,7 @@ it.next(); it.next();                     // 0250
  {"start":64,"end":116,"count":1},
  {"start":116,"end":121,"count":0},
  {"start":124,"end":129,"count":1},
- {"start":129,"end":201,"count":0}]
+ {"start":129,"end":200,"count":0}]
 );
 
 TestCoverage(
@@ -569,9 +569,9 @@ try {                                     // 0200
 `,
 [{"start":0,"end":499,"count":1},
  {"start":12,"end":101,"count":3},
- {"start":60,"end":101,"count":0},
+ {"start":60,"end":100,"count":0},
  {"start":264,"end":353,"count":3},
- {"start":312,"end":353,"count":0}]
+ {"start":312,"end":352,"count":0}]
 );
 
 TestCoverage("yield expressions (.return and try/catch/finally)",
@@ -590,7 +590,7 @@ it.next(); it.return();                   // 0450
  {"start":11,"end":351,"count":3},
  {"start":112,"end":254,"count":0},
  {"start":254,"end":272,"count":1},
- {"start":272,"end":351,"count":0}]
+ {"start":272,"end":350,"count":0}]
 );
 
 TestCoverage("yield expressions (.throw and try/catch/finally)",
@@ -609,7 +609,7 @@ it.next(); it.throw(42);                  // 0550
  {"start":11,"end":351,"count":3},
  {"start":112,"end":154,"count":0},
  {"start":154,"end":310,"count":1},
- {"start":310,"end":351,"count":0}]
+ {"start":310,"end":350,"count":0}]
 );
 
 TestCoverage(
@@ -628,7 +628,7 @@ it.next(); it.next(); it.next();          // 0300
  {"start":65,"end":117,"count":1},
  {"start":117,"end":122,"count":0},
  {"start":125,"end":130,"count":1},
- {"start":130,"end":201,"count":0}]
+ {"start":130,"end":200,"count":0}]
 );
 
 TestCoverage(
@@ -647,9 +647,9 @@ try {                                     // 0200
 `,
 [{"start":0,"end":499,"count":1},
  {"start":12,"end":101,"count":3},
- {"start":65,"end":101,"count":0},
+ {"start":65,"end":100,"count":0},
  {"start":264,"end":353,"count":3},
- {"start":317,"end":353,"count":0}]
+ {"start":317,"end":352,"count":0}]
 );
 
 TestCoverage(
@@ -664,7 +664,7 @@ f();                                      // 0200
 `,
 [{"start":0,"end":299,"count":1},
  {"start":0,"end":151,"count":3},
- {"start":61,"end":151,"count":1}]
+ {"start":61,"end":150,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);

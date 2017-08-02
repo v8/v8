@@ -18,7 +18,7 @@ f(); f(); f(); f(); f(); f();             // 0150
 `,
 [{"start":0,"end":199,"count":1},
  {"start":0,"end":33,"count":4},   // TODO(jgruber): Invocation count is off.
- {"start":25,"end":33,"count":16},
+ {"start":25,"end":32,"count":16},
  {"start":50,"end":76,"count":2}]  // TODO(jgruber): Invocation count is off.
 );
 
@@ -40,7 +40,7 @@ TestCoverage("Partial coverage collection",
 }();                                      // 0400
 `,
 [{"start":52,"end":153,"count":0},
- {"start":127,"end":153,"count":1}]
+ {"start":127,"end":152,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);

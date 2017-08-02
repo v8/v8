@@ -184,6 +184,10 @@ class CoverageBlockIterator final {
     return GetNextBlock();
   }
 
+  // A range is considered to be at top level if its parent range is the
+  // function range.
+  bool IsTopLevel() const { return nesting_stack_.size() == 1; }
+
   void DeleteBlock() {
     DCHECK(!delete_current_);
     DCHECK(IsActive());
@@ -256,8 +260,16 @@ void RewritePositionSingletonsToRanges(CoverageFunction* function) {
     } else if (block.end == kNoSourcePosition) {
       // The current block ends at the next sibling block (if it exists) or the
       // end of the parent block otherwise.
-      block.end = iter.HasSiblingOrChild() ? iter.GetSiblingOrChild().start
-                                           : parent.end;
+      if (iter.HasSiblingOrChild()) {
+        block.end = iter.GetSiblingOrChild().start;
+      } else if (iter.IsTopLevel()) {
+        // See https://crbug.com/v8/6661. Functions are special-cased because
+        // we never want the closing brace to be uncovered. This is mainly to
+        // avoid a noisy UI.
+        block.end = parent.end - 1;
+      } else {
+        block.end = parent.end;
+      }
     }
   }
 }
