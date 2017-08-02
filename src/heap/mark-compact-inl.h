@@ -45,8 +45,8 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
                                       Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
-  if (target_page->IsEvacuationCandidate() &&
-      !source_page->ShouldSkipEvacuationSlotRecording()) {
+  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
+      !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
     DCHECK_IMPLIES(
         !FLAG_concurrent_marking,
         ObjectMarking::IsBlackOrGrey(object, MarkingState::Internal(object)));

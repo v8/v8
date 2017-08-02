@@ -302,21 +302,22 @@ class MemoryChunk {
 
     // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
     // to iterate the page.
-    SWEEP_TO_ITERATE = 1u << 18,
+    SWEEP_TO_ITERATE = 1u << 18
   };
-  typedef base::Flags<Flag, uintptr_t> Flags;
 
-  static const int kPointersToHereAreInterestingMask =
+  using Flags = uintptr_t;
+
+  static const Flags kPointersToHereAreInterestingMask =
       POINTERS_TO_HERE_ARE_INTERESTING;
 
-  static const int kPointersFromHereAreInterestingMask =
+  static const Flags kPointersFromHereAreInterestingMask =
       POINTERS_FROM_HERE_ARE_INTERESTING;
 
-  static const int kEvacuationCandidateMask = EVACUATION_CANDIDATE;
+  static const Flags kEvacuationCandidateMask = EVACUATION_CANDIDATE;
 
-  static const int kIsInNewSpaceMask = IN_FROM_SPACE | IN_TO_SPACE;
+  static const Flags kIsInNewSpaceMask = IN_FROM_SPACE | IN_TO_SPACE;
 
-  static const int kSkipEvacuationSlotsRecordingMask =
+  static const Flags kSkipEvacuationSlotsRecordingMask =
       kEvacuationCandidateMask | kIsInNewSpaceMask;
 
   // |kSweepingDone|: The page state when sweeping is complete or sweeping must
@@ -345,7 +346,7 @@ class MemoryChunk {
   static const size_t kMinHeaderSize =
       kSizeOffset         // NOLINT
       + kSizetSize        // size_t size
-      + kIntptrSize       // Flags flags_
+      + kUIntptrSize      // uintptr_t flags_
       + kPointerSize      // Address area_start_
       + kPointerSize      // Address area_end_
       + 2 * kPointerSize  // base::VirtualMemory reservation_
@@ -451,14 +452,14 @@ class MemoryChunk {
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
     if (access_mode == AccessMode::ATOMIC)
-      return base::AsAtomicWord::Acquire_Load(&slot_set_[type]);
+      return base::AsAtomicPointer::Acquire_Load(&slot_set_[type]);
     return slot_set_[type];
   }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   TypedSlotSet* typed_slot_set() {
     if (access_mode == AccessMode::ATOMIC)
-      return base::AsAtomicWord::Acquire_Load(&typed_slot_set_[type]);
+      return base::AsAtomicPointer::Acquire_Load(&typed_slot_set_[type]);
     return typed_slot_set_[type];
   }
 
@@ -516,35 +517,57 @@ class MemoryChunk {
     return this->address() + (index << kPointerSizeLog2);
   }
 
-  void SetFlag(Flag flag) { flags_ |= flag; }
-  void ClearFlag(Flag flag) { flags_ &= ~Flags(flag); }
-  bool IsFlagSet(Flag flag) { return (flags_ & flag) != 0; }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  void SetFlag(Flag flag) {
+    if (access_mode == AccessMode::NON_ATOMIC) {
+      flags_ |= flag;
+    } else {
+      base::AsAtomicWord::SetBits<uintptr_t>(&flags_, flag, flag);
+    }
+  }
 
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool IsFlagSet(Flag flag) {
+    return (GetFlags<access_mode>() & flag) != 0;
+  }
+
+  void ClearFlag(Flag flag) { flags_ &= ~flag; }
   // Set or clear multiple flags at a time. The flags in the mask are set to
   // the value in "flags", the rest retain the current value in |flags_|.
   void SetFlags(uintptr_t flags, uintptr_t mask) {
-    flags_ = (flags_ & ~Flags(mask)) | (Flags(flags) & Flags(mask));
+    flags_ = (flags_ & ~mask) | (flags & mask);
   }
 
   // Return all current flags.
-  uintptr_t GetFlags() { return flags_; }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  uintptr_t GetFlags() {
+    if (access_mode == AccessMode::NON_ATOMIC) {
+      return flags_;
+    } else {
+      return base::AsAtomicWord::Relaxed_Load(&flags_);
+    }
+  }
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
   void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
 
-  bool IsEvacuationCandidate() {
-    DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
-    return IsFlagSet(EVACUATION_CANDIDATE);
-  }
-
   bool CanAllocate() {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool IsEvacuationCandidate() {
+    DCHECK(!(IsFlagSet<access_mode>(NEVER_EVACUATE) &&
+             IsFlagSet<access_mode>(EVACUATION_CANDIDATE)));
+    return IsFlagSet<access_mode>(EVACUATION_CANDIDATE);
+  }
+
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   bool ShouldSkipEvacuationSlotRecording() {
-    return ((flags_ & kSkipEvacuationSlotsRecordingMask) != 0) &&
-           !IsFlagSet(COMPACTION_WAS_ABORTED);
+    uintptr_t flags = GetFlags<access_mode>();
+    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
+           ((flags & COMPACTION_WAS_ABORTED) == 0);
   }
 
   Executability executable() {
@@ -604,7 +627,7 @@ class MemoryChunk {
   void InitializationMemoryFence();
 
   size_t size_;
-  Flags flags_;
+  uintptr_t flags_;
 
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
@@ -666,8 +689,6 @@ class MemoryChunk {
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::Flags)
 
 static_assert(kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory,
               "kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory");

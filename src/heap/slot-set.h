@@ -300,14 +300,14 @@ class SlotSet : public Malloced {
   template <AccessMode access_mode = AccessMode::ATOMIC>
   Bucket LoadBucket(Bucket* bucket) {
     if (access_mode == AccessMode::ATOMIC)
-      return base::AsAtomicWord::Acquire_Load(bucket);
+      return base::AsAtomicPointer::Acquire_Load(bucket);
     return *bucket;
   }
 
   template <AccessMode access_mode = AccessMode::ATOMIC>
   void StoreBucket(Bucket* bucket, Bucket value) {
     if (access_mode == AccessMode::ATOMIC) {
-      base::AsAtomicWord::Release_Store(bucket, value);
+      base::AsAtomicPointer::Release_Store(bucket, value);
     } else {
       *bucket = value;
     }
@@ -316,8 +316,8 @@ class SlotSet : public Malloced {
   template <AccessMode access_mode = AccessMode::ATOMIC>
   bool SwapInNewBucket(Bucket* bucket, Bucket value) {
     if (access_mode == AccessMode::ATOMIC) {
-      return base::AsAtomicWord::Release_CompareAndSwap(bucket, nullptr,
-                                                        value) == nullptr;
+      return base::AsAtomicPointer::Release_CompareAndSwap(bucket, nullptr,
+                                                           value) == nullptr;
     } else {
       DCHECK_NULL(*bucket);
       *bucket = value;
@@ -588,10 +588,10 @@ class TypedSlotSet {
       return true;
     }
 
-    Chunk* next() const { return base::AsAtomicWord::Acquire_Load(&next_); }
+    Chunk* next() const { return base::AsAtomicPointer::Acquire_Load(&next_); }
 
     void set_next(Chunk* n) {
-      return base::AsAtomicWord::Release_Store(&next_, n);
+      return base::AsAtomicPointer::Release_Store(&next_, n);
     }
 
     TypedSlot* buffer() const { return buffer_; }
@@ -611,9 +611,9 @@ class TypedSlotSet {
     int32_t count_;
   };
 
-  Chunk* load_top() { return base::AsAtomicWord::Acquire_Load(&top_); }
+  Chunk* load_top() { return base::AsAtomicPointer::Acquire_Load(&top_); }
 
-  void set_top(Chunk* c) { base::AsAtomicWord::Release_Store(&top_, c); }
+  void set_top(Chunk* c) { base::AsAtomicPointer::Release_Store(&top_, c); }
 
   Address page_start_;
   Chunk* top_;

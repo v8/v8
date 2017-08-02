@@ -53,7 +53,7 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
   heap()->CopyBlock(target->address() + kPointerSize,
                     source->address() + kPointerSize, size - kPointerSize);
 
-  HeapObject* old = base::AsAtomicWord::Release_CompareAndSwap(
+  HeapObject* old = base::AsAtomicPointer::Release_CompareAndSwap(
       reinterpret_cast<HeapObject**>(source->address()), map,
       MapWord::FromForwardingAddress(target).ToMap());
   if (old != map) {
@@ -159,7 +159,7 @@ void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
     // ThinStrings always refer to internalized strings, which are
     // always in old space.
     DCHECK(!heap()->InNewSpace(actual));
-    base::AsAtomicWord::Relaxed_Store(
+    base::AsAtomicPointer::Relaxed_Store(
         reinterpret_cast<Map**>(object->address()),
         MapWord::FromForwardingAddress(actual).ToMap());
     return;
@@ -178,7 +178,7 @@ void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
     *slot = first;
 
     if (!heap()->InNewSpace(first)) {
-      base::AsAtomicWord::Relaxed_Store(
+      base::AsAtomicPointer::Relaxed_Store(
           reinterpret_cast<Map**>(object->address()),
           MapWord::FromForwardingAddress(first).ToMap());
       return;
@@ -189,14 +189,14 @@ void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
       HeapObject* target = first_word.ToForwardingAddress();
 
       *slot = target;
-      base::AsAtomicWord::Relaxed_Store(
+      base::AsAtomicPointer::Relaxed_Store(
           reinterpret_cast<Map**>(object->address()),
           MapWord::FromForwardingAddress(target).ToMap());
       return;
     }
     Map* map = first_word.ToMap();
     EvacuateObjectDefault(map, slot, first, first->SizeFromMap(map));
-    base::AsAtomicWord::Relaxed_Store(
+    base::AsAtomicPointer::Relaxed_Store(
         reinterpret_cast<Map**>(object->address()),
         MapWord::FromForwardingAddress(*slot).ToMap());
     return;
@@ -238,7 +238,7 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
     DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
-    base::AsAtomicWord::Relaxed_Store(p, dest);
+    base::AsAtomicPointer::Relaxed_Store(p, dest);
     return;
   }
 

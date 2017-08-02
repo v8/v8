@@ -3202,7 +3202,7 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
       if (access_mode == AccessMode::NON_ATOMIC) {
         *slot = target;
       } else {
-        base::AsAtomicWord::Release_CompareAndSwap(slot, obj, target);
+        base::AsAtomicPointer::Release_CompareAndSwap(slot, obj, target);
       }
       DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
@@ -4103,8 +4103,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       if (map_word.IsForwardingAddress()) {
         if (access_mode == AccessMode::ATOMIC) {
           HeapObject** heap_obj_slot = reinterpret_cast<HeapObject**>(slot);
-          base::AsAtomicWord::Relaxed_Store(heap_obj_slot,
-                                            map_word.ToForwardingAddress());
+          base::AsAtomicPointer::Relaxed_Store(heap_obj_slot,
+                                               map_word.ToForwardingAddress());
         } else {
           *slot = map_word.ToForwardingAddress();
         }
