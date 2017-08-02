@@ -12,6 +12,7 @@
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
+#include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"

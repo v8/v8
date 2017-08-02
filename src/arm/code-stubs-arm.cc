@@ -4,15 +4,15 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/code-stubs.h"
-
 #include "src/api-arguments.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/counters.h"
 #include "src/double.h"
+#include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
@@ -23,7 +23,7 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/arm/code-stubs-arm.h"
+#include "src/arm/code-stubs-arm.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {

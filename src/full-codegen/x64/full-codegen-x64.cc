@@ -14,6 +14,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
+#include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"

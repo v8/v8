@@ -4,13 +4,12 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/code-stubs.h"
 #include "src/api-arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/ia32/code-stubs-ia32.h"
-#include "src/ia32/frames-ia32.h"
+#include "src/frames-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -18,6 +17,8 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
+
+#include "src/ia32/code-stubs-ia32.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {

@@ -5,8 +5,6 @@
 #ifndef V8_PPC_CODE_STUBS_PPC_H_
 #define V8_PPC_CODE_STUBS_PPC_H_
 
-#include "src/ppc/frames-ppc.h"
-
 namespace v8 {
 namespace internal {
 

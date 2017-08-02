@@ -7,7 +7,6 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/compiler.h"
-#include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/wasm/wasm-module.h"

@@ -13,6 +13,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
+#include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/ic/ic.h"

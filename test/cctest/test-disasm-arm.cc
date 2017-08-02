@@ -34,6 +34,7 @@
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/double.h"
+#include "src/frames-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"

@@ -16,6 +16,7 @@
 #include "src/debug/debug.h"
 #include "src/double.h"
 #include "src/external-reference-table.h"
+#include "src/frames-inl.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"

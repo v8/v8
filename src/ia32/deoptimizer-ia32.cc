@@ -6,6 +6,7 @@
 
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
+#include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/register-configuration.h"

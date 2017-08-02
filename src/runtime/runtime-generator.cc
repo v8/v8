@@ -6,7 +6,6 @@
 
 #include "src/arguments.h"
 #include "src/factory.h"
-#include "src/frames-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

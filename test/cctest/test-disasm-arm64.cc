@@ -33,6 +33,8 @@
 
 #include "src/macro-assembler.h"
 
+#include "src/frames-inl.h"
+
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/disasm-arm64.h"

@@ -8,7 +8,6 @@
 #include "src/arm/assembler-arm.h"
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
-#include "src/frames.h"
 #include "src/globals.h"
 
 namespace v8 {

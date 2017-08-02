@@ -10,7 +10,6 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/factory.h"
-#include "src/frames-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/trap-handler/trap-handler.h"
