@@ -1184,22 +1184,10 @@ void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
   sweep_to_iterate_pages_.clear();
 }
 
-// Visitor class for marking heap roots.
-// TODO(ulan): Remove ObjectVisitor base class after fixing marking of
-// the string table and the top optimized code.
-class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
-                                                 public RootVisitor {
+class MarkCompactCollector::RootMarkingVisitor : public RootVisitor {
  public:
-  explicit RootMarkingVisitor(Heap* heap)
-      : collector_(heap->mark_compact_collector()), visitor_(collector_) {}
-
-  void VisitPointer(HeapObject* host, Object** p) override {
-    MarkObjectByPointer(host, p);
-  }
-
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(host, p);
-  }
+  explicit RootMarkingVisitor(MarkCompactCollector* collector)
+      : collector_(collector), visitor_(collector_) {}
 
   void VisitRootPointer(Root root, Object** p) override {
     MarkObjectByPointer(nullptr, p, root);
@@ -1209,10 +1197,6 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
     for (Object** p = start; p < end; p++)
       MarkObjectByPointer(nullptr, p, root);
   }
-
-  // Skip the weak next code link in a code object, which is visited in
-  // ProcessTopOptimizedFrame.
-  void VisitNextCodeLink(Code* host, Object** p) override {}
 
  private:
   void MarkObjectByPointer(HeapObject* host, Object** p,
@@ -1240,8 +1224,45 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
     }
   }
 
-  MarkCompactCollector* collector_;
+  MarkCompactCollector* const collector_;
   MarkCompactMarkingVisitor visitor_;
+};
+
+// This visitor is used to visit the body of special objects held alive by
+// other roots.
+//
+// It is currently used for
+// - Code held alive by the top optimized frame. This code cannot be deoptimized
+// and thus have to be kept alive in an isolate way, i.e., it should not keep
+// alive other code objects reachable through the weak list but they should
+// keep alive its embedded pointers (which would otherwise be dropped).
+// - Prefix of the string table.
+class MarkCompactCollector::CustomRootBodyMarkingVisitor final
+    : public ObjectVisitor {
+ public:
+  explicit CustomRootBodyMarkingVisitor(MarkCompactCollector* collector)
+      : collector_(collector) {}
+
+  void VisitPointer(HeapObject* host, Object** p) final {
+    MarkObject(host, *p);
+  }
+
+  void VisitPointers(HeapObject* host, Object** start, Object** end) final {
+    for (Object** p = start; p < end; p++) MarkObject(host, *p);
+  }
+
+  // VisitEmbedderPointer is defined by ObjectVisitor to call VisitPointers.
+
+  // Skip the weak next code link in a code object.
+  void VisitNextCodeLink(Code* host, Object** p) override {}
+
+ private:
+  void MarkObject(HeapObject* host, Object* object) {
+    if (!object->IsHeapObject()) return;
+    collector_->MarkObject(host, HeapObject::cast(object));
+  }
+
+  MarkCompactCollector* const collector_;
 };
 
 class InternalizedStringTableCleaner : public ObjectVisitor {
@@ -1883,24 +1904,26 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
                                 MarkingState::Internal(HeapObject::cast(o)));
 }
 
-void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
+void MarkCompactCollector::MarkStringTable(
+    ObjectVisitor* custom_root_body_visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
-  if (ObjectMarking::WhiteToBlack(string_table,
-                                  MarkingState::Internal(string_table))) {
+  if (ObjectMarking::WhiteToBlack(string_table, marking_state(string_table))) {
     // Explicitly mark the prefix.
-    string_table->IteratePrefix(visitor);
+    string_table->IteratePrefix(custom_root_body_visitor);
     ProcessMarkingWorklist();
   }
 }
 
-void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
+void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
+                                     ObjectVisitor* custom_root_body_visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
-  heap()->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
+  heap()->IterateStrongRoots(root_visitor, VISIT_ONLY_STRONG);
 
-  // Handle the string table specially.
-  MarkStringTable(visitor);
+  // Custom marking for string table and top optimized frame.
+  MarkStringTable(custom_root_body_visitor);
+  ProcessTopOptimizedFrame(custom_root_body_visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_worklist()->overflowed()) {
@@ -2000,8 +2023,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
 }
 
-void MarkCompactCollector::ProcessTopOptimizedFrame(
-    RootMarkingVisitor* visitor) {
+void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
   for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
        !it.done(); it.Advance()) {
     if (it.frame()->type() == StackFrame::JAVA_SCRIPT) {
@@ -2690,12 +2712,12 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
-  RootMarkingVisitor root_visitor(heap());
+  RootMarkingVisitor root_visitor(this);
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
-    MarkRoots(&root_visitor);
-    ProcessTopOptimizedFrame(&root_visitor);
+    CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
+    MarkRoots(&root_visitor, &custom_root_body_visitor);
   }
 
   {

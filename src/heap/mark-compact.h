@@ -490,6 +490,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   using WeakCellWorklist = Worklist<WeakCell*, 64 /* segment size */>;
 
   class RootMarkingVisitor;
+  class CustomRootBodyMarkingVisitor;
 
   class Sweeper {
    public:
@@ -687,11 +688,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   V8_INLINE void MarkExternallyReferencedObject(HeapObject* obj);
 
   // Mark the heap roots and all objects reachable from them.
-  void MarkRoots(RootMarkingVisitor* visitor);
+  void MarkRoots(RootVisitor* root_visitor,
+                 ObjectVisitor* custom_root_body_visitor);
 
   // Mark the string table specially.  References to internalized strings from
   // the string table are weak.
-  void MarkStringTable(RootMarkingVisitor* visitor);
+  void MarkStringTable(ObjectVisitor* visitor);
 
   void ProcessMarkingWorklist() override;
 
@@ -704,9 +706,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void ProcessEphemeralMarking(bool only_process_harmony_weak_collections);
 
   // If the call-site of the top optimized code was not prepared for
-  // deoptimization, then treat the maps in the code as strong pointers,
-  // otherwise a map can die and deoptimize the code.
-  void ProcessTopOptimizedFrame(RootMarkingVisitor* visitor);
+  // deoptimization, then treat embedded pointers in the code as strong as
+  // otherwise they can die and try to deoptimize the underlying code.
+  void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
 
   // Collects a list of dependent code from maps embedded in optimize code.
   DependentCode* DependentCodeListFromNonLiveMaps();
