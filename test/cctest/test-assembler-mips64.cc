@@ -6329,11 +6329,10 @@ TEST(Dsubu) {
   struct TestCaseDsubu tc[] = {
       //        imm, expected_res, num_instr
       {0xffffffffffff8000, 0x8000, 2},  // min_int16
-      // The test case above generates ori + daddu instruction sequence.
+      // The test case above generates daddiu + dsubu instruction sequence.
       // We can't have just daddiu because -min_int16 > max_int16 so use
-      // register. We can load min_int16 to at register with daddiu and then
-      // subtract at with dsubu, but now we use ori + daddu because -min_int16
-      // can be loaded using ori.
+      // register, but we can load min_int16 to at register with daddiu and then
+      // subtract at with dsubu.
       {0x8000, 0xffffffffffff8000, 1},  // max_int16 + 1
       // Generates daddiu
       // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use daddiu.
@@ -6363,13 +6362,13 @@ TEST(Dsubu) {
       // r6 - Generates daddiu + dati + dsubu
       {0x8000000000000000, 0x8000000000000000, 3},  // min_int64
       // The test case above generates:
-      // r2 - daddiu + dsrl32 + dsubu instruction sequence,
+      // r2 - daddiu + dsll32 + dsubu instruction sequence,
       // r6 - ori + dati + dsubu.
       // The result of 0 - min_int64 eqauls max_int64 + 1, which wraps around to
       // min_int64 again.
       {0xffff0000ffffffff, 0x0000ffff00000001, 4},
       // The test case above generates:
-      // r2 - ori + dsrl32 + ori + daddu instruction sequence,
+      // r2 - ori + dsll32 + ori + daddu instruction sequence,
       // r6 - daddiu + dahi + dati + dsubu.
       // For r2 loading imm would take more instructions than loading -imm so we
       // can load -imm and add with daddu.
