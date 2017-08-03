@@ -702,8 +702,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            "]\n",
            input_data->OptimizationId()->value(), bailout_id_, fp_to_sp_delta_,
            caller_frame_top_);
-    if (bailout_type_ == EAGER || bailout_type_ == SOFT ||
-        (compiled_code_->is_hydrogen_stub())) {
+    if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
       compiled_code_->PrintDeoptLocation(trace_scope_->file(), from_);
     }
   }

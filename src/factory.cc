@@ -1734,7 +1734,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_ref,
                               bool immovable,
-                              bool crankshafted,
                               int prologue_offset,
                               bool is_debug) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
@@ -1767,7 +1766,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_has_unwinding_info(has_unwinding_info);
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
-  code->set_is_crankshafted(crankshafted);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(Smi::kZero);

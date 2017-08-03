@@ -128,15 +128,15 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(TurboAssembler* tasm,
   // Allocate and install the code.
   CodeDesc desc;
   Code::Flags flags = info->code_flags();
-  bool is_crankshafted =
+  bool is_turbofanned =
       Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
       info->IsStub();
   tasm->GetCode(isolate, &desc);
   if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
 
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, flags, self_reference, false, is_crankshafted,
-      info->prologue_offset(), info->is_debug() && !is_crankshafted);
+      desc, flags, self_reference, false, info->prologue_offset(),
+      info->is_debug() && !is_turbofanned);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   return code;

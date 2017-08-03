@@ -692,7 +692,6 @@ class V8_EXPORT_PRIVATE Factory final {
                        Code::Flags flags,
                        Handle<Object> self_reference,
                        bool immovable = false,
-                       bool crankshafted = false,
                        int prologue_offset = Code::kPrologueOffsetNotSet,
                        bool is_debug = false);
 

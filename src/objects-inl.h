@@ -3698,15 +3698,6 @@ void Code::set_raw_kind_specific_flags2(int value) {
   WRITE_INT_FIELD(this, kKindSpecificFlags2Offset, value);
 }
 
-inline bool Code::is_crankshafted() const {
-  return IsCrankshaftedField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
-}
-
-inline bool Code::is_hydrogen_stub() const {
-  return is_crankshafted() && kind() != OPTIMIZED_FUNCTION;
-}
-
 inline bool Code::is_interpreter_trampoline_builtin() const {
   Builtins* builtins = GetIsolate()->builtins();
   return this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
@@ -3730,12 +3721,6 @@ inline void Code::set_has_unwinding_info(bool state) {
   uint32_t previous = READ_UINT32_FIELD(this, kFlagsOffset);
   uint32_t updated_value = HasUnwindingInfoField::update(previous, state);
   WRITE_UINT32_FIELD(this, kFlagsOffset, updated_value);
-}
-
-inline void Code::set_is_crankshafted(bool value) {
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = IsCrankshaftedField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 inline bool Code::has_tagged_params() const {
@@ -3872,7 +3857,7 @@ void Code::set_builtin_index(int index) {
 }
 
 unsigned Code::stack_slots() const {
-  DCHECK(is_crankshafted());
+  DCHECK(is_turbofanned());
   return StackSlotsField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
@@ -3880,14 +3865,14 @@ unsigned Code::stack_slots() const {
 
 void Code::set_stack_slots(unsigned slots) {
   CHECK(slots <= (1 << kStackSlotsBitCount));
-  DCHECK(is_crankshafted());
+  DCHECK(is_turbofanned());
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = StackSlotsField::update(previous, slots);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 unsigned Code::safepoint_table_offset() const {
-  DCHECK(is_crankshafted());
+  DCHECK(is_turbofanned());
   return SafepointTableOffsetField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
@@ -3895,7 +3880,7 @@ unsigned Code::safepoint_table_offset() const {
 
 void Code::set_safepoint_table_offset(unsigned offset) {
   CHECK(offset <= (1 << kSafepointTableOffsetBitCount));
-  DCHECK(is_crankshafted());
+  DCHECK(is_turbofanned());
   DCHECK(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = SafepointTableOffsetField::update(previous, offset);
