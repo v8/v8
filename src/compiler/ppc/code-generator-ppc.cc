@@ -2467,9 +2467,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         value = Double(src.ToFloat64());
       }
 #else
-      value = Double((src.type() == Constant::kFloat32)
-                         ? static_cast<double>(src.ToFloat32())
-                         : src.ToFloat64());
+      value = src.type() == Constant::kFloat32
+                  ? Double(static_cast<double>(src.ToFloat32()))
+                  : Double(src.ToFloat64());
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {
