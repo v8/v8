@@ -2321,8 +2321,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                                           Int32Constant(kPointerSizeLog2)),
                          Int32Constant(fixed_offset)),
         *effect_, *control_);
-    auto& map = const_cast<wasm::SignatureMap&>(
-        module_->module->function_tables[0].map);
+    auto& map = module_->module->function_tables[0].map;
     Node* sig_match = graph()->NewNode(
         machine->WordEqual(), load_sig,
         jsgraph()->SmiConstant(static_cast<int>(map.FindOrInsert(sig))));
@@ -3822,8 +3821,7 @@ static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                    *script_str, 0, 0));
 }
 
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                    const wasm::WasmModule* module,
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index) {
   const wasm::WasmFunction* func = &module->functions[index];
 

@@ -227,7 +227,7 @@ typedef Managed<WasmModule> WasmModuleWrapper;
 struct WasmInstance {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInstance);
 
-  const WasmModule* module;  // static representation of the module.
+  WasmModule* module;  // static representation of the module.
   // -- Heap allocated --------------------------------------------------------
   std::vector<Handle<FixedArray>> function_tables;  // indirect function tables.
   std::vector<Handle<FixedArray>>
@@ -240,7 +240,7 @@ struct WasmInstance {
   // -- raw globals -----------------------------------------------------------
   byte* globals_start = nullptr;  // start of the globals area.
 
-  explicit WasmInstance(const WasmModule* m)
+  explicit WasmInstance(WasmModule* m)
       : module(m),
         function_tables(m->function_tables.size()),
         signature_tables(m->function_tables.size()),
@@ -323,12 +323,12 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 struct V8_EXPORT_PRIVATE ModuleEnv {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ModuleEnv);
 
-  ModuleEnv(const WasmModule* module, WasmInstance* instance)
+  ModuleEnv(WasmModule* module, WasmInstance* instance)
       : module(module),
         instance(instance),
         function_tables(instance ? &instance->function_tables : nullptr),
         signature_tables(instance ? &instance->signature_tables : nullptr) {}
-  ModuleEnv(const WasmModule* module,
+  ModuleEnv(WasmModule* module,
             std::vector<Handle<FixedArray>>* function_tables,
             std::vector<Handle<FixedArray>>* signature_tables)
       : module(module),
@@ -336,7 +336,7 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
         function_tables(function_tables),
         signature_tables(signature_tables) {}
 
-  const WasmModule* module;
+  WasmModule* module;
   WasmInstance* instance;
 
   std::vector<Handle<FixedArray>>* function_tables;
@@ -383,10 +383,10 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
 
 // A ModuleEnv together with ModuleWireBytes.
 struct ModuleBytesEnv {
-  ModuleBytesEnv(const WasmModule* module, WasmInstance* instance,
+  ModuleBytesEnv(WasmModule* module, WasmInstance* instance,
                  Vector<const byte> module_bytes)
       : module_env(module, instance), wire_bytes(module_bytes) {}
-  ModuleBytesEnv(const WasmModule* module, WasmInstance* instance,
+  ModuleBytesEnv(WasmModule* module, WasmInstance* instance,
                  const ModuleWireBytes& wire_bytes)
       : module_env(module, instance), wire_bytes(wire_bytes) {}
 

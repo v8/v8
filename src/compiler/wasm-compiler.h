@@ -114,8 +114,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::ModuleOrigin origin);
 
 // Wraps a given wasm code object, producing a code object.
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                    const wasm::WasmModule* module,
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm

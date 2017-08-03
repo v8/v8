@@ -185,7 +185,7 @@ class ModuleCompiler {
 class JSToWasmWrapperCache {
  public:
   Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
-                                             const wasm::WasmModule* module,
+                                             wasm::WasmModule* module,
                                              Handle<Code> wasm_code,
                                              uint32_t index);
 

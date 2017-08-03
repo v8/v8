@@ -693,7 +693,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
 }
 
 Handle<Code> JSToWasmWrapperCache::CloneOrCompileJSToWasmWrapper(
-    Isolate* isolate, const wasm::WasmModule* module, Handle<Code> wasm_code,
+    Isolate* isolate, wasm::WasmModule* module, Handle<Code> wasm_code,
     uint32_t index) {
   const wasm::WasmFunction* func = &module->functions[index];
   int cached_idx = sig_map_.Find(func->sig);
