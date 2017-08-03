@@ -162,6 +162,16 @@ function bar() {
   InspectorTest.log('Evaluating common breakpoint in 1');
   await session1.Protocol.Runtime.evaluate({expression: 'foo();'});
 
+  InspectorTest.log('Activating breakpoints in 1');
+  await session1.Protocol.Debugger.setBreakpointsActive({active: true});
+  InspectorTest.log('Activating breakpoints in 2');
+  await session2.Protocol.Debugger.setBreakpointsActive({active: true});
+  InspectorTest.log('Disabling debugger agent in 1');
+  await session1.Protocol.Debugger.disable();
+  InspectorTest.log('Evaluating breakpoint in 1 (should not be triggered)');
+  session2.Protocol.Runtime.evaluate({expression: 'baz();\ndebugger;'});
+  await waitForPaused(session2, 2);
+
   InspectorTest.completeTest();
 
   function waitForBothPaused() {

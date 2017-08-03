@@ -201,3 +201,12 @@ Resuming in 2
 Resumed in 2
 Deactivating breakpoints in 2
 Evaluating common breakpoint in 1
+Activating breakpoints in 1
+Activating breakpoints in 2
+Disabling debugger agent in 1
+Evaluating breakpoint in 1 (should not be triggered)
+Paused in 2:
+  reason: other
+  hit breakpoints: 
+  location: <anonymous>@1
+  data: null

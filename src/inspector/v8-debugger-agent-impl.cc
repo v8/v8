@@ -362,8 +362,11 @@ Response V8DebuggerAgentImpl::disable() {
   m_blackboxPattern.reset();
   resetBlackboxedStateCache();
   m_scripts.clear();
-  // TODO(kozyatinskiy): to support multiclient we need to remove breakpoints
-  // here.
+  for (const auto& it : m_breakpointIdToDebuggerBreakpointIds) {
+    for (const auto& id : it.second) {
+      v8::debug::RemoveBreakpoint(m_isolate, id);
+    }
+  }
   m_breakpointIdToDebuggerBreakpointIds.clear();
   m_debugger->setAsyncCallStackDepth(this, 0);
   clearBreakDetails();
