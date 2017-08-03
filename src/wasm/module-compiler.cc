@@ -308,12 +308,18 @@ void ModuleCompiler::ValidateSequentially(ModuleBytesEnv* module_env,
   for (uint32_t i = 0; i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
     if (func.imported) continue;
-
     const byte* base = module_env->wire_bytes.start();
     FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
                       base + func.code.end_offset()};
-    DecodeResult result = VerifyWasmCode(isolate_->allocator(),
-                                         module_env->module_env.module, body);
+    DecodeResult result;
+    {
+      auto time_counter = module->is_wasm()
+                              ? counters()->wasm_decode_wasm_function_time()
+                              : counters()->wasm_decode_asm_function_time();
+      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
+      result = VerifyWasmCode(isolate_->allocator(),
+                              module_env->module_env.module, body);
+    }
     if (result.failed()) {
       WasmName str = module_env->wire_bytes.GetName(&func);
       thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,

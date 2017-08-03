@@ -1004,11 +1004,6 @@ class ModuleDecoder : public Decoder {
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
                           ModuleBytesEnv* menv, WasmFunction* function) {
-    auto time_counter = IsWasm()
-                            ? GetCounters()->wasm_decode_wasm_function_time()
-                            : GetCounters()->wasm_decode_asm_function_time();
-    TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-
     WasmFunctionName func_name(function,
                                menv->wire_bytes.GetNameOrNull(function));
     if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
@@ -1019,8 +1014,15 @@ class ModuleDecoder : public Decoder {
         function->sig, function->code.offset(),
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
-    DecodeResult result = VerifyWasmCode(
-        allocator, menv == nullptr ? nullptr : menv->module_env.module, body);
+    DecodeResult result;
+    {
+      auto time_counter = IsWasm()
+                              ? GetCounters()->wasm_decode_wasm_function_time()
+                              : GetCounters()->wasm_decode_asm_function_time();
+      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
+      result = VerifyWasmCode(
+          allocator, menv == nullptr ? nullptr : menv->module_env.module, body);
+    }
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream wrapped;
