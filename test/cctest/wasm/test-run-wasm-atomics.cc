@@ -24,6 +24,21 @@ T Sub(T a, T b) {
   return a - b;
 }
 
+template <typename T>
+T And(T a, T b) {
+  return a & b;
+}
+
+template <typename T>
+T Or(T a, T b) {
+  return a | b;
+}
+
+template <typename T>
+T Xor(T a, T b) {
+  return a ^ b;
+}
+
 void RunU32BinOp(WasmOpcode wasm_op, Uint32BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(kExecuteCompiled);
@@ -44,6 +59,9 @@ void RunU32BinOp(WasmOpcode wasm_op, Uint32BinOp expected_op) {
 
 WASM_EXEC_TEST(I32Add) { RunU32BinOp(kExprI32AtomicAdd, Add); }
 WASM_EXEC_TEST(I32Sub) { RunU32BinOp(kExprI32AtomicSub, Sub); }
+WASM_EXEC_TEST(I32And) { RunU32BinOp(kExprI32AtomicAnd, And); }
+WASM_EXEC_TEST(I32Or) { RunU32BinOp(kExprI32AtomicOr, Or); }
+WASM_EXEC_TEST(I32Xor) { RunU32BinOp(kExprI32AtomicXor, Xor); }
 
 void RunU16BinOp(WasmOpcode wasm_op, Uint16BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
@@ -65,6 +83,9 @@ void RunU16BinOp(WasmOpcode wasm_op, Uint16BinOp expected_op) {
 
 WASM_EXEC_TEST(I32Add16U) { RunU16BinOp(kExprI32AtomicAdd16U, Add); }
 WASM_EXEC_TEST(I32Sub16U) { RunU16BinOp(kExprI32AtomicSub16U, Sub); }
+WASM_EXEC_TEST(I32And16U) { RunU16BinOp(kExprI32AtomicAnd16U, And); }
+WASM_EXEC_TEST(I32Or16U) { RunU16BinOp(kExprI32AtomicOr16U, Or); }
+WASM_EXEC_TEST(I32Xor16U) { RunU16BinOp(kExprI32AtomicXor16U, Xor); }
 
 void RunU8BinOp(WasmOpcode wasm_op, Uint8BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
@@ -86,3 +107,6 @@ void RunU8BinOp(WasmOpcode wasm_op, Uint8BinOp expected_op) {
 
 WASM_EXEC_TEST(I32Add8U) { RunU8BinOp(kExprI32AtomicAdd8U, Add); }
 WASM_EXEC_TEST(I32Sub8U) { RunU8BinOp(kExprI32AtomicSub8U, Sub); }
+WASM_EXEC_TEST(I32And8U) { RunU8BinOp(kExprI32AtomicAnd8U, And); }
+WASM_EXEC_TEST(I32Or8U) { RunU8BinOp(kExprI32AtomicOr8U, Or); }
+WASM_EXEC_TEST(I32Xor8U) { RunU8BinOp(kExprI32AtomicXor8U, Xor); }

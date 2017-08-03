@@ -146,3 +146,191 @@ function VerifyBoundsCheck(buffer, funcs, max) {
   VerifyBoundsCheck(memory.buffer, subs, 20);
 
 })();
+
+(function TestAtomicAnd() {
+  print("TestAtomicAnd");
+  let memory = new WebAssembly.Memory({initial: 5, maximum: 20, shared: true});
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  builder.addFunction("atomic_and", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicAnd])
+    .exportAs("atomic_and");
+  builder.addFunction("atomic_and16", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicAnd16U])
+    .exportAs("atomic_and16");
+  builder.addFunction("atomic_and8", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicAnd8U])
+    .exportAs("atomic_and8");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = (new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}}));
+
+  // 32-bit And
+  let i32 = new Uint32Array(memory.buffer);
+  for (i = 0; i < i32.length; i++) {
+    i32[i] = i32.length;
+    assertEquals(i32.length, instance.exports.atomic_and(i * 4, i));
+    assertEquals(i32.length & i, i32[i]);
+  }
+
+  // 16-bit And
+  let i16 = new Uint16Array(memory.buffer);
+  for (i = 0; i < i16.length; i++) {
+    i16[i] = 0xffff;
+    assertEquals(0xffff, instance.exports.atomic_and16(i * 2, 0x1234));
+    assertEquals(0xffff & 0x1234, i16[i]);
+  }
+
+  // 8-bit And
+  let i8 = new Uint8Array(memory.buffer);
+  for (i = 0; i < i8.length; i++) {
+    i8[i] = 0xff;
+    assertEquals(0xff, instance.exports.atomic_and8(i, i % 0xff));
+    assertEquals(0xff & i % 0xff, i8[i]);
+  }
+
+  var ands = [{func: instance.exports.atomic_and, memtype_size: 4},
+  {func: instance.exports.atomic_and16, memtype_size: 2},
+  {func: instance.exports.atomic_and8, memtype_size: 1}];
+
+  VerifyBoundsCheck(memory.buffer, ands, 20);
+})();
+
+(function TestAtomicOr() {
+  print("TestAtomicOr");
+  let memory = new WebAssembly.Memory({initial: 5, maximum: 20, shared: true});
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  builder.addFunction("atomic_or", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicOr])
+    .exportAs("atomic_or");
+  builder.addFunction("atomic_or16", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicOr16U])
+    .exportAs("atomic_or16");
+  builder.addFunction("atomic_or8", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicOr8U])
+    .exportAs("atomic_or8");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = (new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}}));
+
+  // 32-bit Or
+  let i32 = new Uint32Array(memory.buffer);
+  for (i = 0; i < i32.length; i++) {
+    i32[i] = i32.length;
+    assertEquals(i32.length, instance.exports.atomic_or(i * 4, i));
+    assertEquals(i32.length | i, i32[i]);
+  }
+
+  // 16-bit Or
+  let i16 = new Uint16Array(memory.buffer);
+  for (i = 0; i < i16.length; i++) {
+    i16[i] = 0xffff;
+    assertEquals(0xffff, instance.exports.atomic_or16(i * 2, 0x1234));
+    assertEquals(0xffff | 0x1234, i16[i]);
+  }
+
+  // 8-bit Or
+  let i8 = new Uint8Array(memory.buffer);
+  for (i = 0; i < i8.length; i++) {
+    i8[i] = 0xff;
+    assertEquals(0xff, instance.exports.atomic_or8(i, i % 0xff));
+    assertEquals(0xff | i % 0xff, i8[i]);
+  }
+
+  var ors = [{func: instance.exports.atomic_or, memtype_size: 4},
+  {func: instance.exports.atomic_or16, memtype_size: 2},
+  {func: instance.exports.atomic_or8, memtype_size: 1}];
+
+  VerifyBoundsCheck(memory.buffer, ors, 20);
+
+})();
+
+(function TestAtomicXor() {
+  print("TestAtomicXor");
+  let memory = new WebAssembly.Memory({initial: 5, maximum: 20, shared: true});
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  builder.addFunction("atomic_xor", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicXor])
+    .exportAs("atomic_xor");
+  builder.addFunction("atomic_xor16", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicXor16U])
+    .exportAs("atomic_xor16");
+  builder.addFunction("atomic_xor8", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicXor8U])
+    .exportAs("atomic_xor8");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = (new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}}));
+
+  // 32-bit Xor
+  let i32 = new Uint32Array(memory.buffer);
+  for (i = 0; i < i32.length; i++) {
+    i32[i] = i32.length;
+    assertEquals(i32.length, instance.exports.atomic_xor(i * 4, i));
+    assertEquals(i32.length ^ i, i32[i]);
+  }
+
+  // 16-bit Xor
+  let i16 = new Uint16Array(memory.buffer);
+  for (i = 0; i < i16.length; i++) {
+    i16[i] = 0xffff;
+    assertEquals(0xffff, instance.exports.atomic_xor16(i * 2, 0x5678));
+    assertEquals(0xffff ^ 0x5678, i16[i]);
+  }
+
+  // 8-bit Xor
+  let i8 = new Uint8Array(memory.buffer);
+  for (i = 0; i < i8.length; i++) {
+    i8[i] = 0xff;
+    assertEquals(0xff, instance.exports.atomic_xor8(i, i % 0xff));
+    assertEquals(0xff ^ i % 0xff, i8[i]);
+  }
+
+  var xors = [{func: instance.exports.atomic_xor, memtype_size: 4},
+  {func: instance.exports.atomic_xor16, memtype_size: 2},
+  {func: instance.exports.atomic_xor8, memtype_size: 1}];
+
+  VerifyBoundsCheck(memory.buffer, xors, 20);
+
+})();
