@@ -62,7 +62,7 @@ Reduction NewEscapeAnalysisReducer::Reduce(Node* node) {
   if (Node* replacement = analysis_result().GetReplacementOf(node)) {
     DCHECK(node->opcode() != IrOpcode::kAllocate &&
            node->opcode() != IrOpcode::kFinishRegion);
-    RelaxEffectsAndControls(node);
+    DCHECK_NE(replacement, node);
     if (replacement != jsgraph()->Dead()) {
       replacement = MaybeGuard(node, replacement);
     }
