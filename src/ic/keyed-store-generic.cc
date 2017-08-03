@@ -225,7 +225,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapMulti(
 void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
     Node* receiver, Node* index, Node* value, UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
-    Node* new_length = SmiTag(IntPtrAdd(index, IntPtrConstant(1)));
+    Node* new_length = SmiTag(Signed(IntPtrAdd(index, IntPtrConstant(1))));
     StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset, new_length,
                                    MachineRepresentation::kTagged);
   }
@@ -445,7 +445,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
   BIND(&if_array);
   {
-    Node* length = SmiUntag(LoadJSArrayLength(receiver));
+    Node* length = SmiUntag(LoadFastJSArrayLength(receiver));
     GotoIf(UintPtrLessThan(intptr_index, length), &if_in_bounds);
     Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
     GotoIf(UintPtrGreaterThanOrEqual(intptr_index, capacity), &if_grow);

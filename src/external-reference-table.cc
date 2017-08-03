@@ -253,6 +253,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memset");
   Add(ExternalReference::try_internalize_string_function(isolate).address(),
       "try_internalize_string_function");
+  Add(ExternalReference::check_object_type(isolate).address(),
+      "check_object_type");
 #ifdef V8_INTL_SUPPORT
   Add(ExternalReference::intl_convert_one_byte_to_lower(isolate).address(),
       "intl_convert_one_byte_to_lower");

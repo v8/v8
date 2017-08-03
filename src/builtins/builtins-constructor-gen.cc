@@ -571,9 +571,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 
   BIND(&create_empty_array);
   CSA_ASSERT(this, IsAllocationSite(allocation_site.value()));
-  Node* kind = SmiToWord32(
+  Node* kind = SmiToWord32(CAST(
       LoadObjectField(allocation_site.value(),
-                      AllocationSite::kTransitionInfoOrBoilerplateOffset));
+                      AllocationSite::kTransitionInfoOrBoilerplateOffset)));
   CSA_ASSERT(this, IsFastElementsKind(kind));
   Node* native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");

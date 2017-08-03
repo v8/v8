@@ -145,7 +145,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
                     [this, elements, &offset](Node* arg) {
                       StoreNoWriteBarrier(MachineRepresentation::kTagged,
                                           elements, offset.value(), arg);
-                      Increment(offset, kPointerSize);
+                      Increment(&offset, kPointerSize);
                     },
                     first_arg, nullptr, param_mode);
   return result;
@@ -332,7 +332,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     mapped_offset = BuildFastLoop(
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
-          Increment(current_argument, kPointerSize);
+          Increment(&current_argument, kPointerSize);
           Node* arg = LoadBufferObject(current_argument.value(), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
@@ -370,7 +370,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
                     StoreNoWriteBarrier(
                         MachineRepresentation::kTagged, adjusted_map_array,
                         offset, ParameterToTagged(context_index.value(), mode));
-                    Increment(context_index, 1, mode);
+                    Increment(&context_index, 1, mode);
                   },
                   -kPointerSize, INTPTR_PARAMETERS);
 

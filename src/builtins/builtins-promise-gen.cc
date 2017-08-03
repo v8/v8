@@ -639,7 +639,7 @@ void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
 
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_MAP_INDEX);
-  Node* const proto_map = LoadMap(LoadMapPrototype(map));
+  Node* const proto_map = LoadMap(CAST(LoadMapPrototype(map)));
   Node* const proto_has_initialmap =
       WordEqual(proto_map, initial_proto_initial_map);
 

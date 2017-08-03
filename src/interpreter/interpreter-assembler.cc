@@ -1377,7 +1377,7 @@ Node* InterpreterAssembler::LoadOSRNestingLevel() {
 
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
   disable_stack_check_across_call_ = true;
-  Node* abort_id = SmiTag(Int32Constant(bailout_reason));
+  Node* abort_id = SmiConstant(bailout_reason);
   CallRuntime(Runtime::kAbort, GetContext(), abort_id);
   disable_stack_check_across_call_ = false;
 }

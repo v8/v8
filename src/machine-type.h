@@ -33,6 +33,8 @@ enum class MachineRepresentation {
   kLastRepresentation = kSimd128
 };
 
+bool IsSubtype(MachineRepresentation rep1, MachineRepresentation rep2);
+
 static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
                   kIntSize * kBitsPerByte,
               "Bit masks of MachineRepresentation should fit in an int");

@@ -895,6 +895,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kNone:
       break;
   }
+
   UNREACHABLE();
 }
 

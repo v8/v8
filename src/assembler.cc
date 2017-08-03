@@ -47,6 +47,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
+#include "src/compiler/code-assembler.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -1508,6 +1509,10 @@ ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(
       isolate, FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
+}
+
+ExternalReference ExternalReference::check_object_type(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CheckObjectType)));
 }
 
 #ifdef V8_INTL_SUPPORT

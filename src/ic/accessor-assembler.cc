@@ -1167,7 +1167,7 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(Node* object,
   }
   BIND(&if_array);
   {
-    var_length.Bind(SmiUntag(LoadJSArrayLength(object)));
+    var_length.Bind(SmiUntag(LoadFastJSArrayLength(object)));
     Goto(&length_loaded);
   }
   BIND(&length_loaded);
@@ -1281,7 +1281,7 @@ void AccessorAssembler::EmitElementLoad(
 
     // Bounds check.
     Node* length =
-        SmiUntag(LoadObjectField(object, JSTypedArray::kLengthOffset));
+        SmiUntag(CAST(LoadObjectField(object, JSTypedArray::kLengthOffset)));
     GotoIfNot(UintPtrLessThan(intptr_index, length), out_of_bounds);
 
     // Backing store = external_pointer + base_pointer.

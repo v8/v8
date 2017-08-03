@@ -104,7 +104,7 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
     args.ForEach(list, [this, elements, &index](Node* arg) {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, elements,
                           index.value(), arg);
-      Increment(index, kPointerSize);
+      Increment(&index, kPointerSize);
     });
     return array;
   }

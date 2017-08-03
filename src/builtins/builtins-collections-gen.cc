@@ -699,8 +699,8 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
     Node* removed_index = LoadFixedArrayElement(
         table, i, OrderedHashTableBase::kRemovedHolesIndex * kPointerSize);
     GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
-    Decrement(var_index, 1, SMI_PARAMETERS);
-    Increment(var_i);
+    Decrement(&var_index, 1, SMI_PARAMETERS);
+    Increment(&var_i);
     Goto(&loop);
   }
 
@@ -792,7 +792,7 @@ std::tuple<Node*, Node*, Node*> CollectionsBuiltinsAssembler::NextSkipHoles(
     entry_key =
         LoadFixedArrayElement(table, entry_start_position,
                               TableType::kHashTableStartIndex * kPointerSize);
-    Increment(var_index);
+    Increment(&var_index);
     Branch(IsTheHole(entry_key), &loop, &done_loop);
   }
 
@@ -898,7 +898,7 @@ TF_BUILTIN(MapSet, CollectionsBuiltinsAssembler) {
 
     // Otherwise, go to runtime to compute the hash code.
     entry_start_position_or_hash.Bind(
-        SmiUntag(CallRuntime(Runtime::kGenericHash, context, key)));
+        SmiUntag(CAST(CallRuntime(Runtime::kGenericHash, context, key))));
     Goto(&add_entry);
   }
 
@@ -914,9 +914,9 @@ TF_BUILTIN(MapSet, CollectionsBuiltinsAssembler) {
     STATIC_ASSERT(OrderedHashMap::kLoadFactor == 2);
     Node* const capacity = WordShl(number_of_buckets.value(), 1);
     Node* const number_of_elements = SmiUntag(
-        LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset));
-    Node* const number_of_deleted = SmiUntag(
-        LoadObjectField(table, OrderedHashMap::kNumberOfDeletedElementsOffset));
+        CAST(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset)));
+    Node* const number_of_deleted = SmiUntag(CAST(LoadObjectField(
+        table, OrderedHashMap::kNumberOfDeletedElementsOffset)));
     occupancy.Bind(IntPtrAdd(number_of_elements, number_of_deleted));
     GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
 
@@ -926,10 +926,10 @@ TF_BUILTIN(MapSet, CollectionsBuiltinsAssembler) {
     table_var.Bind(LoadObjectField(receiver, JSMap::kTableOffset));
     number_of_buckets.Bind(SmiUntag(LoadFixedArrayElement(
         table_var.value(), OrderedHashMap::kNumberOfBucketsIndex)));
-    Node* const new_number_of_elements = SmiUntag(LoadObjectField(
-        table_var.value(), OrderedHashMap::kNumberOfElementsOffset));
-    Node* const new_number_of_deleted = SmiUntag(LoadObjectField(
-        table_var.value(), OrderedHashMap::kNumberOfDeletedElementsOffset));
+    Node* const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
+        table_var.value(), OrderedHashMap::kNumberOfElementsOffset)));
+    Node* const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
+        table_var.value(), OrderedHashMap::kNumberOfDeletedElementsOffset)));
     occupancy.Bind(IntPtrAdd(new_number_of_elements, new_number_of_deleted));
     Goto(&store_new_entry);
   }
@@ -1005,14 +1005,15 @@ TF_BUILTIN(MapDelete, CollectionsBuiltinsAssembler) {
                                          OrderedHashMap::kValueOffset));
 
   // Decrement the number of elements, increment the number of deleted elements.
-  Node* const number_of_elements =
-      SmiSub(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset),
-             SmiConstant(1));
+  Node* const number_of_elements = SmiSub(
+      CAST(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset)),
+      SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(table, OrderedHashMap::kNumberOfElementsOffset,
                                  number_of_elements);
-  Node* const number_of_deleted = SmiAdd(
-      LoadObjectField(table, OrderedHashMap::kNumberOfDeletedElementsOffset),
-      SmiConstant(1));
+  Node* const number_of_deleted =
+      SmiAdd(CAST(LoadObjectField(
+                 table, OrderedHashMap::kNumberOfDeletedElementsOffset)),
+             SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(
       table, OrderedHashMap::kNumberOfDeletedElementsOffset, number_of_deleted);
 
@@ -1064,7 +1065,7 @@ TF_BUILTIN(SetAdd, CollectionsBuiltinsAssembler) {
 
     // Otherwise, go to runtime to compute the hash code.
     entry_start_position_or_hash.Bind(
-        SmiUntag(CallRuntime(Runtime::kGenericHash, context, key)));
+        SmiUntag(CAST(CallRuntime(Runtime::kGenericHash, context, key))));
     Goto(&add_entry);
   }
 
@@ -1080,9 +1081,9 @@ TF_BUILTIN(SetAdd, CollectionsBuiltinsAssembler) {
     STATIC_ASSERT(OrderedHashSet::kLoadFactor == 2);
     Node* const capacity = WordShl(number_of_buckets.value(), 1);
     Node* const number_of_elements = SmiUntag(
-        LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset));
-    Node* const number_of_deleted = SmiUntag(
-        LoadObjectField(table, OrderedHashSet::kNumberOfDeletedElementsOffset));
+        CAST(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset)));
+    Node* const number_of_deleted = SmiUntag(CAST(LoadObjectField(
+        table, OrderedHashSet::kNumberOfDeletedElementsOffset)));
     occupancy.Bind(IntPtrAdd(number_of_elements, number_of_deleted));
     GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
 
@@ -1092,10 +1093,10 @@ TF_BUILTIN(SetAdd, CollectionsBuiltinsAssembler) {
     table_var.Bind(LoadObjectField(receiver, JSMap::kTableOffset));
     number_of_buckets.Bind(SmiUntag(LoadFixedArrayElement(
         table_var.value(), OrderedHashSet::kNumberOfBucketsIndex)));
-    Node* const new_number_of_elements = SmiUntag(LoadObjectField(
-        table_var.value(), OrderedHashSet::kNumberOfElementsOffset));
-    Node* const new_number_of_deleted = SmiUntag(LoadObjectField(
-        table_var.value(), OrderedHashSet::kNumberOfDeletedElementsOffset));
+    Node* const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
+        table_var.value(), OrderedHashSet::kNumberOfElementsOffset)));
+    Node* const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
+        table_var.value(), OrderedHashSet::kNumberOfDeletedElementsOffset)));
     occupancy.Bind(IntPtrAdd(new_number_of_elements, new_number_of_deleted));
     Goto(&store_new_entry);
   }
@@ -1164,14 +1165,15 @@ TF_BUILTIN(SetDelete, CollectionsBuiltinsAssembler) {
                          kPointerSize * OrderedHashSet::kHashTableStartIndex);
 
   // Decrement the number of elements, increment the number of deleted elements.
-  Node* const number_of_elements =
-      SmiSub(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset),
-             SmiConstant(1));
+  Node* const number_of_elements = SmiSub(
+      CAST(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset)),
+      SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(table, OrderedHashSet::kNumberOfElementsOffset,
                                  number_of_elements);
-  Node* const number_of_deleted = SmiAdd(
-      LoadObjectField(table, OrderedHashSet::kNumberOfDeletedElementsOffset),
-      SmiConstant(1));
+  Node* const number_of_deleted =
+      SmiAdd(CAST(LoadObjectField(
+                 table, OrderedHashSet::kNumberOfDeletedElementsOffset)),
+             SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(
       table, OrderedHashSet::kNumberOfDeletedElementsOffset, number_of_deleted);
 
@@ -1648,7 +1650,7 @@ TF_BUILTIN(WeakMapLookupHashIndex, CollectionsBuiltinsAssembler) {
     GotoIf(WordEqual(current, key), &if_found);
 
     // See HashTable::NextProbe().
-    Increment(var_count);
+    Increment(&var_count);
     entry = WordAnd(IntPtrAdd(entry, var_count.value()), mask);
 
     var_entry.Bind(entry);
@@ -1659,7 +1661,7 @@ TF_BUILTIN(WeakMapLookupHashIndex, CollectionsBuiltinsAssembler) {
   Return(SmiConstant(-1));
 
   BIND(&if_found);
-  Return(SmiTag(IntPtrAdd(index, IntPtrConstant(1))));
+  Return(SmiTag(Signed(IntPtrAdd(index, IntPtrConstant(1)))));
 }
 
 TF_BUILTIN(WeakMapGet, CollectionsBuiltinsAssembler) {

@@ -75,7 +75,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
   Label named_captures(this), out(this);
 
-  Node* const num_indices = SmiUntag(LoadFixedArrayElement(
+  TNode<IntPtrT> num_indices = SmiUntag(LoadFixedArrayElement(
       match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
   Node* const num_results = SmiTag(WordShr(num_indices, 1));
   Node* const start =
@@ -525,7 +525,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
             Node* const smi_value = SmiFromWord32(value);
             StoreNoWriteBarrier(MachineRepresentation::kTagged, match_info,
                                 var_to_offset.value(), smi_value);
-            Increment(var_to_offset, kPointerSize);
+            Increment(&var_to_offset, kPointerSize);
           },
           kInt32Size, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
     }
@@ -822,7 +822,7 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
 
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::REGEXP_PROTOTYPE_MAP_INDEX);
-  Node* const proto_map = LoadMap(LoadMapPrototype(map));
+  Node* const proto_map = LoadMap(CAST(LoadMapPrototype(map)));
   Node* const proto_has_initialmap =
       WordEqual(proto_map, initial_proto_initial_map);
 
@@ -1147,16 +1147,16 @@ Node* RegExpBuiltinsAssembler::RegExpInitialize(Node* const context,
   CSA_ASSERT(this, IsJSRegExp(regexp));
 
   // Normalize pattern.
-  Node* const pattern =
-      Select(IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
-             [=] { return ToString_Inline(context, maybe_pattern); },
-             MachineRepresentation::kTagged);
+  Node* const pattern = Select<Object>(
+      IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
+      [=] { return ToString_Inline(context, maybe_pattern); },
+      MachineRepresentation::kTagged);
 
   // Normalize flags.
-  Node* const flags =
-      Select(IsUndefined(maybe_flags), [=] { return EmptyStringConstant(); },
-             [=] { return ToString_Inline(context, maybe_flags); },
-             MachineRepresentation::kTagged);
+  Node* const flags = Select<Object>(
+      IsUndefined(maybe_flags), [=] { return EmptyStringConstant(); },
+      [=] { return ToString_Inline(context, maybe_flags); },
+      MachineRepresentation::kTagged);
 
   // Initialize.
 
@@ -1868,7 +1868,8 @@ class GrowableFixedArray {
     var_length_.Bind(a->IntPtrConstant(0));
   }
 
-  Node* NewCapacity(CodeStubAssembler* a, Node* const current_capacity) {
+  Node* NewCapacity(CodeStubAssembler* a,
+                    compiler::SloppyTNode<IntPtrT> current_capacity) {
     CSA_ASSERT(a, a->IntPtrGreaterThan(current_capacity, a->IntPtrConstant(0)));
 
     // Growth rate is analog to JSObject::NewElementsCapacity:
@@ -2672,10 +2673,10 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
         BIND(&if_ispositive);
         {
-          Node* const int_elem = SmiUntag(elem);
-          Node* const new_match_start =
-              IntPtrAdd(WordShr(int_elem, IntPtrConstant(11)),
-                        WordAnd(int_elem, IntPtrConstant(0x7ff)));
+          TNode<IntPtrT> int_elem = SmiUntag(elem);
+          TNode<IntPtrT> new_match_start =
+              Signed(IntPtrAdd(WordShr(int_elem, IntPtrConstant(11)),
+                               WordAnd(int_elem, IntPtrConstant(0x7ff))));
           var_match_start.Bind(SmiTag(new_match_start));
           Goto(&loop_epilogue);
         }

@@ -986,6 +986,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference try_internalize_string_function(Isolate* isolate);
 
+  static ExternalReference check_object_type(Isolate* isolate);
+
 #ifdef V8_INTL_SUPPORT
   static ExternalReference intl_convert_one_byte_to_lower(Isolate* isolate);
   static ExternalReference intl_to_latin1_lower_table(Isolate* isolate);

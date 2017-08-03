@@ -15,6 +15,8 @@ namespace internal {
 
 typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 typedef compiler::Node Node;
+template <class A>
+using TNode = compiler::TNode<A>;
 
 Node* StringBuiltinsAssembler::DirectStringData(Node* string,
                                                 Node* string_instance_type) {
@@ -124,9 +126,9 @@ Node* StringBuiltinsAssembler::PointerToStringDataAtIndex(
 
 void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
     Node* context, Variable* var_start, Node* start, Node* string_length) {
-  Node* const start_int =
+  TNode<Object> const start_int =
       ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
-  Node* const zero = SmiConstant(0);
+  TNode<Smi> const zero = SmiConstant(0);
 
   Label done(this);
   Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
@@ -134,10 +136,11 @@ void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
 
   BIND(&if_issmi);
   {
-    var_start->Bind(
-        Select(SmiLessThan(start_int, zero),
-               [&] { return SmiMax(SmiAdd(string_length, start_int), zero); },
-               [&] { return start_int; }, MachineRepresentation::kTagged));
+    TNode<Smi> const start_int_smi = CAST(start_int);
+    var_start->Bind(Select(
+        SmiLessThan(start_int_smi, zero),
+        [&] { return SmiMax(SmiAdd(string_length, start_int_smi), zero); },
+        [&] { return start_int_smi; }, MachineRepresentation::kTagged));
     Goto(&done);
   }
 
@@ -147,9 +150,10 @@ void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
     // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
     // positive, set {start} to {string_length} which ultimately results in
     // returning an empty string.
-    Node* const float_zero = Float64Constant(0.);
-    Node* const start_float = LoadHeapNumberValue(start_int);
-    var_start->Bind(SelectTaggedConstant(
+    TNode<HeapNumber> const start_int_hn = CAST(start_int);
+    TNode<Float64T> const float_zero = Float64Constant(0.);
+    TNode<Float64T> const start_float = LoadHeapNumberValue(start_int_hn);
+    var_start->Bind(SelectTaggedConstant<Smi>(
         Float64LessThan(start_float, float_zero), zero, string_length));
     Goto(&done);
   }
@@ -921,8 +925,9 @@ void StringBuiltinsAssembler::StringIndexOf(
     // Simplified version of the runtime call where the types of the arguments
     // are already known due to type checks in this stub.
     Comment("Call Runtime Unchecked");
-    Node* result = CallRuntime(Runtime::kStringIndexOfUnchecked, SmiConstant(0),
-                               subject_string, search_string, position);
+    Node* result =
+        CallRuntime(Runtime::kStringIndexOfUnchecked, NoContextConstant(),
+                    subject_string, search_string, position);
     f_return(result);
   }
 }
@@ -1058,7 +1063,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
         LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
     Node* const initial_map =
         LoadObjectField(string_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const proto_map = LoadMap(LoadMapPrototype(initial_map));
+    Node* const proto_map = LoadMap(CAST(LoadMapPrototype(initial_map)));
 
     Branch(WordEqual(proto_map, initial_proto_initial_map), &out, &next);
 
@@ -1335,7 +1340,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   Node* const end = args.GetOptionalArgumentValue(kEnd);
   Node* const context = Parameter(BuiltinDescriptor::kContext);
 
-  Node* const smi_zero = SmiConstant(0);
+  TNode<Smi> const smi_zero = SmiConstant(0);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(context, receiver, "String.prototype.slice");
@@ -1381,8 +1386,8 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
     // returning an empty string.
     Node* const float_zero = Float64Constant(0.);
     Node* const end_float = LoadHeapNumberValue(end_int);
-    var_end.Bind(SelectTaggedConstant(Float64LessThan(end_float, float_zero),
-                                      smi_zero, length));
+    var_end.Bind(SelectTaggedConstant<Smi>(
+        Float64LessThan(end_float, float_zero), smi_zero, length));
     Goto(&out);
   }
 
@@ -1597,13 +1602,13 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   }
 }
 
-compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
-                                                             Node* value,
-                                                             Node* limit) {
+TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
+    SloppyTNode<Context> context, SloppyTNode<Object> value,
+    SloppyTNode<Smi> limit) {
   Label out(this);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Smi, var_result);
 
-  Node* const value_int =
+  TNode<Object> const value_int =
       this->ToInteger(context, value, CodeStubAssembler::kTruncateMinusZero);
 
   Label if_issmi(this), if_isnotsmi(this, Label::kDeferred);
@@ -1616,15 +1621,15 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
 
     BIND(&if_isinbounds);
     {
-      var_result.Bind(value_int);
+      var_result = CAST(value_int);
       Goto(&out);
     }
 
     BIND(&if_isoutofbounds);
     {
-      Node* const zero = SmiConstant(0);
-      var_result.Bind(
-          SelectTaggedConstant(SmiLessThan(value_int, zero), zero, limit));
+      TNode<Smi> const zero = SmiConstant(0);
+      var_result =
+          SelectTaggedConstant(SmiLessThan(value_int, zero), zero, limit);
       Goto(&out);
     }
   }
@@ -1632,18 +1637,18 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
   BIND(&if_isnotsmi);
   {
     // {value} is a heap number - in this case, it is definitely out of bounds.
-    CSA_ASSERT(this, IsHeapNumber(value_int));
+    TNode<HeapNumber> value_int_hn = CAST(value_int);
 
-    Node* const float_zero = Float64Constant(0.);
-    Node* const smi_zero = SmiConstant(0);
-    Node* const value_float = LoadHeapNumberValue(value_int);
-    var_result.Bind(SelectTaggedConstant(
-        Float64LessThan(value_float, float_zero), smi_zero, limit));
+    TNode<Float64T> const float_zero = Float64Constant(0.);
+    TNode<Smi> const smi_zero = SmiConstant(0);
+    TNode<Float64T> const value_float = LoadHeapNumberValue(value_int_hn);
+    var_result = SelectTaggedConstant(Float64LessThan(value_float, float_zero),
+                                      smi_zero, limit);
     Goto(&out);
   }
 
   BIND(&out);
-  return var_result.value();
+  return var_result;
 }
 
 // ES6 #sec-string.prototype.substring
@@ -1748,30 +1753,30 @@ TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
 
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.
-compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
-    compiler::Node* string, compiler::Node* length, compiler::Node* index,
+TNode<Uint32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
+    SloppyTNode<String> string, SloppyTNode<Smi> length, SloppyTNode<Smi> index,
     UnicodeEncoding encoding) {
   Label handle_surrogate_pair(this), return_result(this);
-  VARIABLE(var_result, MachineRepresentation::kWord32);
-  VARIABLE(var_trail, MachineRepresentation::kWord32);
-  var_result.Bind(StringCharCodeAt(string, index));
-  var_trail.Bind(Int32Constant(0));
+  TVARIABLE(Uint32T, var_result);
+  TVARIABLE(Uint32T, var_trail);
+  var_result = StringCharCodeAt(string, index);
+  var_trail = Unsigned(Int32Constant(0));
 
-  GotoIf(Word32NotEqual(Word32And(var_result.value(), Int32Constant(0xFC00)),
+  GotoIf(Word32NotEqual(Word32And(var_result, Int32Constant(0xFC00)),
                         Int32Constant(0xD800)),
          &return_result);
-  Node* next_index = SmiAdd(index, SmiConstant(1));
+  TNode<Smi> next_index = SmiAdd(index, SmiConstant(1));
 
   GotoIfNot(SmiLessThan(next_index, length), &return_result);
-  var_trail.Bind(StringCharCodeAt(string, next_index));
-  Branch(Word32Equal(Word32And(var_trail.value(), Int32Constant(0xFC00)),
+  var_trail = StringCharCodeAt(string, next_index);
+  Branch(Word32Equal(Word32And(var_trail, Int32Constant(0xFC00)),
                      Int32Constant(0xDC00)),
          &handle_surrogate_pair, &return_result);
 
   BIND(&handle_surrogate_pair);
   {
-    Node* lead = var_result.value();
-    Node* trail = var_trail.value();
+    TNode<Uint32T> lead = var_result;
+    TNode<Uint32T> trail = var_trail;
 
     // Check that this path is only taken if a surrogate pair is found
     CSA_SLOW_ASSERT(this,
@@ -1783,10 +1788,10 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
 
     switch (encoding) {
       case UnicodeEncoding::UTF16:
-        var_result.Bind(Word32Or(
+        var_result = Unsigned(Word32Or(
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
-            Word32Shl(lead, Int32Constant(16)), trail));
+            Word32Shl(lead, Int32Constant(16)), trail);
 #else
             Word32Shl(trail, Int32Constant(16)), lead));
 #endif
@@ -1795,12 +1800,12 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
       case UnicodeEncoding::UTF32: {
         // Convert UTF16 surrogate pair into |word32| code point, encoded as
         // UTF32.
-        Node* surrogate_offset =
+        TNode<Int32T> surrogate_offset =
             Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
 
         // (lead << 10) + trail + SURROGATE_OFFSET
-        var_result.Bind(Int32Add(Word32Shl(lead, Int32Constant(10)),
-                                 Int32Add(trail, surrogate_offset)));
+        var_result = Unsigned(Int32Add(Word32Shl(lead, Int32Constant(10)),
+                                       Int32Add(trail, surrogate_offset)));
         break;
       }
     }
@@ -1808,7 +1813,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
   }
 
   BIND(&return_result);
-  return var_result.value();
+  return var_result;
 }
 
 // ES6 #sec-%stringiteratorprototype%.next
