@@ -96,6 +96,37 @@ ContainedInLattice AddRange(ContainedInLattice containment,
   return containment;
 }
 
+
+// More makes code generation slower, less makes V8 benchmark score lower.
+const int kMaxLookaheadForBoyerMoore = 8;
+// In a 3-character pattern you can maximally step forwards 3 characters
+// at a time, which is not always enough to pay for the extra logic.
+const int kPatternTooShortForBoyerMoore = 2;
+
+
+// Identifies the sort of regexps where the regexp engine is faster
+// than the code used for atom matches.
+static bool HasFewDifferentCharacters(Handle<String> pattern) {
+  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  if (length <= kPatternTooShortForBoyerMoore) return false;
+  const int kMod = 128;
+  bool character_found[kMod];
+  int different = 0;
+  memset(&character_found[0], 0, sizeof(character_found));
+  for (int i = 0; i < length; i++) {
+    int ch = (pattern->Get(i) & (kMod - 1));
+    if (!character_found[ch]) {
+      character_found[ch] = true;
+      different++;
+      // We declare a regexp low-alphabet if it has at least 3 times as many
+      // characters as it has different characters.
+      if (different * 3 > length) return false;
+    }
+  }
+  return true;
+}
+
+
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 
@@ -127,7 +158,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   bool has_been_compiled = false;
 
   if (parse_result.simple && !(flags & JSRegExp::kIgnoreCase) &&
-      !(flags & JSRegExp::kSticky) && pattern->length() == 1) {
+      !(flags & JSRegExp::kSticky) && !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
     has_been_compiled = true;
@@ -135,11 +166,12 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
              !(flags & JSRegExp::kSticky) && parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    if (atom_pattern.length() == 1) {
-      Handle<String> atom_string;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, atom_string,
-          isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
+    Handle<String> atom_string;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, atom_string,
+        isolate->factory()->NewStringFromTwoByte(atom_pattern),
+        Object);
+    if (!HasFewDifferentCharacters(atom_string)) {
       AtomCompile(re, pattern, flags, atom_string);
       has_been_compiled = true;
     }
@@ -2997,8 +3029,6 @@ static void EmitHat(RegExpCompiler* compiler,
   on_success->Emit(compiler, &new_trace);
 }
 
-// More makes code generation slower, less makes V8 benchmark score lower.
-const int kMaxLookaheadForBoyerMoore = 8;
 
 // Emit the code to handle \b and \B (word-boundary or non-word-boundary).
 void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
