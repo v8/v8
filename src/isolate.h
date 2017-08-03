@@ -17,7 +17,6 @@
 #include "src/date.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution.h"
-#include "src/frames.h"
 #include "src/futex-emulation.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
@@ -85,6 +84,7 @@ class SaveContext;
 class SetupIsolateDelegate;
 class Simulator;
 class StartupDeserializer;
+class StandardFrame;
 class StatsTable;
 class StringTracker;
 class StubCache;
@@ -1660,9 +1660,7 @@ class SaveContext BASE_EMBEDDED {
   SaveContext* prev() { return prev_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool IsBelowFrame(StandardFrame* frame) {
-    return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
-  }
+  bool IsBelowFrame(StandardFrame* frame);
 
  private:
   Isolate* const isolate_;

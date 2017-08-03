@@ -9,6 +9,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

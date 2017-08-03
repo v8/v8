@@ -12,7 +12,7 @@
 #include "src/codegen.h"
 #include "src/counters.h"
 #include "src/frame-constants.h"
-#include "src/frames-inl.h"
+#include "src/frames.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"

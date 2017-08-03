@@ -8,7 +8,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
-#include "src/frames-inl.h"
+#include "src/frames.h"
 #include "src/full-codegen/full-codegen.h"
 
 namespace v8 {
