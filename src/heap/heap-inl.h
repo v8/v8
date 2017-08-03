@@ -426,11 +426,11 @@ bool Heap::ShouldBePromoted(Address old_address) {
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
-void Heap::RecordWrite(Object* object, int offset, Object* o) {
-  if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
+void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
+  if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  store_buffer()->InsertEntry(HeapObject::cast(object)->address() + offset);
+  store_buffer()->InsertEntry(reinterpret_cast<Address>(slot));
 }
 
 void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {

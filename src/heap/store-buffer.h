@@ -31,7 +31,7 @@ class StoreBuffer {
   static const int kStoreBuffers = 2;
   static const intptr_t kDeletionTag = 1;
 
-  V8_EXPORT_PRIVATE static void StoreBufferOverflow(Isolate* isolate);
+  V8_EXPORT_PRIVATE static int StoreBufferOverflow(Isolate* isolate);
 
   explicit StoreBuffer(Heap* heap);
   void SetUp();

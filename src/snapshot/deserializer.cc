@@ -657,7 +657,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));      \
       isolate->heap()->RecordWrite(                                            \
           HeapObject::FromAddress(current_object_address),                     \
-          static_cast<int>(current_address - current_object_address),          \
+          reinterpret_cast<Object**>(current_address),                         \
           *reinterpret_cast<Object**>(current_address));                       \
     }                                                                          \
     if (!current_was_incremented) {                                            \
@@ -900,8 +900,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
           Address current_address = reinterpret_cast<Address>(current);
           isolate->heap()->RecordWrite(
               HeapObject::FromAddress(current_object_address),
-              static_cast<int>(current_address - current_object_address),
-              hot_object);
+              reinterpret_cast<Object**>(current_address), hot_object);
         }
         current++;
         break;

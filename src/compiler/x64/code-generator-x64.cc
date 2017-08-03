@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -254,9 +255,37 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     __ leap(scratch1_, operand_);
+
+#ifdef V8_CSA_WRITE_BARRIER
+    (void)remembered_set_action;
+    // TODO(albertnetymk): Come up with a better way instead of blindly saving
+    // all registers.
+    __ PushCallerSaved(save_fp_mode);
+    Callable const callable =
+        Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
+    Register object_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kObject));
+    Register slot_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kSlot));
+    Register isolate_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kIsolate));
+
+    __ pushq(object_);
+    __ pushq(scratch1_);
+
+    __ popq(slot_parameter);
+    __ popq(object_parameter);
+
+    __ LoadAddress(isolate_parameter,
+                   ExternalReference::isolate_address(__ isolate()));
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
+
+    __ PopCallerSaved(save_fp_mode);
+#else
     __ CallStubDelayed(
         new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                     remembered_set_action, save_fp_mode));
+#endif
   }
 
  private:

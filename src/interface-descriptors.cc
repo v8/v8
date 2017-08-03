@@ -98,6 +98,20 @@ const Register FastNewArgumentsDescriptor::TargetRegister() {
   return kJSFunctionRegister;
 }
 
+void RecordWriteDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  MachineType machine_types[] = {MachineType::TaggedPointer(),
+                                 MachineType::Pointer(),
+                                 MachineType::Pointer()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void RecordWriteDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 void LoadDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kName, kSlot

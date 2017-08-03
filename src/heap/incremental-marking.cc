@@ -37,7 +37,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       initial_old_generation_size_(0),
       bytes_marked_ahead_of_schedule_(0),
       unscanned_bytes_of_large_object_(0),
-      state_(STOPPED),
       idle_marking_delay_counter_(0),
       incremental_marking_finalization_rounds_(0),
       is_compacting_(false),
@@ -48,7 +47,9 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       trace_wrappers_toggle_(false),
       request_type_(NONE),
       new_generation_observer_(*this, kAllocatedThreshold),
-      old_generation_observer_(*this, kAllocatedThreshold) {}
+      old_generation_observer_(*this, kAllocatedThreshold) {
+  SetState(STOPPED);
+}
 
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
@@ -74,11 +75,12 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
   }
 }
 
-
-void IncrementalMarking::RecordWriteFromCode(HeapObject* obj, Object** slot,
-                                             Isolate* isolate) {
+int IncrementalMarking::RecordWriteFromCode(HeapObject* obj, Object** slot,
+                                            Isolate* isolate) {
   DCHECK(obj->IsHeapObject());
   isolate->heap()->incremental_marking()->RecordWrite(obj, slot, *slot);
+  // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
+  return 0;
 }
 
 void IncrementalMarking::RecordCodeTargetPatch(Code* host, Address pc,
@@ -499,7 +501,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
       heap()->isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Start sweeping.\n");
     }
-    state_ = SWEEPING;
+    SetState(SWEEPING);
   }
 
   SpaceIterator it(heap_);
@@ -535,7 +537,7 @@ void IncrementalMarking::StartMarking() {
   is_compacting_ =
       !FLAG_never_compact && heap_->mark_compact_collector()->StartCompaction();
 
-  state_ = MARKING;
+  SetState(MARKING);
 
   {
     TRACE_GC(heap()->tracer(),
@@ -902,7 +904,7 @@ void IncrementalMarking::Hurry() {
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
     ProcessMarkingWorklist(0, FORCE_COMPLETION);
-    state_ = COMPLETE;
+    SetState(COMPLETE);
     if (FLAG_trace_incremental_marking) {
       double end = heap_->MonotonicallyIncreasingTimeInMs();
       double delta = end - start;
@@ -962,7 +964,7 @@ void IncrementalMarking::Stop() {
     DeactivateIncrementalWriteBarrier();
   }
   heap_->isolate()->stack_guard()->ClearGC();
-  state_ = STOPPED;
+  SetState(STOPPED);
   is_compacting_ = false;
   FinishBlackAllocation();
 }
@@ -989,7 +991,7 @@ void IncrementalMarking::FinalizeMarking(CompletionAction action) {
 
 
 void IncrementalMarking::MarkingComplete(CompletionAction action) {
-  state_ = COMPLETE;
+  SetState(COMPLETE);
   // We will set the stack guard to request a GC now.  This will mean the rest
   // of the GC gets performed as soon as possible (we can't do a GC here in a
   // record-write context).  If a few things get allocated between now and then

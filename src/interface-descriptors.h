@@ -34,6 +34,7 @@ class PlatformInterfaceDescriptor;
   V(FastNewFunctionContext)                \
   V(FastNewObject)                         \
   V(FastNewArguments)                      \
+  V(RecordWrite)                           \
   V(TypeConversion)                        \
   V(TypeConversionStackParameter)          \
   V(Typeof)                                \
@@ -503,6 +504,13 @@ class FastNewArgumentsDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kFunction)
   DECLARE_DESCRIPTOR(FastNewArgumentsDescriptor, CallInterfaceDescriptor)
   static const Register TargetRegister();
+};
+
+class RecordWriteDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kObject, kSlot, kIsolate)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RecordWriteDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class TypeConversionDescriptor final : public CallInterfaceDescriptor {

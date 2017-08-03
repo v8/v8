@@ -76,10 +76,11 @@ void StoreBuffer::TearDown() {
   }
 }
 
-
-void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
+int StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
   isolate->heap()->store_buffer()->FlipStoreBuffers();
   isolate->counters()->store_buffer_overflows()->Increment();
+  // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
+  return 0;
 }
 
 void StoreBuffer::FlipStoreBuffers() {

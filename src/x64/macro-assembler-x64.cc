@@ -592,10 +592,8 @@ static const Register saved_regs[] = {
 
 static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
 
-
-void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
-                                     Register exclusion1,
-                                     Register exclusion2,
+void TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+                                     Register exclusion1, Register exclusion2,
                                      Register exclusion3) {
   // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
@@ -616,11 +614,8 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   }
 }
 
-
-void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
-                                    Register exclusion1,
-                                    Register exclusion2,
-                                    Register exclusion3) {
+void TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                    Register exclusion2, Register exclusion3) {
   if (fp_mode == kSaveFPRegs) {
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);

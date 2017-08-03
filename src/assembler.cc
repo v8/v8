@@ -1150,6 +1150,10 @@ ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
 
+ExternalReference ExternalReference::heap_is_marking_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->heap()->IsMarkingFlagAddress());
+}
 
 ExternalReference ExternalReference::new_space_allocation_top_address(
     Isolate* isolate) {

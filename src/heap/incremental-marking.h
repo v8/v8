@@ -192,8 +192,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   inline void RestartIfNotMarking();
 
-  static void RecordWriteFromCode(HeapObject* obj, Object** slot,
-                                  Isolate* isolate);
+  static int RecordWriteFromCode(HeapObject* obj, Object** slot,
+                                 Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are
   // guaranteed to be rescanned or not guaranteed to survive.
@@ -329,6 +329,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   size_t bytes_marked_ahead_of_schedule_;
   size_t unscanned_bytes_of_large_object_;
 
+  void SetState(State s) {
+    state_ = s;
+    heap_->SetIsMarkingFlag(s >= MARKING);
+  }
+
+  // Must use SetState() above to update state_
   State state_;
 
   int idle_marking_delay_counter_;

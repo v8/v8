@@ -153,6 +153,7 @@ Heap::Heap()
       old_generation_allocation_counter_at_last_gc_(0),
       old_generation_size_at_last_gc_(0),
       global_pretenuring_feedback_(nullptr),
+      is_marking_flag_(false),
       ring_buffer_full_(false),
       ring_buffer_end_(0),
       configured_(false),

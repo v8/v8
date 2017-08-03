@@ -165,15 +165,15 @@
 #define WRITE_BARRIER(heap, object, offset, value)          \
   heap->incremental_marking()->RecordWrite(                 \
       object, HeapObject::RawField(object, offset), value); \
-  heap->RecordWrite(object, offset, value);
+  heap->RecordWrite(object, HeapObject::RawField(object, offset), value);
 
-#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode) \
-  if (mode != SKIP_WRITE_BARRIER) {                                  \
-    if (mode == UPDATE_WRITE_BARRIER) {                              \
-      heap->incremental_marking()->RecordWrite(                      \
-          object, HeapObject::RawField(object, offset), value);      \
-    }                                                                \
-    heap->RecordWrite(object, offset, value);                        \
+#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)        \
+  if (mode != SKIP_WRITE_BARRIER) {                                         \
+    if (mode == UPDATE_WRITE_BARRIER) {                                     \
+      heap->incremental_marking()->RecordWrite(                             \
+          object, HeapObject::RawField(object, offset), value);             \
+    }                                                                       \
+    heap->RecordWrite(object, HeapObject::RawField(object, offset), value); \
   }
 
 #define READ_DOUBLE_FIELD(p, offset) \

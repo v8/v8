@@ -925,6 +925,7 @@ class ExternalReference BASE_EMBEDDED {
 
   // Write barrier.
   static ExternalReference store_buffer_top(Isolate* isolate);
+  static ExternalReference heap_is_marking_flag_address(Isolate* isolate);
 
   // Used for fast allocation in generated code.
   static ExternalReference new_space_allocation_top_address(Isolate* isolate);
