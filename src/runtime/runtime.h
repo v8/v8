@@ -305,7 +305,6 @@ namespace internal {
   F(ThrowConstructedNonConstructable, 1, 1)                          \
   F(ThrowConstructorReturnedNonObject, 0, 1)                         \
   F(ThrowGeneratorRunning, 0, 1)                                     \
-  F(ThrowIllegalInvocation, 0, 1)                                    \
   F(ThrowIncompatibleMethodReceiver, 2, 1)                           \
   F(ThrowInvalidHint, 1, 1)                                          \
   F(ThrowInvalidStringLength, 0, 1)                                  \

@@ -211,13 +211,6 @@ RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
       isolate, NewTypeError(MessageTemplate::kCannotConvertToPrimitive));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
