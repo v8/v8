@@ -307,12 +307,6 @@ assertEq(arr.length, 0);
 assertErrorMessage(
     () => moduleCustomSections(1), TypeError,
     'first argument must be a WebAssembly.Module');
-assertErrorMessage(
-    () => moduleCustomSections(emptyModule), TypeError,
-    'second argument must be a String');
-assertErrorMessage(
-    () => moduleCustomSections(emptyModule, 3), TypeError,
-    'second argument must be a String');
 
 let customSectionModuleBinary2 = (() => {
   let builder = new WasmModuleBuilder();
@@ -334,6 +328,15 @@ assertArrayBuffer(arr[1], [91, 92, 93]);
 var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'bar');
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
+var o = {toString() { return "foo" }}
+var arr = moduleCustomSections(new Module(customSectionModuleBinary2), o);
+assertEq(arr instanceof Array, true);
+assertEq(arr.length, 2);
+assertArrayBuffer(arr[0], [66, 77]);
+assertArrayBuffer(arr[1], [91, 92, 93]);
+var o = {toString() { throw "boo!" }}
+assertThrows(
+  () => moduleCustomSections(new Module(customSectionModuleBinary2), o));
 
 // 'WebAssembly.Instance' data property
 let instanceDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Instance');

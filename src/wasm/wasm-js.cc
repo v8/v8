@@ -235,17 +235,10 @@ void WebAssemblyModuleCustomSections(
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
 
-  if (args.Length() < 2) {
-    thrower.TypeError("Argument 1 must be a string");
-    return;
-  }
-
-  i::Handle<i::Object> name = Utils::OpenHandle(*args[1]);
-  if (!name->IsString()) {
-    thrower.TypeError("Argument 1 must be a string");
-    return;
-  }
-
+  i::MaybeHandle<i::Object> maybe_name =
+      i::Object::ToString(i_isolate, Utils::OpenHandle(*args[1]));
+  i::Handle<i::Object> name;
+  if (!maybe_name.ToHandle(&name)) return;
   auto custom_sections =
       i::wasm::GetCustomSections(i_isolate, maybe_module.ToHandleChecked(),
                                  i::Handle<i::String>::cast(name), &thrower);
