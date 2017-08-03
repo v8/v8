@@ -6061,7 +6061,6 @@ void Heap::PrintAllocationsHash() {
 
 
 void Heap::NotifyDeserializationComplete() {
-  DCHECK_EQ(0, gc_count());
   PagedSpaces spaces(this);
   for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
     if (isolate()->snapshot_available()) s->ShrinkImmortalImmovablePages();
