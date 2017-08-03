@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/arguments.h"
+#include "src/frames-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-flags.h"
