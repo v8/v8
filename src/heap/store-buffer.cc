@@ -103,11 +103,13 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   if (!lazy_top_[index]) return;
   DCHECK_GE(index, 0);
   DCHECK_LT(index, kStoreBuffers);
+  Address last_inserted_addr = nullptr;
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
     Page* page = Page::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {
+      last_inserted_addr = nullptr;
       current++;
       Address end = *current;
       DCHECK(!IsDeletionAddress(end));
@@ -120,7 +122,10 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
       }
     } else {
       DCHECK(!IsDeletionAddress(addr));
-      RememberedSet<OLD_TO_NEW>::Insert(page, addr);
+      if (addr != last_inserted_addr) {
+        RememberedSet<OLD_TO_NEW>::Insert(page, addr);
+        last_inserted_addr = addr;
+      }
     }
   }
   lazy_top_[index] = nullptr;
