@@ -290,10 +290,9 @@ void ModuleCompiler::CompileSequentially(ModuleBytesEnv* module_env,
     MaybeHandle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
         thrower, isolate_, module_env, &func);
     if (code.is_null()) {
-      WasmName str = module_env->wire_bytes.GetName(&func);
-      // TODO(clemensh): Truncate the function name in the output.
-      thrower->CompileError("Compilation of #%d:%.*s failed.", i, str.length(),
-                            str.start());
+      TruncatedUserString<> name(module_env->wire_bytes.GetName(&func));
+      thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
+                            name.start());
       break;
     }
     results[i] = code.ToHandleChecked();
@@ -315,9 +314,9 @@ void ModuleCompiler::ValidateSequentially(ModuleBytesEnv* module_env,
         isolate_->allocator(), module_env->module_env.module, body,
         module->is_wasm(), counters());
     if (result.failed()) {
-      WasmName str = module_env->wire_bytes.GetName(&func);
+      TruncatedUserString<> name(module_env->wire_bytes.GetName(&func));
       thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
-                            str.length(), str.start(),
+                            name.length(), name.start(),
                             result.error_msg().c_str(), result.error_offset());
       break;
     }
@@ -1691,8 +1690,9 @@ void InstanceBuilder::ProcessExports(
     v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
         isolate_, export_to, name, &desc, Object::THROW_ON_ERROR);
     if (!status.IsJust()) {
-      thrower_->LinkError("export of %.*s failed.", name->length(),
-                          name->ToCString().get());
+      TruncatedUserString<> trunc_name(name->GetCharVector<uint8_t>());
+      thrower_->LinkError("export of %.*s failed.", trunc_name.length(),
+                          trunc_name.start());
       return;
     }
   }

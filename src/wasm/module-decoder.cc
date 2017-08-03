@@ -640,8 +640,9 @@ class ModuleDecoder : public Decoder {
         DCHECK(!cmp_less(*it, *last));  // Vector must be sorted.
         if (!cmp_less(*last, *it)) {
           const byte* pc = start() + GetBufferRelativeOffset(it->name.offset());
+          TruncatedUserString<> name(pc, it->name.length());
           errorf(pc, "Duplicate export name '%.*s' for %s %d and %s %d",
-                 it->name.length(), pc, ExternalKindName(last->kind),
+                 name.length(), name.start(), ExternalKindName(last->kind),
                  last->index, ExternalKindName(it->kind), it->index);
           break;
         }

@@ -548,6 +548,42 @@ class LazyCompilationOrchestrator {
 
 const char* ExternalKindName(WasmExternalKind);
 
+// TruncatedUserString makes it easy to output names up to a certain length, and
+// output a truncation followed by '...' if they exceed a limit.
+// Use like this:
+//   TruncatedUserString<> name (pc, len);
+//   printf("... %.*s ...", name.length(), name.start())
+template <int kMaxLen = 50>
+class TruncatedUserString {
+  static_assert(kMaxLen >= 4, "minimum length is 4 (length of '...' plus one)");
+
+ public:
+  template <typename T>
+  explicit TruncatedUserString(Vector<T> name)
+      : TruncatedUserString(name.start(), name.length()) {}
+
+  TruncatedUserString(const byte* start, size_t len)
+      : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}
+
+  TruncatedUserString(const char* start, size_t len)
+      : start_(start), length_(std::min(kMaxLen, static_cast<int>(len))) {
+    if (len > static_cast<size_t>(kMaxLen)) {
+      memcpy(buffer_, start, kMaxLen - 3);
+      memset(buffer_ + kMaxLen - 3, '.', 3);
+      start_ = buffer_;
+    }
+  }
+
+  const char* start() const { return start_; }
+
+  int length() const { return length_; }
+
+ private:
+  const char* start_;
+  int length_;
+  char buffer_[kMaxLen];
+};
+
 namespace testing {
 void ValidateInstancesChain(Isolate* isolate,
                             Handle<WasmModuleObject> module_obj,
