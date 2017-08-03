@@ -672,9 +672,6 @@ DEFINE_INT(v8_os_page_size, 0, "override OS page size (in KBytes)")
 DEFINE_BOOL(always_compact, false, "Perform compaction on every full GC")
 DEFINE_BOOL(never_compact, false,
             "Never perform compaction on full GC - testing only")
-// TODO(ulan): enable compaction for concurrent marking when it correctly
-// records slots to evacuation candidates.
-DEFINE_IMPLICATION(concurrent_marking, never_compact)
 DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
 DEFINE_BOOL(cleanup_code_caches_at_gc, true,
             "Flush code caches in maps during mark compact cycle.")
