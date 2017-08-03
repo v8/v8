@@ -5104,7 +5104,8 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   DCHECK_EQ(MachineRepresentation::kTagged, var_unique->rep());
   Comment("TryToName");
 
-  Label if_hascachedindex(this), if_keyisnotindex(this), if_thinstring(this);
+  Label if_hascachedindex(this), if_keyisnotindex(this), if_thinstring(this),
+      if_keyisother(this, Label::kDeferred);
   // Handle Smi and HeapNumber keys.
   var_index->Bind(TryToIntptr(key, &if_keyisnotindex));
   Goto(if_keyisindex);
@@ -5117,7 +5118,8 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   Node* key_instance_type = LoadMapInstanceType(key_map);
   // Miss if |key| is not a String.
   STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  GotoIfNot(IsStringInstanceType(key_instance_type), if_bailout);
+  GotoIfNot(IsStringInstanceType(key_instance_type), &if_keyisother);
+
   // |key| is a String. Check if it has a cached array index.
   Node* hash = LoadNameHashField(key);
   GotoIf(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
@@ -5144,6 +5146,11 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   BIND(&if_hascachedindex);
   var_index->Bind(DecodeWordFromWord32<Name::ArrayIndexValueBits>(hash));
   Goto(if_keyisindex);
+
+  BIND(&if_keyisother);
+  GotoIfNot(InstanceTypeEqual(key_instance_type, ODDBALL_TYPE), if_bailout);
+  var_unique->Bind(LoadObjectField(key, Oddball::kToStringOffset));
+  Goto(if_keyisunique);
 }
 
 void CodeStubAssembler::TryInternalizeString(

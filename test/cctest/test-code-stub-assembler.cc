@@ -396,6 +396,35 @@ TEST(TryToName) {
   }
 
   {
+    // TryToName(<true>) => if_keyisunique: "true".
+    Handle<Object> key = isolate->factory()->true_value();
+    Handle<Object> unique = isolate->factory()->InternalizeUtf8String("true");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
+    // TryToName(<false>) => if_keyisunique: "false".
+    Handle<Object> key = isolate->factory()->false_value();
+    Handle<Object> unique = isolate->factory()->InternalizeUtf8String("false");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
+    // TryToName(<null>) => if_keyisunique: "null".
+    Handle<Object> key = isolate->factory()->null_value();
+    Handle<Object> unique = isolate->factory()->InternalizeUtf8String("null");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
+    // TryToName(<undefined>) => if_keyisunique: "undefined".
+    Handle<Object> key = isolate->factory()->undefined_value();
+    Handle<Object> unique =
+        isolate->factory()->InternalizeUtf8String("undefined");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
     // TryToName(<symbol>) => if_keyisunique: <symbol>.
     Handle<Object> key = isolate->factory()->NewSymbol();
     ft.CheckTrue(key, expect_unique, key);
