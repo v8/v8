@@ -404,7 +404,7 @@ void wasm::UpdateDispatchTables(Isolate* isolate,
 
 
 void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
-                    Handle<WasmTableObject> table, int32_t index,
+                    Handle<WasmTableObject> table, int64_t index,
                     Handle<JSFunction> function) {
   Handle<FixedArray> array(table->functions(), isolate);
 
@@ -412,6 +412,7 @@ void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
     thrower->RangeError("index out of bounds");
     return;
   }
+  int index32 = static_cast<int>(index);
 
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
 
@@ -425,8 +426,8 @@ void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
     value = Handle<Object>::cast(function);
   }
 
-  UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);
-  array->set(index, *value);
+  UpdateDispatchTables(isolate, dispatch_tables, index32, wasm_function, code);
+  array->set(index32, *value);
 }
 
 Handle<Script> wasm::GetScript(Handle<JSObject> instance) {

@@ -179,7 +179,15 @@ uint32_t PositiveNumberToUint32(Object* number) {
 
 int64_t NumberToInt64(Object* number) {
   if (number->IsSmi()) return Smi::ToInt(number);
-  return static_cast<int64_t>(number->Number());
+  double d = number->Number();
+  if (std::isnan(d)) return 0;
+  if (d >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
+    return std::numeric_limits<int64_t>::max();
+  }
+  if (d <= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+    return std::numeric_limits<int64_t>::min();
+  }
+  return static_cast<int64_t>(d);
 }
 
 bool TryNumberToSize(Object* number, size_t* result) {

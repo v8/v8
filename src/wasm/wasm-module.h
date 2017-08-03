@@ -461,7 +461,7 @@ WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
 Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper);
 
 void TableSet(ErrorThrower* thrower, Isolate* isolate,
-              Handle<WasmTableObject> table, int32_t index,
+              Handle<WasmTableObject> table, int64_t index,
               Handle<JSFunction> function);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,

@@ -674,15 +674,15 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
   i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
-  int i = 0;
-  if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
+  int64_t i = 0;
+  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   if (i < 0 || i >= array->length()) {
     thrower.RangeError("index out of bounds");
     return;
   }
 
-  i::Handle<i::Object> value(array->get(i), i_isolate);
+  i::Handle<i::Object> value(array->get(static_cast<int>(i)), i_isolate);
   return_value.Set(Utils::ToLocal(value));
 }
 
@@ -701,8 +701,8 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Parameter 0.
-  int32_t index;
-  if (!args[0]->Int32Value(context).To(&index)) return;
+  int64_t index;
+  if (!args[0]->IntegerValue(context).To(&index)) return;
 
   // Parameter 1.
   i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
