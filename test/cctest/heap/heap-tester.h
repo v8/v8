@@ -20,6 +20,7 @@
   V(InvalidatedSlotsAllInvalidatedRanges)                 \
   V(InvalidatedSlotsEvacuationCandidate)                  \
   V(InvalidatedSlotsNoInvalidatedRanges)                  \
+  V(InvalidatedSlotsResetObjectRegression)                \
   V(InvalidatedSlotsSomeInvalidatedRanges)                \
   V(TestNewSpaceRefsInCopiedCode)                         \
   V(GCFlags)                                              \

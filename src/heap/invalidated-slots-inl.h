@@ -31,6 +31,8 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
       DCHECK_LE(invalidated_end_, iterator_->first->address());
       invalidated_start_ = iterator_->first->address();
       invalidated_end_ = invalidated_start_ + iterator_->second;
+      invalidated_object_ = nullptr;
+      invalidated_object_size_ = 0;
     } else {
       invalidated_start_ = sentinel_;
       invalidated_end_ = sentinel_;

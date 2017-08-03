@@ -157,5 +157,29 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
   }
 }
 
+HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::heap();
+  std::vector<ByteArray*> byte_arrays;
+  Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
+  // Ensure that the first array has smaller size then the rest.
+  heap->RightTrimFixedArray(byte_arrays[0], byte_arrays[0]->length() - 8);
+  // Register the all byte arrays as invalidated.
+  for (size_t i = 0; i < byte_arrays.size(); i++) {
+    page->RegisterObjectWithInvalidatedSlots(byte_arrays[i],
+                                             byte_arrays[i]->Size());
+  }
+  // All slots must still be invalid.
+  InvalidatedSlotsFilter filter(page);
+  for (size_t i = 0; i < byte_arrays.size(); i++) {
+    ByteArray* byte_array = byte_arrays[i];
+    Address start = byte_array->address() + ByteArray::kHeaderSize;
+    Address end = byte_array->address() + byte_array->Size();
+    for (Address addr = start; addr < end; addr += kPointerSize) {
+      CHECK(!filter.IsValid(addr));
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
