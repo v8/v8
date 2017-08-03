@@ -881,8 +881,9 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> module_constructor =
       InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
   context->set_wasm_module_constructor(*module_constructor);
-  Handle<JSObject> module_proto =
-      factory->NewJSObject(module_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(module_constructor);
+  Handle<JSObject> module_proto(
+      JSObject::cast(module_constructor->instance_prototype()));
   i::Handle<i::Map> module_map = isolate->factory()->NewMap(
       i::WASM_MODULE_TYPE, i::JSObject::kHeaderSize +
                                WasmModuleObject::kFieldCount * i::kPointerSize);
@@ -893,8 +894,6 @@ void WasmJs::Install(Isolate* isolate) {
               1);
   InstallFunc(isolate, module_constructor, "customSections",
               WebAssemblyModuleCustomSections, 2);
-  JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
-                        module_constructor, DONT_ENUM);
   JSObject::AddProperty(module_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
@@ -902,14 +901,12 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> instance_constructor =
       InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
-  Handle<JSObject> instance_proto =
-      factory->NewJSObject(instance_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(instance_constructor);
+  Handle<JSObject> instance_proto(
+      JSObject::cast(instance_constructor->instance_prototype()));
   i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
       i::WASM_INSTANCE_TYPE, WasmInstanceObject::kSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
-  JSObject::AddProperty(instance_proto,
-                        isolate->factory()->constructor_string(),
-                        instance_constructor, DONT_ENUM);
   JSObject::AddProperty(instance_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 
@@ -917,13 +914,12 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> table_constructor =
       InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
   context->set_wasm_table_constructor(*table_constructor);
-  Handle<JSObject> table_proto =
-      factory->NewJSObject(table_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(table_constructor);
+  Handle<JSObject> table_proto(
+      JSObject::cast(table_constructor->instance_prototype()));
   i::Handle<i::Map> table_map =
       isolate->factory()->NewMap(i::WASM_TABLE_TYPE, WasmTableObject::kSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
-  JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
-                        table_constructor, DONT_ENUM);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
@@ -935,13 +931,12 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> memory_constructor =
       InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
   context->set_wasm_memory_constructor(*memory_constructor);
-  Handle<JSObject> memory_proto =
-      factory->NewJSObject(memory_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(memory_constructor);
+  Handle<JSObject> memory_proto(
+      JSObject::cast(memory_constructor->instance_prototype()));
   i::Handle<i::Map> memory_map =
       isolate->factory()->NewMap(i::WASM_MEMORY_TYPE, WasmMemoryObject::kSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
-  JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
-                        memory_constructor, DONT_ENUM);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
   JSObject::AddProperty(memory_proto, factory->to_string_tag_symbol(),
