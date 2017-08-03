@@ -2942,7 +2942,7 @@ class Serializer : public ValueSerializer::Delegate {
         if (transfer_array->Get(context, i).ToLocal(&element)) {
           if (!element->IsArrayBuffer()) {
             Throw(isolate_, "Transfer array elements must be an ArrayBuffer");
-            break;
+            return Nothing<bool>();
           }
 
           Local<ArrayBuffer> array_buffer = Local<ArrayBuffer>::Cast(element);
