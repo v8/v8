@@ -35,26 +35,23 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
   enum Flag {
-    kDeferredCalling = 1 << 0,
-    kNonDeferredCalling = 1 << 1,
-    kSavesCallerDoubles = 1 << 2,
-    kRequiresFrame = 1 << 3,
-    kAccessorInliningEnabled = 1 << 4,
-    kSerializing = 1 << 5,
-    kFunctionContextSpecializing = 1 << 6,
-    kFrameSpecializing = 1 << 7,
-    kInliningEnabled = 1 << 8,
-    kDisableFutureOptimization = 1 << 9,
-    kSplittingEnabled = 1 << 10,
-    kDeoptimizationEnabled = 1 << 11,
-    kSourcePositionsEnabled = 1 << 12,
-    kBailoutOnUninitialized = 1 << 13,
-    kOptimizeFromBytecode = 1 << 14,
-    kLoopPeelingEnabled = 1 << 15,
-    kBlockCoverageEnabled = 1 << 16,
-    kIsDebug = 1 << 17,
-    kIsEval = 1 << 18,
-    kIsNative = 1 << 19,
+    kIsDebug = 1 << 0,
+    kIsEval = 1 << 1,
+    kIsNative = 1 << 2,
+    kSerializing = 1 << 3,
+    kBlockCoverageEnabled = 1 << 4,
+    kRequiresFrame = 1 << 5,
+    kAccessorInliningEnabled = 1 << 6,
+    kFunctionContextSpecializing = 1 << 7,
+    kFrameSpecializing = 1 << 8,
+    kInliningEnabled = 1 << 9,
+    kDisableFutureOptimization = 1 << 10,
+    kSplittingEnabled = 1 << 11,
+    kDeoptimizationEnabled = 1 << 12,
+    kSourcePositionsEnabled = 1 << 13,
+    kBailoutOnUninitialized = 1 << 14,
+    kOptimizeFromBytecode = 1 << 15,
+    kLoopPeelingEnabled = 1 << 16,
   };
 
   CompilationInfo(Zone* zone, Isolate* isolate, Handle<Script> script,
@@ -107,103 +104,77 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   bool has_asm_wasm_data() const { return !asm_wasm_data_.is_null(); }
   Handle<FixedArray> asm_wasm_data() const { return asm_wasm_data_; }
 
-  bool is_calling() const {
-    return GetFlag(kDeferredCalling) || GetFlag(kNonDeferredCalling);
-  }
-
-  void MarkAsDeferredCalling() { SetFlag(kDeferredCalling); }
-
-  bool is_deferred_calling() const { return GetFlag(kDeferredCalling); }
-
-  void MarkAsNonDeferredCalling() { SetFlag(kNonDeferredCalling); }
-
-  bool is_non_deferred_calling() const { return GetFlag(kNonDeferredCalling); }
-
-  void MarkAsSavesCallerDoubles() { SetFlag(kSavesCallerDoubles); }
-
-  bool saves_caller_doubles() const { return GetFlag(kSavesCallerDoubles); }
-
-  void MarkAsRequiresFrame() { SetFlag(kRequiresFrame); }
-
-  bool requires_frame() const { return GetFlag(kRequiresFrame); }
+  // Flags used by unoptimized compilation.
 
   // Compiles marked as debug produce unoptimized code with debug break slots.
   // Inner functions that cannot be compiled w/o context are compiled eagerly.
   void MarkAsDebug() { SetFlag(kIsDebug); }
-
   bool is_debug() const { return GetFlag(kIsDebug); }
 
   void MarkAsSerializing() { SetFlag(kSerializing); }
-
   bool will_serialize() const { return GetFlag(kSerializing); }
+
+  void MarkAsEval() { SetFlag(kIsEval); }
+  bool is_eval() const { return GetFlag(kIsEval); }
+
+  void MarkAsNative() { SetFlag(kIsNative); }
+  bool is_native() const { return GetFlag(kIsNative); }
+
+  void MarkAsBlockCoverageEnabled() { SetFlag(kBlockCoverageEnabled); }
+  bool is_block_coverage_enabled() const {
+    return GetFlag(kBlockCoverageEnabled);
+  }
+
+  // Flags used by optimized compilation.
+
+  void MarkAsRequiresFrame() { SetFlag(kRequiresFrame); }
+  bool requires_frame() const { return GetFlag(kRequiresFrame); }
 
   void MarkAsFunctionContextSpecializing() {
     SetFlag(kFunctionContextSpecializing);
   }
-
   bool is_function_context_specializing() const {
     return GetFlag(kFunctionContextSpecializing);
   }
 
   void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
-
   bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
-
   bool is_deoptimization_enabled() const {
     return GetFlag(kDeoptimizationEnabled);
   }
 
   void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }
-
   bool is_accessor_inlining_enabled() const {
     return GetFlag(kAccessorInliningEnabled);
   }
 
   void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
-
   bool is_source_positions_enabled() const {
     return GetFlag(kSourcePositionsEnabled);
   }
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
-
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
-
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
 
   void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
-
   bool is_bailout_on_uninitialized() const {
     return GetFlag(kBailoutOnUninitialized);
   }
 
   void MarkAsOptimizeFromBytecode() { SetFlag(kOptimizeFromBytecode); }
-
   bool is_optimizing_from_bytecode() const {
     return GetFlag(kOptimizeFromBytecode);
   }
 
   void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }
-
   bool is_loop_peeling_enabled() const { return GetFlag(kLoopPeelingEnabled); }
 
-  void MarkAsBlockCoverageEnabled() { SetFlag(kBlockCoverageEnabled); }
-
-  bool is_block_coverage_enabled() const {
-    return GetFlag(kBlockCoverageEnabled);
-  }
-
-  void MarkAsEval() { SetFlag(kIsEval); }
-
-  bool is_eval() const { return GetFlag(kIsEval); }
-
-  void MarkAsNative() { SetFlag(kIsNative); }
-
-  bool is_native() const { return GetFlag(kIsNative); }
+  // Code getters and setters.
 
   bool GeneratePreagedPrologue() const {
     // Generate a pre-aged prologue if we are optimizing for size, which
