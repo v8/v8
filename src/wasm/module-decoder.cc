@@ -702,11 +702,6 @@ class ModuleDecoder : public Decoder {
     for (uint32_t i = 0; i < functions_count; ++i) {
       uint32_t size = consume_u32v("body size");
       uint32_t offset = pc_offset();
-      auto size_histogram = IsWasm()
-                                ? GetCounters()->wasm_wasm_function_size_bytes()
-                                : GetCounters()->wasm_asm_function_size_bytes();
-      // TODO(bradnelson): Improve histogram handling of size_t.
-      size_histogram->AddSample(static_cast<int>(size));
       consume_bytes(size, "function body");
       if (failed()) break;
       WasmFunction* function =
@@ -1014,15 +1009,9 @@ class ModuleDecoder : public Decoder {
         function->sig, function->code.offset(),
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
-    DecodeResult result;
-    {
-      auto time_counter = IsWasm()
-                              ? GetCounters()->wasm_decode_wasm_function_time()
-                              : GetCounters()->wasm_decode_asm_function_time();
-      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-      result = VerifyWasmCode(
-          allocator, menv == nullptr ? nullptr : menv->module_env.module, body);
-    }
+    DecodeResult result = VerifyWasmCodeWithStats(
+        allocator, menv == nullptr ? nullptr : menv->module_env.module, body,
+        IsWasm(), GetCounters());
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream wrapped;
