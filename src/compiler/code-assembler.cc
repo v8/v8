@@ -801,13 +801,11 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
                                  labels, case_count);
 }
 
-bool CodeAssembler::UnalignedLoadSupported(
-    const MachineType& machineType) const {
-  return raw_assembler()->machine()->UnalignedLoadSupported(machineType);
+bool CodeAssembler::UnalignedLoadSupported(MachineRepresentation rep) const {
+  return raw_assembler()->machine()->UnalignedLoadSupported(rep);
 }
-bool CodeAssembler::UnalignedStoreSupported(
-    const MachineType& machineType) const {
-  return raw_assembler()->machine()->UnalignedStoreSupported(machineType);
+bool CodeAssembler::UnalignedStoreSupported(MachineRepresentation rep) const {
+  return raw_assembler()->machine()->UnalignedStoreSupported(rep);
 }
 
 // RawMachineAssembler delegate helpers:

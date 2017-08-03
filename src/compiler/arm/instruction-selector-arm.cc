@@ -2716,9 +2716,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
 // static
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {
-  Vector<MachineType> req_aligned = Vector<MachineType>::New(2);
-  req_aligned[0] = MachineType::Float32();
-  req_aligned[1] = MachineType::Float64();
+  EnumSet<MachineRepresentation> req_aligned;
+  req_aligned.Add(MachineRepresentation::kFloat32);
+  req_aligned.Add(MachineRepresentation::kFloat64);
   return MachineOperatorBuilder::AlignmentRequirements::
       SomeUnalignedAccessUnsupported(req_aligned, req_aligned);
 }

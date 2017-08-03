@@ -274,8 +274,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
     Node* elements;
 
-    if (UnalignedLoadSupported(MachineType::Float64()) &&
-        UnalignedStoreSupported(MachineType::Float64())) {
+    if (UnalignedLoadSupported(MachineRepresentation::kFloat64) &&
+        UnalignedStoreSupported(MachineRepresentation::kFloat64)) {
       elements = AllocateInNewSpace(var_total_size.value());
     } else {
       elements = AllocateInNewSpace(var_total_size.value(), kDoubleAlignment);

@@ -139,14 +139,14 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
   // Unaligned memory operations
-  Node* UnalignedLoad(MachineType rep, Node* base) {
-    return UnalignedLoad(rep, base, IntPtrConstant(0));
+  Node* UnalignedLoad(MachineType type, Node* base) {
+    return UnalignedLoad(type, base, IntPtrConstant(0));
   }
-  Node* UnalignedLoad(MachineType rep, Node* base, Node* index) {
-    if (machine()->UnalignedLoadSupported(rep)) {
-      return AddNode(machine()->Load(rep), base, index);
+  Node* UnalignedLoad(MachineType type, Node* base, Node* index) {
+    if (machine()->UnalignedLoadSupported(type.representation())) {
+      return AddNode(machine()->Load(type), base, index);
     } else {
-      return AddNode(machine()->UnalignedLoad(rep), base, index);
+      return AddNode(machine()->UnalignedLoad(type), base, index);
     }
   }
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* value) {
@@ -154,8 +154,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
                        Node* value) {
-    MachineType t = MachineType::TypeForRepresentation(rep);
-    if (machine()->UnalignedStoreSupported(t)) {
+    if (machine()->UnalignedStoreSupported(rep)) {
       return AddNode(machine()->Store(StoreRepresentation(
                          rep, WriteBarrierKind::kNoWriteBarrier)),
                      base, index, value);
@@ -167,8 +166,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Atomic memory operations.
-  Node* AtomicLoad(MachineType rep, Node* base, Node* index) {
-    return AddNode(machine()->AtomicLoad(rep), base, index);
+  Node* AtomicLoad(MachineType type, Node* base, Node* index) {
+    return AddNode(machine()->AtomicLoad(type), base, index);
   }
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
