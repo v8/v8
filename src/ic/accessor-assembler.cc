@@ -4,6 +4,7 @@
 
 #include "src/ic/accessor-assembler.h"
 
+#include "src/builtins/builtins-proxy-helpers-gen.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"
@@ -261,7 +262,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
   Label constant(this), field(this), normal(this, Label::kDeferred),
       interceptor(this, Label::kDeferred), nonexistent(this),
-      accessor(this, Label::kDeferred), global(this, Label::kDeferred);
+      accessor(this, Label::kDeferred), proxy(this, Label::kDeferred),
+      global(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
@@ -275,6 +277,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kAccessor)),
          &accessor);
+
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kProxy)), &proxy);
 
   Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)), &global,
          &interceptor);
@@ -360,6 +364,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
     Callable callable = CodeFactory::Call(isolate());
     exit_point->Return(CallJS(callable, p->context, getter, p->receiver));
+  }
+
+  BIND(&proxy);
+  {
+    ProxyAssembler assembler(state());
+    exit_point->Return(
+        assembler.ProxyGetProperty(p->context, holder, p->name, p->receiver));
   }
 
   BIND(&global);
@@ -1471,15 +1482,15 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   Comment("key is unique name");
   Label if_found_on_receiver(this), if_property_dictionary(this),
-      lookup_prototype_chain(this);
+      lookup_prototype_chain(this), special_receiver(this);
   VARIABLE(var_details, MachineRepresentation::kWord32);
   VARIABLE(var_value, MachineRepresentation::kTagged);
 
   // Receivers requiring non-standard accesses (interceptors, access
-  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  // checks, strings and string wrappers) are handled in the runtime.
   GotoIf(Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         slow);
+         &special_receiver);
 
   // Check if the receiver has fast or slow properties.
   Node* bitfield3 = LoadMapBitField3(receiver_map);
@@ -1599,6 +1610,16 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
     BIND(&return_undefined);
     Return(UndefinedConstant());
+  }
+
+  BIND(&special_receiver);
+  {
+    GotoIfNot(Word32Equal(instance_type, Int32Constant(JS_PROXY_TYPE)), slow);
+
+    ProxyAssembler assembler(state());
+    Return(assembler.ProxyGetProperty(
+        p->context, receiver /*holder is the same as receiver*/, p->name,
+        receiver));
   }
 }
 

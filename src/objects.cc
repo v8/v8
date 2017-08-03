@@ -1105,6 +1105,22 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, arraysize(args), args), Object);
+
+  MaybeHandle<Object> result =
+      JSProxy::CheckGetTrapResult(isolate, name, target, trap_result);
+  if (result.is_null()) {
+    return result;
+  }
+
+  // 11. Return trap_result
+  return trap_result;
+}
+
+// static
+MaybeHandle<Object> JSProxy::CheckGetTrapResult(Isolate* isolate,
+                                                Handle<Name> name,
+                                                Handle<JSReceiver> target,
+                                                Handle<Object> trap_result) {
   // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
   PropertyDescriptor target_desc;
   Maybe<bool> target_found =
@@ -1141,8 +1157,7 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
           Object);
     }
   }
-  // 11. Return trap_result
-  return trap_result;
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -12604,7 +12619,12 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   } else {
     maybe_prototype =
         handle(map->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
-    if (!maybe_prototype->IsJSObject()) return Handle<Cell>::null();
+    if (!maybe_prototype->IsJSReceiver()) return Handle<Cell>::null();
+  }
+  if (maybe_prototype->IsJSProxy()) {
+    Handle<Cell> cell = isolate->factory()->NewCell(
+        handle(Smi::FromInt(Map::kPrototypeChainValid), isolate));
+    return cell;
   }
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
@@ -12629,11 +12649,16 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
 }
 
 // static
-Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSObject> prototype,
+Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSReceiver> prototype,
                                                    Isolate* isolate) {
   DCHECK(!prototype.is_null());
+  if (prototype->IsJSProxy()) {
+    Handle<WeakCell> cell = isolate->factory()->NewWeakCell(prototype);
+    return cell;
+  }
+
   Handle<PrototypeInfo> proto_info =
-      GetOrCreatePrototypeInfo(prototype, isolate);
+      GetOrCreatePrototypeInfo(Handle<JSObject>::cast(prototype), isolate);
   Object* maybe_cell = proto_info->weak_cell();
   // Return existing cell if it's already created.
   if (maybe_cell->IsWeakCell()) {
