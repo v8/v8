@@ -4172,8 +4172,10 @@ WasmCompilationUnit::WasmCompilationUnit(
       func_index_(index) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
-  TimedHistogramScope wasm_compile_function_time_scope(
-      counters()->wasm_compile_function_time());
+  auto timed_histogram = module_env_->is_wasm()
+                             ? counters()->wasm_compile_wasm_function_time()
+                             : counters()->wasm_compile_asm_function_time();
+  TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
     if (func_name_.start() != nullptr) {
