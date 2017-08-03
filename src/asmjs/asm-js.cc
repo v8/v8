@@ -184,8 +184,8 @@ void ReportInstantiationFailure(Handle<Script> script, int position,
 //      code.
 class AsmJsCompilationJob final : public CompilationJob {
  public:
-  explicit AsmJsCompilationJob(CompilationInfo* info)
-      : CompilationJob(info->isolate(), info, "AsmJs"),
+  explicit AsmJsCompilationJob(ParseInfo* parse_info, CompilationInfo* info)
+      : CompilationJob(info->isolate(), parse_info, info, "AsmJs"),
         module_(nullptr),
         asm_offsets_(nullptr),
         translate_time_(0),
@@ -210,23 +210,25 @@ class AsmJsCompilationJob final : public CompilationJob {
 CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
   // Step 1: Translate asm.js module to WebAssembly module.
   HistogramTimerScope translate_time_scope(
-      info()->isolate()->counters()->asm_wasm_translation_time());
-  size_t compile_zone_start = info()->zone()->allocation_size();
+      compilation_info()->isolate()->counters()->asm_wasm_translation_time());
+  size_t compile_zone_start = compilation_info()->zone()->allocation_size();
   base::ElapsedTimer translate_timer;
   translate_timer.Start();
 
-  Zone* compile_zone = info()->zone();
-  Zone translate_zone(info()->isolate()->allocator(), ZONE_NAME);
+  Zone* compile_zone = compilation_info()->zone();
+  Zone translate_zone(compilation_info()->isolate()->allocator(), ZONE_NAME);
 
   // TODO(mstarzinger): In order to move translation to the non-main thread
   // ExecuteJob phase, the scanner stream needs to be off-heap.
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-      handle(String::cast(info()->script()->source())),
-      info()->literal()->start_position(), info()->literal()->end_position()));
+      handle(String::cast(compilation_info()->script()->source())),
+      compilation_info()->literal()->start_position(),
+      compilation_info()->literal()->end_position()));
   wasm::AsmJsParser parser(&translate_zone, stack_limit(), std::move(stream));
   if (!parser.Run()) {
-    DCHECK(!info()->isolate()->has_pending_exception());
-    ReportCompilationFailure(info()->script(), parser.failure_location(),
+    DCHECK(!compilation_info()->isolate()->has_pending_exception());
+    ReportCompilationFailure(compilation_info()->script(),
+                             parser.failure_location(),
                              parser.failure_message());
     return FAILED;
   }
@@ -237,9 +239,9 @@ CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
   stdlib_uses_ = *parser.stdlib_uses();
 
   size_t compile_zone_size =
-      info()->zone()->allocation_size() - compile_zone_start;
+      compilation_info()->zone()->allocation_size() - compile_zone_start;
   size_t translate_zone_size = translate_zone.allocation_size();
-  info()
+  compilation_info()
       ->isolate()
       ->counters()
       ->asm_wasm_translation_peak_memory_bytes()
@@ -266,15 +268,15 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
   compile_timer.Start();
 
   Handle<HeapNumber> uses_bitset =
-      info()->isolate()->factory()->NewHeapNumberFromBits(
+      compilation_info()->isolate()->factory()->NewHeapNumberFromBits(
           stdlib_uses_.ToIntegral());
 
-  wasm::ErrorThrower thrower(info()->isolate(), "AsmJs::Compile");
+  wasm::ErrorThrower thrower(compilation_info()->isolate(), "AsmJs::Compile");
   Handle<WasmModuleObject> compiled =
       SyncCompileTranslatedAsmJs(
-          info()->isolate(), &thrower,
+          compilation_info()->isolate(), &thrower,
           wasm::ModuleWireBytes(module_->begin(), module_->end()),
-          info()->script(),
+          compilation_info()->script(),
           Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()))
           .ToHandleChecked();
   DCHECK(!thrower.error());
@@ -282,19 +284,23 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
 
   // The result is a compiled module and serialized standard library uses.
   Handle<FixedArray> result =
-      info()->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
+      compilation_info()->isolate()->factory()->NewFixedArray(
+          kWasmDataEntryCount);
   result->set(kWasmDataCompiledModule, *compiled);
   result->set(kWasmDataUsesBitSet, *uses_bitset);
-  info()->SetAsmWasmData(result);
-  info()->SetCode(BUILTIN_CODE(info()->isolate(), InstantiateAsmJs));
+  compilation_info()->SetAsmWasmData(result);
+  compilation_info()->SetCode(
+      BUILTIN_CODE(compilation_info()->isolate(), InstantiateAsmJs));
 
-  ReportCompilationSuccess(info()->script(), info()->literal()->position(),
+  ReportCompilationSuccess(compilation_info()->script(),
+                           compilation_info()->literal()->position(),
                            translate_time_, compile_time_, module_->size());
   return SUCCEEDED;
 }
 
-CompilationJob* AsmJs::NewCompilationJob(CompilationInfo* info) {
-  return new AsmJsCompilationJob(info);
+CompilationJob* AsmJs::NewCompilationJob(ParseInfo* parse_info,
+                                         CompilationInfo* compilation_info) {
+  return new AsmJsCompilationJob(parse_info, compilation_info);
 }
 
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,

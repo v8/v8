@@ -141,8 +141,8 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
-                       shared, function);
+  CompilationInfo info(parse_info.zone(), function->GetIsolate(),
+                       parse_info.script(), shared, function);
 
   info.SetOptimizing();
   if (flags_ & CompilationInfo::kInliningEnabled) {
@@ -154,7 +154,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
     info.MarkAsDeoptimizationEnabled();
     info.MarkAsOptimizeFromBytecode();
   } else {
-    CHECK(Compiler::ParseAndAnalyze(&info));
+    CHECK(Compiler::ParseAndAnalyze(&parse_info, shared, info.isolate()));
     parse_info.ast_value_factory()->Internalize(info.isolate());
   }
   JSFunction::EnsureLiterals(function);
@@ -172,11 +172,11 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared());
   ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
-                       shared, function);
+  CompilationInfo info(parse_info.zone(), function->GetIsolate(),
+                       parse_info.script(), shared, function);
 
-  CHECK(parsing::ParseFunction(info.parse_info(), info.shared_info(),
-                               info.isolate()));
+  CHECK(
+      parsing::ParseFunction(&parse_info, info.shared_info(), info.isolate()));
   info.SetOptimizing();
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

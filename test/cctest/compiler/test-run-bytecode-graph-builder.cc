@@ -118,13 +118,11 @@ class BytecodeGraphTester {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     CHECK(function->shared()->HasBytecodeArray());
 
-    // TODO(mstarzinger): We should be able to prime CompilationInfo without
-    // having to instantiate a ParseInfo first. Fix this!
+    Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared());
-    ParseInfo parse_info(shared);
-
-    CompilationInfo compilation_info(parse_info.zone(), &parse_info,
-                                     function->GetIsolate(), shared, function);
+    Handle<Script> script(Script::cast(shared->script()));
+    CompilationInfo compilation_info(&zone, function->GetIsolate(), script,
+                                     shared, function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compilation_info.MarkAsOptimizeFromBytecode();

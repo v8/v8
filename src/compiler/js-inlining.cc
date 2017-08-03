@@ -507,13 +507,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   }
 
   ParseInfo parse_info(shared_info);
-  CompilationInfo info(parse_info.zone(), &parse_info,
-                       shared_info->GetIsolate(), shared_info,
+  CompilationInfo info(parse_info.zone(), shared_info->GetIsolate(),
+                       parse_info.script(), shared_info,
                        Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
 
-  if (!Compiler::EnsureBytecode(&info)) {
+  if (!Compiler::EnsureBytecode(&parse_info, &info)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());

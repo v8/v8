@@ -29,8 +29,9 @@ namespace internal {
 
 class FullCodegenCompilationJob final : public CompilationJob {
  public:
-  explicit FullCodegenCompilationJob(CompilationInfo* info)
-      : CompilationJob(info->isolate(), info, "Full-Codegen") {}
+  explicit FullCodegenCompilationJob(ParseInfo* parse_info,
+                                     CompilationInfo* info)
+      : CompilationJob(info->isolate(), parse_info, info, "Full-Codegen") {}
 
   bool can_execute_on_background_thread() const override { return false; }
 
@@ -38,8 +39,10 @@ class FullCodegenCompilationJob final : public CompilationJob {
 
   CompilationJob::Status ExecuteJobImpl() final {
     DCHECK(ThreadId::Current().Equals(isolate()->thread_id()));
-    return FullCodeGenerator::MakeCode(info(), stack_limit()) ? SUCCEEDED
-                                                              : FAILED;
+    return FullCodeGenerator::MakeCode(parse_info(), compilation_info(),
+                                       stack_limit())
+               ? SUCCEEDED
+               : FAILED;
   }
 
   CompilationJob::Status FinalizeJobImpl() final { return SUCCEEDED; }
@@ -70,17 +73,14 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
 }
 
 // static
-CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info) {
-  return new FullCodegenCompilationJob(info);
+CompilationJob* FullCodeGenerator::NewCompilationJob(
+    ParseInfo* parse_info, CompilationInfo* compilation_info) {
+  return new FullCodegenCompilationJob(parse_info, compilation_info);
 }
 
 // static
-bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
-  return MakeCode(info, info->isolate()->stack_guard()->real_climit());
-}
-
-// static
-bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
+bool FullCodeGenerator::MakeCode(ParseInfo* parse_info, CompilationInfo* info,
+                                 uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
   DCHECK(!info->literal()->must_use_ignition());
@@ -96,7 +96,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
     int len = String::cast(script->source())->length();
     isolate->counters()->total_full_codegen_source_size()->Increment(len);
   }
-  CodeGenerator::MakeCodePrologue(info, "full");
+  CodeGenerator::MakeCodePrologue(parse_info, info, "full");
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize,
                       CodeObjectRequired::kYes);

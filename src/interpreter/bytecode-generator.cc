@@ -774,8 +774,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
   if (info->is_block_coverage_enabled()) {
     DCHECK(FLAG_block_coverage);
-    block_coverage_builder_ = new (zone()) BlockCoverageBuilder(
-        zone(), builder(), info->parse_info()->source_range_map());
+    block_coverage_builder_ = new (zone())
+        BlockCoverageBuilder(zone(), builder(), info->source_range_map());
   }
 }
 

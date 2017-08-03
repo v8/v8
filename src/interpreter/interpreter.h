@@ -23,6 +23,7 @@ class Isolate;
 class Callable;
 class CompilationInfo;
 class CompilationJob;
+class ParseInfo;
 class SetupIsolateDelegate;
 class RootVisitor;
 
@@ -38,8 +39,10 @@ class Interpreter {
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();
 
-  // Creates a compilation job which will generate bytecode for |info|.
-  static CompilationJob* NewCompilationJob(CompilationInfo* info);
+  // Creates a compilation job which will generate bytecode for |parse_info| and
+  // |compilation_info|.
+  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
+                                           CompilationInfo* compilation_info);
 
   // Return bytecode handler for |bytecode|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);

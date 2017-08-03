@@ -35,11 +35,12 @@ struct TestHelper : public HandleAndZoneScope {
     // TODO(titzer): don't scope analyze every single time.
     Handle<SharedFunctionInfo> shared(function->shared());
     ParseInfo parse_info(shared);
-    CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
-                         shared, function);
+    CompilationInfo info(parse_info.zone(), function->GetIsolate(),
+                         parse_info.script(), shared, function);
 
     CHECK(parsing::ParseFunction(&parse_info, info.shared_info(),
                                  info.isolate()));
+    info.set_literal(parse_info.literal());
     CHECK(Rewriter::Rewrite(&parse_info));
     DeclarationScope::Analyze(&parse_info, info.isolate());
 

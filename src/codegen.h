@@ -69,11 +69,13 @@ namespace internal {
 
 class CompilationInfo;
 class EhFrameWriter;
+class ParseInfo;
 
 class CodeGenerator {
  public:
   // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(CompilationInfo* info, const char* kind);
+  static void MakeCodePrologue(ParseInfo* parse_info, CompilationInfo* info,
+                               const char* kind);
 
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(TurboAssembler* tasm,

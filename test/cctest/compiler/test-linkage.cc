@@ -46,8 +46,8 @@ TEST(TestLinkageCreate) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
   Handle<SharedFunctionInfo> shared(function->shared());
-  ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
+  Handle<Script> script(Script::cast(shared->script()));
+  CompilationInfo info(handles.main_zone(), function->GetIsolate(), script,
                        shared, function);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(descriptor);
@@ -64,8 +64,8 @@ TEST(TestLinkageJSFunctionIncoming) {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(
             *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     Handle<SharedFunctionInfo> shared(function->shared());
-    ParseInfo parse_info(shared);
-    CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
+    Handle<Script> script(Script::cast(shared->script()));
+    CompilationInfo info(handles.main_zone(), function->GetIsolate(), script,
                          shared, function);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(descriptor);
@@ -82,8 +82,8 @@ TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
   Handle<SharedFunctionInfo> shared(function->shared());
-  ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
+  Handle<Script> script(Script::cast(shared->script()));
+  CompilationInfo info(handles.main_zone(), function->GetIsolate(), script,
                        shared, function);
 
   for (int i = 0; i < 32; i++) {

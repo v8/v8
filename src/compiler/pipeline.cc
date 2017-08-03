@@ -574,12 +574,11 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
-    int pos = info->parse_info() ? info->shared_info()->start_position() : 0;
+    int pos = info->IsStub() ? 0 : info->shared_info()->start_position();
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
     Isolate* isolate = info->isolate();
-    Handle<Script> script =
-        info->parse_info() ? info->script() : Handle<Script>::null();
+    Handle<Script> script = info->script();
     if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
       int start = info->shared_info()->start_position();
@@ -604,13 +603,15 @@ class PipelineCompilationJob final : public CompilationJob {
                          Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(function->GetIsolate(), &info_, "TurboFan"),
+      : CompilationJob(function->GetIsolate(), parse_info, &compilation_info_,
+                       "TurboFan"),
         parse_info_(parse_info),
         zone_stats_(function->GetIsolate()->allocator()),
-        info_(parse_info_.get()->zone(), parse_info_.get(),
-              function->GetIsolate(), shared_info, function),
-        pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
-        data_(&zone_stats_, info(), pipeline_statistics_.get()),
+        compilation_info_(parse_info_.get()->zone(), function->GetIsolate(),
+                          parse_info_->script(), shared_info, function),
+        pipeline_statistics_(
+            CreatePipelineStatistics(compilation_info(), &zone_stats_)),
+        data_(&zone_stats_, compilation_info(), pipeline_statistics_.get()),
         pipeline_(&data_),
         linkage_(nullptr) {}
 
@@ -625,7 +626,7 @@ class PipelineCompilationJob final : public CompilationJob {
  private:
   std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
-  CompilationInfo info_;
+  CompilationInfo compilation_info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   PipelineImpl pipeline_;
@@ -635,45 +636,47 @@ class PipelineCompilationJob final : public CompilationJob {
 };
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
-  if (info()->shared_info()->asm_function()) {
-    if (info()->osr_frame() && !info()->is_optimizing_from_bytecode()) {
-      info()->MarkAsFrameSpecializing();
+  if (compilation_info()->shared_info()->asm_function()) {
+    if (compilation_info()->osr_frame() &&
+        !compilation_info()->is_optimizing_from_bytecode()) {
+      compilation_info()->MarkAsFrameSpecializing();
     }
-    info()->MarkAsFunctionContextSpecializing();
+    compilation_info()->MarkAsFunctionContextSpecializing();
   } else {
     if (!FLAG_always_opt) {
-      info()->MarkAsBailoutOnUninitialized();
+      compilation_info()->MarkAsBailoutOnUninitialized();
     }
     if (FLAG_turbo_loop_peeling) {
-      info()->MarkAsLoopPeelingEnabled();
+      compilation_info()->MarkAsLoopPeelingEnabled();
     }
   }
-  if (info()->is_optimizing_from_bytecode()) {
-    info()->MarkAsDeoptimizationEnabled();
+  if (compilation_info()->is_optimizing_from_bytecode()) {
+    compilation_info()->MarkAsDeoptimizationEnabled();
     if (FLAG_turbo_inlining) {
-      info()->MarkAsInliningEnabled();
+      compilation_info()->MarkAsInliningEnabled();
     }
     if (FLAG_inline_accessors) {
-      info()->MarkAsAccessorInliningEnabled();
+      compilation_info()->MarkAsAccessorInliningEnabled();
     }
-    if (info()->closure()->feedback_vector_cell()->map() ==
+    if (compilation_info()->closure()->feedback_vector_cell()->map() ==
         isolate()->heap()->one_closure_cell_map()) {
-      info()->MarkAsFunctionContextSpecializing();
+      compilation_info()->MarkAsFunctionContextSpecializing();
     }
-    info()->MarkAsInliningEnabled();
+    compilation_info()->MarkAsInliningEnabled();
   }
 
-  data_.set_start_source_position(info()->shared_info()->start_position());
+  data_.set_start_source_position(
+      compilation_info()->shared_info()->start_position());
 
-  linkage_ = new (info()->zone())
-      Linkage(Linkage::ComputeIncoming(info()->zone(), info()));
+  linkage_ = new (compilation_info()->zone()) Linkage(
+      Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
   if (!pipeline_.CreateGraph()) {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
     return AbortOptimization(kGraphBuildingFailed);
   }
 
-  if (info()->is_osr()) data_.InitializeOsrHelper();
+  if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
 
   // Make sure that we have generated the maximal number of deopt entries.
   // This is in order to avoid triggering the generation of deopt entries later
@@ -692,15 +695,15 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
   Handle<Code> code = pipeline_.FinalizeCode();
   if (code.is_null()) {
-    if (info()->bailout_reason() == kNoReason) {
+    if (compilation_info()->bailout_reason() == kNoReason) {
       return AbortOptimization(kCodeGenerationFailed);
     }
     return FAILED;
   }
-  info()->dependencies()->Commit(code);
-  info()->SetCode(code);
-  if (info()->is_deoptimization_enabled()) {
-    info()->context()->native_context()->AddOptimizedCode(*code);
+  compilation_info()->dependencies()->Commit(code);
+  compilation_info()->SetCode(code);
+  if (compilation_info()->is_deoptimization_enabled()) {
+    compilation_info()->context()->native_context()->AddOptimizedCode(*code);
     RegisterWeakObjectsInOptimizedCode(code);
   }
   return SUCCEEDED;
@@ -765,7 +768,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
       SourcePositionTable* source_positions,
       ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
       wasm::ModuleOrigin wasm_origin)
-      : CompilationJob(info->isolate(), info, "TurboFan",
+      : CompilationJob(info->isolate(), nullptr, info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(info, &zone_stats_)),
@@ -806,8 +809,8 @@ PipelineWasmCompilationJob::PrepareJobImpl() {
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::ExecuteJobImpl() {
   if (FLAG_trace_turbo) {
-    TurboJsonFile json_of(info(), std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info()->GetDebugName().get()
+    TurboJsonFile json_of(compilation_info(), std::ios_base::trunc);
+    json_of << "{\"function\":\"" << compilation_info()->GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
 
@@ -1873,7 +1876,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                Code::Flags flags,
                                                const char* debug_name) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
-  if (isolate->serializer_enabled()) info.PrepareForSerializing();
+  if (isolate->serializer_enabled()) info.MarkAsSerializing();
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
