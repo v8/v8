@@ -699,8 +699,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
 
   BIND(&extra_checks);
   {
-    Label check_initialized(this), mark_megamorphic(this),
-        create_allocation_site(this);
+    Label mark_megamorphic(this);
 
     Comment("check if megamorphic");
     // Check if it is a megamorphic target.
@@ -709,83 +708,35 @@ Node* InterpreterAssembler::CallJSWithFeedback(
                   HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &call);
 
-    Comment("check if it is an allocation site");
-    GotoIfNot(IsAllocationSite(feedback_element), &check_initialized);
+    Comment("check if uninitialized");
+    // Check if it is uninitialized target first.
+    Node* is_uninitialized = WordEqual(
+        feedback_element,
+        HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
+    GotoIfNot(is_uninitialized, &mark_megamorphic);
 
-    if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-      // For undefined receivers (mostly global calls), do an additional check
-      // for the monomorphic Array function, which would otherwise appear
-      // megamorphic.
+    Comment("handle_uninitialized");
+    // If it is not a JSFunction mark it as megamorphic.
+    Node* is_smi = TaggedIsSmi(function);
+    GotoIf(is_smi, &mark_megamorphic);
 
-      // If it is not the Array() function, mark megamorphic.
-      Node* context_slot = LoadContextElement(LoadNativeContext(context),
-                                              Context::ARRAY_FUNCTION_INDEX);
-      Node* is_array_function = WordEqual(context_slot, function);
-      GotoIfNot(is_array_function, &mark_megamorphic);
+    // Check if function is an object of JSFunction type.
+    Node* instance_type = LoadInstanceType(function);
+    Node* is_js_function =
+        Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE));
+    GotoIfNot(is_js_function, &mark_megamorphic);
 
-      // Call ArrayConstructorStub.
-      Callable callable_call =
-          CodeFactory::InterpreterPushArgsThenConstructArray(isolate());
-      Node* code_target_call = HeapConstant(callable_call.code());
-      Node* ret_value =
-          CallStub(callable_call.descriptor(), code_target_call, context,
-                   arg_count, function, feedback_element, first_arg);
-      return_value.Bind(ret_value);
-      Goto(&end);
+    // Check if the function belongs to the same native context.
+    Node* native_context = LoadNativeContext(
+        LoadObjectField(function, JSFunction::kContextOffset));
+    Node* is_same_native_context =
+        WordEqual(native_context, LoadNativeContext(context));
+    GotoIfNot(is_same_native_context, &mark_megamorphic);
 
-    } else {
-      Goto(&mark_megamorphic);
-    }
+    CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id), function);
 
-    BIND(&check_initialized);
-    {
-      Comment("check if uninitialized");
-      // Check if it is uninitialized target first.
-      Node* is_uninitialized = WordEqual(
-          feedback_element,
-          HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
-      GotoIfNot(is_uninitialized, &mark_megamorphic);
-
-      Comment("handle_uninitialized");
-      // If it is not a JSFunction mark it as megamorphic.
-      Node* is_smi = TaggedIsSmi(function);
-      GotoIf(is_smi, &mark_megamorphic);
-
-      // Check if function is an object of JSFunction type.
-      Node* instance_type = LoadInstanceType(function);
-      Node* is_js_function =
-          Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE));
-      GotoIfNot(is_js_function, &mark_megamorphic);
-
-      // Check if it is the Array() function.
-      Node* context_slot = LoadContextElement(LoadNativeContext(context),
-                                              Context::ARRAY_FUNCTION_INDEX);
-      Node* is_array_function = WordEqual(context_slot, function);
-      GotoIf(is_array_function, &create_allocation_site);
-
-      // Check if the function belongs to the same native context.
-      Node* native_context = LoadNativeContext(
-          LoadObjectField(function, JSFunction::kContextOffset));
-      Node* is_same_native_context =
-          WordEqual(native_context, LoadNativeContext(context));
-      GotoIfNot(is_same_native_context, &mark_megamorphic);
-
-      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
-                                     function);
-
-      // Call using call function builtin.
-      Goto(&call_function);
-    }
-
-    BIND(&create_allocation_site);
-    {
-      CreateAllocationSiteInFeedbackVector(feedback_vector, SmiTag(slot_id));
-
-      // Call using CallFunction builtin. CallICs have a PREMONOMORPHIC state.
-      // They start collecting feedback only when a call is executed the second
-      // time. So, do not pass any feedback here.
-      Goto(&call_function);
-    }
+    // Call using call function builtin.
+    Goto(&call_function);
 
     BIND(&mark_megamorphic);
     {

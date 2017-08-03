@@ -633,9 +633,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
 
   BIND(&extra_checks);
   {
-    Label check_initialized(this), mark_megamorphic(this),
-        create_allocation_site(this, Label::kDeferred),
-        create_weak_cell(this, Label::kDeferred);
+    Label mark_megamorphic(this), create_weak_cell(this, Label::kDeferred);
 
     Comment("check if megamorphic");
     // Check if it is a megamorphic target.
@@ -644,50 +642,28 @@ TF_STUB(CallICStub, CodeStubAssembler) {
                   HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &call);
 
-    Comment("check if it is an allocation site");
-    GotoIfNot(IsAllocationSite(feedback_element), &check_initialized);
+    Comment("check if uninitialized");
+    // Check if it is uninitialized target first.
+    Node* is_uninitialized = WordEqual(
+        feedback_element,
+        HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
+    GotoIfNot(is_uninitialized, &mark_megamorphic);
 
-    // If it is not the Array() function, mark megamorphic.
-    Node* context_slot = LoadContextElement(LoadNativeContext(context),
-                                            Context::ARRAY_FUNCTION_INDEX);
-    Node* is_array_function = WordEqual(context_slot, target);
-    GotoIfNot(is_array_function, &mark_megamorphic);
+    Comment("handle unitinitialized");
+    // If it is not a JSFunction mark it as megamorphic.
+    Node* is_smi = TaggedIsSmi(target);
+    GotoIf(is_smi, &mark_megamorphic);
 
-    // Call ArrayConstructorStub.
-    Callable callable = CodeFactory::ArrayConstructor(isolate());
-    TailCallStub(callable, context, target, target, argc, feedback_element);
+    // Check if function is an object of JSFunction type.
+    Node* is_js_function = IsJSFunction(target);
+    GotoIfNot(is_js_function, &mark_megamorphic);
 
-    BIND(&check_initialized);
-    {
-      Comment("check if uninitialized");
-      // Check if it is uninitialized target first.
-      Node* is_uninitialized = WordEqual(
-          feedback_element,
-          HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
-      GotoIfNot(is_uninitialized, &mark_megamorphic);
-
-      Comment("handle unitinitialized");
-      // If it is not a JSFunction mark it as megamorphic.
-      Node* is_smi = TaggedIsSmi(target);
-      GotoIf(is_smi, &mark_megamorphic);
-
-      // Check if function is an object of JSFunction type.
-      Node* is_js_function = IsJSFunction(target);
-      GotoIfNot(is_js_function, &mark_megamorphic);
-
-      // Check if it is the Array() function.
-      Node* context_slot = LoadContextElement(LoadNativeContext(context),
-                                              Context::ARRAY_FUNCTION_INDEX);
-      Node* is_array_function = WordEqual(context_slot, target);
-      GotoIf(is_array_function, &create_allocation_site);
-
-      // Check if the function belongs to the same native context.
-      Node* native_context = LoadNativeContext(
-          LoadObjectField(target, JSFunction::kContextOffset));
-      Node* is_same_native_context =
-          WordEqual(native_context, LoadNativeContext(context));
-      Branch(is_same_native_context, &create_weak_cell, &mark_megamorphic);
-    }
+    // Check if the function belongs to the same native context.
+    Node* native_context =
+        LoadNativeContext(LoadObjectField(target, JSFunction::kContextOffset));
+    Node* is_same_native_context =
+        WordEqual(native_context, LoadNativeContext(context));
+    Branch(is_same_native_context, &create_weak_cell, &mark_megamorphic);
 
     BIND(&create_weak_cell);
     {
@@ -696,18 +672,6 @@ TF_STUB(CallICStub, CodeStubAssembler) {
       CreateWeakCellInFeedbackVector(vector, SmiTag(slot), target);
 
       // Call using CallFunction builtin.
-      Goto(&call_function);
-    }
-
-    BIND(&create_allocation_site);
-    {
-      // Create an AllocationSite for the {target}.
-      Comment("create allocation site");
-      CreateAllocationSiteInFeedbackVector(vector, SmiTag(slot));
-
-      // Call using CallFunction builtin. CallICs have a PREMONOMORPHIC state.
-      // They start collecting feedback only when a call is executed the second
-      // time. So, do not pass any feedback here.
       Goto(&call_function);
     }
 

@@ -220,7 +220,7 @@ TEST(VectorCallICStates) {
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 }
 
-TEST(VectorCallFeedbackForArray) {
+TEST(VectorCallFeedback) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   LocalContext context;
@@ -229,7 +229,32 @@ TEST(VectorCallFeedbackForArray) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function foo() { return 17; }"
-      "function f(a) { a(); } f(Array);");
+      "function f(a) { a(); } f(foo);");
+  Handle<JSFunction> f = GetFunction("f");
+  Handle<JSFunction> foo = GetFunction("foo");
+  // There should be one IC.
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
+  FeedbackSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
+
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK(nexus.GetFeedback()->IsWeakCell());
+  CHECK(*foo == WeakCell::cast(nexus.GetFeedback())->value());
+
+  CcTest::CollectAllGarbage();
+  // It should stay monomorphic even after a GC.
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+}
+
+TEST(VectorCallFeedbackForArray) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun("function f(a) { a(); } f(Array);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<FeedbackVector> feedback_vector =
@@ -237,9 +262,10 @@ TEST(VectorCallFeedbackForArray) {
   FeedbackSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
 
-  // A call to Array is special, it contains an AllocationSite as feedback.
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.GetFeedback()->IsAllocationSite());
+  CHECK(nexus.GetFeedback()->IsWeakCell());
+  CHECK(*isolate->array_function() ==
+        WeakCell::cast(nexus.GetFeedback())->value());
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
