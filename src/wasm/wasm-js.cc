@@ -608,6 +608,18 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     var = i::Handle<i::WasmType>::cast(this_arg);                    \
   }
 
+void WebAssemblyInstanceGetExports(
+  const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+    i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                           "WebAssembly.Instance.exports()");
+  EXTRACT_THIS(receiver, WasmInstanceObject);
+  i::Handle<i::JSObject> exports_object(receiver->exports_object());
+  args.GetReturnValue().Set(Utils::ToLocal(exports_object));
+}
+
 void WebAssemblyTableGetLength(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -818,8 +830,8 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
   return function;
 }
 
-Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
-                                 const char* str, FunctionCallback func) {
+void InstallGetter(Isolate* isolate, Handle<JSObject> object,
+                   const char* str, FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   // TODO(ishell): shouldn't we set "get "+name as getter's name?
@@ -831,7 +843,6 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
                                               Local<Function>(), attributes);
-  return function;
 }
 
 void WasmJs::Install(Isolate* isolate) {
@@ -900,6 +911,8 @@ void WasmJs::Install(Isolate* isolate) {
   i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
       i::WASM_INSTANCE_TYPE, WasmInstanceObject::kSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
+  InstallGetter(isolate, instance_proto, "exports",
+                WebAssemblyInstanceGetExports);
   JSObject::AddProperty(instance_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 

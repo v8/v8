@@ -145,6 +145,7 @@ class WasmInstanceObject : public JSObject {
   DECL_CAST(WasmInstanceObject)
 
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
+  DECL_ACCESSORS(exports_object, JSObject)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
@@ -154,6 +155,7 @@ class WasmInstanceObject : public JSObject {
 
   enum {  // --
     kCompiledModuleIndex,
+    kExportsObjectIndex,
     kMemoryObjectIndex,
     kMemoryBufferIndex,
     kGlobalsBufferIndex,
@@ -164,6 +166,7 @@ class WasmInstanceObject : public JSObject {
 
   DEF_SIZE(JSObject)
   DEF_OFFSET(CompiledModule)
+  DEF_OFFSET(ExportsObject)
   DEF_OFFSET(MemoryObject)
   DEF_OFFSET(MemoryBuffer)
   DEF_OFFSET(GlobalsBuffer)
@@ -689,6 +692,8 @@ OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakFixedArray,
 // WasmInstanceObject
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
+ACCESSORS(WasmInstanceObject, exports_object, JSObject,
+          kExportsObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer,

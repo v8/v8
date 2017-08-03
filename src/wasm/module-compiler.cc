@@ -1563,9 +1563,7 @@ void InstanceBuilder::ProcessExports(
   } else {
     UNREACHABLE();
   }
-  Handle<String> exports_name =
-      isolate_->factory()->InternalizeUtf8String("exports");
-  JSObject::AddProperty(instance, exports_name, exports_object, NONE);
+  instance->set_exports_object(*exports_object);
 
   Handle<String> single_function_name =
       isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);

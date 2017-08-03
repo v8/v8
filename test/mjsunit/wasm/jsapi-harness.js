@@ -8,8 +8,9 @@
 // Flags: --expose-wasm --allow-natives-syntax
 
 const known_failures = {
-  "'WebAssembly.Instance.prototype.exports' accessor property":
-    'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
+  // Enter failing tests like follows:
+  // "'WebAssembly.Instance.prototype.exports' accessor property":
+  //  'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
 };
 
 let failures = [];

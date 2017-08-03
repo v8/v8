@@ -392,12 +392,12 @@ assertEq(typeof exportingInstance, 'object');
 assertEq(String(exportingInstance), '[object WebAssembly.Instance]');
 assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
 
-// 'WebAssembly.Instance' 'exports' data property
+// 'WebAssembly.Instance' 'exports' getter property
 let instanceExportsDesc =
-    Object.getOwnPropertyDescriptor(exportingInstance, 'exports');
-assertEq(typeof instanceExportsDesc.value, 'object');
-assertTrue(instanceExportsDesc.writable);
-assertTrue(instanceExportsDesc.enumerable);
+    Object.getOwnPropertyDescriptor(instanceProto, 'exports');
+assertEq(typeof instanceExportsDesc.get, 'function');
+assertEq(instanceExportsDesc.set, undefined);
+assertFalse(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
 
 exportsObj = exportingInstance.exports;
