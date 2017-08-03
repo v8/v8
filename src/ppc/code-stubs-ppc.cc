@@ -1144,7 +1144,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // r5: receiver
   // r6: argc
   // r7: argv
-  if (type() == StackFrame::ENTRY_CONSTRUCT) {
+  if (type() == StackFrame::CONSTRUCT_ENTRY) {
     __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
             RelocInfo::CODE_TARGET);
   } else {

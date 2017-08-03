@@ -1205,7 +1205,7 @@ Object* Isolate::UnwindAndFindHandler() {
 
     switch (frame->type()) {
       case StackFrame::ENTRY:
-      case StackFrame::ENTRY_CONSTRUCT: {
+      case StackFrame::CONSTRUCT_ENTRY: {
         // For JSEntryStub frames we always have a handler.
         StackHandler* handler = frame->top_handler();
 
@@ -1436,7 +1436,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 
     switch (frame->type()) {
       case StackFrame::ENTRY:
-      case StackFrame::ENTRY_CONSTRUCT: {
+      case StackFrame::CONSTRUCT_ENTRY: {
         Address entry_handler = frame->top_handler()->next()->address();
         // The exception has been externally caught if and only if there is an
         // external handler which is on top of the top-most JS_ENTRY handler.

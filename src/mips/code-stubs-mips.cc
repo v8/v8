@@ -1200,7 +1200,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // 4 args slots
   // args
 
-  if (type() == StackFrame::ENTRY_CONSTRUCT) {
+  if (type() == StackFrame::CONSTRUCT_ENTRY) {
     __ Call(BUILTIN_CODE(isolate, JSConstructEntryTrampoline),
             RelocInfo::CODE_TARGET);
   } else {

@@ -1155,7 +1155,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // pop the faked function when we return. Notice that we cannot store a
   // reference to the trampoline code directly in this stub, because the
   // builtin stubs may not have been generated yet.
-  if (type() == StackFrame::ENTRY_CONSTRUCT) {
+  if (type() == StackFrame::CONSTRUCT_ENTRY) {
     __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
             RelocInfo::CODE_TARGET);
   } else {

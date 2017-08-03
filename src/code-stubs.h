@@ -969,7 +969,7 @@ class JSEntryStub : public PlatformCodeStub {
  public:
   JSEntryStub(Isolate* isolate, StackFrame::Type type)
       : PlatformCodeStub(isolate) {
-    DCHECK(type == StackFrame::ENTRY || type == StackFrame::ENTRY_CONSTRUCT);
+    DCHECK(type == StackFrame::ENTRY || type == StackFrame::CONSTRUCT_ENTRY);
     minor_key_ = StackFrameTypeBits::encode(type);
   }
 

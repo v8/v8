@@ -1093,7 +1093,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // external reference instead of inlining the call target address directly
   // in the code, because the builtin stubs may not have been generated yet
   // at the time this code is generated.
-  if (type() == StackFrame::ENTRY_CONSTRUCT) {
+  if (type() == StackFrame::CONSTRUCT_ENTRY) {
     __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
             RelocInfo::CODE_TARGET);
   } else {

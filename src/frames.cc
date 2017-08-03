@@ -322,7 +322,7 @@ bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
 
 bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
   StackFrame::State state;
-  if (frame->is_entry() || frame->is_entry_construct()) {
+  if (frame->is_entry() || frame->is_construct_entry()) {
     // See EntryFrame::GetCallerState. It computes the caller FP address
     // and calls ExitFrame::GetStateForFramePointer on it. We need to be
     // sure that caller FP address is valid.
@@ -513,7 +513,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
   StackFrame::Type candidate = StackFrame::MarkerToType(marker);
   switch (candidate) {
     case ENTRY:
-    case ENTRY_CONSTRUCT:
+    case CONSTRUCT_ENTRY:
     case EXIT:
     case BUILTIN_CONTINUATION:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION:
@@ -579,8 +579,7 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   return ExitFrame::GetStateForFramePointer(fp, state);
 }
 
-
-Code* EntryConstructFrame::unchecked_code() const {
+Code* ConstructEntryFrame::unchecked_code() const {
   return isolate()->heap()->js_construct_entry_code();
 }
 
@@ -699,6 +698,13 @@ int BuiltinExitFrame::ComputeParametersCount() const {
   return argc;
 }
 
+namespace {
+void PrintIndex(StringStream* accumulator, StackFrame::PrintMode mode,
+                int index) {
+  accumulator->Add((mode == StackFrame::OVERVIEW) ? "%5d: " : "[%d]: ", index);
+}
+}  // namespace
+
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
                              int index) const {
   DisallowHeapAllocation no_gc;
@@ -812,7 +818,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     StackFrame::Type candidate = StackFrame::MarkerToType(marker);
     switch (candidate) {
       case ENTRY:
-      case ENTRY_CONSTRUCT:
+      case CONSTRUCT_ENTRY:
       case EXIT:
       case BUILTIN_CONTINUATION:
       case JAVA_SCRIPT_BUILTIN_CONTINUATION:
@@ -1684,12 +1690,6 @@ Code* InternalFrame::unchecked_code() const {
   return reinterpret_cast<Code*>(code);
 }
 
-
-void StackFrame::PrintIndex(StringStream* accumulator,
-                            PrintMode mode,
-                            int index) {
-  accumulator->Add((mode == OVERVIEW) ? "%5d: " : "[%d]: ", index);
-}
 
 void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                               int index) const {

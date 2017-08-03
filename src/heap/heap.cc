@@ -2769,7 +2769,7 @@ void Heap::CreateJSEntryStub() {
 
 
 void Heap::CreateJSConstructEntryStub() {
-  JSEntryStub stub(isolate(), StackFrame::ENTRY_CONSTRUCT);
+  JSEntryStub stub(isolate(), StackFrame::CONSTRUCT_ENTRY);
   set_js_construct_entry_code(*stub.GetCode());
 }
 

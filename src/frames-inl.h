@@ -67,12 +67,9 @@ inline EntryFrame::EntryFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
-
-inline EntryConstructFrame::EntryConstructFrame(
+inline ConstructEntryFrame::ConstructEntryFrame(
     StackFrameIteratorBase* iterator)
-    : EntryFrame(iterator) {
-}
-
+    : EntryFrame(iterator) {}
 
 inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {

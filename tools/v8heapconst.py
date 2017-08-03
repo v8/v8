@@ -320,7 +320,7 @@ KNOWN_OBJECTS = {
 # List of known V8 Frame Markers.
 FRAME_MARKERS = (
   "ENTRY",
-  "ENTRY_CONSTRUCT",
+  "CONSTRUCT_ENTRY",
   "EXIT",
   "JAVA_SCRIPT",
   "OPTIMIZED",

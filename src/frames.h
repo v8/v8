@@ -86,7 +86,7 @@ class StackHandler BASE_EMBEDDED {
 
 #define STACK_FRAME_TYPE_LIST(V)                                          \
   V(ENTRY, EntryFrame)                                                    \
-  V(ENTRY_CONSTRUCT, EntryConstructFrame)                                 \
+  V(CONSTRUCT_ENTRY, ConstructEntryFrame)                                 \
   V(EXIT, ExitFrame)                                                      \
   V(JAVA_SCRIPT, JavaScriptFrame)                                         \
   V(OPTIMIZED, OptimizedFrame)                                            \
@@ -103,7 +103,6 @@ class StackHandler BASE_EMBEDDED {
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)                             \
   V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)
-
 
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
@@ -193,7 +192,7 @@ class StackFrame BASE_EMBEDDED {
 
   // Type testers.
   bool is_entry() const { return type() == ENTRY; }
-  bool is_entry_construct() const { return type() == ENTRY_CONSTRUCT; }
+  bool is_construct_entry() const { return type() == CONSTRUCT_ENTRY; }
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
@@ -249,9 +248,6 @@ class StackFrame BASE_EMBEDDED {
   }
 
   virtual void SetCallerFp(Address caller_fp) = 0;
-
-  // Manually changes value of fp in this object.
-  void UpdateFp(Address fp) { state_.fp = fp; }
 
   Address* pc_address() const { return state_.pc_address; }
 
@@ -316,11 +312,6 @@ class StackFrame BASE_EMBEDDED {
   // Compute the stack pointer for the calling frame.
   virtual Address GetCallerStackPointer() const = 0;
 
-  // Printing support.
-  static void PrintIndex(StringStream* accumulator,
-                         PrintMode mode,
-                         int index);
-
   // Compute the stack frame type for the given state.
   static Type ComputeType(const StackFrameIteratorBase* iterator, State* state);
 
@@ -381,20 +372,19 @@ class EntryFrame: public StackFrame {
   friend class StackFrameIteratorBase;
 };
 
-
-class EntryConstructFrame: public EntryFrame {
+class ConstructEntryFrame : public EntryFrame {
  public:
-  Type type() const override { return ENTRY_CONSTRUCT; }
+  Type type() const override { return CONSTRUCT_ENTRY; }
 
   Code* unchecked_code() const override;
 
-  static EntryConstructFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_entry_construct());
-    return static_cast<EntryConstructFrame*>(frame);
+  static ConstructEntryFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_construct_entry());
+    return static_cast<ConstructEntryFrame*>(frame);
   }
 
  protected:
-  inline explicit EntryConstructFrame(StackFrameIteratorBase* iterator);
+  inline explicit ConstructEntryFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;
