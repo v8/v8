@@ -1336,9 +1336,9 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           }
           if (imported_max_size > table.max_size) {
             thrower_->LinkError(
-                "table import %d has maximum larger than maximum %d, "
-                "got %" PRIx64,
-                index, table.max_size, imported_max_size);
+                "memory import %d has a larger maximum size %" PRIx64
+                " than the module's declared maximum %u",
+                index, imported_max_size, table.max_size);
             return -1;
           }
         }
@@ -1404,8 +1404,9 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           if (static_cast<uint32_t>(imported_max_pages) >
               module_->max_mem_pages) {
             thrower_->LinkError(
-                "memory import %d has larger maximum than maximum %u, got %d",
-                index, module_->max_mem_pages, imported_max_pages);
+                "memory import %d has a larger maximum size %u than the "
+                "module's declared maximum %u",
+                index, imported_max_pages, module_->max_mem_pages);
             return -1;
           }
         }
