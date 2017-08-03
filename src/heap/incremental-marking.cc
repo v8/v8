@@ -123,13 +123,12 @@ void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
   // Color the object black and push it into the bailout deque.
   ObjectMarking::WhiteToGrey<kAtomicity>(obj, marking_state(obj));
   if (ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
-#ifdef V8_CONCURRENT_MARKING
-    marking_worklist()->PushBailout(obj);
-#else
-    if (!marking_worklist()->Push(obj)) {
-      ObjectMarking::BlackToGrey<kAtomicity>(obj, marking_state(obj));
+    if (FLAG_concurrent_marking) {
+      marking_worklist()->PushBailout(obj);
+    } else if (!marking_worklist()->Push(obj)) {
+      ObjectMarking::BlackToGrey<AccessMode::NON_ATOMIC>(obj,
+                                                         marking_state(obj));
     }
-#endif
   }
 }
 
@@ -219,18 +218,18 @@ class IncrementalMarkingMarkingVisitor final
       int start_offset =
           Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
       if (start_offset < object_size) {
-#ifdef V8_CONCURRENT_MARKING
-        incremental_marking_->marking_worklist()->PushBailout(object);
-#else
-        if (ObjectMarking::IsGrey<IncrementalMarking::kAtomicity>(
-                object, incremental_marking_->marking_state(object))) {
-          incremental_marking_->marking_worklist()->Push(object);
+        if (FLAG_concurrent_marking) {
+          incremental_marking_->marking_worklist()->PushBailout(object);
         } else {
-          DCHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
-              object, incremental_marking_->marking_state(object)));
-          collector_->PushBlack(object);
+          if (ObjectMarking::IsGrey<IncrementalMarking::kAtomicity>(
+                  object, incremental_marking_->marking_state(object))) {
+            incremental_marking_->marking_worklist()->Push(object);
+          } else {
+            DCHECK(ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
+                object, incremental_marking_->marking_state(object)));
+            collector_->PushBlack(object);
+          }
         }
-#endif
         int end_offset =
             Min(object_size, start_offset + kProgressBarScanningChunk);
         int already_scanned_offset = start_offset;
