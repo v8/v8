@@ -13,7 +13,7 @@
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/ppc/constants-ppc.h"
-#include "src/ppc/frames-ppc.h"
+#include "src/ppc/frame-constants-ppc.h"
 #include "src/ppc/simulator-ppc.h"
 #include "src/runtime/runtime-utils.h"
 
