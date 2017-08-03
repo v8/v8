@@ -1248,11 +1248,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Node* instance_type, Node* unique_name,
                          Label* if_found, Variable* var_value,
                          Label* if_not_found, Label* if_bailout);
-  void TryGetOwnProperty(Node* context, Node* receiver, Node* object, Node* map,
-                         Node* instance_type, Node* unique_name,
-                         Label* if_found, Variable* var_value,
-                         Variable* var_details, Variable* var_raw_value,
-                         Label* if_not_found, Label* if_bailout);
 
   Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));

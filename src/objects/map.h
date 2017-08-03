@@ -319,7 +319,7 @@ class Map : public HeapObject {
   // Returns a WeakCell object containing given prototype. The cell is cached
   // in PrototypeInfo which is created lazily.
   static Handle<WeakCell> GetOrCreatePrototypeWeakCell(
-      Handle<JSReceiver> prototype, Isolate* isolate);
+      Handle<JSObject> prototype, Isolate* isolate);
 
   Map* FindRootMap() const;
   Map* FindFieldOwner(int descriptor) const;

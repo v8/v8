@@ -283,7 +283,7 @@ class LoadIC : public IC {
   // by given Smi-handler that encoded a load from the holder.
   // Can be used only if GetPrototypeCheckCount() returns non negative value.
   Handle<Object> LoadFromPrototype(Handle<Map> receiver_map,
-                                   Handle<JSReceiver> holder, Handle<Name> name,
+                                   Handle<JSObject> holder, Handle<Name> name,
                                    Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a load of a non-existent property.
