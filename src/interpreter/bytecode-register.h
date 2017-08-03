@@ -7,7 +7,9 @@
 
 #include "src/interpreter/bytecodes.h"
 
-#include "src/frames.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
+#include "src/frame-constants.h"
 #include "src/globals.h"
 
 namespace v8 {

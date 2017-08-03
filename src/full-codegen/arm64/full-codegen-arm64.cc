@@ -14,13 +14,12 @@
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
-#include "src/frames-inl.h"
+#include "src/frame-constants.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 
 #include "src/arm64/code-stubs-arm64.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"
 
 namespace v8 {

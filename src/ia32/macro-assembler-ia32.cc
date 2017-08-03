@@ -11,8 +11,8 @@
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
+#include "src/frame-constants.h"
 #include "src/frames-inl.h"
-#include "src/ia32/frames-ia32.h"
 #include "src/runtime/runtime.h"
 
 #include "src/ia32/macro-assembler-ia32.h"

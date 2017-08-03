@@ -9,9 +9,9 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/ia32/assembler-ia32.h"
-#include "src/ia32/frames-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
 
 namespace v8 {

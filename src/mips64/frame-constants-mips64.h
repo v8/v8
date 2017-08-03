@@ -34,7 +34,6 @@ class ExitFrameConstants : public TypedFrameConstants {
   static const int kConstantPoolOffset = 0;  // Not used.
 };
 
-
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
@@ -43,10 +42,9 @@ class JavaScriptFrameConstants : public AllStatic {
   static const int kFunctionOffset = StandardFrameConstants::kFunctionOffset;
 
   // Caller SP-relative.
-  static const int kParam0Offset   = -2 * kPointerSize;
+  static const int kParam0Offset = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
-
 
 }  // namespace internal
 }  // namespace v8

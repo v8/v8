@@ -5,24 +5,20 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/assembler.h"
-#include "src/frames.h"
+#include "src/frame-constants.h"
 #include "src/macro-assembler.h"
 
 #include "src/arm/assembler-arm-inl.h"
 #include "src/arm/assembler-arm.h"
-#include "src/arm/frames-arm.h"
+#include "src/arm/frame-constants-arm.h"
 #include "src/arm/macro-assembler-arm.h"
 
 namespace v8 {
 namespace internal {
 
-
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
-Register JavaScriptFrame::constant_pool_pointer_register() {
-  UNREACHABLE();
-}
-
+Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
 }  // namespace internal
 }  // namespace v8

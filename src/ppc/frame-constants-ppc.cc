@@ -1,16 +1,17 @@
-// Copyright 2015 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_PPC
 
-#include "src/frames.h"
 #include "src/assembler.h"
+#include "src/frame-constants.h"
 #include "src/macro-assembler.h"
-#include "src/s390/assembler-s390-inl.h"
-#include "src/s390/assembler-s390.h"
-#include "src/s390/frames-s390.h"
-#include "src/s390/macro-assembler-s390.h"
+#include "src/ppc/assembler-ppc-inl.h"
+#include "src/ppc/assembler-ppc.h"
+#include "src/ppc/macro-assembler-ppc.h"
+
+#include "src/ppc/frame-constants-ppc.h"
 
 namespace v8 {
 namespace internal {
@@ -18,10 +19,11 @@ namespace internal {
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() {
-  UNREACHABLE();
+  DCHECK(FLAG_enable_embedded_constant_pool);
+  return kConstantPoolRegister;
 }
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_PPC

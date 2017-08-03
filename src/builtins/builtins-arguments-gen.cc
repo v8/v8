@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/frame-constants.h"
 #include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
 

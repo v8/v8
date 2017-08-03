@@ -1,12 +1,9 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arm64/assembler-arm64.h"
-#include "src/arm64/constants-arm64.h"
-
-#ifndef V8_ARM64_FRAMES_ARM64_H_
-#define V8_ARM64_FRAMES_ARM64_H_
+#ifndef V8_ARM_FRAMES_ARM_H_
+#define V8_ARM_FRAMES_ARM_H_
 
 namespace v8 {
 namespace internal {
@@ -22,25 +19,30 @@ class ExitFrameConstants : public TypedFrameConstants {
   static const int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
-  static const int kLastExitFrameField   = kCodeOffset;
 
-  static const int kConstantPoolOffset   = 0;  // Not used
+  // The caller fields are below the frame pointer on the stack.
+  static const int kCallerFPOffset = 0 * kPointerSize;
+  // The calling JS function is below FP.
+  static const int kCallerPCOffset = 1 * kPointerSize;
+
+  // FP-relative displacement of the caller's SP.  It points just
+  // below the saved PC.
+  static const int kCallerSPDisplacement = 2 * kPointerSize;
 };
-
 
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-
-  // There are two words on the stack (saved fp and saved lr) between fp and
-  // the arguments.
-  static const int kLastParameterOffset = 2 * kPointerSize;
-
+  static const int kLastParameterOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kFunctionOffset;
+
+  // Caller SP-relative.
+  static const int kParam0Offset = -2 * kPointerSize;
+  static const int kReceiverOffset = -1 * kPointerSize;
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ARM64_FRAMES_ARM64_H_
+#endif  // V8_ARM_FRAMES_ARM_H_

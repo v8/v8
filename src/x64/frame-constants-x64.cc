@@ -5,21 +5,18 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/assembler.h"
-#include "src/frames.h"
+#include "src/frame-constants.h"
 #include "src/x64/assembler-x64-inl.h"
 #include "src/x64/assembler-x64.h"
-#include "src/x64/frames-x64.h"
+
+#include "src/x64/frame-constants-x64.h"
 
 namespace v8 {
 namespace internal {
 
-
 Register JavaScriptFrame::fp_register() { return rbp; }
 Register JavaScriptFrame::context_register() { return rsi; }
-Register JavaScriptFrame::constant_pool_pointer_register() {
-  UNREACHABLE();
-}
-
+Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
 }  // namespace internal
 }  // namespace v8

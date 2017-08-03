@@ -6,12 +6,12 @@
 
 #include "src/api-arguments.h"
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/counters.h"
+#include "src/frame-constants.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"

@@ -13,9 +13,9 @@
 #include "src/base/once.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
+#include "src/frame-constants.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/s390/constants-s390.h"
-#include "src/s390/frames-s390.h"
 #include "src/s390/simulator-s390.h"
 #if defined(USE_SIMULATOR)
 

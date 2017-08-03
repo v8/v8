@@ -4,7 +4,6 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/arm64/frames-arm64.h"
 #include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -12,6 +11,7 @@
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
+#include "src/frame-constants.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/register-configuration.h"

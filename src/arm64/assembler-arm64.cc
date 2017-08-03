@@ -31,10 +31,10 @@
 #include "src/arm64/assembler-arm64.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/frame-constants.h"
 #include "src/register-configuration.h"
 
 namespace v8 {

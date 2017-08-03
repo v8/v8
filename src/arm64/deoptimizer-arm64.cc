@@ -4,10 +4,10 @@
 
 #include "src/api.h"
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
+#include "src/frame-constants.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/register-configuration.h"

@@ -6,7 +6,7 @@
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/s390/frames-s390.h"
+#include "src/frame-constants.h"
 
 namespace v8 {
 namespace internal {

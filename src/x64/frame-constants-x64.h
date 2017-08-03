@@ -21,7 +21,7 @@ class EntryFrameConstants : public AllStatic {
   // We have 3 Push and 5 pushq in the JSEntryStub::GenerateBody.
   static const int kCallerFPOffset = -3 * kPointerSize + -5 * kRegisterSize;
 #endif
-  static const int kArgvOffset     = 6 * kPointerSize;
+  static const int kArgvOffset = 6 * kPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
@@ -30,16 +30,15 @@ class ExitFrameConstants : public TypedFrameConstants {
   static const int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
 
-  static const int kCallerFPOffset  = +0 * kPointerSize;
-  static const int kCallerPCOffset  = kFPOnStackSize;
+  static const int kCallerFPOffset = +0 * kPointerSize;
+  static const int kCallerPCOffset = kFPOnStackSize;
 
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
   static const int kCallerSPDisplacement = kCallerPCOffset + kPCOnStackSize;
 
-  static const int kConstantPoolOffset   = 0;  // Not used
+  static const int kConstantPoolOffset = 0;  // Not used
 };
-
 
 class JavaScriptFrameConstants : public AllStatic {
  public:
@@ -49,7 +48,7 @@ class JavaScriptFrameConstants : public AllStatic {
   static const int kFunctionOffset = StandardFrameConstants::kFunctionOffset;
 
   // Caller SP-relative.
-  static const int kParam0Offset   = -2 * kPointerSize;
+  static const int kParam0Offset = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
 
