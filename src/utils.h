@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cmath>
+#include <type_traits>
 
 #include "include/v8.h"
 #include "src/allocation.h"
@@ -797,16 +798,16 @@ class EnumSet {
   T ToIntegral() const { return bits_; }
   bool operator==(const EnumSet& set) { return bits_ == set.bits_; }
   bool operator!=(const EnumSet& set) { return bits_ != set.bits_; }
-  EnumSet<E, T> operator|(const EnumSet& set) const {
-    return EnumSet<E, T>(bits_ | set.bits_);
+  EnumSet operator|(const EnumSet& set) const {
+    return EnumSet(bits_ | set.bits_);
   }
 
  private:
+  static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
+
   T Mask(E element) const {
-    // The strange typing in DCHECK is necessary to avoid stupid warnings, see:
-    // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43680
-    DCHECK(static_cast<int>(element) < static_cast<int>(sizeof(T) * CHAR_BIT));
-    return static_cast<T>(1) << element;
+    DCHECK_GT(sizeof(T) * CHAR_BIT, static_cast<int>(element));
+    return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
   }
 
   T bits_;
