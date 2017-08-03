@@ -576,10 +576,6 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     temp_instance->function_code[i] = init_builtin;
   }
 
-  (module_->is_wasm() ? counters()->wasm_functions_per_wasm_module()
-                      : counters()->wasm_functions_per_asm_module())
-      ->AddSample(static_cast<int>(module_->functions.size()));
-
   if (!lazy_compile) {
     size_t funcs_to_compile =
         module_->functions.size() - module_->num_imported_functions;
@@ -2081,9 +2077,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job_->code_table_->set(static_cast<int>(i), *illegal_builtin);
       job_->temp_instance_->function_code[i] = illegal_builtin;
     }
-
-    job_->counters()->wasm_functions_per_wasm_module()->AddSample(
-        static_cast<int>(module_->functions.size()));
 
     // Transfer ownership of the {WasmModule} to the {ModuleCompiler}, but
     // keep a pointer.

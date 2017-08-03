@@ -503,6 +503,9 @@ class ModuleDecoder : public Decoder {
   void DecodeFunctionSection() {
     uint32_t functions_count =
         consume_count("functions count", kV8MaxWasmFunctions);
+    (IsWasm() ? GetCounters()->wasm_functions_per_wasm_module()
+              : GetCounters()->wasm_functions_per_asm_module())
+        ->AddSample(static_cast<int>(functions_count));
     module_->functions.reserve(functions_count);
     module_->num_declared_functions = functions_count;
     for (uint32_t i = 0; ok() && i < functions_count; ++i) {
