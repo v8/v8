@@ -247,8 +247,6 @@ class StackFrame BASE_EMBEDDED {
     *constant_pool_address() = constant_pool;
   }
 
-  virtual void SetCallerFp(Address caller_fp) = 0;
-
   Address* pc_address() const { return state_.pc_address; }
 
   Address* constant_pool_address() const {
@@ -268,19 +266,8 @@ class StackFrame BASE_EMBEDDED {
   // This method could be called during marking phase of GC.
   virtual Code* unchecked_code() const = 0;
 
-  // Get the code associated with this frame.
-  inline Code* LookupCode() const;
-
-  // Get the code object that contains the given pc.
-  static inline Code* GetContainingCode(Isolate* isolate, Address pc);
-
-  // Get the code object containing the given pc and fill in the
-  // safepoint entry and the number of stack slots. The pc must be at
-  // a safepoint.
-  static Code* GetSafepointData(Isolate* isolate,
-                                Address pc,
-                                SafepointEntry* safepoint_entry,
-                                unsigned* stack_slots);
+  // Search for the code associated with this frame.
+  Code* LookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   static void IteratePc(RootVisitor* v, Address* pc_address,
@@ -355,7 +342,6 @@ class EntryFrame: public StackFrame {
     DCHECK(frame->is_entry());
     return static_cast<EntryFrame*>(frame);
   }
-  void SetCallerFp(Address caller_fp) override;
 
  protected:
   inline explicit EntryFrame(StackFrameIteratorBase* iterator);
@@ -402,8 +388,6 @@ class ExitFrame: public StackFrame {
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
-
-  void SetCallerFp(Address caller_fp) override;
 
   static ExitFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_exit());
@@ -643,8 +627,6 @@ class StandardFrame : public StackFrame {
   // Access the parameters.
   virtual Object* GetParameter(int index) const;
   virtual int ComputeParametersCount() const;
-
-  void SetCallerFp(Address caller_fp) override;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   virtual bool IsConstructor() const;

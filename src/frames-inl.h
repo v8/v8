@@ -40,18 +40,6 @@ inline StackHandler* StackFrame::top_handler() const {
 }
 
 
-inline Code* StackFrame::LookupCode() const {
-  // TODO(jgruber): This should really check that pc is within the returned
-  // code's instruction range [instruction_start(), instruction_end()[.
-  return GetContainingCode(isolate(), pc());
-}
-
-
-inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
-  return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-}
-
-
 inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
   if (return_address_location_resolver_ == NULL) {
     return pc_address;

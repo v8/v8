@@ -390,28 +390,18 @@ void SafeStackFrameIterator::Advance() {
 
 // -------------------------------------------------------------------------
 
-
-Code* StackFrame::GetSafepointData(Isolate* isolate,
-                                   Address inner_pointer,
-                                   SafepointEntry* safepoint_entry,
-                                   unsigned* stack_slots) {
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
-      isolate->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
-  if (!entry->safepoint_entry.is_valid()) {
-    entry->safepoint_entry = entry->code->GetSafepointEntry(inner_pointer);
-    DCHECK(entry->safepoint_entry.is_valid());
-  } else {
-    DCHECK(entry->safepoint_entry.Equals(
-        entry->code->GetSafepointEntry(inner_pointer)));
-  }
-
-  // Fill in the results and return the code.
-  Code* code = entry->code;
-  *safepoint_entry = entry->safepoint_entry;
-  *stack_slots = code->stack_slots();
-  return code;
+namespace {
+Code* GetContainingCode(Isolate* isolate, Address pc) {
+  return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
+}  // namespace
 
+Code* StackFrame::LookupCode() const {
+  Code* result = GetContainingCode(isolate(), pc());
+  DCHECK_GE(pc(), result->instruction_start());
+  DCHECK_LT(pc(), result->instruction_end());
+  return result;
+}
 
 #ifdef DEBUG
 static bool GcSafeCodeContains(HeapObject* object, Address addr);
@@ -567,12 +557,6 @@ void EntryFrame::ComputeCallerState(State* state) const {
 }
 
 
-void EntryFrame::SetCallerFp(Address caller_fp) {
-  const int offset = EntryFrameConstants::kCallerFPOffset;
-  Memory::Address_at(this->fp() + offset) = caller_fp;
-}
-
-
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   const int offset = EntryFrameConstants::kCallerFPOffset;
   Address fp = Memory::Address_at(this->fp() + offset);
@@ -607,10 +591,6 @@ void ExitFrame::ComputeCallerState(State* state) const {
   }
 }
 
-
-void ExitFrame::SetCallerFp(Address caller_fp) {
-  Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset) = caller_fp;
-}
 
 void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
@@ -785,11 +765,6 @@ void StandardFrame::ComputeCallerState(State* state) const {
 }
 
 
-void StandardFrame::SetCallerFp(Address caller_fp) {
-  Memory::Address_at(fp() + StandardFrameConstants::kCallerFPOffset) =
-      caller_fp;
-}
-
 bool StandardFrame::IsConstructor() const { return false; }
 
 void StandardFrame::Summarize(List<FrameSummary>* functions,
@@ -803,11 +778,21 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   // possibly find pointers in optimized frames in that state.
   DCHECK(can_access_heap_objects());
 
-  // Compute the safepoint information.
-  unsigned stack_slots = 0;
-  SafepointEntry safepoint_entry;
-  Code* code = StackFrame::GetSafepointData(
-      isolate(), pc(), &safepoint_entry, &stack_slots);
+  // Find the code and compute the safepoint information.
+  Address inner_pointer = pc();
+  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
+  if (!entry->safepoint_entry.is_valid()) {
+    entry->safepoint_entry = entry->code->GetSafepointEntry(inner_pointer);
+    DCHECK(entry->safepoint_entry.is_valid());
+  } else {
+    DCHECK(entry->safepoint_entry.Equals(
+        entry->code->GetSafepointEntry(inner_pointer)));
+  }
+
+  Code* code = entry->code;
+  SafepointEntry safepoint_entry = entry->safepoint_entry;
+  unsigned stack_slots = code->stack_slots();
   unsigned slot_space = stack_slots * kPointerSize;
 
   // Determine the fixed header and spill slot area size.
