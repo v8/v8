@@ -152,6 +152,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   // FixedArray of all instances whose code was imported
   DECL_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray)
+  DECL_ACCESSORS(js_imports_table, Foreign)
 
   enum {  // --
     kCompiledModuleIndex,
@@ -161,6 +162,7 @@ class WasmInstanceObject : public JSObject {
     kGlobalsBufferIndex,
     kDebugInfoIndex,
     kDirectlyCalledInstancesIndex,
+    kJsImportsTableIndex,
     kFieldCount
   };
 
@@ -172,6 +174,7 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(GlobalsBuffer)
   DEF_OFFSET(DebugInfo)
   DEF_OFFSET(DirectlyCalledInstances)
+  DEF_OFFSET(JsImportsTable)
 
   WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
@@ -704,6 +707,7 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
           kDirectlyCalledInstancesOffset)
+ACCESSORS(WasmInstanceObject, js_imports_table, Foreign, kJsImportsTableOffset)
 
 // WasmSharedModuleData
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,

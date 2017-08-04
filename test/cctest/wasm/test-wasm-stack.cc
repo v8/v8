@@ -79,9 +79,12 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
 
+  Handle<FixedArray> js_imports_table =
+      r.main_isolate()->factory()->NewFixedArray(2, TENURED);
   uint32_t js_throwing_index = r.module().AddJsFunction(
       sigs.v_v(),
-      "(function js() {\n function a() {\n throw new Error(); };\n a(); })");
+      "(function js() {\n function a() {\n throw new Error(); };\n a(); })",
+      js_imports_table);
 
   // Add a nop such that we don't always get position 1.
   BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));

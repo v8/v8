@@ -209,13 +209,14 @@ class TestingModule : public ModuleEnv {
     return index;
   }
 
-  uint32_t AddJsFunction(FunctionSig* sig, const char* source) {
+  uint32_t AddJsFunction(FunctionSig* sig, const char* source,
+                         Handle<FixedArray> js_imports_table) {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
     Handle<Code> code = CompileWasmToJSWrapper(
         isolate_, jsfunc, sig, index, Handle<String>::null(),
-        Handle<String>::null(), module->origin());
+        Handle<String>::null(), module->origin(), js_imports_table);
     instance->function_code[index] = code;
     return index;
   }
