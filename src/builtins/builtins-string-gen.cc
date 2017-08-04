@@ -1791,7 +1791,7 @@ TNode<Uint32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
         var_result = Unsigned(Word32Or(
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
-            Word32Shl(lead, Int32Constant(16)), trail);
+            Word32Shl(lead, Int32Constant(16)), trail));
 #else
             Word32Shl(trail, Int32Constant(16)), lead));
 #endif
