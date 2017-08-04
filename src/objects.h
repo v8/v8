@@ -1883,9 +1883,6 @@ class HeapNumber: public HeapObject {
 
   DECL_CAST(HeapNumber)
 
-  // Dispatched behavior.
-  bool HeapNumberBooleanValue();
-
   V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);  // NOLINT
   DECL_VERIFIER(HeapNumber)
 

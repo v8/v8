@@ -457,7 +457,7 @@ bool Object::BooleanValue() {
   if (IsNullOrUndefined(isolate)) return false;
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
-  if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
+  if (IsHeapNumber()) return DoubleToBoolean(HeapNumber::cast(this)->value());
   return true;
 }
 
@@ -3466,12 +3466,6 @@ bool HeapObject::IsValidSlot(int offset) {
   return BodyDescriptorApply<CallIsValidSlot, bool>(map()->instance_type(),
                                                     this, offset, 0);
 }
-
-
-bool HeapNumber::HeapNumberBooleanValue() {
-  return DoubleToBoolean(value());
-}
-
 
 void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
   os << value();
