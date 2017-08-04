@@ -788,8 +788,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
     // corresponds.
     if (fill_array) {
       Handle<Context> native_context = isolate->native_context();
-      array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
-                 native_context->self_weak_cell());
+      array->set(first_index + checks_count, native_context->self_weak_cell());
     }
     checks_count++;
 
@@ -802,7 +801,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
           global, name, PropertyCellType::kInvalidated);
       DCHECK(cell->value()->IsTheHole(isolate));
       Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
-      array->set(LoadHandler::kFirstPrototypeIndex + checks_count, *weak_cell);
+      array->set(first_index + checks_count, *weak_cell);
     }
     checks_count++;
   }
@@ -1636,8 +1635,20 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   }
-  LookupIterator it(object, name);
-  if (FLAG_use_ic) UpdateCaches(&it, value, store_mode);
+  MaybeHandle<Object> cached_handler;
+  Handle<Map> transition_map;
+  if (object->IsJSReceiver()) {
+    name = isolate()->factory()->InternalizeName(name);
+    TransitionsAccessor transitions(receiver_map());
+    Object* maybe_handler = transitions.SearchHandler(*name, &transition_map);
+    if (maybe_handler != nullptr) {
+      cached_handler = MaybeHandle<Object>(maybe_handler, isolate());
+    }
+  }
+
+  LookupIterator it = LookupIterator::ForTransitionHandler(
+      isolate(), object, name, value, cached_handler, transition_map);
+  if (FLAG_use_ic) UpdateCaches(&it, value, store_mode, cached_handler);
 
   MAYBE_RETURN_NULL(
       Object::SetProperty(&it, value, language_mode(), store_mode));
@@ -1645,7 +1656,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 }
 
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                           JSReceiver::StoreFromKeyed store_mode) {
+                           JSReceiver::StoreFromKeyed store_mode,
+                           MaybeHandle<Object> cached_handler) {
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
@@ -1656,7 +1668,9 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   }
 
   Handle<Object> handler;
-  if (LookupForWrite(lookup, value, store_mode)) {
+  if (!cached_handler.is_null()) {
+    handler = cached_handler.ToHandleChecked();
+  } else if (LookupForWrite(lookup, value, store_mode)) {
     handler = ComputeHandler(lookup);
   } else {
     TRACE_GENERIC_IC("LookupForWrite said 'false'");
@@ -1766,8 +1780,11 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       DCHECK(lookup->IsCacheableTransition());
       Handle<Map> transition = lookup->transition_map();
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
-      return StoreTransition(receiver_map(), holder, transition,
-                             lookup->name());
+      Handle<Object> handler =
+          StoreTransition(receiver_map(), holder, transition, lookup->name());
+      TransitionsAccessor(receiver_map())
+          .UpdateHandler(*lookup->name(), *handler);
+      return handler;
     }
 
     case LookupIterator::INTERCEPTOR: {

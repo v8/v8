@@ -759,12 +759,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   {
     Comment("fast property store");
     Node* descriptors = LoadMapDescriptors(receiver_map);
-    Label descriptor_found(this);
+    Label descriptor_found(this), lookup_transition(this);
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
-    // TODO(jkummerow): Maybe look for existing map transitions?
     Label* notfound = use_stub_cache == kUseStubCache ? &stub_cache : slow;
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
-                     &var_name_index, notfound);
+                     &var_name_index, &lookup_transition);
 
     BIND(&descriptor_found);
     {
@@ -790,6 +789,59 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
                                       descriptors, name_index, details,
                                       p->value, slow);
         Return(p->value);
+      }
+    }
+
+    BIND(&lookup_transition);
+    {
+      Comment("lookup transition");
+      VARIABLE(var_handler, MachineRepresentation::kTagged);
+      Label tuple3(this), fixedarray(this), found_handler(this, &var_handler);
+      Node* maybe_handler =
+          LoadObjectField(receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
+      GotoIf(TaggedIsSmi(maybe_handler), notfound);
+      Node* handler_map = LoadMap(maybe_handler);
+      GotoIf(WordEqual(handler_map, Tuple3MapConstant()), &tuple3);
+      GotoIf(WordEqual(handler_map, FixedArrayMapConstant()), &fixedarray);
+
+      // TODO(jkummerow): Consider implementing TransitionArray search.
+      Goto(notfound);
+
+      VARIABLE(var_transition_cell, MachineRepresentation::kTagged);
+      Label check_key(this, &var_transition_cell);
+      BIND(&tuple3);
+      {
+        var_transition_cell.Bind(LoadObjectField(
+            maybe_handler, StoreHandler::kTransitionCellOffset));
+        Goto(&check_key);
+      }
+
+      BIND(&fixedarray);
+      {
+        var_transition_cell.Bind(LoadFixedArrayElement(
+            maybe_handler, StoreHandler::kTransitionCellIndex));
+        Goto(&check_key);
+      }
+
+      BIND(&check_key);
+      {
+        Node* transition = LoadWeakCellValue(var_transition_cell.value(), slow);
+        Node* transition_bitfield3 = LoadMapBitField3(transition);
+        GotoIf(IsSetWord32<Map::Deprecated>(transition_bitfield3), slow);
+        Node* nof =
+            DecodeWord32<Map::NumberOfOwnDescriptorsBits>(transition_bitfield3);
+        Node* last_added = Int32Sub(nof, Int32Constant(1));
+        Node* transition_descriptors = LoadMapDescriptors(transition);
+        Node* key = DescriptorArrayGetKey(transition_descriptors, last_added);
+        GotoIf(WordNotEqual(key, p->name), slow);
+        var_handler.Bind(maybe_handler);
+        Goto(&found_handler);
+      }
+
+      BIND(&found_handler);
+      {
+        Comment("KeyedStoreGeneric found transition handler");
+        HandleStoreICHandlerCase(p, var_handler.value(), notfound);
       }
     }
   }

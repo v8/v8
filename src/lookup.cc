@@ -44,6 +44,67 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
   return LookupIterator(receiver, name, configuration);
 }
 
+// static
+LookupIterator LookupIterator::ForTransitionHandler(
+    Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
+    Handle<Object> value, MaybeHandle<Object> handler,
+    Handle<Map> transition_map) {
+  if (handler.is_null()) return LookupIterator(receiver, name);
+
+  PropertyDetails details = PropertyDetails::Empty();
+  bool has_property;
+  if (transition_map->is_dictionary_map()) {
+    details = PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+    has_property = false;
+  } else {
+    details = transition_map->GetLastDescriptorDetails();
+    has_property = true;
+  }
+  LookupIterator it(isolate, receiver, name, transition_map, details,
+                    has_property);
+
+  if (!transition_map->is_dictionary_map()) {
+    PropertyConstness new_constness = kConst;
+    if (FLAG_track_constant_fields) {
+      if (it.constness() == kConst) {
+        DCHECK_EQ(kData, it.property_details_.kind());
+        // Check that current value matches new value otherwise we should make
+        // the property mutable.
+        if (!it.IsConstFieldValueEqualTo(*value)) new_constness = kMutable;
+      }
+    } else {
+      new_constness = kMutable;
+    }
+
+    int descriptor_number = transition_map->LastAdded();
+    Handle<Map> new_map = Map::PrepareForDataProperty(
+        transition_map, descriptor_number, new_constness, value);
+    // Reload information; this is no-op if nothing changed.
+    it.property_details_ =
+        new_map->instance_descriptors()->GetDetails(descriptor_number);
+    it.transition_ = new_map;
+  }
+  return it;
+}
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               Handle<Name> name, Handle<Map> transition_map,
+                               PropertyDetails details, bool has_property)
+    : configuration_(DEFAULT),
+      state_(TRANSITION),
+      has_property_(has_property),
+      interceptor_state_(InterceptorState::kUninitialized),
+      property_details_(details),
+      isolate_(isolate),
+      name_(name),
+      transition_(transition_map),
+      receiver_(receiver),
+      initial_holder_(GetRoot(isolate, receiver)),
+      index_(kMaxUInt32),
+      number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
+  holder_ = initial_holder_;
+}
+
 template <bool is_element>
 void LookupIterator::Start() {
   DisallowHeapAllocation no_gc;
