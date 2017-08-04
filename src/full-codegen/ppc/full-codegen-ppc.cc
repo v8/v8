@@ -730,8 +730,8 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
 
-      Handle<SharedFunctionInfo> function =
-          Compiler::GetSharedFunctionInfo(declaration->fun(), script(), info_);
+      Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
+          declaration->fun(), script(), isolate());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals_->Add(function, zone());

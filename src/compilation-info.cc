@@ -10,22 +10,21 @@
 #include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
 
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
-                                 Handle<Script> script,
-                                 Handle<SharedFunctionInfo> shared,
-                                 Handle<JSFunction> closure)
-    : CompilationInfo(script, {}, Code::ComputeFlags(Code::FUNCTION), BASE,
-                      isolate, zone) {
+                                 ParseInfo* parse_info,
+                                 Handle<SharedFunctionInfo> shared)
+    : CompilationInfo(parse_info->script(), {},
+                      Code::ComputeFlags(Code::FUNCTION), BASE, isolate, zone) {
+  DCHECK_NOT_NULL(parse_info->literal());
+  literal_ = parse_info->literal();
+  source_range_map_ = parse_info->source_range_map();
   shared_info_ = shared;
-  closure_ = closure;
-
-  if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
-  if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -39,11 +38,34 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
     MarkAsBlockCoverageEnabled();
   }
 
-  if (script_->type() == Script::TYPE_NATIVE) {
-    MarkAsNative();
-  }
+  if (parse_info->is_debug()) MarkAsDebug();
+  if (parse_info->is_eval()) MarkAsEval();
+  if (parse_info->is_native()) MarkAsNative();
+  if (parse_info->will_serialize()) MarkAsSerializing();
+  if (script_->type() == Script::TYPE_NATIVE) MarkAsNative();
   if (script_->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
     MarkAsEval();
+  }
+}
+
+CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
+                                 Handle<Script> script,
+                                 Handle<SharedFunctionInfo> shared,
+                                 Handle<JSFunction> closure)
+    : CompilationInfo(script, {}, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION),
+                      OPTIMIZE, isolate, zone) {
+  shared_info_ = shared;
+  closure_ = closure;
+  optimization_id_ = isolate->NextOptimizationId();
+
+  if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
+  if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
+
+  // Collect source positions for optimized code when profiling or if debugger
+  // is active, to be able to get more precise source positions at the price of
+  // more memory consumption.
+  if (isolate_->NeedsSourcePositionsForProfiling()) {
+    MarkAsSourcePositionsEnabled();
   }
 }
 
@@ -202,13 +224,6 @@ bool CompilationInfo::has_global_object() const { return has_native_context(); }
 
 JSGlobalObject* CompilationInfo::global_object() const {
   return has_global_object() ? native_context()->global_object() : nullptr;
-}
-
-void CompilationInfo::SetOptimizing() {
-  DCHECK(has_shared_info());
-  SetMode(OPTIMIZE);
-  optimization_id_ = isolate()->NextOptimizationId();
-  code_flags_ = Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
 }
 
 int CompilationInfo::AddInlinedFunction(

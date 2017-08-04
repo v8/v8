@@ -808,7 +808,7 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
-          decl->fun(), info()->script(), info());
+          decl->fun(), info()->script(), info()->isolate());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals()->push_back(variable->name());
@@ -1048,8 +1048,8 @@ void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
 void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   // Find or build a shared function info.
-  Handle<SharedFunctionInfo> shared_info =
-      Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
+  Handle<SharedFunctionInfo> shared_info = Compiler::GetSharedFunctionInfo(
+      expr, info()->script(), info()->isolate());
   CHECK(!shared_info.is_null());  // TODO(mstarzinger): Set stack overflow?
 
   // Create node to instantiate a new closure.

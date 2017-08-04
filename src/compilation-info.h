@@ -25,6 +25,7 @@ class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class JavaScriptFrame;
+class ParseInfo;
 class SourceRangeMap;
 class Zone;
 
@@ -54,9 +55,14 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kLoopPeelingEnabled = 1 << 16,
   };
 
+  // Construct a compilation info for unoptimized compilation.
+  CompilationInfo(Zone* zone, Isolate* isolate, ParseInfo* parse_info,
+                  Handle<SharedFunctionInfo> shared);
+  // Construct a compilation info for optimized compilation.
   CompilationInfo(Zone* zone, Isolate* isolate, Handle<Script> script,
                   Handle<SharedFunctionInfo> shared,
                   Handle<JSFunction> closure);
+  // Construct a compilation info for stub compilation (or testing).
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags);
   ~CompilationInfo();
@@ -212,9 +218,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsStub() const { return mode_ == STUB; }
   bool IsWasm() const { return output_code_kind() == Code::WASM_FUNCTION; }
-  void SetOptimizing();
   void SetOptimizingForOsr(BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
-    SetOptimizing();
+    DCHECK(IsOptimizing());
     osr_ast_id_ = osr_ast_id;
     osr_frame_ = osr_frame;
   }
@@ -259,7 +264,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   CompilationDependencies* dependencies() { return &dependencies_; }
 
-  int optimization_id() const { return optimization_id_; }
+  int optimization_id() const {
+    DCHECK(IsOptimizing());
+    return optimization_id_;
+  }
 
   int osr_expr_stack_height() {
     DCHECK_GE(osr_expr_stack_height_, 0);

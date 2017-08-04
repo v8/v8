@@ -507,13 +507,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   }
 
   ParseInfo parse_info(shared_info);
-  CompilationInfo info(parse_info.zone(), shared_info->GetIsolate(),
-                       parse_info.script(), shared_info,
-                       Handle<JSFunction>::null());
-  if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
-  info.MarkAsOptimizeFromBytecode();
-
-  if (!Compiler::EnsureBytecode(&parse_info, &info)) {
+  if (!Compiler::EnsureBytecode(&parse_info, info_->isolate(), shared_info)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -607,7 +601,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       Node* frame_state_inside = CreateArtificialFrameState(
           node, frame_state, call.formal_arguments(),
           BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
-          info.shared_info());
+          shared_info);
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            context, frame_state_inside, effect, control);
@@ -703,10 +697,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     node->ReplaceInput(1, receiver);
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
-    frame_state = CreateArtificialFrameState(
-        node, frame_state, call.formal_arguments(),
-        BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
-        info.shared_info());
+    frame_state =
+        CreateArtificialFrameState(node, frame_state, call.formal_arguments(),
+                                   BailoutId::ConstructStubInvoke(),
+                                   FrameStateType::kConstructStub, shared_info);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context

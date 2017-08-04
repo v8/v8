@@ -414,12 +414,15 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   CompilationJob::Status status = job->FinalizeJob();
   if (status == CompilationJob::SUCCEEDED) {
     InstallUnoptimizedCode(compilation_info);
-    CodeEventListener::LogEventsAndTags log_tags =
-        parse_info->is_toplevel() ? compilation_info->is_eval()
-                                        ? CodeEventListener::EVAL_TAG
-                                        : CodeEventListener::SCRIPT_TAG
-                                  : CodeEventListener::FUNCTION_TAG;
-    RecordFunctionCompilation(log_tags, compilation_info);
+    CodeEventListener::LogEventsAndTags log_tag;
+    if (parse_info->is_toplevel()) {
+      log_tag = compilation_info->is_eval() ? CodeEventListener::EVAL_TAG
+                                            : CodeEventListener::SCRIPT_TAG;
+    } else {
+      log_tag = parse_info->lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
+                                           : CodeEventListener::FUNCTION_TAG;
+    }
+    RecordFunctionCompilation(log_tag, compilation_info);
     job->RecordUnoptimizedCompilationStats();
   }
   return status;
@@ -440,60 +443,60 @@ bool RunUnoptimizedCompilationJob(CompilationJob* job) {
   return FinalizeUnoptimizedCompilationJob(job) == CompilationJob::SUCCEEDED;
 }
 
-bool GenerateUnoptimizedCode(ParseInfo* parse_info,
-                             CompilationInfo* compilation_info) {
-  if (UseAsmWasm(compilation_info->scope(), compilation_info->shared_info(),
-                 compilation_info->is_debug())) {
+Handle<SharedFunctionInfo> GenerateUnoptimizedCode(
+    ParseInfo* parse_info, Handle<SharedFunctionInfo> shared_info,
+    Isolate* isolate) {
+  // TODO(rmcilroy): Move the compilation info to be owned by the compilation
+  // job.
+  Zone compile_zone(isolate->allocator(), ZONE_NAME);
+  CompilationInfo compilation_info(&compile_zone, isolate, parse_info,
+                                   shared_info);
+
+  if (UseAsmWasm(parse_info->scope(), shared_info, parse_info->is_debug())) {
     std::unique_ptr<CompilationJob> job(
-        AsmJs::NewCompilationJob(parse_info, compilation_info));
-    if (RunUnoptimizedCompilationJob(job.get())) return true;
+        AsmJs::NewCompilationJob(parse_info, &compilation_info));
+    if (RunUnoptimizedCompilationJob(job.get())) {
+      return compilation_info.shared_info();
+    }
     // asm.js validation failed, fall through to standard unoptimized compile.
   }
   std::unique_ptr<CompilationJob> job(
-      GetUnoptimizedCompilationJob(parse_info, compilation_info));
-  return RunUnoptimizedCompilationJob(job.get());
+      GetUnoptimizedCompilationJob(parse_info, &compilation_info));
+  if (RunUnoptimizedCompilationJob(job.get())) {
+    return compilation_info.shared_info();
+  }
+  return Handle<SharedFunctionInfo>::null();  // Compilation failed.
 }
 
 bool CompileUnoptimizedInnerFunctions(
-    Compiler::EagerInnerFunctionLiterals* literals, ParseInfo* outer_parse_info,
-    CompilationInfo* outer_compilation_info) {
+    Compiler::EagerInnerFunctionLiterals* literals, Handle<Script> script,
+    ParseInfo* outer_parse_info, Isolate* isolate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileUnoptimizedInnerFunctions");
-  Isolate* isolate = outer_compilation_info->isolate();
-  Handle<Script> script = outer_compilation_info->script();
-  bool is_debug = outer_compilation_info->is_debug();
-  bool will_serialize = outer_compilation_info->will_serialize();
+  bool is_debug = outer_parse_info->is_debug();
+  bool will_serialize = outer_parse_info->will_serialize();
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileInnerFunction);
 
   for (auto it : *literals) {
     FunctionLiteral* literal = it->value();
-    Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfo(
-        literal, script, outer_compilation_info);
+    Handle<SharedFunctionInfo> shared =
+        Compiler::GetSharedFunctionInfo(literal, script, isolate);
     if (shared->is_compiled()) continue;
 
     // Generate unoptimized code now.
     ParseInfo parse_info(script);
-    CompilationInfo info(parse_info.zone(), isolate, script, shared,
-                         Handle<JSFunction>::null());
     parse_info.set_toplevel(false);
     parse_info.set_literal(literal);
     parse_info.set_function_literal_id(shared->function_literal_id());
     parse_info.set_language_mode(literal->scope()->language_mode());
     parse_info.ShareAstValueFactory(outer_parse_info);
+    parse_info.set_source_range_map(outer_parse_info->source_range_map());
 
-    info.set_source_range_map(outer_compilation_info->source_range_map());
-    info.set_literal(literal);
-    if (will_serialize) {
-      parse_info.set_will_serialize();
-      info.MarkAsSerializing();
-    }
-    if (is_debug) {
-      parse_info.set_is_debug();
-      info.MarkAsDebug();
-    }
+    if (will_serialize) parse_info.set_will_serialize();
+    if (is_debug) parse_info.set_is_debug();
 
-    if (!GenerateUnoptimizedCode(&parse_info, &info)) {
+    if (GenerateUnoptimizedCode(&parse_info, shared, isolate).is_null()) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();
       return false;
     }
@@ -510,22 +513,22 @@ bool InnerFunctionShouldUseFullCodegen(
   return false;
 }
 
-bool CompileUnoptimizedCode(ParseInfo* parse_info,
-                            CompilationInfo* compilation_info) {
-  Isolate* isolate = compilation_info->isolate();
+Handle<SharedFunctionInfo> CompileUnoptimizedCode(
+    ParseInfo* parse_info, Handle<SharedFunctionInfo> shared_info,
+    Isolate* isolate) {
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
   if (!Compiler::Analyze(parse_info, isolate, &inner_literals)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return false;
+    return Handle<SharedFunctionInfo>::null();
   }
 
-  if (ShouldUseFullCodegen(compilation_info->literal()) ||
+  if (ShouldUseFullCodegen(parse_info->literal()) ||
       InnerFunctionShouldUseFullCodegen(&inner_literals)) {
     // If we might compile with full-codegen internalize now, otherwise
     // we internalize when finalizing compilation.
-    parse_info->ast_value_factory()->Internalize(compilation_info->isolate());
+    parse_info->ast_value_factory()->Internalize(isolate);
 
     // Full-codegen needs to access ScopeInfos when compiling, so allocate now.
     DeclarationScope::AllocateScopeInfos(parse_info, isolate,
@@ -538,23 +541,22 @@ bool CompileUnoptimizedCode(ParseInfo* parse_info,
     }
   }
 
-  if (!GenerateUnoptimizedCode(parse_info, compilation_info) ||
-      !CompileUnoptimizedInnerFunctions(&inner_literals, parse_info,
-                                        compilation_info)) {
+  Handle<SharedFunctionInfo> result =
+      GenerateUnoptimizedCode(parse_info, shared_info, isolate);
+  if (result.is_null() ||
+      !CompileUnoptimizedInnerFunctions(&inner_literals, parse_info->script(),
+                                        parse_info, isolate)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return false;
+    return Handle<SharedFunctionInfo>::null();
   }
-
-  return true;
+  return result;
 }
 
 MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
-    ParseInfo* parse_info, CompilationInfo* compilation_info,
+    ParseInfo* parse_info, Isolate* isolate,
     Handle<SharedFunctionInfo> shared_info) {
   RuntimeCallTimerScope runtimeTimer(
-      compilation_info->isolate(),
-      &RuntimeCallStats::CompileUnoptimizedFunction);
-  Isolate* isolate = compilation_info->isolate();
+      isolate, &RuntimeCallStats::CompileUnoptimizedFunction);
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
 
@@ -563,21 +565,15 @@ MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
     return MaybeHandle<Code>();
   }
 
-  // TODO(rmcilroy): Construct compile info at this point passing literal and
-  // source_range_map to the constructor.
-  compilation_info->set_literal(parse_info->literal());
-  compilation_info->set_source_range_map(parse_info->source_range_map());
-
   // Compile either unoptimized code or bytecode for the interpreter.
-  if (!CompileUnoptimizedCode(parse_info, compilation_info)) {
+  Handle<SharedFunctionInfo> result =
+      CompileUnoptimizedCode(parse_info, shared_info, isolate);
+  if (result.is_null()) {
     return MaybeHandle<Code>();
   }
+  DCHECK(shared_info.is_identical_to(result));
 
-  // Record the function compilation event.
-  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                            compilation_info);
-
-  return compilation_info->code();
+  return handle(result->code(), isolate);
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
@@ -953,9 +949,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
     Handle<SharedFunctionInfo> shared(function->shared());
     ParseInfo parse_info(shared);
-    Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    CompilationInfo compilation_info(&compile_zone, isolate,
-                                     parse_info.script(), shared, function);
+    parse_info.set_lazy_compile();
     if (FLAG_experimental_preparser_scope_analysis) {
       if (shared->HasPreParsedScopeData()) {
         Handle<PreParsedScopeData> data(
@@ -969,10 +963,9 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     Handle<Code> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        CompileUnoptimizedFunction(&parse_info, &compilation_info, shared),
-        Code);
+        CompileUnoptimizedFunction(&parse_info, isolate, shared), Code);
 
-    if (FLAG_always_opt && !compilation_info.shared_info()->HasAsmWasmData()) {
+    if (FLAG_always_opt && !shared->HasAsmWasmData()) {
       if (FLAG_trace_opt) {
         PrintF("[optimizing ");
         function->ShortPrint();
@@ -992,9 +985,9 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   }
 }
 
-Handle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
-                                           CompilationInfo* compilation_info) {
-  Isolate* isolate = compilation_info->isolate();
+Handle<SharedFunctionInfo> CompileToplevel(
+    ParseInfo* parse_info, Isolate* isolate,
+    Handle<SharedFunctionInfo> shared_info) {
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   PostponeInterruptsScope postpone(isolate);
@@ -1004,7 +997,6 @@ Handle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
                                      : &RuntimeCallStats::CompileScript);
 
   Handle<Script> script = parse_info->script();
-
   Handle<SharedFunctionInfo> result;
 
   {
@@ -1013,33 +1005,29 @@ Handle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
         !parsing::ParseProgram(parse_info, isolate)) {
       return Handle<SharedFunctionInfo>::null();
     }
-    // TODO(rmcilroy): Construct compile info at this point passing literal and
-    // source_range_map to the constructor.
-    compilation_info->set_literal(parse_info->literal());
-    compilation_info->set_source_range_map(parse_info->source_range_map());
-
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
     // parsing statistics.
-    HistogramTimer* rate =
-        parse_info->is_eval()
-            ? compilation_info->isolate()->counters()->compile_eval()
-            : compilation_info->isolate()->counters()->compile();
+    HistogramTimer* rate = parse_info->is_eval()
+                               ? isolate->counters()->compile_eval()
+                               : isolate->counters()->compile();
     HistogramTimerScope timer(rate);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
     // Compile the code.
-    if (!CompileUnoptimizedCode(parse_info, compilation_info)) {
+    result = CompileUnoptimizedCode(parse_info, shared_info, isolate);
+    if (result.is_null()) {
       return Handle<SharedFunctionInfo>::null();
     }
+    DCHECK_IMPLIES(!shared_info.is_null(), shared_info.is_identical_to(result));
 
     if (!script.is_null()) {
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
     }
   }
 
-  return compilation_info->shared_info();
+  return result;
 }
 
 }  // namespace
@@ -1142,19 +1130,14 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
 
   // Start a compilation.
   ParseInfo parse_info(shared);
-  CompilationInfo compilation_info(parse_info.zone(), isolate,
-                                   parse_info.script(), shared,
-                                   Handle<JSFunction>::null());
   parse_info.set_is_debug();
-  compilation_info.MarkAsDebug();
   if (parse_info.is_toplevel()) {
-    if (CompileToplevel(&parse_info, &compilation_info).is_null()) {
+    if (CompileToplevel(&parse_info, isolate, shared).is_null()) {
       isolate->clear_pending_exception();
       return false;
     }
   } else {
-    if (CompileUnoptimizedFunction(&parse_info, &compilation_info, shared)
-            .is_null()) {
+    if (CompileUnoptimizedFunction(&parse_info, isolate, shared).is_null()) {
       isolate->clear_pending_exception();
       return false;
     }
@@ -1180,18 +1163,12 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 
   // Start a compilation.
   ParseInfo parse_info(script);
-  Zone compile_zone(isolate->allocator(), ZONE_NAME);
-  CompilationInfo compilation_info(&compile_zone, isolate, script,
-                                   Handle<SharedFunctionInfo>::null(),
-                                   Handle<JSFunction>::null());
   parse_info.set_is_debug();
-  compilation_info.MarkAsDebug();
 
   // TODO(635): support extensions.
-  const bool compilation_succeeded =
-      !CompileToplevel(&parse_info, &compilation_info).is_null();
   Handle<JSArray> infos;
-  if (compilation_succeeded) {
+  if (!CompileToplevel(&parse_info, isolate, Handle<SharedFunctionInfo>::null())
+           .is_null()) {
     // Check postconditions on success.
     DCHECK(!isolate->has_pending_exception());
     infos = LiveEditFunctionTracker::Collect(parse_info.literal(), script,
@@ -1206,17 +1183,14 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   return infos;
 }
 
-bool Compiler::EnsureBytecode(ParseInfo* parse_info,
-                              CompilationInfo* compilation_info) {
-  Handle<SharedFunctionInfo> shared_info = compilation_info->shared_info();
+bool Compiler::EnsureBytecode(ParseInfo* parse_info, Isolate* isolate,
+                              Handle<SharedFunctionInfo> shared_info) {
   if (!shared_info->is_compiled()) {
     DCHECK(!parse_info->is_toplevel());
-    CompilerDispatcher* dispatcher =
-        compilation_info->isolate()->compiler_dispatcher();
+    CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
     if (dispatcher->IsEnqueued(shared_info)) {
-      if (!dispatcher->FinishNow(compilation_info->shared_info())) return false;
-    } else if (CompileUnoptimizedFunction(parse_info, compilation_info,
-                                          shared_info)
+      if (!dispatcher->FinishNow(shared_info)) return false;
+    } else if (CompileUnoptimizedFunction(parse_info, isolate, shared_info)
                    .is_null()) {
       return false;
     }
@@ -1283,11 +1257,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Script::SetEvalOrigin(script, outer_info, eval_position);
 
     ParseInfo parse_info(script);
-    Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    CompilationInfo compilation_info(&compile_zone, isolate, script,
-                                     Handle<SharedFunctionInfo>::null(),
-                                     Handle<JSFunction>::null());
-    compilation_info.MarkAsEval();
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
@@ -1296,7 +1265,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
 
-    shared_info = CompileToplevel(&parse_info, &compilation_info);
+    shared_info = CompileToplevel(&parse_info, isolate,
+                                  Handle<SharedFunctionInfo>::null());
     if (shared_info.is_null()) {
       return MaybeHandle<JSFunction>();
     }
@@ -1499,9 +1469,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // Compile the function and add it to the cache.
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    CompilationInfo compilation_info(&compile_zone, isolate, script,
-                                     Handle<SharedFunctionInfo>::null(),
-                                     Handle<JSFunction>::null());
     if (resource_options.IsModule()) parse_info.set_module();
     if (compile_options != ScriptCompiler::kNoCompileOptions) {
       parse_info.set_cached_data(cached_data);
@@ -1514,12 +1481,12 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kProduceCodeCache) {
       parse_info.set_will_serialize();
-      compilation_info.MarkAsSerializing();
     }
 
     parse_info.set_language_mode(
         static_cast<LanguageMode>(parse_info.language_mode() | language_mode));
-    result = CompileToplevel(&parse_info, &compilation_info);
+    result = CompileToplevel(&parse_info, isolate,
+                             Handle<SharedFunctionInfo>::null());
     if (extension == NULL && !result.is_null()) {
       // We need a feedback vector.
       DCHECK(result->is_compiled());
@@ -1567,25 +1534,18 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
   parse_info->set_language_mode(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
 
-  Zone compile_zone(isolate->allocator(), ZONE_NAME);
-  CompilationInfo compilation_info(&compile_zone, isolate, script,
-                                   Handle<SharedFunctionInfo>::null(),
-                                   Handle<JSFunction>::null());
-
   // The source was parsed lazily, so compiling for debugging is not possible.
-  DCHECK(!compilation_info.is_debug());
+  DCHECK(!parse_info->is_debug());
 
   Handle<SharedFunctionInfo> result =
-      CompileToplevel(parse_info, &compilation_info);
+      CompileToplevel(parse_info, isolate, Handle<SharedFunctionInfo>::null());
   if (!result.is_null()) isolate->debug()->OnAfterCompile(script);
   return result;
 }
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, Handle<Script> script,
-    CompilationInfo* outer_info) {
+    FunctionLiteral* literal, Handle<Script> script, Isolate* isolate) {
   // Precondition: code has been parsed and scopes have been analyzed.
-  Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 
   // Find any previously allocated shared function info for the given literal.

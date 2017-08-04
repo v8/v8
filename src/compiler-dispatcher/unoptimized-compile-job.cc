@@ -400,10 +400,9 @@ void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
   }
 
   compile_zone_.reset(new Zone(isolate->allocator(), ZONE_NAME));
-  compilation_info_.reset(new CompilationInfo(
-      compile_zone_.get(), isolate, parse_info_->script(),
-      Handle<SharedFunctionInfo>::null(), Handle<JSFunction>::null()));
-  compilation_info_->set_literal(parse_info_->literal());
+  compilation_info_.reset(
+      new CompilationInfo(compile_zone_.get(), isolate, parse_info_.get(),
+                          Handle<SharedFunctionInfo>::null()));
 
   DeferredHandleScope scope(isolate);
   {

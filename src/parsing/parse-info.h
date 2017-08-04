@@ -75,6 +75,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
                 set_is_named_expression)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
+  FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
 #undef FLAG_ACCESSOR
@@ -269,6 +270,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
     kIsNamedExpression = 1 << 8,
     kDebug = 1 << 9,
     kSerializing = 1 << 10,
+    kLazyCompile = 1 << 11,
     kCollectTypeProfile = 1 << 12,
   };
 

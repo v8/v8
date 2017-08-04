@@ -76,8 +76,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool Analyze(ParseInfo* parse_info, Isolate* isolate,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
-  static bool EnsureBytecode(ParseInfo* parse_info,
-                             CompilationInfo* compilation_info);
+  static bool EnsureBytecode(ParseInfo* parse_info, Isolate* isolate,
+                             Handle<SharedFunctionInfo> shared_info);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or
@@ -123,8 +123,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<Script> script, ParseInfo* info, int source_length);
 
   // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
-      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
+                                                          Handle<Script> script,
+                                                          Isolate* isolate);
 
   // Create a shared function info object for a native function literal.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
