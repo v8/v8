@@ -34,13 +34,13 @@ class V8_EXPORT_PRIVATE Malloced {
 
 template <typename T>
 T* NewArray(size_t size) {
-  int retries = 0;
-  while (true) {
-    T* result = new T[size];
-    if (result != nullptr) return result;
-    if (retries++ == 1) FatalProcessOutOfMemory("NewArray");
+  T* result = new (std::nothrow) T[size];
+  if (result == nullptr) {
     V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
+    result = new (std::nothrow) T[size];
+    if (result == nullptr) FatalProcessOutOfMemory("NewArray");
   }
+  return result;
 }
 
 template <typename T>
