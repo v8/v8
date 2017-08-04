@@ -3194,8 +3194,6 @@ ZoneList<Statement*>* Parser::ParseFunction(
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
-  if (IsResumableFunction(kind)) PrepareGeneratorVariables();
-
   int expected_parameters_end_pos = parameters_end_pos_;
   if (expected_parameters_end_pos != kNoSourcePosition) {
     // This is the first function encountered in a CreateDynamicFunction eval.
@@ -3818,17 +3816,6 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
                                          expr->position());
   }
   return expr;
-}
-
-// This method intoduces the line initializing the generator object
-// when desugaring the body of async_function.
-void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
-                                      FunctionKind kind, int pos) {
-  // When parsing an async arrow function, we get here without having called
-  // PrepareGeneratorVariables yet, so do it now.
-  if (function_state_->scope()->generator_object_var() == nullptr) {
-    PrepareGeneratorVariables();
-  }
 }
 
 // This method completes the desugaring of the body of async_function.

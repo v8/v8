@@ -685,8 +685,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                        IteratorType type);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
-  V8_INLINE void PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
-                                          FunctionKind kind, int pos);
   V8_INLINE void RewriteAsyncFunctionBody(ZoneList<Statement*>* body,
                                           Block* block,
                                           Expression* return_value, bool* ok);

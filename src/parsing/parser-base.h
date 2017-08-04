@@ -337,8 +337,6 @@ class ParserBase {
     kForStatement
   };
 
-  enum class FunctionBodyType { kNormal, kSingleExpression };
-
   class ClassLiteralChecker;
   class ObjectLiteralChecker;
 
@@ -1116,9 +1114,9 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
                                         const FormalParametersT& parameters,
                                         int rewritable_length, bool* ok);
-  void ParseAsyncFunctionBody(Scope* scope, StatementListT body,
-                              FunctionKind kind, FunctionBodyType type,
-                              bool accept_IN, int pos, bool* ok);
+  void ParseSingleExpressionFunctionBody(StatementListT body, bool is_async,
+                                         bool accept_IN, bool* ok);
+  void ParseAsyncFunctionBody(Scope* scope, StatementListT body, bool* ok);
   ExpressionT ParseAsyncFunctionLiteral(bool* ok);
   ExpressionT ParseClassLiteral(IdentifierT name,
                                 Scanner::Location class_name_location,
@@ -4053,14 +4051,14 @@ void ParserBase<Impl>::ParseFunctionBody(
   {
     BlockState block_state(&scope_, inner_scope);
 
+    if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
+
     if (IsAsyncGeneratorFunction(kind)) {
       impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body, ok);
     } else if (IsGeneratorFunction(kind)) {
       impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
     } else if (IsAsyncFunction(kind)) {
-      const bool accept_IN = true;
-      ParseAsyncFunctionBody(inner_scope, body, kind, FunctionBodyType::kNormal,
-                             accept_IN, pos, CHECK_OK_VOID);
+      ParseAsyncFunctionBody(inner_scope, body, CHECK_OK_VOID);
     } else {
       ParseStatementList(body, Token::RBRACE, CHECK_OK_VOID);
     }
@@ -4264,31 +4262,19 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       } else {
         Consume(Token::LBRACE);
         body = impl()->NewStatementList(8);
-        impl()->ParseFunctionBody(body, impl()->EmptyIdentifier(),
-                                  kNoSourcePosition, formal_parameters, kind,
-                                  FunctionLiteral::kAnonymousExpression,
-                                  CHECK_OK);
+        ParseFunctionBody(body, impl()->EmptyIdentifier(), kNoSourcePosition,
+                          formal_parameters, kind,
+                          FunctionLiteral::kAnonymousExpression, CHECK_OK);
         expected_property_count = function_state.expected_property_count();
       }
     } else {
       // Single-expression body
       has_braces = false;
-      int pos = position();
+      const bool is_async = IsAsyncFunction(kind);
       body = impl()->NewStatementList(1);
-      impl()->AddParameterInitializationBlock(
-          formal_parameters, body, kind == kAsyncArrowFunction, CHECK_OK);
-      ExpressionClassifier classifier(this);
-      if (kind == kAsyncArrowFunction) {
-        ParseAsyncFunctionBody(scope(), body, kAsyncArrowFunction,
-                               FunctionBodyType::kSingleExpression, accept_IN,
-                               pos, CHECK_OK);
-        impl()->RewriteNonPattern(CHECK_OK);
-      } else {
-        ExpressionT expression = ParseAssignmentExpression(accept_IN, CHECK_OK);
-        impl()->RewriteNonPattern(CHECK_OK);
-        body->Add(BuildReturnStatement(expression, expression->position()),
-                  zone());
-      }
+      impl()->AddParameterInitializationBlock(formal_parameters, body, is_async,
+                                              CHECK_OK);
+      ParseSingleExpressionFunctionBody(body, is_async, accept_IN, CHECK_OK);
       expected_property_count = function_state.expected_property_count();
     }
 
@@ -4425,27 +4411,33 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope, StatementListT body,
-                                              FunctionKind kind,
-                                              FunctionBodyType body_type,
-                                              bool accept_IN, int pos,
-                                              bool* ok) {
-  impl()->PrepareAsyncFunctionBody(body, kind, pos);
+void ParserBase<Impl>::ParseSingleExpressionFunctionBody(StatementListT body,
+                                                         bool is_async,
+                                                         bool accept_IN,
+                                                         bool* ok) {
+  if (is_async) impl()->PrepareGeneratorVariables();
 
+  ExpressionClassifier classifier(this);
+  ExpressionT expression = ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
+  impl()->RewriteNonPattern(CHECK_OK_VOID);
+
+  if (is_async) {
+    BlockT block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+    impl()->RewriteAsyncFunctionBody(body, block, expression, CHECK_OK_VOID);
+  } else {
+    body->Add(BuildReturnStatement(expression, expression->position()), zone());
+  }
+}
+
+template <typename Impl>
+void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope, StatementListT body,
+                                              bool* ok) {
   BlockT block = factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
 
-  ExpressionT return_value = impl()->EmptyExpression();
-  if (body_type == FunctionBodyType::kNormal) {
-    ParseStatementList(block->statements(), Token::RBRACE,
-                       CHECK_OK_CUSTOM(Void));
-    return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
-  } else {
-    return_value = ParseAssignmentExpression(accept_IN, CHECK_OK_CUSTOM(Void));
-    impl()->RewriteNonPattern(CHECK_OK_CUSTOM(Void));
-  }
-
-  impl()->RewriteAsyncFunctionBody(body, block, return_value,
-                                   CHECK_OK_CUSTOM(Void));
+  ParseStatementList(block->statements(), Token::RBRACE, CHECK_OK_VOID);
+  impl()->RewriteAsyncFunctionBody(
+      body, block, factory()->NewUndefinedLiteral(kNoSourcePosition),
+      CHECK_OK_VOID);
   scope->set_end_position(scanner()->location().end_pos);
 }
 

@@ -1026,8 +1026,7 @@ class PreParser : public ParserBase<PreParser> {
     return left;
   }
 
-  V8_INLINE void PrepareAsyncFunctionBody(PreParserStatementList body,
-                                          FunctionKind kind, int pos) {}
+  V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(PreParserStatementList body,
                                           PreParserStatement block,
                                           PreParserExpression return_value,
