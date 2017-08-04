@@ -4192,11 +4192,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   }
   // Create a TF graph during decoding.
 
-  Graph* graph = jsgraph_->graph();
-  CommonOperatorBuilder* common = jsgraph_->common();
-  MachineOperatorBuilder* machine = jsgraph_->machine();
   SourcePositionTable* source_position_table =
-      new (jsgraph_->zone()) SourcePositionTable(graph);
+      new (jsgraph_->zone()) SourcePositionTable(jsgraph_->graph());
   WasmGraphBuilder builder(module_env_, jsgraph_->zone(), jsgraph_,
                            centry_stub_, func_body_.sig, source_position_table);
   graph_construction_result_ =
@@ -4211,10 +4208,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     return nullptr;
   }
 
-  if (machine->Is32()) {
-    Int64Lowering(graph, machine, common, jsgraph_->zone(), func_body_.sig)
-        .LowerGraph();
-  }
+  builder.LowerInt64();
 
   if (builder.has_simd() && !CpuFeatures::SupportsWasmSimd128()) {
     SimdScalarLowering(jsgraph_, func_body_.sig).LowerGraph();
