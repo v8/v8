@@ -1002,7 +1002,7 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(7), U8(1),
-                B(Wide), B(LdaSmi), I16(148),
+                B(Wide), B(LdaSmi), I16(147),
                 B(Star), R(16),
                 B(LdaConstant), U8(30),
                 B(Star), R(17),

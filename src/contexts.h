@@ -674,7 +674,8 @@ class Context: public FixedArray {
   Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
                         int* index, PropertyAttributes* attributes,
                         InitializationFlag* init_flag,
-                        VariableMode* variable_mode);
+                        VariableMode* variable_mode,
+                        bool* is_sloppy_function_name = nullptr);
 
   // Code generation support.
   static int SlotOffset(int index) {
