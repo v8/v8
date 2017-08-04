@@ -2670,9 +2670,8 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
   return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
-void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
-                                            wasm::FunctionSig* sig) {
-  int wasm_count = static_cast<int>(sig->parameter_count());
+void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code) {
+  int wasm_count = static_cast<int>(sig_->parameter_count());
   int count = wasm_count + 3;
   Node** args = Buffer(count);
 
@@ -2720,7 +2719,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   // Convert JS parameters to wasm numbers.
   for (int i = 0; i < wasm_count; ++i) {
     Node* param = Param(i + 1);
-    Node* wasm_param = FromJS(param, context, sig->GetParam(i));
+    Node* wasm_param = FromJS(param, context, sig_->GetParam(i));
     args[pos++] = wasm_param;
   }
 
@@ -2728,7 +2727,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   args[pos++] = *control_;
 
   // Call the wasm code.
-  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
 
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
   *effect_ = call;
@@ -2738,7 +2737,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
 
   Node* retval = call;
   Node* jsval = ToJS(
-      retval, sig->return_count() == 0 ? wasm::kWasmStmt : sig->GetReturn());
+      retval, sig_->return_count() == 0 ? wasm::kWasmStmt : sig_->GetReturn());
   Return(jsval);
 }
 
@@ -2753,11 +2752,10 @@ int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
   return pos;
 }
 
-void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
-                                            wasm::FunctionSig* sig) {
+void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target) {
   DCHECK(target->IsCallable());
 
-  int wasm_count = static_cast<int>(sig->parameter_count());
+  int wasm_count = static_cast<int>(sig_->parameter_count());
 
   // Build the start and the parameter nodes.
   Isolate* isolate = jsgraph()->isolate();
@@ -2804,7 +2802,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
           graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
 
       // Convert wasm numbers to JS values.
-      pos = AddParameterNodes(args, pos, wasm_count, sig);
+      pos = AddParameterNodes(args, pos, wasm_count, sig_);
 
       args[pos++] = jsgraph()->UndefinedConstant();        // new target
       args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
@@ -2831,7 +2829,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
                                           CallDescriptor::kNoFlags);
 
     // Convert wasm numbers to JS values.
-    pos = AddParameterNodes(args, pos, wasm_count, sig);
+    pos = AddParameterNodes(args, pos, wasm_count, sig_);
 
     // The native_context is sufficient here, because all kind of callables
     // which depend on the context provide their own context. The context here
@@ -2851,20 +2849,19 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   BuildModifyThreadInWasmFlag(true);
 
   // Convert the return value back.
-  Node* val = sig->return_count() == 0
+  Node* val = sig_->return_count() == 0
                   ? jsgraph()->Int32Constant(0)
                   : FromJS(call, HeapConstant(isolate->native_context()),
-                           sig->GetReturn());
+                           sig_->GetReturn());
   Return(val);
 }
 
 void WasmGraphBuilder::BuildWasmInterpreterEntry(
-    uint32_t function_index, wasm::FunctionSig* sig,
-    Handle<WasmInstanceObject> instance) {
-  int wasm_count = static_cast<int>(sig->parameter_count());
+    uint32_t function_index, Handle<WasmInstanceObject> instance) {
+  int wasm_count = static_cast<int>(sig_->parameter_count());
   int param_count = jsgraph()->machine()->Is64()
                         ? wasm_count
-                        : Int64Lowering::GetParameterCountAfterLowering(sig);
+                        : Int64Lowering::GetParameterCountAfterLowering(sig_);
 
   // Build the start and the parameter nodes.
   Node* start = Start(param_count + 3);
@@ -2874,15 +2871,15 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   // Compute size for the argument buffer.
   int args_size_bytes = 0;
   for (int i = 0; i < wasm_count; i++) {
-    args_size_bytes += 1 << ElementSizeLog2Of(sig->GetParam(i));
+    args_size_bytes += 1 << ElementSizeLog2Of(sig_->GetParam(i));
   }
 
   // The return value is also passed via this buffer:
-  DCHECK_GE(wasm::kV8MaxWasmFunctionReturns, sig->return_count());
+  DCHECK_GE(wasm::kV8MaxWasmFunctionReturns, sig_->return_count());
   // TODO(wasm): Handle multi-value returns.
   DCHECK_EQ(1, wasm::kV8MaxWasmFunctionReturns);
   int return_size_bytes =
-      sig->return_count() == 0 ? 0 : 1 << ElementSizeLog2Of(sig->GetReturn(0));
+      sig_->return_count() == 0 ? 0 : 1 << ElementSizeLog2Of(sig_->GetReturn());
 
   // Get a stack slot for the arguments.
   Node* arg_buffer =
@@ -2898,7 +2895,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   for (int i = 0; i < wasm_count; i++) {
     Node* param = Param(param_index++);
     if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
-                                            sig->GetParam(i))) {
+                                            sig_->GetParam(i))) {
       int lower_half_offset = offset + kInt64LowerHalfMemoryOffset;
       int upper_half_offset = offset + kInt64UpperHalfMemoryOffset;
 
@@ -2913,7 +2910,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
       offset += 8;
 
     } else {
-      MachineRepresentation param_rep = sig->GetParam(i);
+      MachineRepresentation param_rep = sig_->GetParam(i);
       *effect_ =
           graph()->NewNode(GetSafeStoreOperator(offset, param_rep), arg_buffer,
                            Int32Constant(offset), param, *effect_, *control_);
@@ -2935,10 +2932,10 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
                      arraysize(parameters));
 
   // Read back the return value.
-  if (sig->return_count() == 0) {
+  if (sig_->return_count() == 0) {
     Return(Int32Constant(0));
   } else if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
-                                                 sig->GetReturn())) {
+                                                 sig_->GetReturn())) {
     MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(wasm::kWasmI32);
     Node* lower =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
@@ -2951,7 +2948,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
     *effect_ = upper;
     Return(lower, upper);
   } else {
-    MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(sig->GetReturn());
+    MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(sig_->GetReturn());
     Node* val =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
                          Int32Constant(0), *effect_, *control_);
@@ -3842,7 +3839,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                            CEntryStub(isolate, 1).GetCode(), func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildJSToWasmWrapper(wasm_code, func->sig);
+  builder.BuildJSToWasmWrapper(wasm_code);
 
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.
@@ -3923,7 +3920,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                            source_position_table);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildWasmToJSWrapper(target, sig);
+  builder.BuildWasmToJSWrapper(target);
 
   Handle<Code> code = Handle<Code>::null();
   {
@@ -4007,7 +4004,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                            CEntryStub(isolate, 1).GetCode(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildWasmInterpreterEntry(func_index, sig, instance);
+  builder.BuildWasmInterpreterEntry(func_index, instance);
 
   Handle<Code> code = Handle<Code>::null();
   {

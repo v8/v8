@@ -217,9 +217,9 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
-  void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
-  void BuildWasmInterpreterEntry(uint32_t func_index, wasm::FunctionSig* sig,
+  void BuildJSToWasmWrapper(Handle<Code> wasm_code);
+  void BuildWasmToJSWrapper(Handle<JSReceiver> target);
+  void BuildWasmInterpreterEntry(uint32_t func_index,
                                  Handle<WasmInstanceObject> instance);
 
   Node* ToJS(Node* node, wasm::ValueType type);
