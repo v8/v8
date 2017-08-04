@@ -1411,10 +1411,8 @@ class PreParser : public ParserBase<PreParser> {
     return loop;
   }
 
-  V8_INLINE PreParserStatement BuildParameterInitializationBlock(
-      const PreParserFormalParameters& parameters, bool* ok) {
-    return PreParserStatement::Default();
-  }
+  PreParserStatement BuildParameterInitializationBlock(
+      const PreParserFormalParameters& parameters, bool* ok);
 
   V8_INLINE PreParserStatement
   BuildRejectPromiseOnException(PreParserStatement init_block) {
@@ -1640,7 +1638,11 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void AddParameterInitializationBlock(
       const PreParserFormalParameters& parameters, PreParserStatementList body,
-      bool is_async, bool* ok) {}
+      bool is_async, bool* ok) {
+    if (!parameters.is_simple) {
+      BuildParameterInitializationBlock(parameters, ok);
+    }
+  }
 
   V8_INLINE void AddFormalParameter(PreParserFormalParameters* parameters,
                                     PreParserExpression pattern,

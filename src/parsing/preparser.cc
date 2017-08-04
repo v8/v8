@@ -383,6 +383,30 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   return kLazyParsingComplete;
 }
 
+PreParserStatement PreParser::BuildParameterInitializationBlock(
+    const PreParserFormalParameters& parameters, bool* ok) {
+  DCHECK(!parameters.is_simple);
+  if (FLAG_experimental_preparser_scope_analysis &&
+      scope()->calls_sloppy_eval()) {
+    DCHECK_NOT_NULL(produced_preparsed_scope_data_);
+    // We cannot replicate the Scope structure constructed by the Parser,
+    // because we've lost information whether each individual parameter was
+    // simple or not. Give up trying to produce data to skip inner functions.
+    if (produced_preparsed_scope_data_->parent() != nullptr) {
+      // Lazy parsing started before the current function; the function which
+      // cannot contain skippable functions is the parent function. (Its inner
+      // functions cannot either; they are implicitly bailed out.)
+      produced_preparsed_scope_data_->parent()->Bailout();
+    } else {
+      // Lazy parsing started at the current function; it cannot contain
+      // skippable functions.
+      produced_preparsed_scope_data_->Bailout();
+    }
+  }
+
+  return PreParserStatement::Default();
+}
+
 PreParserExpression PreParser::ExpressionFromIdentifier(
     PreParserIdentifier name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;

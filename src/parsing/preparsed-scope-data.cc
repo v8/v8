@@ -108,29 +108,33 @@ ProducedPreParsedScopeData::DataGatheringScope::DataGatheringScope(
     DeclarationScope* function_scope, PreParser* preparser)
     : function_scope_(function_scope),
       preparser_(preparser),
-      parent_data_(preparser->produced_preparsed_scope_data()) {
+      produced_preparsed_scope_data_(nullptr) {
   if (FLAG_experimental_preparser_scope_analysis) {
+    ProducedPreParsedScopeData* parent =
+        preparser->produced_preparsed_scope_data();
     Zone* main_zone = preparser->main_zone();
-    auto* new_data = new (main_zone) ProducedPreParsedScopeData(main_zone);
-    if (parent_data_ != nullptr) {
-      parent_data_->data_for_inner_functions_.push_back(new_data);
-    }
-    preparser->set_produced_preparsed_scope_data(new_data);
-    function_scope->set_produced_preparsed_scope_data(new_data);
+    produced_preparsed_scope_data_ =
+        new (main_zone) ProducedPreParsedScopeData(main_zone, parent);
+    preparser->set_produced_preparsed_scope_data(
+        produced_preparsed_scope_data_);
+    function_scope->set_produced_preparsed_scope_data(
+        produced_preparsed_scope_data_);
   }
 }
 
 ProducedPreParsedScopeData::DataGatheringScope::~DataGatheringScope() {
   if (FLAG_experimental_preparser_scope_analysis) {
-    preparser_->set_produced_preparsed_scope_data(parent_data_);
+    preparser_->set_produced_preparsed_scope_data(
+        produced_preparsed_scope_data_->parent_);
   }
 }
 
 void ProducedPreParsedScopeData::DataGatheringScope::MarkFunctionAsSkippable(
     int end_position, int num_inner_functions) {
   DCHECK(FLAG_experimental_preparser_scope_analysis);
-  DCHECK_NOT_NULL(parent_data_);
-  parent_data_->AddSkippableFunction(
+  DCHECK_NOT_NULL(produced_preparsed_scope_data_);
+  DCHECK_NOT_NULL(produced_preparsed_scope_data_->parent_);
+  produced_preparsed_scope_data_->parent_->AddSkippableFunction(
       function_scope_->start_position(), end_position,
       function_scope_->num_parameters(), num_inner_functions,
       function_scope_->language_mode(), function_scope_->uses_super_property());
@@ -143,6 +147,10 @@ void ProducedPreParsedScopeData::AddSkippableFunction(
   DCHECK(FLAG_experimental_preparser_scope_analysis);
   DCHECK_EQ(scope_data_start_, -1);
   DCHECK(previously_produced_preparsed_scope_data_.is_null());
+
+  if (bailed_out_) {
+    return;
+  }
 
   size_t current_size = backing_store_.size();
   backing_store_.resize(current_size + SkippableFunctionDataOffsets::kSize);
@@ -171,6 +179,10 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
   DCHECK_EQ(scope_data_start_, -1);
   DCHECK_EQ(backing_store_.size() % SkippableFunctionDataOffsets::kSize, 0);
 
+  if (bailed_out_) {
+    return;
+  }
+
   scope_data_start_ = static_cast<int>(backing_store_.size());
 
   // If there are no skippable inner functions, we don't need to save anything.
@@ -191,10 +203,17 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
 MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
     Isolate* isolate) const {
   if (!previously_produced_preparsed_scope_data_.is_null()) {
+    DCHECK(!bailed_out_);
     DCHECK_EQ(backing_store_.size(), 0);
     DCHECK_EQ(data_for_inner_functions_.size(), 0);
     return previously_produced_preparsed_scope_data_;
   }
+  if (bailed_out_) {
+    return MaybeHandle<PreParsedScopeData>();
+  }
+
+  DCHECK(!ThisOrParentBailedOut());
+
   // FIXME(marja): save space by using a byte array and converting
   // function data to bytes.
   size_t length = backing_store_.size();

@@ -203,3 +203,48 @@ let f1 = (ctxt_alloc_param) => {
 }
 f1(9)();
 assertEquals(19, result);
+
+function TestStrictEvalInParams() {
+  "use strict";
+  var result = 0;
+
+  function lazy(a = function() { return 2; }, b = eval('3')) {
+    function skip_me() {
+      result = a() + b;
+    }
+    return skip_me;
+  }
+  lazy()();
+  assertEquals(5, result);
+
+  function not_skippable_either() {}
+}
+
+TestStrictEvalInParams();
+
+function TestSloppyEvalInFunctionWithComplexParams() {
+  var result = 0;
+
+  function lazy1(ctxt_alloc_param = 2) {
+    var ctxt_alloc_var = 3;
+    function skip_me() {
+      result = ctxt_alloc_param + ctxt_alloc_var;
+    }
+    eval('');
+    return skip_me;
+  }
+  lazy1()();
+  assertEquals(5, result);
+
+  function lazy2(ctxt_alloc_param = 4) {
+    var ctxt_alloc_var = 5;
+    function skip_me() {
+      eval('result = ctxt_alloc_param + ctxt_alloc_var;');
+    }
+    return skip_me;
+  }
+  lazy2()();
+  assertEquals(9, result);
+}
+
+TestSloppyEvalInFunctionWithComplexParams();

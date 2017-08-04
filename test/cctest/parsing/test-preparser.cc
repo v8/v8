@@ -25,6 +25,10 @@ enum SkipTests {
   SKIP_STRICT = SKIP_STRICT_FUNCTION | SKIP_STRICT_OUTER
 };
 
+enum class PreciseMaybeAssigned { YES, NO };
+
+enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
+
 }  // namespace
 
 TEST(PreParserScopeAnalysis) {
@@ -119,19 +123,23 @@ TEST(PreParserScopeAnalysis) {
   struct Inner {
     Inner(const char* s) : source(s) {}  // NOLINT
     Inner(const char* s, SkipTests skip) : source(s), skip(skip) {}
-    Inner(const char* s, SkipTests skip, bool precise)
+    Inner(const char* s, SkipTests skip, PreciseMaybeAssigned precise)
         : source(s), skip(skip), precise_maybe_assigned(precise) {}
 
     Inner(const char* p, const char* s) : params(p), source(s) {}
     Inner(const char* p, const char* s, SkipTests skip)
         : params(p), source(s), skip(skip) {}
-    Inner(const char* p, const char* s, SkipTests skip, bool precise)
+    Inner(const char* p, const char* s, SkipTests skip,
+          PreciseMaybeAssigned precise)
         : params(p), source(s), skip(skip), precise_maybe_assigned(precise) {}
+    Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
+        : params(p), source(s), skip(skip), bailout(bailout) {}
 
     const char* params = "";
     const char* source;
     SkipTests skip = DONT_SKIP;
-    bool precise_maybe_assigned = true;
+    PreciseMaybeAssigned precise_maybe_assigned = PreciseMaybeAssigned::YES;
+    Bailout bailout = Bailout::NO;
   } inners[] = {
       // Simple cases
       {"var1;"},
@@ -144,7 +152,7 @@ TEST(PreParserScopeAnalysis) {
       // Var declarations and assignments.
       {"var var1;"},
       {"var var1; var1 = 5;"},
-      {"if (true) { var var1; }", DONT_SKIP, false},
+      {"if (true) { var var1; }", DONT_SKIP, PreciseMaybeAssigned::NO},
       {"if (true) { var var1; var1 = 5; }"},
       {"var var1; function f() { var1; }"},
       {"var var1; var1 = 5; function f() { var1; }"},
@@ -213,7 +221,7 @@ TEST(PreParserScopeAnalysis) {
       // Variable called "arguments"
       {"var arguments;", SKIP_STRICT},
       {"var arguments; arguments = 5;", SKIP_STRICT},
-      {"if (true) { var arguments; }", SKIP_STRICT, false},
+      {"if (true) { var arguments; }", SKIP_STRICT, PreciseMaybeAssigned::NO},
       {"if (true) { var arguments; arguments = 5; }", SKIP_STRICT},
       {"var arguments; function f() { arguments; }", SKIP_STRICT},
       {"var arguments; arguments = 5; function f() { arguments; }",
@@ -451,9 +459,10 @@ TEST(PreParserScopeAnalysis) {
       {"var1, ...var2", "function f1() { var2 = 9; }", SKIP_STRICT_FUNCTION},
 
       // Default parameters.
-      {"var1 = 3", "", SKIP_STRICT_FUNCTION, false},
-      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION, false},
-      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION, false},
+      {"var1 = 3", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION,
+       PreciseMaybeAssigned::NO},
 
       // Destructuring parameters. Because of the search space explosion, we
       // cannot test all interesting cases. Let's try to test a relevant subset.
@@ -497,10 +506,10 @@ TEST(PreParserScopeAnalysis) {
       // Complicated params.
       {"var1, [var2], var3 = 24, [var4, var5] = [2, 4], var6, {var7}, var8, "
        "{name9: var9, name10: var10}, ...var11",
-       "", SKIP_STRICT_FUNCTION, false},
+       "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Complicated cases from bugs.
-      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION, false},
+      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Destructuring rest. Because we can.
       {"var1, ...[var2]", "", SKIP_STRICT_FUNCTION},
@@ -513,12 +522,16 @@ TEST(PreParserScopeAnalysis) {
       {"var1, ...{0: var2, 1: var3}", "", SKIP_STRICT_FUNCTION},
 
       // Default parameters for destruring parameters.
-      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION, false},
-      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION, false},
+      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION,
+       PreciseMaybeAssigned::NO},
+      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION,
+       PreciseMaybeAssigned::NO},
 
       // Default parameters inside destruring parameters.
-      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION, false},
-      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION, false},
+      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION,
+       PreciseMaybeAssigned::NO},
+      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION,
+       PreciseMaybeAssigned::NO},
 
       // Locals shadowing parameters.
       {"var1, var2", "var var1 = 16; () => { var1 = 17; }"},
@@ -531,22 +544,26 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }",
        SKIP_STRICT_FUNCTION},
       {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }",
-       SKIP_STRICT_FUNCTION, false},
+       SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Hoisted sloppy block function shadowing a parameter.
       // FIXME(marja): why is maybe_assigned inaccurate?
-      {"var1, var2", "for (;;) { function var1() { } }", DONT_SKIP, false},
+      {"var1, var2", "for (;;) { function var1() { } }", DONT_SKIP,
+       PreciseMaybeAssigned::NO},
 
-      // Eval in default parameter.
+      // Sloppy eval in default parameter.
       {"var1, var2 = eval(''), var3", "let var4 = 0;", SKIP_STRICT_FUNCTION,
-       false},
+       Bailout::BAILOUT_IF_OUTER_SLOPPY},
       {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;",
-       SKIP_STRICT_FUNCTION, false},
+       SKIP_STRICT_FUNCTION, Bailout::BAILOUT_IF_OUTER_SLOPPY},
 
-      // Eval in arrow function parameter list which is inside another arrow
-      // function parameter list.
+      // Sloppy eval in arrow function parameter list which is inside another
+      // arrow function parameter list.
       {"var1, var2 = (var3, var4 = eval(''), var5) => { let var6; }, var7",
-       "let var8 = 0;", SKIP_STRICT_FUNCTION},
+       "let var8 = 0;", SKIP_STRICT_FUNCTION, Bailout::BAILOUT_IF_OUTER_SLOPPY},
+
+      // Sloppy eval in a function body with non-simple parameters.
+      {"var1 = 1, var2 = 2", "eval('');", SKIP_STRICT_FUNCTION},
 
       // Catch variable
       {"try { } catch(var1) { }"},
@@ -660,6 +677,11 @@ TEST(PreParserScopeAnalysis) {
               ->produced_preparsed_scope_data();
       i::MaybeHandle<i::PreParsedScopeData> maybe_produced_data_on_heap =
           produced_data->Serialize(isolate);
+      if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
+          !outers[outer_ix].strict_outer) {
+        DCHECK(maybe_produced_data_on_heap.is_null());
+        continue;
+      }
       DCHECK(!maybe_produced_data_on_heap.is_null());
       i::Handle<i::PreParsedScopeData> produced_data_on_heap =
           maybe_produced_data_on_heap.ToHandleChecked();
@@ -707,7 +729,7 @@ TEST(PreParserScopeAnalysis) {
 
       i::ScopeTestHelper::CompareScopes(
           normal_scope, unallocated_scope,
-          inners[inner_ix].precise_maybe_assigned);
+          inners[inner_ix].precise_maybe_assigned == PreciseMaybeAssigned::YES);
     }
   }
 }
