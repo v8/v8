@@ -250,7 +250,7 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  void Int64LoweringForTesting();
+  void LowerInt64();
 
   void SimdScalarLoweringForTesting();
 

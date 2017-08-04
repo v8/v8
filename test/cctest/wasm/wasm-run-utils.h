@@ -377,7 +377,7 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
         << ", msg = " << result.error_msg().c_str();
     FATAL(str.str().c_str());
   }
-  builder.Int64LoweringForTesting();
+  builder.LowerInt64();
   if (!CpuFeatures::SupportsWasmSimd128()) {
     builder.SimdScalarLoweringForTesting();
   }

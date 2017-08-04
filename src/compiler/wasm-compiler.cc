@@ -2744,9 +2744,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code) {
 int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
                                         wasm::FunctionSig* sig) {
   // Convert wasm numbers to JS values.
-  int param_index = 0;
   for (int i = 0; i < param_count; ++i) {
-    Node* param = Param(param_index++);
+    Node* param = Param(i);
     args[pos++] = ToJS(param, sig->GetParam(i));
   }
   return pos;
@@ -2856,12 +2855,18 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target) {
   Return(val);
 }
 
+namespace {
+bool HasInt64ParamOrReturn(wasm::FunctionSig* sig) {
+  for (auto type : sig->all()) {
+    if (type == wasm::kWasmI64) return true;
+  }
+  return false;
+}
+}  // namespace
+
 void WasmGraphBuilder::BuildWasmInterpreterEntry(
     uint32_t function_index, Handle<WasmInstanceObject> instance) {
-  int wasm_count = static_cast<int>(sig_->parameter_count());
-  int param_count = jsgraph()->machine()->Is64()
-                        ? wasm_count
-                        : Int64Lowering::GetParameterCountAfterLowering(sig_);
+  int param_count = static_cast<int>(sig_->parameter_count());
 
   // Build the start and the parameter nodes.
   Node* start = Start(param_count + 3);
@@ -2870,8 +2875,8 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
 
   // Compute size for the argument buffer.
   int args_size_bytes = 0;
-  for (int i = 0; i < wasm_count; i++) {
-    args_size_bytes += 1 << ElementSizeLog2Of(sig_->GetParam(i));
+  for (wasm::ValueType type : sig_->parameters()) {
+    args_size_bytes += 1 << ElementSizeLog2Of(type);
   }
 
   // The return value is also passed via this buffer:
@@ -2889,35 +2894,15 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
                 std::max(args_size_bytes, return_size_bytes), 8));
 
   // Now store all our arguments to the buffer.
-  int param_index = 0;
   int offset = 0;
 
-  for (int i = 0; i < wasm_count; i++) {
-    Node* param = Param(param_index++);
-    if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
-                                            sig_->GetParam(i))) {
-      int lower_half_offset = offset + kInt64LowerHalfMemoryOffset;
-      int upper_half_offset = offset + kInt64UpperHalfMemoryOffset;
-
-      *effect_ = graph()->NewNode(
-          GetSafeStoreOperator(lower_half_offset, wasm::kWasmI32), arg_buffer,
-          Int32Constant(lower_half_offset), param, *effect_, *control_);
-
-      param = Param(param_index++);
-      *effect_ = graph()->NewNode(
-          GetSafeStoreOperator(upper_half_offset, wasm::kWasmI32), arg_buffer,
-          Int32Constant(upper_half_offset), param, *effect_, *control_);
-      offset += 8;
-
-    } else {
-      MachineRepresentation param_rep = sig_->GetParam(i);
-      *effect_ =
-          graph()->NewNode(GetSafeStoreOperator(offset, param_rep), arg_buffer,
-                           Int32Constant(offset), param, *effect_, *control_);
-      offset += 1 << ElementSizeLog2Of(param_rep);
-    }
+  for (int i = 0; i < param_count; ++i) {
+    wasm::ValueType type = sig_->GetParam(i);
+    *effect_ =
+        graph()->NewNode(GetSafeStoreOperator(offset, type), arg_buffer,
+                         Int32Constant(offset), Param(i), *effect_, *control_);
+    offset += 1 << ElementSizeLog2Of(type);
   }
-  DCHECK_EQ(param_count, param_index);
   DCHECK_EQ(args_size_bytes, offset);
 
   // We are passing the raw arg_buffer here. To the GC and other parts, it looks
@@ -2934,26 +2919,17 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   // Read back the return value.
   if (sig_->return_count() == 0) {
     Return(Int32Constant(0));
-  } else if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
-                                                 sig_->GetReturn())) {
-    MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(wasm::kWasmI32);
-    Node* lower =
-        graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
-                         Int32Constant(kInt64LowerHalfMemoryOffset), *effect_,
-                         *control_);
-    Node* upper =
-        graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
-                         Int32Constant(kInt64UpperHalfMemoryOffset), lower,
-                         *control_);
-    *effect_ = upper;
-    Return(lower, upper);
   } else {
+    // TODO(wasm): Implement multi-return.
+    DCHECK_EQ(1, sig_->return_count());
     MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(sig_->GetReturn());
     Node* val =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
                          Int32Constant(0), *effect_, *control_);
     Return(val);
   }
+
+  if (HasInt64ParamOrReturn(sig_)) LowerInt64();
 }
 
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
@@ -3321,12 +3297,11 @@ Node* WasmGraphBuilder::String(const char* string) {
 
 Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 
-void WasmGraphBuilder::Int64LoweringForTesting() {
-  if (jsgraph()->machine()->Is32()) {
-    Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(),
-                    jsgraph()->common(), jsgraph()->zone(), sig_);
-    r.LowerGraph();
-  }
+void WasmGraphBuilder::LowerInt64() {
+  if (!jsgraph()->machine()->Is32()) return;
+  Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(), jsgraph()->common(),
+                  jsgraph()->zone(), sig_);
+  r.LowerGraph();
 }
 
 void WasmGraphBuilder::SimdScalarLoweringForTesting() {
