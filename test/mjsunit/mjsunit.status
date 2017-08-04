@@ -321,6 +321,7 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
+  'wasm/atomics': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
 }],  # 'arch == arm64'
 
