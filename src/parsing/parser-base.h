@@ -5086,6 +5086,11 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
 
   // Parsed expression statement, followed by semicolon.
   ExpectSemicolon(CHECK_OK);
+  if (labels != nullptr) {
+    // TODO(adamk): Also measure in the PreParser by passing something
+    // non-NULL as |labels|.
+    impl()->CountUsage(v8::Isolate::kLabeledExpressionStatement);
+  }
   return factory()->NewExpressionStatement(expr, pos);
 }
 
