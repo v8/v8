@@ -315,6 +315,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     Object* next = code->next_code_link();
 
     if (code->marked_for_deoptimization()) {
+      // Make sure that this object does not point to any garbage.
+      code->InvalidateEmbeddedObjects();
       if (prev != NULL) {
         // Skip this code in the optimized code list.
         prev->set_next_code_link(next);
@@ -349,9 +351,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
                        safe_to_deopt_topmost_optimized_code);
         // Replace the current pc on the stack with the trampoline.
         it.frame()->set_pc(code->instruction_start() + trampoline_pc);
-
-        // Make sure that this object does not point to any garbage.
-        code->InvalidateEmbeddedObjects();
       }
     }
   }
