@@ -2625,8 +2625,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
-                             ClearRecordedSlots::kNo);
+  heap->RightTrimString(this, size, new_size);
   if (has_pointers) {
     heap->ClearRecordedSlotRange(this->address(), this->address() + new_size);
   }
@@ -2638,8 +2637,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
-
-  heap->AdjustLiveBytes(this, new_size - size);
   return true;
 }
 
@@ -2696,8 +2693,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
-                             ClearRecordedSlots::kNo);
+  heap->RightTrimString(this, size, new_size);
   if (has_pointers) {
     heap->ClearRecordedSlotRange(this->address(), this->address() + new_size);
   }
@@ -2709,8 +2705,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   ExternalOneByteString* self = ExternalOneByteString::cast(this);
   self->set_resource(resource);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
-
-  heap->AdjustLiveBytes(this, new_size - size);
   return true;
 }
 
@@ -17087,13 +17081,7 @@ void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
     string->synchronized_set_map(*map);
     ThinString* thin = ThinString::cast(string);
     thin->set_actual(internalized);
-    Address thin_end = thin->address() + ThinString::kSize;
-    int size_delta = old_size - ThinString::kSize;
-    if (size_delta != 0) {
-      Heap* heap = isolate->heap();
-      heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
-      heap->AdjustLiveBytes(thin, -size_delta);
-    }
+    isolate->heap()->RightTrimString(thin, old_size, ThinString::kSize);
   }
 }
 

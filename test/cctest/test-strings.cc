@@ -1220,6 +1220,33 @@ TEST(InternalizeExternal) {
   CcTest::CollectGarbage(i::OLD_SPACE);
 }
 
+TEST(LargeThinString) {
+  CcTest::InitializeVM();
+  i::Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope handle_scope(CcTest::isolate());
+  const char* string_generator =
+      "var result = 'a';"
+      "for (var i = 0; i < 20; i++) { result += result;}"
+      "result;";
+  v8::Local<v8::String> v8_string1 =
+      CompileRun(string_generator)
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
+  Handle<String> string1 = v8::Utils::OpenHandle(*v8_string1);
+  isolate->factory()->InternalizeName(string1);
+  v8::Local<v8::String> v8_string2 =
+      CompileRun(string_generator)
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
+  Handle<String> string2 = v8::Utils::OpenHandle(*v8_string2);
+  string2 = String::Flatten(string2);
+  isolate->factory()->InternalizeName(string2);
+  CHECK(heap->lo_space()->Contains(*string2));
+  CHECK(string2->IsThinString());
+  CcTest::CollectGarbage(i::OLD_SPACE);
+}
+
 TEST(SliceFromExternal) {
   FLAG_string_slices = true;
   CcTest::InitializeVM();

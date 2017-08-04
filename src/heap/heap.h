@@ -721,6 +721,8 @@ class Heap {
   // Trim the given array from the right.
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
+  void RightTrimString(String* string, int old_size, int new_size);
+
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
 

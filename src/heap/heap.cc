@@ -3307,6 +3307,11 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
 
 HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
                                        ClearRecordedSlots mode) {
+  // In large object space fillers can be created only at the beginning
+  // of the large page.
+  DCHECK_IMPLIES(
+      lo_space_->ContainsSlow(addr),
+      HeapObject::cast(lo_space_->FindObject(addr))->address() == addr);
   if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3513,6 +3518,15 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   }
 }
 
+void Heap::RightTrimString(String* string, int old_size, int new_size) {
+  if (old_size == new_size) return;
+  DCHECK_LE(new_size, old_size);
+  if (!lo_space_->Contains(string)) {
+    Address filler = string->address() + new_size;
+    CreateFillerObjectAt(filler, old_size - new_size, ClearRecordedSlots::kNo);
+  }
+  AdjustLiveBytes(string, -(old_size - new_size));
+}
 
 AllocationResult Heap::AllocateFixedTypedArrayWithExternalPointer(
     int length, ExternalArrayType array_type, void* external_pointer,
@@ -4611,7 +4625,8 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
 void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
                                     const DisallowHeapAllocation&) {
-  DCHECK(InOldSpace(object) || InNewSpace(object));
+  DCHECK(InOldSpace(object) || InNewSpace(object) ||
+         (lo_space()->Contains(object) && object->IsString()));
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
     if (InOldSpace(object) && incremental_marking()->IsCompacting()) {
