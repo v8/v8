@@ -43,25 +43,17 @@ class ConcurrentMarking {
   void RescheduleTasksIfNeeded();
 
  private:
-  struct TaskInterrupt {
-    // When the concurrent marking task has this lock, then objects in the
-    // heap are guaranteed to not move.
+  struct TaskLock {
     base::Mutex lock;
-    // The main thread sets this flag to true, when it wants the concurrent
-    // maker to give up the lock.
-    base::AtomicValue<bool> request;
-    // The concurrent marker waits on this condition until the request
-    // flag is cleared by the main thread.
-    base::ConditionVariable condition;
     char cache_line_padding[64];
   };
   class Task;
-  void Run(int task_id, TaskInterrupt* interrupt);
+  void Run(int task_id, base::Mutex* lock);
   Heap* heap_;
   MarkingWorklist* shared_;
   MarkingWorklist* bailout_;
   WeakCellWorklist* weak_cells_;
-  TaskInterrupt task_interrupt_[kTasks + 1];
+  TaskLock task_lock_[kTasks + 1];
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;
   int pending_task_count_;
