@@ -24,6 +24,7 @@ namespace internal {
 // Forward declarations.
 class CompilationInfo;
 class CompilationJob;
+class FunctionLiteral;
 class JumpPatchSite;
 class ParseInfo;
 class Scope;
@@ -38,8 +39,9 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   void Initialize(uintptr_t stack_limit);
 
-  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
-                                           CompilationInfo* compilation_info);
+  static CompilationJob* NewCompilationJob(
+      ParseInfo* parse_info, FunctionLiteral* literal,
+      Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
 
   static bool MakeCode(ParseInfo* parse_info, CompilationInfo* info,
                        uintptr_t stack_limit);

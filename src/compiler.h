@@ -54,7 +54,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
   static CompilationJob* PrepareUnoptimizedCompilationJob(
-      ParseInfo* parse_info, CompilationInfo* compilation_info);
+      ParseInfo* parse_info, Handle<SharedFunctionInfo> shared_info,
+      Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job);

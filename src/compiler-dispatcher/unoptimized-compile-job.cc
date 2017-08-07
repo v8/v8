@@ -399,21 +399,12 @@ void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
     PrintF("UnoptimizedCompileJob[%p]: Analyzing\n", static_cast<void*>(this));
   }
 
-  compile_zone_.reset(new Zone(isolate->allocator(), ZONE_NAME));
-  compilation_info_.reset(
-      new CompilationInfo(compile_zone_.get(), isolate, parse_info_.get(),
-                          Handle<SharedFunctionInfo>::null()));
-
-  DeferredHandleScope scope(isolate);
-  {
-    if (Compiler::Analyze(parse_info_.get(), isolate)) {
-      status_ = Status::kAnalyzed;
-    } else {
-      status_ = Status::kFailed;
-      if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    }
+  if (Compiler::Analyze(parse_info_.get(), isolate)) {
+    status_ = Status::kAnalyzed;
+  } else {
+    status_ = Status::kFailed;
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
   }
-  compilation_info_->set_deferred_handles(scope.Detach());
 }
 
 void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
@@ -423,7 +414,7 @@ void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
 
   compilation_job_.reset(Compiler::PrepareUnoptimizedCompilationJob(
-      parse_info_.get(), compilation_info_.get()));
+      parse_info_.get(), shared_, isolate));
   if (!compilation_job_.get()) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     status_ = Status::kFailed;
@@ -467,7 +458,6 @@ void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
 
   {
     HandleScope scope(isolate);
-    compilation_info_->set_shared_info(shared_);
     if (compilation_job_->state() == CompilationJob::State::kFailed ||
         !Compiler::FinalizeCompilationJob(compilation_job_.release())) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();
@@ -477,8 +467,6 @@ void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
   }
 
   compilation_job_.reset();
-  compilation_info_.reset();
-  compile_zone_.reset();
   parse_info_.reset();
 
   status_ = Status::kDone;
@@ -490,8 +478,6 @@ void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
   }
 
   compilation_job_.reset();
-  compilation_info_.reset();
-  compile_zone_.reset();
   parser_.reset();
   unicode_cache_.reset();
   character_stream_.reset();

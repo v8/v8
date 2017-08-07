@@ -57,7 +57,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // Construct a compilation info for unoptimized compilation.
   CompilationInfo(Zone* zone, Isolate* isolate, ParseInfo* parse_info,
-                  Handle<SharedFunctionInfo> shared);
+                  FunctionLiteral* literal, Handle<SharedFunctionInfo> shared);
   // Construct a compilation info for optimized compilation.
   CompilationInfo(Zone* zone, Isolate* isolate, Handle<Script> script,
                   Handle<SharedFunctionInfo> shared,

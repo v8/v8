@@ -184,8 +184,12 @@ void ReportInstantiationFailure(Handle<Script> script, int position,
 //      code.
 class AsmJsCompilationJob final : public CompilationJob {
  public:
-  explicit AsmJsCompilationJob(ParseInfo* parse_info, CompilationInfo* info)
-      : CompilationJob(info->isolate(), parse_info, info, "AsmJs"),
+  explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
+                               Handle<SharedFunctionInfo> shared_info,
+                               Isolate* isolate)
+      : CompilationJob(isolate, parse_info, &compilation_info_, "AsmJs"),
+        zone_(isolate->allocator(), ZONE_NAME),
+        compilation_info_(&zone_, isolate, parse_info, literal, shared_info),
         module_(nullptr),
         asm_offsets_(nullptr),
         translate_time_(0),
@@ -197,6 +201,8 @@ class AsmJsCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
+  Zone zone_;
+  CompilationInfo compilation_info_;
   wasm::ZoneBuffer* module_;
   wasm::ZoneBuffer* asm_offsets_;
   wasm::AsmJsParser::StdlibSet stdlib_uses_;
@@ -299,8 +305,10 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
 }
 
 CompilationJob* AsmJs::NewCompilationJob(ParseInfo* parse_info,
-                                         CompilationInfo* compilation_info) {
-  return new AsmJsCompilationJob(parse_info, compilation_info);
+                                         FunctionLiteral* literal,
+                                         Handle<SharedFunctionInfo> shared_info,
+                                         Isolate* isolate) {
+  return new AsmJsCompilationJob(parse_info, literal, shared_info, isolate);
 }
 
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,

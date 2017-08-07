@@ -14,6 +14,7 @@ namespace internal {
 
 class CompilationInfo;
 class CompilationJob;
+class FunctionLiteral;
 class JSArrayBuffer;
 class ParseInfo;
 class SharedFunctionInfo;
@@ -21,8 +22,9 @@ class SharedFunctionInfo;
 // Interface to compile and instantiate for asm.js modules.
 class AsmJs {
  public:
-  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
-                                           CompilationInfo* compilation_info);
+  static CompilationJob* NewCompilationJob(
+      ParseInfo* parse_info, FunctionLiteral* literal,
+      Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,
                                                 Handle<SharedFunctionInfo>,
                                                 Handle<FixedArray> wasm_data,

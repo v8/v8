@@ -131,8 +131,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   std::unique_ptr<Parser> parser_;
 
   // Members required for compiling.
-  std::shared_ptr<Zone> compile_zone_;
-  std::unique_ptr<CompilationInfo> compilation_info_;
   std::unique_ptr<CompilationJob> compilation_job_;
 
   bool trace_compiler_dispatcher_jobs_;
