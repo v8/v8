@@ -1067,7 +1067,7 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
                          LoadObjectField(receiver, JSArray::kLengthOffset)));
     Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements_tagged(this),
-        fast_elements_untagged(this);
+        fast_elements_smi(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
@@ -1102,41 +1102,53 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
     Node* elements_kind = LoadMapElementsKind(LoadMap(receiver));
     GotoIf(
         Int32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_SMI_ELEMENTS)),
-        &fast_elements_untagged);
-    GotoIf(Int32LessThanOrEqual(elements_kind,
-                                Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
+        &fast_elements_smi);
+    GotoIf(Int32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_ELEMENTS)),
            &fast_elements_tagged);
-    Node* value = LoadFixedDoubleArrayElement(
-        elements, IntPtrConstant(0), MachineType::Float64(), 0,
-        INTPTR_PARAMETERS, &return_undefined);
 
-    int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
-    Node* memmove =
-        ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
-    Node* start = IntPtrAdd(
-        BitcastTaggedToWord(elements),
-        ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_DOUBLE_ELEMENTS,
-                               INTPTR_PARAMETERS, header_size));
-    CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                   MachineType::Pointer(), MachineType::UintPtr(), memmove,
-                   start, IntPtrAdd(start, IntPtrConstant(kDoubleSize)),
-                   IntPtrMul(new_length, IntPtrConstant(kDoubleSize)));
-    Node* offset = ElementOffsetFromIndex(new_length, HOLEY_DOUBLE_ELEMENTS,
-                                          INTPTR_PARAMETERS, header_size);
-    if (Is64()) {
-      Node* double_hole = Int64Constant(kHoleNanInt64);
-      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
-                          double_hole);
-    } else {
-      STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
-      Node* double_hole = Int32Constant(kHoleNanLower32);
-      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
-                          double_hole);
-      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
-                          IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
-                          double_hole);
+    // Fast double elements kind:
+    {
+      CSA_ASSERT(this,
+                 Int32LessThanOrEqual(elements_kind,
+                                      Int32Constant(HOLEY_DOUBLE_ELEMENTS)));
+
+      VARIABLE(result, MachineRepresentation::kTagged, UndefinedConstant());
+
+      Label move_elements(this);
+      result.Bind(AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
+          elements, IntPtrConstant(0), MachineType::Float64(), 0,
+          INTPTR_PARAMETERS, &move_elements)));
+      Goto(&move_elements);
+      BIND(&move_elements);
+
+      int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+      Node* memmove =
+          ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
+      Node* start = IntPtrAdd(
+          BitcastTaggedToWord(elements),
+          ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_DOUBLE_ELEMENTS,
+                                 INTPTR_PARAMETERS, header_size));
+      CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                     MachineType::Pointer(), MachineType::UintPtr(), memmove,
+                     start, IntPtrAdd(start, IntPtrConstant(kDoubleSize)),
+                     IntPtrMul(new_length, IntPtrConstant(kDoubleSize)));
+      Node* offset = ElementOffsetFromIndex(new_length, HOLEY_DOUBLE_ELEMENTS,
+                                            INTPTR_PARAMETERS, header_size);
+      if (Is64()) {
+        Node* double_hole = Int64Constant(kHoleNanInt64);
+        StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                            double_hole);
+      } else {
+        STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
+        Node* double_hole = Int32Constant(kHoleNanLower32);
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+                            double_hole);
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
+                            IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
+                            double_hole);
+      }
+      args.PopAndReturn(result.value());
     }
-    args.PopAndReturn(AllocateHeapNumberWithValue(value));
 
     BIND(&fast_elements_tagged);
     {
@@ -1155,9 +1167,10 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
       args.PopAndReturn(value);
     }
 
-    BIND(&fast_elements_untagged);
+    BIND(&fast_elements_smi);
     {
       Node* value = LoadFixedArrayElement(elements, 0);
+      int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
       Node* memmove =
           ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
       Node* start = IntPtrAdd(
