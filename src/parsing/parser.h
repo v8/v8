@@ -1060,7 +1060,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (is_async) {
       init_block = BuildRejectPromiseOnException(init_block);
     }
-    if (init_block != nullptr) body->Add(init_block, zone());
+    body->Add(init_block, zone());
   }
 
   V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
