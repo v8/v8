@@ -217,6 +217,8 @@ enum ContextLookupFlags {
     async_generator_await_reject_shared_fun)                                   \
   V(ASYNC_GENERATOR_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,              \
     async_generator_await_resolve_shared_fun)                                  \
+  V(ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN, SharedFunctionInfo,              \
+    async_generator_yield_resolve_shared_fun)                                  \
   V(ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN, SharedFunctionInfo,             \
     async_generator_return_resolve_shared_fun)                                 \
   V(ASYNC_GENERATOR_RETURN_REJECT_SHARED_FUN, SharedFunctionInfo,              \

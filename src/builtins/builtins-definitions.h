@@ -1053,6 +1053,7 @@ namespace internal {
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \
   TFS(AsyncGeneratorReject, kGenerator, kValue)                                \
+  TFS(AsyncGeneratorYield, kGenerator, kValue, kIsCaught)                      \
   TFS(AsyncGeneratorReturnProcessor, kGenerator)                               \
   TFS(AsyncGeneratorResumeNext, kGenerator)                                    \
                                                                                \
@@ -1078,6 +1079,7 @@ namespace internal {
   TFJ(AsyncGeneratorAwaitUncaught, 1, kAwaited)                                \
   TFJ(AsyncGeneratorAwaitResolveClosure, 1, kValue)                            \
   TFJ(AsyncGeneratorAwaitRejectClosure, 1, kValue)                             \
+  TFJ(AsyncGeneratorYieldResolveClosure, 1, kValue)                            \
   TFJ(AsyncGeneratorReturnResolveClosure, 1, kValue)                           \
   TFJ(AsyncGeneratorReturnRejectClosure, 1, kValue)                            \
                                                                                \

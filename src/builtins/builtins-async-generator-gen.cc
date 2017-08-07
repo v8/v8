@@ -539,6 +539,48 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
                      TrueConstant()));
 }
 
+TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const is_caught = Parameter(Descriptor::kIsCaught);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
+  Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(request);
+
+  ContextInitializer init_closure_context = [&](Node* context) {
+    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
+                                      generator);
+  };
+
+  const int on_resolve = Context::ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN;
+  const int on_reject = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
+
+  Node* const promise =
+      Await(context, generator, value, outer_promise, AwaitContext::kLength,
+            init_closure_context, on_resolve, on_reject, is_caught);
+  StoreObjectField(generator, JSAsyncGeneratorObject::kAwaitedPromiseOffset,
+                   promise);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(AsyncGeneratorYieldResolveClosure, AsyncGeneratorBuiltinsAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const generator =
+      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+
+  CSA_SLOW_ASSERT(this, IsGeneratorSuspendedForAwait(generator));
+  ClearAwaitedPromise(generator);
+
+  // Per proposal-async-iteration/#sec-asyncgeneratoryield step 9
+  // Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *false*).
+  CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator, value,
+              FalseConstant());
+
+  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+}
+
 TF_BUILTIN(AsyncGeneratorReturnProcessor, AsyncGeneratorBuiltinsAssembler) {
   Node* const generator = Parameter(Descriptor::kGenerator);
   Node* const req = LoadFirstAsyncGeneratorRequestFromQueue(generator);

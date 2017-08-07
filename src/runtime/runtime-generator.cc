@@ -80,6 +80,12 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
   UNREACHABLE();
 }
 
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorYield) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering

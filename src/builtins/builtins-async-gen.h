@@ -27,7 +27,17 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
               int context_length,
               const ContextInitializer& init_closure_context,
               int on_resolve_context_index, int on_reject_context_index,
-              bool is_predicted_as_caught);
+              Node* is_predicted_as_caught);
+  Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
+              int context_length,
+              const ContextInitializer& init_closure_context,
+              int on_resolve_context_index, int on_reject_context_index,
+              bool is_predicted_as_caught) {
+    return Await(context, generator, value, outer_promise, context_length,
+                 init_closure_context, on_resolve_context_index,
+                 on_reject_context_index,
+                 BooleanConstant(is_predicted_as_caught));
+  }
 
   // Return a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions

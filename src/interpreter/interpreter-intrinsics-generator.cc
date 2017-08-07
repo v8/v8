@@ -439,6 +439,11 @@ Node* IntrinsicsGenerator::AsyncGeneratorResolve(Node* input, Node* arg_count,
                                 Builtins::kAsyncGeneratorResolve);
 }
 
+Node* IntrinsicsGenerator::AsyncGeneratorYield(Node* input, Node* arg_count,
+                                               Node* context) {
+  return IntrinsicAsBuiltinCall(input, context, Builtins::kAsyncGeneratorYield);
+}
+
 void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {
   InterpreterAssembler::Label match(assembler_);
   Node* comparison = __ Word32Equal(actual, __ Int32Constant(expected));

@@ -631,6 +631,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadBoolean(bool value) {
+  return value ? LoadTrue() : LoadFalse();
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
   if (register_optimizer_) {

@@ -2949,12 +2949,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
     return impl()->RewriteYieldStar(expression, pos);
   }
 
-  if (is_async_generator()) {
-    // Per https://github.com/tc39/proposal-async-iteration/pull/102, the yield
-    // operand must be Await-ed in async generators.
-    expression = factory()->NewAwait(expression, pos);
-  }
-
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
   ExpressionT yield =

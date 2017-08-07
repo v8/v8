@@ -23,7 +23,7 @@ Node* AsyncBuiltinsAssembler::Await(
     Node* context, Node* generator, Node* value, Node* outer_promise,
     int context_length, const ContextInitializer& init_closure_context,
     int on_resolve_context_index, int on_reject_context_index,
-    bool is_predicted_as_caught) {
+    Node* is_predicted_as_caught) {
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
 
   Node* const native_context = LoadNativeContext(context);
@@ -146,7 +146,8 @@ Node* AsyncBuiltinsAssembler::Await(
       CallRuntime(Runtime::kSetProperty, context, on_reject, key,
                   TrueConstant(), SmiConstant(STRICT));
 
-      if (is_predicted_as_caught) PromiseSetHandledHint(value);
+      GotoIf(IsFalse(is_predicted_as_caught), &common);
+      PromiseSetHandledHint(value);
     }
 
     Goto(&common);

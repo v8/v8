@@ -2602,25 +2602,25 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   if (!expr->IsInitialYield()) {
     if (IsAsyncGeneratorFunction(function_kind())) {
       // AsyncGenerator yields (with the exception of the initial yield)
-      // delegate to AsyncGeneratorResolve(), implemented via the runtime call
-      // below.
+      // delegate work to the AsyncGeneratorYield stub, which Awaits the operand
+      // and on success, wraps the value in an IteratorResult.
       RegisterAllocationScope register_scope(this);
       RegisterList args = register_allocator()->NewRegisterList(3);
       builder()
-          ->MoveRegister(generator_object_, args[0])
-          .StoreAccumulatorInRegister(args[1])
-          .LoadFalse()
-          .StoreAccumulatorInRegister(args[2])
-          .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
+          ->MoveRegister(generator_object_, args[0])  // generator
+          .StoreAccumulatorInRegister(args[1])        // value
+          .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
+          .StoreAccumulatorInRegister(args[2])        // is_caught
+          .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
     } else {
       // Generator yields (with the exception of the initial yield) wrap the
       // value into IteratorResult.
       RegisterAllocationScope register_scope(this);
       RegisterList args = register_allocator()->NewRegisterList(2);
       builder()
-          ->StoreAccumulatorInRegister(args[0])
+          ->StoreAccumulatorInRegister(args[0])  // value
           .LoadFalse()
-          .StoreAccumulatorInRegister(args[1])
+          .StoreAccumulatorInRegister(args[1])   // done
           .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
     }
   }
