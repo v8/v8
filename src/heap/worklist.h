@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -243,22 +244,21 @@ class Worklist {
     V8_INLINE void Push(Segment* segment) {
       base::LockGuard<base::Mutex> guard(&lock_);
       segment->set_next(top_);
-      top_ = segment;
+      SetTop(segment);
     }
 
     V8_INLINE bool Pop(Segment** segment) {
       base::LockGuard<base::Mutex> guard(&lock_);
       if (top_ != nullptr) {
         *segment = top_;
-        top_ = top_->next();
+        SetTop(top_->next());
         return true;
       }
       return false;
     }
 
     V8_INLINE bool IsEmpty() {
-      base::LockGuard<base::Mutex> guard(&lock_);
-      return top_ == nullptr;
+      return base::AsAtomicPointer::Relaxed_Load(&top_) == nullptr;
     }
 
     void Clear() {
@@ -269,7 +269,7 @@ class Worklist {
         current = current->next();
         delete tmp;
       }
-      top_ = nullptr;
+      SetTop(nullptr);
     }
 
     // See Worklist::Update.
@@ -307,6 +307,9 @@ class Worklist {
     }
 
    private:
+    void SetTop(Segment* segment) {
+      base::AsAtomicPointer::Relaxed_Store(&top_, segment);
+    }
     base::Mutex lock_;
     Segment* top_;
   };
@@ -334,6 +337,7 @@ class Worklist {
   }
 
   V8_INLINE bool StealPopSegmentFromGlobal(int task_id) {
+    if (global_pool_.IsEmpty()) return false;
     Segment* new_segment = nullptr;
     if (global_pool_.Pop(&new_segment)) {
       delete private_pop_segment(task_id);
