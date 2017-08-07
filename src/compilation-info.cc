@@ -18,8 +18,7 @@ namespace internal {
 
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
                                  ParseInfo* parse_info,
-                                 FunctionLiteral* literal,
-                                 Handle<SharedFunctionInfo> shared)
+                                 FunctionLiteral* literal)
     : CompilationInfo(parse_info->script(), {},
                       Code::ComputeFlags(Code::FUNCTION), BASE, isolate, zone) {
   // NOTE: The parse_info passed here represents the global information gathered
@@ -29,7 +28,6 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   // details of the script being parsed are relevant to this CompilationInfo.
   DCHECK_NOT_NULL(literal);
   literal_ = literal;
-  shared_info_ = shared;
   source_range_map_ = parse_info->source_range_map();
 
   // Collect source positions for optimized code when profiling or if debugger

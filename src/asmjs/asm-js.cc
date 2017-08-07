@@ -179,17 +179,16 @@ void ReportInstantiationFailure(Handle<Script> script, int position,
 //      translated to a valid WebAssembly module. The result are two vectors
 //      representing the encoded module as well as encoded source position
 //      information and a StdlibSet bit set.
-//  [2] FinalizeJobImp: The module is handed to WebAssembly which decodes it
+//  [2] FinalizeJobImpl: The module is handed to WebAssembly which decodes it
 //      into an internal representation and eventually compiles it to machine
 //      code.
 class AsmJsCompilationJob final : public CompilationJob {
  public:
   explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
-                               Handle<SharedFunctionInfo> shared_info,
                                Isolate* isolate)
       : CompilationJob(isolate, parse_info, &compilation_info_, "AsmJs"),
         zone_(isolate->allocator(), ZONE_NAME),
-        compilation_info_(&zone_, isolate, parse_info, literal, shared_info),
+        compilation_info_(&zone_, isolate, parse_info, literal),
         module_(nullptr),
         asm_offsets_(nullptr),
         translate_time_(0),
@@ -306,9 +305,8 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
 
 CompilationJob* AsmJs::NewCompilationJob(ParseInfo* parse_info,
                                          FunctionLiteral* literal,
-                                         Handle<SharedFunctionInfo> shared_info,
                                          Isolate* isolate) {
-  return new AsmJsCompilationJob(parse_info, literal, shared_info, isolate);
+  return new AsmJsCompilationJob(parse_info, literal, isolate);
 }
 
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,

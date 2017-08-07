@@ -413,8 +413,8 @@ void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
   DCHECK(status() == Status::kAnalyzed);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
 
-  compilation_job_.reset(Compiler::PrepareUnoptimizedCompilationJob(
-      parse_info_.get(), shared_, isolate));
+  compilation_job_.reset(
+      Compiler::PrepareUnoptimizedCompilationJob(parse_info_.get(), isolate));
   if (!compilation_job_.get()) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     status_ = Status::kFailed;
@@ -458,6 +458,12 @@ void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
 
   {
     HandleScope scope(isolate);
+    // Internalize ast values onto the heap.
+    parse_info_->ast_value_factory()->Internalize(isolate);
+    // Allocate scope infos for the literal.
+    DeclarationScope::AllocateScopeInfos(parse_info_.get(), isolate,
+                                         AnalyzeMode::kRegular);
+    compilation_job_->compilation_info()->set_shared_info(shared_);
     if (compilation_job_->state() == CompilationJob::State::kFailed ||
         !Compiler::FinalizeCompilationJob(compilation_job_.release())) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();

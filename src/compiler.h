@@ -53,9 +53,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
   // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
-  static CompilationJob* PrepareUnoptimizedCompilationJob(
-      ParseInfo* parse_info, Handle<SharedFunctionInfo> shared_info,
-      Isolate* isolate);
+  static CompilationJob* PrepareUnoptimizedCompilationJob(ParseInfo* parse_info,
+                                                          Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job);

@@ -39,9 +39,9 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   void Initialize(uintptr_t stack_limit);
 
-  static CompilationJob* NewCompilationJob(
-      ParseInfo* parse_info, FunctionLiteral* literal,
-      Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
+  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
+                                           FunctionLiteral* literal,
+                                           Isolate* isolate);
 
   static bool MakeCode(ParseInfo* parse_info, CompilationInfo* info,
                        uintptr_t stack_limit);

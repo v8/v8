@@ -26,7 +26,6 @@ class CompilationJob;
 class FunctionLiteral;
 class ParseInfo;
 class SetupIsolateDelegate;
-class SharedFunctionInfo;
 class RootVisitor;
 
 namespace interpreter {
@@ -42,9 +41,9 @@ class Interpreter {
   static int InterruptBudget();
 
   // Creates a compilation job which will generate bytecode for |literal|.
-  static CompilationJob* NewCompilationJob(
-      ParseInfo* parse_info, FunctionLiteral* literal,
-      Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
+  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
+                                           FunctionLiteral* literal,
+                                           Isolate* isolate);
 
   // Return bytecode handler for |bytecode|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);

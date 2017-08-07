@@ -25,7 +25,6 @@ namespace interpreter {
 class InterpreterCompilationJob final : public CompilationJob {
  public:
   InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
-                            Handle<SharedFunctionInfo> shared_info,
                             Isolate* isolate);
 
  protected:
@@ -147,12 +146,12 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 
 }  // namespace
 
-InterpreterCompilationJob::InterpreterCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate)
+InterpreterCompilationJob::InterpreterCompilationJob(ParseInfo* parse_info,
+                                                     FunctionLiteral* literal,
+                                                     Isolate* isolate)
     : CompilationJob(isolate, parse_info, &compilation_info_, "Ignition"),
       zone_(isolate->allocator(), ZONE_NAME),
-      compilation_info_(&zone_, isolate, parse_info, literal, shared_info),
+      compilation_info_(&zone_, isolate, parse_info, literal),
       generator_(&compilation_info_),
       runtime_call_stats_(isolate->counters()->runtime_call_stats()),
       background_execute_counter_("CompileBackgroundIgnition") {}
@@ -210,11 +209,10 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
   return SUCCEEDED;
 }
 
-CompilationJob* Interpreter::NewCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  return new InterpreterCompilationJob(parse_info, literal, shared_info,
-                                       isolate);
+CompilationJob* Interpreter::NewCompilationJob(ParseInfo* parse_info,
+                                               FunctionLiteral* literal,
+                                               Isolate* isolate) {
+  return new InterpreterCompilationJob(parse_info, literal, isolate);
 }
 
 bool Interpreter::IsDispatchTableInitialized() {

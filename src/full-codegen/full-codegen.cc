@@ -30,12 +30,10 @@ namespace internal {
 class FullCodegenCompilationJob final : public CompilationJob {
  public:
   explicit FullCodegenCompilationJob(ParseInfo* parse_info,
-                                     FunctionLiteral* literal,
-                                     Handle<SharedFunctionInfo> shared_info,
-                                     Isolate* isolate)
+                                     FunctionLiteral* literal, Isolate* isolate)
       : CompilationJob(isolate, parse_info, &compilation_info_, "Full-Codegen"),
         zone_(isolate->allocator(), ZONE_NAME),
-        compilation_info_(&zone_, isolate, parse_info, literal, shared_info) {}
+        compilation_info_(&zone_, isolate, parse_info, literal) {}
 
   bool can_execute_on_background_thread() const override { return false; }
 
@@ -80,11 +78,10 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
 }
 
 // static
-CompilationJob* FullCodeGenerator::NewCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  return new FullCodegenCompilationJob(parse_info, literal, shared_info,
-                                       isolate);
+CompilationJob* FullCodeGenerator::NewCompilationJob(ParseInfo* parse_info,
+                                                     FunctionLiteral* literal,
+                                                     Isolate* isolate) {
+  return new FullCodegenCompilationJob(parse_info, literal, isolate);
 }
 
 // static
