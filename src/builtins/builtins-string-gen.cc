@@ -793,6 +793,11 @@ void StringBuiltinsAssembler::StringIndexOf(
               &return_minus_1);
   }
 
+  // If the string pointers are identical, we can just return 0. Note that this
+  // implies {start_position} == 0 since we've passed the check above.
+  Label return_zero(this);
+  GotoIf(WordEqual(subject_string, search_string), &return_zero);
+
   // Try to unpack subject and search strings. Bail to runtime if either needs
   // to be flattened.
   ToDirectStringAssembler subject_to_direct(state(), subject_string);
@@ -913,6 +918,9 @@ void StringBuiltinsAssembler::StringIndexOf(
 
   BIND(&return_minus_1);
   f_return(SmiConstant(-1));
+
+  BIND(&return_zero);
+  f_return(SmiConstant(0));
 
   BIND(&zero_length_needle);
   {
