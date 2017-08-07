@@ -1150,52 +1150,6 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 }
 
-// static
-void Builtins::Generate_InterpreterPushArgsThenConstructArray(
-    MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax : the number of arguments (not including the receiver)
-  //  -- rdx : the target to call checked to be Array function.
-  //  -- rbx : the allocation site feedback
-  //  -- rcx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  // -----------------------------------
-  Label stack_overflow;
-
-  // Number of values to be pushed.
-  __ Move(r8, rax);
-
-  // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, r8, rdi, &stack_overflow);
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ PopReturnAddressTo(kScratchRegister);
-
-  // Push slot for the receiver to be constructed.
-  __ Push(Immediate(0));
-
-  // rcx and rdi will be modified.
-  Generate_InterpreterPushArgs(masm, r8, rcx, rdi);
-
-  // Push return address in preparation for the tail-call.
-  __ PushReturnAddressFrom(kScratchRegister);
-
-  // Array constructor expects constructor in rdi. It is same as rdx here.
-  __ Move(rdi, rdx);
-
-  ArrayConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-
-  // Throw stack overflow exception.
-  __ bind(&stack_overflow);
-  {
-    __ TailCallRuntime(Runtime::kThrowStackOverflow);
-    // This should be unreachable.
-    __ int3();
-  }
-}
-
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
