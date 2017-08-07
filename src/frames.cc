@@ -490,6 +490,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           return JS_TO_WASM;
         case Code::WASM_INTERPRETER_ENTRY:
           return WASM_INTERPRETER_ENTRY;
+        case Code::C_WASM_ENTRY:
+          return C_WASM_ENTRY;
         default:
           // All other types should have an explicit marker
           break;
@@ -816,6 +818,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case WASM_TO_JS:
       case WASM_COMPILED:
       case WASM_INTERPRETER_ENTRY:
+      case C_WASM_ENTRY:
         frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
         break;
       case JAVA_SCRIPT:

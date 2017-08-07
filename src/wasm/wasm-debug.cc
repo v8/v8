@@ -621,6 +621,7 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
   for (int i = 0, e = GetNumFunctions(instance); i < e; ++i) {
     RedirectCallsitesInCode(Code::cast(code_table->get(i)), map);
   }
+  // TODO(6668): Find instances that imported our code and also patch those.
 
   // Redirect all calls in exported functions.
   FixedArray* weak_exported_functions =
@@ -773,4 +774,45 @@ Handle<JSObject> WasmDebugInfo::GetLocalScopeObject(
   InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
   auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
   return interp_handle->GetLocalScopeObject(frame.get(), debug_info);
+}
+
+// static
+Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
+    Handle<WasmDebugInfo> debug_info, FunctionSig* sig) {
+  Isolate* isolate = debug_info->GetIsolate();
+  DCHECK_EQ(debug_info->has_c_wasm_entries(),
+            debug_info->has_c_wasm_entry_map());
+  if (!debug_info->has_c_wasm_entries()) {
+    auto entries = isolate->factory()->NewFixedArray(4, TENURED);
+    debug_info->set_c_wasm_entries(*entries);
+    auto managed_map =
+        Managed<wasm::SignatureMap>::New(isolate, new wasm::SignatureMap());
+    debug_info->set_c_wasm_entry_map(*managed_map);
+  }
+  Handle<FixedArray> entries(debug_info->c_wasm_entries(), isolate);
+  wasm::SignatureMap* map = debug_info->c_wasm_entry_map()->get();
+  int32_t index = map->Find(sig);
+  if (index == -1) {
+    index = static_cast<int32_t>(map->FindOrInsert(sig));
+    if (index == entries->length()) {
+      entries = isolate->factory()->CopyFixedArrayAndGrow(
+          entries, entries->length(), TENURED);
+      debug_info->set_c_wasm_entries(*entries);
+    }
+    DCHECK(entries->get(index)->IsUndefined(isolate));
+    Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
+    Handle<String> name = isolate->factory()->InternalizeOneByteString(
+        STATIC_CHAR_VECTOR("c-wasm-entry"));
+    Handle<SharedFunctionInfo> shared =
+        isolate->factory()->NewSharedFunctionInfo(name, new_entry_code, false);
+    shared->set_internal_formal_parameter_count(
+        compiler::CWasmEntryParameters::kNumParameters);
+    Handle<JSFunction> new_entry = isolate->factory()->NewFunction(
+        isolate->sloppy_function_map(), name, new_entry_code);
+    new_entry->set_context(
+        *debug_info->wasm_instance()->compiled_module()->native_context());
+    new_entry->set_shared(*shared);
+    entries->set(index, *new_entry);
+  }
+  return handle(JSFunction::cast(entries->get(index)));
 }

@@ -713,6 +713,15 @@ class WasmRunnerBase : public HandleAndZoneScope {
 
   bool interpret() { return module_.interpret(); }
 
+  template <typename ReturnType, typename... ParamTypes>
+  FunctionSig* CreateSig() {
+    std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
+        {MachineTypeForC<ParamTypes>()...}};
+    Vector<MachineType> param_vec(param_machine_types.data(),
+                                  param_machine_types.size());
+    return CreateSig(MachineTypeForC<ReturnType>(), param_vec);
+  }
+
  private:
   FunctionSig* CreateSig(MachineType return_type,
                          Vector<MachineType> param_types) {
@@ -732,15 +741,6 @@ class WasmRunnerBase : public HandleAndZoneScope {
       sig_types[idx++] = WasmOpcodes::ValueTypeFor(param);
     }
     return new (&zone_) FunctionSig(return_count, param_count, sig_types);
-  }
-
-  template <typename ReturnType, typename... ParamTypes>
-  FunctionSig* CreateSig() {
-    std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
-        {MachineTypeForC<ParamTypes>()...}};
-    Vector<MachineType> param_vec(param_machine_types.data(),
-                                  param_machine_types.size());
-    return CreateSig(MachineTypeForC<ReturnType>(), param_vec);
   }
 
  protected:

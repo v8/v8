@@ -1667,6 +1667,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A Wasm to Interpreter adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
+    case AbstractCode::C_WASM_ENTRY:
+      description = "A C to Wasm entry stub";
+      tag = CodeEventListener::STUB_TAG;
+      break;
     case AbstractCode::NUMBER_OF_KINDS:
       UNIMPLEMENTED();
   }

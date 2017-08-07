@@ -3667,7 +3667,8 @@ class Code: public HeapObject {
   V(WASM_FUNCTION)          \
   V(WASM_TO_JS_FUNCTION)    \
   V(JS_TO_WASM_FUNCTION)    \
-  V(WASM_INTERPRETER_ENTRY)
+  V(WASM_INTERPRETER_ENTRY) \
+  V(C_WASM_ENTRY)
 
 #define IC_KIND_LIST(V) \
   V(LOAD_IC)            \

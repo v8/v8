@@ -583,12 +583,16 @@ class WasmDebugInfo : public FixedArray {
 
   DECL_GETTER(wasm_instance, WasmInstanceObject)
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
   enum {
     kInstanceIndex,              // instance object.
     kInterpreterHandleIndex,     // managed object containing the interpreter.
     kInterpretedFunctionsIndex,  // array of interpreter entry code objects.
     kLocalsNamesIndex,           // array of array of local names.
+    kCWasmEntriesIndex,          // array of C_WASM_ENTRY stubs.
+    kCWasmEntryMapIndex,         // maps signature to index into CWasmEntries.
     kFieldCount
   };
 
@@ -597,6 +601,8 @@ class WasmDebugInfo : public FixedArray {
   DEF_OFFSET(InterpreterHandle)
   DEF_OFFSET(InterpretedFunctions)
   DEF_OFFSET(LocalsNames)
+  DEF_OFFSET(CWasmEntries)
+  DEF_OFFSET(CWasmEntryMap)
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 
@@ -663,6 +669,9 @@ class WasmDebugInfo : public FixedArray {
   static Handle<JSObject> GetLocalScopeObject(Handle<WasmDebugInfo>,
                                               Address frame_pointer,
                                               int frame_index);
+
+  static Handle<JSFunction> GetCWasmEntry(Handle<WasmDebugInfo>,
+                                          wasm::FunctionSig*);
 };
 
 // TODO(titzer): these should be moved to wasm-objects-inl.h
@@ -722,6 +731,10 @@ OPTIONAL_ACCESSORS(WasmSharedModuleData, lazy_compilation_orchestrator, Foreign,
                    kLazyCompilationOrchestratorOffset)
 
 OPTIONAL_ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
+OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entries, FixedArray,
+                   kCWasmEntriesOffset)
+OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
+                   kCWasmEntryMapOffset)
 
 #undef OPTIONAL_ACCESSORS
 #undef DECL_OOL_QUERY

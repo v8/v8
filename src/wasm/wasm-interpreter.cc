@@ -7,6 +7,7 @@
 #include "src/wasm/wasm-interpreter.h"
 
 #include "src/assembler-inl.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
 #include "src/identity-map.h"
 #include "src/objects-inl.h"
@@ -2073,26 +2074,10 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallCodeObject(Isolate* isolate, Handle<Code> code,
-                                    FunctionSig* signature) {
-    DCHECK(AllowHandleAllocation::IsAllowed());
-    DCHECK(AllowHeapAllocation::IsAllowed());
-
-    if (code->kind() == Code::WASM_FUNCTION) {
-      FixedArray* deopt_data = code->deoptimization_data();
-      DCHECK_EQ(2, deopt_data->length());
-      WasmInstanceObject* target_instance =
-          WasmInstanceObject::cast(WeakCell::cast(deopt_data->get(0))->value());
-      if (target_instance != codemap()->instance()) {
-        // TODO(wasm): Implement calling functions of other instances/modules.
-        UNIMPLEMENTED();
-      }
-      int target_func_idx = Smi::ToInt(deopt_data->get(1));
-      DCHECK_LE(0, target_func_idx);
-      return {ExternalCallResult::INTERNAL,
-              codemap()->GetCode(target_func_idx)};
-    }
-
+  // TODO(clemensh): Remove this, call JS via existing wasm-to-js wrapper, using
+  //                 CallExternalWasmFunction.
+  ExternalCallResult CallExternalJSFunction(Isolate* isolate, Handle<Code> code,
+                                            FunctionSig* signature) {
     Handle<HeapObject> target = UnwrapWasmToJSWrapper(isolate, code);
 
     if (target.is_null()) {
@@ -2133,12 +2118,121 @@ class ThreadImpl {
     Handle<Object> retval = maybe_retval.ToHandleChecked();
     // Pop arguments off the stack.
     sp_ -= num_args;
+    // Push return values.
     if (signature->return_count() > 0) {
       // TODO(wasm): Handle multiple returns.
       DCHECK_EQ(1, signature->return_count());
       Push(ToWebAssemblyValue(isolate, retval, signature->GetReturn()));
     }
     return {ExternalCallResult::EXTERNAL_RETURNED};
+  }
+
+  ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
+                                              Handle<Code> code,
+                                              FunctionSig* sig) {
+    Handle<WasmDebugInfo> debug_info(codemap()->instance()->debug_info(),
+                                     isolate);
+    Handle<JSFunction> wasm_entry =
+        WasmDebugInfo::GetCWasmEntry(debug_info, sig);
+
+    TRACE("  => Calling external wasm function\n");
+
+    // Copy the arguments to one buffer.
+    // TODO(clemensh): Introduce a helper for all argument buffer
+    // con-/destruction.
+    int num_args = static_cast<int>(sig->parameter_count());
+    std::vector<uint8_t> arg_buffer(num_args * 8);
+    size_t offset = 0;
+    WasmValue* wasm_args = sp_ - num_args;
+    for (int i = 0; i < num_args; ++i) {
+      uint32_t param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
+      if (arg_buffer.size() < offset + param_size) {
+        arg_buffer.resize(std::max(2 * arg_buffer.size(), offset + param_size));
+      }
+      switch (sig->GetParam(i)) {
+        case kWasmI32:
+          WriteUnalignedValue(arg_buffer.data() + offset,
+                              wasm_args[i].to<uint32_t>());
+          break;
+        case kWasmI64:
+          WriteUnalignedValue(arg_buffer.data() + offset,
+                              wasm_args[i].to<uint64_t>());
+          break;
+        case kWasmF32:
+          WriteUnalignedValue(arg_buffer.data() + offset,
+                              wasm_args[i].to<float>());
+          break;
+        case kWasmF64:
+          WriteUnalignedValue(arg_buffer.data() + offset,
+                              wasm_args[i].to<double>());
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
+      offset += param_size;
+    }
+
+    // Wrap the arg_buffer data pointer in a handle. As this is an aligned
+    // pointer, to the GC it will look like a Smi.
+    Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
+                                  isolate);
+    DCHECK(!arg_buffer_obj->IsHeapObject());
+
+    Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
+    args[compiler::CWasmEntryParameters::kCodeObject] = code;
+    args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
+
+    Handle<Object> receiver = isolate->factory()->undefined_value();
+    MaybeHandle<Object> maybe_retval =
+        Execution::Call(isolate, wasm_entry, receiver, arraysize(args), args);
+    if (maybe_retval.is_null()) return TryHandleException(isolate);
+
+    // Pop arguments off the stack.
+    sp_ -= num_args;
+    // Push return values.
+    if (sig->return_count() > 0) {
+      // TODO(wasm): Handle multiple returns.
+      DCHECK_EQ(1, sig->return_count());
+      switch (sig->GetReturn()) {
+        case kWasmI32:
+          Push(WasmValue(ReadUnalignedValue<uint32_t>(arg_buffer.data())));
+          break;
+        case kWasmI64:
+          Push(WasmValue(ReadUnalignedValue<uint64_t>(arg_buffer.data())));
+          break;
+        case kWasmF32:
+          Push(WasmValue(ReadUnalignedValue<float>(arg_buffer.data())));
+          break;
+        case kWasmF64:
+          Push(WasmValue(ReadUnalignedValue<double>(arg_buffer.data())));
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
+    }
+    return {ExternalCallResult::EXTERNAL_RETURNED};
+  }
+
+  ExternalCallResult CallCodeObject(Isolate* isolate, Handle<Code> code,
+                                    FunctionSig* signature) {
+    DCHECK(AllowHandleAllocation::IsAllowed());
+    DCHECK(AllowHeapAllocation::IsAllowed());
+
+    if (code->kind() == Code::WASM_FUNCTION) {
+      FixedArray* deopt_data = code->deoptimization_data();
+      DCHECK_EQ(2, deopt_data->length());
+      WasmInstanceObject* target_instance =
+          WasmInstanceObject::cast(WeakCell::cast(deopt_data->get(0))->value());
+      if (target_instance != codemap()->instance()) {
+        return CallExternalWasmFunction(isolate, code, signature);
+      }
+      int target_func_idx = Smi::ToInt(deopt_data->get(1));
+      DCHECK_LE(0, target_func_idx);
+      return {ExternalCallResult::INTERNAL,
+              codemap()->GetCode(target_func_idx)};
+    }
+
+    return CallExternalJSFunction(isolate, code, signature);
   }
 
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
