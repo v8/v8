@@ -1718,8 +1718,12 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     Node* slot_id = BytecodeOperandIdx(3);
     Node* feedback_vector = LoadFeedbackVector();
     Node* context = GetContext();
-    Node* result = CallJSWithFeedback(function, context, first_arg, args_count,
-                                      slot_id, feedback_vector, receiver_mode);
+
+    // Collect the {function} feedback.
+    CollectCallFeedback(function, context, feedback_vector, slot_id);
+
+    Node* result =
+        CallJS(function, context, first_arg, args_count, receiver_mode);
     SetAccumulator(result);
     Dispatch();
   }
@@ -1734,22 +1738,27 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     const int kSlotOperandIndex =
         kFirstArgumentOperandIndex + kReceiverOperandCount + arg_count;
     // Indices and counts of parameters to the call stub.
-    const int kBoilerplateParameterCount = 7;
-    const int kReceiverParameterIndex = 5;
+    const int kBoilerplateParameterCount = 5;
+    const int kReceiverParameterIndex = 3;
     const int kReceiverParameterCount = 1;
     // Only used in a DCHECK.
     USE(kReceiverParameterCount);
 
     Node* function_reg = BytecodeOperandReg(0);
     Node* function = LoadRegister(function_reg);
+    Node* slot_id = BytecodeOperandIdx(kSlotOperandIndex);
+    Node* feedback_vector = LoadFeedbackVector();
+    Node* context = GetContext();
+
+    // Collect the {function} feedback.
+    CollectCallFeedback(function, context, feedback_vector, slot_id);
+
     std::array<Node*, Bytecodes::kMaxOperands + kBoilerplateParameterCount>
         temp;
-    Callable call_ic = CodeFactory::CallIC(isolate());
-    temp[0] = HeapConstant(call_ic.code());
+    Callable callable = CodeFactory::Call(isolate());
+    temp[0] = HeapConstant(callable.code());
     temp[1] = function;
     temp[2] = Int32Constant(arg_count);
-    temp[3] = BytecodeOperandIdxInt32(kSlotOperandIndex);
-    temp[4] = LoadFeedbackVector();
 
     int parameter_index = kReceiverParameterIndex;
     if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
@@ -1767,9 +1776,9 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
 
     DCHECK_EQ(parameter_index,
               kReceiverParameterIndex + kReceiverParameterCount + arg_count);
-    temp[parameter_index] = GetContext();
+    temp[parameter_index] = context;
 
-    Node* result = CallStubN(call_ic.descriptor(), 1,
+    Node* result = CallStubN(callable.descriptor(), 1,
                              arg_count + kBoilerplateParameterCount, &temp[0]);
     SetAccumulator(result);
     Dispatch();

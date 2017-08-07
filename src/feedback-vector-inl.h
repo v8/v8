@@ -235,6 +235,11 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
     Object* const obj = Get(slot);
     switch (kind) {
       case FeedbackSlotKind::kCall:
+        // If we are not running interpreted code, we need to ignore the special
+        // IC slots for call/construct used by the interpreter.
+        // TODO(mvstanton): Remove code_is_interpreted when full code is retired
+        // from service.
+        if (!code_is_interpreted) break;
       case FeedbackSlotKind::kLoadProperty:
       case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:

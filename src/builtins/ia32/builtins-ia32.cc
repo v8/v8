@@ -1179,49 +1179,6 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 }
 
-// static
-void Builtins::Generate_InterpreterPushArgsThenConstructArray(
-    MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the target to call checked to be Array function.
-  //  -- ebx : the allocation site feedback
-  //  -- ecx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  // -----------------------------------
-  Label stack_overflow;
-  // We need two scratch registers. Register edi is available, push edx onto
-  // stack.
-  __ Push(edx);
-
-  // Push arguments and move return address to the top of stack.
-  // The eax register is readonly. The ecx register will be modified. The edx
-  // and edi registers will be modified but restored to their original values.
-  Generate_InterpreterPushZeroAndArgsAndReturnAddress(masm, eax, ecx, edx, edi,
-                                                      1, &stack_overflow);
-
-  // Restore edx.
-  __ Pop(edx);
-
-  // Array constructor expects constructor in edi. It is same as edx here.
-  __ Move(edi, edx);
-
-  ArrayConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-
-  __ bind(&stack_overflow);
-  {
-    // Pop the temporary registers, so that return address is on top of stack.
-    __ Pop(edx);
-
-    __ TailCallRuntime(Runtime::kThrowStackOverflow);
-
-    // This should be unreachable.
-    __ int3();
-  }
-}
-
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.

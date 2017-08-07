@@ -1434,7 +1434,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     // The feedback is an AllocationSite, which means we have called the
     // Array function and collected transition (and pretenuring) feedback
     // for the resulting arrays.  This has to be kept in sync with the
-    // implementation of the CallConstructStub.
+    // implementation in Ignition.
     Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
 
     // Retrieve the Array function from the {node}.

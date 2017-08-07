@@ -64,19 +64,6 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::CallIC(Isolate* isolate, ConvertReceiverMode mode) {
-  CallICStub stub(isolate, mode);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::CallICTrampoline(Isolate* isolate,
-                                       ConvertReceiverMode mode) {
-  CallICTrampolineStub stub(isolate, mode);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
   return Callable(language_mode == STRICT
                       ? BUILTIN_CODE(isolate, StoreICStrictTrampoline)
@@ -394,12 +381,6 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
     Isolate* isolate, InterpreterPushArgsMode mode) {
   return Callable(isolate->builtins()->InterpreterPushArgsThenConstruct(mode),
                   InterpreterPushArgsThenConstructDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::InterpreterPushArgsThenConstructArray(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, InterpreterPushArgsThenConstructArray),
-                  InterpreterPushArgsThenConstructArrayDescriptor(isolate));
 }
 
 // static
