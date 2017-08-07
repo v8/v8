@@ -1414,6 +1414,39 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 }
 
+// static
+void Builtins::Generate_InterpreterPushArgsThenConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- x0 : argument count (not including receiver)
+  // -- x1 : target to call verified to be Array function
+  // -- x2 : allocation site feedback if available, undefined otherwise.
+  // -- x3 : address of the first argument
+  // -----------------------------------
+  Label stack_overflow;
+
+  // Push a slot for the receiver.
+  __ Push(xzr);
+
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, x0, x7, &stack_overflow);
+
+  // Push the arguments. x3, x5, x6, x7 will be modified.
+  Generate_InterpreterPushArgs(masm, x0, x3, x5, x6, x7);
+
+  // Array constructor expects constructor in x3. It is same as call target.
+  __ mov(x3, x1);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    __ Unreachable();
+  }
+}
+
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.

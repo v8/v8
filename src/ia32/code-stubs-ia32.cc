@@ -759,6 +759,165 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   GenerateMiss(masm);
 }
 
+
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+  // eax : number of arguments to the construct function
+  // ebx : feedback vector
+  // edx : slot in feedback vector (Smi)
+  // edi : the function to call
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Number-of-arguments register must be smi-tagged to call out.
+    __ SmiTag(eax);
+    __ push(eax);
+    __ push(edi);
+    __ push(edx);
+    __ push(ebx);
+    __ push(esi);
+
+    __ CallStub(stub);
+
+    __ pop(esi);
+    __ pop(ebx);
+    __ pop(edx);
+    __ pop(edi);
+    __ pop(eax);
+    __ SmiUntag(eax);
+  }
+}
+
+
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
+  // Cache the called function in a feedback vector slot.  Cache states
+  // are uninitialized, monomorphic (indicated by a JSFunction), and
+  // megamorphic.
+  // eax : number of arguments to the construct function
+  // ebx : feedback vector
+  // edx : slot in feedback vector (Smi)
+  // edi : the function to call
+  Isolate* isolate = masm->isolate();
+  Label initialize, done, miss, megamorphic, not_array_function;
+
+  // Load the cache state into ecx.
+  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FeedbackVector::kFeedbackSlotsOffset));
+
+  // A monomorphic cache hit or an already megamorphic state: invoke the
+  // function without changing the state.
+  // We don't know if ecx is a WeakCell or a Symbol, but it's harmless to read
+  // at this position in a symbol (see static asserts in feedback-vector.h).
+  Label check_allocation_site;
+  __ cmp(edi, FieldOperand(ecx, WeakCell::kValueOffset));
+  __ j(equal, &done, Label::kFar);
+  __ CompareRoot(ecx, Heap::kmegamorphic_symbolRootIndex);
+  __ j(equal, &done, Label::kFar);
+  __ CompareRoot(FieldOperand(ecx, HeapObject::kMapOffset),
+                 Heap::kWeakCellMapRootIndex);
+  __ j(not_equal, &check_allocation_site);
+
+  // If the weak cell is cleared, we have a new chance to become monomorphic.
+  __ JumpIfSmi(FieldOperand(ecx, WeakCell::kValueOffset), &initialize);
+  __ jmp(&megamorphic);
+
+  __ bind(&check_allocation_site);
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the slot either some other function or an
+  // AllocationSite.
+  __ CompareRoot(FieldOperand(ecx, 0), Heap::kAllocationSiteMapRootIndex);
+  __ j(not_equal, &miss);
+
+  // Make sure the function is the Array() function
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
+  __ cmp(edi, ecx);
+  __ j(not_equal, &megamorphic);
+  __ jmp(&done, Label::kFar);
+
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ CompareRoot(ecx, Heap::kuninitialized_symbolRootIndex);
+  __ j(equal, &initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
+  __ bind(&megamorphic);
+  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
+                      FeedbackVector::kFeedbackSlotsOffset),
+         Immediate(FeedbackVector::MegamorphicSentinel(isolate)));
+  __ jmp(&done, Label::kFar);
+
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  // Make sure the function is the Array() function
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
+  __ cmp(edi, ecx);
+  __ j(not_equal, &not_array_function);
+
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the
+  // slot.
+  CreateAllocationSiteStub create_stub(isolate);
+  CallStubInRecordCallTarget(masm, &create_stub);
+  __ jmp(&done);
+
+  __ bind(&not_array_function);
+  CreateWeakCellStub weak_cell_stub(isolate);
+  CallStubInRecordCallTarget(masm, &weak_cell_stub);
+
+  __ bind(&done);
+  // Increment the call count for all function calls.
+  __ add(FieldOperand(ebx, edx, times_half_pointer_size,
+                      FeedbackVector::kFeedbackSlotsOffset + kPointerSize),
+         Immediate(Smi::FromInt(1)));
+}
+
+
+void CallConstructStub::Generate(MacroAssembler* masm) {
+  // eax : number of arguments
+  // ebx : feedback vector
+  // edx : slot in feedback vector (Smi, for RecordCallTarget)
+  // edi : constructor function
+
+  Label non_function;
+  // Check that function is not a smi.
+  __ JumpIfSmi(edi, &non_function);
+  // Check that function is a JSFunction.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &non_function);
+
+  GenerateRecordCallTarget(masm);
+
+  Label feedback_register_initialized;
+  // Put the AllocationSite from the feedback vector into ebx, or undefined.
+  __ mov(ebx, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FeedbackVector::kFeedbackSlotsOffset));
+  Handle<Map> allocation_site_map = isolate()->factory()->allocation_site_map();
+  __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
+  __ j(equal, &feedback_register_initialized);
+  __ mov(ebx, isolate()->factory()->undefined_value());
+  __ bind(&feedback_register_initialized);
+
+  __ AssertUndefinedOrAllocationSite(ebx);
+
+  // Pass new target to construct stub.
+  __ mov(edx, edi);
+
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
+  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  __ jmp(ecx);
+
+  __ bind(&non_function);
+  __ mov(edx, edi);
+  __ Jump(BUILTIN_CODE(isolate(), Construct), RelocInfo::CODE_TARGET);
+}
+
 bool CEntryStub::NeedsImmovableCode() {
   return false;
 }
@@ -769,6 +928,8 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
+  CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
+  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
 }
 

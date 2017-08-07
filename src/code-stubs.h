@@ -34,6 +34,8 @@ class Node;
   V(ArrayConstructor)                         \
   V(CallApiCallback)                          \
   V(CallApiGetter)                            \
+  V(CallConstruct)                            \
+  V(CallIC)                                   \
   V(CEntry)                                   \
   V(CompareIC)                                \
   V(DoubleToI)                                \
@@ -46,11 +48,18 @@ class Node;
   V(StoreSlowElement)                         \
   V(SubString)                                \
   V(NameDictionaryLookup)                     \
+  /* These are only called from FCG */        \
+  /* They can be removed when only the TF  */ \
+  /* version of the corresponding stub is  */ \
+  /* used universally */                      \
+  V(CallICTrampoline)                         \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
   V(ArrayNoArgumentConstructor)               \
   V(ArraySingleArgumentConstructor)           \
   V(ArrayNArgumentsConstructor)               \
+  V(CreateAllocationSite)                     \
+  V(CreateWeakCell)                           \
   V(StringLength)                             \
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
@@ -615,6 +624,26 @@ class NumberToStringStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(NumberToString, TurboFanCodeStub);
 };
 
+class CreateAllocationSiteStub : public TurboFanCodeStub {
+ public:
+  explicit CreateAllocationSiteStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
+  DEFINE_TURBOFAN_CODE_STUB(CreateAllocationSite, TurboFanCodeStub);
+};
+
+class CreateWeakCellStub : public TurboFanCodeStub {
+ public:
+  explicit CreateWeakCellStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateWeakCell);
+  DEFINE_TURBOFAN_CODE_STUB(CreateWeakCell, TurboFanCodeStub);
+};
+
 class GrowArrayElementsStub : public TurboFanCodeStub {
  public:
   GrowArrayElementsStub(Isolate* isolate, ElementsKind kind)
@@ -694,6 +723,27 @@ class MathPowStub: public PlatformCodeStub {
   class ExponentTypeBits : public BitField<ExponentType, 0, 2> {};
 
   DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
+};
+
+class CallICStub : public TurboFanCodeStub {
+ public:
+  CallICStub(Isolate* isolate, ConvertReceiverMode convert_mode)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = ConvertModeBits::encode(convert_mode);
+  }
+
+  ConvertReceiverMode convert_mode() const {
+    return ConvertModeBits::decode(minor_key_);
+  }
+
+ protected:
+  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
+
+ private:
+  void PrintState(std::ostream& os) const final;  // NOLINT
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallIC);
+  DEFINE_TURBOFAN_CODE_STUB(CallIC, TurboFanCodeStub);
 };
 
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
@@ -943,6 +993,15 @@ class JSEntryStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
 };
 
+// TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
+class CallConstructStub final : public PlatformCodeStub {
+ public:
+  explicit CallConstructStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
+  DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);
+};
+
 
 enum ReceiverCheckMode {
   // We don't know anything about the receiver.
@@ -1016,6 +1075,15 @@ class StringCharCodeAtGenerator {
   Label exit_;
 
   DISALLOW_COPY_AND_ASSIGN(StringCharCodeAtGenerator);
+};
+
+class CallICTrampolineStub : public CallICStub {
+ public:
+  CallICTrampolineStub(Isolate* isolate, ConvertReceiverMode convert_mode)
+      : CallICStub(isolate, convert_mode) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallICTrampoline);
+  DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, CallICStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {

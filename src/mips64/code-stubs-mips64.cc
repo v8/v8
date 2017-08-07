@@ -850,6 +850,8 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
+  CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
+  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
@@ -1233,6 +1235,172 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Return.
   __ Jump(ra);
 }
+
+
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+  // a0 : number of arguments to the construct function
+  // a2 : feedback vector
+  // a3 : slot in feedback vector (Smi)
+  // a1 : the function to call
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  const RegList kSavedRegs = 1 << 4 |  // a0
+                             1 << 5 |  // a1
+                             1 << 6 |  // a2
+                             1 << 7 |  // a3
+                             1 << cp.code();
+
+  // Number-of-arguments register must be smi-tagged to call out.
+  __ SmiTag(a0);
+  __ MultiPush(kSavedRegs);
+
+  __ CallStub(stub);
+
+  __ MultiPop(kSavedRegs);
+  __ SmiUntag(a0);
+}
+
+
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
+  // Cache the called function in a feedback vector slot.  Cache states
+  // are uninitialized, monomorphic (indicated by a JSFunction), and
+  // megamorphic.
+  // a0 : number of arguments to the construct function
+  // a1 : the function to call
+  // a2 : feedback vector
+  // a3 : slot in feedback vector (Smi)
+  Label initialize, done, miss, megamorphic, not_array_function;
+
+  DCHECK_EQ(*FeedbackVector::MegamorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->megamorphic_symbol());
+  DCHECK_EQ(*FeedbackVector::UninitializedSentinel(masm->isolate()),
+            masm->isolate()->heap()->uninitialized_symbol());
+
+  // Load the cache state into a5.
+  __ dsrl(a5, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a5, a2, Operand(a5));
+  __ Ld(a5, FieldMemOperand(a5, FeedbackVector::kFeedbackSlotsOffset));
+
+  // A monomorphic cache hit or an already megamorphic state: invoke the
+  // function without changing the state.
+  // We don't know if a5 is a WeakCell or a Symbol, but it's harmless to read at
+  // this position in a symbol (see static asserts in feedback-vector.h).
+  Label check_allocation_site;
+  Register feedback_map = a6;
+  Register weak_value = t0;
+  __ Ld(weak_value, FieldMemOperand(a5, WeakCell::kValueOffset));
+  __ Branch(&done, eq, a1, Operand(weak_value));
+  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
+  __ Branch(&done, eq, a5, Operand(at));
+  __ Ld(feedback_map, FieldMemOperand(a5, HeapObject::kMapOffset));
+  __ LoadRoot(at, Heap::kWeakCellMapRootIndex);
+  __ Branch(&check_allocation_site, ne, feedback_map, Operand(at));
+
+  // If the weak cell is cleared, we have a new chance to become monomorphic.
+  __ JumpIfSmi(weak_value, &initialize);
+  __ jmp(&megamorphic);
+
+  __ bind(&check_allocation_site);
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the slot either some other function or an
+  // AllocationSite.
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&miss, ne, feedback_map, Operand(at));
+
+  // Make sure the function is the Array() function
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, a5);
+  __ Branch(&megamorphic, ne, a1, Operand(a5));
+  __ jmp(&done);
+
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ LoadRoot(at, Heap::kuninitialized_symbolRootIndex);
+  __ Branch(&initialize, eq, a5, Operand(at));
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
+  __ bind(&megamorphic);
+  __ dsrl(a5, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a5, a2, Operand(a5));
+  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
+  __ Sd(at, FieldMemOperand(a5, FeedbackVector::kFeedbackSlotsOffset));
+  __ jmp(&done);
+
+  // An uninitialized cache is patched with the function.
+  __ bind(&initialize);
+  // Make sure the function is the Array() function.
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, a5);
+  __ Branch(&not_array_function, ne, a1, Operand(a5));
+
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the
+  // slot.
+  CreateAllocationSiteStub create_stub(masm->isolate());
+  CallStubInRecordCallTarget(masm, &create_stub);
+  __ Branch(&done);
+
+  __ bind(&not_array_function);
+
+  CreateWeakCellStub weak_cell_stub(masm->isolate());
+  CallStubInRecordCallTarget(masm, &weak_cell_stub);
+
+  __ bind(&done);
+
+  // Increment the call count for all function calls.
+  __ SmiScale(a4, a3, kPointerSizeLog2);
+  __ Daddu(a5, a2, Operand(a4));
+  __ Ld(a4, FieldMemOperand(
+                a5, FeedbackVector::kFeedbackSlotsOffset + kPointerSize));
+  __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
+  __ Sd(a4, FieldMemOperand(
+                a5, FeedbackVector::kFeedbackSlotsOffset + kPointerSize));
+}
+
+
+void CallConstructStub::Generate(MacroAssembler* masm) {
+  // a0 : number of arguments
+  // a1 : the function to call
+  // a2 : feedback vector
+  // a3 : slot in feedback vector (Smi, for RecordCallTarget)
+
+  Label non_function;
+  // Check that the function is not a smi.
+  __ JumpIfSmi(a1, &non_function);
+  // Check that the function is a JSFunction.
+  __ GetObjectType(a1, a5, a5);
+  __ Branch(&non_function, ne, a5, Operand(JS_FUNCTION_TYPE));
+
+  GenerateRecordCallTarget(masm);
+
+  __ dsrl(at, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a5, a2, at);
+  Label feedback_register_initialized;
+  // Put the AllocationSite from the feedback vector into a2, or undefined.
+  __ Ld(a2, FieldMemOperand(a5, FeedbackVector::kFeedbackSlotsOffset));
+  __ Ld(a5, FieldMemOperand(a2, AllocationSite::kMapOffset));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&feedback_register_initialized, eq, a5, Operand(at));
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+  __ bind(&feedback_register_initialized);
+
+  __ AssertUndefinedOrAllocationSite(a2, a5);
+
+  // Pass function as new target.
+  __ mov(a3, a1);
+
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ Ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(a4, FieldMemOperand(a4, SharedFunctionInfo::kConstructStubOffset));
+  __ Daddu(at, a4, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(at);
+
+  __ bind(&non_function);
+  __ mov(a3, a1);
+  __ Jump(BUILTIN_CODE(isolate(), Construct), RelocInfo::CODE_TARGET);
+}
+
 
 // StringCharCodeAtGenerator.
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {

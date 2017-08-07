@@ -1587,7 +1587,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     VisitForStackValue(args->at(i));
   }
   SetCallPosition(expr);
-  Handle<Code> code = CodeFactory::Call(isolate(), mode).code();
+  Handle<Code> code = CodeFactory::CallICTrampoline(isolate(), mode).code();
+  __ Load(r5, Operand(IntFromSlot(expr->CallFeedbackICSlot())));
   __ LoadP(r3, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
   __ mov(r2, Operand(arg_count));
   CallIC(code);
@@ -1619,10 +1620,17 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   SetConstructCallPosition(expr);
-  Handle<Code> code = CodeFactory::Construct(isolate()).code();
+
+  // Load function and argument count into r3 and r2.
   __ mov(r2, Operand(arg_count));
   __ LoadP(r3, MemOperand(sp, arg_count * kPointerSize), r0);
-  CallIC(code);
+
+  // Record call targets in unoptimized code.
+  __ EmitLoadFeedbackVector(r4);
+  __ LoadSmiLiteral(r5, SmiFromSlot(expr->CallNewFeedbackSlot()));
+
+  CallConstructStub stub(isolate());
+  CallIC(stub.GetCode());
   OperandStackDepthDecrement(arg_count + 1);
   RestoreContext();
   context()->Plug(r2);

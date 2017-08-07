@@ -782,6 +782,8 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
+  CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
+  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
@@ -1171,6 +1173,171 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 #endif
 
   __ b(r14);
+}
+
+
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+  // r2 : number of arguments to the construct function
+  // r3 : the function to call
+  // r4 : feedback vector
+  // r5 : slot in feedback vector (Smi)
+  FrameScope scope(masm, StackFrame::INTERNAL);
+
+  // Number-of-arguments register must be smi-tagged to call out.
+  __ SmiTag(r2);
+  __ Push(r5, r4, r3, r2);
+  __ Push(cp);
+
+  __ CallStub(stub);
+
+  __ Pop(cp);
+  __ Pop(r5, r4, r3, r2);
+  __ SmiUntag(r2);
+}
+
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
+  // Cache the called function in a feedback vector slot.  Cache states
+  // are uninitialized, monomorphic (indicated by a JSFunction), and
+  // megamorphic.
+  // r2 : number of arguments to the construct function
+  // r3 : the function to call
+  // r4 : feedback vector
+  // r5 : slot in feedback vector (Smi)
+  Label initialize, done, miss, megamorphic, not_array_function;
+
+  DCHECK_EQ(*FeedbackVector::MegamorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->megamorphic_symbol());
+  DCHECK_EQ(*FeedbackVector::UninitializedSentinel(masm->isolate()),
+            masm->isolate()->heap()->uninitialized_symbol());
+
+  const int count_offset = FeedbackVector::kFeedbackSlotsOffset + kPointerSize;
+
+  // Load the cache state into r7.
+  __ SmiToPtrArrayOffset(r7, r5);
+  __ AddP(r7, r4, r7);
+  __ LoadP(r7, FieldMemOperand(r7, FeedbackVector::kFeedbackSlotsOffset));
+
+  // A monomorphic cache hit or an already megamorphic state: invoke the
+  // function without changing the state.
+  // We don't know if r7 is a WeakCell or a Symbol, but it's harmless to read at
+  // this position in a symbol (see static asserts in feedback-vector.h).
+  Label check_allocation_site;
+  Register feedback_map = r8;
+  Register weak_value = r9;
+  __ LoadP(weak_value, FieldMemOperand(r7, WeakCell::kValueOffset));
+  __ CmpP(r3, weak_value);
+  __ beq(&done, Label::kNear);
+  __ CompareRoot(r7, Heap::kmegamorphic_symbolRootIndex);
+  __ beq(&done, Label::kNear);
+  __ LoadP(feedback_map, FieldMemOperand(r7, HeapObject::kMapOffset));
+  __ CompareRoot(feedback_map, Heap::kWeakCellMapRootIndex);
+  __ bne(&check_allocation_site);
+
+  // If the weak cell is cleared, we have a new chance to become monomorphic.
+  __ JumpIfSmi(weak_value, &initialize);
+  __ b(&megamorphic);
+
+  __ bind(&check_allocation_site);
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the slot either some other function or an
+  // AllocationSite.
+  __ CompareRoot(feedback_map, Heap::kAllocationSiteMapRootIndex);
+  __ bne(&miss);
+
+  // Make sure the function is the Array() function
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r7);
+  __ CmpP(r3, r7);
+  __ bne(&megamorphic);
+  __ b(&done, Label::kNear);
+
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ CompareRoot(r7, Heap::kuninitialized_symbolRootIndex);
+  __ beq(&initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
+  __ bind(&megamorphic);
+  __ SmiToPtrArrayOffset(r7, r5);
+  __ AddP(r7, r4, r7);
+  __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
+  __ StoreP(ip, FieldMemOperand(r7, FeedbackVector::kFeedbackSlotsOffset), r0);
+  __ jmp(&done);
+
+  // An uninitialized cache is patched with the function
+  __ bind(&initialize);
+
+  // Make sure the function is the Array() function.
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r7);
+  __ CmpP(r3, r7);
+  __ bne(&not_array_function);
+
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the
+  // slot.
+  CreateAllocationSiteStub create_stub(masm->isolate());
+  CallStubInRecordCallTarget(masm, &create_stub);
+  __ b(&done, Label::kNear);
+
+  __ bind(&not_array_function);
+
+  CreateWeakCellStub weak_cell_stub(masm->isolate());
+  CallStubInRecordCallTarget(masm, &weak_cell_stub);
+
+  __ bind(&done);
+
+  // Increment the call count for all function calls.
+  __ SmiToPtrArrayOffset(r7, r5);
+  __ AddP(r7, r4, r7);
+
+  __ LoadP(r6, FieldMemOperand(r7, count_offset));
+  __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
+  __ StoreP(r6, FieldMemOperand(r7, count_offset), r0);
+}
+
+void CallConstructStub::Generate(MacroAssembler* masm) {
+  // r2 : number of arguments
+  // r3 : the function to call
+  // r4 : feedback vector
+  // r5 : slot in feedback vector (Smi, for RecordCallTarget)
+
+  Label non_function;
+  // Check that the function is not a smi.
+  __ JumpIfSmi(r3, &non_function);
+  // Check that the function is a JSFunction.
+  __ CompareObjectType(r3, r7, r7, JS_FUNCTION_TYPE);
+  __ bne(&non_function);
+
+  GenerateRecordCallTarget(masm);
+
+  __ SmiToPtrArrayOffset(r7, r5);
+  __ AddP(r7, r4, r7);
+  // Put the AllocationSite from the feedback vector into r4, or undefined.
+  __ LoadP(r4, FieldMemOperand(r7, FeedbackVector::kFeedbackSlotsOffset));
+  __ LoadP(r7, FieldMemOperand(r4, AllocationSite::kMapOffset));
+  __ CompareRoot(r7, Heap::kAllocationSiteMapRootIndex);
+  Label feedback_register_initialized;
+  __ beq(&feedback_register_initialized);
+  __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
+  __ bind(&feedback_register_initialized);
+
+  __ AssertUndefinedOrAllocationSite(r4, r7);
+
+  // Pass function as new target.
+  __ LoadRR(r5, r3);
+
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kConstructStubOffset));
+  __ AddP(ip, r6, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ JumpToJSEntry(ip);
+
+  __ bind(&non_function);
+  __ LoadRR(r5, r3);
+  __ Jump(BUILTIN_CODE(isolate(), Construct), RelocInfo::CODE_TARGET);
 }
 
 // StringCharCodeAtGenerator
