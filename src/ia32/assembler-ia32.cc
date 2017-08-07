@@ -2707,16 +2707,6 @@ void Assembler::psrlq(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::pshufb(XMMRegister dst, const Operand& src) {
-  DCHECK(IsEnabled(SSSE3));
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x38);
-  EMIT(0x00);
-  emit_sse_operand(dst, src);
-}
-
 void Assembler::pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -3066,6 +3056,17 @@ void Assembler::sse2_instr(XMMRegister dst, const Operand& src, byte prefix,
   EnsureSpace ensure_space(this);
   EMIT(prefix);
   EMIT(escape);
+  EMIT(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::ssse3_instr(XMMRegister dst, const Operand& src, byte prefix,
+                            byte escape1, byte escape2, byte opcode) {
+  DCHECK(IsEnabled(SSSE3));
+  EnsureSpace ensure_space(this);
+  EMIT(prefix);
+  EMIT(escape1);
+  EMIT(escape2);
   EMIT(opcode);
   emit_sse_operand(dst, src);
 }

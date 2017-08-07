@@ -530,11 +530,14 @@ TEST(DisasmIa320) {
     __ cmov(greater, eax, Operand(edx, 3));
   }
 
+#define EMIT_SSE34_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
+  __ instruction(xmm5, xmm1);                                                 \
+  __ instruction(xmm5, Operand(edx, 4));
+
   {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
-      __ pshufb(xmm5, xmm1);
-      __ pshufb(xmm5, Operand(edx, 4));
+      SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
 
@@ -553,14 +556,10 @@ TEST(DisasmIa320) {
       __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
 
-#define EMIT_SSE4_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
-  __ instruction(xmm5, xmm1);                                                \
-  __ instruction(xmm5, Operand(edx, 4));
-
-      SSE4_INSTRUCTION_LIST(EMIT_SSE4_INSTR)
-#undef EMIT_SSE4_INSTR
+      SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
+#undef EMIT_SSE34_INSTR
 
   // AVX instruction
   {
@@ -646,8 +645,6 @@ TEST(DisasmIa320) {
       __ vpsraw(xmm0, xmm7, 21);
       __ vpsrad(xmm0, xmm7, 21);
 
-      __ vpshufb(xmm5, xmm0, xmm1);
-      __ vpshufb(xmm5, xmm0, Operand(edx, 4));
       __ vpshuflw(xmm5, xmm1, 5);
       __ vpshuflw(xmm5, Operand(edx, 4), 5);
       __ vpshufd(xmm5, xmm1, 5);
@@ -681,13 +678,14 @@ TEST(DisasmIa320) {
       SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
 #undef EMIT_SSE2_AVXINSTR
 
-#define EMIT_SSE4_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
-                           notUsed4)                                  \
-  __ v##instruction(xmm7, xmm5, xmm1);                                \
+#define EMIT_SSE34_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                            notUsed4)                                  \
+  __ v##instruction(xmm7, xmm5, xmm1);                                 \
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));
 
-      SSE4_INSTRUCTION_LIST(EMIT_SSE4_AVXINSTR)
-#undef EMIT_SSE4_AVXINSTR
+      SSSE3_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
+      SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
+#undef EMIT_SSE34_AVXINSTR
     }
   }
 
