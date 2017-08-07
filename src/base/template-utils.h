@@ -62,6 +62,22 @@ A implicit_cast(A x) {
   return x;
 }
 
+// Helper to determine how to pass values: Pass scalars and arrays by value,
+// others by const reference (even if it was a non-const ref before; this is
+// disallowed by the style guide anyway).
+// The default is to also remove array extends (int[5] -> int*), but this can be
+// disabled by setting {remove_array_extend} to false.
+template <typename T, bool remove_array_extend = true>
+struct pass_value_or_ref {
+  using noref_t = typename std::remove_reference<T>::type;
+  using decay_t = typename std::conditional<
+      std::is_array<noref_t>::value && !remove_array_extend, noref_t,
+      typename std::decay<noref_t>::type>::type;
+  using type = typename std::conditional<std::is_scalar<decay_t>::value ||
+                                             std::is_array<decay_t>::value,
+                                         decay_t, const decay_t&>::type;
+};
+
 }  // namespace base
 }  // namespace v8
 

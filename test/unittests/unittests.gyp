@@ -34,6 +34,7 @@
       'base/platform/semaphore-unittest.cc',
       'base/platform/time-unittest.cc',
       'base/sys-info-unittest.cc',
+      'base/template-utils-unittest.cc',
       'base/utils/random-number-generator-unittest.cc',
       'cancelable-tasks-unittest.cc',
       'char-predicates-unittest.cc',
