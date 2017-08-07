@@ -4755,7 +4755,7 @@ class ContextExtension : public Struct {
 
 enum BuiltinFunctionId {
   kInvalidBuiltinFunctionId = -1,
-  kArrayCode,
+  kArrayConstructor,
 #define DECL_FUNCTION_ID(ignored1, ignore2, name) k##name,
   FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)
       ATOMIC_FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)

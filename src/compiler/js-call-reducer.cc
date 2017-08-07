@@ -64,24 +64,12 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   Node* target = NodeProperties::GetValueInput(node, 0);
   CallParameters const& p = CallParametersOf(node->op());
 
-  // Check if we have an allocation site from the CallIC.
-  Handle<AllocationSite> site;
-  if (p.feedback().IsValid()) {
-    CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-    Handle<Object> feedback(nexus.GetFeedback(), isolate());
-    if (feedback->IsAllocationSite()) {
-      site = Handle<AllocationSite>::cast(feedback);
-    }
-  }
-
   // Turn the {node} into a {JSCreateArray} call.
   DCHECK_LE(2u, p.arity());
+  Handle<AllocationSite> site;
   size_t const arity = p.arity() - 2;
   NodeProperties::ReplaceValueInput(node, target, 0);
   NodeProperties::ReplaceValueInput(node, target, 1);
-  // TODO(bmeurer): We might need to propagate the tail call mode to
-  // the JSCreateArray operator, because an Array call in tail call
-  // position must always properly consume the parent stack frame.
   NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
   return Changed(node);
 }
@@ -1235,6 +1223,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
       // Check for known builtin functions.
       switch (shared->code()->builtin_index()) {
+        case Builtins::kArrayConstructor:
+          return ReduceArrayConstructor(node);
         case Builtins::kBooleanConstructor:
           return ReduceBooleanConstructor(node);
         case Builtins::kFunctionPrototypeApply:
@@ -1265,11 +1255,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceReturnReceiver(node);
         default:
           break;
-      }
-
-      // Check for the Array constructor.
-      if (*function == function->native_context()->array_function()) {
-        return ReduceArrayConstructor(node);
       }
 
       if (!FLAG_runtime_stats && shared->IsApiFunction()) {
@@ -1330,21 +1315,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   }
 
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
-  if (feedback->IsAllocationSite()) {
-    // Retrieve the Array function from the {node}.
-    Node* array_function = jsgraph()->HeapConstant(
-        handle(native_context()->array_function(), isolate()));
-
-    // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
-                                   array_function);
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
-
-    // Turn the {node} into a {JSCreateArray} call.
-    NodeProperties::ReplaceValueInput(node, array_function, 0);
-    NodeProperties::ReplaceEffectInput(node, effect);
-    return ReduceArrayConstructor(node);
-  } else if (feedback->IsWeakCell()) {
+  if (feedback->IsWeakCell()) {
     // Check if we want to use CallIC feedback here.
     if (!ShouldUseCallICFeedback(target)) return NoChange();
 

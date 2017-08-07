@@ -66,13 +66,13 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                              exit_frame_type == BUILTIN_EXIT);
 }
 
-void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
+void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0     : number of arguments
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_InternalArrayCode");
+  ASM_LOCATION("Builtins::Generate_InternalArrayConstructor");
   Label generic_array_code;
 
   // Get the InternalArray function.
@@ -93,13 +93,13 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
   __ TailCallStub(&stub);
 }
 
-void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
+void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0     : number of arguments
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_ArrayCode");
+  ASM_LOCATION("Builtins::Generate_ArrayConstructor");
   Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
 
   // Get the Array function.

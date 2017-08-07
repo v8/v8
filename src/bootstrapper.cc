@@ -1502,12 +1502,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- A r r a y ---
-    Handle<JSFunction> array_function =
-        InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
-                        isolate->initial_object_prototype(),
-                        Builtins::kArrayCode);
+    Handle<JSFunction> array_function = InstallFunction(
+        global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
+        isolate->initial_object_prototype(), Builtins::kArrayConstructor);
     array_function->shared()->DontAdaptArguments();
-    array_function->shared()->set_builtin_function_id(kArrayCode);
+    array_function->shared()->set_builtin_function_id(kArrayConstructor);
 
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.
@@ -4308,7 +4307,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   Handle<JSFunction> array_function =
       InstallFunction(target, name, JS_ARRAY_TYPE, JSArray::kSize, prototype,
-                      Builtins::kInternalArrayCode);
+                      Builtins::kInternalArrayConstructor);
 
   InternalArrayConstructorStub internal_array_constructor_stub(isolate());
   Handle<Code> code = internal_array_constructor_stub.GetCode();

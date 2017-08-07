@@ -272,8 +272,8 @@ namespace internal {
   TFJ(ReturnReceiver, 0)                                                       \
                                                                                \
   /* Array */                                                                  \
-  ASM(ArrayCode)                                                               \
-  ASM(InternalArrayCode)                                                       \
+  ASM(ArrayConstructor)                                                        \
+  ASM(InternalArrayConstructor)                                                \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kArg)                                                   \
