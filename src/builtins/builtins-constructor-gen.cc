@@ -25,12 +25,14 @@ void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
 
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructForwardVarargs(
-      masm, BUILTIN_CODE(masm->isolate(), Construct));
+      masm, CallOrConstructMode::kConstruct,
+      BUILTIN_CODE(masm->isolate(), Construct));
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructForwardVarargs(
-      masm, BUILTIN_CODE(masm->isolate(), ConstructFunction));
+      masm, CallOrConstructMode::kConstruct,
+      BUILTIN_CODE(masm->isolate(), ConstructFunction));
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {

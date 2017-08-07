@@ -2200,6 +2200,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
 // static
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                      CallOrConstructMode mode,
                                                       Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments (not including the receiver)
@@ -2207,6 +2208,24 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   //  -- x1 : the target to call (can be any Object)
   //  -- x2 : start index (to support rest parameters)
   // -----------------------------------
+
+  // Check if new.target has a [[Construct]] internal method.
+  if (mode == CallOrConstructMode::kConstruct) {
+    Label new_target_constructor, new_target_not_constructor;
+    __ JumpIfSmi(x3, &new_target_not_constructor);
+    __ Ldr(x5, FieldMemOperand(x3, HeapObject::kMapOffset));
+    __ Ldrb(x5, FieldMemOperand(x5, Map::kBitFieldOffset));
+    __ TestAndBranchIfAnySet(x5, 1 << Map::kIsConstructor,
+                             &new_target_constructor);
+    __ Bind(&new_target_not_constructor);
+    {
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ EnterFrame(StackFrame::INTERNAL);
+      __ Push(x3);
+      __ CallRuntime(Runtime::kThrowNotConstructor);
+    }
+    __ Bind(&new_target_constructor);
+  }
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
