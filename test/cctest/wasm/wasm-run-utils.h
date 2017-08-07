@@ -69,9 +69,10 @@ using namespace v8::internal::wasm;
 
 const uint32_t kMaxGlobalsSize = 128;
 
-// A helper for module environments that adds the ability to allocate memory
-// and global variables. Contains a built-in {WasmModule} and
-// {WasmInstance}.
+// A buildable ModuleEnv. Globals are pre-set, however, memory and code may be
+// progressively added by a test. In turn, we piecemeal update the runtime
+// objects, i.e. {WasmInstanceObject}, {WasmCompiledModule} and, if necessary,
+// the interpreter.
 class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(Zone* zone, WasmExecutionMode mode = kExecuteCompiled)
@@ -89,8 +90,7 @@ class TestingModule : public ModuleEnv {
     memset(global_data, 0, sizeof(global_data));
     instance_object_ = InitInstanceObject();
     if (mode == kExecuteInterpreted) {
-      interpreter_ =
-          WasmDebugInfo::SetupForTesting(instance_object_, &instance_);
+      interpreter_ = WasmDebugInfo::SetupForTesting(instance_object_);
     }
   }
 
@@ -113,6 +113,21 @@ class TestingModule : public ModuleEnv {
     CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
+    Handle<WasmCompiledModule> compiled_module =
+        handle(instance_object_->compiled_module());
+    Factory* factory = CcTest::i_isolate()->factory();
+    // It's not really necessary we recreate the Number objects,
+    // if we happened to have one, but this is a reasonable inefficiencly,
+    // given this is test.
+    WasmCompiledModule::recreate_embedded_mem_size(compiled_module, factory,
+                                                   instance->mem_size);
+    WasmCompiledModule::recreate_embedded_mem_start(
+        compiled_module, factory,
+        reinterpret_cast<size_t>(instance->mem_start));
+
+    if (interpreter_) {
+      interpreter_->UpdateMemory(instance->mem_start, instance->mem_size);
+    }
     return instance->mem_start;
   }
 
@@ -346,6 +361,12 @@ class TestingModule : public ModuleEnv {
     std::vector<Handle<FixedArray>> empty;
     Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
         isolate_, shared_module_data, code_table, empty, empty);
+    // This method is called when we initialize TestEnvironment. We don't
+    // have a memory yet, so we won't create it here. We'll update the
+    // interpreter when we get a memory. We do have globals, though.
+    WasmCompiledModule::recreate_globals_start(
+        compiled_module, isolate_->factory(),
+        reinterpret_cast<size_t>(instance->globals_start));
     Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
     compiled_module->set_weak_exported_functions(weak_exported);
     DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));

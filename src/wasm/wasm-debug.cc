@@ -95,10 +95,9 @@ InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
 
 class InterpreterHandle {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(InterpreterHandle);
-
-  WasmInstance instance_;
-  WasmInterpreter interpreter_;
   Isolate* isolate_;
+  const WasmModule* module_;
+  WasmInterpreter interpreter_;
   StepAction next_step_action_ = StepNone;
   int last_step_stack_depth_ = 0;
   std::unordered_map<Address, uint32_t> activations_;
@@ -132,50 +131,53 @@ class InterpreterHandle {
     return {frame_base, frame_limit};
   }
 
- public:
-  // Initialize in the right order, using helper methods to make this possible.
-  // WasmInterpreter has to be allocated in place, since it is not movable.
-  InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info,
-                    WasmInstance* external_instance = nullptr)
-      : instance_(debug_info->wasm_instance()->compiled_module()->module()),
-        interpreter_(isolate, GetBytesEnv(external_instance ? external_instance
-                                                            : &instance_,
-                                          debug_info)),
-        isolate_(isolate) {
-    DisallowHeapAllocation no_gc;
-
-    WasmInstanceObject* instance = debug_info->wasm_instance();
-
-    // Set memory start pointer and size.
-    instance_.mem_start = nullptr;
-    instance_.mem_size = 0;
-    if (instance->has_memory_buffer()) {
-      UpdateMemory(instance->memory_buffer());
-    } else {
-      DCHECK_EQ(0, instance_.module->min_mem_pages);
-    }
-
-    // Set pointer to globals storage.
-    instance_.globals_start =
-        debug_info->wasm_instance()->compiled_module()->GetGlobalsStartOrNull();
-  }
-
-  ~InterpreterHandle() {
-    DCHECK_EQ(0, activations_.size());
-  }
-
-  static ModuleBytesEnv GetBytesEnv(WasmInstance* instance,
-                                    WasmDebugInfo* debug_info) {
+  static Vector<const byte> GetBytes(WasmDebugInfo* debug_info) {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
     SeqOneByteString* bytes_str =
         debug_info->wasm_instance()->compiled_module()->module_bytes();
-    Vector<const byte> bytes(bytes_str->GetChars(), bytes_str->length());
-    return {instance->module, instance, bytes};
+    return {bytes_str->GetChars(), static_cast<size_t>(bytes_str->length())};
   }
 
+  static uint32_t GetMemSize(WasmDebugInfo* debug_info) {
+    DisallowHeapAllocation no_gc;
+    WasmCompiledModule* compiled_module =
+        debug_info->wasm_instance()->compiled_module();
+    return compiled_module->has_embedded_mem_size()
+               ? compiled_module->embedded_mem_size()
+               : 0;
+  }
+
+  static byte* GetMemStart(WasmDebugInfo* debug_info) {
+    DisallowHeapAllocation no_gc;
+    WasmCompiledModule* compiled_module =
+        debug_info->wasm_instance()->compiled_module();
+    return reinterpret_cast<byte*>(compiled_module->has_embedded_mem_start()
+                                       ? compiled_module->embedded_mem_start()
+                                       : 0);
+  }
+
+  static byte* GetGlobalsStart(WasmDebugInfo* debug_info) {
+    DisallowHeapAllocation no_gc;
+    WasmCompiledModule* compiled_module =
+        debug_info->wasm_instance()->compiled_module();
+    return reinterpret_cast<byte*>(compiled_module->has_globals_start()
+                                       ? compiled_module->globals_start()
+                                       : 0);
+  }
+
+ public:
+  InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
+      : isolate_(isolate),
+        module_(debug_info->wasm_instance()->compiled_module()->module()),
+        interpreter_(isolate, module_, GetBytes(debug_info),
+                     GetGlobalsStart(debug_info), GetMemStart(debug_info),
+                     GetMemSize(debug_info)) {}
+
+  ~InterpreterHandle() { DCHECK_EQ(0, activations_.size()); }
+
   WasmInterpreter* interpreter() { return &interpreter_; }
-  const WasmModule* module() { return instance_.module; }
+  const WasmModule* module() const { return module_; }
 
   void PrepareStep(StepAction step_action) {
     next_step_action_ = step_action;
@@ -647,11 +649,10 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
 }
 
 WasmInterpreter* WasmDebugInfo::SetupForTesting(
-    Handle<WasmInstanceObject> instance_obj, WasmInstance* instance) {
+    Handle<WasmInstanceObject> instance_obj) {
   Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
   Isolate* isolate = instance_obj->GetIsolate();
-  InterpreterHandle* cpp_handle =
-      new InterpreterHandle(isolate, *debug_info, instance);
+  InterpreterHandle* cpp_handle = new InterpreterHandle(isolate, *debug_info);
   Handle<Object> handle = Managed<InterpreterHandle>::New(isolate, cpp_handle);
   debug_info->set(kInterpreterHandleIndex, *handle);
   return cpp_handle->interpreter();

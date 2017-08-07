@@ -611,7 +611,7 @@ class WasmDebugInfo : public FixedArray {
   // WasmDebugInfo.
   // Use for testing only.
   V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
-      Handle<WasmInstanceObject>, wasm::WasmInstance*);
+      Handle<WasmInstanceObject>);
 
   // Set a breakpoint in the given function at the given byte offset within that
   // function. This will redirect all future calls to this function to the
