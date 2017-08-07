@@ -844,16 +844,6 @@ Running test: testPreciseBinaryCoverage
                                 startOffset : 1
                             }
                             [1] : {
-                                count : 1
-                                endOffset : 41
-                                startOffset : 32
-                            }
-                            [2] : {
-                                count : 1
-                                endOffset : 71
-                                startOffset : 41
-                            }
-                            [3] : {
                                 count : 0
                                 endOffset : 72
                                 startOffset : 71
@@ -939,13 +929,8 @@ Running test: testPreciseBinaryCoverage
                             }
                             [1] : {
                                 count : 1
-                                endOffset : 41
-                                startOffset : 32
-                            }
-                            [2] : {
-                                count : 1
                                 endOffset : 71
-                                startOffset : 41
+                                startOffset : 32
                             }
                         ]
                     }

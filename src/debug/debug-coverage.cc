@@ -354,6 +354,9 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
   function->has_block_coverage = true;
   function->blocks = GetSortedBlockData(isolate, info);
 
+  // If in binary mode, only report counts of 0/1.
+  if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
+
   // Remove duplicate singleton ranges, keeping the max count.
   MergeDuplicateSingletons(function);
 
@@ -371,8 +374,6 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
   // Filter out ranges of zero length.
   FilterEmptyRanges(function);
 
-  // If in binary mode, only report counts of 0/1.
-  if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
 
   // Reset all counters on the DebugInfo to zero.
   ResetAllBlockCounts(info);
