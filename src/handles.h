@@ -185,7 +185,6 @@ template <typename T>
 class MaybeHandle final {
  public:
   V8_INLINE MaybeHandle() {}
-  V8_INLINE ~MaybeHandle() {}
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.

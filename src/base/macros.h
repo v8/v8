@@ -189,6 +189,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 // TODO(all) Replace all uses of this macro with static_assert, remove macro.
 #define STATIC_ASSERT(test) static_assert(test, #test)
 
+// TODO(rongjie) Remove this workaround once we require gcc >= 5.0
+#if __GNUG__ && __GNUC__ < 5
+#define IS_TRIVIALLY_COPYABLE(T) \
+  (__has_trivial_copy(T) && __has_trivial_destructor(T))
+#else
+#define IS_TRIVIALLY_COPYABLE(T) std::is_trivially_copyable<T>::value
+#endif
 
 // The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
