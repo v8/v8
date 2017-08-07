@@ -6033,16 +6033,6 @@ void CodeStubAssembler::TryGetOwnProperty(
     Node* context, Node* receiver, Node* object, Node* map, Node* instance_type,
     Node* unique_name, Label* if_found_value, Variable* var_value,
     Label* if_not_found, Label* if_bailout) {
-  TryGetOwnProperty(context, receiver, object, map, instance_type, unique_name,
-                    if_found_value, var_value, nullptr, nullptr, if_not_found,
-                    if_bailout);
-}
-
-void CodeStubAssembler::TryGetOwnProperty(
-    Node* context, Node* receiver, Node* object, Node* map, Node* instance_type,
-    Node* unique_name, Label* if_found_value, Variable* var_value,
-    Variable* var_details, Variable* var_raw_value, Label* if_not_found,
-    Label* if_bailout) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
 
@@ -6051,11 +6041,8 @@ void CodeStubAssembler::TryGetOwnProperty(
 
   Label if_found_fast(this), if_found_dict(this), if_found_global(this);
 
-  VARIABLE(local_var_details, MachineRepresentation::kWord32);
-  if (!var_details) {
-    var_details = &local_var_details;
-  }
-  Variable* vars[] = {var_value, var_details};
+  VARIABLE(var_details, MachineRepresentation::kWord32);
+  Variable* vars[] = {var_value, &var_details};
   Label if_found(this, 2, vars);
 
   TryLookupProperty(object, map, instance_type, unique_name, &if_found_fast,
@@ -6067,14 +6054,14 @@ void CodeStubAssembler::TryGetOwnProperty(
     Node* name_index = var_entry.value();
 
     LoadPropertyFromFastObject(object, map, descriptors, name_index,
-                               var_details, var_value);
+                               &var_details, var_value);
     Goto(&if_found);
   }
   BIND(&if_found_dict);
   {
     Node* dictionary = var_meta_storage.value();
     Node* entry = var_entry.value();
-    LoadPropertyFromNameDictionary(dictionary, entry, var_details, var_value);
+    LoadPropertyFromNameDictionary(dictionary, entry, &var_details, var_value);
     Goto(&if_found);
   }
   BIND(&if_found_global);
@@ -6082,17 +6069,14 @@ void CodeStubAssembler::TryGetOwnProperty(
     Node* dictionary = var_meta_storage.value();
     Node* entry = var_entry.value();
 
-    LoadPropertyFromGlobalDictionary(dictionary, entry, var_details, var_value,
+    LoadPropertyFromGlobalDictionary(dictionary, entry, &var_details, var_value,
                                      if_not_found);
     Goto(&if_found);
   }
   // Here we have details and value which could be an accessor.
   BIND(&if_found);
   {
-    if (var_raw_value) {
-      var_raw_value->Bind(var_value->value());
-    }
-    Node* value = CallGetterIfAccessor(var_value->value(), var_details->value(),
+    Node* value = CallGetterIfAccessor(var_value->value(), var_details.value(),
                                        context, receiver, if_bailout);
     var_value->Bind(value);
     Goto(if_found_value);
