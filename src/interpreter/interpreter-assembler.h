@@ -363,6 +363,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   CodeStubAssembler::Variable bytecode_offset_;
   CodeStubAssembler::Variable interpreted_frame_pointer_;
   CodeStubAssembler::Variable bytecode_array_;
+  bool bytecode_array_valid_;
   CodeStubAssembler::Variable dispatch_table_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;

@@ -33,6 +33,7 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       bytecode_offset_(this, MachineType::PointerRepresentation()),
       interpreted_frame_pointer_(this, MachineType::PointerRepresentation()),
       bytecode_array_(this, MachineRepresentation::kTagged),
+      bytecode_array_valid_(true),
       dispatch_table_(this, MachineType::PointerRepresentation()),
       accumulator_(this, MachineRepresentation::kTagged),
       accumulator_use_(AccumulatorUse::kNone),
@@ -180,10 +181,9 @@ Node* InterpreterAssembler::BytecodeOffset() {
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
   // Force a re-load of the bytecode array after every call in case the debugger
   // has been activated.
-  if (made_call_ &&
-      (bytecode_array_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kBytecodeArray))) {
+  if (!bytecode_array_valid_) {
     bytecode_array_.Bind(LoadRegister(Register::bytecode_array()));
+    bytecode_array_valid_ = true;
   }
   return bytecode_array_.value();
 }
@@ -539,6 +539,7 @@ void InterpreterAssembler::CallPrologue() {
     DCHECK(stack_pointer_before_call_ == nullptr);
     stack_pointer_before_call_ = LoadStackPointer();
   }
+  bytecode_array_valid_ = false;
   made_call_ = true;
 }
 
