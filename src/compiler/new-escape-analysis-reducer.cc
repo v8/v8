@@ -47,6 +47,17 @@ Node* NewEscapeAnalysisReducer::MaybeGuard(Node* original, Node* replacement) {
   return replacement;
 }
 
+namespace {
+
+Node* SkipTypeGuards(Node* node) {
+  while (node->opcode() == IrOpcode::kTypeGuard) {
+    node = NodeProperties::GetValueInput(node, 0);
+  }
+  return node;
+}
+
+}  // namespace
+
 Node* NewEscapeAnalysisReducer::ObjectIdNode(const VirtualObject* vobject) {
   VirtualObject::Id id = vobject->id();
   if (id >= object_id_cache_.size()) object_id_cache_.resize(id + 1);
@@ -157,7 +168,7 @@ Node* NewEscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
     }
     return new_node.Get();
   } else if (const VirtualObject* vobject =
-                 analysis_result().GetVirtualObject(node)) {
+                 analysis_result().GetVirtualObject(SkipTypeGuards(node))) {
     if (vobject->HasEscaped()) return node;
     if (deduplicator->SeenBefore(vobject)) {
       return ObjectIdNode(vobject);
