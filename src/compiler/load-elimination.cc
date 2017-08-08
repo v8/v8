@@ -754,7 +754,6 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
@@ -772,15 +771,12 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
     if (field_index >= 0) {
       if (Node* replacement = state->LookupField(object, field_index)) {
         // Make sure we don't resurrect dead {replacement} nodes.
-        if (!replacement->IsDead()) {
-          // We might need to guard the {replacement} if the type of the
-          // {node} is more precise than the type of the {replacement}.
-          Type* const node_type = NodeProperties::GetType(node);
-          if (!NodeProperties::GetType(replacement)->Is(node_type)) {
-            replacement = graph()->NewNode(common()->TypeGuard(node_type),
-                                           replacement, control);
-            NodeProperties::SetType(replacement, node_type);
-          }
+        // Skip lowering if the type of the {replacement} node is not a subtype
+        // of the original {node}'s type.
+        // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
+        // these two types here once we properly handle {Type::None} everywhere.
+        if (!replacement->IsDead() && NodeProperties::GetType(replacement)
+                                          ->Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
@@ -837,7 +833,6 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const index = NodeProperties::GetValueInput(node, 1);
   Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -863,15 +858,12 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
       if (Node* replacement = state->LookupElement(
               object, index, access.machine_type.representation())) {
         // Make sure we don't resurrect dead {replacement} nodes.
-        if (!replacement->IsDead()) {
-          // We might need to guard the {replacement} if the type of the
-          // {node} is more precise than the type of the {replacement}.
-          Type* const node_type = NodeProperties::GetType(node);
-          if (!NodeProperties::GetType(replacement)->Is(node_type)) {
-            replacement = graph()->NewNode(common()->TypeGuard(node_type),
-                                           replacement, control);
-            NodeProperties::SetType(replacement, node_type);
-          }
+        // Skip lowering if the type of the {replacement} node is not a subtype
+        // of the original {node}'s type.
+        // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
+        // these two types here once we properly handle {Type::None} everywhere.
+        if (!replacement->IsDead() && NodeProperties::GetType(replacement)
+                                          ->Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
