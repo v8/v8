@@ -777,8 +777,6 @@ DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
 DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
-DEFINE_BOOL(trace_stub_failures, false,
-            "trace deoptimization of generated code stubs")
 
 DEFINE_BOOL(serialize_toplevel, true, "enable caching of toplevel scripts")
 DEFINE_BOOL(serialize_eager, false, "compile eagerly when caching scripts")

@@ -431,11 +431,6 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
-bool Deoptimizer::TraceEnabledFor(StackFrame::Type frame_type) {
-  return (frame_type == StackFrame::STUB) ? FLAG_trace_stub_failures
-                                          : FLAG_trace_deopt;
-}
-
 
 const char* Deoptimizer::MessageFor(BailoutType type) {
   switch (type) {
@@ -492,13 +487,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
     deoptimizing_throw_ = true;
   }
 
-  // For COMPILED_STUBs called from builtins, the function pointer is a SMI
-  // indicating an internal frame.
-  if (function->IsSmi()) {
-    function = nullptr;
-  }
   DCHECK(from != nullptr);
-  compiled_code_ = FindOptimizedCode(function);
+  compiled_code_ = FindOptimizedCode();
 #if DEBUG
   DCHECK(compiled_code_ != NULL);
   if (type == EAGER || type == SOFT || type == LAZY) {
@@ -506,12 +496,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   }
 #endif
 
-  StackFrame::Type frame_type = function == NULL
-      ? StackFrame::STUB
-      : StackFrame::JAVA_SCRIPT;
-  trace_scope_ = TraceEnabledFor(frame_type)
-                     ? new CodeTracer::Scope(isolate->GetCodeTracer())
-                     : NULL;
+  DCHECK(function->IsJSFunction());
+  trace_scope_ =
+      FLAG_trace_deopt ? new CodeTracer::Scope(isolate->GetCodeTracer()) : NULL;
 #ifdef DEBUG
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
@@ -538,14 +525,11 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   }
   unsigned size = ComputeInputFrameSize();
   int parameter_count =
-      function == nullptr
-          ? 0
-          : (function->shared()->internal_formal_parameter_count() + 1);
+      function->shared()->internal_formal_parameter_count() + 1;
   input_ = new (size) FrameDescription(size, parameter_count);
-  input_->SetFrameType(frame_type);
 }
 
-Code* Deoptimizer::FindOptimizedCode(JSFunction* function) {
+Code* Deoptimizer::FindOptimizedCode() {
   Code* compiled_code = FindDeoptimizingCode(from_);
   return (compiled_code == NULL)
              ? static_cast<Code*>(isolate_->FindCodeObject(from_))
@@ -841,7 +825,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   int parameter_count = shared->internal_formal_parameter_count() + 1;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
-  output_frame->SetFrameType(StackFrame::INTERPRETED);
 
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
@@ -1095,7 +1078,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   int parameter_count = height;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
-  output_frame->SetFrameType(StackFrame::ARGUMENTS_ADAPTOR);
 
   // Arguments adaptor can not be topmost.
   CHECK(frame_index < output_count_ - 1);
@@ -1238,7 +1220,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new (output_frame_size) FrameDescription(output_frame_size);
-  output_frame->SetFrameType(StackFrame::CONSTRUCT);
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
@@ -1440,7 +1421,6 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new (output_frame_size) FrameDescription(output_frame_size);
-  output_frame->SetFrameType(StackFrame::INTERNAL);
 
   // A frame for an accessor stub can not be bottommost.
   CHECK(frame_index > 0 && frame_index < output_count_);
