@@ -1720,7 +1720,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     Node* context = GetContext();
 
     // Collect the {function} feedback.
-    CollectCallFeedback(function, context, feedback_vector, slot_id);
+    CollectCallOrConstructFeedback(function, context, feedback_vector, slot_id);
 
     Node* result =
         CallJS(function, context, first_arg, args_count, receiver_mode);
@@ -1751,7 +1751,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     Node* context = GetContext();
 
     // Collect the {function} feedback.
-    CollectCallFeedback(function, context, feedback_vector, slot_id);
+    CollectCallOrConstructFeedback(function, context, feedback_vector, slot_id);
 
     std::array<Node*, Bytecodes::kMaxOperands + kBoilerplateParameterCount>
         temp;

@@ -564,24 +564,24 @@ Node* InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                  SKIP_WRITE_BARRIER, kPointerSize);
 }
 
-void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
-                                               Node* feedback_vector,
-                                               Node* slot_id) {
+void InterpreterAssembler::CollectCallOrConstructFeedback(
+    Node* target_or_new_target, Node* context, Node* feedback_vector,
+    Node* slot_id) {
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);
 
-  // Check if we have monomorphic {target} feedback already.
+  // Check if we have monomorphic {target_or_new_target} feedback already.
   Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
-  Branch(WordEqual(target, feedback_value), &done, &extra_checks);
+  Branch(WordEqual(target_or_new_target, feedback_value), &done, &extra_checks);
 
   BIND(&extra_checks);
   {
     Label check_initialized(this), initialize(this), mark_megamorphic(this);
 
-    // Check if it is a megamorphic target.
+    // Check if it is a megamorphic {target_or_new_target}.
     Comment("check if megamorphic");
     Node* is_megamorphic =
         WordEqual(feedback_element,
@@ -609,19 +609,21 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
 
     BIND(&initialize);
     {
-      // Check if {target} is a JSFunction in the current native context.
+      // Check if {target_or_new_target} is a JSFunction in the current native
+      // context.
       Comment("check if function in same native context");
-      GotoIf(TaggedIsSmi(target), &mark_megamorphic);
+      GotoIf(TaggedIsSmi(target_or_new_target), &mark_megamorphic);
       // TODO(bmeurer): Add support for arbitrary callables here, and
       // check via GetFunctionRealm (see src/objects.cc).
-      GotoIfNot(IsJSFunction(target), &mark_megamorphic);
+      GotoIfNot(IsJSFunction(target_or_new_target), &mark_megamorphic);
       Node* target_context =
-          LoadObjectField(target, JSFunction::kContextOffset);
+          LoadObjectField(target_or_new_target, JSFunction::kContextOffset);
       Node* target_native_context = LoadNativeContext(target_context);
       GotoIfNot(WordEqual(LoadNativeContext(context), target_native_context),
                 &mark_megamorphic);
 
-      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id), target);
+      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
+                                     target_or_new_target);
       Goto(&done);
     }
 
@@ -663,7 +665,7 @@ Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
                                              Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
-  CollectCallFeedback(function, context, feedback_vector, slot_id);
+  CollectCallOrConstructFeedback(function, context, feedback_vector, slot_id);
   Comment("call using CallWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
@@ -674,87 +676,58 @@ Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
                   first_arg, function);
 }
 
-Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
+Node* InterpreterAssembler::Construct(Node* target, Node* context,
                                       Node* new_target, Node* first_arg,
                                       Node* arg_count, Node* slot_id,
                                       Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  Variable return_value(this, MachineRepresentation::kTagged);
-  Variable allocation_feedback(this, MachineRepresentation::kTagged);
-  Label call_construct_function(this, &allocation_feedback),
-      extra_checks(this, Label::kDeferred), call_construct(this), end(this);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_site, MachineRepresentation::kTagged);
+  Label extra_checks(this, Label::kDeferred), return_result(this, &var_result),
+      construct(this), construct_array(this, &var_site);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);
 
-  // Check that the constructor is not a smi.
-  Node* is_smi = TaggedIsSmi(constructor);
-  GotoIf(is_smi, &call_construct);
-
-  // Check that constructor is a JSFunction.
-  Node* instance_type = LoadInstanceType(constructor);
-  Node* is_js_function =
-      Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE));
-  GotoIfNot(is_js_function, &call_construct);
-
-  // Check if it is a monomorphic constructor.
+  // Check if we have monomorphic {new_target} feedback already.
   Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
-  Node* is_monomorphic = WordEqual(constructor, feedback_value);
-  allocation_feedback.Bind(UndefinedConstant());
-  Branch(is_monomorphic, &call_construct_function, &extra_checks);
-
-  BIND(&call_construct_function);
-  {
-    Comment("construct using ConstructFunction");
-    Callable callable_function = CodeFactory::InterpreterPushArgsThenConstruct(
-        isolate(), InterpreterPushArgsMode::kJSFunction);
-    return_value.Bind(CallStub(callable_function.descriptor(),
-                               HeapConstant(callable_function.code()), context,
-                               arg_count, new_target, constructor,
-                               allocation_feedback.value(), first_arg));
-    Goto(&end);
-  }
+  Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
 
   BIND(&extra_checks);
   {
     Label check_allocation_site(this), check_initialized(this),
         initialize(this), mark_megamorphic(this);
 
-    // Check if it is a megamorphic target.
+    // Check if it is a megamorphic {new_target}..
     Comment("check if megamorphic");
     Node* is_megamorphic =
         WordEqual(feedback_element,
                   HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
-    GotoIf(is_megamorphic, &call_construct_function);
+    GotoIf(is_megamorphic, &construct);
 
     Comment("check if weak cell");
-    Node* is_weak_cell = WordEqual(LoadMap(feedback_element),
-                                   LoadRoot(Heap::kWeakCellMapRootIndex));
-    GotoIfNot(is_weak_cell, &check_allocation_site);
+    Node* feedback_element_map = LoadMap(feedback_element);
+    GotoIfNot(IsWeakCellMap(feedback_element_map), &check_allocation_site);
 
-    // If the weak cell is cleared, we have a new chance to become
-    // monomorphic.
+    // If the weak cell is cleared, we have a new chance to become monomorphic.
     Comment("check if weak cell is cleared");
     Node* is_smi = TaggedIsSmi(feedback_value);
     Branch(is_smi, &initialize, &mark_megamorphic);
 
     BIND(&check_allocation_site);
     {
-      Comment("check if it is an allocation site");
-      Node* is_allocation_site =
-          WordEqual(LoadObjectField(feedback_element, 0),
-                    LoadRoot(Heap::kAllocationSiteMapRootIndex));
-      GotoIfNot(is_allocation_site, &check_initialized);
+      // Check if it is an AllocationSite.
+      Comment("check if allocation site");
+      GotoIfNot(IsAllocationSiteMap(feedback_element_map), &check_initialized);
 
-      // Make sure the function is the Array() function.
-      Node* context_slot = LoadContextElement(LoadNativeContext(context),
-                                              Context::ARRAY_FUNCTION_INDEX);
-      Node* is_array_function = WordEqual(context_slot, constructor);
-      GotoIfNot(is_array_function, &mark_megamorphic);
-
-      allocation_feedback.Bind(feedback_element);
-      Goto(&call_construct_function);
+      // Make sure that {target} and {new_target} are the Array constructor.
+      Node* array_function = LoadContextElement(LoadNativeContext(context),
+                                                Context::ARRAY_FUNCTION_INDEX);
+      GotoIfNot(WordEqual(target, array_function), &mark_megamorphic);
+      GotoIfNot(WordEqual(new_target, array_function), &mark_megamorphic);
+      var_site.Bind(feedback_element);
+      Goto(&construct_array);
     }
 
     BIND(&check_initialized);
@@ -768,28 +741,40 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
 
     BIND(&initialize);
     {
+      // Check if {new_target} is a JSFunction in the current native context.
       Label create_allocation_site(this), create_weak_cell(this);
-      Comment("initialize the feedback element");
-      // Create an allocation site if the function is an array function,
-      // otherwise create a weak cell.
-      Node* context_slot = LoadContextElement(LoadNativeContext(context),
-                                              Context::ARRAY_FUNCTION_INDEX);
-      Node* is_array_function = WordEqual(context_slot, constructor);
-      Branch(is_array_function, &create_allocation_site, &create_weak_cell);
+      Comment("check if function in same native context");
+      GotoIf(TaggedIsSmi(new_target), &mark_megamorphic);
+      // TODO(bmeurer): Add support for arbitrary constructors here, and
+      // check via GetFunctionRealm (see src/objects.cc).
+      GotoIfNot(IsJSFunction(new_target), &mark_megamorphic);
+      Node* new_target_context =
+          LoadObjectField(new_target, JSFunction::kContextOffset);
+      Node* new_target_native_context = LoadNativeContext(new_target_context);
+      GotoIfNot(
+          WordEqual(LoadNativeContext(context), new_target_native_context),
+          &mark_megamorphic);
+
+      // Create an AllocationSite if {target} and {new_target} refer
+      // to the current native context's Array constructor.
+      GotoIfNot(WordEqual(target, new_target), &create_weak_cell);
+      Node* array_function = LoadContextElement(new_target_native_context,
+                                                Context::ARRAY_FUNCTION_INDEX);
+      Branch(WordEqual(target, array_function), &create_allocation_site,
+             &create_weak_cell);
 
       BIND(&create_allocation_site);
       {
-        Node* site = CreateAllocationSiteInFeedbackVector(feedback_vector,
-                                                          SmiTag(slot_id));
-        allocation_feedback.Bind(site);
-        Goto(&call_construct_function);
+        var_site.Bind(CreateAllocationSiteInFeedbackVector(feedback_vector,
+                                                           SmiTag(slot_id)));
+        Goto(&construct_array);
       }
 
       BIND(&create_weak_cell);
       {
         CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
-                                       constructor);
-        Goto(&call_construct_function);
+                                       new_target);
+        Goto(&construct);
       }
     }
 
@@ -803,39 +788,54 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
-      Goto(&call_construct_function);
+      Goto(&construct);
     }
   }
 
-  BIND(&call_construct);
+  BIND(&construct_array);
   {
+    // TODO(bmeurer): Introduce a dedicated builtin to deal with the Array
+    // constructor feedback collection inside of Ignition.
+    Comment("call using ConstructArray builtin");
+    Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
+        isolate(), InterpreterPushArgsMode::kJSFunction);
+    Node* code_target = HeapConstant(callable.code());
+    var_result.Bind(CallStub(callable.descriptor(), code_target, context,
+                             arg_count, new_target, target, var_site.value(),
+                             first_arg));
+    Goto(&return_result);
+  }
+
+  BIND(&construct);
+  {
+    // TODO(bmeurer): Remove the generic type_info parameter from the Construct.
     Comment("call using Construct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kOther);
     Node* code_target = HeapConstant(callable.code());
-    return_value.Bind(CallStub(callable.descriptor(), code_target, context,
-                               arg_count, new_target, constructor,
-                               UndefinedConstant(), first_arg));
-    Goto(&end);
+    var_result.Bind(CallStub(callable.descriptor(), code_target, context,
+                             arg_count, new_target, target, UndefinedConstant(),
+                             first_arg));
+    Goto(&return_result);
   }
 
-  BIND(&end);
-  return return_value.value();
+  BIND(&return_result);
+  return var_result.value();
 }
 
-Node* InterpreterAssembler::ConstructWithSpread(Node* constructor,
-                                                Node* context, Node* new_target,
+Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
+                                                Node* new_target,
                                                 Node* first_arg,
                                                 Node* arg_count, Node* slot_id,
                                                 Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  CollectCallFeedback(constructor, context, feedback_vector, slot_id);
+  CollectCallOrConstructFeedback(new_target, context, feedback_vector, slot_id);
   Comment("call using ConstructWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
   return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  new_target, constructor, UndefinedConstant(), first_arg);
+                  new_target, target, UndefinedConstant(), first_arg);
 }
 
 Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,

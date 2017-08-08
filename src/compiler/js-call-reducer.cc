@@ -1371,6 +1371,75 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  // Extract feedback from the {node} using the CallICNexus.
+  if (p.feedback().IsValid()) {
+    CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+    if (nexus.IsUninitialized()) {
+      if (flags() & kBailoutOnUninitialized) {
+        // Introduce a SOFT deopt if the construct {node} wasn't executed so
+        // far.
+        return ReduceSoftDeoptimize(
+            node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
+      }
+      return NoChange();
+    }
+
+    Handle<Object> feedback(nexus.GetFeedback(), isolate());
+    if (feedback->IsAllocationSite()) {
+      // The feedback is an AllocationSite, which means we have called the
+      // Array function and collected transition (and pretenuring) feedback
+      // for the resulting arrays.  This has to be kept in sync with the
+      // implementation in Ignition.
+      Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
+
+      // Retrieve the Array function from the {node}.
+      Node* array_function = jsgraph()->HeapConstant(
+          handle(native_context()->array_function(), isolate()));
+
+      // Check that the {target} is still the {array_function}.
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                     array_function);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+
+      // Turn the {node} into a {JSCreateArray} call.
+      NodeProperties::ReplaceEffectInput(node, effect);
+      for (int i = arity; i > 0; --i) {
+        NodeProperties::ReplaceValueInput(
+            node, NodeProperties::GetValueInput(node, i), i + 1);
+      }
+      NodeProperties::ReplaceValueInput(node, array_function, 1);
+      NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
+      return Changed(node);
+    } else if (feedback->IsWeakCell()) {
+      // Check if we want to use CallIC feedback here.
+      if (!ShouldUseCallICFeedback(new_target)) return NoChange();
+
+      Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
+      if (cell->value()->IsConstructor()) {
+        Node* new_target_feedback =
+            jsgraph()->Constant(handle(cell->value(), isolate()));
+
+        // Check that the {new_target} is still the {new_target_feedback}.
+        Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                       new_target, new_target_feedback);
+        effect =
+            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+
+        // Specialize the JSConstruct node to the {new_target_feedback}.
+        NodeProperties::ReplaceValueInput(node, new_target_feedback, arity + 1);
+        NodeProperties::ReplaceEffectInput(node, effect);
+        if (target == new_target) {
+          NodeProperties::ReplaceValueInput(node, new_target_feedback, 0);
+        }
+
+        // Try to further reduce the JSConstruct {node}.
+        Reduction const reduction = ReduceJSConstruct(node);
+        return reduction.Changed() ? reduction : Changed(node);
+      }
+    }
+  }
+
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
@@ -1391,16 +1460,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Check for the ArrayConstructor.
       if (*function == function->native_context()->array_function()) {
-        // Check if we have an allocation site.
+        // TODO(bmeurer): Deal with Array subclasses here.
         Handle<AllocationSite> site;
-        if (p.feedback().IsValid()) {
-          CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-          Handle<Object> feedback(nexus.GetFeedback(), isolate());
-          if (feedback->IsAllocationSite()) {
-            site = Handle<AllocationSite>::cast(feedback);
-          }
-        }
-
         // Turn the {node} into a {JSCreateArray} call.
         for (int i = arity; i > 0; --i) {
           NodeProperties::ReplaceValueInput(
@@ -1412,75 +1473,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     }
 
-    // Don't mess with other {node}s that have a constant {target}.
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.
-    return NoChange();
-  }
-
-  // Extract feedback from the {node} using the CallICNexus.
-  if (!p.feedback().IsValid()) return NoChange();
-  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.IsUninitialized()) {
-    if (flags() & kBailoutOnUninitialized) {
-      // Introduce a SOFT deopt if the construct {node} wasn't executed so far.
-      return ReduceSoftDeoptimize(
-          node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
-    }
-    return NoChange();
-  }
-
-  Handle<Object> feedback(nexus.GetFeedback(), isolate());
-  if (feedback->IsAllocationSite()) {
-    // The feedback is an AllocationSite, which means we have called the
-    // Array function and collected transition (and pretenuring) feedback
-    // for the resulting arrays.  This has to be kept in sync with the
-    // implementation in Ignition.
-    Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
-
-    // Retrieve the Array function from the {node}.
-    Node* array_function = jsgraph()->HeapConstant(
-        handle(native_context()->array_function(), isolate()));
-
-    // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
-                                   array_function);
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
-
-    // Turn the {node} into a {JSCreateArray} call.
-    NodeProperties::ReplaceEffectInput(node, effect);
-    for (int i = arity; i > 0; --i) {
-      NodeProperties::ReplaceValueInput(
-          node, NodeProperties::GetValueInput(node, i), i + 1);
-    }
-    NodeProperties::ReplaceValueInput(node, new_target, 1);
-    NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
-    return Changed(node);
-  } else if (feedback->IsWeakCell()) {
-    // Check if we want to use CallIC feedback here.
-    if (!ShouldUseCallICFeedback(target)) return NoChange();
-
-    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-    if (cell->value()->IsJSFunction()) {
-      Node* target_function =
-          jsgraph()->Constant(handle(cell->value(), isolate()));
-
-      // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
-                                     target_function);
-      effect =
-          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
-
-      // Specialize the JSConstruct node to the {target_function}.
-      NodeProperties::ReplaceValueInput(node, target_function, 0);
-      NodeProperties::ReplaceEffectInput(node, effect);
-      if (target == new_target) {
-        NodeProperties::ReplaceValueInput(node, target_function, arity + 1);
-      }
-
-      // Try to further reduce the JSConstruct {node}.
-      Reduction const reduction = ReduceJSConstruct(node);
-      return reduction.Changed() ? reduction : Changed(node);
-    }
   }
 
   return NoChange();

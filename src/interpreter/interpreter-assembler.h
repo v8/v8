@@ -119,11 +119,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* IncrementCallCount(compiler::Node* feedback_vector,
                                      compiler::Node* slot_id);
 
-  // Collect CALL_IC feedback for |target| function in the
+  // Collect CALL_IC feedback for |target_or_new_target| function in the
   // |feedback_vector| at |slot_id|.
-  void CollectCallFeedback(compiler::Node* target, compiler::Node* context,
-                           compiler::Node* slot_id,
-                           compiler::Node* feedback_vector);
+  void CollectCallOrConstructFeedback(compiler::Node* target_or_new_target,
+                                      compiler::Node* context,
+                                      compiler::Node* slot_id,
+                                      compiler::Node* feedback_vector);
 
   // Call JSFunction or Callable |function| with |arg_count| arguments (not
   // including receiver) and the first argument located at |first_arg|, possibly
@@ -142,22 +143,22 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                    compiler::Node* slot_id,
                                    compiler::Node* feedback_vector);
 
-  // Call constructor |constructor| with |arg_count| arguments (not
+  // Call constructor |target| with |arg_count| arguments (not
   // including receiver) and the first argument located at
   // |first_arg|. The |new_target| is the same as the
-  // |constructor| for the new keyword, but differs for the super
+  // |target| for the new keyword, but differs for the super
   // keyword.
-  compiler::Node* Construct(compiler::Node* constructor,
-                            compiler::Node* context, compiler::Node* new_target,
+  compiler::Node* Construct(compiler::Node* target, compiler::Node* context,
+                            compiler::Node* new_target,
                             compiler::Node* first_arg,
                             compiler::Node* arg_count, compiler::Node* slot_id,
                             compiler::Node* feedback_vector);
 
-  // Call constructor |constructor| with |arg_count| arguments (not including
+  // Call constructor |target| with |arg_count| arguments (not including
   // receiver) and the first argument located at |first_arg|. The last argument
-  // is always a spread. The |new_target| is the same as the |constructor| for
+  // is always a spread. The |new_target| is the same as the |target| for
   // the new keyword, but differs for the super keyword.
-  compiler::Node* ConstructWithSpread(compiler::Node* constructor,
+  compiler::Node* ConstructWithSpread(compiler::Node* target,
                                       compiler::Node* context,
                                       compiler::Node* new_target,
                                       compiler::Node* first_arg,
