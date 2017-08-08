@@ -60,24 +60,25 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
+  bool can_rehash = ExtractRehashability(blob);
   Vector<const byte> context_data =
       ExtractContextData(blob, static_cast<int>(context_index));
   SnapshotData snapshot_data(context_data);
-  PartialDeserializer deserializer(&snapshot_data);
-  deserializer.SetRehashability(ExtractRehashability(blob));
 
-  MaybeHandle<Object> maybe_context = deserializer.Deserialize(
-      isolate, global_proxy, embedder_fields_deserializer);
-  Handle<Object> result;
-  if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
-  CHECK(result->IsContext());
+  MaybeHandle<Context> maybe_result = PartialDeserializer::DeserializeContext(
+      isolate, &snapshot_data, can_rehash, global_proxy,
+      embedder_fields_deserializer);
+
+  Handle<Context> result;
+  if (!maybe_result.ToHandle(&result)) return MaybeHandle<Context>();
+
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();
     PrintF("[Deserializing context #%zu (%d bytes) took %0.3f ms]\n",
            context_index, bytes, ms);
   }
-  return Handle<Context>::cast(result);
+  return result;
 }
 
 void ProfileDeserialization(const SnapshotData* startup_snapshot,

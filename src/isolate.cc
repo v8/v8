@@ -2807,9 +2807,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   {
     AlwaysAllocateScope always_allocate(this);
 
-    if (!create_heap_objects) {
-      des->Deserialize(this);
-    }
+    if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     setup_delegate_->SetupInterpreter(interpreter_, create_heap_objects);

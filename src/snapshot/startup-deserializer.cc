@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-void StartupDeserializer::Deserialize(Isolate* isolate) {
+void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
   if (!ReserveSpace()) V8::FatalProcessOutOfMemory("StartupDeserializer");
 

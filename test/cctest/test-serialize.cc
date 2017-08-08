@@ -302,106 +302,6 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   isolate->Dispose();
 }
 
-static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
-                                     Vector<const byte>* partial_blob_out) {
-  v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-  v8_isolate->Enter();
-  {
-    Heap* heap = isolate->heap();
-
-    v8::Persistent<v8::Context> env;
-    {
-      HandleScope scope(isolate);
-      env.Reset(v8_isolate, v8::Context::New(v8_isolate));
-    }
-    CHECK(!env.IsEmpty());
-    {
-      v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
-    }
-
-    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
-    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
-
-    Object* raw_foo;
-    {
-      v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::String> foo = v8_str("foo");
-      CHECK(!foo.IsEmpty());
-      raw_foo = *(v8::Utils::OpenHandle(*foo));
-    }
-
-    {
-      v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
-    }
-    env.Reset();
-
-    StartupSerializer startup_serializer(
-        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
-    startup_serializer.SerializeStrongReferences();
-
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         v8::SerializeInternalFieldsCallback());
-    partial_serializer.Serialize(&raw_foo, false);
-
-    startup_serializer.SerializeWeakReferencesAndDeferred();
-
-    SnapshotData startup_snapshot(&startup_serializer);
-    SnapshotData partial_snapshot(&partial_serializer);
-
-    *partial_blob_out = WritePayload(partial_snapshot.RawData());
-    *startup_blob_out = WritePayload(startup_snapshot.RawData());
-  }
-  v8_isolate->Exit();
-  v8_isolate->Dispose();
-}
-
-UNINITIALIZED_TEST(PartialSerializerObject) {
-  DisableAlwaysOpt();
-  Vector<const byte> startup_blob;
-  Vector<const byte> partial_blob;
-  PartiallySerializeObject(&startup_blob, &partial_blob);
-
-  v8::Isolate* v8_isolate = InitializeFromBlob(startup_blob);
-  startup_blob.Dispose();
-  CHECK(v8_isolate);
-  {
-    v8::Isolate::Scope isolate_scope(v8_isolate);
-
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-    HandleScope handle_scope(isolate);
-    Handle<Object> root;
-    // Intentionally empty handle. The deserializer should not come across
-    // any references to the global proxy in this test.
-    Handle<JSGlobalProxy> global_proxy = Handle<JSGlobalProxy>::null();
-    {
-      SnapshotData snapshot_data(partial_blob);
-      PartialDeserializer deserializer(&snapshot_data);
-      root = deserializer
-                 .Deserialize(isolate, global_proxy,
-                              v8::DeserializeInternalFieldsCallback())
-                 .ToHandleChecked();
-      CHECK(root->IsString());
-    }
-
-    Handle<Object> root2;
-    {
-      SnapshotData snapshot_data(partial_blob);
-      PartialDeserializer deserializer(&snapshot_data);
-      root2 = deserializer
-                  .Deserialize(isolate, global_proxy,
-                               v8::DeserializeInternalFieldsCallback())
-                  .ToHandleChecked();
-      CHECK(root2->IsString());
-      CHECK(root.is_identical_to(root2));
-    }
-    partial_blob.Dispose();
-  }
-  v8_isolate->Dispose();
-}
-
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
                                       Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
@@ -474,10 +374,9 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
-      PartialDeserializer deserializer(&snapshot_data);
-      root = deserializer
-                 .Deserialize(isolate, global_proxy,
-                              v8::DeserializeInternalFieldsCallback())
+      root = PartialDeserializer::DeserializeContext(
+                 isolate, &snapshot_data, false, global_proxy,
+                 v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
@@ -486,10 +385,9 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
     Handle<Object> root2;
     {
       SnapshotData snapshot_data(partial_blob);
-      PartialDeserializer deserializer(&snapshot_data);
-      root2 = deserializer
-                  .Deserialize(isolate, global_proxy,
-                               v8::DeserializeInternalFieldsCallback())
+      root2 = PartialDeserializer::DeserializeContext(
+                  isolate, &snapshot_data, false, global_proxy,
+                  v8::DeserializeInternalFieldsCallback())
                   .ToHandleChecked();
       CHECK(root2->IsContext());
       CHECK(!root.is_identical_to(root2));
@@ -592,10 +490,9 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
-      PartialDeserializer deserializer(&snapshot_data);
-      root = deserializer
-                 .Deserialize(isolate, global_proxy,
-                              v8::DeserializeInternalFieldsCallback())
+      root = PartialDeserializer::DeserializeContext(
+                 isolate, &snapshot_data, false, global_proxy,
+                 v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);

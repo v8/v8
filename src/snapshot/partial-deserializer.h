@@ -11,11 +11,18 @@
 namespace v8 {
 namespace internal {
 
+class Context;
+
 // Deserializes the context-dependent object graph rooted at a given object.
-// Currently, the only use-case is to deserialize native contexts.
 // The PartialDeserializer is not expected to deserialize any code objects.
 class PartialDeserializer final : public Deserializer {
  public:
+  static MaybeHandle<Context> DeserializeContext(
+      Isolate* isolate, const SnapshotData* data, bool can_rehash,
+      Handle<JSGlobalProxy> global_proxy,
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+
+ private:
   explicit PartialDeserializer(const SnapshotData* data)
       : Deserializer(data, false) {}
 
@@ -24,7 +31,6 @@ class PartialDeserializer final : public Deserializer {
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
- private:
   void DeserializeEmbedderFields(
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 

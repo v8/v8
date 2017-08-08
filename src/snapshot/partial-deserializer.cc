@@ -10,6 +10,21 @@
 namespace v8 {
 namespace internal {
 
+MaybeHandle<Context> PartialDeserializer::DeserializeContext(
+    Isolate* isolate, const SnapshotData* data, bool can_rehash,
+    Handle<JSGlobalProxy> global_proxy,
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+  PartialDeserializer d(data);
+  d.SetRehashability(can_rehash);
+
+  MaybeHandle<Object> maybe_result =
+      d.Deserialize(isolate, global_proxy, embedder_fields_deserializer);
+
+  Handle<Object> result;
+  return maybe_result.ToHandle(&result) ? Handle<Context>::cast(result)
+                                        : MaybeHandle<Context>();
+}
+
 MaybeHandle<Object> PartialDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {

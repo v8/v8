@@ -18,7 +18,7 @@ class StartupDeserializer final : public Deserializer {
       : Deserializer(data, false) {}
 
   // Deserialize the snapshot into an empty heap.
-  void Deserialize(Isolate* isolate);
+  void DeserializeInto(Isolate* isolate);
 
  private:
   void FlushICacheForNewIsolate();

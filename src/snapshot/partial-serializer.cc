@@ -26,27 +26,25 @@ PartialSerializer::~PartialSerializer() {
 }
 
 void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
-  if ((*o)->IsNativeContext()) {
-    Context* context = Context::cast(*o);
-    reference_map()->AddAttachedReference(context->global_proxy());
-    // The bootstrap snapshot has a code-stub context. When serializing the
-    // partial snapshot, it is chained into the weak context list on the isolate
-    // and it's next context pointer may point to the code-stub context.  Clear
-    // it before serializing, it will get re-added to the context list
-    // explicitly when it's loaded.
-    context->set(Context::NEXT_CONTEXT_LINK,
-                 isolate_->heap()->undefined_value());
-    DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
-    // Reset math random cache to get fresh random numbers.
-    context->set_math_random_index(Smi::kZero);
-    context->set_math_random_cache(isolate_->heap()->undefined_value());
-    DCHECK_NULL(rehashable_global_dictionary_);
-    rehashable_global_dictionary_ =
-        context->global_object()->global_dictionary();
-  } else {
-    // We only do rehashing for native contexts.
-    can_be_rehashed_ = false;
-  }
+  DCHECK((*o)->IsNativeContext());
+
+  Context* context = Context::cast(*o);
+  reference_map()->AddAttachedReference(context->global_proxy());
+  // The bootstrap snapshot has a code-stub context. When serializing the
+  // partial snapshot, it is chained into the weak context list on the isolate
+  // and it's next context pointer may point to the code-stub context.  Clear
+  // it before serializing, it will get re-added to the context list
+  // explicitly when it's loaded.
+  context->set(Context::NEXT_CONTEXT_LINK,
+               isolate_->heap()->undefined_value());
+  DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
+  // Reset math random cache to get fresh random numbers.
+  context->set_math_random_index(Smi::kZero);
+  context->set_math_random_cache(isolate_->heap()->undefined_value());
+  DCHECK_NULL(rehashable_global_dictionary_);
+  rehashable_global_dictionary_ =
+      context->global_object()->global_dictionary();
+
   VisitRootPointer(Root::kPartialSnapshotCache, o);
   SerializeDeferredObjects();
   SerializeEmbedderFields();
