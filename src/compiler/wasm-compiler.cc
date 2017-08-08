@@ -2750,9 +2750,7 @@ int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
   return pos;
 }
 
-bool WasmGraphBuilder::BuildWasmToJSWrapper(
-    Handle<JSReceiver> target, Handle<FixedArray> global_js_imports_table,
-    int index) {
+void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target) {
   DCHECK(target->IsCallable());
 
   int wasm_count = static_cast<int>(sig_->parameter_count());
@@ -2774,7 +2772,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     // We don't need to return a value here, as the runtime call will not return
     // anyway (the c entry stub will trigger stack unwinding).
     ReturnVoid();
-    return false;
+    return;
   }
 
   Node** args = Buffer(wasm_count + 7);
@@ -2783,31 +2781,11 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
 
   BuildModifyThreadInWasmFlag(false);
 
-  // We add the target function to a table and look it up during runtime. This
-  // ensures that if the GC kicks in, it doesn't need to patch the code for the
-  // JS function.
-  // js_imports_table is fixed array with global handle scope whose lifetime is
-  // tied to the instance.
-  // TODO(aseemgarg): explore using per-import global handle instead of a table
-  Node* js_table = jsgraph()->IntPtrConstant(
-      reinterpret_cast<intptr_t>(global_js_imports_table.location()));
-  Node* load_table = graph()->NewNode(
-      jsgraph()->machine()->Load(LoadRepresentation::TaggedPointer()), js_table,
-      jsgraph()->IntPtrConstant(0), *effect_, *control_);
-  *effect_ = load_table;
-  int offset =
-      global_js_imports_table->OffsetOfElementAt(index) - kHeapObjectTag;
-  Node* offset_node = jsgraph()->Int32Constant(offset);
-  Node* target_address = graph()->NewNode(
-      jsgraph()->machine()->Load(LoadRepresentation::TaggedPointer()),
-      load_table, offset_node, *effect_, *control_);
-  *effect_ = target_address;
-
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
     if (function->shared()->internal_formal_parameter_count() == wasm_count) {
       int pos = 0;
-      args[pos++] = target_address;  // target callable.
+      args[pos++] = jsgraph()->Constant(target);  // target callable.
       // Receiver.
       if (is_sloppy(function->shared()->language_mode()) &&
           !function->shared()->native()) {
@@ -2839,7 +2817,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     int pos = 0;
     Callable callable = CodeFactory::Call(isolate);
     args[pos++] = jsgraph()->HeapConstant(callable.code());
-    args[pos++] = target_address;                        // target callable
+    args[pos++] = jsgraph()->Constant(target);           // target callable
     args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
     args[pos++] = jsgraph()->Constant(
         handle(isolate->heap()->undefined_value(), isolate));  // receiver
@@ -2874,7 +2852,6 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
                   : FromJS(call, HeapConstant(isolate->native_context()),
                            sig_->GetReturn());
   Return(val);
-  return true;
 }
 
 namespace {
@@ -3957,10 +3934,11 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   return code;
 }
 
-Handle<Code> CompileWasmToJSWrapper(
-    Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
-    uint32_t index, Handle<String> module_name, MaybeHandle<String> import_name,
-    wasm::ModuleOrigin origin, Handle<FixedArray> global_js_imports_table) {
+Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
+                                    wasm::FunctionSig* sig, uint32_t index,
+                                    Handle<String> module_name,
+                                    MaybeHandle<String> import_name,
+                                    wasm::ModuleOrigin origin) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -3982,9 +3960,7 @@ Handle<Code> CompileWasmToJSWrapper(
                            source_position_table);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  if (builder.BuildWasmToJSWrapper(target, global_js_imports_table, index)) {
-    global_js_imports_table->set(index, *target);
-  }
+  builder.BuildWasmToJSWrapper(target);
 
   Handle<Code> code = Handle<Code>::null();
   {
@@ -4018,15 +3994,6 @@ Handle<Code> CompileWasmToJSWrapper(
     CompilationInfo info(func_name, isolate, &zone, flags);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr,
                                             source_position_table);
-    Handle<FixedArray> deopt_data =
-        isolate->factory()->NewFixedArray(2, TENURED);
-    intptr_t loc =
-        reinterpret_cast<intptr_t>(global_js_imports_table.location());
-    Handle<Object> loc_handle = isolate->factory()->NewHeapNumberFromBits(loc);
-    deopt_data->set(0, *loc_handle);
-    Handle<Object> index_handle = isolate->factory()->NewNumberFromInt(index);
-    deopt_data->set(1, *index_handle);
-    code->set_deoptimization_data(*deopt_data);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
       OFStream os(stdout);
