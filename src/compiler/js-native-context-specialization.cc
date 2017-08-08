@@ -1451,8 +1451,13 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     Handle<FunctionTemplateInfo> function_template_info(
         Handle<FunctionTemplateInfo>::cast(access_info.constant()));
     DCHECK(!function_template_info->call_code()->IsUndefined(isolate()));
-    value = InlineApiCall(receiver, context, target, frame_state0, nullptr,
-                          effect, control, shared_info, function_template_info);
+    Node* holder =
+        access_info.holder().is_null()
+            ? receiver
+            : jsgraph()->Constant(access_info.holder().ToHandleChecked());
+    value =
+        InlineApiCall(receiver, holder, context, target, frame_state0, nullptr,
+                      effect, control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1498,8 +1503,13 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
     Handle<FunctionTemplateInfo> function_template_info(
         Handle<FunctionTemplateInfo>::cast(access_info.constant()));
     DCHECK(!function_template_info->call_code()->IsUndefined(isolate()));
-    value = InlineApiCall(receiver, context, target, frame_state0, value,
-                          effect, control, shared_info, function_template_info);
+    Node* holder =
+        access_info.holder().is_null()
+            ? receiver
+            : jsgraph()->Constant(access_info.holder().ToHandleChecked());
+    value =
+        InlineApiCall(receiver, holder, context, target, frame_state0, value,
+                      effect, control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1514,8 +1524,9 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
 }
 
 Node* JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* context, Node* target, Node* frame_state, Node* value,
-    Node** effect, Node** control, Handle<SharedFunctionInfo> shared_info,
+    Node* receiver, Node* holder, Node* context, Node* target,
+    Node* frame_state, Node* value, Node** effect, Node** control,
+    Handle<SharedFunctionInfo> shared_info,
     Handle<FunctionTemplateInfo> function_template_info) {
   Handle<CallHandlerInfo> call_handler_info = handle(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
@@ -1544,8 +1555,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* inputs[11] = {
-      code, target, data, receiver /* holder */, function_reference, receiver};
+  Node* inputs[11] = {code, target, data, holder, function_reference, receiver};
   int index = 6 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
