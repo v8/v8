@@ -84,11 +84,15 @@
       "name": "Classes",
       "path": ["Classes"],
       "main": "run.js",
-      "resources": ["super.js", "default-constructor.js"],
+      "resources": [
+        "super.js",
+        "default-constructor.js",
+        "leaf-constructors.js"],
       "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
       "tests": [
         {"name": "Super"},
-        {"name": "DefaultConstructor"}
+        {"name": "DefaultConstructor"},
+        {"name": "LeafConstructors"}
       ]
     },
     {
