@@ -1664,7 +1664,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   Handle<Code> code = CodeFactory::Construct(isolate()).code();
   __ mov(r3, Operand(arg_count));
   __ LoadP(r4, MemOperand(sp, arg_count * kPointerSize), r0);
-  __ mov(r6, r4);
+  __ mr(r6, r4);
   CallIC(code);
   OperandStackDepthDecrement(arg_count + 1);
   RestoreContext();
