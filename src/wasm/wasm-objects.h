@@ -420,11 +420,10 @@ class WasmCompiledModule : public FixedArray {
   };
 
  public:
-  static Handle<WasmCompiledModule> New(
-      Isolate* isolate, Handle<WasmSharedModuleData> shared,
-      Handle<FixedArray> code_table,
-      const std::vector<Handle<FixedArray>>& function_tables,
-      const std::vector<Handle<FixedArray>>& signature_tables);
+  static Handle<WasmCompiledModule> New(Isolate* isolate,
+                                        Handle<WasmSharedModuleData> shared,
+                                        Handle<FixedArray> code_table,
+                                        const wasm::ModuleEnv& module_env);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);

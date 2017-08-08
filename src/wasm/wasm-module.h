@@ -223,44 +223,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
 typedef Managed<WasmModule> WasmModuleWrapper;
 
-// An instantiated wasm module, including memory, function table, etc.
-struct WasmInstance {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInstance);
-
-  WasmModule* module;  // static representation of the module.
-  // -- Heap allocated --------------------------------------------------------
-  std::vector<Handle<FixedArray>> function_tables;  // indirect function tables.
-  std::vector<Handle<FixedArray>>
-      signature_tables;                    // indirect signature tables.
-  // TODO(wasm): Remove this vector, since it is only used for testing.
-  std::vector<Handle<Code>> function_code;  // code objects for each function.
-  // -- raw memory ------------------------------------------------------------
-  byte* mem_start = nullptr;  // start of linear memory.
-  uint32_t mem_size = 0;      // size of the linear memory.
-  // -- raw globals -----------------------------------------------------------
-  byte* globals_start = nullptr;  // start of the globals area.
-
-  explicit WasmInstance(WasmModule* m)
-      : module(m),
-        function_tables(m->function_tables.size()),
-        signature_tables(m->function_tables.size()),
-        function_code(m->functions.size()) {}
-
-  void ReopenHandles(Isolate* isolate) {
-    for (auto& table : function_tables) {
-      table = handle(*table, isolate);
-    }
-
-    for (auto& table : signature_tables) {
-      table = handle(*table, isolate);
-    }
-
-    for (auto& code : function_code) {
-      code = handle(*code, isolate);
-    }
-  }
-};
-
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
@@ -318,80 +280,136 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   const Vector<const byte> module_bytes_;
 };
 
-// Interface provided to the decoder/graph builder which contains only
-// minimal information about the globals, functions, and function tables.
-struct V8_EXPORT_PRIVATE ModuleEnv {
+// Specialization parameters the compiler needs to use when compiling the wasm
+// functions of a module.
+// We currently only produce code specialized to an instance. Even when
+// compiling without instantiating, we still need to pick *a* value for these
+// parameters.
+class V8_EXPORT_PRIVATE ModuleEnv {
+ public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ModuleEnv);
 
-  ModuleEnv(WasmModule* module, WasmInstance* instance)
-      : module(module),
-        instance(instance),
-        function_tables(instance ? &instance->function_tables : nullptr),
-        signature_tables(instance ? &instance->signature_tables : nullptr) {}
-  ModuleEnv(WasmModule* module,
-            std::vector<Handle<FixedArray>>* function_tables,
-            std::vector<Handle<FixedArray>>* signature_tables)
-      : module(module),
-        instance(nullptr),
-        function_tables(function_tables),
-        signature_tables(signature_tables) {}
+  ModuleEnv(WasmModule* module, Handle<Code> default_function_code)
+      : module_(module),
+        function_tables_(module->function_tables.size()),
+        signature_tables_(module->function_tables.size()),
+        function_code_(module->functions.size(), default_function_code),
+        mem_size_(module->min_mem_pages * WasmModule::kPageSize) {}
 
-  WasmModule* module;
-  WasmInstance* instance;
+  WasmModule* module() const { return module_; }
 
-  std::vector<Handle<FixedArray>>* function_tables;
-  std::vector<Handle<FixedArray>>* signature_tables;
+  uint32_t mem_size() const { return mem_size_; }
+  void set_mem_size(uint32_t mem_size) {
+    DCHECK_EQ(0, mem_size % WasmModule::kPageSize);
+    mem_size_ = mem_size;
+  }
+
+  byte* mem_start() const { return mem_start_; }
+  void set_mem_start(byte* mem_start) { mem_start_ = mem_start; }
+
+  byte* globals_start() const { return globals_start_; }
+  void set_globals_start(byte* globals_start) {
+    globals_start_ = globals_start;
+  }
+
+  const std::vector<Handle<FixedArray>>& function_tables() const {
+    return function_tables_;
+  }
+  const std::vector<Handle<FixedArray>>& signature_tables() const {
+    return signature_tables_;
+  }
+
+  void SetFunctionTable(uint32_t index, Handle<FixedArray> function_table,
+                        Handle<FixedArray> signature_table) {
+    DCHECK(IsValidTable(index));
+    DCHECK_EQ(function_tables_.size(), signature_tables_.size());
+    function_tables_[index] = function_table;
+    signature_tables_[index] = signature_table;
+  }
 
   bool IsValidGlobal(uint32_t index) const {
-    return module && index < module->globals.size();
+    return index < module_->globals.size();
   }
   bool IsValidFunction(uint32_t index) const {
-    return module && index < module->functions.size();
+    return index < module_->functions.size();
   }
   bool IsValidSignature(uint32_t index) const {
-    return module && index < module->signatures.size();
+    return index < module_->signatures.size();
   }
   bool IsValidTable(uint32_t index) const {
-    return module && index < module->function_tables.size();
+    return index < module_->function_tables.size();
   }
-  ValueType GetGlobalType(uint32_t index) {
+  ValueType GetGlobalType(uint32_t index) const {
     DCHECK(IsValidGlobal(index));
-    return module->globals[index].type;
+    return module_->globals[index].type;
   }
-  FunctionSig* GetFunctionSignature(uint32_t index) {
+  FunctionSig* GetFunctionSignature(uint32_t index) const {
     DCHECK(IsValidFunction(index));
-    return module->functions[index].sig;
+    // This const_cast preserves design intent, because
+    // FunctionSig is an immutable type.
+    return const_cast<FunctionSig*>(module_->functions[index].sig);
   }
-  FunctionSig* GetSignature(uint32_t index) {
+  FunctionSig* GetSignature(uint32_t index) const {
     DCHECK(IsValidSignature(index));
-    return module->signatures[index];
+    // This const_cast preserves design intent, because
+    // FunctionSig is an immutable type.
+    return const_cast<FunctionSig*>(module_->signatures[index]);
   }
   const WasmIndirectFunctionTable* GetTable(uint32_t index) const {
     DCHECK(IsValidTable(index));
-    return &module->function_tables[index];
+    return &module_->function_tables[index];
   }
 
-  bool is_asm_js() const { return module->is_asm_js(); }
-  bool is_wasm() const { return module->is_wasm(); }
+  bool is_asm_js() const { return module_->is_asm_js(); }
+  bool is_wasm() const { return module_->is_wasm(); }
 
-  // Only used for testing.
-  Handle<Code> GetFunctionCode(uint32_t index) {
-    DCHECK_NOT_NULL(instance);
-    return instance->function_code[index];
+  Handle<Code> GetFunctionCode(uint32_t index) const {
+    return function_code_[index];
   }
-};
 
-// A ModuleEnv together with ModuleWireBytes.
-struct ModuleBytesEnv {
-  ModuleBytesEnv(WasmModule* module, WasmInstance* instance,
-                 Vector<const byte> module_bytes)
-      : module_env(module, instance), wire_bytes(module_bytes) {}
-  ModuleBytesEnv(WasmModule* module, WasmInstance* instance,
-                 const ModuleWireBytes& wire_bytes)
-      : module_env(module, instance), wire_bytes(wire_bytes) {}
+  // TODO(mtrofin): this is async compilation-specific. Move this out.
+  void ReopenHandles(Isolate* isolate) {
+    for (auto& table : function_tables_) {
+      table = handle(*table, isolate);
+    }
+    for (auto& table : signature_tables_) {
+      table = handle(*table, isolate);
+    }
+    for (auto& code : function_code_) {
+      code = handle(*code, isolate);
+    }
+  }
 
-  ModuleEnv module_env;
-  ModuleWireBytes wire_bytes;
+  // Intentionally set a memory size that may not conform to
+  // the wasm invariant that it should be divisible by kPageSize - for test.
+  void SetMemSizeUnchecked(uint32_t size) { mem_size_ = size; }
+
+ protected:
+  // The derived class is responsible for correctly setting up the
+  // state. This is currently used by test, where we set up the state
+  // gradually, and also sometimes intentionally invalidating some
+  // invariants.
+  ModuleEnv() = default;
+
+  // decoded wasm module.
+  WasmModule* module_ = nullptr;
+  // indirect function tables.
+  std::vector<Handle<FixedArray>> function_tables_;
+  // indirect signature tables.
+  std::vector<Handle<FixedArray>> signature_tables_;
+  // TODO(mtrofin): this should be a Handle<Code>, not a vector,
+  // however, cctest currently builds up modules in a non-production
+  // standard way. We should address that first.
+  std::vector<Handle<Code>> function_code_;
+
+ private:
+  // size of the linear memory.
+  uint32_t mem_size_ = 0;
+
+  // start of linear memory.
+  byte* mem_start_ = nullptr;
+  // start of the globals area.
+  byte* globals_start_ = nullptr;
 };
 
 // A helper for printing out the names of functions.

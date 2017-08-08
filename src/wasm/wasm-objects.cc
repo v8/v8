@@ -785,9 +785,7 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
-    Handle<FixedArray> code_table,
-    const std::vector<Handle<FixedArray>>& function_tables,
-    const std::vector<Handle<FixedArray>>& signature_tables) {
+    Handle<FixedArray> code_table, const ModuleEnv& module_env) {
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
   // WasmCompiledModule::cast would fail since fields are not set yet.
@@ -799,16 +797,18 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_code_table(code_table);
   size_t function_table_count = shared->module()->function_tables.size();
   if (function_table_count > 0) {
-    DCHECK_EQ(function_tables.size(), signature_tables.size());
-    DCHECK_EQ(function_tables.size(), function_table_count);
+    DCHECK_EQ(module_env.function_tables().size(),
+              module_env.signature_tables().size());
+    DCHECK_EQ(module_env.function_tables().size(), function_table_count);
     int count_as_int = static_cast<int>(function_table_count);
     Handle<FixedArray> sig_tables =
         isolate->factory()->NewFixedArray(count_as_int, TENURED);
     Handle<FixedArray> func_tables =
         isolate->factory()->NewFixedArray(count_as_int, TENURED);
     for (int i = 0; i < count_as_int; ++i) {
-      sig_tables->set(i, *(signature_tables[static_cast<size_t>(i)]));
-      func_tables->set(i, *(function_tables[static_cast<size_t>(i)]));
+      size_t index = static_cast<size_t>(i);
+      sig_tables->set(i, *(module_env.signature_tables()[index]));
+      func_tables->set(i, *(module_env.function_tables()[index]));
     }
     compiled_module->set_signature_tables(sig_tables);
     compiled_module->set_empty_function_tables(func_tables);
@@ -821,6 +821,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_min_mem_pages(shared->module()->min_mem_pages);
   compiled_module->set_num_imported_functions(
       shared->module()->num_imported_functions);
+  // TODO(mtrofin): copy the rest of the specialization parameters over.
+  // We're currently OK because we're only using defaults.
   return compiled_module;
 }
 

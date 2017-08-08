@@ -122,8 +122,8 @@ class FunctionBodyDecoderTest : public TestWithZone {
 
     // Verify the code.
     DecodeResult result = VerifyWasmCode(
-        zone()->allocator(), module == nullptr ? nullptr : module->module, sig,
-        start, end);
+        zone()->allocator(), module == nullptr ? nullptr : module->module(),
+        sig, start, end);
 
     uint32_t pc = result.error_offset();
     std::ostringstream str;
@@ -193,8 +193,8 @@ constexpr size_t kMaxByteSizedLeb128 = 127;
 // globals, or memories.
 class TestModuleEnv : public ModuleEnv {
  public:
-  explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin)
-      : ModuleEnv(&mod, nullptr) {
+  explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin) {
+    module_ = &mod;
     mod.set_origin(origin);
   }
   byte AddGlobal(ValueType type, bool mutability = true) {

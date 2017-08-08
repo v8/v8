@@ -100,12 +100,13 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
 
 // Decodes the bytes of a wasm function between
 // {function_start} and {function_end}.
-V8_EXPORT_PRIVATE FunctionResult
-SyncDecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
-                       const byte* function_start, const byte* function_end);
+V8_EXPORT_PRIVATE FunctionResult SyncDecodeWasmFunction(
+    Isolate* isolate, Zone* zone, const ModuleWireBytes& wire_bytes,
+    const WasmModule* module, const byte* function_start,
+    const byte* function_end);
 
 V8_EXPORT_PRIVATE FunctionResult
-AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
+AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, const ModuleEnv* env,
                         const byte* function_start, const byte* function_end,
                         const std::shared_ptr<Counters> async_counters);
 

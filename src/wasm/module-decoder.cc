@@ -712,11 +712,10 @@ class ModuleDecoder : public Decoder {
           &module_->functions[i + module_->num_imported_functions];
       function->code = {offset, size};
       if (verify_functions) {
-        ModuleBytesEnv module_env(module_.get(), nullptr,
-                                  ModuleWireBytes(start_, end_));
+        ModuleWireBytes bytes(start_, end_);
         VerifyFunctionBody(module_->signature_zone->allocator(),
-                           i + module_->num_imported_functions, &module_env,
-                           function);
+                           i + module_->num_imported_functions, bytes,
+                           module_.get(), function);
       }
     }
   }
@@ -847,7 +846,9 @@ class ModuleDecoder : public Decoder {
   }
 
   // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunction(Zone* zone, ModuleBytesEnv* module_env,
+  FunctionResult DecodeSingleFunction(Zone* zone,
+                                      const ModuleWireBytes& wire_bytes,
+                                      const WasmModule* module,
                                       std::unique_ptr<WasmFunction> function) {
     pc_ = start_;
     function->sig = consume_sig(zone);
@@ -855,7 +856,8 @@ class ModuleDecoder : public Decoder {
     function->code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
     if (ok())
-      VerifyFunctionBody(zone->allocator(), 0, module_env, function.get());
+      VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module,
+                         function.get());
 
     FunctionResult result(std::move(function));
     // Copy error code and location.
@@ -1002,9 +1004,9 @@ class ModuleDecoder : public Decoder {
 
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
-                          ModuleBytesEnv* menv, WasmFunction* function) {
-    WasmFunctionName func_name(function,
-                               menv->wire_bytes.GetNameOrNull(function));
+                          const ModuleWireBytes& wire_bytes,
+                          const WasmModule* module, WasmFunction* function) {
+    WasmFunctionName func_name(function, wire_bytes.GetNameOrNull(function));
     if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
       OFStream os(stdout);
       os << "Verifying wasm function " << func_name << std::endl;
@@ -1013,9 +1015,8 @@ class ModuleDecoder : public Decoder {
         function->sig, function->code.offset(),
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
-    DecodeResult result = VerifyWasmCodeWithStats(
-        allocator, menv == nullptr ? nullptr : menv->module_env.module, body,
-        IsWasm(), GetCounters());
+    DecodeResult result = VerifyWasmCodeWithStats(allocator, module, body,
+                                                  IsWasm(), GetCounters());
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream wrapped;
@@ -1357,7 +1358,8 @@ WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
 namespace {
 
 FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                  ModuleBytesEnv* module_env,
+                                  const ModuleWireBytes& wire_bytes,
+                                  const WasmModule* module,
                                   const byte* function_start,
                                   const byte* function_end,
                                   Counters* counters) {
@@ -1368,25 +1370,26 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
     return FunctionResult::Error("size > maximum function size: %zu", size);
   ModuleDecoder decoder(function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
-  return decoder.DecodeSingleFunction(zone, module_env,
+  return decoder.DecodeSingleFunction(zone, wire_bytes, module,
                                       base::make_unique<WasmFunction>());
 }
 
 }  // namespace
 
 FunctionResult SyncDecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                      ModuleBytesEnv* module_env,
+                                      const ModuleWireBytes& wire_bytes,
+                                      const WasmModule* module,
                                       const byte* function_start,
                                       const byte* function_end) {
-  return DecodeWasmFunction(isolate, zone, module_env, function_start,
+  return DecodeWasmFunction(isolate, zone, wire_bytes, module, function_start,
                             function_end, isolate->counters());
 }
 
 FunctionResult AsyncDecodeWasmFunction(
-    Isolate* isolate, Zone* zone, ModuleBytesEnv* module_env,
-    const byte* function_start, const byte* function_end,
-    std::shared_ptr<Counters> async_counters) {
-  return DecodeWasmFunction(isolate, zone, module_env, function_start,
+    Isolate* isolate, Zone* zone, const ModuleWireBytes& wire_bytes,
+    const WasmModule* module, const byte* function_start,
+    const byte* function_end, std::shared_ptr<Counters> async_counters) {
+  return DecodeWasmFunction(isolate, zone, wire_bytes, module, function_start,
                             function_end, async_counters.get());
 }
 

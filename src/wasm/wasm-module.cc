@@ -214,6 +214,37 @@ void RecordLazyCodeStats(Code* code, Counters* counters) {
   counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
 }
 
+ModuleEnv CreateModuleEnvFromRuntimeObject(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+  DisallowHeapAllocation no_gc;
+  // Store a vector of handles to be embedded in the generated code.
+  // TODO(clemensh): For concurrent compilation, these will have to live in a
+  // DeferredHandleScope.
+  wasm::ModuleEnv module_env(compiled_module->module(),
+                             BUILTIN_CODE(isolate, WasmCompileLazy));
+
+  DCHECK_EQ(compiled_module->has_function_tables(),
+            compiled_module->has_signature_tables());
+
+  if (compiled_module->has_function_tables()) {
+    // TODO(clemensh): For concurrent compilation, these will have to live in a
+    // DeferredHandleScope.
+    FixedArray* function_tables = compiled_module->ptr_to_function_tables();
+    FixedArray* signature_tables = compiled_module->ptr_to_signature_tables();
+    DCHECK_EQ(function_tables->length(), signature_tables->length());
+    DCHECK_EQ(function_tables->length(), module_env.function_tables().size());
+    for (uint32_t i = 0, e = static_cast<uint32_t>(
+                             module_env.function_tables().size());
+         i < e; ++i) {
+      int index = static_cast<int>(i);
+      module_env.SetFunctionTable(
+          i, handle(FixedArray::cast(function_tables->get(index))),
+          handle(FixedArray::cast(signature_tables->get(index))));
+    }
+  }
+  return module_env;
+}
+
 }  // namespace
 
 // static
@@ -954,25 +985,12 @@ void LazyCompilationOrchestrator::CompileFunction(
     return;
   }
 
-  size_t num_function_tables =
-      compiled_module->module()->function_tables.size();
-  // Store a vector of handles to be embedded in the generated code.
-  // TODO(clemensh): For concurrent compilation, these will have to live in a
-  // DeferredHandleScope.
-  std::vector<Handle<FixedArray>> fun_tables(num_function_tables);
-  std::vector<Handle<FixedArray>> sig_tables(num_function_tables);
-  for (size_t i = 0; i < num_function_tables; ++i) {
-    Object* fun_table =
-        compiled_module->function_tables()->get(static_cast<int>(i));
-    fun_tables[i] = handle(FixedArray::cast(fun_table), isolate);
-    Object* sig_table =
-        compiled_module->signature_tables()->get(static_cast<int>(i));
-    sig_tables[i] = handle(FixedArray::cast(sig_table), isolate);
-  }
-  wasm::ModuleEnv module_env(compiled_module->module(), &fun_tables,
-                             &sig_tables);
-  uint8_t* module_start = compiled_module->module_bytes()->GetChars();
-  const WasmFunction* func = &module_env.module->functions[func_index];
+  wasm::ModuleEnv module_env =
+      CreateModuleEnvFromRuntimeObject(isolate, compiled_module);
+
+  const uint8_t* module_start = compiled_module->module_bytes()->GetChars();
+
+  const WasmFunction* func = &module_env.module()->functions[func_index];
   wasm::FunctionBody body{func->sig, func->code.offset(),
                           module_start + func->code.offset(),
                           module_start + func->code.end_offset()};
@@ -1016,10 +1034,11 @@ void LazyCompilationOrchestrator::CompileFunction(
   // Now specialize the generated code for this instance.
   Zone specialization_zone(isolate->allocator(), ZONE_NAME);
   CodeSpecialization code_specialization(isolate, &specialization_zone);
-  if (module_env.module->globals_size) {
+  if (module_env.module()->globals_size) {
     Address globals_start =
         reinterpret_cast<Address>(compiled_module->globals_start());
-    code_specialization.RelocateGlobals(nullptr, globals_start);
+    code_specialization.RelocateGlobals(module_env.globals_start(),
+                                        globals_start);
   }
   if (instance->has_memory_buffer()) {
     Address mem_start =
@@ -1027,8 +1046,8 @@ void LazyCompilationOrchestrator::CompileFunction(
     int mem_size = instance->memory_buffer()->byte_length()->Number();
     DCHECK_IMPLIES(mem_start == nullptr, mem_size == 0);
     if (mem_start != nullptr) {
-      code_specialization.RelocateMemoryReferences(nullptr, 0, mem_start,
-                                                   mem_size);
+      code_specialization.RelocateMemoryReferences(
+          module_env.mem_start(), module_env.mem_size(), mem_start, mem_size);
     }
   }
   code_specialization.RelocateDirectCalls(instance);

@@ -48,7 +48,7 @@ class ModuleCompiler {
 
     ~CompilationUnitBuilder() { DCHECK(units_.empty()); }
 
-    void AddUnit(ModuleEnv* module_env, const WasmFunction* function,
+    void AddUnit(const ModuleEnv* module_env, const WasmFunction* function,
                  uint32_t buffer_offset, Vector<const uint8_t> bytes,
                  WasmName name) {
       units_.emplace_back(new compiler::WasmCompilationUnit(
@@ -127,7 +127,8 @@ class ModuleCompiler {
   }
 
   size_t InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
-                                    ModuleBytesEnv& module_env);
+                                    const ModuleWireBytes& wire_bytes,
+                                    const ModuleEnv* module_env);
 
   void ReopenHandlesInDeferredScope();
 
@@ -141,15 +142,18 @@ class ModuleCompiler {
   MaybeHandle<Code> FinishCompilationUnit(ErrorThrower* thrower,
                                           int* func_index);
 
-  void CompileInParallel(ModuleBytesEnv* module_env,
+  void CompileInParallel(const ModuleWireBytes& wire_bytes,
+                         const ModuleEnv* module_env,
                          std::vector<Handle<Code>>& results,
                          ErrorThrower* thrower);
 
-  void CompileSequentially(ModuleBytesEnv* module_env,
+  void CompileSequentially(const ModuleWireBytes& wire_bytes,
+                           const ModuleEnv* module_env,
                            std::vector<Handle<Code>>& results,
                            ErrorThrower* thrower);
 
-  void ValidateSequentially(ModuleBytesEnv* module_env, ErrorThrower* thrower);
+  void ValidateSequentially(const ModuleWireBytes& wire_bytes,
+                            const ModuleEnv* module_env, ErrorThrower* thrower);
 
   MaybeHandle<WasmModuleObject> CompileToModuleObject(
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
@@ -162,8 +166,7 @@ class ModuleCompiler {
   MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
       Handle<Script> asm_js_script,
-      Vector<const byte> asm_js_offset_table_bytes, Factory* factory,
-      WasmInstance* temp_instance);
+      Vector<const byte> asm_js_offset_table_bytes, Factory* factory);
 
   Isolate* isolate_;
   std::unique_ptr<WasmModule> module_;
@@ -343,13 +346,12 @@ class AsyncCompileJob {
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
   std::unique_ptr<ModuleCompiler> compiler_;
-  std::unique_ptr<ModuleBytesEnv> module_bytes_env_;
+  std::unique_ptr<ModuleEnv> module_env_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
   Handle<FixedArray> code_table_;
-  std::unique_ptr<WasmInstance> temp_instance_ = nullptr;
   size_t outstanding_units_ = 0;
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
