@@ -39,9 +39,6 @@ class Deserializer : public SerializerDeserializer {
   void SetRehashability(bool v) { can_rehash_ = v; }
 
  protected:
-  // This section is temporary while the deserializer is being refactored into
-  // {object,partial,object}-deserializer.h.
-
   // Create a deserializer from a snapshot byte source.
   template <class Data>
   Deserializer(Data* data, bool deserializing_user_code)
@@ -58,29 +55,36 @@ class Deserializer : public SerializerDeserializer {
     DecodeReservation(data->Reservations());
   }
 
-  // Deserialize the snapshot into an empty heap.
-  void Deserialize(Isolate* isolate);
+  void Initialize(Isolate* isolate);
+  bool ReserveSpace();
+  void DeserializeDeferredObjects();
+  void RegisterDeserializedObjectsForBlackAllocation();
 
-  // Deserialize a single object and the objects reachable from it.
-  MaybeHandle<Object> DeserializePartial(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+  // This returns the address of an object that has been described in the
+  // snapshot by chunk index and offset.
+  HeapObject* GetBackReferencedObject(int space);
 
-  // Deserialize an object graph. Fail gracefully.
-  MaybeHandle<HeapObject> DeserializeObject(Isolate* isolate);
+  // Sort descriptors of deserialized maps using new string hashes.
+  void SortMapDescriptors();
+
+  Isolate* isolate() const { return isolate_; }
+  SnapshotByteSource* source() { return &source_; }
+  List<Code*>& new_code_objects() { return new_code_objects_; }
+  List<AccessorInfo*>* accessor_infos() { return &accessor_infos_; }
+  List<Handle<String>>& new_internalized_strings() {
+    return new_internalized_strings_;
+  }
+  List<Handle<Script>>& new_scripts() { return new_scripts_; }
+  List<TransitionArray*>& transition_arrays() { return transition_arrays_; }
+  bool deserializing_user_code() const { return deserializing_user_code_; }
+  bool can_rehash() const { return can_rehash_; }
 
  private:
   void VisitRootPointers(Root root, Object** start, Object** end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  void Initialize(Isolate* isolate);
-
-  bool deserializing_user_code() { return deserializing_user_code_; }
-
   void DecodeReservation(Vector<const SerializedData::Reservation> res);
-
-  bool ReserveSpace();
 
   void UnalignedCopy(Object** dest, Object** src) {
     memcpy(dest, src, sizeof(*src));
@@ -94,17 +98,6 @@ class Deserializer : public SerializerDeserializer {
     next_alignment_ = static_cast<AllocationAlignment>(alignment);
   }
 
-  void DeserializeDeferredObjects();
-  void DeserializeEmbedderFields(
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
-
-  void FlushICacheForNewIsolate();
-  void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
-
-  void CommitPostProcessedObjects(Isolate* isolate);
-
-  void PrintDisassembledCodeObjects();
-
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or NULL if we are not writing into an
@@ -117,19 +110,6 @@ class Deserializer : public SerializerDeserializer {
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
-
-  // This returns the address of an object that has been described in the
-  // snapshot by chunk index and offset.
-  HeapObject* GetBackReferencedObject(int space);
-
-  // Rehash after deserializing an isolate.
-  void Rehash();
-
-  // Rehash after deserializing a context.
-  void RehashContext(Context* context);
-
-  // Sort descriptors of deserialized maps using new string hashes.
-  void SortMapDescriptors();
 
   // Cached current isolate.
   Isolate* isolate_;
@@ -156,11 +136,11 @@ class Deserializer : public SerializerDeserializer {
   List<HeapObject*> deserialized_large_objects_;
   List<Code*> new_code_objects_;
   List<AccessorInfo*> accessor_infos_;
-  List<Handle<String> > new_internalized_strings_;
-  List<Handle<Script> > new_scripts_;
+  List<Handle<String>> new_internalized_strings_;
+  List<Handle<Script>> new_scripts_;
   List<TransitionArray*> transition_arrays_;
 
-  bool deserializing_user_code_;
+  const bool deserializing_user_code_;
 
   AllocationAlignment next_alignment_;
 
@@ -168,6 +148,22 @@ class Deserializer : public SerializerDeserializer {
   bool can_rehash_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
+};
+
+// Used to insert a deserialized internalized string into the string table.
+class StringTableInsertionKey : public StringTableKey {
+ public:
+  explicit StringTableInsertionKey(String* string);
+
+  bool IsMatch(Object* string) override;
+
+  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override;
+
+ private:
+  uint32_t ComputeHashField(String* string);
+
+  String* string_;
+  DisallowHeapAllocation no_gc;
 };
 
 }  // namespace internal

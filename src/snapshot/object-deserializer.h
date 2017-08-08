@@ -10,19 +10,22 @@
 namespace v8 {
 namespace internal {
 
+class SerializedCodeData;
+
 // Deserializes the object graph rooted at a given object.
 // Currently, the ObjectDeserializer is only used to deserialize code objects
 // and compiled wasm modules.
-class ObjectDeserializer : public Deserializer {
+class ObjectDeserializer final : public Deserializer {
  public:
-  template <class Data>
-  ObjectDeserializer(Data* data, bool deserializing_user_code)
-      : Deserializer(data, deserializing_user_code) {}
+  explicit ObjectDeserializer(const SerializedCodeData* data)
+      : Deserializer(data, true) {}
 
   // Deserialize an object graph. Fail gracefully.
-  MaybeHandle<HeapObject> Deserialize(Isolate* isolate) {
-    return DeserializeObject(isolate);
-  }
+  MaybeHandle<HeapObject> Deserialize(Isolate* isolate);
+
+ private:
+  void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
+  void CommitPostProcessedObjects();
 };
 
 }  // namespace internal

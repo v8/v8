@@ -194,7 +194,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  ObjectDeserializer deserializer(&scd, false);
+  ObjectDeserializer deserializer(&scd);
   deserializer.AddAttachedObject(source);
   Vector<const uint32_t> code_stub_keys = scd.CodeStubKeys();
   for (int i = 0; i < code_stub_keys.length(); i++) {
@@ -265,7 +265,7 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
-  ObjectDeserializer deserializer(&scd, true);
+  ObjectDeserializer deserializer(&scd);
   deserializer.AddAttachedObject(isolate->native_context());
 
   MaybeHandle<String> maybe_wire_bytes_as_string =

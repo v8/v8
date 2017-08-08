@@ -13,19 +13,23 @@ namespace internal {
 
 // Deserializes the context-dependent object graph rooted at a given object.
 // Currently, the only use-case is to deserialize native contexts.
-// The PartialDeserializer is not expected to any deserialize code objects.
-class PartialDeserializer : public Deserializer {
+// The PartialDeserializer is not expected to deserialize any code objects.
+class PartialDeserializer final : public Deserializer {
  public:
-  explicit PartialDeserializer(SnapshotData* data)
+  explicit PartialDeserializer(const SnapshotData* data)
       : Deserializer(data, false) {}
 
   // Deserialize a single object and the objects reachable from it.
   MaybeHandle<Object> Deserialize(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-    return DeserializePartial(isolate, global_proxy,
-                              embedder_fields_deserializer);
-  }
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+
+ private:
+  void DeserializeEmbedderFields(
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+
+  // Rehash after deserializing a context.
+  void RehashContext(Context* context);
 };
 
 }  // namespace internal
