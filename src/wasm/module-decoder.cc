@@ -960,29 +960,17 @@ class ModuleDecoder : public Decoder {
     }
   }
 
-  bool IsWithinLimit(uint32_t limit, uint32_t offset, uint32_t size) {
-    if (offset > limit) return false;
-    if ((offset + size) < offset) return false;  // overflow
-    return (offset + size) <= limit;
-  }
-
   // Decodes a single data segment entry inside a module starting at {pc_}.
   void DecodeDataSegmentInModule(WasmModule* module, WasmDataSegment* segment) {
-    const byte* start = pc_;
     expect_u8("linear memory index", 0);
     segment->dest_addr = consume_init_expr(module, kWasmI32);
     uint32_t source_length = consume_u32v("source size");
     uint32_t source_offset = pc_offset();
+
+    consume_bytes(source_length, "segment data");
+    if (failed()) return;
+
     segment->source = {source_offset, source_length};
-
-    // Validate the data is in the decoder buffer.
-    uint32_t limit = static_cast<uint32_t>(end_ - start_);
-    if (!IsWithinLimit(limit, GetBufferRelativeOffset(segment->source.offset()),
-                       segment->source.length())) {
-      error(start, "segment out of bounds of the section");
-    }
-
-    consume_bytes(segment->source.length(), "segment data");
   }
 
   // Calculate individual global offsets and total size of globals table.

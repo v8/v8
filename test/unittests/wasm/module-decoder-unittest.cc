@@ -711,6 +711,20 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   EXPECT_FAILURE(data);
 }
 
+TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
+  const byte data[] = {
+      SECTION(Memory, 4),  // memory section
+      ENTRY_COUNT(1),           kResizableMaximumFlag, 28, 28,
+      SECTION(Data, 10),         // data section
+      ENTRY_COUNT(1),            // one entry
+      LINEAR_MEMORY_INDEX_0,     // mem index
+      WASM_INIT_EXPR_I32V_1(0),  // offset
+      U32V_5(0xffffffff)         // size
+  };
+
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
