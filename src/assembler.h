@@ -1088,14 +1088,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 // -----------------------------------------------------------------------------
 // Utility functions
 
-inline int NumberOfBitsSet(uint32_t x) {
-  unsigned int num_bits_set;
-  for (num_bits_set = 0; x; x >>= 1) {
-    num_bits_set += x & 1;
-  }
-  return num_bits_set;
-}
-
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
 double power_helper(Isolate* isolate, double x, double y);
 double power_double_int(double x, int y);

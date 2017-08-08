@@ -192,7 +192,7 @@ void TurboAssembler::Move(DoubleRegister dst, DoubleRegister src) {
 }
 
 void TurboAssembler::MultiPush(RegList regs, Register location) {
-  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kPointerSize;
 
   subi(location, location, Operand(stack_offset));
@@ -217,7 +217,7 @@ void TurboAssembler::MultiPop(RegList regs, Register location) {
 }
 
 void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
-  int16_t num_to_push = NumberOfBitsSet(dregs);
+  int16_t num_to_push = base::bits::CountPopulation(dregs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
   subi(location, location, Operand(stack_offset));

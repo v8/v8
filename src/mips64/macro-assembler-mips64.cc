@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_MIPS64
 
+#include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
@@ -1893,7 +1894,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
 }
 
 void TurboAssembler::MultiPush(RegList regs) {
-  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kPointerSize;
 
   Dsubu(sp, sp, Operand(stack_offset));
@@ -1907,7 +1908,7 @@ void TurboAssembler::MultiPush(RegList regs) {
 
 
 void MacroAssembler::MultiPushReversed(RegList regs) {
-  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kPointerSize;
 
   Dsubu(sp, sp, Operand(stack_offset));
@@ -1945,7 +1946,7 @@ void MacroAssembler::MultiPopReversed(RegList regs) {
 }
 
 void TurboAssembler::MultiPushFPU(RegList regs) {
-  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
   Dsubu(sp, sp, Operand(stack_offset));
@@ -1959,7 +1960,7 @@ void TurboAssembler::MultiPushFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPushReversedFPU(RegList regs) {
-  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
   Dsubu(sp, sp, Operand(stack_offset));
