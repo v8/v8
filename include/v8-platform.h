@@ -204,6 +204,16 @@ class Platform {
    * the epoch.
    **/
   virtual double MonotonicallyIncreasingTime() = 0;
+
+  /**
+   * Current wall-clock time in milliseconds since epoch.
+   * This function is expected to return at least millisecond-precision values.
+   */
+  virtual double CurrentClockTimeMillis() {
+    // TODO(dats): Make pure virtual after V8 roll in Chromium.
+    return 0.0;
+  }
+
   typedef void (*StackTracePrinter)();
 
   /**
