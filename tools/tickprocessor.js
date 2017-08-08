@@ -120,7 +120,7 @@ function TickProcessor(
           parsers: [parseInt, parseInt, parseInt, parseInt, null, null, null],
           processor: this.processCodeSourceInfo },
       'script': {
-          parsers: [parseInt, null],
+          parsers: [parseInt, null, null],
           processor: this.processCodeScript },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
@@ -330,8 +330,8 @@ TickProcessor.prototype.processCodeSourceInfo = function(
     endPos, sourcePositions, inliningPositions, inlinedFunctions);
 };
 
-TickProcessor.prototype.processCodeScript = function(script, source) {
-  this.profile_.addScriptSource(script, source);
+TickProcessor.prototype.processCodeScript = function(script, url, source) {
+  this.profile_.addScriptSource(script, url, source);
 };
 
 TickProcessor.prototype.processFunctionMove = function(from, to) {

@@ -1025,8 +1025,11 @@ function unescapeString(s) {
   return s.join("");
 }
 
-JsonProfile.prototype.addScriptSource = function(script, source) {
-  this.scripts_[script] = unescapeString(source);
+JsonProfile.prototype.addScriptSource = function(script, url, source) {
+  this.scripts_[script] = {
+    name : unescapeString(url),
+    source : unescapeString(source)
+  };
 };
 
 

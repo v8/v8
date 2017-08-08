@@ -850,7 +850,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
                         ? static_cast<int>(timer_.Elapsed().InMicroseconds())
                         : -1;
   msg.Append("code-deopt,%d,%d,", since_epoch, code->CodeSize());
-  msg.AppendAddress(code->address());
+  msg.AppendAddress(code->instruction_start());
 
   // Deoptimization position.
   std::ostringstream deopt_location;
@@ -1053,8 +1053,8 @@ void AppendCodeCreateHeader(Log::MessageBuilder* msg,
                       ? static_cast<int>(timer->Elapsed().InMicroseconds())
                       : -1;
   msg->Append("%d,", timestamp);
-  msg->AppendAddress(code->address());
-  msg->Append(",%d,", code->ExecutableSize());
+  msg->AppendAddress(code->instruction_start());
+  msg->Append(",%d,", code->instruction_size());
 }
 
 }  // namespace
@@ -1155,6 +1155,16 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
           String* source_code = String::cast(source_object);
           os << "script," << script_id << ",\"";
           msg.AppendUnbufferedCString(os.str().c_str());
+
+          // Log the script name.
+          if (script->name()->IsString()) {
+            msg.AppendUnbufferedHeapString(String::cast(script->name()));
+            msg.AppendUnbufferedCString("\",\"");
+          } else {
+            msg.AppendUnbufferedCString("<unknown>\",\"");
+          }
+
+          // Log the source code.
           msg.AppendUnbufferedHeapString(source_code);
           os.str("");
           os << "\"" << std::endl;
@@ -1184,8 +1194,8 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       //         <function-id> is an index into the <fns> function table
       //   <fns> is the function table encoded as a sequence of strings
       //      S<shared-function-info-address>
-      os << "code-source-info," << static_cast<void*>(code->address()) << ","
-         << script_id << "," << shared->start_position() << ","
+      os << "code-source-info," << static_cast<void*>(code->instruction_start())
+         << "," << script_id << "," << shared->start_position() << ","
          << shared->end_position() << ",";
 
       SourcePositionTableIterator iterator(code->source_position_table());
