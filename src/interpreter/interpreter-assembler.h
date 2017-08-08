@@ -119,12 +119,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* IncrementCallCount(compiler::Node* feedback_vector,
                                      compiler::Node* slot_id);
 
-  // Collect CALL_IC feedback for |target_or_new_target| function in the
+  // Collect CALL_IC feedback for |target| function in the
   // |feedback_vector| at |slot_id|.
-  void CollectCallOrConstructFeedback(compiler::Node* target_or_new_target,
-                                      compiler::Node* context,
-                                      compiler::Node* slot_id,
-                                      compiler::Node* feedback_vector);
+  void CollectCallFeedback(compiler::Node* target, compiler::Node* context,
+                           compiler::Node* slot_id,
+                           compiler::Node* feedback_vector);
 
   // Call JSFunction or Callable |function| with |arg_count| arguments (not
   // including receiver) and the first argument located at |first_arg|, possibly

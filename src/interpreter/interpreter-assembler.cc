@@ -564,24 +564,24 @@ Node* InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                  SKIP_WRITE_BARRIER, kPointerSize);
 }
 
-void InterpreterAssembler::CollectCallOrConstructFeedback(
-    Node* target_or_new_target, Node* context, Node* feedback_vector,
-    Node* slot_id) {
+void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
+                                               Node* feedback_vector,
+                                               Node* slot_id) {
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);
 
-  // Check if we have monomorphic {target_or_new_target} feedback already.
+  // Check if we have monomorphic {target} feedback already.
   Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
-  Branch(WordEqual(target_or_new_target, feedback_value), &done, &extra_checks);
+  Branch(WordEqual(target, feedback_value), &done, &extra_checks);
 
   BIND(&extra_checks);
   {
     Label check_initialized(this), initialize(this), mark_megamorphic(this);
 
-    // Check if it is a megamorphic {target_or_new_target}.
+    // Check if it is a megamorphic {target}.
     Comment("check if megamorphic");
     Node* is_megamorphic =
         WordEqual(feedback_element,
@@ -609,21 +609,20 @@ void InterpreterAssembler::CollectCallOrConstructFeedback(
 
     BIND(&initialize);
     {
-      // Check if {target_or_new_target} is a JSFunction in the current native
+      // Check if {target} is a JSFunction in the current native
       // context.
       Comment("check if function in same native context");
-      GotoIf(TaggedIsSmi(target_or_new_target), &mark_megamorphic);
+      GotoIf(TaggedIsSmi(target), &mark_megamorphic);
       // TODO(bmeurer): Add support for arbitrary callables here, and
       // check via GetFunctionRealm (see src/objects.cc).
-      GotoIfNot(IsJSFunction(target_or_new_target), &mark_megamorphic);
+      GotoIfNot(IsJSFunction(target), &mark_megamorphic);
       Node* target_context =
-          LoadObjectField(target_or_new_target, JSFunction::kContextOffset);
+          LoadObjectField(target, JSFunction::kContextOffset);
       Node* target_native_context = LoadNativeContext(target_context);
       GotoIfNot(WordEqual(LoadNativeContext(context), target_native_context),
                 &mark_megamorphic);
 
-      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
-                                     target_or_new_target);
+      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id), target);
       Goto(&done);
     }
 
@@ -665,7 +664,7 @@ Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
                                              Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
-  CollectCallOrConstructFeedback(function, context, feedback_vector, slot_id);
+  CollectCallFeedback(function, context, feedback_vector, slot_id);
   Comment("call using CallWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
@@ -828,8 +827,85 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
                                                 Node* first_arg,
                                                 Node* arg_count, Node* slot_id,
                                                 Node* feedback_vector) {
+  // TODO(bmeurer): Unify this with the Construct bytecode feedback
+  // above once we have a way to pass the AllocationSite to the Array
+  // constructor _and_ spread the last argument at the same time.
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  CollectCallOrConstructFeedback(new_target, context, feedback_vector, slot_id);
+  Label extra_checks(this, Label::kDeferred), construct(this);
+
+  // Increment the call count.
+  IncrementCallCount(feedback_vector, slot_id);
+
+  // Check if we have monomorphic {new_target} feedback already.
+  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
+  Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
+
+  BIND(&extra_checks);
+  {
+    Label check_initialized(this), initialize(this), mark_megamorphic(this);
+
+    // Check if it is a megamorphic {new_target}.
+    Comment("check if megamorphic");
+    Node* is_megamorphic =
+        WordEqual(feedback_element,
+                  HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+    GotoIf(is_megamorphic, &construct);
+
+    Comment("check if weak cell");
+    Node* is_weak_cell = WordEqual(LoadMap(feedback_element),
+                                   LoadRoot(Heap::kWeakCellMapRootIndex));
+    GotoIfNot(is_weak_cell, &check_initialized);
+
+    // If the weak cell is cleared, we have a new chance to become monomorphic.
+    Comment("check if weak cell is cleared");
+    Node* is_smi = TaggedIsSmi(feedback_value);
+    Branch(is_smi, &initialize, &mark_megamorphic);
+
+    BIND(&check_initialized);
+    {
+      // Check if it is uninitialized.
+      Comment("check if uninitialized");
+      Node* is_uninitialized = WordEqual(
+          feedback_element, LoadRoot(Heap::kuninitialized_symbolRootIndex));
+      Branch(is_uninitialized, &initialize, &mark_megamorphic);
+    }
+
+    BIND(&initialize);
+    {
+      // Check if {new_target} is a JSFunction in the current native
+      // context.
+      Comment("check if function in same native context");
+      GotoIf(TaggedIsSmi(new_target), &mark_megamorphic);
+      // TODO(bmeurer): Add support for arbitrary constructors here, and
+      // check via GetFunctionRealm (see src/objects.cc).
+      GotoIfNot(IsJSFunction(new_target), &mark_megamorphic);
+      Node* target_context =
+          LoadObjectField(new_target, JSFunction::kContextOffset);
+      Node* target_native_context = LoadNativeContext(target_context);
+      GotoIfNot(WordEqual(LoadNativeContext(context), target_native_context),
+                &mark_megamorphic);
+
+      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
+                                     new_target);
+      Goto(&construct);
+    }
+
+    BIND(&mark_megamorphic);
+    {
+      // MegamorphicSentinel is an immortal immovable object so
+      // write-barrier is not needed.
+      Comment("transition to megamorphic");
+      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
+      StoreFeedbackVectorSlot(
+          feedback_vector, slot_id,
+          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
+          SKIP_WRITE_BARRIER);
+      Goto(&construct);
+    }
+  }
+
+  BIND(&construct);
   Comment("call using ConstructWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
