@@ -90,7 +90,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(TheHole, 0, 1)                        \
   F(GenericHash, 1, 1)                    \
-  F(GetExistingHash, 1, 1)                \
   F(SetGrow, 1, 1)                        \
   F(SetShrink, 1, 1)                      \
   F(SetIteratorClone, 1, 1)               \

@@ -460,7 +460,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
     BIND(&dictionary);
     {
-      Node* properties = LoadSlowProperties(receiver);
+      Node* properties = LoadProperties(receiver);
       DeleteDictionaryProperty(receiver, properties, unique, context,
                                &dont_delete, &if_notfound);
     }

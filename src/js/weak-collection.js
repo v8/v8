@@ -11,6 +11,7 @@
 // -------------------------------------------------------------------
 // Imports
 
+var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
 var MathRandom = global.Math.random;
@@ -19,7 +20,8 @@ var MathRandom = global.Math.random;
 
 function GetExistingHash(key) {
   if (IS_RECEIVER(key) && !IS_PROXY(key) && !IS_GLOBAL(key)) {
-    return %GetExistingHash(key);
+    var hash = GET_PRIVATE(key, hashCodeSymbol);
+    return hash;
   }
   return %GenericHash(key);
 }
@@ -27,7 +29,13 @@ function GetExistingHash(key) {
 
 
 function GetHash(key) {
-  return %GenericHash(key);
+  var hash = GetExistingHash(key);
+  if (IS_UNDEFINED(hash)) {
+    hash = (MathRandom() * 0x40000000) | 0;
+    if (hash === 0) hash = 1;
+    SET_PRIVATE(key, hashCodeSymbol, hash);
+  }
+  return hash;
 }
 %SetForceInlineFlag(GetHash);
 

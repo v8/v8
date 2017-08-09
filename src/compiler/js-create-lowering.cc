@@ -276,7 +276,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
       AllocationBuilder a(jsgraph(), effect, control);
       a.Allocate(instance_size);
       a.Store(AccessBuilder::ForMap(), initial_map);
-      a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+      a.Store(AccessBuilder::ForJSObjectProperties(),
               jsgraph()->EmptyFixedArrayConstant());
       a.Store(AccessBuilder::ForJSObjectElements(),
               jsgraph()->EmptyFixedArrayConstant());
@@ -333,7 +333,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kPointerSize);
             a.Allocate(JSSloppyArgumentsObject::kSize);
             a.Store(AccessBuilder::ForMap(), arguments_map);
-            a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+            a.Store(AccessBuilder::ForJSObjectProperties(), properties);
             a.Store(AccessBuilder::ForJSObjectElements(), elements);
             a.Store(AccessBuilder::ForArgumentsLength(), arguments_length);
             a.Store(AccessBuilder::ForArgumentsCallee(), callee);
@@ -379,7 +379,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
           a.Allocate(JSStrictArgumentsObject::kSize);
           a.Store(AccessBuilder::ForMap(), arguments_map);
-          a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+          a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
           a.Store(AccessBuilder::ForArgumentsLength(), arguments_length);
           RelaxControls(node);
@@ -424,7 +424,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
           a.Allocate(JSArray::kSize);
           a.Store(AccessBuilder::ForMap(), jsarray_map);
-          a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+          a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
           a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS),
                   rest_length);
@@ -479,7 +479,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kPointerSize);
       a.Allocate(JSSloppyArgumentsObject::kSize);
       a.Store(AccessBuilder::ForMap(), arguments_map);
-      a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+      a.Store(AccessBuilder::ForJSObjectProperties(), properties);
       a.Store(AccessBuilder::ForJSObjectElements(), elements);
       a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
       a.Store(AccessBuilder::ForArgumentsCallee(), callee);
@@ -508,7 +508,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
       a.Allocate(JSStrictArgumentsObject::kSize);
       a.Store(AccessBuilder::ForMap(), arguments_map);
-      a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+      a.Store(AccessBuilder::ForJSObjectProperties(), properties);
       a.Store(AccessBuilder::ForJSObjectElements(), elements);
       a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
       RelaxControls(node);
@@ -543,7 +543,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
       a.Allocate(JSArray::kSize);
       a.Store(AccessBuilder::ForMap(), jsarray_map);
-      a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+      a.Store(AccessBuilder::ForJSObjectProperties(), properties);
       a.Store(AccessBuilder::ForJSObjectElements(), elements);
       a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS),
               jsgraph()->Constant(length));
@@ -593,7 +593,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
     Node* undefined = jsgraph()->UndefinedConstant();
     a.Store(AccessBuilder::ForMap(), initial_map);
-    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
     a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
     a.Store(AccessBuilder::ForJSGeneratorObjectContext(), context);
     a.Store(AccessBuilder::ForJSGeneratorObjectFunction(), closure);
@@ -660,7 +660,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(JSArray::kSize, pretenure);
   a.Store(AccessBuilder::ForMap(), js_array_map);
-  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectProperties(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
   RelaxControls(node);
@@ -719,7 +719,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(JSArray::kSize, pretenure);
   a.Store(AccessBuilder::ForMap(), js_array_map);
-  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectProperties(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
   RelaxControls(node);
@@ -851,7 +851,7 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(JSIteratorResult::kSize);
   a.Store(AccessBuilder::ForMap(), iterator_result_map);
-  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+  a.Store(AccessBuilder::ForJSObjectProperties(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
           jsgraph()->EmptyFixedArrayConstant());
@@ -884,7 +884,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   AllocationBuilder a(jsgraph(), elements, graph()->start());
   a.Allocate(JSArray::kSize);
   a.Store(AccessBuilder::ForMap(), array_map);
-  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectProperties(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS), length);
   STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
@@ -1349,7 +1349,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
   builder.Allocate(boilerplate_map->instance_size(), pretenure,
                    Type::For(boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
-  builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  builder.Store(AccessBuilder::ForJSObjectProperties(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
   if (boilerplate_map->IsJSArrayMap()) {
     Handle<JSArray> boilerplate_array = Handle<JSArray>::cast(boilerplate);
@@ -1455,7 +1455,7 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(size, pretenure, Type::For(boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
-  builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+  builder.Store(AccessBuilder::ForJSObjectProperties(),
                 handle(boilerplate->raw_properties_or_hash(), isolate()));
   builder.Store(AccessBuilder::ForJSObjectElements(),
                 handle(boilerplate->elements(), isolate()));

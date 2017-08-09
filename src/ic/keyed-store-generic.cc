@@ -784,7 +784,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&data_property);
       {
         CheckForAssociatedProtector(p->name, slow);
-        Node* properties = LoadFastProperties(receiver);
+        Node* properties = LoadProperties(receiver);
         OverwriteExistingFastProperty(receiver, receiver_map, properties,
                                       descriptors, name_index, details,
                                       p->value, slow);
@@ -854,7 +854,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index), not_found(this);
-    Node* properties = LoadSlowProperties(receiver);
+    Node* properties = LoadProperties(receiver);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);

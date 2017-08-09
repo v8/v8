@@ -13,9 +13,17 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
 }
 
-void CopyHashCode(Handle<JSReceiver> from, Handle<JSReceiver> to) {
-  int hash = Smi::ToInt(from->GetHash());
-  to->SetIdentityHash(hash);
+void CopyHashCode(Isolate* isolate, Handle<JSReceiver> from,
+                  Handle<JSReceiver> to) {
+  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
+  Handle<Smi> hash =
+      Handle<Smi>::cast(JSObject::GetDataProperty(from, hash_code_symbol));
+
+  LookupIterator it(to, hash_code_symbol, to, LookupIterator::OWN);
+  CHECK(to->AddDataProperty(
+              &it, hash, NONE, v8::internal::AccessCheckInfo::THROW_ON_ERROR,
+              v8::internal::AccessCheckInfo::CERTAINLY_NOT_STORE_FROM_KEYED)
+            .IsJust());
 }
 
 void Verify(Handle<HeapObject> obj) {
@@ -205,7 +213,7 @@ TEST(SmallOrderedHashSetDuplicateHashCode) {
   CHECK(set->HasKey(isolate, key1));
 
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  CopyHashCode(key1, key2);
+  CopyHashCode(isolate, key1, key2);
 
   set = SmallOrderedHashSet::Add(set, key2);
   Verify(set);
@@ -230,9 +238,16 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   CHECK_EQ(1, map->NumberOfElements());
   CHECK(map->HasKey(isolate, key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  CopyHashCode(key1, key2);
+  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
+  Handle<Smi> hash =
+      Handle<Smi>::cast(JSObject::GetDataProperty(key1, hash_code_symbol));
 
+  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  LookupIterator it(key2, hash_code_symbol, key2, LookupIterator::OWN);
+  CHECK(key2->AddDataProperty(
+                &it, hash, NONE, v8::internal::AccessCheckInfo::THROW_ON_ERROR,
+                v8::internal::AccessCheckInfo::CERTAINLY_NOT_STORE_FROM_KEYED)
+            .IsJust());
   CHECK(!key1->SameValue(*key2));
   Object* hash1 = key1->GetHash();
   Object* hash2 = key2->GetHash();
@@ -584,7 +599,7 @@ TEST(OrderedHashMapDuplicateHashCode) {
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
 
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  CopyHashCode(key1, key2);
+  CopyHashCode(isolate, key1, key2);
 
   map = OrderedHashMap::Add(map, key2, value);
   Verify(map);
@@ -734,7 +749,7 @@ TEST(OrderedHashMapDuplicateHashCodeDeletion) {
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
 
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  CopyHashCode(key1, key2);
+  CopyHashCode(isolate, key1, key2);
 
   // We shouldn't be able to delete the key!
   CHECK(!OrderedHashMap::Delete(isolate, *map, *key2));
@@ -883,7 +898,7 @@ TEST(OrderedHashSetDuplicateHashCodeDeletion) {
   CHECK(OrderedHashSet::HasKey(isolate, *set, *key1));
 
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
-  CopyHashCode(key1, key2);
+  CopyHashCode(isolate, key1, key2);
 
   // We shouldn't be able to delete the key!
   CHECK(!OrderedHashSet::Delete(isolate, *set, *key2));

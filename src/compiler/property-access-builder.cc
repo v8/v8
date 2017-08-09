@@ -224,7 +224,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   Node* storage = receiver;
   if (!field_index.is_inobject()) {
     storage = *effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+        simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
         storage, *effect, *control);
   }
   FieldAccess field_access = {

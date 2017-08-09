@@ -17,13 +17,6 @@ RUNTIME_FUNCTION(Runtime_TheHole) {
   return isolate->heap()->the_hole_value();
 }
 
-RUNTIME_FUNCTION(Runtime_GetExistingHash) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  return object->GetHash();
-}
-
 RUNTIME_FUNCTION(Runtime_GenericHash) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

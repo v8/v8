@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForHeapNumberValue();
 
   // Provides access to JSObject::properties() field.
-  static FieldAccess ForJSObjectPropertiesOrHash();
+  static FieldAccess ForJSObjectProperties();
 
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
@@ -303,7 +303,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Dictionary fields.
   static FieldAccess ForDictionaryMaxNumberKey();
   static FieldAccess ForDictionaryNextEnumerationIndex();
-  static FieldAccess ForDictionaryObjectHashIndex();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

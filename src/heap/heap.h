@@ -194,7 +194,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   /* Lists and dictionaries */                                                 \
-  V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
+  V(NameDictionary, empty_property_dictionary, EmptyPropertiesDictionary)      \
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                    \
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
