@@ -22,7 +22,7 @@ class ValueUnwrapContext {
 Node* AsyncBuiltinsAssembler::Await(
     Node* context, Node* generator, Node* value, Node* outer_promise,
     int context_length, const ContextInitializer& init_closure_context,
-    int on_resolve_context_index, int on_reject_context_index,
+    Node* on_resolve_context_index, Node* on_reject_context_index,
     Node* is_predicted_as_caught) {
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
 
@@ -173,7 +173,7 @@ Node* AsyncBuiltinsAssembler::Await(
 void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
                                                      Node* native_context,
                                                      Node* function,
-                                                     int context_index) {
+                                                     Node* context_index) {
   Node* const function_map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   StoreMapNoWriteBarrier(function, function_map);

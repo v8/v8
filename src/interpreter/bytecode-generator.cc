@@ -2228,20 +2228,6 @@ void BytecodeGenerator::BuildReturn(int source_position) {
   if (info()->literal()->feedback_vector_spec()->HasTypeProfileSlot()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
-  if (IsAsyncGeneratorFunction(info()->literal()->kind())) {
-    // Mark the generator as closed if returning from an async generator
-    // function. Note that non-async generators are closed by the
-    // generator-resume builtin.
-
-    // TODO(jarin,caitp) Move the async generator closing to the resume
-    // builtin.
-    RegisterAllocationScope register_scope(this);
-    Register result = register_allocator()->NewRegister();
-    builder()
-        ->StoreAccumulatorInRegister(result)
-        .CallRuntime(Runtime::kInlineGeneratorClose, generator_object_)
-        .LoadAccumulatorWithRegister(result);
-  }
   builder()->SetReturnPosition(source_position, info()->literal());
   builder()->Return();
 }
@@ -2251,19 +2237,11 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
 
   if (IsAsyncGeneratorFunction(info()->literal()->kind())) {
     RegisterList args = register_allocator()->NewRegisterList(3);
-    Register generator = args[0];
-    Register result = args[1];
-    Register done = args[2];
-
-    builder()->StoreAccumulatorInRegister(result);
-    Variable* var_generator_object = closure_scope()->generator_object_var();
-    DCHECK_NOT_NULL(var_generator_object);
-    BuildVariableLoad(var_generator_object, FeedbackSlot::Invalid(),
-                      HoleCheckMode::kElided);
     builder()
-        ->StoreAccumulatorInRegister(generator)
+        ->MoveRegister(generator_object_, args[0])  // generator
+        .StoreAccumulatorInRegister(args[1])        // value
         .LoadTrue()
-        .StoreAccumulatorInRegister(done)
+        .StoreAccumulatorInRegister(args[2])  // done
         .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
   } else {
     DCHECK(IsAsyncFunction(info()->literal()->kind()));
@@ -2661,8 +2639,6 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     builder()->Bind(jump_table, JSGeneratorObject::kReturn);
     builder()->LoadAccumulatorWithRegister(input);
     if (IsAsyncGeneratorFunction(function_kind())) {
-      // Async generator methods will produce the iter result object.
-      BuildAwait(expr->await_return_value_suspend_id());
       execution_control()->AsyncReturnAccumulator();
     } else {
       execution_control()->ReturnAccumulator();

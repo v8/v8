@@ -219,13 +219,7 @@ void AstNumberingVisitor::VisitSuspend(Suspend* node) {
   Visit(node->expression());
 }
 
-void AstNumberingVisitor::VisitYield(Yield* node) {
-  node->set_suspend_id(suspend_count_++);
-  if (IsAsyncGeneratorFunction(function_kind_)) {
-    node->set_await_return_value_suspend_id(suspend_count_++);
-  }
-  Visit(node->expression());
-}
+void AstNumberingVisitor::VisitYield(Yield* node) { VisitSuspend(node); }
 
 void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
   VisitSuspend(node);

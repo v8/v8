@@ -26,8 +26,18 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               int context_length,
               const ContextInitializer& init_closure_context,
-              int on_resolve_context_index, int on_reject_context_index,
+              Node* on_resolve_context_index, Node* on_reject_context_index,
               Node* is_predicted_as_caught);
+  Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
+              int context_length,
+              const ContextInitializer& init_closure_context,
+              int on_resolve_context_index, int on_reject_context_index,
+              Node* is_predicted_as_caught) {
+    return Await(context, generator, value, outer_promise, context_length,
+                 init_closure_context, IntPtrConstant(on_resolve_context_index),
+                 IntPtrConstant(on_reject_context_index),
+                 is_predicted_as_caught);
+  }
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               int context_length,
               const ContextInitializer& init_closure_context,
@@ -45,7 +55,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
 
  private:
   void InitializeNativeClosure(Node* context, Node* native_context,
-                               Node* function, int context_index);
+                               Node* function, Node* context_index);
   Node* AllocateAsyncIteratorValueUnwrapContext(Node* native_context,
                                                 Node* done);
 };

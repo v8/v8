@@ -242,7 +242,8 @@ namespace internal {
   F(AsyncGeneratorYield, 3, 1)          \
   F(GeneratorGetContinuation, 1, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
-  F(GeneratorGetResumeMode, 1, 1)
+  F(GeneratorGetResumeMode, 1, 1)       \
+  F(AsyncGeneratorHasCatchHandlerForPC, 1, 1)
 
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F)           \
