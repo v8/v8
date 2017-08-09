@@ -8468,7 +8468,7 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F4 f = FUNCTION_CAST<F4>(code->entry());
+  F5 f = FUNCTION_CAST<F5>(code->entry());
 
   (CALL_GENERATED_CODE(isolate, f, in_array_middle, out_array_middle, 0, 0, 0));
 
