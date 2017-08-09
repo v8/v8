@@ -38,14 +38,6 @@ MachineType MachineTypeFor(ValueType type) {
   }
 }
 
-LinkageLocation regloc(Register reg, MachineType type) {
-  return LinkageLocation::ForRegister(reg.code(), type);
-}
-
-LinkageLocation regloc(DoubleRegister reg, MachineType type) {
-  return LinkageLocation::ForRegister(reg.code(), type);
-}
-
 LinkageLocation stackloc(int i, MachineType type) {
   return LinkageLocation::ForCallerFrameSlot(i, type);
 }
@@ -173,11 +165,12 @@ struct Allocator {
         if (type == wasm::kWasmF32) {
           int float_reg_code = reg.code() * 2;
           DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
-          return regloc(DoubleRegister::from_code(float_reg_code),
-                        MachineTypeFor(type));
+          return LinkageLocation::ForRegister(
+              DoubleRegister::from_code(float_reg_code).code(),
+              MachineTypeFor(type));
         }
 #endif
-        return regloc(reg, MachineTypeFor(type));
+        return LinkageLocation::ForRegister(reg.code(), MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;
         stack_offset += Words(type);
@@ -186,7 +179,8 @@ struct Allocator {
     } else {
       // Allocate a general purpose register/stack location.
       if (gp_offset < gp_count) {
-        return regloc(gp_regs[gp_offset++], MachineTypeFor(type));
+        return LinkageLocation::ForRegister(gp_regs[gp_offset++].code(),
+                                            MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;
         stack_offset += Words(type);

@@ -2076,9 +2076,6 @@ v8_source_set("v8_base") {
     jumbo_excluded_sources = [
       # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
       "src/profiler/heap-snapshot-generator.cc",  # Macro clash in mman-linux.h
-      "src/compiler/c-linkage.cc",  # Symbol clashes with linkage.cc
-      "src/compiler/wasm-linkage.cc",  # regloc symbol clash with linkage.cc
-
       "src/compiler/escape-analysis.cc",  # Symbol clashes with new-escape-analysis.cc
       "src/compiler/escape-analysis-reducer.cc",  # Symbol clashes with new-escape-analysis-reducer.cc
     ]
