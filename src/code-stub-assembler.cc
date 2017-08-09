@@ -725,7 +725,9 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
   CSA_SLOW_ASSERT(this, IsMap(receiver_map));
   VARIABLE(var_map, MachineRepresentation::kTagged, receiver_map);
   Label loop_body(this, &var_map);
-  Node* empty_elements = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+  Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+  Node* empty_slow_element_dictionary =
+      LoadRoot(Heap::kEmptySlowElementDictionaryRootIndex);
   Goto(&loop_body);
 
   BIND(&loop_body);
@@ -741,10 +743,11 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     GotoIf(Int32LessThanOrEqual(LoadMapInstanceType(prototype_map),
                                 Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
            possibly_elements);
-    GotoIf(WordNotEqual(LoadElements(prototype), empty_elements),
-           possibly_elements);
+    Node* prototype_elements = LoadElements(prototype);
     var_map.Bind(prototype_map);
-    Goto(&loop_body);
+    GotoIf(WordEqual(prototype_elements, empty_fixed_array), &loop_body);
+    Branch(WordEqual(prototype_elements, empty_slow_element_dictionary),
+           &loop_body, possibly_elements);
   }
 }
 

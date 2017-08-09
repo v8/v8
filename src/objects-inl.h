@@ -902,11 +902,17 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   DisallowHeapAllocation no_gc;
   HeapObject* prototype = HeapObject::cast(object->map()->prototype());
   HeapObject* null = isolate->heap()->null_value();
-  HeapObject* empty = isolate->heap()->empty_fixed_array();
+  HeapObject* empty_fixed_array = isolate->heap()->empty_fixed_array();
+  HeapObject* empty_slow_element_dictionary =
+      isolate->heap()->empty_slow_element_dictionary();
   while (prototype != null) {
     Map* map = prototype->map();
     if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
-    if (JSObject::cast(prototype)->elements() != empty) return false;
+    HeapObject* elements = JSObject::cast(prototype)->elements();
+    if (elements != empty_fixed_array &&
+        elements != empty_slow_element_dictionary) {
+      return false;
+    }
     prototype = HeapObject::cast(map->prototype());
   }
   return true;
