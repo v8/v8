@@ -25,10 +25,9 @@ class LoadHandler {
     kConstant,
     kAccessor,
     kInterceptor,
-    kProxy,
     kNonExistent
   };
-  class KindBits : public BitField<Kind, 0, 4> {};
+  class KindBits : public BitField<Kind, 0, 3> {};
 
   // Defines whether access rights check should be done on receiver object.
   // Applicable to named property kinds only when loading value from prototype
@@ -113,9 +112,6 @@ class LoadHandler {
 
   // Creates a Smi-handler for calling a getter on a fast object.
   static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
-
-  // Creates a Smi-handler for calling a getter on a proxy.
-  static inline Handle<Smi> LoadProxy(Isolate* isolate);
 
   // Creates a Smi-handler for loading an Api getter property from fast object.
   static inline Handle<Smi> LoadApiGetter(Isolate* isolate, int descriptor);
