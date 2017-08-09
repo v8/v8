@@ -37,9 +37,6 @@ class ScopeInfo : public FixedArray {
   // Return the type of this scope.
   ScopeType scope_type();
 
-  // Does this scope call eval?
-  bool CallsEval();
-
   // Return the language mode of this scope.
   LanguageMode language_mode();
 
@@ -47,7 +44,7 @@ class ScopeInfo : public FixedArray {
   bool is_declaration_scope();
 
   // Does this scope make a sloppy eval call?
-  bool CallsSloppyEval() { return CallsEval() && is_sloppy(language_mode()); }
+  bool CallsSloppyEval();
 
   // Return the total number of locals allocated on the stack and in the
   // context. This includes the parameters that are allocated in the context.
@@ -301,10 +298,11 @@ class ScopeInfo : public FixedArray {
 
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
-  class CallsEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {};
+  class CallsSloppyEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {
+  };
   STATIC_ASSERT(LANGUAGE_END == 2);
   class LanguageModeField
-      : public BitField<LanguageMode, CallsEvalField::kNext, 1> {};
+      : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
   class DeclarationScopeField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
   class ReceiverVariableField

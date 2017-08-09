@@ -297,8 +297,8 @@ bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
       // And only when scope is a block scope;
       // without eval, it is a function scope.
       scope()->is_block_scope()) {
-    DCHECK(scope()->calls_sloppy_eval());
     DCHECK(scope()->is_declaration_scope());
+    DCHECK(scope()->AsDeclarationScope()->calls_sloppy_eval());
     DCHECK(scope()->outer_scope()->is_function_scope());
     return true;
   }

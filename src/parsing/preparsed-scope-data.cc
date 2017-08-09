@@ -16,9 +16,9 @@ namespace internal {
 
 namespace {
 
-class ScopeCallsEvalField : public BitField<bool, 0, 1> {};
+class ScopeCallsSloppyEvalField : public BitField<bool, 0, 1> {};
 class InnerScopeCallsEvalField
-    : public BitField<bool, ScopeCallsEvalField::kNext, 1> {};
+    : public BitField<bool, ScopeCallsSloppyEvalField::kNext, 1> {};
 
 class VariableIsUsedField : public BitField16<bool, 0, 1> {};
 class VariableMaybeAssignedField
@@ -314,7 +314,9 @@ void ProducedPreParsedScopeData::SaveDataForScope(Scope* scope) {
 #endif
 
   uint32_t eval =
-      ScopeCallsEvalField::encode(scope->calls_eval()) |
+      ScopeCallsSloppyEvalField::encode(
+          scope->is_declaration_scope() &&
+          scope->AsDeclarationScope()->calls_sloppy_eval()) |
       InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval());
   backing_store_.push_back(eval);
 
@@ -482,7 +484,7 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope,
   DCHECK_EQ(scope_data->get(index_++), scope->scope_type());
 
   uint32_t eval = scope_data->get(index_++);
-  if (ScopeCallsEvalField::decode(eval)) {
+  if (ScopeCallsSloppyEvalField::decode(eval)) {
     scope->RecordEvalCall();
   }
   if (InnerScopeCallsEvalField::decode(eval)) {

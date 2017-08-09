@@ -865,7 +865,10 @@ TEST(ScopeUsesArgumentsSuperThis) {
         CHECK(
             scope->Lookup(info.ast_value_factory()->this_string())->is_used());
       }
-      CHECK_EQ((source_data[i].expected & EVAL) != 0, scope->calls_eval());
+      if (is_sloppy(scope->language_mode())) {
+        CHECK_EQ((source_data[i].expected & EVAL) != 0,
+                 scope->AsDeclarationScope()->calls_sloppy_eval());
+      }
     }
   }
 }

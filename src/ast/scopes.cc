@@ -259,7 +259,7 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
 #ifdef DEBUG
   already_resolved_ = true;
 #endif
-  if (scope_info->CallsEval()) RecordEvalCall();
+  if (scope_info->CallsSloppyEval()) scope_calls_eval_ = true;
   set_language_mode(scope_info->language_mode());
   num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
@@ -791,7 +791,7 @@ Scope* Scope::FinalizeBlockScope() {
   DCHECK(!HasBeenRemoved());
 
   if (variables_.occupancy() > 0 ||
-      (is_declaration_scope() && calls_sloppy_eval())) {
+      (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval())) {
     return this;
   }
 
@@ -824,8 +824,12 @@ Scope* Scope::FinalizeBlockScope() {
     unresolved_ = nullptr;
   }
 
-  if (scope_calls_eval_) outer_scope()->scope_calls_eval_ = true;
   if (inner_scope_calls_eval_) outer_scope()->inner_scope_calls_eval_ = true;
+
+  // No need to propagate scope_calls_eval_, since if it was relevant to
+  // this scope we would have had to bail out at the top.
+  DCHECK(!scope_calls_eval_ || !is_declaration_scope() ||
+         !is_sloppy(language_mode()));
 
   // This block does not need a context.
   num_heap_slots_ = 0;
@@ -1373,7 +1377,10 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
   for (const Scope* s = this; s != nullptr; s = s->outer_scope()) {
     if (!s->NeedsContext()) continue;
     length++;
-    if (s->calls_sloppy_eval()) result = length;
+    if (s->is_declaration_scope() &&
+        s->AsDeclarationScope()->calls_sloppy_eval()) {
+      result = length;
+    }
   }
 
   return result;
@@ -1706,7 +1713,9 @@ void Scope::Print(int n) {
   }
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
   if (IsAsmFunction()) Indent(n1, "// scope is an asm function\n");
-  if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
+  if (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval()) {
+    Indent(n1, "// scope calls sloppy 'eval'\n");
+  }
   if (is_declaration_scope() && AsDeclarationScope()->uses_super_property()) {
     Indent(n1, "// scope uses 'super' property\n");
   }
@@ -1867,7 +1876,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
     return NonLocal(proxy->raw_name(), DYNAMIC);
   }
 
-  if (calls_sloppy_eval() && is_declaration_scope()) {
+  if (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval()) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be the
     // correct one (the 'eval' may introduce a binding with the same name). In
@@ -2283,8 +2292,9 @@ void Scope::AllocateVariablesRecursively() {
   // Likewise for modules and function scopes representing asm.js modules.
   bool must_have_context =
       is_with_scope() || is_module_scope() || IsAsmModule() ||
-      (is_function_scope() && calls_sloppy_eval()) ||
-      (is_block_scope() && is_declaration_scope() && calls_sloppy_eval());
+      (is_function_scope() && AsDeclarationScope()->calls_sloppy_eval()) ||
+      (is_block_scope() && is_declaration_scope() &&
+       AsDeclarationScope()->calls_sloppy_eval());
 
   // If we didn't allocate any locals in the local context, then we only
   // need the minimal number of slots if we must have a context.

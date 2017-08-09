@@ -3032,7 +3032,8 @@ Block* Parser::BuildParameterInitializationBlock(
 
     Scope* param_scope = scope();
     Block* param_block = init_block;
-    if (!parameter->is_simple() && scope()->calls_sloppy_eval()) {
+    if (!parameter->is_simple() &&
+        scope()->AsDeclarationScope()->calls_sloppy_eval()) {
       param_scope = NewVarblockScope();
       param_scope->set_start_position(descriptor.initialization_pos);
       param_scope->set_end_position(parameter->initializer_end_position);

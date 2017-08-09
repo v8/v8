@@ -264,7 +264,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
-    RecordInnerScopeEvalCall();
   }
 
   void RecordInnerScopeEvalCall() {
@@ -363,11 +362,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
 
-  // Information about which scopes calls eval.
-  bool calls_eval() const { return scope_calls_eval_; }
-  bool calls_sloppy_eval() const {
-    return scope_calls_eval_ && is_sloppy(language_mode());
-  }
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
   bool IsAsmFunction() const;
@@ -691,6 +685,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
            (inner_scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
                                         IsAccessorFunction(function_kind()) ||
                                         IsClassConstructor(function_kind())));
+  }
+
+  bool calls_sloppy_eval() const {
+    return scope_calls_eval_ && is_sloppy(language_mode());
   }
 
   bool was_lazily_parsed() const { return was_lazily_parsed_; }

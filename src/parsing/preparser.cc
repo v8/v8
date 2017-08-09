@@ -386,8 +386,9 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
 PreParserStatement PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters, bool* ok) {
   DCHECK(!parameters.is_simple);
+  DCHECK(scope()->is_function_scope());
   if (FLAG_experimental_preparser_scope_analysis &&
-      scope()->calls_sloppy_eval()) {
+      scope()->AsDeclarationScope()->calls_sloppy_eval()) {
     DCHECK_NOT_NULL(produced_preparsed_scope_data_);
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
