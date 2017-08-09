@@ -1411,10 +1411,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       NodeProperties::ReplaceValueInput(node, array_function, 1);
       NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
       return Changed(node);
-    } else if (feedback->IsWeakCell()) {
-      // Check if we want to use CallIC feedback here.
-      if (!ShouldUseCallICFeedback(new_target)) return NoChange();
-
+    } else if (feedback->IsWeakCell() &&
+               !HeapObjectMatcher(new_target).HasValue()) {
       Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
       if (cell->value()->IsConstructor()) {
         Node* new_target_feedback =
