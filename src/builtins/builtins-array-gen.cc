@@ -117,6 +117,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
       BIND(&fast);
       {
+        GotoIf(SmiNotEqual(LoadJSArrayLength(a()), to_.value()), &runtime);
         kind = EnsureArrayPushable(a(), &runtime);
         GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
                &object_push_pre);
