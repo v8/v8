@@ -6107,49 +6107,58 @@ HEAP_TEST(Regress670675) {
   DCHECK(marking->IsStopped());
 }
 
+namespace {
+Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
+  Assembler assm(isolate, NULL, 256);
+
+  const int kNumberOfNops = 1 << 10;
+  for (int i = 0; i < kNumberOfNops; i++) {
+    assm.nop();  // supported on all architectures
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  const bool kImmovable = true;
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>(), kImmovable);
+  CHECK(code->IsCode());
+
+  return code;
+}
+}  // namespace
+
 HEAP_TEST(Regress5831) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  // Used to ensure that the first code space page remains filled.
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(32);
+  // Used to ensure that the generated code is not collected.
+  const int kInitialSize = 32;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(kInitialSize);
 
-  {
-    // Ensure that the first code space page is full.
-    CEntryStub stub(isolate, 1);
-    Handle<Code> code = stub.GetCode();
-
-    int i = 0;
-    array = FixedArray::SetAndGrow(array, i++, code);
-
-    while (heap->code_space()->FirstPage()->Contains(code->address())) {
-      code = isolate->factory()->CopyCode(code);
-      array = FixedArray::SetAndGrow(array, i++, code);
+  // Ensure that all immovable code space pages are full and we overflow into
+  // LO_SPACE.
+  const int kMaxIterations = 1 << 16;
+  bool overflowed_into_lospace = false;
+  for (int i = 0; i < kMaxIterations; i++) {
+    Handle<Code> code = GenerateDummyImmovableCode(isolate);
+    array = FixedArray::SetAndGrow(array, i, code);
+    CHECK(heap->code_space()->Contains(code->address()) ||
+          heap->lo_space()->Contains(*code));
+    if (heap->lo_space()->Contains(*code)) {
+      overflowed_into_lospace = true;
+      break;
     }
   }
 
-  class ImmovableCEntryStub : public i::CEntryStub {
-   public:
-    explicit ImmovableCEntryStub(i::Isolate* isolate)
-        : i::CEntryStub(isolate, 3, i::kSaveFPRegs, i::kArgvOnStack, true) {}
-    bool NeedsImmovableCode() override { return true; }
-  };
-
-  ImmovableCEntryStub stub(isolate);
-
-  {
-    // Make sure the code object has not yet been generated.
-    Code* code;
-    CHECK(!stub.FindCodeInCache(&code));
-  }
+  CHECK(overflowed_into_lospace);
 
   // Fake a serializer run.
   isolate->serializer_enabled_ = true;
 
   // Generate the code.
-  Handle<Code> code = stub.GetCode();
+  Handle<Code> code = GenerateDummyImmovableCode(isolate);
   CHECK(code->Size() <= i::kMaxRegularHeapObjectSize);
   CHECK(!heap->code_space()->FirstPage()->Contains(code->address()));
 
