@@ -899,10 +899,10 @@ DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_BOOL(trace_parse, false, "trace parsing and preparsing")
 DEFINE_BOOL(trace_preparse, false, "trace preparsing decisions")
 DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
-DEFINE_BOOL(aggressive_lazy_inner_functions, true,
+DEFINE_BOOL(aggressive_lazy_inner_functions, false,
             "even lazier inner function parsing")
 DEFINE_IMPLICATION(aggressive_lazy_inner_functions, lazy_inner_functions)
-DEFINE_BOOL(experimental_preparser_scope_analysis, true,
+DEFINE_BOOL(experimental_preparser_scope_analysis, false,
             "perform scope analysis for preparsed inner functions")
 DEFINE_IMPLICATION(experimental_preparser_scope_analysis,
                    aggressive_lazy_inner_functions)
