@@ -713,8 +713,7 @@ class ParserBase {
     }
 
     *ok = false;
-    if (current == Token::AWAIT) {
-      DCHECK(!is_async_function());
+    if (current == Token::AWAIT && !is_async_function()) {
       ReportMessageAt(current_location,
                       MessageTemplate::kAwaitNotInAsyncFunction, kSyntaxError);
       return;
