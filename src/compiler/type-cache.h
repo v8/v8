@@ -83,11 +83,6 @@ class TypeCache final {
   // [0, FixedArray::kMaxLength].
   Type* const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
-  // The PropertyArray::length property always containts a smi in the range
-  // [0, PropertyArray::kMaxLength].
-  Type* const kPropertyArrayLengthType =
-      CreateRange(0.0, PropertyArray::kMaxLength);
-
   // The FixedDoubleArray::length property always containts a smi in the range
   // [0, FixedDoubleArray::kMaxLength].
   Type* const kFixedDoubleArrayLengthType =

@@ -28,6 +28,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)           \
   V(BooleanMap, boolean_map, BooleanMap)                                 \
   V(CodeMap, code_map, CodeMap)                                          \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                  \
+    EmptyPropertyDictionary)                                             \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                 \
   V(empty_string, empty_string, EmptyString)                             \
   V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                       \
@@ -442,7 +444,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* DoesntHaveInstanceType(Node* object, InstanceType type);
   Node* TaggedDoesntHaveInstanceType(Node* any_tagged, InstanceType type);
   // Load the properties backing store of a JSObject.
-  TNode<HeapObject> LoadProperties(SloppyTNode<JSObject> object);
+  TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSObject> object);
+  TNode<HeapObject> LoadFastProperties(SloppyTNode<JSObject> object);
   // Load the elements backing store of a JSObject.
   TNode<FixedArrayBase> LoadElements(SloppyTNode<JSObject> object);
   // Load the length of a JSArray instance.

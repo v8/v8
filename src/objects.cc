@@ -2322,7 +2322,7 @@ Object* Object::GetHash() {
   DCHECK(IsJSReceiver());
   JSReceiver* receiver = JSReceiver::cast(this);
   Isolate* isolate = receiver->GetIsolate();
-  return JSReceiver::GetIdentityHash(isolate, handle(receiver, isolate));
+  return JSReceiver::GetIdentityHash(isolate, receiver);
 }
 
 Smi* Object::GetOrCreateHash(Isolate* isolate, Handle<Object> object) {
@@ -6257,6 +6257,74 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
   return dictionary;
 }
 
+namespace {
+
+Object* SetHashAndUpdateProperties(HeapObject* properties, int masked_hash) {
+  DCHECK_NE(PropertyArray::kNoHashSentinel, masked_hash);
+  DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
+
+  if (properties == properties->GetHeap()->empty_fixed_array() ||
+      properties == properties->GetHeap()->empty_property_dictionary()) {
+    return Smi::FromInt(masked_hash);
+  }
+
+  if (properties->IsPropertyArray()) {
+    PropertyArray::cast(properties)->SetHash(masked_hash);
+    return properties;
+  }
+
+  DCHECK(properties->IsDictionary());
+  NameDictionary::cast(properties)->SetHash(masked_hash);
+  return properties;
+}
+
+int GetIdentityHashHelper(Isolate* isolate, JSReceiver* object) {
+  Object* properties = object->raw_properties_or_hash();
+  if (properties->IsSmi()) {
+    return Smi::ToInt(properties);
+  }
+
+  if (properties->IsPropertyArray()) {
+    return PropertyArray::cast(properties)->Hash();
+  }
+
+  if (properties->IsDictionary()) {
+    return NameDictionary::cast(properties)->Hash();
+  }
+
+#ifdef DEBUG
+  FixedArray* empty_fixed_array = isolate->heap()->empty_fixed_array();
+  FixedArray* empty_property_dictionary =
+      isolate->heap()->empty_property_dictionary();
+  DCHECK(properties == empty_fixed_array ||
+         properties == empty_property_dictionary);
+#endif
+
+  return PropertyArray::kNoHashSentinel;
+}
+}  // namespace
+
+void JSReceiver::SetIdentityHash(int masked_hash) {
+  DCHECK_NE(PropertyArray::kNoHashSentinel, masked_hash);
+  DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
+
+  HeapObject* existing_properties = HeapObject::cast(raw_properties_or_hash());
+  Object* new_properties =
+      SetHashAndUpdateProperties(existing_properties, masked_hash);
+  set_raw_properties_or_hash(new_properties);
+}
+
+void JSReceiver::SetProperties(HeapObject* properties) {
+  Isolate* isolate = properties->GetIsolate();
+  int hash = GetIdentityHashHelper(isolate, this);
+  Object* new_properties = properties;
+
+  if (hash != PropertyArray::kNoHashSentinel) {
+    new_properties = SetHashAndUpdateProperties(properties, hash);
+  }
+
+  set_raw_properties_or_hash(new_properties);
+}
 
 template <typename ProxyType>
 static Smi* GetOrCreateIdentityHashHelper(Isolate* isolate,
@@ -6270,12 +6338,17 @@ static Smi* GetOrCreateIdentityHashHelper(Isolate* isolate,
 }
 
 // static
-Object* JSObject::GetIdentityHash(Isolate* isolate, Handle<JSObject> object) {
+Object* JSObject::GetIdentityHash(Isolate* isolate, JSObject* object) {
   if (object->IsJSGlobalProxy()) {
-    return JSGlobalProxy::cast(*object)->hash();
+    return JSGlobalProxy::cast(object)->hash();
   }
-  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
-  return *JSReceiver::GetDataProperty(object, hash_code_symbol);
+
+  int hash = GetIdentityHashHelper(isolate, object);
+  if (hash == PropertyArray::kNoHashSentinel) {
+    return isolate->heap()->undefined_value();
+  }
+
+  return Smi::FromInt(hash);
 }
 
 // static
@@ -6286,25 +6359,23 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate,
                                          Handle<JSGlobalProxy>::cast(object));
   }
 
-  Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
-  LookupIterator it(object, hash_code_symbol, object, LookupIterator::OWN);
-  if (it.IsFound()) {
-    DCHECK_EQ(LookupIterator::DATA, it.state());
-    Object* maybe_hash = *it.GetDataValue();
-    if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
+  Object* hash_obj = JSObject::GetIdentityHash(isolate, *object);
+  if (hash_obj != isolate->heap()->undefined_value()) {
+    return Smi::cast(hash_obj);
   }
 
-  Smi* hash = Smi::FromInt(isolate->GenerateIdentityHash(Smi::kMaxValue));
-  CHECK(AddDataProperty(&it, handle(hash, isolate), NONE, THROW_ON_ERROR,
-                        CERTAINLY_NOT_STORE_FROM_KEYED)
-            .IsJust());
-  return hash;
+  int hash;
+  do {
+    hash = isolate->GenerateIdentityHash(Smi::kMaxValue);
+  } while (hash == PropertyArray::kNoHashSentinel);
+
+  int masked_hash = hash & JSReceiver::kHashMask;
+  object->SetIdentityHash(masked_hash);
+  return Smi::FromInt(masked_hash);
 }
 
 // static
-Object* JSProxy::GetIdentityHash(Handle<JSProxy> proxy) {
-  return proxy->hash();
-}
+Object* JSProxy::GetIdentityHash(JSProxy* proxy) { return proxy->hash(); }
 
 Smi* JSProxy::GetOrCreateIdentityHash(Isolate* isolate, Handle<JSProxy> proxy) {
   return GetOrCreateIdentityHashHelper(isolate, proxy);
@@ -17334,7 +17405,6 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> set,
                                          Handle<Object> key) {
   Isolate* isolate = set->GetIsolate();
   int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
-
   if (!set->Has(isolate, key, hash)) {
     set = EnsureCapacity(set, 1);
     int entry = set->FindInsertionEntry(hash);
@@ -17653,6 +17723,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
   DCHECK_LE(0, at_least_space_for);
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
       isolate, at_least_space_for, pretenure, capacity_option);
+  dict->SetHash(PropertyArray::kNoHashSentinel);
   dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return dict;
 }

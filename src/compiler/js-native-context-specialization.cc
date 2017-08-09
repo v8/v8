@@ -1654,7 +1654,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* storage = receiver;
     if (!field_index.is_inobject()) {
       storage = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
+          simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
           storage, effect, control);
     }
     FieldAccess field_access = {
@@ -1800,7 +1800,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                                   storage, value, effect, control);
 
         // Atomically switch to the new properties below.
-        field_access = AccessBuilder::ForJSObjectProperties();
+        field_access = AccessBuilder::ForJSObjectPropertiesOrHash();
         value = storage;
         storage = receiver;
       }
@@ -2242,8 +2242,17 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     values.push_back(jsgraph()->UndefinedConstant());
   }
   // Allocate and initialize the new properties.
+  Node* new_length_and_hash = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForPropertyArrayLength()),
+      properties, effect, control);
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  new_length_and_hash =
+      graph()->NewNode(simplified()->NumberBitwiseAnd(), new_length_and_hash,
+                       jsgraph()->Constant(JSReceiver::kHashMask));
+  new_length_and_hash =
+      graph()->NewNode(simplified()->NumberBitwiseOr(), new_length_and_hash,
+                       jsgraph()->Constant(new_length));
   Node* new_properties = effect = graph()->NewNode(
       simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
       jsgraph()->Constant(PropertyArray::SizeFor(new_length)), effect, control);
@@ -2252,13 +2261,12 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       jsgraph()->PropertyArrayMapConstant(), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForPropertyArrayLength()),
-      new_properties, jsgraph()->Constant(new_length), effect, control);
+      new_properties, new_length_and_hash, effect, control);
   for (int i = 0; i < new_length; ++i) {
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
         new_properties, values[i], effect, control);
   }
-  // TODO(gsathya): Update hash code here.
   return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
 }
 

@@ -195,7 +195,7 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
   BIND(&out_of_object);
   {
     Label is_double(this);
-    Node* properties = LoadProperties(holder);
+    Node* properties = LoadFastProperties(holder);
     Node* value = LoadObjectField(properties, offset);
     GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
     exit_point->Return(value);
@@ -322,7 +322,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   BIND(&normal);
   {
     Comment("load_normal");
-    Node* properties = LoadProperties(holder);
+    Node* properties = LoadSlowProperties(holder);
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
@@ -423,7 +423,7 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   {
     CSA_ASSERT(this, Word32BinaryNot(
                          HasInstanceType(p->receiver, JS_GLOBAL_OBJECT_TYPE)));
-    Node* properties = LoadProperties(p->receiver);
+    Node* properties = LoadSlowProperties(p->receiver);
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
@@ -593,7 +593,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         WordEqual(handler_word, IntPtrConstant(StoreHandler::kStoreNormal)),
         &if_fast_smi);
 
-    Node* properties = LoadProperties(holder);
+    Node* properties = LoadSlowProperties(holder);
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
@@ -841,7 +841,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     BIND(&if_store_normal);
     {
-      Node* properties = LoadProperties(p->receiver);
+      Node* properties = LoadSlowProperties(p->receiver);
 
       VARIABLE(var_name_index, MachineType::PointerRepresentation());
       Label found(this, &var_name_index), not_found(this);
@@ -1050,8 +1050,14 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
 
   ParameterMode mode = OptimalParameterMode();
 
-  Node* properties = LoadProperties(object);
-  Node* length = TaggedToParameter(LoadPropertyArrayLength(properties), mode);
+  // TODO(gsathya): Clean up the type conversions by creating smarter
+  // helpers that do the correct op based on the mode.
+  Node* properties = LoadFastProperties(object);
+  Node* length_and_hash_int32 =
+      LoadAndUntagToWord32ObjectField(properties, PropertyArray::kLengthOffset);
+  Node* length_intptr = ChangeInt32ToIntPtr(Word32And(
+      length_and_hash_int32, Int32Constant(PropertyArray::kLengthMask)));
+  Node* length = WordToParameter(length_intptr, mode);
 
   // Previous property deletion could have left behind unused backing store
   // capacity even for a map that think it doesn't have any unused fields.
@@ -1085,7 +1091,16 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   CopyPropertyArrayValues(properties, new_properties, length,
                           SKIP_WRITE_BARRIER, mode);
 
-  // TODO(gsathya): Update hash code here.
+  // TODO(gsathya): Clean up the type conversions by creating smarter
+  // helpers that do the correct op based on the mode.
+  Node* masked_hash_int32 =
+      Word32And(length_and_hash_int32, Int32Constant(JSReceiver::kHashMask));
+  Node* new_capacity_int32 =
+      TruncateWordToWord32(ParameterToWord(new_capacity, mode));
+  Node* new_length_and_hash_int32 =
+      Word32Or(masked_hash_int32, new_capacity_int32);
+  StoreObjectField(new_properties, PropertyArray::kLengthOffset,
+                   SmiFromWord32(new_length_and_hash_int32));
   StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
   Comment("] Extend storage");
   Goto(&done);
@@ -1101,7 +1116,7 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
   bool store_value_as_double = representation.IsDouble();
   Node* property_storage = object;
   if (!is_inobject) {
-    property_storage = LoadProperties(object);
+    property_storage = LoadFastProperties(object);
   }
 
   Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
@@ -1402,7 +1417,7 @@ void AccessorAssembler::CheckPrototype(Node* prototype_cell, Node* name,
 void AccessorAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
                                                      Label* miss) {
   CSA_ASSERT(this, IsDictionaryMap(LoadMap(object)));
-  Node* properties = LoadProperties(object);
+  Node* properties = LoadSlowProperties(object);
   // Ensure the property does not exist in a dictionary-mode object.
   VARIABLE(var_name_index, MachineType::PointerRepresentation());
   Label done(this);
@@ -1535,7 +1550,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
-    Node* properties = LoadProperties(receiver);
+    Node* properties = LoadSlowProperties(receiver);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index,
                                          &lookup_prototype_chain);

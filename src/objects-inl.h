@@ -2681,9 +2681,9 @@ SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 int PropertyArray::length() const {
-  Object* value = READ_FIELD(this, kLengthOffset);
-  int len = Smi::ToInt(value);
-  return len & kLengthMask;
+  Object* value_obj = READ_FIELD(this, kLengthOffset);
+  int value = Smi::ToInt(value_obj);
+  return value & kLengthMask;
 }
 
 void PropertyArray::initialize_length(int len) {
@@ -2693,9 +2693,23 @@ void PropertyArray::initialize_length(int len) {
 }
 
 int PropertyArray::synchronized_length() const {
-  Object* value = ACQUIRE_READ_FIELD(this, kLengthOffset);
-  int len = Smi::ToInt(value);
-  return len & kLengthMask;
+  Object* value_obj = ACQUIRE_READ_FIELD(this, kLengthOffset);
+  int value = Smi::ToInt(value_obj);
+  return value & kLengthMask;
+}
+
+int PropertyArray::Hash() const {
+  Object* value_obj = READ_FIELD(this, kLengthOffset);
+  int value = Smi::ToInt(value_obj);
+  int hash = value & kHashMask;
+  return hash;
+}
+
+void PropertyArray::SetHash(int masked_hash) {
+  Object* value_obj = READ_FIELD(this, kLengthOffset);
+  int value = Smi::ToInt(value_obj);
+  value |= masked_hash;
+  WRITE_FIELD(this, kLengthOffset, Smi::FromInt(value));
 }
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
@@ -5459,7 +5473,7 @@ bool JSObject::HasIndexedInterceptor() {
 
 void JSGlobalObject::set_global_dictionary(GlobalDictionary* dictionary) {
   DCHECK(IsJSGlobalObject());
-  return SetProperties(dictionary);
+  set_raw_properties_or_hash(dictionary);
 }
 
 GlobalDictionary* JSGlobalObject::global_dictionary() {
@@ -5588,7 +5602,13 @@ bool JSReceiver::HasFastProperties() const {
 NameDictionary* JSReceiver::property_dictionary() const {
   DCHECK(!IsJSGlobalObject());
   DCHECK(!HasFastProperties());
-  return NameDictionary::cast(raw_properties_or_hash());
+
+  Object* prop = raw_properties_or_hash();
+  if (prop->IsSmi()) {
+    return GetHeap()->empty_property_dictionary();
+  }
+
+  return NameDictionary::cast(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access
@@ -5602,11 +5622,6 @@ PropertyArray* JSReceiver::property_array() const {
   }
 
   return PropertyArray::cast(prop);
-}
-
-void JSReceiver::SetProperties(HeapObject* properties) {
-  // TODO(gsathya): Update the hash code here.
-  set_raw_properties_or_hash(properties);
 }
 
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
@@ -5701,12 +5716,10 @@ Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate,
                                    isolate, Handle<JSObject>::cast(object));
 }
 
-Object* JSReceiver::GetIdentityHash(Isolate* isolate,
-                                    Handle<JSReceiver> receiver) {
+Object* JSReceiver::GetIdentityHash(Isolate* isolate, JSReceiver* receiver) {
   return receiver->IsJSProxy()
-             ? JSProxy::GetIdentityHash(Handle<JSProxy>::cast(receiver))
-             : JSObject::GetIdentityHash(isolate,
-                                         Handle<JSObject>::cast(receiver));
+             ? JSProxy::GetIdentityHash(JSProxy::cast(receiver))
+             : JSObject::GetIdentityHash(isolate, JSObject::cast(receiver));
 }
 
 

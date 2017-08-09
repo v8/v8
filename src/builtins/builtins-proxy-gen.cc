@@ -78,7 +78,7 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
     Node* proxy = Allocate(JSProxy::kSize);
     StoreMapNoWriteBarrier(proxy, map.value());
     StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset,
-                         Heap::kEmptyPropertiesDictionaryRootIndex);
+                         Heap::kEmptyPropertyDictionaryRootIndex);
     StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
     StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
     StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHashOffset,
