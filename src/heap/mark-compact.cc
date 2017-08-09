@@ -3712,9 +3712,6 @@ int MarkCompactCollector::Sweeper::RawSweep(
   // Sweeper takes the marking state of the full collector.
   const MarkingState state = MarkingState::Internal(p);
 
-  bool non_empty_untyped_slots = p->slot_set<OLD_TO_NEW>() != nullptr ||
-                                 p->slot_set<OLD_TO_OLD>() != nullptr;
-
   // TODO(ulan): we don't have to clear type old-to-old slots in code space
   // because the concurrent marker doesn't mark code objects. This requires
   // the write barrier for code objects to check the color of the code object.
@@ -3763,12 +3760,10 @@ int MarkCompactCollector::Sweeper::RawSweep(
         p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                         ClearRecordedSlots::kNo);
       }
-      if (non_empty_untyped_slots) {
-        RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
-                                               SlotSet::KEEP_EMPTY_BUCKETS);
-        RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
-                                               SlotSet::KEEP_EMPTY_BUCKETS);
-      }
+      RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
+                                             SlotSet::KEEP_EMPTY_BUCKETS);
+      RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
+                                             SlotSet::KEEP_EMPTY_BUCKETS);
       if (non_empty_typed_slots) {
         free_ranges.insert(std::pair<uint32_t, uint32_t>(
             static_cast<uint32_t>(free_start - p->address()),
@@ -3804,12 +3799,10 @@ int MarkCompactCollector::Sweeper::RawSweep(
                                       ClearRecordedSlots::kNo);
     }
 
-    if (non_empty_untyped_slots) {
-      RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
-                                             SlotSet::KEEP_EMPTY_BUCKETS);
-      RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
-                                             SlotSet::KEEP_EMPTY_BUCKETS);
-    }
+    RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
+                                           SlotSet::KEEP_EMPTY_BUCKETS);
+    RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
+                                           SlotSet::KEEP_EMPTY_BUCKETS);
     if (non_empty_typed_slots) {
       free_ranges.insert(std::pair<uint32_t, uint32_t>(
           static_cast<uint32_t>(free_start - p->address()),
