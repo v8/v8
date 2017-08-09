@@ -24,6 +24,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+// This is just to avoid some corner cases, especially since we allow recursive
+// inlining.
+static const int kMaxDepthForInlining = 50;
+}  // namespace
+
 #define TRACE(...)                                      \
   do {                                                  \
     if (FLAG_trace_turbo_inlining) PrintF(__VA_ARGS__); \
@@ -475,19 +481,19 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  // TODO(turbofan): TranslatedState::GetAdaptedArguments() currently relies on
-  // not inlining recursive functions. We might want to relax that at some
-  // point.
+  // To ensure inlining always terminates, we have an upper limit on inlining
+  // the nested calls.
+  int nesting_level = 0;
   for (Node* frame_state = call.frame_state();
        frame_state->opcode() == IrOpcode::kFrameState;
        frame_state = frame_state->InputAt(kFrameStateOuterStateInput)) {
-    FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
-    Handle<SharedFunctionInfo> frame_shared_info;
-    if (frame_info.shared_info().ToHandle(&frame_shared_info) &&
-        *frame_shared_info == *shared_info) {
-      TRACE("Not inlining %s into %s because call is recursive\n",
-            shared_info->DebugName()->ToCString().get(),
-            info_->shared_info()->DebugName()->ToCString().get());
+    nesting_level++;
+    if (nesting_level > kMaxDepthForInlining) {
+      TRACE(
+          "Not inlining %s into %s because call has exceeded the maximum depth "
+          "for function inlining\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
       return NoChange();
     }
   }
