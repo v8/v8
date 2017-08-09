@@ -2013,7 +2013,6 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
     descriptor.declaration_pos = kNoSourcePosition;
     descriptor.initialization_pos = kNoSourcePosition;
     descriptor.scope = scope();
-    descriptor.declaration_kind = DeclarationDescriptor::LEXICAL_FOR_EACH;
     decl.initializer = factory()->NewVariableProxy(temp);
 
     bool is_for_var_of =

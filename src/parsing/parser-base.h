@@ -485,7 +485,7 @@ class ParserBase {
   };
 
   struct DeclarationDescriptor {
-    enum Kind { NORMAL, PARAMETER, LEXICAL_FOR_EACH };
+    enum Kind { NORMAL, PARAMETER };
     Scope* scope;
     VariableMode mode;
     int declaration_pos;
@@ -1224,7 +1224,7 @@ class ParserBase {
   StatementT ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   StatementT ParseForEachStatementWithDeclarations(
       int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
-      bool* ok);
+      Scope* inner_block_scope, bool* ok);
   StatementT ParseForEachStatementWithoutDeclarations(
       int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
       ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok);
@@ -5533,21 +5533,33 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   if (peek() == Token::VAR || peek() == Token::CONST ||
       (peek() == Token::LET && IsNextLetKeyword())) {
     // The initializer contains declarations.
-    ParseVariableDeclarations(kForStatement, &for_info.parsing_result, nullptr,
-                              CHECK_OK);
+
+    // Create an inner block scope which will be the parent scope of scopes
+    // possibly created by ParseVariableDeclarations.
+    Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
+    {
+      BlockState inner_state(&scope_, inner_block_scope);
+      ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
+                                nullptr, CHECK_OK);
+    }
     bound_names_are_lexical =
         IsLexicalVariableMode(for_info.parsing_result.descriptor.mode);
     for_info.position = scanner()->location().beg_pos;
 
     if (CheckInOrOf(&for_info.mode)) {
       return ParseForEachStatementWithDeclarations(stmt_pos, &for_info, labels,
-                                                   ok);
+                                                   inner_block_scope, ok);
     }
 
     // One or more declaration not followed by in/of.
     init = impl()->BuildInitializationBlock(
         &for_info.parsing_result,
         bound_names_are_lexical ? &for_info.bound_names : nullptr, CHECK_OK);
+
+    Scope* finalized = inner_block_scope->FinalizeBlockScope();
+    // No variable declarations will have been created in inner_block_scope.
+    DCHECK_NULL(finalized);
+    USE(finalized);
   } else if (peek() != Token::SEMICOLON) {
     // The initializer does not contain declarations.
     int lhs_beg_pos = peek_position();
@@ -5583,7 +5595,7 @@ template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
-    bool* ok) {
+    Scope* inner_block_scope, bool* ok) {
   scope()->set_is_hidden();
   // Just one declaration followed by in/of.
   if (for_info->parsing_result.declarations.length() != 1) {
@@ -5624,7 +5636,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
 
   StatementT final_loop = impl()->NullStatement();
   {
-    BlockState block_state(zone(), &scope_);
+    BlockState block_state(&scope_, inner_block_scope);
     scope()->set_start_position(scanner()->location().beg_pos);
 
     SourceRange body_range;
@@ -5836,6 +5848,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   ExpressionT each_variable = impl()->EmptyExpression();
 
   bool has_declarations = false;
+  Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
 
   if (peek() == Token::VAR || peek() == Token::CONST ||
       (peek() == Token::LET && IsNextLetKeyword())) {
@@ -5845,8 +5858,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     // 'for' 'await' '(' 'var' ForBinding 'of' AssignmentExpression ')'
     //     Statement
     has_declarations = true;
-    ParseVariableDeclarations(kForStatement, &for_info.parsing_result, nullptr,
-                              CHECK_OK);
+
+    {
+      BlockState inner_state(&scope_, inner_block_scope);
+      ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
+                                nullptr, CHECK_OK);
+    }
     for_info.position = scanner()->location().beg_pos;
 
     // Only a single declaration is allowed in for-await-of loops
@@ -5871,6 +5888,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     // 'for' 'await' '(' LeftHandSideExpression 'of' AssignmentExpression ')'
     //     Statement
     int lhs_beg_pos = peek_position();
+    BlockState inner_state(&scope_, inner_block_scope);
     ExpressionClassifier classifier(this);
     ExpressionT lhs = each_variable = ParseLeftHandSideExpression(CHECK_OK);
     int lhs_end_pos = scanner()->location().end_pos;
@@ -5902,7 +5920,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   StatementT final_loop = impl()->NullStatement();
   Scope* for_scope = scope();
   {
-    BlockState block_state(zone(), &scope_);
+    BlockState block_state(&scope_, inner_block_scope);
     scope()->set_start_position(scanner()->location().beg_pos);
 
     SourceRange body_range;

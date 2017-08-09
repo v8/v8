@@ -16,8 +16,7 @@ class Scope;
 // When an extra declaration scope needs to be inserted to account for
 // a sloppy eval in a default parameter or function body, the expressions
 // needs to be in that new inner scope which was added after initial
-// parsing. We do the same rewriting for initializers of destructured
-// lexical declarations in for-in/of loops.
+// parsing.
 //
 // scope is the new inner scope, and its outer_scope() is assumed
 // to be the scope which was used during the initial parse.

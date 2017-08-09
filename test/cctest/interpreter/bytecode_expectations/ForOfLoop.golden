@@ -15,11 +15,9 @@ snippet: "
 "
 frame size: 16
 parameter count: 2
-bytecode array length: 263
+bytecode array length: 260
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(6),
                 B(Mov), R(context), R(12),
@@ -142,9 +140,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [10, 127, 133],
-  [13, 91, 93],
-  [193, 203, 205],
+  [7, 124, 130],
+  [10, 88, 90],
+  [190, 200, 202],
 ]
 
 ---
@@ -338,11 +336,9 @@ snippet: "
 "
 frame size: 14
 parameter count: 2
-bytecode array length: 281
+bytecode array length: 278
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(4),
                 B(Mov), R(context), R(10),
@@ -476,9 +472,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [10, 145, 151],
-  [13, 109, 111],
-  [211, 221, 223],
+  [7, 142, 148],
+  [10, 106, 108],
+  [208, 218, 220],
 ]
 
 ---
@@ -490,13 +486,9 @@ snippet: "
 "
 frame size: 19
 parameter count: 2
-bytecode array length: 304
+bytecode array length: 298
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(3),
-                B(LdaTheHole),
-                B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(9),
                 B(Mov), R(context), R(15),
@@ -637,9 +629,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [13, 168, 174],
-  [16, 132, 134],
-  [234, 244, 246],
+  [7, 162, 168],
+  [10, 126, 128],
+  [228, 238, 240],
 ]
 
 ---
@@ -651,7 +643,7 @@ snippet: "
 "
 frame size: 20
 parameter count: 2
-bytecode array length: 354
+bytecode array length: 351
 bytecodes: [
                 B(Mov), R(new_target), R(11),
                 B(Ldar), R(new_target),
@@ -689,8 +681,6 @@ bytecodes: [
   /*   11 E> */ B(Throw),
                 B(Ldar), R(14),
   /*   55 S> */ B(Return),
-                B(LdaTheHole),
-                B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(7),
                 B(Mov), R(context), R(16),
@@ -817,9 +807,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [100, 218, 224],
-  [103, 182, 184],
-  [284, 294, 296],
+  [97, 215, 221],
+  [100, 179, 181],
+  [281, 291, 293],
 ]
 
 ---
@@ -831,7 +821,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 2
-bytecode array length: 428
+bytecode array length: 425
 bytecodes: [
                 B(Mov), R(new_target), R(10),
                 B(Ldar), R(new_target),
@@ -869,8 +859,6 @@ bytecodes: [
   /*   11 E> */ B(Throw),
                 B(Ldar), R(13),
   /*   49 S> */ B(Return),
-                B(LdaTheHole),
-                B(Star), R(1),
                 B(LdaZero),
                 B(Star), R(6),
                 B(Mov), R(context), R(15),
@@ -1012,7 +1000,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [46],
-  Smi [109],
+  Smi [106],
   Smi [10],
   Smi [7],
   SYMBOL_TYPE,
@@ -1031,9 +1019,9 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [100, 285, 291],
-  [103, 249, 251],
-  [352, 362, 364],
+  [97, 282, 288],
+  [100, 246, 248],
+  [349, 359, 361],
 ]
 
 ---
@@ -1045,7 +1033,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 2
-bytecode array length: 400
+bytecode array length: 397
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(12),
@@ -1058,8 +1046,6 @@ bytecodes: [
                 B(Star), R(11),
                 B(Mov), R(context), R(15),
                 B(Mov), R(context), R(16),
-                B(LdaTheHole),
-                B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(7),
                 B(Mov), R(context), R(19),
@@ -1243,11 +1229,11 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [21, 355, 361],
-  [24, 310, 312],
-  [33, 155, 161],
-  [36, 115, 117],
-  [221, 231, 233],
+  [21, 352, 358],
+  [24, 307, 309],
+  [30, 152, 158],
+  [33, 112, 114],
+  [218, 228, 230],
 ]
 
 ---
@@ -1259,7 +1245,7 @@ snippet: "
 "
 frame size: 25
 parameter count: 2
-bytecode array length: 514
+bytecode array length: 511
 bytecodes: [
                 B(Mov), R(new_target), R(11),
                 B(Ldar), R(new_target),
@@ -1290,8 +1276,6 @@ bytecodes: [
                 B(Mov), R(2), R(11),
                 B(Mov), R(context), R(16),
                 B(Mov), R(context), R(17),
-                B(LdaTheHole),
-                B(Star), R(1),
                 B(LdaZero),
                 B(Star), R(6),
                 B(Mov), R(context), R(20),
@@ -1486,7 +1470,7 @@ bytecodes: [
   /*   54 S> */ B(Return),
 ]
 constant pool: [
-  Smi [91],
+  Smi [88],
   SYMBOL_TYPE,
   Smi [85],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
@@ -1502,10 +1486,10 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [70, 469, 475],
-  [73, 424, 426],
-  [82, 269, 275],
-  [85, 229, 231],
-  [335, 345, 347],
+  [70, 466, 472],
+  [73, 421, 423],
+  [79, 266, 272],
+  [82, 226, 228],
+  [332, 342, 344],
 ]
 

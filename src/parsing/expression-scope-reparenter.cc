@@ -93,17 +93,12 @@ void Reparenter::VisitWithStatement(WithStatement* stmt) {
 
 void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
                              Scope* scope) {
-  // Both uses of this function should pass in a block scope.
+  // The only case that uses this code is block scopes for parameters containing
+  // sloppy eval.
   DCHECK(scope->is_block_scope());
-  // These hold for the sloppy parameters-with-eval case...
-  DCHECK_IMPLIES(scope->is_declaration_scope(), scope->calls_sloppy_eval());
-  DCHECK_IMPLIES(scope->is_declaration_scope(),
-                 scope->outer_scope()->is_function_scope());
-  // ...whereas these hold for lexical declarations in for-in/of loops.
-  DCHECK_IMPLIES(!scope->is_declaration_scope(),
-                 scope->outer_scope()->is_block_scope());
-  DCHECK_IMPLIES(!scope->is_declaration_scope(),
-                 scope->outer_scope()->is_hidden());
+  DCHECK(scope->is_declaration_scope());
+  DCHECK(scope->calls_sloppy_eval());
+  DCHECK(scope->outer_scope()->is_function_scope());
 
   Reparenter r(stack_limit, expr, scope);
   r.Run();
