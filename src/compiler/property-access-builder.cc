@@ -31,18 +31,18 @@ SimplifiedOperatorBuilder* PropertyAccessBuilder::simplified() const {
   return jsgraph()->simplified();
 }
 
+bool HasOnlyStringMaps(MapHandles const& maps) {
+  for (auto map : maps) {
+    if (!map->IsStringMap()) return false;
+  }
+  return true;
+}
+
 namespace {
 
 bool HasOnlyNumberMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (map->instance_type() != HEAP_NUMBER_TYPE) return false;
-  }
-  return true;
-}
-
-bool HasOnlyStringMaps(MapHandles const& maps) {
-  for (auto map : maps) {
-    if (!map->IsStringMap()) return false;
   }
   return true;
 }

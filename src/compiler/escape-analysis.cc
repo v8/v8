@@ -1788,6 +1788,8 @@ bool EscapeAnalysis::ExistsVirtualAllocate() {
 
 Graph* EscapeAnalysis::graph() const { return status_analysis_->graph(); }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

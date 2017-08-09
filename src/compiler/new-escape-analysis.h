@@ -11,15 +11,6 @@
 #include "src/compiler/persistent-map.h"
 #include "src/globals.h"
 
-#ifdef DEBUG
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_turbo_escape) PrintF(__VA_ARGS__); \
-  } while (false)
-#else
-#define TRACE(...)
-#endif
-
 namespace v8 {
 namespace internal {
 namespace compiler {

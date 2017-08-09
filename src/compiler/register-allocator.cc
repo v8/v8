@@ -4013,6 +4013,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
   }
 }
 
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

@@ -20,8 +20,17 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
+
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 
 namespace {
 

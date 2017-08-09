@@ -1528,6 +1528,8 @@ void DecodeLocalNames(const byte* module_start, const byte* module_end,
   }
 }
 
+#undef TRACE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

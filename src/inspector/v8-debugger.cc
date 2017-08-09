@@ -130,31 +130,6 @@ void cleanupExpiredWeakPointers(Map& map) {
   }
 }
 
-String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
-  switch (type) {
-    case v8::debug::ScopeIterator::ScopeTypeGlobal:
-      return protocol::Debugger::Scope::TypeEnum::Global;
-    case v8::debug::ScopeIterator::ScopeTypeLocal:
-      return protocol::Debugger::Scope::TypeEnum::Local;
-    case v8::debug::ScopeIterator::ScopeTypeWith:
-      return protocol::Debugger::Scope::TypeEnum::With;
-    case v8::debug::ScopeIterator::ScopeTypeClosure:
-      return protocol::Debugger::Scope::TypeEnum::Closure;
-    case v8::debug::ScopeIterator::ScopeTypeCatch:
-      return protocol::Debugger::Scope::TypeEnum::Catch;
-    case v8::debug::ScopeIterator::ScopeTypeBlock:
-      return protocol::Debugger::Scope::TypeEnum::Block;
-    case v8::debug::ScopeIterator::ScopeTypeScript:
-      return protocol::Debugger::Scope::TypeEnum::Script;
-    case v8::debug::ScopeIterator::ScopeTypeEval:
-      return protocol::Debugger::Scope::TypeEnum::Eval;
-    case v8::debug::ScopeIterator::ScopeTypeModule:
-      return protocol::Debugger::Scope::TypeEnum::Module;
-  }
-  UNREACHABLE();
-  return String16();
-}
-
 }  // namespace
 
 V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
@@ -592,7 +567,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     if (!markAsInternal(context, scope, V8InternalValueType::kScope)) {
       return v8::MaybeLocal<v8::Value>();
     }
-    String16 type = scopeType(iterator->GetType());
+    String16 type = v8_inspector::scopeType(iterator->GetType());
     String16 name;
     v8::Local<v8::Function> closure = iterator->GetFunction();
     if (!closure.IsEmpty()) {

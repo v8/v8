@@ -611,6 +611,12 @@ void ValidateOrphanedInstance(Isolate* isolate,
                               Handle<WasmInstanceObject> instance);
 }  // namespace testing
 
+void ResolvePromise(Isolate* isolate, Handle<Context> context,
+                    Handle<JSPromise> promise, Handle<Object> result);
+
+void RejectPromise(Isolate* isolate, Handle<Context> context,
+                   ErrorThrower& thrower, Handle<JSPromise> promise);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

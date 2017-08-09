@@ -1777,6 +1777,8 @@ void Scheduler::MovePlannedNodes(BasicBlock* from, BasicBlock* to) {
   }
 }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

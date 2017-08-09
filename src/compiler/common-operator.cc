@@ -341,7 +341,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   return OpParameter<TypedObjectStateInfo>(op).machine_types();
 }
 
-#define CACHED_OP_LIST(V)                                                     \
+#define COMMON_CACHED_OP_LIST(V)                                              \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)                              \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                             \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                            \
@@ -501,7 +501,7 @@ struct CommonOperatorGlobalCache final {
                    control_output_count) {}                                  \
   };                                                                         \
   Name##Operator k##Name##Operator;
-  CACHED_OP_LIST(CACHED)
+  COMMON_CACHED_OP_LIST(CACHED)
 #undef CACHED
 
   template <size_t kInputCount>
@@ -752,14 +752,11 @@ struct CommonOperatorGlobalCache final {
 #undef CACHED_STATE_VALUES
 };
 
-
-static base::LazyInstance<CommonOperatorGlobalCache>::type kCache =
-    LAZY_INSTANCE_INITIALIZER;
-
+static base::LazyInstance<CommonOperatorGlobalCache>::type
+    kCommonOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
 
 CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)
-    : cache_(kCache.Get()), zone_(zone) {}
-
+    : cache_(kCommonOperatorGlobalCache.Get()), zone_(zone) {}
 
 #define CACHED(Name, properties, value_input_count, effect_input_count,      \
                control_input_count, value_output_count, effect_output_count, \
@@ -767,7 +764,7 @@ CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)
   const Operator* CommonOperatorBuilder::Name() {                            \
     return &cache_.k##Name##Operator;                                        \
   }
-CACHED_OP_LIST(CACHED)
+COMMON_CACHED_OP_LIST(CACHED)
 #undef CACHED
 
 

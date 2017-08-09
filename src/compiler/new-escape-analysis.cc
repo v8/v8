@@ -11,6 +11,15 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 
+#ifdef DEBUG
+#define TRACE(...)                                    \
+  do {                                                \
+    if (FLAG_trace_turbo_escape) PrintF(__VA_ARGS__); \
+  } while (false)
+#else
+#define TRACE(...)
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -689,6 +698,8 @@ VirtualObject::VirtualObject(VariableTracker* var_states, VirtualObject::Id id,
     fields_.push_back(var_states->NewVariable());
   }
 }
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

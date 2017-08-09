@@ -132,7 +132,7 @@ Reduction LoadElimination::Reduce(Node* node) {
 
 namespace {
 
-bool IsCompatibleCheck(Node const* a, Node const* b) {
+bool LoadEliminationIsCompatibleCheck(Node const* a, Node const* b) {
   if (a->op() != b->op()) return false;
   for (int i = a->op()->ValueInputCount(); --i >= 0;) {
     if (!MustAlias(a->InputAt(i), b->InputAt(i))) return false;
@@ -144,7 +144,8 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
 
 Node* LoadElimination::AbstractChecks::Lookup(Node* node) const {
   for (Node* const check : nodes_) {
-    if (check && !check->IsDead() && IsCompatibleCheck(check, node)) {
+    if (check && !check->IsDead() &&
+        LoadEliminationIsCompatibleCheck(check, node)) {
       return check;
     }
   }

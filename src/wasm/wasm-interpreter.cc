@@ -2696,6 +2696,8 @@ WasmInterpreter::HeapObjectsScope::~HeapObjectsScope() {
   reinterpret_cast<HeapObjectsScopeImpl*>(data)->~HeapObjectsScopeImpl();
 }
 
+#undef TRACE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

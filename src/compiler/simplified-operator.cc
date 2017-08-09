@@ -830,13 +830,11 @@ struct SimplifiedOperatorGlobalCache final {
 #undef BUFFER_ACCESS
 };
 
-
-static base::LazyInstance<SimplifiedOperatorGlobalCache>::type kCache =
-    LAZY_INSTANCE_INITIALIZER;
-
+static base::LazyInstance<SimplifiedOperatorGlobalCache>::type
+    kSimplifiedOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
 
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
-    : cache_(kCache.Get()), zone_(zone) {}
+    : cache_(kSimplifiedOperatorGlobalCache.Get()), zone_(zone) {}
 
 #define GET_FROM_CACHE(Name, ...) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }

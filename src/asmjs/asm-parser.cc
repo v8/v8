@@ -2460,3 +2460,5 @@ void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#undef RECURSE

@@ -405,6 +405,8 @@ void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
   }
 }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

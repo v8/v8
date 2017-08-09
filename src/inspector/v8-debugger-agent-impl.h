@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
@@ -201,6 +202,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };
+
+String16 scopeType(v8::debug::ScopeIterator::ScopeType type);
 
 }  // namespace v8_inspector
 

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "src/base/bits.h"
+#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/counters.h"
@@ -138,7 +139,7 @@ bool CodeRange::SetUp(size_t requested) {
 
     base += reserved_area;
   }
-  Address aligned_base = RoundUp(base, MemoryChunk::kAlignment);
+  Address aligned_base = ::RoundUp(base, MemoryChunk::kAlignment);
   size_t size = reservation.size() - (aligned_base - base) - reserved_area;
   allocation_list_.Add(FreeBlock(aligned_base, size));
   current_allocation_block_index_ = 0;
@@ -261,7 +262,7 @@ bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
     if (!GetNextAllocationBlock(requested_size)) return false;
   }
   // Commit the requested memory at the start of the current allocation block.
-  size_t aligned_requested = RoundUp(requested_size, MemoryChunk::kAlignment);
+  size_t aligned_requested = ::RoundUp(requested_size, MemoryChunk::kAlignment);
   *block = allocation_list_[current_allocation_block_index_];
   // Don't leave a small free block, useless for a large object or chunk.
   if (aligned_requested < (block->size - Page::kPageSize)) {
@@ -295,7 +296,7 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       unmapper_(isolate->heap(), this) {}
 
 bool MemoryAllocator::SetUp(size_t capacity, size_t code_range_size) {
-  capacity_ = RoundUp(capacity, Page::kPageSize);
+  capacity_ = ::RoundUp(capacity, Page::kPageSize);
 
   size_ = 0;
   size_executable_ = 0;
@@ -465,9 +466,9 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
     return nullptr;
 
   const Address base =
-      RoundUp(static_cast<Address>(reservation.address()), alignment);
+      ::RoundUp(static_cast<Address>(reservation.address()), alignment);
   if (base + size != reservation.end()) {
-    const Address unused_start = RoundUp(base + size, GetCommitPageSize());
+    const Address unused_start = ::RoundUp(base + size, GetCommitPageSize());
     reservation.ReleasePartial(unused_start);
   }
   size_.Increment(reservation.size());
@@ -663,9 +664,9 @@ bool MemoryChunk::CommitArea(size_t requested) {
       IsFlagSet(IS_EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
   size_t header_size = area_start() - address() - guard_size;
   size_t commit_size =
-      RoundUp(header_size + requested, MemoryAllocator::GetCommitPageSize());
-  size_t committed_size = RoundUp(header_size + (area_end() - area_start()),
-                                  MemoryAllocator::GetCommitPageSize());
+      ::RoundUp(header_size + requested, MemoryAllocator::GetCommitPageSize());
+  size_t committed_size = ::RoundUp(header_size + (area_end() - area_start()),
+                                    MemoryAllocator::GetCommitPageSize());
 
   if (commit_size > committed_size) {
     // Commit size should be less or equal than the reserved size.
@@ -777,13 +778,13 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   //
 
   if (executable == EXECUTABLE) {
-    chunk_size = RoundUp(CodePageAreaStartOffset() + reserve_area_size,
-                         GetCommitPageSize()) +
+    chunk_size = ::RoundUp(CodePageAreaStartOffset() + reserve_area_size,
+                           GetCommitPageSize()) +
                  CodePageGuardSize();
 
     // Size of header (not executable) plus area (executable).
-    size_t commit_size = RoundUp(CodePageGuardStartOffset() + commit_area_size,
-                                 GetCommitPageSize());
+    size_t commit_size = ::RoundUp(
+        CodePageGuardStartOffset() + commit_area_size, GetCommitPageSize());
     // Allocate executable memory either from code range or from the
     // OS.
 #ifdef V8_TARGET_ARCH_MIPS64
@@ -818,11 +819,11 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     area_start = base + CodePageAreaStartOffset();
     area_end = area_start + commit_area_size;
   } else {
-    chunk_size = RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
-                         GetCommitPageSize());
+    chunk_size = ::RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
+                           GetCommitPageSize());
     size_t commit_size =
-        RoundUp(MemoryChunk::kObjectStartOffset + commit_area_size,
-                GetCommitPageSize());
+        ::RoundUp(MemoryChunk::kObjectStartOffset + commit_area_size,
+                  GetCommitPageSize());
     base =
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
                               executable, address_hint, &reservation);
@@ -1145,7 +1146,7 @@ void MemoryAllocator::ReportStatistics() {
 size_t MemoryAllocator::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
-  return RoundUp(Page::kObjectStartOffset, GetCommitPageSize());
+  return ::RoundUp(Page::kObjectStartOffset, GetCommitPageSize());
 }
 
 size_t MemoryAllocator::CodePageGuardSize() {
@@ -1795,7 +1796,7 @@ void NewSpace::Grow() {
 
 void NewSpace::Shrink() {
   size_t new_capacity = Max(InitialTotalCapacity(), 2 * Size());
-  size_t rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
+  size_t rounded_new_capacity = ::RoundUp(new_capacity, Page::kPageSize);
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {
     // Only shrink from-space if we managed to shrink to-space.
@@ -3167,8 +3168,8 @@ Address LargePage::GetAddressToShrink() {
   if (executable() == EXECUTABLE) {
     return 0;
   }
-  size_t used_size = RoundUp((object->address() - address()) + object->Size(),
-                             MemoryAllocator::GetCommitPageSize());
+  size_t used_size = ::RoundUp((object->address() - address()) + object->Size(),
+                               MemoryAllocator::GetCommitPageSize());
   if (used_size < CommittedPhysicalMemory()) {
     return address() + used_size;
   }
@@ -3359,8 +3360,8 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
 
 void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
                                              Address free_start) {
-  uintptr_t start = RoundUp(reinterpret_cast<uintptr_t>(free_start),
-                            MemoryChunk::kAlignment) /
+  uintptr_t start = ::RoundUp(reinterpret_cast<uintptr_t>(free_start),
+                              MemoryChunk::kAlignment) /
                     MemoryChunk::kAlignment;
   uintptr_t limit = (reinterpret_cast<uintptr_t>(page) + (page->size() - 1)) /
                     MemoryChunk::kAlignment;

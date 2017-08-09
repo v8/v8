@@ -11,10 +11,21 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 
-namespace {
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
   DCHECK_EQ(static_cast<int>(kExprCallFunction), static_cast<int>(*pc));
@@ -24,6 +35,12 @@ int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
   DCHECK_GE(kMaxInt, call_idx);
   return static_cast<int>(call_idx);
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+
+namespace {
 
 int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
                                        size_t offset_l) {

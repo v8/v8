@@ -3773,6 +3773,8 @@ Operator const* SimplifiedLowering::ToNumberOperator() {
   return to_number_operator_.get();
 }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

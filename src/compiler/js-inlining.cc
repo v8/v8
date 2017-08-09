@@ -746,6 +746,8 @@ SimplifiedOperatorBuilder* JSInliner::simplified() const {
   return jsgraph()->simplified();
 }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

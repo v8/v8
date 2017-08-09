@@ -14,15 +14,15 @@ namespace internal {
 
 namespace {
 
-class Rewriter final : public AstTraversalVisitor<Rewriter> {
+class Reparenter final : public AstTraversalVisitor<Reparenter> {
  public:
-  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* scope)
+  Reparenter(uintptr_t stack_limit, Expression* initializer, Scope* scope)
       : AstTraversalVisitor(stack_limit, initializer), scope_(scope) {}
 
  private:
   // This is required so that the overriden Visit* methods can be
   // called by the base class (template).
-  friend class AstTraversalVisitor<Rewriter>;
+  friend class AstTraversalVisitor<Reparenter>;
 
   void VisitFunctionLiteral(FunctionLiteral* expr);
   void VisitClassLiteral(ClassLiteral* expr);
@@ -35,11 +35,11 @@ class Rewriter final : public AstTraversalVisitor<Rewriter> {
   Scope* scope_;
 };
 
-void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
+void Reparenter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
   function_literal->scope()->ReplaceOuterScope(scope_);
 }
 
-void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
+void Reparenter::VisitClassLiteral(ClassLiteral* class_literal) {
   class_literal->scope()->ReplaceOuterScope(scope_);
   // No need to visit the constructor since it will have the class
   // scope on its scope chain.
@@ -60,7 +60,7 @@ void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
 #endif
 }
 
-void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
+void Reparenter::VisitVariableProxy(VariableProxy* proxy) {
   if (!proxy->is_resolved()) {
     if (scope_->outer_scope()->RemoveUnresolved(proxy)) {
       scope_->AddUnresolved(proxy);
@@ -72,19 +72,19 @@ void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   }
 }
 
-void Rewriter::VisitBlock(Block* stmt) {
+void Reparenter::VisitBlock(Block* stmt) {
   if (stmt->scope() != nullptr)
     stmt->scope()->ReplaceOuterScope(scope_);
   else
     VisitStatements(stmt->statements());
 }
 
-void Rewriter::VisitTryCatchStatement(TryCatchStatement* stmt) {
+void Reparenter::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
   stmt->scope()->ReplaceOuterScope(scope_);
 }
 
-void Rewriter::VisitWithStatement(WithStatement* stmt) {
+void Reparenter::VisitWithStatement(WithStatement* stmt) {
   Visit(stmt->expression());
   stmt->scope()->ReplaceOuterScope(scope_);
 }
@@ -105,8 +105,8 @@ void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
   DCHECK_IMPLIES(!scope->is_declaration_scope(),
                  scope->outer_scope()->is_hidden());
 
-  Rewriter rewriter(stack_limit, expr, scope);
-  rewriter.Run();
+  Reparenter r(stack_limit, expr, scope);
+  r.Run();
 }
 
 }  // namespace internal

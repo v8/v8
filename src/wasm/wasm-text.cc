@@ -14,9 +14,20 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8;
 using namespace v8::internal;
 using namespace v8::internal::wasm;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 namespace {
 bool IsValidFunctionName(const Vector<const char> &name) {

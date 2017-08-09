@@ -2372,6 +2372,8 @@ BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                             static_cast<int>(num_locals), zone);
 }
 
+#undef TRACE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

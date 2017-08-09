@@ -336,6 +336,8 @@ void OsrHelper::SetupFrame(Frame* frame) {
   frame->ReserveSpillSlots(UnoptimizedFrameSlots());
 }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -186,6 +186,8 @@ String16 breakLocationType(v8::debug::BreakLocationType type) {
   return String16();
 }
 
+}  // namespace
+
 String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
   switch (type) {
     case v8::debug::ScopeIterator::ScopeTypeGlobal:
@@ -210,6 +212,8 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
   UNREACHABLE();
   return String16();
 }
+
+namespace {
 
 Response buildScopes(v8::debug::ScopeIterator* iterator,
                      InjectedScript* injectedScript,

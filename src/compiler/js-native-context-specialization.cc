@@ -39,13 +39,6 @@ bool HasOnlyJSArrayMaps(MapHandles const& maps) {
   return true;
 }
 
-bool HasOnlyStringMaps(MapHandles const& maps) {
-  for (auto map : maps) {
-    if (!map->IsStringMap()) return false;
-  }
-  return true;
-}
-
 }  // namespace
 
 struct JSNativeContextSpecialization::ScriptContextTableLookupResult {

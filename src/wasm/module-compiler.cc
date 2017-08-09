@@ -520,24 +520,6 @@ double MonotonicallyIncreasingTimeInMs() {
          base::Time::kMillisecondsPerSecond;
 }
 
-void RejectPromise(Isolate* isolate, Handle<Context> context,
-                   ErrorThrower& thrower, Handle<JSPromise> promise) {
-  v8::Local<v8::Promise::Resolver> resolver =
-      v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
-  auto maybe = resolver->Reject(v8::Utils::ToLocal(context),
-                                v8::Utils::ToLocal(thrower.Reify()));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
-}
-
-void ResolvePromise(Isolate* isolate, Handle<Context> context,
-                    Handle<JSPromise> promise, Handle<Object> result) {
-  v8::Local<v8::Promise::Resolver> resolver =
-      v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
-  auto maybe = resolver->Resolve(v8::Utils::ToLocal(context),
-                                 v8::Utils::ToLocal(result));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
-}
-
 void SetFunctionTablesToDefault(Factory* factory, wasm::ModuleEnv* module_env) {
   for (uint32_t i = 0,
                 e = static_cast<uint32_t>(module_env->function_tables().size());
@@ -2317,6 +2299,9 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     return job_->AsyncCompileSucceeded(result);
   }
 };
+
+#undef TRACE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

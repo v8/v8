@@ -403,6 +403,9 @@ Node* NodeHashCache::Constructor::MutableNode() {
   }
   return tmp_;
 }
+
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

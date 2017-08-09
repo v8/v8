@@ -6,6 +6,7 @@ import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
+import("//build/config/jumbo.gni")
 import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 
@@ -867,6 +868,15 @@ v8_source_set("v8_nosnapshot") {
     "src/snapshot/snapshot-empty.cc",
   ]
 
+  if (use_jumbo_build == true) {
+    jumbo_excluded_sources = [
+      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      # Generated source, contains same variable names as libraries.cc
+      "$target_gen_dir/experimental-extras-libraries.cc",
+      "$target_gen_dir/libraries.cc",
+    ]
+  }
+
   configs = [ ":internal_config" ]
 }
 
@@ -897,6 +907,15 @@ v8_source_set("v8_snapshot") {
     "$target_gen_dir/snapshot.cc",
     "src/setup-isolate-deserialize.cc",
   ]
+
+  if (use_jumbo_build == true) {
+    jumbo_excluded_sources = [
+      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      # Generated source, contains same variable names as libraries.cc
+      "$target_gen_dir/experimental-extras-libraries.cc",
+      "$target_gen_dir/libraries.cc",
+    ]
+  }
 
   configs = [ ":internal_config" ]
 }
@@ -1000,6 +1019,14 @@ v8_source_set("v8_builtins_generators") {
     "src/interpreter/setup-interpreter-internal.cc",
     "src/interpreter/setup-interpreter.h",
   ]
+
+  if (use_jumbo_build == true) {
+    jumbo_excluded_sources = [
+      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      "src/builtins/builtins-async-iterator-gen.cc",
+      "src/builtins/builtins-async-generator-gen.cc",
+    ]
+  }
 
   if (v8_current_cpu == "x86") {
     sources += [
@@ -2044,6 +2071,18 @@ v8_source_set("v8_base") {
     "src/zone/zone.cc",
     "src/zone/zone.h",
   ]
+
+  if (use_jumbo_build == true) {
+    jumbo_excluded_sources = [
+      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      "src/profiler/heap-snapshot-generator.cc",  # Macro clash in mman-linux.h
+      "src/compiler/c-linkage.cc",  # Symbol clashes with linkage.cc
+      "src/compiler/wasm-linkage.cc",  # regloc symbol clash with linkage.cc
+
+      "src/compiler/escape-analysis.cc",  # Symbol clashes with new-escape-analysis.cc
+      "src/compiler/escape-analysis-reducer.cc",  # Symbol clashes with new-escape-analysis-reducer.cc
+    ]
+  }
 
   if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###

@@ -18,9 +18,20 @@
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 using namespace v8::internal::wasm::testing;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 #define ASSIGN(type, var, expr)                      \
   v8::Local<type> var;                               \

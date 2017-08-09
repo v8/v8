@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/macros.h"
 #include "src/counters.h"
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
@@ -38,7 +39,7 @@ void StoreBuffer::SetUp() {
   }
   uintptr_t start_as_int = reinterpret_cast<uintptr_t>(reservation.address());
   start_[0] =
-      reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize));
+      reinterpret_cast<Address*>(::RoundUp(start_as_int, kStoreBufferSize));
   limit_[0] = start_[0] + (kStoreBufferSize / kPointerSize);
   start_[1] = limit_[0];
   limit_[1] = start_[1] + (kStoreBufferSize / kPointerSize);

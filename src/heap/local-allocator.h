@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_HEAP_LOCAL_ALLOCATOR_H_
+#define V8_HEAP_LOCAL_ALLOCATOR_H_
+
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
@@ -137,3 +140,5 @@ class LocalAllocator {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_HEAP_LOCAL_ALLOCATOR_H_

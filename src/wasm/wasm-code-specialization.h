@@ -7,11 +7,14 @@
 
 #include "src/assembler.h"
 #include "src/identity-map.h"
+#include "src/wasm/decoder.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc);
 
 // Helper class to specialize wasm code for a specific instance, or to update
 // code when memory / globals / tables change.

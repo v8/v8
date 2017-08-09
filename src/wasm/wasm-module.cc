@@ -24,9 +24,20 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 namespace base = v8::base;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -193,16 +204,6 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
     iterator.Advance();
   } while (!iterator.done() && iterator.code_offset() <= offset);
   return byte_pos;
-}
-
-int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
-  DCHECK_EQ(static_cast<int>(kExprCallFunction), static_cast<int>(*pc));
-  // Read the leb128 encoded u32 value (up to 5 bytes starting at pc + 1).
-  decoder.Reset(pc + 1, pc + 6);
-  uint32_t call_idx = decoder.consume_u32v("call index");
-  DCHECK(decoder.ok());
-  DCHECK_GE(kMaxInt, call_idx);
-  return static_cast<int>(call_idx);
 }
 
 void RecordLazyCodeStats(Code* code, Counters* counters) {
@@ -839,7 +840,9 @@ MaybeHandle<WasmInstanceObject> wasm::SyncCompileAndInstantiate(
                                Handle<JSArrayBuffer>::null());
 }
 
-namespace {
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 void RejectPromise(Isolate* isolate, Handle<Context> context,
                    ErrorThrower& thrower, Handle<JSPromise> promise) {
@@ -859,7 +862,9 @@ void ResolvePromise(Isolate* isolate, Handle<Context> context,
   CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
 }
 
-}  // namespace
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
 
 void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
                             Handle<WasmModuleObject> module_object,

@@ -453,6 +453,8 @@ void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {
   __ BIND(&match);
 }
 
+#undef __
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
