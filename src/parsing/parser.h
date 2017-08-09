@@ -254,15 +254,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void PrepareGeneratorVariables();
 
-  // Limit the allowed number of local variables in a function. The hard limit
-  // is that offsets computed by FullCodeGenerator::StackOperand and similar
-  // functions are ints, and they should not overflow. In addition, accessing
-  // local variables creates user-controlled constants in the generated code,
-  // and we don't want too much user-controlled memory inside the code (this was
-  // the reason why this limit was introduced in the first place; see
-  // https://codereview.chromium.org/7003030/ ).
-  static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
-
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
@@ -331,10 +322,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZoneList<const AstRawString*>* names,
                                   bool* ok);
-  void DeclareAndInitializeVariables(
-      Block* block, const DeclarationDescriptor* declaration_descriptor,
-      const DeclarationParsingResult::Declaration* declaration,
-      ZoneList<const AstRawString*>* names, bool* ok);
   ZoneList<const AstRawString*>* DeclareLabel(
       ZoneList<const AstRawString*>* labels, VariableProxy* expr, bool* ok);
   bool ContainsLabel(ZoneList<const AstRawString*>* labels,
@@ -388,90 +375,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE Scope* NewHiddenCatchScopeWithParent(Scope* parent);
 
-  class PatternRewriter final : public AstVisitor<PatternRewriter> {
-   public:
-    static void DeclareAndInitializeVariables(
-        Parser* parser, Block* block,
-        const DeclarationDescriptor* declaration_descriptor,
-        const DeclarationParsingResult::Declaration* declaration,
-        ZoneList<const AstRawString*>* names, bool* ok);
-
-    static void RewriteDestructuringAssignment(Parser* parser,
-                                               RewritableExpression* expr,
-                                               Scope* Scope);
-
-    static Expression* RewriteDestructuringAssignment(Parser* parser,
-                                                      Assignment* assignment,
-                                                      Scope* scope);
-
-   private:
-    PatternRewriter() {}
-
-#define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node);
-    // Visiting functions for AST nodes make this an AstVisitor.
-    AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-    enum PatternContext {
-      BINDING,
-      INITIALIZER,
-      ASSIGNMENT,
-      ASSIGNMENT_INITIALIZER
-    };
-
-    PatternContext context() const { return context_; }
-    void set_context(PatternContext context) { context_ = context; }
-
-    void RecurseIntoSubpattern(AstNode* pattern, Expression* value) {
-      Expression* old_value = current_value_;
-      current_value_ = value;
-      recursion_level_++;
-      Visit(pattern);
-      recursion_level_--;
-      current_value_ = old_value;
-    }
-
-    void VisitObjectLiteral(ObjectLiteral* node, Variable** temp_var);
-    void VisitArrayLiteral(ArrayLiteral* node, Variable** temp_var);
-
-    bool IsBindingContext() const {
-      return context_ == BINDING || context_ == INITIALIZER;
-    }
-    bool IsInitializerContext() const { return context_ != ASSIGNMENT; }
-    bool IsAssignmentContext() const {
-      return context_ == ASSIGNMENT || context_ == ASSIGNMENT_INITIALIZER;
-    }
-    bool IsSubPattern() const { return recursion_level_ > 1; }
-    PatternContext SetAssignmentContextIfNeeded(Expression* node);
-    PatternContext SetInitializerContextIfNeeded(Expression* node);
-
-    bool DeclaresParameterContainingSloppyEval() const;
-    void RewriteParameterScopes(Expression* expr);
-
-    Variable* CreateTempVar(Expression* value = nullptr);
-
-    AstNodeFactory* factory() const { return parser_->factory(); }
-    AstValueFactory* ast_value_factory() const {
-      return parser_->ast_value_factory();
-    }
-    Zone* zone() const { return parser_->zone(); }
-    Scope* scope() const { return scope_; }
-
-    Scope* scope_;
-    Parser* parser_;
-    PatternContext context_;
-    Expression* pattern_;
-    int initializer_position_;
-    int value_beg_position_;
-    Block* block_;
-    const DeclarationDescriptor* descriptor_;
-    ZoneList<const AstRawString*>* names_;
-    Expression* current_value_;
-    int recursion_level_;
-    bool* ok_;
-
-    DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
-  };
+  // PatternRewriter and associated methods defined in pattern-rewriter.cc.
+  friend class PatternRewriter;
+  void DeclareAndInitializeVariables(
+      Block* block, const DeclarationDescriptor* declaration_descriptor,
+      const DeclarationParsingResult::Declaration* declaration,
+      ZoneList<const AstRawString*>* names, bool* ok);
+  void RewriteDestructuringAssignment(RewritableExpression* expr, Scope* Scope);
+  Expression* RewriteDestructuringAssignment(Assignment* assignment);
 
   // [if (IteratorType == kAsync)]
   //     !%_IsJSReceiver(result = Await(iterator.next()) &&
@@ -655,7 +566,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE void QueueNonPatternForRewriting(Expression* expr, bool* ok);
 
   friend class InitializerRewriter;
-  void RewriteParameterInitializer(Expression* expr, Scope* scope);
+  void RewriteParameterInitializer(Expression* expr);
 
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);

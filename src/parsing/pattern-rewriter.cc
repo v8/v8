@@ -12,66 +12,159 @@ namespace v8 {
 
 namespace internal {
 
-void Parser::PatternRewriter::DeclareAndInitializeVariables(
-    Parser* parser, Block* block,
-    const DeclarationDescriptor* declaration_descriptor,
+class PatternRewriter final : public AstVisitor<PatternRewriter> {
+ public:
+  // Limit the allowed number of local variables in a function. The hard limit
+  // is that offsets computed by FullCodeGenerator::StackOperand and similar
+  // functions are ints, and they should not overflow. In addition, accessing
+  // local variables creates user-controlled constants in the generated code,
+  // and we don't want too much user-controlled memory inside the code (this was
+  // the reason why this limit was introduced in the first place; see
+  // https://codereview.chromium.org/7003030/ ).
+  static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
+
+  typedef Parser::DeclarationDescriptor DeclarationDescriptor;
+
+  static void DeclareAndInitializeVariables(
+      Parser* parser, Block* block,
+      const DeclarationDescriptor* declaration_descriptor,
+      const Parser::DeclarationParsingResult::Declaration* declaration,
+      ZoneList<const AstRawString*>* names, bool* ok);
+
+  static void RewriteDestructuringAssignment(Parser* parser,
+                                             RewritableExpression* to_rewrite,
+                                             Scope* scope);
+
+ private:
+  enum PatternContext {
+    BINDING,
+    INITIALIZER,
+    ASSIGNMENT,
+    ASSIGNMENT_INITIALIZER
+  };
+
+  PatternRewriter(Scope* scope, Parser* parser, PatternContext context)
+      : scope_(scope),
+        parser_(parser),
+        context_(context),
+        initializer_position_(kNoSourcePosition),
+        value_beg_position_(kNoSourcePosition),
+        block_(nullptr),
+        descriptor_(nullptr),
+        names_(nullptr),
+        current_value_(nullptr),
+        recursion_level_(0),
+        ok_(nullptr) {}
+
+#define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node);
+  // Visiting functions for AST nodes make this an AstVisitor.
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  PatternContext context() const { return context_; }
+  void set_context(PatternContext context) { context_ = context; }
+
+  void RecurseIntoSubpattern(AstNode* pattern, Expression* value) {
+    Expression* old_value = current_value_;
+    current_value_ = value;
+    recursion_level_++;
+    Visit(pattern);
+    recursion_level_--;
+    current_value_ = old_value;
+  }
+
+  void VisitObjectLiteral(ObjectLiteral* node, Variable** temp_var);
+  void VisitArrayLiteral(ArrayLiteral* node, Variable** temp_var);
+
+  bool IsBindingContext() const {
+    return context_ == BINDING || context_ == INITIALIZER;
+  }
+  bool IsInitializerContext() const { return context_ != ASSIGNMENT; }
+  bool IsAssignmentContext() const {
+    return context_ == ASSIGNMENT || context_ == ASSIGNMENT_INITIALIZER;
+  }
+  bool IsSubPattern() const { return recursion_level_ > 1; }
+  PatternContext SetAssignmentContextIfNeeded(Expression* node);
+  PatternContext SetInitializerContextIfNeeded(Expression* node);
+
+  bool DeclaresParameterContainingSloppyEval() const;
+  void RewriteParameterScopes(Expression* expr);
+
+  Variable* CreateTempVar(Expression* value = nullptr);
+
+  AstNodeFactory* factory() const { return parser_->factory(); }
+  AstValueFactory* ast_value_factory() const {
+    return parser_->ast_value_factory();
+  }
+  Zone* zone() const { return parser_->zone(); }
+  Scope* scope() const { return scope_; }
+
+  Scope* const scope_;
+  Parser* const parser_;
+  PatternContext context_;
+  int initializer_position_;
+  int value_beg_position_;
+  Block* block_;
+  const DeclarationDescriptor* descriptor_;
+  ZoneList<const AstRawString*>* names_;
+  Expression* current_value_;
+  int recursion_level_;
+  bool* ok_;
+
+  DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
+};
+
+void Parser::DeclareAndInitializeVariables(
+    Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
-  PatternRewriter rewriter;
+  PatternRewriter::DeclareAndInitializeVariables(
+      this, block, declaration_descriptor, declaration, names, ok);
+}
 
+void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite,
+                                            Scope* scope) {
+  PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope);
+}
+
+Expression* Parser::RewriteDestructuringAssignment(Assignment* assignment) {
+  DCHECK_NOT_NULL(assignment);
+  DCHECK_EQ(Token::ASSIGN, assignment->op());
+  auto to_rewrite = factory()->NewRewritableExpression(assignment);
+  RewriteDestructuringAssignment(to_rewrite, scope());
+  return to_rewrite->expression();
+}
+
+void PatternRewriter::DeclareAndInitializeVariables(
+    Parser* parser, Block* block,
+    const DeclarationDescriptor* declaration_descriptor,
+    const Parser::DeclarationParsingResult::Declaration* declaration,
+    ZoneList<const AstRawString*>* names, bool* ok) {
   DCHECK(block->ignore_completion_value());
 
-  rewriter.scope_ = declaration_descriptor->scope;
-  rewriter.parser_ = parser;
-  rewriter.context_ = BINDING;
-  rewriter.pattern_ = declaration->pattern;
+  PatternRewriter rewriter(declaration_descriptor->scope, parser, BINDING);
   rewriter.initializer_position_ = declaration->initializer_position;
   rewriter.value_beg_position_ = declaration->value_beg_position;
   rewriter.block_ = block;
   rewriter.descriptor_ = declaration_descriptor;
   rewriter.names_ = names;
   rewriter.ok_ = ok;
-  rewriter.recursion_level_ = 0;
 
-  rewriter.RecurseIntoSubpattern(rewriter.pattern_, declaration->initializer);
+  rewriter.RecurseIntoSubpattern(declaration->pattern,
+                                 declaration->initializer);
 }
 
-
-void Parser::PatternRewriter::RewriteDestructuringAssignment(
+void PatternRewriter::RewriteDestructuringAssignment(
     Parser* parser, RewritableExpression* to_rewrite, Scope* scope) {
   DCHECK(!scope->HasBeenRemoved());
   DCHECK(!to_rewrite->is_rewritten());
 
-  bool ok = true;
-
-  PatternRewriter rewriter;
-  rewriter.scope_ = scope;
-  rewriter.parser_ = parser;
-  rewriter.context_ = ASSIGNMENT;
-  rewriter.pattern_ = to_rewrite;
-  rewriter.block_ = nullptr;
-  rewriter.descriptor_ = nullptr;
-  rewriter.names_ = nullptr;
-  rewriter.ok_ = &ok;
-  rewriter.recursion_level_ = 0;
-
-  rewriter.RecurseIntoSubpattern(rewriter.pattern_, nullptr);
-  DCHECK(ok);
+  PatternRewriter rewriter(scope, parser, ASSIGNMENT);
+  rewriter.RecurseIntoSubpattern(to_rewrite, nullptr);
 }
 
-
-Expression* Parser::PatternRewriter::RewriteDestructuringAssignment(
-    Parser* parser, Assignment* assignment, Scope* scope) {
-  DCHECK_NOT_NULL(assignment);
-  DCHECK_EQ(Token::ASSIGN, assignment->op());
-  auto to_rewrite = parser->factory()->NewRewritableExpression(assignment);
-  RewriteDestructuringAssignment(parser, to_rewrite, scope);
-  return to_rewrite->expression();
-}
-
-
-Parser::PatternRewriter::PatternContext
-Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
+PatternRewriter::PatternContext PatternRewriter::SetAssignmentContextIfNeeded(
+    Expression* node) {
   PatternContext old_context = context();
   // AssignmentExpressions may occur in the Initializer position of a
   // SingleNameBinding. Such expressions should not prompt a change in the
@@ -83,9 +176,8 @@ Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
   return old_context;
 }
 
-
-Parser::PatternRewriter::PatternContext
-Parser::PatternRewriter::SetInitializerContextIfNeeded(Expression* node) {
+PatternRewriter::PatternContext PatternRewriter::SetInitializerContextIfNeeded(
+    Expression* node) {
   // Set appropriate initializer context for BindingElement and
   // AssignmentElement nodes
   PatternContext old_context = context();
@@ -109,8 +201,7 @@ Parser::PatternRewriter::SetInitializerContextIfNeeded(Expression* node) {
   return old_context;
 }
 
-
-void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
+void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   Expression* value = current_value_;
 
   if (IsAssignmentContext()) {
@@ -122,6 +213,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
         zone());
     return;
   }
+
+  DCHECK_NOT_NULL(block_);
+  DCHECK_NOT_NULL(descriptor_);
+  DCHECK_NOT_NULL(ok_);
 
   descriptor_->scope->RemoveUnresolved(pattern);
 
@@ -176,7 +271,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   if (value == nullptr) return;
 
   Scope* var_init_scope = descriptor_->scope;
-  MarkLoopVariableAsAssigned(var_init_scope, proxy->var());
+  Parser::MarkLoopVariableAsAssigned(var_init_scope, proxy->var());
 
   // A declaration of the form:
   //
@@ -211,8 +306,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
                             zone());
 }
 
-
-Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
+Variable* PatternRewriter::CreateTempVar(Expression* value) {
   auto temp = scope()->NewTemporary(ast_value_factory()->empty_string());
   if (value != nullptr) {
     auto assignment = factory()->NewAssignment(
@@ -226,9 +320,7 @@ Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
   return temp;
 }
 
-
-void Parser::PatternRewriter::VisitRewritableExpression(
-    RewritableExpression* node) {
+void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
   // If this is not a destructuring assignment...
   if (!IsAssignmentContext()) {
     // Mark the node as rewritten to prevent redundant rewriting, and
@@ -289,7 +381,7 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   set_context(old_context);
 }
 
-bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
+bool PatternRewriter::DeclaresParameterContainingSloppyEval() const {
   // Need to check for a binding context to make sure we have a descriptor.
   if (IsBindingContext() &&
       // Only relevant for parameters.
@@ -310,14 +402,14 @@ bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
 // a sloppy eval in a default parameter or function body, the expressions
 // needs to be in that new inner scope which was added after initial
 // parsing.
-void Parser::PatternRewriter::RewriteParameterScopes(Expression* expr) {
+void PatternRewriter::RewriteParameterScopes(Expression* expr) {
   if (DeclaresParameterContainingSloppyEval()) {
     ReparentExpressionScope(parser_->stack_limit(), expr, scope());
   }
 }
 
-void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
-                                                 Variable** temp_var) {
+void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
+                                         Variable** temp_var) {
   auto temp = *temp_var = CreateTempVar(current_value_);
 
   ZoneList<Expression*>* rest_runtime_callargs = nullptr;
@@ -386,15 +478,13 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
   }
 }
 
-
-void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* node) {
+void PatternRewriter::VisitObjectLiteral(ObjectLiteral* node) {
   Variable* temp_var = nullptr;
   VisitObjectLiteral(node, &temp_var);
 }
 
-
-void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
-                                                Variable** temp_var) {
+void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
+                                        Variable** temp_var) {
   DCHECK(block_->ignore_completion_value());
 
   auto temp = *temp_var = CreateTempVar(current_value_);
@@ -505,7 +595,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
         Expression* proxy = factory()->NewVariableProxy(completion);
         Expression* assignment = factory()->NewAssignment(
             Token::ASSIGN, proxy,
-            factory()->NewSmiLiteral(kAbruptCompletion, nopos), nopos);
+            factory()->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
         block_->statements()->Add(
             factory()->NewExpressionStatement(assignment, nopos), zone());
       }
@@ -517,7 +607,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
         Expression* proxy = factory()->NewVariableProxy(completion);
         Expression* assignment = factory()->NewAssignment(
             Token::ASSIGN, proxy,
-            factory()->NewSmiLiteral(kNormalCompletion, nopos), nopos);
+            factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
         block_->statements()->Add(
             factory()->NewExpressionStatement(assignment, nopos), zone());
       }
@@ -630,14 +720,12 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   block_ = target;
 }
 
-
-void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
+void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
   Variable* temp_var = nullptr;
   VisitArrayLiteral(node, &temp_var);
 }
 
-
-void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
+void PatternRewriter::VisitAssignment(Assignment* node) {
   // let {<pattern> = <init>} = <value>
   //   becomes
   // temp = <value>;
@@ -668,7 +756,7 @@ void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
 
 // =============== AssignmentPattern only ==================
 
-void Parser::PatternRewriter::VisitProperty(v8::internal::Property* node) {
+void PatternRewriter::VisitProperty(v8::internal::Property* node) {
   DCHECK(IsAssignmentContext());
   auto value = current_value_;
 
@@ -682,10 +770,8 @@ void Parser::PatternRewriter::VisitProperty(v8::internal::Property* node) {
 
 // =============== UNREACHABLE =============================
 
-#define NOT_A_PATTERN(Node)                                        \
-  void Parser::PatternRewriter::Visit##Node(v8::internal::Node*) { \
-    UNREACHABLE();                                                 \
-  }
+#define NOT_A_PATTERN(Node) \
+  void PatternRewriter::Visit##Node(v8::internal::Node*) { UNREACHABLE(); }
 
 NOT_A_PATTERN(BinaryOperation)
 NOT_A_PATTERN(Block)
