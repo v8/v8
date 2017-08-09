@@ -53,6 +53,11 @@ Handle<Smi> LoadHandler::LoadAccessor(Isolate* isolate, int descriptor) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadProxy(Isolate* isolate) {
+  int config = KindBits::encode(kProxy);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
   int config = KindBits::encode(kConstant) | IsAccessorInfoBits::encode(true) |
                DescriptorBits::encode(descriptor);
