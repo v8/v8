@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_DESERIALIZER_H_
 #define V8_SNAPSHOT_DESERIALIZER_H_
 
+#include <vector>
+
 #include "src/heap/heap.h"
 #include "src/objects.h"
 #include "src/snapshot/serializer-common.h"
@@ -53,6 +55,9 @@ class Deserializer : public SerializerDeserializer {
         next_alignment_(kWordAligned),
         can_rehash_(false) {
     DecodeReservation(data->Reservations());
+    // We start the indicies here at 1, so that we can distinguish between an
+    // actual index and a nullptr in a deserialized object requiring fix-up.
+    off_heap_backing_stores_.push_back(nullptr);
   }
 
   void Initialize(Isolate* isolate);
@@ -139,6 +144,7 @@ class Deserializer : public SerializerDeserializer {
   List<Handle<String>> new_internalized_strings_;
   List<Handle<Script>> new_scripts_;
   List<TransitionArray*> transition_arrays_;
+  std::vector<byte*> off_heap_backing_stores_;
 
   const bool deserializing_user_code_;
 

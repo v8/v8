@@ -19204,8 +19204,6 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
                                         bool initialize, SharedFlag shared) {
   void* data;
   CHECK(isolate->array_buffer_allocator() != NULL);
-  // Prevent creating array buffers when serializing.
-  DCHECK(!isolate->serializer_enabled());
   if (allocated_length != 0) {
     if (allocated_length >= MB)
       isolate->counters()->array_buffer_big_allocations()->AddSample(

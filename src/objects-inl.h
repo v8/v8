@@ -2954,6 +2954,11 @@ int FixedTypedArrayBase::DataSize() const {
   return DataSize(map()->instance_type());
 }
 
+size_t FixedTypedArrayBase::ByteLength() const {
+  return static_cast<size_t>(length()) *
+         static_cast<size_t>(ElementSize(map()->instance_type()));
+}
+
 int FixedTypedArrayBase::size() const {
   return OBJECT_POINTER_ALIGN(kDataOffset + DataSize());
 }

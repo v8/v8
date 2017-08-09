@@ -174,6 +174,9 @@ class SerializerDeserializer : public RootVisitor {
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
+  // Used for embedder-allocated backing stores for TypedArrays.
+  static const int kOffHeapBackingStore = 0x35;
+
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
   STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
@@ -183,7 +186,7 @@ class SerializerDeserializer : public RootVisitor {
   static const int kHotObjectWithSkip = 0x58;
   static const int kHotObjectMask = 0x07;
 
-  // 0x35..0x37, 0x55..0x57, 0x75..0x7f unused.
+  // 0x36..0x37, 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.

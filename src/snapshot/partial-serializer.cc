@@ -59,9 +59,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     DCHECK(Map::cast(obj)->code_cache() == obj->GetHeap()->empty_fixed_array());
   }
 
-  // Replace typed arrays by undefined.
-  if (obj->IsJSTypedArray()) obj = isolate_->heap()->undefined_value();
-
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
   int root_index = root_index_map_.Lookup(obj);
@@ -144,6 +141,9 @@ void PartialSerializer::SerializeEmbedderFields() {
     int embedder_fields_count = obj->GetEmbedderFieldCount();
     for (int i = 0; i < embedder_fields_count; i++) {
       if (obj->GetEmbedderField(i)->IsHeapObject()) continue;
+      // Do not attempt to serialize nullptr embedder fields.
+      if (obj->GetEmbedderField(i) == 0) continue;
+
       StartupData data = serialize_embedder_fields_.callback(
           v8::Utils::ToLocal(obj), i, serialize_embedder_fields_.data);
       sink_.Put(kNewObject + reference.space(), "embedder field holder");

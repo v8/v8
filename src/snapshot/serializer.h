@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_H_
 
+#include <map>
+
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
@@ -189,6 +191,7 @@ class Serializer : public SerializerDeserializer {
   }
 
   // This will return the space for an object.
+  SerializerReference AllocateOffHeapBackingStore();
   SerializerReference AllocateLargeObject(int size);
   SerializerReference AllocateMap();
   SerializerReference Allocate(AllocationSpace space, int size);
@@ -261,6 +264,13 @@ class Serializer : public SerializerDeserializer {
   uint32_t large_objects_total_size_;
   uint32_t seen_large_objects_index_;
 
+  // Used to keep track of the off-heap backing stores used by TypedArrays/
+  // ArrayBuffers. Note that the index begins at 1 and not 0, because when a
+  // TypedArray has an on-heap backing store, the backing_store pointer in the
+  // corresponding ArrayBuffer will be null, which makes it indistinguishable
+  // from index 0.
+  uint32_t seen_backing_stores_index_;
+
   List<byte> code_buffer_;
 
   // To handle stack overflow.
@@ -322,6 +332,10 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // bytes to skip instead of performing a skip instruction, in case the skip
   // can be merged into the next instruction.
   int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
+  int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  void FixupIfNeutered();
+  void SerializeJSArrayBuffer();
+  void SerializeFixedTypedArray();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
 
@@ -330,6 +344,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   Serializer* serializer_;
   HeapObject* object_;
   SnapshotByteSink* sink_;
+  std::map<void*, Smi*> backing_stores;
   int reference_representation_;
   int bytes_processed_so_far_;
   bool code_has_been_output_;

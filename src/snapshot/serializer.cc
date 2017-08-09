@@ -21,7 +21,8 @@ Serializer::Serializer(Isolate* isolate)
       code_address_map_(NULL),
       num_maps_(0),
       large_objects_total_size_(0),
-      seen_large_objects_index_(0) {
+      seen_large_objects_index_(0),
+      seen_backing_stores_index_(1) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
@@ -282,6 +283,12 @@ int Serializer::PutAlignmentPrefix(HeapObject* object) {
   return 0;
 }
 
+SerializerReference Serializer::AllocateOffHeapBackingStore() {
+  DCHECK_NE(0, seen_backing_stores_index_);
+  return SerializerReference::OffHeapBackingStoreReference(
+      seen_backing_stores_index_++);
+}
+
 SerializerReference Serializer::AllocateLargeObject(int size) {
   // Large objects are allocated one-by-one when deserializing. We do not
   // have to keep track of multiple chunks.
@@ -407,6 +414,74 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
 
   // Serialize the map (first word of the object).
   serializer_->SerializeObject(map, kPlain, kStartOfObject, 0);
+}
+
+int32_t Serializer::ObjectSerializer::SerializeBackingStore(
+    void* backing_store, int32_t byte_length) {
+  SerializerReference reference =
+      serializer_->reference_map()->Lookup(backing_store);
+
+  // Serialize the off-heap backing store.
+  if (!reference.is_valid()) {
+    sink_->Put(kOffHeapBackingStore, "Off-heap backing store");
+    sink_->PutInt(byte_length, "length");
+    sink_->PutRaw(static_cast<byte*>(backing_store), byte_length,
+                  "BackingStore");
+    reference = serializer_->AllocateOffHeapBackingStore();
+    // Mark this backing store as already serialized.
+    serializer_->reference_map()->Add(backing_store, reference);
+  }
+
+  return static_cast<int32_t>(reference.off_heap_backing_store_index());
+}
+
+// When a JSArrayBuffer is neutered, the FixedTypedArray that points to the
+// same backing store does not know anything about it. This fixup step finds
+// neutered TypedArrays and clears the values in the FixedTypedArray so that
+// we don't try to serialize the now invalid backing store.
+void Serializer::ObjectSerializer::FixupIfNeutered() {
+  JSTypedArray* array = JSTypedArray::cast(object_);
+  if (!array->WasNeutered()) return;
+
+  FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(array->elements());
+  DCHECK(fta->base_pointer() == nullptr);
+  fta->set_external_pointer(Smi::kZero);
+  fta->set_length(0);
+}
+
+void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
+  JSArrayBuffer* buffer = JSArrayBuffer::cast(object_);
+  void* backing_store = buffer->backing_store();
+  // We cannot store byte_length larger than Smi range in the snapshot.
+  // Attempt to make sure that NumberToInt32 produces something sensible.
+  CHECK(buffer->byte_length()->IsSmi());
+  int32_t byte_length = NumberToInt32(buffer->byte_length());
+
+  // The embedder-allocated backing store only exists for the off-heap case.
+  if (backing_store != nullptr) {
+    int32_t ref = SerializeBackingStore(backing_store, byte_length);
+    buffer->set_backing_store(Smi::FromInt(ref));
+  }
+  SerializeContent();
+}
+
+void Serializer::ObjectSerializer::SerializeFixedTypedArray() {
+  FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(object_);
+  void* backing_store = fta->DataPtr();
+  // We cannot store byte_length larger than Smi range in the snapshot.
+  CHECK(fta->ByteLength() < Smi::kMaxValue);
+  int32_t byte_length = static_cast<int32_t>(fta->ByteLength());
+
+  // The heap contains empty FixedTypedArrays for each type, with a byte_length
+  // of 0 (e.g. empty_fixed_uint8_array). These look like they are are 'on-heap'
+  // but have no data to copy, so we skip the backing store here.
+
+  // The embedder-allocated backing store only exists for the off-heap case.
+  if (byte_length > 0 && fta->base_pointer() == nullptr) {
+    int32_t ref = SerializeBackingStore(backing_store, byte_length);
+    fta->set_external_pointer(Smi::FromInt(ref));
+  }
+  SerializeContent();
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
@@ -535,9 +610,17 @@ void Serializer::ObjectSerializer::Serialize() {
   } else if (object_->IsSeqTwoByteString()) {
     SeqTwoByteString::cast(object_)->clear_padding();
   }
-
-  // We cannot serialize typed array objects correctly.
-  DCHECK(!object_->IsJSTypedArray());
+  if (object_->IsJSTypedArray()) {
+    FixupIfNeutered();
+  }
+  if (object_->IsJSArrayBuffer()) {
+    SerializeJSArrayBuffer();
+    return;
+  }
+  if (object_->IsFixedTypedArrayBase()) {
+    SerializeFixedTypedArray();
+    return;
+  }
 
   // We don't expect fillers.
   DCHECK(!object_->IsFiller());
