@@ -835,7 +835,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Rewriter::Rewrite(&info));
       info.ast_value_factory()->Internalize(isolate);
-      i::DeclarationScope::Analyze(&info, isolate);
+      i::DeclarationScope::Analyze(&info);
       i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                               i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
@@ -3375,7 +3375,7 @@ TEST(InnerAssignment) {
           info->set_allow_lazy_parsing(false);
           CHECK(i::parsing::ParseProgram(info.get(), isolate));
         }
-        CHECK(i::Compiler::Analyze(info.get(), isolate));
+        CHECK(i::Compiler::Analyze(info.get()));
         CHECK(info->literal() != NULL);
 
         i::Scope* scope = info->literal()->scope();
@@ -3479,7 +3479,7 @@ TEST(MaybeAssignedParameters) {
       info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
-      CHECK(i::Compiler::Analyze(info.get(), isolate));
+      CHECK(i::Compiler::Analyze(info.get()));
       CHECK_NOT_NULL(info->literal());
 
       i::Scope* scope = info->literal()->scope();
@@ -3518,7 +3518,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   info->set_allow_lazy_parsing(allow_lazy_parsing);
 
   CHECK(i::parsing::ParseProgram(info.get(), isolate));
-  CHECK(i::Compiler::Analyze(info.get(), isolate));
+  CHECK(i::Compiler::Analyze(info.get()));
 
   CHECK_NOT_NULL(info->literal());
   i::Scope* scope = info->literal()->scope();
@@ -6726,7 +6726,7 @@ TEST(ModuleParsingInternals) {
   i::ParseInfo info(script);
   info.set_module();
   CHECK(i::parsing::ParseProgram(&info, isolate));
-  CHECK(i::Compiler::Analyze(&info, isolate));
+  CHECK(i::Compiler::Analyze(&info));
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
   i::Scope* outer_scope = module_scope->outer_scope();
@@ -9695,7 +9695,7 @@ TEST(NoPessimisticContextAllocation) {
       i::ParseInfo info(script);
 
       CHECK(i::parsing::ParseProgram(&info, isolate));
-      CHECK(i::Compiler::Analyze(&info, isolate));
+      CHECK(i::Compiler::Analyze(&info));
       CHECK(info.literal() != NULL);
 
       i::Scope* scope = info.literal()->scope()->inner_scope();
@@ -10270,7 +10270,7 @@ TEST(LexicalLoopVariable) {
     info.set_allow_lazy_parsing(false);
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info));
-    i::DeclarationScope::Analyze(&info, isolate);
+    i::DeclarationScope::Analyze(&info);
     i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                             i::AnalyzeMode::kRegular);
     CHECK(info.literal() != NULL);

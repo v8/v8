@@ -693,7 +693,7 @@ TEST(PreParserScopeAnalysis) {
       eager_normal.set_allow_lazy_parsing(false);
 
       CHECK(i::parsing::ParseProgram(&eager_normal, isolate));
-      CHECK(i::Compiler::Analyze(&eager_normal, isolate));
+      CHECK(i::Compiler::Analyze(&eager_normal));
 
       // Compare the allocation of the variables in two cases: 1) normal scope
       // allocation 2) allocation based on the preparse data.

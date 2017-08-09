@@ -622,32 +622,34 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
-void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate) {
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::CompileScopeAnalysis);
-  DCHECK(info->literal() != NULL);
-  DeclarationScope* scope = info->literal()->scope();
-  DCHECK(scope->scope_info_.is_null());
-
+void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
+  DCHECK(scope_info_.is_null());
   Handle<ScopeInfo> outer_scope_info;
   if (info->maybe_outer_scope_info().ToHandle(&outer_scope_info)) {
     // If we have a scope info we will potentially need to lookup variable names
     // on the scope info as internalized strings, so make sure ast_value_factory
     // is internalized.
     info->ast_value_factory()->Internalize(isolate);
-    if (scope->outer_scope()) {
+    if (outer_scope()) {
       DeclarationScope* script_scope = new (info->zone())
           DeclarationScope(info->zone(), info->ast_value_factory());
       info->set_script_scope(script_scope);
-      scope->ReplaceOuterScope(Scope::DeserializeScopeChain(
+      ReplaceOuterScope(Scope::DeserializeScopeChain(
           info->zone(), *outer_scope_info, script_scope,
           info->ast_value_factory(),
           Scope::DeserializationMode::kIncludingVariables));
     } else {
       DCHECK_EQ(outer_scope_info->scope_type(), SCRIPT_SCOPE);
-      scope->SetScriptScopeInfo(outer_scope_info);
+      SetScriptScopeInfo(outer_scope_info);
     }
   }
+}
+
+void DeclarationScope::Analyze(ParseInfo* info) {
+  RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
+                                     &RuntimeCallStats::CompileScopeAnalysis);
+  DCHECK(info->literal() != NULL);
+  DeclarationScope* scope = info->literal()->scope();
 
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode())) {
     AstNodeFactory factory(info->ast_value_factory(), info->zone());

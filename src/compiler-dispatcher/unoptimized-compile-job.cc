@@ -365,14 +365,6 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
 
   Handle<Script> script(Script::cast(shared_->script()), isolate);
   parse_info_->set_script(script);
-  if (parse_info_->literal() == nullptr) {
-    parser_->ReportErrors(isolate, script);
-    status_ = Status::kFailed;
-  } else {
-    status_ = Status::kReadyToAnalyze;
-  }
-  parser_->UpdateStatistics(isolate, script);
-  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate);
 
   if (!shared_->outer_scope_info()->IsTheHole(isolate) &&
       ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
@@ -380,6 +372,17 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
         handle(ScopeInfo::cast(shared_->outer_scope_info())));
     parse_info_->set_outer_scope_info(outer_scope_info);
   }
+
+  if (parse_info_->literal() == nullptr) {
+    parser_->ReportErrors(isolate, script);
+    status_ = Status::kFailed;
+  } else {
+    parse_info_->literal()->scope()->AttachOuterScopeInfo(parse_info_.get(),
+                                                          isolate);
+    status_ = Status::kReadyToAnalyze;
+  }
+  parser_->UpdateStatistics(isolate, script);
+  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate);
 
   parser_->HandleSourceURLComments(isolate, script);
 
@@ -399,7 +402,7 @@ void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
     PrintF("UnoptimizedCompileJob[%p]: Analyzing\n", static_cast<void*>(this));
   }
 
-  if (Compiler::Analyze(parse_info_.get(), isolate)) {
+  if (Compiler::Analyze(parse_info_.get())) {
     status_ = Status::kAnalyzed;
   } else {
     status_ = Status::kFailed;

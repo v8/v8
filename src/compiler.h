@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                               Isolate* isolate);
   // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
   // is appended with inner function literals which should be eagerly compiled.
-  static bool Analyze(ParseInfo* parse_info, Isolate* isolate,
+  static bool Analyze(ParseInfo* parse_info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
   static bool EnsureBytecode(ParseInfo* parse_info, Isolate* isolate,

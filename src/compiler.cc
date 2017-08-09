@@ -456,7 +456,7 @@ Handle<SharedFunctionInfo> CompileUnoptimizedCode(
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
-  if (!Compiler::Analyze(parse_info, isolate, &inner_literals)) {
+  if (!Compiler::Analyze(parse_info, &inner_literals)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return Handle<SharedFunctionInfo>::null();
   }
@@ -1034,13 +1034,13 @@ Handle<SharedFunctionInfo> CompileToplevel(
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
-bool Compiler::Analyze(ParseInfo* parse_info, Isolate* isolate,
+bool Compiler::Analyze(ParseInfo* parse_info,
                        EagerInnerFunctionLiterals* eager_literals) {
   DCHECK_NOT_NULL(parse_info->literal());
-  RuntimeCallTimerScope runtimeTimer(isolate,
+  RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
                                      &RuntimeCallStats::CompileAnalyse);
   if (!Rewriter::Rewrite(parse_info)) return false;
-  DeclarationScope::Analyze(parse_info, isolate);
+  DeclarationScope::Analyze(parse_info);
   if (!Renumber(parse_info, eager_literals)) return false;
   return true;
 }
@@ -1051,7 +1051,7 @@ bool Compiler::ParseAndAnalyze(ParseInfo* parse_info,
   if (!parsing::ParseAny(parse_info, shared_info, isolate)) {
     return false;
   }
-  return Compiler::Analyze(parse_info, isolate);
+  return Compiler::Analyze(parse_info);
 }
 
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {

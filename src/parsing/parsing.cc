@@ -31,6 +31,7 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   if (result == nullptr) {
     parser.ReportErrors(isolate, info->script());
   } else {
+    result->scope()->AttachOuterScopeInfo(info, isolate);
     info->set_language_mode(info->literal()->language_mode());
   }
   parser.UpdateStatistics(isolate, info->script());
@@ -53,6 +54,8 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   info->set_literal(result);
   if (result == nullptr) {
     parser.ReportErrors(isolate, info->script());
+  } else {
+    result->scope()->AttachOuterScopeInfo(info, isolate);
   }
   parser.UpdateStatistics(isolate, info->script());
   return (result != nullptr);
