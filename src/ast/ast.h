@@ -2512,16 +2512,6 @@ class FunctionLiteral final : public Expression {
     return ast_properties_.get_spec();
   }
 
-  bool must_use_ignition() { return MustUseIgnitionField::decode(bit_field_); }
-  void set_must_use_ignition() {
-    bit_field_ = MustUseIgnitionField::update(bit_field_, true);
-  }
-
-  bool dont_self_optimize() { return DontSelfOptimize::decode(bit_field_); }
-  void set_dont_self_optimize() {
-    bit_field_ = DontSelfOptimize::update(bit_field_, true);
-  }
-
   bool dont_optimize() { return dont_optimize_reason() != kNoReason; }
   BailoutReason dont_optimize_reason() {
     return DontOptimizeReasonField::decode(bit_field_);
@@ -2593,13 +2583,9 @@ class FunctionLiteral final : public Expression {
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
       : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
-  class MustUseIgnitionField
-      : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
-  // TODO(6409): Remove when Full-Codegen dies.
-  class DontSelfOptimize
-      : public BitField<bool, MustUseIgnitionField::kNext, 1> {};
   class DontOptimizeReasonField
-      : public BitField<BailoutReason, DontSelfOptimize::kNext, 8> {};
+      : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
+  };
 
   int expected_property_count_;
   int parameter_count_;

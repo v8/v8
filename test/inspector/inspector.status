@@ -3,11 +3,13 @@
 # found in the LICENSE file.
 
 [
+[ALWAYS, {
+  # Issue 6166.
+  'debugger/asm-js-breakpoint-during-exec': [FAIL],
+}],  # ALWAYS
 
 ##############################################################################
 ['variant != default', {
-  # Issue 6166.
-  'debugger/asm-js-breakpoint-during-exec': [PASS, FAIL],
   # Issue 6167.
   'debugger/eval-scopes': [PASS, FAIL],
   'debugger/scope-skip-variables-with-empty-name': [PASS, FAIL],

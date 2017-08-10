@@ -14148,27 +14148,6 @@ void JSFunction::ClearTypeFeedbackInfo() {
   }
 }
 
-BailoutId Code::TranslatePcOffsetToBytecodeOffset(uint32_t pc_offset) {
-  DisallowHeapAllocation no_gc;
-  DCHECK(kind() == FUNCTION);
-  BackEdgeTable back_edges(this, &no_gc);
-  for (uint32_t i = 0; i < back_edges.length(); i++) {
-    if (back_edges.pc_offset(i) == pc_offset) return back_edges.ast_id(i);
-  }
-  return BailoutId::None();
-}
-
-uint32_t Code::TranslateBytecodeOffsetToPcOffset(BailoutId bytecode_offset) {
-  DisallowHeapAllocation no_gc;
-  DCHECK(kind() == FUNCTION);
-  BackEdgeTable back_edges(this, &no_gc);
-  for (uint32_t i = 0; i < back_edges.length(); i++) {
-    if (back_edges.ast_id(i) == bytecode_offset) return back_edges.pc_offset(i);
-  }
-  UNREACHABLE();  // We expect to find the back edge.
-  return 0;
-}
-
 void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
   PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge);
 }

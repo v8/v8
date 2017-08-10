@@ -10,11 +10,9 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parsing.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -149,13 +147,9 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   }
 
   CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
-  if (info.shared_info()->HasBytecodeArray()) {
-    info.MarkAsDeoptimizationEnabled();
-    info.MarkAsOptimizeFromBytecode();
-  } else {
-    CHECK(Compiler::ParseAndAnalyze(&parse_info, shared, info.isolate()));
-    parse_info.ast_value_factory()->Internalize(info.isolate());
-  }
+  CHECK(info.shared_info()->HasBytecodeArray());
+  info.MarkAsDeoptimizationEnabled();
+  info.MarkAsOptimizeFromBytecode();
   JSFunction::EnsureLiterals(function);
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info);
@@ -173,9 +167,6 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   ParseInfo parse_info(shared);
   CompilationInfo info(parse_info.zone(), function->GetIsolate(),
                        parse_info.script(), shared, function);
-
-  CHECK(
-      parsing::ParseFunction(&parse_info, info.shared_info(), info.isolate()));
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);
   CHECK(!code.is_null());

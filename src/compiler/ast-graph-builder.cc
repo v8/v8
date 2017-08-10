@@ -276,6 +276,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       exit_controls_(local_zone),
       loop_assignment_analysis_(loop),
       state_values_cache_(jsgraph) {
+  // TODO(6409, rmcilroy): Remove ast graph builder in followup CL.
+  UNREACHABLE();
   InitializeAstVisitor(info->isolate());
 }
 

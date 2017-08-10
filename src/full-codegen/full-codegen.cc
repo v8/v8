@@ -73,6 +73,8 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
       source_position_table_builder_(info->zone(),
                                      info->SourcePositionRecordingMode()),
       ic_total_count_(0) {
+  // TODO(6409, rmcilroy): Remove fullcodegen in followup CL.
+  UNREACHABLE();
   DCHECK(!info->IsStub());
   Initialize(stack_limit);
 }
@@ -89,7 +91,8 @@ bool FullCodeGenerator::MakeCode(ParseInfo* parse_info, CompilationInfo* info,
                                  uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
-  DCHECK(!info->literal()->must_use_ignition());
+  // TODO(6409, rmcilroy): Remove fullcodegen in followup CL.
+  UNREACHABLE();
   DCHECK(!FLAG_minimal);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileFullCode);

@@ -4022,9 +4022,6 @@ class Code: public HeapObject {
 
   void ClearInlineCaches();
 
-  BailoutId TranslatePcOffsetToBytecodeOffset(uint32_t pc_offset);
-  uint32_t TranslateBytecodeOffsetToPcOffset(BailoutId bytecode_offset);
-
 #define DECL_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
     kToBeExecutedOnceCodeAge = -3,

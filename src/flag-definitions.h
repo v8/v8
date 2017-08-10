@@ -311,7 +311,6 @@ DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL(string_slices, true, "use string slices")
 
 // Flags for Ignition.
-DEFINE_BOOL(ignition_osr, true, "enable support for OSR from ignition code")
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
             "elide bytecodes which won't have any external effect")
 DEFINE_BOOL(ignition_reo, true, "use ignition register equivalence optimizer")

@@ -23,7 +23,6 @@
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/interpreter/interpreter.h"
@@ -256,22 +255,6 @@ void EnsureFeedbackMetadata(CompilationInfo* compilation_info) {
       compilation_info->literal()->feedback_vector_spec()));
 }
 
-bool ShouldUseFullCodegen(FunctionLiteral* literal) {
-  // Code which can't be supported by the old pipeline should use Ignition.
-  if (literal->must_use_ignition()) return false;
-
-  // Resumable functions are not supported by {FullCodeGenerator}, suspended
-  // activations stored as {JSGeneratorObject} on the heap always assume the
-  // underlying code to be based on the bytecode array.
-  DCHECK(!IsResumableFunction(literal->kind()));
-
-  // Use full-codegen for asm.js functions.
-  if (literal->scope()->asm_function()) return true;
-
-  // Disabled by default.
-  return false;
-}
-
 bool UseAsmWasm(FunctionLiteral* literal,
                 Handle<SharedFunctionInfo> shared_info, bool is_debug) {
   // Check whether asm.js validation is enabled.
@@ -289,22 +272,6 @@ bool UseAsmWasm(FunctionLiteral* literal,
 
   // In general, we respect the "use asm" directive.
   return literal->scope()->asm_module();
-}
-
-CompilationJob* GetUnoptimizedCompilationJob(ParseInfo* parse_info,
-                                             FunctionLiteral* literal,
-                                             Isolate* isolate) {
-  // Function should have been parsed and analyzed before creating a compilation
-  // job.
-  DCHECK_NOT_NULL(literal);
-  DCHECK_NOT_NULL(parse_info->scope());
-
-  if (ShouldUseFullCodegen(literal)) {
-    return FullCodeGenerator::NewCompilationJob(parse_info, literal, isolate);
-  } else {
-    return interpreter::Interpreter::NewCompilationJob(parse_info, literal,
-                                                       isolate);
-  }
 }
 
 void InstallUnoptimizedCode(CompilationInfo* compilation_info) {
@@ -433,21 +400,13 @@ std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
     // through to standard unoptimized compile.
   }
   std::unique_ptr<CompilationJob> job(
-      GetUnoptimizedCompilationJob(parse_info, literal, isolate));
+      interpreter::Interpreter::NewCompilationJob(parse_info, literal,
+                                                  isolate));
   if (job->PrepareJob() == CompilationJob::SUCCEEDED &&
       job->ExecuteJob() == CompilationJob::SUCCEEDED) {
     return job;
   }
   return std::unique_ptr<CompilationJob>();  // Compilation failed, return null.
-}
-
-bool InnerFunctionShouldUseFullCodegen(
-    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* literals) {
-  for (auto it : *literals) {
-    FunctionLiteral* literal = it->value();
-    if (ShouldUseFullCodegen(literal)) return true;
-  }
-  return false;
 }
 
 Handle<SharedFunctionInfo> CompileUnoptimizedCode(
@@ -459,23 +418,6 @@ Handle<SharedFunctionInfo> CompileUnoptimizedCode(
   if (!Compiler::Analyze(parse_info, &inner_literals)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return Handle<SharedFunctionInfo>::null();
-  }
-
-  if (ShouldUseFullCodegen(parse_info->literal()) ||
-      InnerFunctionShouldUseFullCodegen(&inner_literals)) {
-    // If we might compile with full-codegen internalize now, otherwise
-    // we internalize when finalizing compilation.
-    parse_info->ast_value_factory()->Internalize(isolate);
-
-    // Full-codegen needs to access ScopeInfos when compiling, so allocate now.
-    DeclarationScope::AllocateScopeInfos(parse_info, isolate,
-                                         AnalyzeMode::kRegular);
-
-    if (parse_info->is_toplevel()) {
-      // Full-codegen needs to access SFI when compiling, so allocate the array
-      // now.
-      EnsureSharedFunctionInfosArrayOnScript(parse_info, isolate);
-    }
   }
 
   // Prepare and execute compilation of the outer-most function.
@@ -638,21 +580,6 @@ void InsertCodeIntoOptimizedCodeCache(CompilationInfo* compilation_info) {
 bool GetOptimizedCodeNow(CompilationJob* job) {
   CompilationInfo* compilation_info = job->compilation_info();
   Isolate* isolate = compilation_info->isolate();
-
-  // Parsing is not required when optimizing from existing bytecode.
-  if (!compilation_info->is_optimizing_from_bytecode()) {
-    ParseInfo* parse_info = job->parse_info();
-    if (!Compiler::ParseAndAnalyze(parse_info, compilation_info->shared_info(),
-                                   isolate)) {
-      return false;
-    }
-    compilation_info->set_literal(parse_info->literal());
-    parse_info->ast_value_factory()->Internalize(isolate);
-    DeclarationScope::AllocateScopeInfos(parse_info, isolate,
-                                         AnalyzeMode::kRegular);
-    EnsureFeedbackMetadata(compilation_info);
-  }
-
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);
@@ -702,19 +629,6 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
     return false;
   }
 
-  // Parsing is not required when optimizing from existing bytecode.
-  if (!compilation_info->is_optimizing_from_bytecode()) {
-    ParseInfo* parse_info = job->parse_info();
-    if (!Compiler::ParseAndAnalyze(parse_info, compilation_info->shared_info(),
-                                   isolate)) {
-      return false;
-    }
-    compilation_info->set_literal(parse_info->literal());
-    DeclarationScope::AllocateScopeInfos(parse_info, isolate,
-                                         AnalyzeMode::kRegular);
-    EnsureFeedbackMetadata(compilation_info);
-  }
-
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);
@@ -738,11 +652,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
                                    JavaScriptFrame* osr_frame = nullptr) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-
-  bool ignition_osr = osr_frame && osr_frame->is_interpreted();
-  USE(ignition_osr);
-  DCHECK_IMPLIES(ignition_osr, !osr_ast_id.IsNone());
-  DCHECK_IMPLIES(ignition_osr, FLAG_ignition_osr);
 
   // Make sure we clear the optimization marker on the function so that we
   // don't try to re-optimize.
@@ -806,20 +715,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
-  // TurboFan can optimize directly from existing bytecode.
-  if (shared->HasBytecodeArray()) {
-    compilation_info->MarkAsOptimizeFromBytecode();
-  }
-
-  // Verify that OSR compilations are delegated to the correct graph builder.
-  // Depending on the underlying frame the semantics of the {BailoutId} differ
-  // and the various graph builders hard-code a certain semantic:
-  //  - Interpreter : The BailoutId represents a bytecode offset.
-  //  - FullCodegen : The BailoutId represents the id of an AST node.
-  DCHECK_IMPLIES(compilation_info->is_osr() && ignition_osr,
-                 compilation_info->is_optimizing_from_bytecode());
-  DCHECK_IMPLIES(compilation_info->is_osr() && !ignition_osr,
-                 !compilation_info->is_optimizing_from_bytecode());
+  // TODO(rmcilroy): Remove OptimizeFromBytecode flag.
+  compilation_info->MarkAsOptimizeFromBytecode();
 
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to
@@ -1613,7 +1510,8 @@ CompilationJob* Compiler::PrepareUnoptimizedCompilationJob(
     ParseInfo* parse_info, Isolate* isolate) {
   VMState<COMPILER> state(isolate);
   std::unique_ptr<CompilationJob> job(
-      GetUnoptimizedCompilationJob(parse_info, parse_info->literal(), isolate));
+      interpreter::Interpreter::NewCompilationJob(
+          parse_info, parse_info->literal(), isolate));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) {
     return nullptr;
   }

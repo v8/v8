@@ -126,11 +126,7 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
 // TODO(6409) Remove when Full-Codegen dies.
-bool CompilationInfo::ShouldSelfOptimize() {
-  return FLAG_opt && !literal()->dont_self_optimize() &&
-         !literal()->dont_optimize() &&
-         literal()->scope()->AllowsLazyCompilation();
-}
+bool CompilationInfo::ShouldSelfOptimize() { return false; }
 
 void CompilationInfo::set_deferred_handles(
     std::shared_ptr<DeferredHandles> deferred_handles) {

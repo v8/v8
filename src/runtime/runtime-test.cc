@@ -233,7 +233,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
 
   // If the function is already optimized, just return.
-  if (function->IsOptimized()) {
+  if (function->IsOptimized() || function->shared()->HasAsmWasmData()) {
     return isolate->heap()->undefined_value();
   }
 
