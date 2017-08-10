@@ -4607,7 +4607,8 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
 void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
                                     const DisallowHeapAllocation&) {
-  DCHECK(InOldSpace(object) || InNewSpace(object));
+  DCHECK(InOldSpace(object) || InNewSpace(object) ||
+         (lo_space()->Contains(object) && object->IsString()));
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
     if (InOldSpace(object) && incremental_marking()->IsCompacting()) {
