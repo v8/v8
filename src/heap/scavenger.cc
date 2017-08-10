@@ -79,8 +79,8 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   // White object might not survive until the end of collection
   // it would be a violation of the invariant to record it's slots.
   const bool record_slots =
-      is_compacting_ && ObjectMarking::IsBlack<AccessMode::ATOMIC>(
-                            target, MarkingState::Internal(target));
+      is_compacting_ &&
+      heap()->mark_compact_collector()->marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for

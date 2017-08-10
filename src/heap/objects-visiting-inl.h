@@ -228,8 +228,7 @@ int MarkingVisitor<ConcreteVisitor>::VisitWeakCell(Map* map,
   // contain smi zero.
   if (!weak_cell->cleared()) {
     HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (ObjectMarking::IsBlackOrGrey<IncrementalMarking::kAtomicity>(
-            value, collector_->marking_state(value))) {
+    if (collector_->marking_state()->IsBlackOrGrey(value)) {
       // Weak cells with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);

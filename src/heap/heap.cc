@@ -3364,14 +3364,10 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
     lo_space()->AdjustLiveBytes(by);
   } else if (!in_heap_iterator() &&
              !mark_compact_collector()->sweeping_in_progress() &&
-             ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
-                 object, MarkingState::Internal(object))) {
+             mark_compact_collector()->marking_state()->IsBlack(object)) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
-#ifdef V8_CONCURRENT_MARKING
-    MarkingState::Internal(object).IncrementLiveBytes<AccessMode::ATOMIC>(by);
-#else
-    MarkingState::Internal(object).IncrementLiveBytes(by);
-#endif
+    mark_compact_collector()->marking_state()->IncrementLiveBytes(
+        MemoryChunk::FromAddress(object->address()), by);
   }
 }
 
@@ -3488,10 +3484,9 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        ObjectMarking::IsBlackOrGrey<IncrementalMarking::kAtomicity>(
-            filler, MarkingState::Internal(filler))) {
+        mark_compact_collector()->marking_state()->IsBlackOrGrey(filler)) {
       Page* page = Page::FromAddress(new_end);
-      MarkingState::Internal(page).bitmap()->ClearRange(
+      mark_compact_collector()->marking_state()->bitmap(page)->ClearRange(
           page->AddressToMarkbitIndex(new_end),
           page->AddressToMarkbitIndex(new_end + bytes_to_trim));
     }
@@ -4577,6 +4572,8 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
   // Iterate black objects in old space, code space, map space, and large
   // object space for side effects.
+  MarkCompactCollector::MarkingState* marking_state =
+      mark_compact_collector()->marking_state();
   for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
     const Heap::Reservation& res = reservations[i];
     for (auto& chunk : res) {
@@ -4585,8 +4582,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
         HeapObject* obj = HeapObject::FromAddress(addr);
         // Objects can have any color because incremental marking can
         // start in the middle of Heap::ReserveSpace().
-        if (ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
-                obj, MarkingState::Internal(obj))) {
+        if (marking_state->IsBlack(obj)) {
           incremental_marking()->ProcessBlackAllocatedObject(obj);
         }
         addr += obj->Size();

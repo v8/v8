@@ -24,6 +24,30 @@
 namespace v8 {
 namespace internal {
 
+class ConcurrentMarkingState final
+    : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
+ public:
+  Bitmap* bitmap(const MemoryChunk* chunk) {
+    return Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize);
+  }
+
+  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
+        ->Increment(by);
+  }
+
+  intptr_t live_bytes(MemoryChunk* chunk) {
+    return reinterpret_cast<base::AtomicNumber<intptr_t>*>(
+               &chunk->live_byte_count_)
+        ->Value();
+  }
+
+  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
+    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
+        ->SetValue(value);
+  }
+};
+
 // Helper class for storing in-object slot addresses and values.
 class SlotSnapshot {
  public:
@@ -59,8 +83,7 @@ class ConcurrentMarkingVisitor final
         weak_cells_(weak_cells, task_id) {}
 
   bool ShouldVisit(HeapObject* object) {
-    return ObjectMarking::GreyToBlack<AccessMode::ATOMIC>(
-        object, marking_state(object));
+    return marking_state_.GreyToBlack(object);
   }
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
@@ -99,8 +122,7 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitJSApiObject(Map* map, JSObject* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
+    if (marking_state_.IsGrey(object)) {
       int size = JSObject::BodyDescriptor::SizeOf(map, object);
       VisitMapPointer(object, object->map_slot());
       // It is OK to iterate body of JS API object here because they do not have
@@ -140,8 +162,7 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitBytecodeArray(Map* map, BytecodeArray* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
+    if (marking_state_.IsGrey(object)) {
       int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
       VisitMapPointer(object, object->map_slot());
       BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
@@ -174,8 +195,7 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitNativeContext(Map* map, Context* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
+    if (marking_state_.IsGrey(object)) {
       int size = Context::BodyDescriptorWeak::SizeOf(map, object);
       VisitMapPointer(object, object->map_slot());
       Context::BodyDescriptorWeak::IterateBody(object, size, this);
@@ -187,8 +207,7 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
+    if (marking_state_.IsGrey(object)) {
       int size = SharedFunctionInfo::BodyDescriptorWeak::SizeOf(map, object);
       VisitMapPointer(object, object->map_slot());
       SharedFunctionInfo::BodyDescriptorWeak::IterateBody(object, size, this);
@@ -209,8 +228,7 @@ class ConcurrentMarkingVisitor final
     VisitMapPointer(object, object->map_slot());
     if (!object->cleared()) {
       HeapObject* value = HeapObject::cast(object->value());
-      if (ObjectMarking::IsBlackOrGrey<AccessMode::ATOMIC>(
-              value, marking_state(value))) {
+      if (marking_state_.IsBlackOrGrey(value)) {
         // Weak cells with live values are directly processed here to reduce
         // the processing time of weak cells during the main GC pause.
         Object** slot = HeapObject::RawField(object, WeakCell::kValueOffset);
@@ -239,8 +257,7 @@ class ConcurrentMarkingVisitor final
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
     CHECK_NOT_NULL(chunk->synchronized_heap());
 #endif
-    if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
-                                                       marking_state(object))) {
+    if (marking_state_.WhiteToGrey(object)) {
       shared_.Push(object);
     }
   }
@@ -276,14 +293,10 @@ class ConcurrentMarkingVisitor final
     JSObject::BodyDescriptor::IterateBody(object, size, &visitor);
     return slot_snapshot_;
   }
-
-  MarkingState marking_state(HeapObject* object) const {
-    return MarkingState::Internal(object);
-  }
-
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
   ConcurrentMarking::WeakCellWorklist::View weak_cells_;
+  ConcurrentMarkingState marking_state_;
   SlotSnapshot slot_snapshot_;
 };
 

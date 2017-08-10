@@ -13,17 +13,14 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK((ObjectMarking::IsBlack<AccessMode::NON_ATOMIC>(
-      obj, MarkingState::Internal(obj))));
+  DCHECK(non_atomic_marking_state()->IsBlack(obj));
   if (!marking_worklist()->Push(obj)) {
-    ObjectMarking::BlackToGrey<AccessMode::NON_ATOMIC>(
-        obj, MarkingState::Internal(obj));
+    non_atomic_marking_state()->BlackToGrey(obj);
   }
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
-  if (ObjectMarking::WhiteToBlack<AccessMode::NON_ATOMIC>(
-          obj, MarkingState::Internal(obj))) {
+  if (non_atomic_marking_state()->WhiteToBlack(obj)) {
     PushBlack(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainer(host, obj);
@@ -32,8 +29,7 @@ void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
 }
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
-  if (ObjectMarking::WhiteToBlack<AccessMode::NON_ATOMIC>(
-          obj, MarkingState::Internal(obj))) {
+  if (non_atomic_marking_state()->WhiteToBlack(obj)) {
     PushBlack(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
@@ -47,22 +43,19 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
       !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
-    DCHECK_IMPLIES(
-        !FLAG_concurrent_marking,
-        ObjectMarking::IsBlackOrGrey(object, MarkingState::Internal(object)));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }
 }
 
 template <LiveObjectIterationMode mode>
-LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk,
-                                          MarkingState state, Address start)
+LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk, Bitmap* bitmap,
+                                          Address start)
     : chunk_(chunk),
       one_word_filler_map_(chunk->heap()->one_pointer_filler_map()),
       two_word_filler_map_(chunk->heap()->two_pointer_filler_map()),
       free_space_map_(chunk->heap()->free_space_map()),
-      it_(chunk, state) {
+      it_(chunk, bitmap) {
   it_.Advance(Bitmap::IndexToCell(
       Bitmap::CellAlignIndex(chunk_->AddressToMarkbitIndex(start))));
   if (!it_.Done()) {
@@ -193,12 +186,12 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
 
 template <LiveObjectIterationMode mode>
 typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::begin() {
-  return iterator(chunk_, state_, start_);
+  return iterator(chunk_, bitmap_, start_);
 }
 
 template <LiveObjectIterationMode mode>
 typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
-  return iterator(chunk_, state_, end_);
+  return iterator(chunk_, bitmap_, end_);
 }
 
 }  // namespace internal

@@ -240,6 +240,12 @@ void ObjectStats::CheckpointObjectStats() {
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
 
+ObjectStatsCollector::ObjectStatsCollector(Heap* heap, ObjectStats* stats)
+    : heap_(heap),
+      stats_(stats),
+      marking_state_(
+          heap->mark_compact_collector()->non_atomic_marking_state()) {}
+
 void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   Map* map = obj->map();
 
@@ -342,10 +348,9 @@ static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
   return array->map() == heap->fixed_cow_array_map();
 }
 
-static bool SameLiveness(HeapObject* obj1, HeapObject* obj2) {
+bool ObjectStatsCollector::SameLiveness(HeapObject* obj1, HeapObject* obj2) {
   return obj1 == nullptr || obj2 == nullptr ||
-         ObjectMarking::Color(obj1, MarkingState::Internal(obj1)) ==
-             ObjectMarking::Color(obj2, MarkingState::Internal(obj2));
+         marking_state_->Color(obj1) == marking_state_->Color(obj2);
 }
 
 bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,

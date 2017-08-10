@@ -55,34 +55,32 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   explicit IncrementalMarking(Heap* heap);
 
-  MarkingState marking_state(HeapObject* object) const {
-    return MarkingState::Internal(object);
+  MarkCompactCollector::MarkingState* marking_state() const {
+    DCHECK_NOT_NULL(marking_state_);
+    return marking_state_;
   }
 
-  MarkingState marking_state(MemoryChunk* chunk) const {
-    return MarkingState::Internal(chunk);
+  MarkCompactCollector::NonAtomicMarkingState* non_atomic_marking_state()
+      const {
+    DCHECK_NOT_NULL(non_atomic_marking_state_);
+    return non_atomic_marking_state_;
   }
 
   void NotifyLeftTrimming(HeapObject* from, HeapObject* to);
 
-  // Transfers color including live byte count, requiring properly set up
-  // objects.
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE void TransferColor(HeapObject* from, HeapObject* to) {
-    if (ObjectMarking::IsBlack<access_mode>(to, marking_state(to))) {
+    if (marking_state()->IsBlack(to)) {
       DCHECK(black_allocation());
       return;
     }
 
-    DCHECK(ObjectMarking::IsWhite<access_mode>(to, marking_state(to)));
-    if (ObjectMarking::IsGrey<access_mode>(from, marking_state(from))) {
-      bool success =
-          ObjectMarking::WhiteToGrey<access_mode>(to, marking_state(to));
+    DCHECK(marking_state()->IsWhite(to));
+    if (marking_state()->IsGrey(from)) {
+      bool success = marking_state()->WhiteToGrey(to);
       DCHECK(success);
       USE(success);
-    } else if (ObjectMarking::IsBlack<access_mode>(from, marking_state(from))) {
-      bool success =
-          ObjectMarking::WhiteToBlack<access_mode>(to, marking_state(to));
+    } else if (marking_state()->IsBlack(from)) {
+      bool success = marking_state()->WhiteToBlack(to);
       DCHECK(success);
       USE(success);
     }
@@ -352,6 +350,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   Observer new_generation_observer_;
   Observer old_generation_observer_;
+
+  MarkCompactCollector::MarkingState* marking_state_;
+  MarkCompactCollector::NonAtomicMarkingState* non_atomic_marking_state_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

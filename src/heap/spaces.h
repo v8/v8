@@ -694,7 +694,11 @@ class MemoryChunk {
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
 
-  friend class MarkingState;
+  friend class ConcurrentMarkingState;
+  friend class MinorMarkingState;
+  friend class MinorNonAtomicMarkingState;
+  friend class MajorMarkingState;
+  friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
 };
@@ -702,73 +706,6 @@ class MemoryChunk {
 static_assert(kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory,
               "kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory");
 
-class MarkingState {
- public:
-  static MarkingState External(HeapObject* object) {
-    return External(MemoryChunk::FromAddress(object->address()));
-  }
-
-  static MarkingState External(MemoryChunk* chunk) {
-    return MarkingState(chunk->young_generation_bitmap_,
-                        &chunk->young_generation_live_byte_count_);
-  }
-
-  static MarkingState Internal(HeapObject* object) {
-    return Internal(MemoryChunk::FromAddress(object->address()));
-  }
-
-  static MarkingState Internal(MemoryChunk* chunk) {
-    return MarkingState(
-        Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize),
-        &chunk->live_byte_count_);
-  }
-
-  MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
-      : bitmap_(bitmap), live_bytes_(live_bytes) {}
-
-  template <AccessMode mode = AccessMode::NON_ATOMIC>
-  inline void IncrementLiveBytes(intptr_t by) const;
-
-  void SetLiveBytes(intptr_t value) const {
-    *live_bytes_ = static_cast<int>(value);
-  }
-
-  void ClearLiveness() const {
-    bitmap_->Clear();
-    *live_bytes_ = 0;
-  }
-
-  Bitmap* bitmap() const { return bitmap_; }
-
-  template <AccessMode mode = AccessMode::NON_ATOMIC>
-  inline intptr_t live_bytes() const;
-
- private:
-  Bitmap* bitmap_;
-  intptr_t* live_bytes_;
-};
-
-template <>
-inline void MarkingState::IncrementLiveBytes<AccessMode::NON_ATOMIC>(
-    intptr_t by) const {
-  *live_bytes_ += by;
-}
-
-template <>
-inline void MarkingState::IncrementLiveBytes<AccessMode::ATOMIC>(
-    intptr_t by) const {
-  reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Increment(by);
-}
-
-template <>
-inline intptr_t MarkingState::live_bytes<AccessMode::NON_ATOMIC>() const {
-  return *live_bytes_;
-}
-
-template <>
-inline intptr_t MarkingState::live_bytes<AccessMode::ATOMIC>() const {
-  return reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Value();
-}
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 512K. Large object pages may be larger.

@@ -355,8 +355,10 @@ TEST(Regress5829) {
                              ClearRecordedSlots::kNo);
   heap->old_space()->EmptyAllocationInfo();
   Page* page = Page::FromAddress(array->address());
+  MarkCompactCollector::MarkingState* marking_state =
+      heap->mark_compact_collector()->marking_state();
   for (auto object_and_size :
-       LiveObjectRange<kGreyObjects>(page, MarkingState::Internal(page))) {
+       LiveObjectRange<kGreyObjects>(page, marking_state->bitmap(page))) {
     CHECK(!object_and_size.first->IsFiller());
   }
 }

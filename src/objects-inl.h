@@ -1440,12 +1440,12 @@ void WeakCell::initialize(HeapObject* val) {
   // We just have to execute the generational barrier here because we never
   // mark through a weak cell and collect evacuation candidates when we process
   // all weak cells.
+  Heap* heap = val->GetHeap();
   WriteBarrierMode mode =
-      ObjectMarking::IsBlack<IncrementalMarking::kAtomicity>(
-          this, MarkingState::Internal(this))
+      heap->mark_compact_collector()->marking_state()->IsBlack(this)
           ? UPDATE_WRITE_BARRIER
           : UPDATE_WEAK_WRITE_BARRIER;
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kValueOffset, val, mode);
+  CONDITIONAL_WRITE_BARRIER(heap, this, kValueOffset, val, mode);
 }
 
 bool WeakCell::cleared() const { return value() == Smi::kZero; }

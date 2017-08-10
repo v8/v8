@@ -50,6 +50,43 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
+template <typename Callback>
+void LocalArrayBufferTracker::Free(Callback should_free) {
+  size_t freed_memory = 0;
+  size_t retained_size = 0;
+  for (TrackingData::iterator it = array_buffers_.begin();
+       it != array_buffers_.end();) {
+    JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
+    const size_t length = buffer->allocation_length();
+    if (should_free(buffer)) {
+      freed_memory += length;
+      buffer->FreeBackingStore();
+      it = array_buffers_.erase(it);
+    } else {
+      retained_size += length;
+      ++it;
+    }
+  }
+  retained_size_ = retained_size;
+  if (freed_memory > 0) {
+    heap_->update_external_memory_concurrently_freed(
+        static_cast<intptr_t>(freed_memory));
+  }
+}
+
+template <typename MarkingState>
+void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
+  // Callers need to ensure having the page lock.
+  LocalArrayBufferTracker* tracker = page->local_tracker();
+  if (tracker == nullptr) return;
+  tracker->Free([marking_state](JSArrayBuffer* buffer) {
+    return marking_state->IsWhite(buffer);
+  });
+  if (tracker->IsEmpty()) {
+    page->ReleaseLocalTracker();
+  }
+}
+
 void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
   DCHECK_GE(retained_size_ + length, retained_size_);
   retained_size_ += length;
