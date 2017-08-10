@@ -7404,8 +7404,8 @@ class V8_EXPORT Isolate {
           DeprecatedCallCompletedCallback callback));
 
   /**
-   * Experimental: Set the PromiseHook callback for various promise
-   * lifecycle events.
+   * Set the PromiseHook callback for various promise lifecycle
+   * events.
    */
   void SetPromiseHook(PromiseHook hook);
 
