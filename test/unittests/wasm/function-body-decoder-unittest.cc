@@ -231,8 +231,8 @@ class TestModuleEnv : public ModuleEnv {
 
   void InitializeMemory() {
     mod.has_memory = true;
-    mod.min_mem_pages = 1;
-    mod.max_mem_pages = 100;
+    mod.initial_pages = 1;
+    mod.maximum_pages = 100;
   }
 
   void InitializeFunctionTable() { mod.function_tables.emplace_back(); }

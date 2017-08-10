@@ -3045,7 +3045,8 @@ void WasmGraphBuilder::EnsureFunctionTableNodes() {
     auto signature_handle = module_env_->signature_tables()[i];
     function_tables_.push_back(HeapConstant(function_handle));
     signature_tables_.push_back(HeapConstant(signature_handle));
-    uint32_t table_size = module_env_->module()->function_tables[i].min_size;
+    uint32_t table_size =
+        module_env_->module()->function_tables[i].initial_size;
     function_table_sizes_.push_back(jsgraph()->RelocatableInt32Constant(
         static_cast<uint32_t>(table_size),
         RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));

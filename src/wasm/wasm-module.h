@@ -136,9 +136,9 @@ struct WasmDataSegment {
 struct WasmIndirectFunctionTable {
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmIndirectFunctionTable);
 
-  uint32_t min_size = 0;  // minimum table size.
-  uint32_t max_size = 0;  // maximum table size.
-  bool has_max = false;   // true if there is a maximum size.
+  uint32_t initial_size = 0;      // initial table size.
+  uint32_t maximum_size = 0;      // maximum table size.
+  bool has_maximum_size = false;  // true if there is a maximum size.
   // TODO(titzer): Move this to WasmInstance. Needed by interpreter only.
   std::vector<int32_t> values;  // function table, -1 indicating invalid.
   bool imported = false;        // true if imported.
@@ -185,9 +185,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
 
   std::unique_ptr<Zone> signature_zone;
-  uint32_t min_mem_pages = 0;     // minimum size of the memory in 64k pages
-  uint32_t max_mem_pages = 0;     // maximum size of the memory in 64k pages
-  bool has_max_mem = false;       // try if a maximum memory size exists
+  uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
+  uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
+  bool has_maximum_pages = false;  // true if there is a maximum memory size
   bool has_memory = false;        // true if the memory was defined or imported
   bool mem_export = false;        // true if the memory is exported
   int start_function_index = -1;  // start function, >= 0 if any
@@ -294,7 +294,7 @@ class V8_EXPORT_PRIVATE ModuleEnv {
         function_tables_(module->function_tables.size()),
         signature_tables_(module->function_tables.size()),
         function_code_(module->functions.size(), default_function_code),
-        mem_size_(module->min_mem_pages * WasmModule::kPageSize) {}
+        mem_size_(module->initial_pages * WasmModule::kPageSize) {}
 
   WasmModule* module() const { return module_; }
 

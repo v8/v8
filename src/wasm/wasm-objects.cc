@@ -263,7 +263,7 @@ namespace {
 
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                        Handle<JSArrayBuffer> old_buffer,
-                                       uint32_t pages, uint32_t max_pages) {
+                                       uint32_t pages, uint32_t maximum_pages) {
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
   if (!old_buffer.is_null()) {
@@ -274,7 +274,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   uint32_t old_pages = old_size / WasmModule::kPageSize;
   DCHECK_GE(std::numeric_limits<uint32_t>::max(),
             old_size + pages * WasmModule::kPageSize);
-  if (old_pages > max_pages || pages > max_pages - old_pages) {
+  if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
 
@@ -385,14 +385,14 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     return old_size / WasmModule::kPageSize;
   }
 
-  uint32_t max_pages;
+  uint32_t maximum_pages;
   if (memory_object->has_maximum_pages()) {
-    max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
-    if (FLAG_wasm_max_mem_pages < max_pages) return -1;
+    maximum_pages = static_cast<uint32_t>(memory_object->maximum_pages());
+    if (FLAG_wasm_max_mem_pages < maximum_pages) return -1;
   } else {
-    max_pages = FLAG_wasm_max_mem_pages;
+    maximum_pages = FLAG_wasm_max_mem_pages;
   }
-  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
+  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
   if (new_buffer.is_null()) return -1;
 
   if (memory_object->has_instances()) {
@@ -466,9 +466,9 @@ int32_t WasmInstanceObject::GrowMemory(Isolate* isolate,
     old_size = old_buffer->byte_length()->Number();
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
   }
-  uint32_t max_pages = instance->GetMaxMemoryPages();
+  uint32_t maximum_pages = instance->GetMaxMemoryPages();
   Handle<JSArrayBuffer> buffer =
-      GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
+      GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
   if (buffer.is_null()) return -1;
   SetInstanceMemory(isolate, instance, buffer);
   UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
@@ -484,12 +484,12 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
       if (maximum < FLAG_wasm_max_mem_pages) return maximum;
     }
   }
-  uint32_t compiled_max_pages = compiled_module()->module()->max_mem_pages;
+  uint32_t compiled_maximum_pages = compiled_module()->module()->maximum_pages;
   Isolate* isolate = GetIsolate();
   assert(compiled_module()->module()->is_wasm());
   isolate->counters()->wasm_wasm_max_mem_pages_count()->AddSample(
-      compiled_max_pages);
-  if (compiled_max_pages != 0) return compiled_max_pages;
+      compiled_maximum_pages);
+  if (compiled_maximum_pages != 0) return compiled_maximum_pages;
   return FLAG_wasm_max_mem_pages;
 }
 
@@ -829,7 +829,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   // reliable, and we need these at Reset (which is called at
   // finalization). If the order were reliable, and top-down, we could instead
   // just get them from shared().
-  compiled_module->set_min_mem_pages(shared->module()->min_mem_pages);
+  compiled_module->set_initial_pages(shared->module()->initial_pages);
   compiled_module->set_num_imported_functions(
       shared->module()->num_imported_functions);
   // TODO(mtrofin): copy the rest of the specialization parameters over.
@@ -1075,7 +1075,7 @@ uint32_t WasmCompiledModule::mem_size() const {
 }
 
 uint32_t WasmCompiledModule::default_mem_size() const {
-  return min_mem_pages() * WasmModule::kPageSize;
+  return initial_pages() * WasmModule::kPageSize;
 }
 
 MaybeHandle<String> WasmCompiledModule::GetModuleNameOrNull(

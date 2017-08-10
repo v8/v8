@@ -726,7 +726,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
     EXPECT_EQ(1u, result.val->signatures.size());
     EXPECT_EQ(1u, result.val->functions.size());
     EXPECT_EQ(1u, result.val->function_tables.size());
-    EXPECT_EQ(1u, result.val->function_tables[0].min_size);
+    EXPECT_EQ(1u, result.val->function_tables[0].initial_size);
   }
 }
 
@@ -771,7 +771,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
     EXPECT_EQ(1u, result.val->signatures.size());
     EXPECT_EQ(1u, result.val->functions.size());
     EXPECT_EQ(1u, result.val->function_tables.size());
-    EXPECT_EQ(1u, result.val->function_tables[0].min_size);
+    EXPECT_EQ(1u, result.val->function_tables[0].initial_size);
   }
 }
 
@@ -807,7 +807,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
     EXPECT_EQ(2u, result.val->signatures.size());
     EXPECT_EQ(4u, result.val->functions.size());
     EXPECT_EQ(1u, result.val->function_tables.size());
-    EXPECT_EQ(8u, result.val->function_tables[0].min_size);
+    EXPECT_EQ(8u, result.val->function_tables[0].initial_size);
   }
 }
 

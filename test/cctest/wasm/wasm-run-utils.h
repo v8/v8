@@ -196,8 +196,8 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
-  void SetMaxMemPages(uint32_t max_mem_pages) {
-    test_module_.max_mem_pages = max_mem_pages;
+  void SetMaxMemPages(uint32_t maximum_pages) {
+    test_module_.maximum_pages = maximum_pages;
   }
 
   uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name) {
@@ -266,9 +266,9 @@ class TestingModule : public ModuleEnv {
                                 uint32_t table_size) {
     test_module_.function_tables.emplace_back();
     WasmIndirectFunctionTable& table = test_module_.function_tables.back();
-    table.min_size = table_size;
-    table.max_size = table_size;
-    table.has_max = true;
+    table.initial_size = table_size;
+    table.maximum_size = table_size;
+    table.has_maximum_size = true;
     for (uint32_t i = 0; i < table_size; ++i) {
       table.values.push_back(function_indexes[i]);
       table.map.FindOrInsert(test_module_.functions[function_indexes[i]].sig);

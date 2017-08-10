@@ -286,8 +286,8 @@ class ModuleDecoder : public Decoder {
     SetCounters(isolate->counters());
     module_.reset(new WasmModule(
         base::make_unique<Zone>(isolate->allocator(), "signatures")));
-    module_->min_mem_pages = 0;
-    module_->max_mem_pages = 0;
+    module_->initial_pages = 0;
+    module_->maximum_pages = 0;
     module_->mem_export = false;
     module_->set_origin(origin_);
   }
@@ -465,10 +465,10 @@ class ModuleDecoder : public Decoder {
           WasmIndirectFunctionTable* table = &module_->function_tables.back();
           table->imported = true;
           expect_u8("element type", kWasmAnyFunctionTypeForm);
-          consume_resizable_limits("element count", "elements",
-                                   FLAG_wasm_max_table_size, &table->min_size,
-                                   &table->has_max, FLAG_wasm_max_table_size,
-                                   &table->max_size);
+          consume_resizable_limits(
+              "element count", "elements", FLAG_wasm_max_table_size,
+              &table->initial_size, &table->has_maximum_size,
+              FLAG_wasm_max_table_size, &table->maximum_size);
           break;
         }
         case kExternalMemory: {
@@ -476,8 +476,8 @@ class ModuleDecoder : public Decoder {
           if (!AddMemory(module_.get())) break;
           consume_resizable_limits(
               "memory", "pages", FLAG_wasm_max_mem_pages,
-              &module_->min_mem_pages, &module_->has_max_mem,
-              kSpecMaxWasmMemoryPages, &module_->max_mem_pages);
+              &module_->initial_pages, &module_->has_maximum_pages,
+              kSpecMaxWasmMemoryPages, &module_->maximum_pages);
           break;
         }
         case kExternalGlobal: {
@@ -531,9 +531,9 @@ class ModuleDecoder : public Decoder {
       WasmIndirectFunctionTable* table = &module_->function_tables.back();
       expect_u8("table type", kWasmAnyFunctionTypeForm);
       consume_resizable_limits("table elements", "elements",
-                               FLAG_wasm_max_table_size, &table->min_size,
-                               &table->has_max, FLAG_wasm_max_table_size,
-                               &table->max_size);
+                               FLAG_wasm_max_table_size, &table->initial_size,
+                               &table->has_maximum_size,
+                               FLAG_wasm_max_table_size, &table->maximum_size);
     }
   }
 
@@ -542,10 +542,10 @@ class ModuleDecoder : public Decoder {
 
     for (uint32_t i = 0; ok() && i < memory_count; i++) {
       if (!AddMemory(module_.get())) break;
-      consume_resizable_limits("memory", "pages", FLAG_wasm_max_mem_pages,
-                               &module_->min_mem_pages, &module_->has_max_mem,
-                               kSpecMaxWasmMemoryPages,
-                               &module_->max_mem_pages);
+      consume_resizable_limits(
+          "memory", "pages", FLAG_wasm_max_mem_pages, &module_->initial_pages,
+          &module_->has_maximum_pages, kSpecMaxWasmMemoryPages,
+          &module_->maximum_pages);
     }
   }
 

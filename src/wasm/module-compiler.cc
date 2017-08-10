@@ -879,10 +879,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the memory for the new instance.
   //--------------------------------------------------------------------------
-  uint32_t min_mem_pages = module_->min_mem_pages;
+  uint32_t initial_pages = module_->initial_pages;
   (module_->is_wasm() ? counters()->wasm_wasm_min_mem_pages_count()
                       : counters()->wasm_asm_min_mem_pages_count())
-      ->AddSample(min_mem_pages);
+      ->AddSample(initial_pages);
 
   if (!memory_.is_null()) {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
@@ -892,8 +892,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     DCHECK_IMPLIES(EnableGuardRegions(),
                    module_->is_asm_js() || memory->has_guard_region());
-  } else if (min_mem_pages > 0) {
-    memory_ = AllocateMemory(min_mem_pages);
+  } else if (initial_pages > 0) {
+    memory_ = AllocateMemory(initial_pages);
     if (memory_.is_null()) return {};  // failed to allocate memory
   }
 
@@ -1300,27 +1300,27 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
             table_instance.table_object->functions(), isolate_);
 
         int imported_cur_size = table_instance.js_wrappers->length();
-        if (imported_cur_size < static_cast<int>(table.min_size)) {
+        if (imported_cur_size < static_cast<int>(table.initial_size)) {
           thrower_->LinkError(
-              "table import %d is smaller than minimum %d, got %u", index,
-              table.min_size, imported_cur_size);
+              "table import %d is smaller than initial %d, got %u", index,
+              table.initial_size, imported_cur_size);
           return -1;
         }
 
-        if (table.has_max) {
-          int64_t imported_max_size =
+        if (table.has_maximum_size) {
+          int64_t imported_maximum_size =
               table_instance.table_object->maximum_length()->Number();
-          if (imported_max_size < 0) {
+          if (imported_maximum_size < 0) {
             thrower_->LinkError(
                 "table import %d has no maximum length, expected %d", index,
-                table.max_size);
+                table.maximum_size);
             return -1;
           }
-          if (imported_max_size > table.max_size) {
+          if (imported_maximum_size > table.maximum_size) {
             thrower_->LinkError(
                 "memory import %d has a larger maximum size %" PRIx64
                 " than the module's declared maximum %u",
-                index, imported_max_size, table.max_size);
+                index, imported_maximum_size, table.maximum_size);
             return -1;
           }
         }
@@ -1370,25 +1370,25 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         memory_ = buffer;
         uint32_t imported_cur_pages = static_cast<uint32_t>(
             buffer->byte_length()->Number() / WasmModule::kPageSize);
-        if (imported_cur_pages < module_->min_mem_pages) {
+        if (imported_cur_pages < module_->initial_pages) {
           thrower_->LinkError(
-              "memory import %d is smaller than maximum %u, got %u", index,
-              module_->min_mem_pages, imported_cur_pages);
+              "memory import %d is smaller than initial %u, got %u", index,
+              module_->initial_pages, imported_cur_pages);
         }
-        int32_t imported_max_pages = memory->maximum_pages();
-        if (module_->has_max_mem) {
-          if (imported_max_pages < 0) {
+        int32_t imported_maximum_pages = memory->maximum_pages();
+        if (module_->has_maximum_pages) {
+          if (imported_maximum_pages < 0) {
             thrower_->LinkError(
                 "memory import %d has no maximum limit, expected at most %u",
-                index, imported_max_pages);
+                index, imported_maximum_pages);
             return -1;
           }
-          if (static_cast<uint32_t>(imported_max_pages) >
-              module_->max_mem_pages) {
+          if (static_cast<uint32_t>(imported_maximum_pages) >
+              module_->maximum_pages) {
             thrower_->LinkError(
                 "memory import %d has a larger maximum size %u than the "
                 "module's declared maximum %u",
-                index, imported_max_pages, module_->max_mem_pages);
+                index, imported_maximum_pages, module_->maximum_pages);
             return -1;
           }
         }
@@ -1492,14 +1492,14 @@ void InstanceBuilder::InitGlobals() {
 }
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
-Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t min_mem_pages) {
-  if (min_mem_pages > FLAG_wasm_max_mem_pages) {
+Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
+  if (num_pages > FLAG_wasm_max_mem_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
   const bool enable_guard_regions = EnableGuardRegions();
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
-      isolate_, min_mem_pages * WasmModule::kPageSize, enable_guard_regions);
+      isolate_, num_pages * WasmModule::kPageSize, enable_guard_regions);
 
   if (mem_buffer.is_null()) {
     thrower_->RangeError("Out of memory: wasm memory");
@@ -1613,10 +1613,11 @@ void InstanceBuilder::ProcessExports(
         TableInstance& table_instance = table_instances_[exp.index];
         WasmIndirectFunctionTable& table = module_->function_tables[exp.index];
         if (table_instance.table_object.is_null()) {
-          uint32_t maximum =
-              table.has_max ? table.max_size : FLAG_wasm_max_table_size;
-          table_instance.table_object = WasmTableObject::New(
-              isolate_, table.min_size, maximum, &table_instance.js_wrappers);
+          uint32_t maximum = table.has_maximum_size ? table.maximum_size
+                                                    : FLAG_wasm_max_table_size;
+          table_instance.table_object =
+              WasmTableObject::New(isolate_, table.initial_size, maximum,
+                                   &table_instance.js_wrappers);
         }
         desc.set_value(table_instance.table_object);
         break;
@@ -1631,7 +1632,7 @@ void InstanceBuilder::ProcessExports(
               (instance->has_memory_buffer())
                   ? handle(instance->memory_buffer())
                   : Handle<JSArrayBuffer>::null(),
-              (module_->max_mem_pages != 0) ? module_->max_mem_pages : -1);
+              (module_->maximum_pages != 0) ? module_->maximum_pages : -1);
           instance->set_memory_object(*memory_object);
         } else {
           memory_object =
@@ -1700,7 +1701,7 @@ void InstanceBuilder::InitializeTables(
   for (int index = 0; index < function_table_count; ++index) {
     WasmIndirectFunctionTable& table = module_->function_tables[index];
     TableInstance& table_instance = table_instances_[index];
-    int table_size = static_cast<int>(table.min_size);
+    int table_size = static_cast<int>(table.initial_size);
 
     if (table_instance.function_table.is_null()) {
       // Create a new dispatch table if necessary.

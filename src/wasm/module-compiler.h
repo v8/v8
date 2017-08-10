@@ -290,7 +290,7 @@ class InstanceBuilder {
   void InitGlobals();
 
   // Allocate memory for a module instance as a new JSArrayBuffer.
-  Handle<JSArrayBuffer> AllocateMemory(uint32_t min_mem_pages);
+  Handle<JSArrayBuffer> AllocateMemory(uint32_t num_pages);
 
   bool NeedsWrappers() const;
 
