@@ -5161,6 +5161,33 @@ THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {
   ExpectInt32("Object.values(obj)[0]", 24);
 }
 
+THREADED_TEST(EnumeratorsAndForIn) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL, NamedEnum));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 3);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "foo");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, 'foo').enumerable");
+
+  CompileRun(
+      "let concat = '';"
+      "for(var prop in obj) {"
+      "  concat += `key:${prop}:value:${obj[prop]}`;"
+      "}");
+
+  // Check that for...in only iterates over enumerable properties.
+  ExpectString("concat", "key:foo:value:foofoo");
+}
+
 namespace {
 
 void DatabaseGetter(Local<Name> name,
