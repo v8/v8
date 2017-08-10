@@ -107,6 +107,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Functions marked with %SetForceInlineFlag are immediately inlined.
   bool can_inline = false, force_inline = true, small_inline = true;
+  candidate.total_size = 0;
   for (int i = 0; i < candidate.num_functions; ++i) {
     Handle<SharedFunctionInfo> shared =
         candidate.functions[i].is_null()
@@ -118,6 +119,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     candidate.can_inline_function[i] = CanInlineFunction(shared);
     if (candidate.can_inline_function[i]) {
       can_inline = true;
+      candidate.total_size += shared->bytecode_array()->length();
     }
     if (!IsSmallInlineFunction(shared)) {
       small_inline = false;
@@ -196,10 +198,20 @@ void JSInliningHeuristic::Finalize() {
   // on things that aren't called very often.
   // TODO(bmeurer): Use std::priority_queue instead of std::set here.
   while (!candidates_.empty()) {
-    if (cumulative_count_ > FLAG_max_inlined_bytecode_size_cumulative) return;
     auto i = candidates_.begin();
     Candidate candidate = *i;
     candidates_.erase(i);
+
+    // Make sure we have some extra budget left, so that any small functions
+    // exposed by this function would be given a chance to inline.
+    double size_of_candidate =
+        candidate.total_size * FLAG_reserve_inline_budget_scale_factor;
+    int total_size = cumulative_count_ + static_cast<int>(size_of_candidate);
+    if (total_size > FLAG_max_inlined_bytecode_size_cumulative) {
+      // Try if any smaller functions are available to inline.
+      continue;
+    }
+
     // Make sure we don't try to inline dead candidate nodes.
     if (!candidate.node->IsDead()) {
       Reduction const reduction = InlineCandidate(candidate, false);
