@@ -802,6 +802,7 @@ namespace internal {
   TFJ(ProxyConstructor, 0)                                                     \
   TFJ(ProxyConstructor_ConstructStub,                                          \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  TFS(ProxyGetProperty, kProxy, kName, kReceiverValue)                         \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply)                                                            \

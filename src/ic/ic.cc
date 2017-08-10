@@ -773,7 +773,7 @@ namespace {
 
 template <bool fill_array = true>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
-                        Handle<JSObject> holder, Handle<Name> name,
+                        Handle<JSReceiver> holder, Handle<Name> name,
                         Handle<FixedArray> array, int first_index) {
   if (!holder.is_null() && holder->map() == *receiver_map) return 0;
 
@@ -814,7 +814,8 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(receiver_map, end); !iter.IsAtEnd();
        iter.Advance()) {
-    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
+    Handle<JSReceiver> current =
+        PrototypeIterator::GetCurrent<JSReceiver>(iter);
     if (holder.is_identical_to(current)) break;
     Handle<Map> current_map(current->map(), isolate);
 
@@ -851,7 +852,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
 // Returns -1 if the handler has to be compiled or the number of prototype
 // checks otherwise.
 int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
-                           Handle<JSObject> holder, Handle<Name> name) {
+                           Handle<JSReceiver> holder, Handle<Name> name) {
   return InitPrototypeChecks<false>(isolate, receiver_map, holder, name,
                                     Handle<FixedArray>(), 0);
 }
@@ -861,7 +862,7 @@ enum class HolderCellRequest {
   kHolder,
 };
 
-Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSObject> holder,
+Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSReceiver> holder,
                             Handle<Name> name, HolderCellRequest request) {
   if (request == HolderCellRequest::kGlobalPropertyCell) {
     DCHECK(holder->IsJSGlobalObject());
@@ -878,7 +879,7 @@ Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSObject> holder,
 }  // namespace
 
 Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
-                                         Handle<JSObject> holder,
+                                         Handle<JSReceiver> holder,
                                          Handle<Name> name,
                                          Handle<Smi> smi_handler) {
   int checks_count =
@@ -926,7 +927,7 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
 Handle<Object> LoadIC::LoadFullChain(Handle<Map> receiver_map,
                                      Handle<Object> holder, Handle<Name> name,
                                      Handle<Smi> smi_handler) {
-  Handle<JSObject> end;  // null handle
+  Handle<JSReceiver> end;  // null handle
   int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, end, name);
   DCHECK_LE(0, checks_count);
 
@@ -977,8 +978,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   }
 
   Handle<Object> code;
-  if (lookup->state() == LookupIterator::JSPROXY ||
-      lookup->state() == LookupIterator::ACCESS_CHECK) {
+  if (lookup->state() == LookupIterator::ACCESS_CHECK) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
@@ -1102,8 +1102,13 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   }
 
   Handle<Map> map = receiver_map();
-  Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-  bool receiver_is_holder = receiver.is_identical_to(holder);
+  Handle<JSObject> holder;
+  bool receiver_is_holder;
+  if (lookup->state() != LookupIterator::JSPROXY) {
+    holder = lookup->GetHolder<JSObject>();
+    receiver_is_holder = receiver.is_identical_to(holder);
+  }
+
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
       Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
@@ -1264,8 +1269,16 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadIntegerIndexedExoticDH);
       return LoadHandler::LoadNonExistent(isolate());
+    case LookupIterator::JSPROXY: {
+      Handle<JSProxy> holder_proxy = lookup->GetHolder<JSProxy>();
+      bool receiver_is_holder_proxy = receiver.is_identical_to(holder_proxy);
+      Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
+      if (receiver_is_holder_proxy) {
+        return smi_handler;
+      }
+      return LoadFromPrototype(map, holder_proxy, lookup->name(), smi_handler);
+    }
     case LookupIterator::ACCESS_CHECK:
-    case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
       UNREACHABLE();
@@ -1722,6 +1735,7 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
 
   int checks_count =
       GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
+
   DCHECK_LE(0, checks_count);
   DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
