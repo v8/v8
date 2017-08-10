@@ -59,10 +59,10 @@ double SolarisTimezoneCache::LocalTimeOffset() {
 TimezoneCache* OS::CreateTimezoneCache() { return new SolarisTimezoneCache(); }
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access) {
+                   OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
 
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
