@@ -3,10 +3,6 @@
 # found in the LICENSE file.
 
 [
-[ALWAYS, {
-  # Issue 6166.
-  'debugger/asm-js-breakpoint-during-exec': [FAIL],
-}],  # ALWAYS
 
 ##############################################################################
 ['variant != default', {
