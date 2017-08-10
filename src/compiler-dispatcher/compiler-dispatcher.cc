@@ -197,8 +197,6 @@ bool CompilerDispatcher::CanEnqueue() {
 }
 
 bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
-  DCHECK_IMPLIES(IsEnabled(), !FLAG_stress_fullcodegen);
-
   if (!CanEnqueue()) return false;
 
   // We only handle functions (no eval / top-level code / wasm) that are

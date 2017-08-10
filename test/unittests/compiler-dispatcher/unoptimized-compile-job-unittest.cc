@@ -32,7 +32,6 @@ class UnoptimizedCompileJobTest : public TestWithContext {
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_stress_fullcodegen = false;
     TestWithContext::SetUpTestCase();
   }
 

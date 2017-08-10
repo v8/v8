@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt  --no-stress-fullcodegen
+// Flags: --allow-natives-syntax --no-always-opt
 // Files: test/mjsunit/code-coverage-utils.js
 
 // Test precise code coverage.

@@ -268,8 +268,8 @@ bool ShouldUseFullCodegen(FunctionLiteral* literal) {
   // Use full-codegen for asm.js functions.
   if (literal->scope()->asm_function()) return true;
 
-  // If stressing full-codegen then use it for all functions it can support.
-  return FLAG_stress_fullcodegen;
+  // Disabled by default.
+  return false;
 }
 
 bool UseAsmWasm(FunctionLiteral* literal,

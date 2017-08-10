@@ -310,10 +310,6 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL(string_slices, true, "use string slices")
 
-// Flags for Full-codegen.
-DEFINE_BOOL(stress_fullcodegen, false,
-            "use fullcodegen compiler for all functions it can support")
-
 // Flags for Ignition.
 DEFINE_BOOL(ignition_osr, true, "enable support for OSR from ignition code")
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
@@ -474,7 +470,6 @@ DEFINE_BOOL(turbo_experimental, false,
 DEFINE_BOOL(minimal, false,
             "simplifies execution model to make porting "
             "easier (e.g. always use Ignition, never optimize)")
-DEFINE_NEG_IMPLICATION(minimal, stress_fullcodegen)
 DEFINE_NEG_IMPLICATION(minimal, opt)
 DEFINE_NEG_IMPLICATION(minimal, use_ic)
 

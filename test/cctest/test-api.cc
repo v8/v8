@@ -22106,11 +22106,6 @@ const char* kMegamorphicTestProgram =
 void TestStubCache(bool primary) {
   using namespace i;
 
-  // The test does not work with interpreter because bytecode handlers taken
-  // from the snapshot already refer to ICs with disabled counters and there
-  // is no way to trigger bytecode handlers recompilation.
-  if (!FLAG_stress_fullcodegen) return;
-
   FLAG_native_code_counters = true;
   if (primary) {
     FLAG_test_primary_stub_cache = true;
@@ -23060,11 +23055,6 @@ TEST(AccessCheckThrows) {
 
 TEST(AccessCheckInIC) {
   using namespace i;
-
-  // The test does not work with interpreter because bytecode handlers taken
-  // from the snapshot already refer to ICs with disabled counters and there
-  // is no way to trigger bytecode handlers recompilation.
-  if (!FLAG_stress_fullcodegen) return;
 
   FLAG_native_code_counters = true;
   FLAG_opt = false;

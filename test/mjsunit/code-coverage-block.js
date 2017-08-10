@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt --block-coverage
-// Flags: --no-stress-fullcodegen --harmony-async-iteration
+// Flags: --harmony-async-iteration
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);

@@ -601,7 +601,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   }
   if (disable_fullcodegen_reason_ != kNoReason) {
     node->set_must_use_ignition();
-    if (FLAG_trace_opt && FLAG_stress_fullcodegen) {
+    if (FLAG_trace_opt && scope->asm_function()) {
       // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
       // the function to be accessed in the below print. This DCHECK will fail
       // if we move ast numbering off the main thread, but that won't be before

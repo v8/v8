@@ -1326,10 +1326,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   FLAG_stress_incremental_marking = false;
   FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
-  // This test relies on (full-codegen) code objects going to large object
-  // space. Once FCG goes away, it must either be redesigned (to put some
-  // other large deserialized object into LO space), or it can be deleted.
-  FLAG_stress_fullcodegen = true;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
   FLAG_black_allocation = true;
@@ -1345,7 +1341,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   Vector<const uint8_t> source = ConstructSource(
       STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
       STATIC_CHAR_VECTOR("for (var i = 0; i < Object.prototype; i++);"),
-      STATIC_CHAR_VECTOR("} j=7; var s = 'happy_hippo'; j"), 2200);
+      STATIC_CHAR_VECTOR("} j=7; var s = 'happy_hippo'; j"), 10000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1963,61 +1959,6 @@ TEST(CodeSerializerWithHarmonyScoping) {
         result->ToString(isolate2->GetCurrentContext()).ToLocalChecked();
     CHECK(result_str->Equals(isolate2->GetCurrentContext(), v8_str("XY"))
               .FromJust());
-  }
-  isolate2->Dispose();
-}
-
-TEST(CodeSerializerEagerCompilationAndPreAge) {
-  if (!FLAG_stress_fullcodegen) return;
-
-  FLAG_lazy = true;
-  FLAG_serialize_toplevel = true;
-  FLAG_serialize_age_code = true;
-  FLAG_serialize_eager = true;
-
-  static const char* source =
-      "function f() {"
-      "  function g() {"
-      "    return 1;"
-      "  }"
-      "  return g();"
-      "}"
-      "'abcdef';";
-
-  v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
-  {
-    v8::Isolate::Scope iscope(isolate2);
-    v8::HandleScope scope(isolate2);
-    v8::Local<v8::Context> context = v8::Context::New(isolate2);
-    v8::Context::Scope context_scope(context);
-
-    v8::Local<v8::String> source_str = v8_str(source);
-    v8::ScriptOrigin origin(v8_str("test"));
-    v8::ScriptCompiler::Source source(source_str, origin, cache);
-    v8::Local<v8::UnboundScript> unbound =
-        v8::ScriptCompiler::CompileUnboundScript(
-            isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
-            .ToLocalChecked();
-
-    CHECK(!cache->rejected);
-
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate2);
-    HandleScope i_scope(i_isolate);
-    Handle<SharedFunctionInfo> toplevel = v8::Utils::OpenHandle(*unbound);
-    Handle<Script> script(Script::cast(toplevel->script()));
-    // Every function has been pre-compiled from the code cache.
-    int count = 0;
-    SharedFunctionInfo::ScriptIterator iterator(script);
-    while (SharedFunctionInfo* shared = iterator.Next()) {
-      CHECK(shared->is_compiled());
-      CHECK_EQ(Code::kPreAgedCodeAge, shared->code()->GetAge());
-      count++;
-    }
-    CHECK_EQ(3, count);
   }
   isolate2->Dispose();
 }
