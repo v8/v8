@@ -6,6 +6,7 @@
 
 #include "src/objects-inl.h"
 #include "src/parsing/parser.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -25,6 +26,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   DCHECK(options == ScriptCompiler::kProduceParserCache ||
          options == ScriptCompiler::kProduceCodeCache ||
          options == ScriptCompiler::kNoCompileOptions);
+
+  VMState<PARSER> state(isolate);
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.

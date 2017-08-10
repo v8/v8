@@ -498,7 +498,7 @@ MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
     Handle<SharedFunctionInfo> shared_info) {
   RuntimeCallTimerScope runtimeTimer(
       isolate, &RuntimeCallStats::CompileUnoptimizedFunction);
-  VMState<COMPILER> state(isolate);
+  VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
 
   // Parse and update ParseInfo with the results.
@@ -896,7 +896,7 @@ Handle<SharedFunctionInfo> CompileToplevel(
   Handle<SharedFunctionInfo> result;
 
   {
-    VMState<COMPILER> state(isolate);
+    VMState<BYTECODE_COMPILER> state(isolate);
     if (parse_info->literal() == nullptr &&
         !parsing::ParseProgram(parse_info, isolate)) {
       return Handle<SharedFunctionInfo>::null();
@@ -1508,7 +1508,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 
 CompilationJob* Compiler::PrepareUnoptimizedCompilationJob(
     ParseInfo* parse_info, Isolate* isolate) {
-  VMState<COMPILER> state(isolate);
+  VMState<BYTECODE_COMPILER> state(isolate);
   std::unique_ptr<CompilationJob> job(
       interpreter::Interpreter::NewCompilationJob(
           parse_info, parse_info->literal(), isolate));
@@ -1522,11 +1522,12 @@ bool Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
   // Take ownership of compilation job.  Deleting job also tears down the zone.
   std::unique_ptr<CompilationJob> job(raw_job);
 
-  VMState<COMPILER> state(job->compilation_info()->isolate());
   if (job->compilation_info()->IsOptimizing()) {
+    VMState<COMPILER> state(job->compilation_info()->isolate());
     return FinalizeOptimizedCompilationJob(job.get()) ==
            CompilationJob::SUCCEEDED;
   } else {
+    VMState<BYTECODE_COMPILER> state(job->compilation_info()->isolate());
     return FinalizeUnoptimizedCompilationJob(job.get()) ==
            CompilationJob::SUCCEEDED;
   }

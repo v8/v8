@@ -10,6 +10,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +19,8 @@ namespace parsing {
 bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
+
+  VMState<PARSER> state(isolate);
 
   Parser parser(info);
 
@@ -43,6 +46,8 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   DCHECK(!info->is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
+
+  VMState<PARSER> state(isolate);
 
   Parser parser(info);
 

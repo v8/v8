@@ -216,10 +216,12 @@ inherits(TickProcessor, LogReader);
 TickProcessor.VmStates = {
   JS: 0,
   GC: 1,
-  COMPILER: 2,
-  OTHER: 3,
-  EXTERNAL: 4,
-  IDLE: 5
+  PARSER: 2,
+  BYTECODE_COMPILER: 3,
+  COMPILER: 4,
+  OTHER: 5,
+  EXTERNAL: 6,
+  IDLE: 7,
 };
 
 
@@ -853,6 +855,10 @@ function ArgumentsProcessor(args) {
         'Show only ticks from JS VM state'],
     '-g': ['stateFilter', TickProcessor.VmStates.GC,
         'Show only ticks from GC VM state'],
+    '-p': ['stateFilter', TickProcessor.VmStates.PARSER,
+        'Show only ticks from PARSER VM state'],
+    '-b': ['stateFilter', TickProcessor.VmStates.BYTECODE_COMPILER,
+        'Show only ticks from BYTECODE_COMPILER VM state'],
     '-c': ['stateFilter', TickProcessor.VmStates.COMPILER,
         'Show only ticks from COMPILER VM state'],
     '-o': ['stateFilter', TickProcessor.VmStates.OTHER,

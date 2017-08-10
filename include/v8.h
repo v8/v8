@@ -1721,7 +1721,16 @@ class V8_EXPORT StackFrame {
 
 
 // A StateTag represents a possible state of the VM.
-enum StateTag { JS, GC, COMPILER, OTHER, EXTERNAL, IDLE };
+enum StateTag {
+  JS,
+  GC,
+  PARSER,
+  BYTECODE_COMPILER,
+  COMPILER,
+  OTHER,
+  EXTERNAL,
+  IDLE
+};
 
 // A RegisterState represents the current state of registers used
 // by the sampling profiler API.
