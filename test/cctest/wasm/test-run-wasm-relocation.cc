@@ -32,7 +32,7 @@ using namespace v8::internal::compiler;
     /* global = global + p0 */                                                 \
     BUILD(r, WASM_SET_GLOBAL(1, ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0))),   \
           WASM_GET_GLOBAL(0));                                                 \
-    CHECK_EQ(1, r.module().FunctionCodeSize());                                \
+    CHECK_EQ(1, r.module().CodeTableLength());                                 \
                                                                                \
     int filter = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;                        \
                                                                                \

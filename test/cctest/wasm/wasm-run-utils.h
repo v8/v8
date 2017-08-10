@@ -126,7 +126,7 @@ class TestingModule : public ModuleEnv {
     return mem_start();
   }
 
-  size_t FunctionCodeSize() const { return function_code_.size(); }
+  size_t CodeTableLength() const { return function_code_.size(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
