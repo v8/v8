@@ -6868,6 +6868,9 @@ class JSArray: public JSObject {
   // Max. number of elements being copied in Array builtins.
   static const int kMaxCopyElements = 100;
 
+  // This constant is somewhat arbitrary. Any large enough value would work.
+  static const uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+
   static const int kInitialMaxFastElementArray =
       (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kSize -
        AllocationMemento::kSize) /
