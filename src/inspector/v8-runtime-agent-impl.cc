@@ -708,7 +708,6 @@ Response V8RuntimeAgentImpl::disable() {
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_inspector->disableStackCapturingIfNeeded();
-  m_session->discardInjectedScripts();
   m_session->setCustomObjectFormatterEnabled(false);
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(
