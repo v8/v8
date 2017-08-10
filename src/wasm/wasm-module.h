@@ -293,7 +293,7 @@ class V8_EXPORT_PRIVATE ModuleEnv {
       : module_(module),
         function_tables_(module->function_tables.size()),
         signature_tables_(module->function_tables.size()),
-        function_code_(module->functions.size(), default_function_code),
+        default_function_code_(default_function_code),
         mem_size_(module->initial_pages * WasmModule::kPageSize) {}
 
   WasmModule* module() const { return module_; }
@@ -364,7 +364,10 @@ class V8_EXPORT_PRIVATE ModuleEnv {
   bool is_wasm() const { return module_->is_wasm(); }
 
   Handle<Code> GetFunctionCode(uint32_t index) const {
-    return function_code_[index];
+    if (index < function_code_.size()) {
+      return function_code_[index];
+    }
+    return default_function_code_;
   }
 
   // TODO(mtrofin): this is async compilation-specific. Move this out.
@@ -378,6 +381,7 @@ class V8_EXPORT_PRIVATE ModuleEnv {
     for (auto& code : function_code_) {
       code = handle(*code, isolate);
     }
+    default_function_code_ = handle(*default_function_code_, isolate);
   }
 
   // Intentionally set a memory size that may not conform to
@@ -397,12 +401,12 @@ class V8_EXPORT_PRIVATE ModuleEnv {
   std::vector<Handle<FixedArray>> function_tables_;
   // indirect signature tables.
   std::vector<Handle<FixedArray>> signature_tables_;
-  // TODO(mtrofin): this should be a Handle<Code>, not a vector,
-  // however, cctest currently builds up modules in a non-production
-  // standard way. We should address that first.
+  // a user of the compiler may choose to pre-populate this
+  // with code objects to be used instead of the default
   std::vector<Handle<Code>> function_code_;
 
  private:
+  Handle<Code> default_function_code_;
   // size of the linear memory.
   uint32_t mem_size_ = 0;
 
