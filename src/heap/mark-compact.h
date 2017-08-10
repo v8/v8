@@ -776,13 +776,16 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
 
-  // Pushes a black object onto the marking stack and accounts for live bytes.
-  // Note that this assumes live bytes have not yet been counted.
+  // Pushes a black object onto the marking work list.
   V8_INLINE void PushBlack(HeapObject* obj);
 
-  // Marks the object black and pushes it on the marking stack.
+  // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
+
+  // Marks the object black and adds it to the marking work list.
+  // This is for non-incremental marking only.
+  V8_INLINE void MarkRootObject(Root root, HeapObject* obj);
 
   // Used by wrapper tracing.
   V8_INLINE void MarkExternallyReferencedObject(HeapObject* obj);

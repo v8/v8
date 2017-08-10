@@ -1197,50 +1197,28 @@ void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
   sweep_to_iterate_pages_.clear();
 }
 
-class MarkCompactCollector::RootMarkingVisitor : public RootVisitor {
+class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  public:
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
-      : collector_(collector),
-        marking_state_(collector->non_atomic_marking_state()),
-        visitor_(collector_) {}
+      : collector_(collector) {}
 
-  void VisitRootPointer(Root root, Object** p) override {
-    MarkObjectByPointer(nullptr, p, root);
+  void VisitRootPointer(Root root, Object** p) final {
+    MarkObjectByPointer(root, p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++)
-      MarkObjectByPointer(nullptr, p, root);
+  void VisitRootPointers(Root root, Object** start, Object** end) final {
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(root, p);
   }
 
  private:
-  void MarkObjectByPointer(HeapObject* host, Object** p,
-                           Root root = Root::kUnknown) {
+  V8_INLINE void MarkObjectByPointer(Root root, Object** p) {
     if (!(*p)->IsHeapObject()) return;
 
-    HeapObject* object = HeapObject::cast(*p);
-
-    if (marking_state_->WhiteToBlack(object)) {
-      if (V8_UNLIKELY(FLAG_track_retaining_path)) {
-        if (host) {
-          object->GetHeap()->AddRetainer(host, object);
-        } else {
-          object->GetHeap()->AddRetainingRoot(root, object);
-        }
-      }
-      Map* map = object->map();
-      // Mark the map pointer and body, and push them on the marking stack.
-      collector_->MarkObject(object, map);
-      visitor_.Visit(map, object);
-      // Mark all the objects reachable from the map and body.  May leave
-      // overflowed objects in the heap.
-      collector_->EmptyMarkingWorklist();
-    }
+    collector_->MarkRootObject(root, HeapObject::cast(*p));
+    collector_->EmptyMarkingWorklist();
   }
 
   MarkCompactCollector* const collector_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
-  MarkCompactMarkingVisitor visitor_;
 };
 
 // This visitor is used to visit the body of special objects held alive by
