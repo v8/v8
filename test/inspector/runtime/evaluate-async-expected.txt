@@ -203,3 +203,29 @@ Running test: testLastEvaluatedResult
         }
     }
 }
+
+Running test: testRuntimeDisable
+Resolving promise..
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Promise resolved
+
+Running test: testImmediatelyResolvedAfterAfterContextDestroyed
+Destroying context..
+{
+    error : {
+        code : -32000
+        message : Execution context was destroyed.
+    }
+    id : <messageId>
+}
+Context destroyed
