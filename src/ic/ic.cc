@@ -713,8 +713,9 @@ void IC::CopyICToMegamorphicCache(Handle<Name> name) {
 
 
 bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
-  if (source_map == NULL) return true;
-  if (target_map == NULL) return false;
+  if (source_map == nullptr) return true;
+  if (target_map == nullptr) return false;
+  if (source_map->is_abandoned_prototype_map()) return false;
   ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition = IsMoreGeneralElementsKindTransition(
       source_map->elements_kind(), target_elements_kind);
@@ -2331,11 +2332,14 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       if (is_arguments) {
         TRACE_GENERIC_IC("arguments receiver");
       } else if (key_is_valid_index) {
-        // We should go generic if receiver isn't a dictionary, but our
-        // prototype chain does have dictionary elements. This ensures that
-        // other non-dictionary receivers in the polymorphic case benefit
-        // from fast path keyed stores.
-        if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly()) {
+        if (old_receiver_map->is_abandoned_prototype_map()) {
+          TRACE_GENERIC_IC("receiver with prototype map");
+        } else if (!old_receiver_map
+                        ->DictionaryElementsInPrototypeChainOnly()) {
+          // We should go generic if receiver isn't a dictionary, but our
+          // prototype chain does have dictionary elements. This ensures that
+          // other non-dictionary receivers in the polymorphic case benefit
+          // from fast path keyed stores.
           UpdateStoreElement(old_receiver_map, store_mode);
         } else {
           TRACE_GENERIC_IC("dictionary or proxy prototype");

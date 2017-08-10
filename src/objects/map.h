@@ -258,6 +258,7 @@ class Map : public HeapObject {
   inline bool is_extensible() const;
   inline void set_is_prototype_map(bool value);
   inline bool is_prototype_map() const;
+  inline bool is_abandoned_prototype_map() const;
 
   inline void set_elements_kind(ElementsKind elements_kind);
   inline ElementsKind elements_kind() const;

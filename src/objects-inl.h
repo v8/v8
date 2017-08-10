@@ -3403,6 +3403,10 @@ bool Map::is_prototype_map() const {
   return IsPrototypeMapBits::decode(bit_field2());
 }
 
+bool Map::is_abandoned_prototype_map() const {
+  return is_prototype_map() && !owns_descriptors();
+}
+
 bool Map::should_be_fast_prototype_map() const {
   if (!prototype_info()->IsPrototypeInfo()) return false;
   return PrototypeInfo::cast(prototype_info())->should_be_fast_map();

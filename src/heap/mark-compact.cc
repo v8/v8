@@ -2890,6 +2890,8 @@ void MarkCompactCollector::ClearSimpleMapTransition(
 
 void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
                                                     Map* dead_target) {
+  DCHECK(!map->is_prototype_map());
+  DCHECK(!dead_target->is_prototype_map());
   // Clear the useless weak cell pointer, and take ownership of the descriptor
   // array.
   map->set_raw_transitions(Smi::kZero);
@@ -2931,6 +2933,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
 
 bool MarkCompactCollector::CompactTransitionArray(
     Map* map, TransitionArray* transitions, DescriptorArray* descriptors) {
+  DCHECK(!map->is_prototype_map());
   int num_transitions = transitions->number_of_entries();
   bool descriptors_owner_died = false;
   int transition_index = 0;
@@ -2941,6 +2944,7 @@ bool MarkCompactCollector::CompactTransitionArray(
     if (ObjectMarking::IsWhite(target, MarkingState::Internal(target))) {
       if (descriptors != nullptr &&
           target->instance_descriptors() == descriptors) {
+        DCHECK(!target->is_prototype_map());
         descriptors_owner_died = true;
       }
     } else {

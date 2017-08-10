@@ -4177,14 +4177,17 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     if (old_map->is_prototype_map()) {
       DCHECK(!old_map->is_stable());
       DCHECK(new_map->is_stable());
-      // Clear out the old descriptor array to avoid problems to sharing
-      // the descriptor array without using an explicit.
-      old_map->InitializeDescriptors(
-          old_map->GetHeap()->empty_descriptor_array(),
-          LayoutDescriptor::FastPointerLayout());
+      DCHECK(new_map->owns_descriptors());
+      DCHECK(old_map->owns_descriptors());
+      // Transfer ownership to the new map. Keep the descriptor pointer of the
+      // old map intact because the concurrent marker might be iterating the
+      // object with the old map.
+      old_map->set_owns_descriptors(false);
+      DCHECK(old_map->is_abandoned_prototype_map());
       // Ensure that no transition was inserted for prototype migrations.
       DCHECK_EQ(0, TransitionsAccessor(old_map).NumberOfTransitions());
       DCHECK(new_map->GetBackPointer()->IsUndefined(new_map->GetIsolate()));
+      DCHECK(object->map() != *old_map);
     }
   } else {
     MigrateFastToSlow(object, new_map, expected_additional_properties);
@@ -5209,6 +5212,8 @@ static bool ContainsMap(MapHandles const& maps, Map* map) {
 Map* Map::FindElementsKindTransitionedMap(MapHandles const& candidates) {
   DisallowHeapAllocation no_allocation;
   DisallowDeoptimization no_deoptimization(GetIsolate());
+
+  if (is_prototype_map()) return nullptr;
 
   ElementsKind kind = elements_kind();
   bool packed = IsFastPackedElementsKind(kind);
