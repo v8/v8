@@ -1814,70 +1814,70 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kCheckedLoadInt8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lb);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lb);
       break;
     case kCheckedLoadUint8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lbu);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lbu);
       break;
     case kCheckedLoadInt16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lh);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lh);
       break;
     case kCheckedLoadUint16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lhu);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lhu);
       break;
     case kCheckedLoadWord32:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lw);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lw);
       break;
     case kCheckedLoadWord64:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ld);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ld);
       break;
     case kCheckedLoadFloat32:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(Single, lwc1);
+      ASSEMBLE_CHECKED_LOAD_FLOAT(Single, Lwc1);
       break;
     case kCheckedLoadFloat64:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(Double, ldc1);
+      ASSEMBLE_CHECKED_LOAD_FLOAT(Double, Ldc1);
       break;
     case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sb);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sb);
       break;
     case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sh);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sh);
       break;
     case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sw);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sw);
       break;
     case kCheckedStoreWord64:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sd);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sd);
       break;
     case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FLOAT(Single, swc1);
+      ASSEMBLE_CHECKED_STORE_FLOAT(Single, Swc1);
       break;
     case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_FLOAT(Double, sdc1);
+      ASSEMBLE_CHECKED_STORE_FLOAT(Double, Sdc1);
       break;
     case kAtomicLoadInt8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lb);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;
     case kAtomicLoadUint8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lbu);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lbu);
       break;
     case kAtomicLoadInt16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lh);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lh);
       break;
     case kAtomicLoadUint16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lhu);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
       break;
     case kAtomicLoadWord32:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lw);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
     case kAtomicStoreWord8:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sb);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
       break;
     case kAtomicStoreWord16:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sh);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sh);
       break;
     case kAtomicStoreWord32:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
     case kAtomicExchangeInt8:
     case kAtomicExchangeUint8:
