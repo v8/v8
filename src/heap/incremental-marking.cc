@@ -181,8 +181,8 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
     if (from->address() + kPointerSize == to->address()) {
       // The old and the new markbits overlap. The |to| object is either white
       // or grey.  Set the first bit to make sure that it is grey.
-      new_mark_bit.Set();
-      DCHECK(!new_mark_bit.Next().Get());
+      new_mark_bit.Set<kAtomicity>();
+      DCHECK(!new_mark_bit.Next().Get<kAtomicity>());
     } else {
       bool success = Marking::WhiteToGrey<kAtomicity>(new_mark_bit);
       DCHECK(success);
