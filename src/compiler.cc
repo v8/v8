@@ -563,8 +563,6 @@ void InsertCodeIntoOptimizedCodeCache(CompilationInfo* compilation_info) {
     ClearOptimizedCodeCache(compilation_info);
     return;
   }
-  // Frame specialization implies function context specialization.
-  DCHECK(!compilation_info->is_frame_specializing());
 
   // Cache optimized context-specific code.
   Handle<JSFunction> function = compilation_info->closure();
@@ -714,9 +712,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
-
-  // TODO(rmcilroy): Remove OptimizeFromBytecode flag.
-  compilation_info->MarkAsOptimizeFromBytecode();
 
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to

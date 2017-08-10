@@ -438,14 +438,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the call target.
   if (!DetermineCallTarget(node, shared_info)) return NoChange();
 
-  // Inlining is only supported in the bytecode pipeline.
-  if (!info_->is_optimizing_from_bytecode()) {
-    TRACE("Not inlining %s into %s due to use of the deprecated pipeline\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
   // Function must be inlineable.
   if (!shared_info->IsInlineable()) {
     TRACE("Not inlining %s into %s because callee is not inlineable\n",

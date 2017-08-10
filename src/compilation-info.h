@@ -41,18 +41,14 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kIsNative = 1 << 2,
     kSerializing = 1 << 3,
     kBlockCoverageEnabled = 1 << 4,
-    kRequiresFrame = 1 << 5,
-    kAccessorInliningEnabled = 1 << 6,
-    kFunctionContextSpecializing = 1 << 7,
-    kFrameSpecializing = 1 << 8,
-    kInliningEnabled = 1 << 9,
-    kDisableFutureOptimization = 1 << 10,
-    kSplittingEnabled = 1 << 11,
-    kDeoptimizationEnabled = 1 << 12,
-    kSourcePositionsEnabled = 1 << 13,
-    kBailoutOnUninitialized = 1 << 14,
-    kOptimizeFromBytecode = 1 << 15,
-    kLoopPeelingEnabled = 1 << 16,
+    kAccessorInliningEnabled = 1 << 5,
+    kFunctionContextSpecializing = 1 << 6,
+    kInliningEnabled = 1 << 7,
+    kDisableFutureOptimization = 1 << 8,
+    kSplittingEnabled = 1 << 9,
+    kSourcePositionsEnabled = 1 << 10,
+    kBailoutOnUninitialized = 1 << 11,
+    kLoopPeelingEnabled = 1 << 12,
   };
 
   // Construct a compilation info for unoptimized compilation.
@@ -133,22 +129,11 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // Flags used by optimized compilation.
 
-  void MarkAsRequiresFrame() { SetFlag(kRequiresFrame); }
-  bool requires_frame() const { return GetFlag(kRequiresFrame); }
-
   void MarkAsFunctionContextSpecializing() {
     SetFlag(kFunctionContextSpecializing);
   }
   bool is_function_context_specializing() const {
     return GetFlag(kFunctionContextSpecializing);
-  }
-
-  void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
-  bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
-
-  void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
-  bool is_deoptimization_enabled() const {
-    return GetFlag(kDeoptimizationEnabled);
   }
 
   void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }
@@ -170,11 +155,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
   bool is_bailout_on_uninitialized() const {
     return GetFlag(kBailoutOnUninitialized);
-  }
-
-  void MarkAsOptimizeFromBytecode() { SetFlag(kOptimizeFromBytecode); }
-  bool is_optimizing_from_bytecode() const {
-    return GetFlag(kOptimizeFromBytecode);
   }
 
   void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }

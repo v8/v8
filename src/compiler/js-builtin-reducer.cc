@@ -98,12 +98,10 @@ class JSCallReduction {
 };
 
 JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
-                                   Flags flags,
                                    CompilationDependencies* dependencies,
                                    Handle<Context> native_context)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
-      flags_(flags),
       jsgraph_(jsgraph),
       native_context_(native_context),
       type_cache_(TypeCache::Get()) {}

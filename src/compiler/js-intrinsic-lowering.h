@@ -31,10 +31,7 @@ class SimplifiedOperatorBuilder;
 class V8_EXPORT_PRIVATE JSIntrinsicLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  enum DeoptimizationMode { kDeoptimizationEnabled, kDeoptimizationDisabled };
-
-  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
-                      DeoptimizationMode mode);
+  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph);
   ~JSIntrinsicLowering() final {}
 
   const char* reducer_name() const override { return "JSIntrinsicLowering"; }
@@ -96,10 +93,8 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  DeoptimizationMode mode() const { return mode_; }
 
   JSGraph* const jsgraph_;
-  DeoptimizationMode const mode_;
 };
 
 }  // namespace compiler

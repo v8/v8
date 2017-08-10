@@ -77,7 +77,6 @@ class BytecodeGraphTester {
       : isolate_(isolate), script_(script) {
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
-    i::FLAG_loop_assignment_analysis = false;
   }
   virtual ~BytecodeGraphTester() {}
 
@@ -122,8 +121,6 @@ class BytecodeGraphTester {
     Handle<Script> script(Script::cast(shared->script()));
     CompilationInfo compilation_info(&zone, function->GetIsolate(), script,
                                      shared, function);
-    compilation_info.MarkAsDeoptimizationEnabled();
-    compilation_info.MarkAsOptimizeFromBytecode();
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
     function->ReplaceCode(*code);
 

@@ -17,10 +17,9 @@ namespace compiler {
 
 TypedOptimization::TypedOptimization(Editor* editor,
                                      CompilationDependencies* dependencies,
-                                     Flags flags, JSGraph* jsgraph)
+                                     JSGraph* jsgraph)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
-      flags_(flags),
       jsgraph_(jsgraph),
       true_type_(Type::HeapConstant(factory()->true_value(), graph()->zone())),
       false_type_(
@@ -212,11 +211,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
     Handle<Map> object_map;
     if (GetStableMapFromObjectType(object_type).ToHandle(&object_map)) {
       if (object_map->CanTransition()) {
-        if (flags() & kDeoptimizationEnabled) {
-          dependencies()->AssumeMapStable(object_map);
-        } else {
-          return NoChange();
-        }
+        dependencies()->AssumeMapStable(object_map);
       }
       Node* const value = jsgraph()->HeapConstant(object_map);
       ReplaceWithValue(node, value);

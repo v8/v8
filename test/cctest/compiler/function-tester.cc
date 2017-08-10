@@ -148,8 +148,6 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 
   CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
   CHECK(info.shared_info()->HasBytecodeArray());
-  info.MarkAsDeoptimizationEnabled();
-  info.MarkAsOptimizeFromBytecode();
   JSFunction::EnsureLiterals(function);
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info);

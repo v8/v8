@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/opcodes.h"
 #include "src/globals.h"
@@ -31,15 +30,8 @@ class TypeCache;
 class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  // Flags that control the mode of operation.
-  enum Flag {
-    kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
-  };
-  typedef base::Flags<Flag> Flags;
-
   JSTypedLowering(Editor* editor, CompilationDependencies* dependencies,
-                  Flags flags, JSGraph* jsgraph, Zone* zone);
+                  JSGraph* jsgraph, Zone* zone);
   ~JSTypedLowering() final {}
 
   const char* reducer_name() const override { return "JSTypedLowering"; }
@@ -106,18 +98,14 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
   CompilationDependencies* dependencies() const;
-  Flags flags() const { return flags_; }
 
   CompilationDependencies* dependencies_;
-  Flags flags_;
   JSGraph* jsgraph_;
   Type* empty_string_type_;
   Type* shifted_int32_ranges_[4];
   Type* pointer_comparable_type_;
   TypeCache const& type_cache_;
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(JSTypedLowering::Flags)
 
 }  // namespace compiler
 }  // namespace internal

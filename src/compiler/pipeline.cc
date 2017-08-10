@@ -13,14 +13,13 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
-#include "src/compiler/ast-graph-builder.h"
-#include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/checkpoint-elimination.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/effect-control-linearizer.h"
@@ -35,7 +34,6 @@
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-create-lowering.h"
-#include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
@@ -229,12 +227,6 @@ class PipelineData {
     return handle(info()->global_object(), isolate());
   }
 
-  LoopAssignmentAnalysis* loop_assignment() const { return loop_assignment_; }
-  void set_loop_assignment(LoopAssignmentAnalysis* loop_assignment) {
-    DCHECK(!loop_assignment_);
-    loop_assignment_ = loop_assignment;
-  }
-
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
     DCHECK(!schedule_);
@@ -275,7 +267,6 @@ class PipelineData {
     graph_zone_ = nullptr;
     graph_ = nullptr;
     source_positions_ = nullptr;
-    loop_assignment_ = nullptr;
     simplified_ = nullptr;
     machine_ = nullptr;
     common_ = nullptr;
@@ -389,7 +380,6 @@ class PipelineData {
   Zone* graph_zone_ = nullptr;
   Graph* graph_ = nullptr;
   SourcePositionTable* source_positions_ = nullptr;
-  LoopAssignmentAnalysis* loop_assignment_ = nullptr;
   SimplifiedOperatorBuilder* simplified_ = nullptr;
   MachineOperatorBuilder* machine_ = nullptr;
   CommonOperatorBuilder* common_ = nullptr;
@@ -637,10 +627,6 @@ class PipelineCompilationJob final : public CompilationJob {
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   if (compilation_info()->shared_info()->asm_function()) {
-    if (compilation_info()->osr_frame() &&
-        !compilation_info()->is_optimizing_from_bytecode()) {
-      compilation_info()->MarkAsFrameSpecializing();
-    }
     compilation_info()->MarkAsFunctionContextSpecializing();
   } else {
     if (!FLAG_always_opt) {
@@ -650,19 +636,15 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
       compilation_info()->MarkAsLoopPeelingEnabled();
     }
   }
-  if (compilation_info()->is_optimizing_from_bytecode()) {
-    compilation_info()->MarkAsDeoptimizationEnabled();
-    if (FLAG_turbo_inlining) {
-      compilation_info()->MarkAsInliningEnabled();
-    }
-    if (FLAG_inline_accessors) {
-      compilation_info()->MarkAsAccessorInliningEnabled();
-    }
-    if (compilation_info()->closure()->feedback_vector_cell()->map() ==
-        isolate()->heap()->one_closure_cell_map()) {
-      compilation_info()->MarkAsFunctionContextSpecializing();
-    }
+  if (FLAG_turbo_inlining) {
     compilation_info()->MarkAsInliningEnabled();
+  }
+  if (FLAG_inline_accessors) {
+    compilation_info()->MarkAsAccessorInliningEnabled();
+  }
+  if (compilation_info()->closure()->feedback_vector_cell()->map() ==
+      isolate()->heap()->one_closure_cell_map()) {
+    compilation_info()->MarkAsFunctionContextSpecializing();
   }
 
   data_.set_start_source_position(
@@ -702,10 +684,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
   }
   compilation_info()->dependencies()->Commit(code);
   compilation_info()->SetCode(code);
-  if (compilation_info()->is_deoptimization_enabled()) {
-    compilation_info()->context()->native_context()->AddOptimizedCode(*code);
-    RegisterWeakObjectsInOptimizedCode(code);
-  }
+
+  compilation_info()->context()->native_context()->AddOptimizedCode(*code);
+  RegisterWeakObjectsInOptimizedCode(code);
   return SUCCEEDED;
 }
 
@@ -906,46 +887,20 @@ void PipelineImpl::Run(Arg0 arg_0, Arg1 arg_1) {
   phase.Run(this->data_, scope.zone(), arg_0, arg_1);
 }
 
-struct LoopAssignmentAnalysisPhase {
-  static const char* phase_name() { return "loop assignment analysis"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    if (!data->info()->is_optimizing_from_bytecode()) {
-      AstLoopAssignmentAnalyzer analyzer(data->graph_zone(), data->info());
-      LoopAssignmentAnalysis* loop_assignment = analyzer.Analyze();
-      data->set_loop_assignment(loop_assignment);
-    }
-  }
-};
-
-
 struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (data->info()->is_optimizing_from_bytecode()) {
-      // Bytecode graph builder assumes deoptimization is enabled.
-      DCHECK(data->info()->is_deoptimization_enabled());
-      JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
-      if (data->info()->is_bailout_on_uninitialized()) {
-        flags |= JSTypeHintLowering::kBailoutOnUninitialized;
-      }
-      BytecodeGraphBuilder graph_builder(
-          temp_zone, data->info()->shared_info(),
-          handle(data->info()->closure()->feedback_vector()),
-          data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
-          data->source_positions(), SourcePosition::kNotInlined, flags);
-      graph_builder.CreateGraph();
-    } else {
-      // AST-based graph builder assumes deoptimization is disabled.
-      DCHECK(!data->info()->is_deoptimization_enabled());
-      AstGraphBuilderWithPositions graph_builder(
-          temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
-          data->loop_assignment(), data->source_positions());
-      if (!graph_builder.CreateGraph()) {
-        data->set_compilation_failed();
-      }
+    JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+    if (data->info()->is_bailout_on_uninitialized()) {
+      flags |= JSTypeHintLowering::kBailoutOnUninitialized;
     }
+    BytecodeGraphBuilder graph_builder(
+        temp_zone, data->info()->shared_info(),
+        handle(data->info()->closure()->feedback_vector()),
+        data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
+        data->source_positions(), SourcePosition::kNotInlined, flags);
+    graph_builder.CreateGraph();
   }
 };
 
@@ -996,8 +951,6 @@ struct InliningPhase {
         data->info()->is_function_context_specializing()
             ? data->info()->closure()
             : MaybeHandle<JSFunction>());
-    JSFrameSpecialization frame_specialization(
-        &graph_reducer, data->info()->osr_frame(), data->jsgraph());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
     if (data->info()->is_accessor_inlining_enabled()) {
@@ -1014,25 +967,14 @@ struct InliningPhase {
                             ? JSInliningHeuristic::kGeneralInlining
                             : JSInliningHeuristic::kRestrictedInlining,
         temp_zone, data->info(), data->jsgraph(), data->source_positions());
-    JSIntrinsicLowering intrinsic_lowering(
-        &graph_reducer, data->jsgraph(),
-        data->info()->is_deoptimization_enabled()
-            ? JSIntrinsicLowering::kDeoptimizationEnabled
-            : JSIntrinsicLowering::kDeoptimizationDisabled);
+    JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    if (data->info()->is_frame_specializing()) {
-      AddReducer(data, &graph_reducer, &frame_specialization);
-    }
-    if (data->info()->is_deoptimization_enabled()) {
-      AddReducer(data, &graph_reducer, &native_context_specialization);
-    }
+    AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
-    if (data->info()->is_deoptimization_enabled()) {
-      AddReducer(data, &graph_reducer, &call_reducer);
-    }
+    AddReducer(data, &graph_reducer, &call_reducer);
     AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
   }
@@ -1081,28 +1023,6 @@ struct UntyperPhase {
   }
 };
 
-struct OsrDeconstructionPhase {
-  static const char* phase_name() { return "OSR deconstruction"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    // When the bytecode comes from Ignition, we do the OSR implementation
-    // during the graph building phase.
-    if (data->info()->is_optimizing_from_bytecode()) return;
-
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
-
-    // TODO(neis): Remove (the whole OsrDeconstructionPhase) when AST graph
-    // builder is gone.
-    OsrHelper osr_helper(data->info());
-    osr_helper.Deconstruct(data->info(), data->jsgraph(), data->common(),
-                           temp_zone);
-  }
-};
-
-
 struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
@@ -1112,37 +1032,23 @@ struct TypedLoweringPhase {
                                               data->common());
     JSBuiltinReducer builtin_reducer(
         &graph_reducer, data->jsgraph(),
-        data->info()->is_deoptimization_enabled()
-            ? JSBuiltinReducer::kDeoptimizationEnabled
-            : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies(), data->native_context());
     Handle<FeedbackVector> feedback_vector(
         data->info()->closure()->feedback_vector());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
         feedback_vector, data->native_context(), temp_zone);
-    JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
-    if (data->info()->is_deoptimization_enabled()) {
-      typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
-    }
     JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
-                                   typed_lowering_flags, data->jsgraph(),
-                                   temp_zone);
+                                   data->jsgraph(), temp_zone);
     TypedOptimization typed_optimization(
-        &graph_reducer, data->info()->dependencies(),
-        data->info()->is_deoptimization_enabled()
-            ? TypedOptimization::kDeoptimizationEnabled
-            : TypedOptimization::kNoFlags,
-        data->jsgraph());
+        &graph_reducer, data->info()->dependencies(), data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &builtin_reducer);
-    if (data->info()->is_deoptimization_enabled()) {
-      AddReducer(data, &graph_reducer, &create_lowering);
-    }
+    AddReducer(data, &graph_reducer, &create_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &simple_reducer);
@@ -1720,22 +1626,8 @@ bool PipelineImpl::CreateGraph() {
 
   data->source_positions()->AddDecorator();
 
-  if (FLAG_loop_assignment_analysis) {
-    Run<LoopAssignmentAnalysisPhase>();
-  }
-
   Run<GraphBuilderPhase>();
-  if (data->compilation_failed()) {
-    data->EndPhaseKind();
-    return false;
-  }
   RunPrintAndVerify("Initial untyped", true);
-
-  // Perform OSR deconstruction.
-  if (info()->is_osr()) {
-    Run<OsrDeconstructionPhase>();
-    RunPrintAndVerify("OSR deconstruction", true);
-  }
 
   // Perform function context specialization and inlining (if enabled).
   Run<InliningPhase>();
