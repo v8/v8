@@ -221,6 +221,19 @@ ModuleEnv CreateModuleEnvFromRuntimeObject(
   wasm::ModuleEnv module_env(compiled_module->module(),
                              BUILTIN_CODE(isolate, WasmCompileLazy));
 
+  // We set unchecked because the data on the compiled module
+  // is authoritative.
+  module_env.SetMemSizeUnchecked(compiled_module->has_embedded_mem_size()
+                                     ? compiled_module->embedded_mem_size()
+                                     : 0);
+  module_env.set_mem_start(
+      reinterpret_cast<byte*>(compiled_module->has_embedded_mem_start()
+                                  ? compiled_module->embedded_mem_start()
+                                  : 0));
+  module_env.set_globals_start(reinterpret_cast<byte*>(
+      compiled_module->has_globals_start() ? compiled_module->globals_start()
+                                           : 0));
+
   DCHECK_EQ(compiled_module->has_function_tables(),
             compiled_module->has_signature_tables());
 
@@ -1037,22 +1050,6 @@ void LazyCompilationOrchestrator::CompileFunction(
   // Now specialize the generated code for this instance.
   Zone specialization_zone(isolate->allocator(), ZONE_NAME);
   CodeSpecialization code_specialization(isolate, &specialization_zone);
-  if (module_env.module()->globals_size) {
-    Address globals_start =
-        reinterpret_cast<Address>(compiled_module->globals_start());
-    code_specialization.RelocateGlobals(module_env.globals_start(),
-                                        globals_start);
-  }
-  if (instance->has_memory_buffer()) {
-    Address mem_start =
-        reinterpret_cast<Address>(instance->memory_buffer()->backing_store());
-    int mem_size = instance->memory_buffer()->byte_length()->Number();
-    DCHECK_IMPLIES(mem_start == nullptr, mem_size == 0);
-    if (mem_start != nullptr) {
-      code_specialization.RelocateMemoryReferences(
-          module_env.mem_start(), module_env.mem_size(), mem_start, mem_size);
-    }
-  }
   code_specialization.RelocateDirectCalls(instance);
   code_specialization.ApplyToWasmCode(*code, SKIP_ICACHE_FLUSH);
   Assembler::FlushICache(isolate, code->instruction_start(),
