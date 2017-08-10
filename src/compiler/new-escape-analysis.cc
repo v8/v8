@@ -652,8 +652,8 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       }
       break;
     }
-  }  // namespace
-}  // namespace
+  }
+}
 
 }  // namespace
 

@@ -1132,20 +1132,7 @@ class RepresentationSelector {
   void VisitObjectState(Node* node) {
     if (propagate()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        Node* input = node->InputAt(i);
-        Type* input_type = TypeOf(input);
-        // TODO(turbofan): Special treatment for ExternalPointer here,
-        // to avoid incompatible truncations. We really need a story
-        // for the JSFunction::entry field.
-        UseInfo use_info = UseInfo::None();
-        if (input_type->IsInhabited()) {
-          if (input_type->Is(Type::ExternalPointer())) {
-            use_info = UseInfo::PointerInt();
-          } else {
-            use_info = UseInfo::Any();
-          }
-        }
-        EnqueueInput(node, i, use_info);
+        EnqueueInput(node, i, UseInfo::Any());
       }
     } else if (lower()) {
       Zone* zone = jsgraph_->zone();
