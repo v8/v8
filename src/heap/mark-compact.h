@@ -486,6 +486,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   using MarkingState = MajorNonAtomicMarkingState;
 #endif
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
+  using AtomicMarkingState = MajorMarkingState;
 
   static const int kMainThread = 0;
   // Wrapper for the shared and bailout worklists.
@@ -673,6 +674,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   };
 
   MarkingState* marking_state() { return &marking_state_; }
+
+  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
 
   NonAtomicMarkingState* non_atomic_marking_state() {
     return &non_atomic_marking_state_;
@@ -948,6 +951,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   Sweeper sweeper_;
 
   MarkingState marking_state_;
+  AtomicMarkingState atomic_marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
   friend class FullEvacuator;

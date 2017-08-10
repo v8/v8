@@ -49,6 +49,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       new_generation_observer_(*this, kAllocatedThreshold),
       old_generation_observer_(*this, kAllocatedThreshold),
       marking_state_(nullptr),
+      atomic_marking_state_(nullptr),
       non_atomic_marking_state_(nullptr) {
   SetState(STOPPED);
 }
@@ -471,6 +472,8 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
   marking_state_ = heap_->mark_compact_collector()->marking_state();
+  atomic_marking_state_ =
+      heap_->mark_compact_collector()->atomic_marking_state();
   non_atomic_marking_state_ =
       heap_->mark_compact_collector()->non_atomic_marking_state();
 

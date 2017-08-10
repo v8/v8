@@ -60,6 +60,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return marking_state_;
   }
 
+  MarkCompactCollector::AtomicMarkingState* atomic_marking_state() const {
+    DCHECK_NOT_NULL(atomic_marking_state_);
+    return atomic_marking_state_;
+  }
+
   MarkCompactCollector::NonAtomicMarkingState* non_atomic_marking_state()
       const {
     DCHECK_NOT_NULL(non_atomic_marking_state_);
@@ -69,18 +74,18 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void NotifyLeftTrimming(HeapObject* from, HeapObject* to);
 
   V8_INLINE void TransferColor(HeapObject* from, HeapObject* to) {
-    if (marking_state()->IsBlack(to)) {
+    if (atomic_marking_state()->IsBlack(to)) {
       DCHECK(black_allocation());
       return;
     }
 
-    DCHECK(marking_state()->IsWhite(to));
-    if (marking_state()->IsGrey(from)) {
-      bool success = marking_state()->WhiteToGrey(to);
+    DCHECK(atomic_marking_state()->IsWhite(to));
+    if (atomic_marking_state()->IsGrey(from)) {
+      bool success = atomic_marking_state()->WhiteToGrey(to);
       DCHECK(success);
       USE(success);
-    } else if (marking_state()->IsBlack(from)) {
-      bool success = marking_state()->WhiteToBlack(to);
+    } else if (atomic_marking_state()->IsBlack(from)) {
+      bool success = atomic_marking_state()->WhiteToBlack(to);
       DCHECK(success);
       USE(success);
     }
@@ -352,6 +357,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   Observer old_generation_observer_;
 
   MarkCompactCollector::MarkingState* marking_state_;
+  MarkCompactCollector::AtomicMarkingState* atomic_marking_state_;
   MarkCompactCollector::NonAtomicMarkingState* non_atomic_marking_state_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
