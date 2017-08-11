@@ -1216,8 +1216,13 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
     DCHECK_NE(var, kDummyPreParserVariable);
     if (var == nullptr) {
       var = DeclareLocal(name, mode);
+    } else if (IsLexicalVariableMode(mode) ||
+               IsLexicalVariableMode(var->mode())) {
+      // Duplicate functions are allowed in the sloppy mode, but if this is not
+      // a function declaration, it's an error. This is an error PreParser
+      // hasn't previously detected. TODO(marja): Investigate whether we can now
+      // start returning this error.
     } else if (mode == VAR) {
-      DCHECK_EQ(var->mode(), VAR);
       var->set_maybe_assigned();
     }
     var->set_is_used();

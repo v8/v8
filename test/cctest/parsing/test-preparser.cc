@@ -768,3 +768,23 @@ TEST(PreParserScopeAnalysis) {
     }
   }
 }
+
+// Regression test for
+// https://bugs.chromium.org/p/chromium/issues/detail?id=753896. Should not
+// crash.
+TEST(Regress753896) {
+  i::FLAG_experimental_preparser_scope_analysis = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  i::Handle<i::String> source = factory->InternalizeUtf8String(
+      "function lazy() { let v = 0; if (true) { var v = 0; } }");
+  i::Handle<i::Script> script = factory->NewScript(source);
+  i::ParseInfo info(script);
+
+  // We don't assert that parsing succeeded or that it failed; currently the
+  // error is not detected inside lazy functions, but it might be in the future.
+  i::parsing::ParseProgram(&info, isolate);
+}
