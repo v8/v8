@@ -49,14 +49,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddApiReferences(isolate);
 }
 
-ExternalReferenceTable::~ExternalReferenceTable() {
-#ifdef SYMBOLIZE_FUNCTION
-  for (char** table : symbol_tables_) {
-    free(table);
-  }
-#endif
-}
-
 #ifdef DEBUG
 void ExternalReferenceTable::ResetCount() {
   for (ExternalReferenceEntry& entry : refs_) entry.count = 0;
@@ -70,12 +62,14 @@ void ExternalReferenceTable::PrintCount() {
 }
 #endif  // DEBUG
 
-const char* ExternalReferenceTable::ResolveSymbol(void* address,
-                                                  std::vector<char**>* tables) {
+const char* ExternalReferenceTable::ResolveSymbol(void* address) {
 #ifdef SYMBOLIZE_FUNCTION
-  char** table = backtrace_symbols(&address, 1);
-  if (tables) tables->push_back(table);
-  return table[0];
+  char** names = backtrace_symbols(&address, 1);
+  const char* name = names[0];
+  // The array of names is malloc'ed. However, each name string is static
+  // and do not need to be freed.
+  free(names);
+  return name;
 #else
   return "<unresolved>";
 #endif  // SYMBOLIZE_FUNCTION
@@ -468,11 +462,7 @@ void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {
       Address address = reinterpret_cast<Address>(*api_external_references);
-#ifdef SYMBOLIZE_FUNCTION
-      Add(address, ResolveSymbol(address, &symbol_tables_));
-#else
       Add(address, ResolveSymbol(address));
-#endif
       api_external_references++;
     }
   }

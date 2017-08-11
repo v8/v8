@@ -21,7 +21,6 @@ class Isolate;
 class ExternalReferenceTable {
  public:
   static ExternalReferenceTable* instance(Isolate* isolate);
-  ~ExternalReferenceTable();
 
   uint32_t size() const { return static_cast<uint32_t>(refs_.length()); }
   Address address(uint32_t i) { return refs_[i].address; }
@@ -36,8 +35,7 @@ class ExternalReferenceTable {
   void PrintCount();
 #endif  // DEBUG
 
-  static const char* ResolveSymbol(void* address,
-                                   std::vector<char**>* = nullptr);
+  static const char* ResolveSymbol(void* address);
 
  private:
   struct ExternalReferenceEntry {
@@ -68,9 +66,6 @@ class ExternalReferenceTable {
   void AddApiReferences(Isolate* isolate);
 
   List<ExternalReferenceEntry> refs_;
-#ifdef DEBUG
-  std::vector<char**> symbol_tables_;
-#endif
   uint32_t api_refs_start_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
