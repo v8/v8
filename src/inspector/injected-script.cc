@@ -137,8 +137,7 @@ class InjectedScript::ProtocolPromiseHandler {
       data.GetParameter()->m_wrapper.Reset();
       data.SetSecondPassCallback(cleanup);
     } else {
-      data.GetParameter()->m_callback->sendFailure(
-          Response::Error("Promise was collected"));
+      data.GetParameter()->sendPromiseCollected();
       delete data.GetParameter();
     }
   }
@@ -217,6 +216,19 @@ class InjectedScript::ProtocolPromiseHandler {
     if (stack && !stack->isEmpty())
       exceptionDetails->setScriptId(toString16(stack->topScriptId()));
     callback->sendSuccess(std::move(wrappedValue), std::move(exceptionDetails));
+  }
+
+  void sendPromiseCollected() {
+    V8InspectorSessionImpl* session =
+        m_inspector->sessionById(m_contextGroupId, m_sessionId);
+    if (!session) return;
+    InjectedScript::ContextScope scope(session, m_executionContextId);
+    Response response = scope.initialize();
+    if (!response.isSuccess()) return;
+    std::unique_ptr<EvaluateCallback> callback =
+        scope.injectedScript()->takeEvaluateCallback(m_callback);
+    if (!callback) return;
+    callback->sendFailure(Response::Error("Promise was collected"));
   }
 
   V8InspectorImpl* m_inspector;

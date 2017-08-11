@@ -129,10 +129,12 @@ InspectorTest.runAsyncTestSuite([
   async function testImmediatelyResolvedAfterAfterContextDestroyed()
   {
     Protocol.Runtime.evaluate({
-      expression: 'a = new Promise(() => 42)',
+      expression: 'new Promise(() => 42)',
       awaitPromise: true }).then(InspectorTest.logMessage);
     InspectorTest.log('Destroying context..');
     await Protocol.Runtime.evaluate({expression: 'inspector.fireContextDestroyed()'});
     InspectorTest.log('Context destroyed');
+    InspectorTest.log('Triggering weak callback..');
+    await Protocol.HeapProfiler.collectGarbage();
   }
 ]);
