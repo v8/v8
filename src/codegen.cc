@@ -99,9 +99,13 @@ void CodeGenerator::MakeCodePrologue(ParseInfo* parse_info,
 
   if (!FLAG_trace_codegen && !print_ast) return;
 
-  // Requires internalizing the AST, so make sure we are on the main thread.
+  // Requires internalizing the AST, so make sure we are on the main thread and
+  // allow handle dereference and allocations.
+  // TODO(rmcilroy): Make ast-printer print ast raw strings instead of
+  // internalized strings to avoid internalizing here.
   DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
-  AllowDeferredHandleDereference allow_deref;
+  AllowHandleDereference allow_deref;
+  AllowHandleAllocation allow_handles;
   AllowHeapAllocation allow_gc;
   parse_info->ast_value_factory()->Internalize(info->isolate());
 

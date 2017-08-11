@@ -255,14 +255,13 @@ void EnsureFeedbackMetadata(CompilationInfo* compilation_info) {
       compilation_info->literal()->feedback_vector_spec()));
 }
 
-bool UseAsmWasm(FunctionLiteral* literal,
-                Handle<SharedFunctionInfo> shared_info, bool is_debug) {
+bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken, bool is_debug) {
   // Check whether asm.js validation is enabled.
   if (!FLAG_validate_asm) return false;
 
   // Modules that have validated successfully, but were subsequently broken by
   // invalid module instantiation attempts are off limit forever.
-  if (!shared_info.is_null() && shared_info->is_asm_wasm_broken()) return false;
+  if (asm_wasm_broken) return false;
 
   // Compiling for debugging is not supported, fall back.
   if (is_debug) return false;
@@ -316,7 +315,8 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info) {
 
   // Install coverage info on the shared function info.
   if (compilation_info->has_coverage_info()) {
-    DCHECK(compilation_info->is_block_coverage_enabled());
+    DCHECK(FLAG_block_coverage &&
+           compilation_info->isolate()->is_block_code_coverage());
     compilation_info->isolate()->debug()->InstallCoverageInfo(
         compilation_info->shared_info(), compilation_info->coverage_info());
   }
@@ -384,9 +384,9 @@ bool Renumber(ParseInfo* parse_info,
 }
 
 std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  if (UseAsmWasm(literal, shared_info, parse_info->is_debug())) {
+    ParseInfo* parse_info, FunctionLiteral* literal, Isolate* isolate) {
+  if (UseAsmWasm(literal, parse_info->is_asm_wasm_broken(),
+                 parse_info->is_debug())) {
     std::unique_ptr<CompilationJob> asm_job(
         AsmJs::NewCompilationJob(parse_info, literal, isolate));
     if (asm_job->PrepareJob() == CompilationJob::SUCCEEDED &&
@@ -409,40 +409,44 @@ std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
   return std::unique_ptr<CompilationJob>();  // Compilation failed, return null.
 }
 
-Handle<SharedFunctionInfo> CompileUnoptimizedCode(
-    ParseInfo* parse_info, Handle<SharedFunctionInfo> shared_info,
-    Isolate* isolate) {
-  DCHECK(AllowCompilation::IsAllowed(isolate));
+// TODO(rmcilroy): Remove |isolate| once CompilationJob doesn't need it.
+std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
+    ParseInfo* parse_info, Isolate* isolate,
+    std::forward_list<std::unique_ptr<CompilationJob>>* inner_function_jobs) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+  DCHECK(inner_function_jobs->empty());
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
   if (!Compiler::Analyze(parse_info, &inner_literals)) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return Handle<SharedFunctionInfo>::null();
+    return std::unique_ptr<CompilationJob>();
   }
 
   // Prepare and execute compilation of the outer-most function.
-  std::unique_ptr<CompilationJob> outer_job(
+  std::unique_ptr<CompilationJob> outer_function_job(
       PrepareAndExecuteUnoptimizedCompileJob(parse_info, parse_info->literal(),
-                                             shared_info, isolate));
-  if (!outer_job) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return Handle<SharedFunctionInfo>::null();
-  }
+                                             isolate));
+  if (!outer_function_job) return std::unique_ptr<CompilationJob>();
 
   // Prepare and execute compilation jobs for eager inner functions.
-  std::forward_list<std::unique_ptr<CompilationJob>> inner_jobs;
   for (auto it : inner_literals) {
     FunctionLiteral* inner_literal = it->value();
     std::unique_ptr<CompilationJob> inner_job(
-        PrepareAndExecuteUnoptimizedCompileJob(
-            parse_info, inner_literal, Handle<SharedFunctionInfo>::null(),
-            isolate));
-    if (!inner_job) {
-      if (!isolate->has_pending_exception()) isolate->StackOverflow();
-      return Handle<SharedFunctionInfo>::null();
-    }
-    inner_jobs.emplace_front(std::move(inner_job));
+        PrepareAndExecuteUnoptimizedCompileJob(parse_info, inner_literal,
+                                               isolate));
+    if (!inner_job) return std::unique_ptr<CompilationJob>();
+    inner_function_jobs->emplace_front(std::move(inner_job));
   }
+
+  return outer_function_job;
+}
+
+bool FinalizeUnoptimizedCode(
+    ParseInfo* parse_info, Isolate* isolate,
+    Handle<SharedFunctionInfo> shared_info, CompilationJob* outer_function_job,
+    std::forward_list<std::unique_ptr<CompilationJob>>* inner_function_jobs) {
+  DCHECK(AllowCompilation::IsAllowed(isolate));
 
   // Internalize ast values onto the heap.
   parse_info->ast_value_factory()->Internalize(isolate);
@@ -465,15 +469,14 @@ Handle<SharedFunctionInfo> CompileUnoptimizedCode(
   }
 
   // Finalize the outer-most function's compilation job.
-  outer_job->compilation_info()->set_shared_info(shared_info);
-  if (FinalizeUnoptimizedCompilationJob(outer_job.get()) !=
+  outer_function_job->compilation_info()->set_shared_info(shared_info);
+  if (FinalizeUnoptimizedCompilationJob(outer_function_job) !=
       CompilationJob::SUCCEEDED) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return Handle<SharedFunctionInfo>::null();
+    return false;
   }
 
   // Finalize the inner functions' compilation jobs.
-  for (auto&& inner_job : inner_jobs) {
+  for (auto&& inner_job : *inner_function_jobs) {
     Handle<SharedFunctionInfo> inner_shared_info =
         Compiler::GetSharedFunctionInfo(
             inner_job->compilation_info()->literal(), parse_info->script(),
@@ -484,13 +487,10 @@ Handle<SharedFunctionInfo> CompileUnoptimizedCode(
     inner_job->compilation_info()->set_shared_info(inner_shared_info);
     if (FinalizeUnoptimizedCompilationJob(inner_job.get()) !=
         CompilationJob::SUCCEEDED) {
-      if (!isolate->has_pending_exception()) isolate->StackOverflow();
-      return Handle<SharedFunctionInfo>::null();
+      return false;
     }
   }
-
-  // Compilation succeeded, return result.
-  return shared_info;
+  return true;
 }
 
 MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
@@ -506,15 +506,24 @@ MUST_USE_RESULT MaybeHandle<Code> CompileUnoptimizedFunction(
     return MaybeHandle<Code>();
   }
 
-  // Compile either unoptimized code or bytecode for the interpreter.
-  Handle<SharedFunctionInfo> result =
-      CompileUnoptimizedCode(parse_info, shared_info, isolate);
-  if (result.is_null()) {
+  // Generate the unoptimized bytecode or asm-js data.
+  std::forward_list<std::unique_ptr<CompilationJob>> inner_function_jobs;
+  std::unique_ptr<CompilationJob> outer_function_job(
+      GenerateUnoptimizedCode(parse_info, isolate, &inner_function_jobs));
+  if (!outer_function_job) {
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return MaybeHandle<Code>();
   }
-  DCHECK(shared_info.is_identical_to(result));
 
-  return handle(result->code(), isolate);
+  // Finalize compilation of the unoptimized bytecode or asm-js data.
+  if (!FinalizeUnoptimizedCode(parse_info, isolate, shared_info,
+                               outer_function_job.get(),
+                               &inner_function_jobs)) {
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return MaybeHandle<Code>();
+  }
+
+  return handle(shared_info->code(), isolate);
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
@@ -906,11 +915,23 @@ Handle<SharedFunctionInfo> CompileToplevel(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
-    // Compile the code.
-    result = CompileUnoptimizedCode(parse_info, shared_info, isolate);
-    if (result.is_null()) {
+    // Generate the unoptimized bytecode or asm-js data.
+    std::forward_list<std::unique_ptr<CompilationJob>> inner_function_jobs;
+    std::unique_ptr<CompilationJob> outer_function_job(
+        GenerateUnoptimizedCode(parse_info, isolate, &inner_function_jobs));
+    if (!outer_function_job) {
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
       return Handle<SharedFunctionInfo>::null();
     }
+
+    // Finalize compilation of the unoptimized bytecode or asm-js data.
+    if (!FinalizeUnoptimizedCode(parse_info, isolate, shared_info,
+                                 outer_function_job.get(),
+                                 &inner_function_jobs)) {
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+      return Handle<SharedFunctionInfo>::null();
+    }
+    result = outer_function_job->compilation_info()->shared_info();
     DCHECK_IMPLIES(!shared_info.is_null(), shared_info.is_identical_to(result));
 
     if (!script.is_null()) {

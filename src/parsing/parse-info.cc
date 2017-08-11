@@ -57,6 +57,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
   set_module(shared->kind() == FunctionKind::kModule);
+  set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
@@ -76,6 +77,9 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
       shared->feedback_metadata()->length() == 0
           ? FLAG_type_profile && script->IsUserJavaScript()
           : shared->feedback_metadata()->HasTypeProfileSlot());
+  if (block_coverage_enabled() && script->IsUserJavaScript()) {
+    AllocateSourceRangeMap();
+  }
 }
 
 ParseInfo::ParseInfo(Handle<Script> script)
@@ -90,6 +94,9 @@ ParseInfo::ParseInfo(Handle<Script> script)
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
 
   set_collect_type_profile(FLAG_type_profile && script->IsUserJavaScript());
+  if (block_coverage_enabled() && script->IsUserJavaScript()) {
+    AllocateSourceRangeMap();
+  }
 }
 
 // static
@@ -145,7 +152,7 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_ast_string_constants(isolate->ast_string_constants());
   if (FLAG_block_coverage && isolate->is_block_code_coverage()) {
-    set_source_range_map(new (zone()) SourceRangeMap(zone()));
+    set_block_coverage_enabled();
   }
 }
 
@@ -199,11 +206,10 @@ void ParseInfo::ShareAstValueFactory(ParseInfo* other) {
   ast_value_factory_ = other->ast_value_factory_;
 }
 
-#ifdef DEBUG
-bool ParseInfo::script_is_native() const {
-  return script_->type() == Script::TYPE_NATIVE;
+void ParseInfo::AllocateSourceRangeMap() {
+  DCHECK(block_coverage_enabled());
+  set_source_range_map(new (zone()) SourceRangeMap(zone()));
 }
-#endif  // DEBUG
 
 }  // namespace internal
 }  // namespace v8

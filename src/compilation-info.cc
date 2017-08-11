@@ -30,26 +30,10 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   literal_ = literal;
   source_range_map_ = parse_info->source_range_map();
 
-  // Collect source positions for optimized code when profiling or if debugger
-  // is active, to be able to get more precise source positions at the price of
-  // more memory consumption.
-  if (isolate_->NeedsSourcePositionsForProfiling()) {
-    MarkAsSourcePositionsEnabled();
-  }
-
-  if (FLAG_block_coverage && isolate->is_block_code_coverage() &&
-      script_->IsUserJavaScript()) {
-    MarkAsBlockCoverageEnabled();
-  }
-
   if (parse_info->is_debug()) MarkAsDebug();
   if (parse_info->is_eval()) MarkAsEval();
   if (parse_info->is_native()) MarkAsNative();
   if (parse_info->will_serialize()) MarkAsSerializing();
-  if (script_->type() == Script::TYPE_NATIVE) MarkAsNative();
-  if (script_->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
-    MarkAsEval();
-  }
 }
 
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,

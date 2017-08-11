@@ -8,6 +8,7 @@
 
 #include "src/accessors.h"
 #include "src/ast/ast.h"
+#include "src/base/optional.h"
 #include "src/bootstrapper.h"
 #include "src/counters.h"
 #include "src/messages.h"
@@ -651,6 +652,12 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
 
+  base::Optional<AllowHandleDereference> allow_deref;
+  if (!info->maybe_outer_scope_info().is_null()) {
+    // Allow dereferences to the scope info if there is one.
+    allow_deref.emplace();
+  }
+
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode())) {
     AstNodeFactory factory(info->ast_value_factory(), info->zone());
     scope->HoistSloppyBlockFunctions(&factory);
@@ -678,8 +685,7 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   scope->AllocateVariables(info);
 
 #ifdef DEBUG
-  if (info->script_is_native() ? FLAG_print_builtin_scopes
-                               : FLAG_print_scopes) {
+  if (info->is_native() ? FLAG_print_builtin_scopes : FLAG_print_scopes) {
     PrintF("Global scope:\n");
     scope->Print();
   }
@@ -1978,7 +1984,7 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 
 void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 #ifdef DEBUG
-  if (info->script_is_native()) {
+  if (info->is_native()) {
     // To avoid polluting the global object in native scripts
     //  - Variables must not be allocated to the global scope.
     CHECK_NOT_NULL(outer_scope());

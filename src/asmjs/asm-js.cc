@@ -213,6 +213,14 @@ class AsmJsCompilationJob final : public CompilationJob {
 };
 
 CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
+  // TODO(rmcilroy): Temporarily allow heap access here until we use a
+  // off-heap ScannerStream.
+  DCHECK(
+      ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
+  AllowHeapAllocation allow_allocation;
+  AllowHandleAllocation allow_handles;
+  AllowHandleDereference allow_deref;
+
   // Step 1: Translate asm.js module to WebAssembly module.
   HistogramTimerScope translate_time_scope(
       compilation_info()->isolate()->counters()->asm_wasm_translation_time());

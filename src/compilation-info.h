@@ -40,15 +40,14 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kIsEval = 1 << 1,
     kIsNative = 1 << 2,
     kSerializing = 1 << 3,
-    kBlockCoverageEnabled = 1 << 4,
-    kAccessorInliningEnabled = 1 << 5,
-    kFunctionContextSpecializing = 1 << 6,
-    kInliningEnabled = 1 << 7,
-    kDisableFutureOptimization = 1 << 8,
-    kSplittingEnabled = 1 << 9,
-    kSourcePositionsEnabled = 1 << 10,
-    kBailoutOnUninitialized = 1 << 11,
-    kLoopPeelingEnabled = 1 << 12,
+    kAccessorInliningEnabled = 1 << 4,
+    kFunctionContextSpecializing = 1 << 5,
+    kInliningEnabled = 1 << 6,
+    kDisableFutureOptimization = 1 << 7,
+    kSplittingEnabled = 1 << 8,
+    kSourcePositionsEnabled = 1 << 9,
+    kBailoutOnUninitialized = 1 << 10,
+    kLoopPeelingEnabled = 1 << 11,
   };
 
   // Construct a compilation info for unoptimized compilation.
@@ -71,6 +70,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     literal_ = literal;
   }
 
+  bool has_source_range_map() const { return source_range_map_ != nullptr; }
   SourceRangeMap* source_range_map() const { return source_range_map_; }
   void set_source_range_map(SourceRangeMap* source_range_map) {
     source_range_map_ = source_range_map;
@@ -121,11 +121,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   void MarkAsNative() { SetFlag(kIsNative); }
   bool is_native() const { return GetFlag(kIsNative); }
-
-  void MarkAsBlockCoverageEnabled() { SetFlag(kBlockCoverageEnabled); }
-  bool is_block_coverage_enabled() const {
-    return GetFlag(kBlockCoverageEnabled);
-  }
 
   // Flags used by optimized compilation.
 

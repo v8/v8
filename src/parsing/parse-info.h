@@ -78,6 +78,9 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
   FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
+  FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
+  FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
+                set_block_coverage_enabled)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -203,6 +206,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
     runtime_call_stats_ = runtime_call_stats;
   }
 
+  void AllocateSourceRangeMap();
   SourceRangeMap* source_range_map() const { return source_range_map_; }
   void set_source_range_map(SourceRangeMap* source_range_map) {
     source_range_map_ = source_range_map;
@@ -251,10 +255,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
 
   void ParseFinished(std::unique_ptr<ParseInfo> info) override;
 
-#ifdef DEBUG
-  bool script_is_native() const;
-#endif  // DEBUG
-
  private:
   // Various configuration flags for parsing.
   enum Flag {
@@ -272,6 +272,8 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
     kSerializing = 1 << 10,
     kLazyCompile = 1 << 11,
     kCollectTypeProfile = 1 << 12,
+    kBlockCoverageEnabled = 1 << 13,
+    kIsAsmWasmBroken = 1 << 14,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

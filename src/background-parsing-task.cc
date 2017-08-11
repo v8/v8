@@ -43,6 +43,9 @@ BackgroundParsingTask::BackgroundParsingTask(
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
   }
+  if (V8_UNLIKELY(info->block_coverage_enabled())) {
+    info->AllocateSourceRangeMap();
+  }
 
   source_->info->set_cached_data(&script_data_);
   // Parser needs to stay alive for finalizing the parsing on the main

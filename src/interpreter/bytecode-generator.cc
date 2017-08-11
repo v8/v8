@@ -772,7 +772,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       loop_depth_(0),
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
-  if (info->is_block_coverage_enabled()) {
+  if (info->has_source_range_map()) {
     DCHECK(FLAG_block_coverage);
     block_coverage_builder_ = new (zone())
         BlockCoverageBuilder(zone(), builder(), info->source_range_map());
@@ -784,7 +784,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
 
   AllocateDeferredConstants(isolate);
 
-  if (info()->is_block_coverage_enabled()) {
+  if (block_coverage_builder_) {
     info()->set_coverage_info(
         isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
     if (FLAG_trace_block_coverage) {
