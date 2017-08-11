@@ -95,9 +95,8 @@ class MyRandomNumberGenerator {
   uint32_t i;
 };
 
-
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
@@ -1667,3 +1666,6 @@ TEST(ExternalStringIndexOf) {
                    ->Int32Value(context.local())
                    .FromJust());
 }
+
+}  // namespace internal
+}  // namespace v8

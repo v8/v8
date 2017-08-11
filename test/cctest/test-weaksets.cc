@@ -42,7 +42,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -242,3 +243,6 @@ TEST(WeakSet_Regress2060b) {
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 }
+
+}  // namespace internal
+}  // namespace v8

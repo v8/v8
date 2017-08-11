@@ -14,7 +14,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 namespace {
 
@@ -668,3 +669,6 @@ TEST(StoreOwnIC) {
 }
 
 }  // namespace
+
+}  // namespace internal
+}  // namespace v8

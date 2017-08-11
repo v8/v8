@@ -10,10 +10,6 @@
 #include "src/list-inl.h"
 #include "test/cctest/cctest.h"
 
-using v8::IdleTask;
-using v8::Task;
-using v8::Isolate;
-
 #include "src/tracing/trace-event.h"
 
 #define GET_TRACE_OBJECTS_LIST platform.GetMockTraceObjects()

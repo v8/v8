@@ -35,7 +35,8 @@
 #include "src/zone/accounting-allocator.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(List) {
   v8::V8::Initialize();
@@ -65,3 +66,6 @@ TEST(List) {
   CHECK_EQ(0, list->length());
   delete list;
 }
+
+}  // namespace internal
+}  // namespace v8

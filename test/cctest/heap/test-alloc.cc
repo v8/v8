@@ -35,8 +35,6 @@
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
-
 namespace v8 {
 namespace internal {
 namespace heap {

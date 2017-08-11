@@ -19,7 +19,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-transitions.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(TransitionArray_SimpleFieldTransitions) {
   CcTest::InitializeVM();
@@ -302,3 +303,6 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
 
   DCHECK(transitions.IsSortedNoDuplicates());
 }
+
+}  // namespace internal
+}  // namespace v8

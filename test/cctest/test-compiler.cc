@@ -38,7 +38,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static Handle<Object> GetGlobalProperty(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
@@ -705,3 +706,6 @@ TEST(InvocationCount) {
   CompileRun("foo(); foo()");
   CHECK_EQ(4, foo->feedback_vector()->invocation_count());
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -89,8 +89,8 @@
 #endif  // V8_INTERPRETED_REGEXP
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static bool CheckParse(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
@@ -2032,3 +2032,6 @@ TEST(UncachedExternalString) {
   CompileRun("var re = /y(.)/; re.test('ab');");
   ExpectString("external.substring(1).match(re)[1]", "z");
 }
+
+}  // namespace internal
+}  // namespace v8

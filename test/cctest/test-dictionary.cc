@@ -39,7 +39,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 namespace {
 
@@ -310,3 +311,6 @@ TEST(MaximumClonedShallowObjectProperties) {
 }
 
 }  // namespace
+
+}  // namespace internal
+}  // namespace v8

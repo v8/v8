@@ -22,8 +22,8 @@
 #include "src/property.h"
 #include "src/transitions.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 // TODO(ishell): fix this once TransitionToPrototype stops generalizing
 // all field representations (similar to crbug/448711 where elements kind
@@ -2739,3 +2739,6 @@ TEST(HoleyMutableHeapNumber) {
   CHECK(obj->IsMutableHeapNumber());
   CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
 }
+
+}  // namespace internal
+}  // namespace v8

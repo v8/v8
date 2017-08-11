@@ -38,8 +38,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 #define __ assm.
 
@@ -959,3 +959,6 @@ TEST(DisasmX64) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

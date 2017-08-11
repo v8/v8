@@ -7,7 +7,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -909,3 +910,6 @@ TEST(OrderedHashSetDuplicateHashCodeDeletion) {
   CHECK(OrderedHashSet::HasKey(isolate, *set, *key1));
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key2));
 }
+
+}  // namespace internal
+}  // namespace v8
