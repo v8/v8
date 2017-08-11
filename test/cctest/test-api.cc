@@ -271,6 +271,9 @@ THREADED_TEST(ReceiverSignature) {
       v8::FunctionTemplate::New(isolate, IncrementingSignatureCallback);
   v8::Local<v8::FunctionTemplate> sub_fun = v8::FunctionTemplate::New(isolate);
   sub_fun->Inherit(fun);
+  v8::Local<v8::FunctionTemplate> direct_sub_fun =
+      v8::FunctionTemplate::New(isolate);
+  direct_sub_fun->Inherit(fun);
   v8::Local<v8::FunctionTemplate> unrel_fun =
       v8::FunctionTemplate::New(isolate);
   // Install properties.
@@ -285,6 +288,17 @@ THREADED_TEST(ReceiverSignature) {
       fun->InstanceTemplate()->NewInstance(env.local()).ToLocalChecked();
   Local<Value> sub_fun_instance =
       sub_fun->InstanceTemplate()->NewInstance(env.local()).ToLocalChecked();
+  // Instance template with properties.
+  v8::Local<v8::ObjectTemplate> direct_instance_templ =
+      direct_sub_fun->InstanceTemplate();
+  direct_instance_templ->Set(v8_str("prop_sig"), callback_sig);
+  direct_instance_templ->Set(v8_str("prop"), callback);
+  direct_instance_templ->SetAccessorProperty(v8_str("accessor_sig"),
+                                             callback_sig, callback_sig);
+  direct_instance_templ->SetAccessorProperty(v8_str("accessor"), callback,
+                                             callback);
+  Local<Value> direct_instance =
+      direct_instance_templ->NewInstance(env.local()).ToLocalChecked();
   // Setup global variables.
   CHECK(env->Global()
             ->Set(env.local(), v8_str("Fun"),
@@ -299,6 +313,9 @@ THREADED_TEST(ReceiverSignature) {
             .FromJust());
   CHECK(env->Global()
             ->Set(env.local(), v8_str("sub_fun_instance"), sub_fun_instance)
+            .FromJust());
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("direct_instance"), direct_instance)
             .FromJust());
   CompileRun(
       "var accessor_sig_key = 'accessor_sig';"
@@ -320,11 +337,13 @@ THREADED_TEST(ReceiverSignature) {
       "copy_props(plain);"
       "var unrelated = new UnrelFun();"
       "copy_props(unrelated);"
-      "var inherited = { __proto__: fun_instance };");
+      "var inherited = { __proto__: fun_instance };"
+      "var inherited_direct = { __proto__: direct_instance };");
   // Test with and without ICs
-  const char* test_objects[] = {"fun_instance", "sub_fun_instance", "plain",
-                                "unrelated", "inherited"};
-  unsigned bad_signature_start_offset = 2;
+  const char* test_objects[] = {
+      "fun_instance", "sub_fun_instance", "direct_instance", "plain",
+      "unrelated",    "inherited",        "inherited_direct"};
+  unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
     i::ScopedVector<char> source(200);
     i::SNPrintF(
