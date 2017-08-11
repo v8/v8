@@ -45,8 +45,17 @@ class SparseSidetable {
  public:
   explicit SparseSidetable(Zone* zone, T def_value = T())
       : def_value_(std::move(def_value)), map_(zone) {}
-  T& operator[](const Node* node) {
-    return map_.insert(std::make_pair(node->id(), def_value_)).first->second;
+  void Set(const Node* node, T value) {
+    auto iter = map_.find(node->id());
+    if (iter != map_.end()) {
+      iter->second = std::move(value);
+    } else if (value != def_value_) {
+      map_.insert(iter, std::make_pair(node->id(), std::move(value)));
+    }
+  }
+  const T& Get(const Node* node) const {
+    auto iter = map_.find(node->id());
+    return iter != map_.end() ? iter->second : def_value_;
   }
 
  private:
@@ -109,7 +118,7 @@ class VariableTracker {
  public:
   VariableTracker(JSGraph* graph, EffectGraphReducer* reducer, Zone* zone);
   Variable NewVariable() { return Variable(next_variable_++); }
-  Node* Get(Variable var, Node* effect) { return table_[effect].Get(var); }
+  Node* Get(Variable var, Node* effect) { return table_.Get(effect).Get(var); }
   Zone* zone() { return zone_; }
 
   class Scope : public ReduceScope {
@@ -156,14 +165,14 @@ class EscapeAnalysisTracker : public ZoneObject {
           tracker_(tracker),
           reducer_(reducer) {}
     const VirtualObject* GetVirtualObject(Node* node) {
-      VirtualObject* vobject = tracker_->virtual_objects_[node];
+      VirtualObject* vobject = tracker_->virtual_objects_.Get(node);
       if (vobject) vobject->AddDependency(current_node());
       return vobject;
     }
     // Create or retrieve a virtual object for the current node.
     const VirtualObject* InitVirtualObject(int size) {
       DCHECK(current_node()->opcode() == IrOpcode::kAllocate);
-      VirtualObject* vobject = tracker_->virtual_objects_[current_node()];
+      VirtualObject* vobject = tracker_->virtual_objects_.Get(current_node());
       if (vobject) {
         CHECK(vobject->size() == size);
       } else {
@@ -175,11 +184,11 @@ class EscapeAnalysisTracker : public ZoneObject {
     }
 
     void SetVirtualObject(Node* object) {
-      vobject_ = tracker_->virtual_objects_[object];
+      vobject_ = tracker_->virtual_objects_.Get(object);
     }
 
     void SetEscaped(Node* node) {
-      if (VirtualObject* object = tracker_->virtual_objects_[node]) {
+      if (VirtualObject* object = tracker_->virtual_objects_.Get(node)) {
         if (object->HasEscaped()) return;
         TRACE("Setting %s#%d to escaped because of use by %s#%d\n",
               node->op()->mnemonic(), node->id(),
@@ -202,7 +211,7 @@ class EscapeAnalysisTracker : public ZoneObject {
     void SetReplacement(Node* replacement) {
       replacement_ = replacement;
       vobject_ =
-          replacement ? tracker_->virtual_objects_[replacement] : nullptr;
+          replacement ? tracker_->virtual_objects_.Get(replacement) : nullptr;
       TRACE("Set %s#%d as replacement.\n", replacement->op()->mnemonic(),
             replacement->id());
     }
@@ -211,11 +220,11 @@ class EscapeAnalysisTracker : public ZoneObject {
 
     ~Scope() {
       if (replacement_ != tracker_->replacements_[current_node()] ||
-          vobject_ != tracker_->virtual_objects_[current_node()]) {
+          vobject_ != tracker_->virtual_objects_.Get(current_node())) {
         reduction()->set_value_changed();
       }
       tracker_->replacements_[current_node()] = replacement_;
-      tracker_->virtual_objects_[current_node()] = vobject_;
+      tracker_->virtual_objects_.Set(current_node(), vobject_);
     }
 
    private:
@@ -351,7 +360,7 @@ VariableTracker::Scope::Scope(VariableTracker* states, Node* node,
       int effect_inputs = node->op()->EffectInputCount();
       if (effect_inputs == 1) {
         current_state_ =
-            states_->table_[NodeProperties::GetEffectInput(node, 0)];
+            states_->table_.Get(NodeProperties::GetEffectInput(node, 0));
       } else {
         DCHECK_EQ(0, effect_inputs);
       }
@@ -360,10 +369,10 @@ VariableTracker::Scope::Scope(VariableTracker* states, Node* node,
 
 VariableTracker::Scope::~Scope() {
   if (!reduction()->effect_changed() &&
-      states_->table_[current_node()] != current_state_) {
+      states_->table_.Get(current_node()) != current_state_) {
     reduction()->set_effect_changed();
   }
-  states_->table_[current_node()] = current_state_;
+  states_->table_.Set(current_node(), current_state_);
 }
 
 VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
@@ -382,7 +391,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
   bool is_loop = control->opcode() == IrOpcode::kLoop;
   buffer_.reserve(arity + 1);
 
-  State first_input = table_[NodeProperties::GetEffectInput(effect_phi, 0)];
+  State first_input = table_.Get(NodeProperties::GetEffectInput(effect_phi, 0));
   State result = first_input;
   for (std::pair<Variable, Node*> var_value : first_input) {
     if (Node* value = var_value.second) {
@@ -395,7 +404,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
       TRACE("  input 0: %s#%d\n", value->op()->mnemonic(), value->id());
       for (int i = 1; i < arity; ++i) {
         Node* next_value =
-            table_[NodeProperties::GetEffectInput(effect_phi, i)].Get(var);
+            table_.Get(NodeProperties::GetEffectInput(effect_phi, i)).Get(var);
         if (next_value != value) identical_inputs = false;
         if (next_value != nullptr) {
           num_defined_inputs++;
@@ -407,7 +416,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
         buffer_.push_back(next_value);
       }
 
-      Node* old_value = table_[effect_phi].Get(var);
+      Node* old_value = table_.Get(effect_phi).Get(var);
       if (old_value) {
         TRACE("  old: %s#%d\n", old_value->op()->mnemonic(), old_value->id());
       } else {
@@ -684,7 +693,7 @@ Node* EscapeAnalysisResult::GetVirtualObjectField(const VirtualObject* vobject,
 }
 
 const VirtualObject* EscapeAnalysisResult::GetVirtualObject(Node* node) {
-  return tracker_->virtual_objects_[node];
+  return tracker_->virtual_objects_.Get(node);
 }
 
 VirtualObject::VirtualObject(VariableTracker* var_states, VirtualObject::Id id,
