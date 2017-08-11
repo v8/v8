@@ -811,7 +811,7 @@ bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
   return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
 }
 
-void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
+int IncrementalMarking::VisitObject(Map* map, HeapObject* obj) {
   DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
   // The object can already be black in two cases:
   // 1. The object is a fixed array with the progress bar.
@@ -826,7 +826,7 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);
   IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector());
-  visitor.Visit(map, obj);
+  return visitor.Visit(map, obj);
 }
 
 void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject* obj) {
@@ -860,11 +860,8 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
       DCHECK(!marking_state()->IsImpossible(obj));
       continue;
     }
-
-    Map* map = obj->map();
-    int size = obj->SizeFromMap(map);
     unscanned_bytes_of_large_object_ = 0;
-    VisitObject(map, obj, size);
+    int size = VisitObject(obj->map(), obj);
     bytes_processed += size - unscanned_bytes_of_large_object_;
   }
   // Report all found wrappers to the embedder. This is necessary as the

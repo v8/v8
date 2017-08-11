@@ -311,7 +311,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION));
 
   INLINE(bool IsFixedArrayWithProgressBar(HeapObject* object));
-  INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
+  // Visits the object and returns its size.
+  INLINE(int VisitObject(Map* map, HeapObject* obj));
 
   void RevisitObject(HeapObject* obj);
 
