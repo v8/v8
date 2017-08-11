@@ -126,7 +126,8 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
-        map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
+        map =
+            base::AsAtomicPointer::Relaxed_Load(reinterpret_cast<Map**>(addr));
         size = black_object->SizeFromMap(map);
         Address end = addr + size - kPointerSize;
         // One word filler objects do not borrow the second mark bit. We have
@@ -153,7 +154,8 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
           object = black_object;
         }
       } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
-        map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
+        map =
+            base::AsAtomicPointer::Relaxed_Load(reinterpret_cast<Map**>(addr));
         object = HeapObject::FromAddress(addr);
         size = object->SizeFromMap(map);
       }

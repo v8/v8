@@ -597,21 +597,18 @@ class MemoryChunk {
   void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
 
   Space* owner() const {
-    intptr_t owner_value = base::NoBarrierAtomicValue<intptr_t>::FromAddress(
-                               const_cast<Address*>(&owner_))
-                               ->Value();
-    if ((owner_value & kPageHeaderTagMask) == kPageHeaderTag) {
-      return reinterpret_cast<Space*>(owner_value - kPageHeaderTag);
-    } else {
-      return nullptr;
-    }
+    uintptr_t owner_value = base::AsAtomicWord::Relaxed_Load(
+        reinterpret_cast<const uintptr_t*>(&owner_));
+    return ((owner_value & kPageHeaderTagMask) == kPageHeaderTag)
+               ? reinterpret_cast<Space*>(owner_value - kPageHeaderTag)
+               : nullptr;
   }
 
   void set_owner(Space* space) {
-    DCHECK((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
+    DCHECK_EQ(0, reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask);
     owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
-    DCHECK((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
-           kPageHeaderTag);
+    DCHECK_EQ(kPageHeaderTag,
+              reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask);
   }
 
   bool HasPageHeader() { return owner() != nullptr; }
