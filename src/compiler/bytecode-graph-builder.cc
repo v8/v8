@@ -25,7 +25,9 @@ namespace compiler {
 class BytecodeGraphBuilder::Environment : public ZoneObject {
  public:
   Environment(BytecodeGraphBuilder* builder, int register_count,
-              int parameter_count, Node* control_dependency, Node* context);
+              int parameter_count,
+              interpreter::Register incoming_new_target_or_generator,
+              Node* control_dependency);
 
   // Specifies whether environment binding methods should attach frame state
   // inputs to nodes representing the value being bound. This is done because
@@ -123,15 +125,13 @@ struct BytecodeGraphBuilder::SubEnvironment final {
 // Issues:
 // - Scopes - intimately tied to AST. Need to eval what is needed.
 // - Need to resolve closure parameter treatment.
-BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
-                                               int register_count,
-                                               int parameter_count,
-                                               Node* control_dependency,
-                                               Node* context)
+BytecodeGraphBuilder::Environment::Environment(
+    BytecodeGraphBuilder* builder, int register_count, int parameter_count,
+    interpreter::Register incoming_new_target_or_generator,
+    Node* control_dependency)
     : builder_(builder),
       register_count_(register_count),
       parameter_count_(parameter_count),
-      context_(context),
       control_dependency_(control_dependency),
       effect_dependency_(control_dependency),
       values_(builder->local_zone()),
@@ -160,6 +160,22 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
   // Accumulator
   accumulator_base_ = static_cast<int>(values()->size());
   values()->push_back(undefined_constant);
+
+  // Context
+  int context_index = Linkage::GetJSCallContextParamIndex(parameter_count);
+  const Operator* op = common()->Parameter(context_index, "%context");
+  context_ = builder->graph()->NewNode(op, graph()->start());
+
+  // Incoming new.target or generator register
+  if (incoming_new_target_or_generator.is_valid()) {
+    int new_target_index =
+        Linkage::GetJSCallNewTargetParamIndex(parameter_count);
+    const Operator* op = common()->Parameter(new_target_index, "%new.target");
+    Node* new_target_node = builder->graph()->NewNode(op, graph()->start());
+
+    int values_index = RegisterToValuesIndex(incoming_new_target_or_generator);
+    values()->at(values_index) = new_target_node;
+  }
 }
 
 BytecodeGraphBuilder::Environment::Environment(
@@ -198,8 +214,6 @@ Node* BytecodeGraphBuilder::Environment::LookupRegister(
     return Context();
   } else if (the_register.is_function_closure()) {
     return builder()->GetFunctionClosure();
-  } else if (the_register.is_new_target()) {
-    return builder()->GetNewTarget();
   } else {
     int values_index = RegisterToValuesIndex(the_register);
     return values()->at(values_index);
@@ -461,30 +475,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       source_positions_(source_positions),
       start_position_(shared_info->start_position(), inlining_id) {}
 
-Node* BytecodeGraphBuilder::GetNewTarget() {
-  if (!new_target_.is_set()) {
-    int params = bytecode_array()->parameter_count();
-    int index = Linkage::GetJSCallNewTargetParamIndex(params);
-    const Operator* op = common()->Parameter(index, "%new.target");
-    Node* node = NewNode(op, graph()->start());
-    new_target_.set(node);
-  }
-  return new_target_.get();
-}
-
-
-Node* BytecodeGraphBuilder::GetFunctionContext() {
-  if (!function_context_.is_set()) {
-    int params = bytecode_array()->parameter_count();
-    int index = Linkage::GetJSCallContextParamIndex(params);
-    const Operator* op = common()->Parameter(index, "%context");
-    Node* node = NewNode(op, graph()->start());
-    function_context_.set(node);
-  }
-  return function_context_.get();
-}
-
-
 Node* BytecodeGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
     int index = Linkage::kJSCallClosureParamIndex;
@@ -495,7 +485,6 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
   return function_closure_.get();
 }
 
-
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   const Operator* op =
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
@@ -504,7 +493,6 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   NodeProperties::ReplaceContextInput(result, native_context);
   return result;
 }
-
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   return VectorSlotPair(feedback_vector(), feedback_vector()->ToSlot(slot_id));
@@ -520,8 +508,9 @@ void BytecodeGraphBuilder::CreateGraph() {
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
   Environment env(this, bytecode_array()->register_count(),
-                  bytecode_array()->parameter_count(), graph()->start(),
-                  GetFunctionContext());
+                  bytecode_array()->parameter_count(),
+                  bytecode_array()->incoming_new_target_or_generator_register(),
+                  graph()->start());
   set_environment(&env);
 
   VisitBytecodes();

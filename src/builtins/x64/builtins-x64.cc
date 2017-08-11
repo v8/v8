@@ -832,7 +832,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 //
 // The live registers are:
 //   o rdi: the JS function object being called
-//   o rdx: the new target
+//   o rdx: the incoming new target or generator object
 //   o rsi: our context
 //   o rbp: the caller's frame pointer
 //   o rsp: stack pointer (pointing to return address)
@@ -861,7 +861,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(rbp, rsp);
   __ Push(rsi);  // Callee's context.
   __ Push(rdi);  // Callee's JS function.
-  __ Push(rdx);  // Callee's new target.
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
@@ -915,9 +914,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
-    __ movp(rdx, rsp);
-    __ subp(rdx, rcx);
-    __ CompareRoot(rdx, Heap::kRealStackLimitRootIndex);
+    __ movp(rax, rsp);
+    __ subp(rax, rcx);
+    __ CompareRoot(rax, Heap::kRealStackLimitRootIndex);
     __ j(above_equal, &ok, Label::kNear);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -925,16 +924,28 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
     Label loop_check;
-    __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
     __ j(always, &loop_check);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
-    __ Push(rdx);
+    __ Push(rax);
     // Continue loop if not done.
     __ bind(&loop_check);
     __ subp(rcx, Immediate(kPointerSize));
     __ j(greater_equal, &loop_header, Label::kNear);
   }
+
+  // If the bytecode array has a valid incoming new target or generator object
+  // register, initialize it with incoming value which was passed in rdx.
+  Label no_incoming_new_target_or_generator_register;
+  __ movsxlq(
+      rax,
+      FieldOperand(kInterpreterBytecodeArrayRegister,
+                   BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+  __ testl(rax, rax);
+  __ j(zero, &no_incoming_new_target_or_generator_register, Label::kNear);
+  __ movp(Operand(rbp, rax, times_pointer_size, 0), rdx);
+  __ bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator and dispatch table into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);

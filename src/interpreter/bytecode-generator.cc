@@ -766,8 +766,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
+      incoming_new_target_or_generator_(),
       generator_jump_table_(nullptr),
-      generator_object_(),
       generator_state_(),
       loop_depth_(0),
       catch_prediction_(HandlerTable::UNCAUGHT) {
@@ -793,7 +793,14 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
   }
 
   if (HasStackOverflow()) return Handle<BytecodeArray>();
-  return builder()->ToBytecodeArray(isolate);
+  Handle<BytecodeArray> bytecode_array = builder()->ToBytecodeArray(isolate);
+
+  if (incoming_new_target_or_generator_.is_valid()) {
+    bytecode_array->set_incoming_new_target_or_generator_register(
+        incoming_new_target_or_generator_);
+  }
+
+  return bytecode_array;
 }
 
 void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
@@ -863,6 +870,8 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   ControlScopeForTopLevel control(this);
 
   RegisterAllocationScope register_scope(this);
+
+  AllocateTopLevelRegisters();
 
   if (info()->literal()->CanSuspend()) {
     BuildGeneratorPrologue();
@@ -935,6 +944,32 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   }
 }
 
+void BytecodeGenerator::AllocateTopLevelRegisters() {
+  if (info()->literal()->CanSuspend()) {
+    // Allocate a register for generator_state_.
+    generator_state_ = register_allocator()->NewRegister();
+    // Either directly use generator_object_var or allocate a new register for
+    // the incoming generator object.
+    Variable* generator_object_var = closure_scope()->generator_object_var();
+    if (generator_object_var->location() == VariableLocation::LOCAL) {
+      incoming_new_target_or_generator_ =
+          GetRegisterForLocalVariable(generator_object_var);
+    } else {
+      incoming_new_target_or_generator_ = register_allocator()->NewRegister();
+    }
+  } else if (closure_scope()->new_target_var()) {
+    // Either directly use new_target_var or allocate a new register for
+    // the incoming new target object.
+    Variable* new_target_var = closure_scope()->new_target_var();
+    if (new_target_var->location() == VariableLocation::LOCAL) {
+      incoming_new_target_or_generator_ =
+          GetRegisterForLocalVariable(new_target_var);
+    } else {
+      incoming_new_target_or_generator_ = register_allocator()->NewRegister();
+    }
+  }
+}
+
 void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
                                              LoopBuilder* loop_builder) {
   VisitIterationHeader(stmt->first_suspend_id(), stmt->suspend_count(),
@@ -976,21 +1011,14 @@ void BytecodeGenerator::VisitIterationHeader(int first_suspend_id,
 
 void BytecodeGenerator::BuildGeneratorPrologue() {
   DCHECK_GT(info()->literal()->suspend_count(), 0);
-
-  generator_object_ = register_allocator()->NewRegister();
-  generator_state_ = register_allocator()->NewRegister();
+  DCHECK(generator_state_.is_valid());
+  DCHECK(generator_object().is_valid());
   generator_jump_table_ =
       builder()->AllocateJumpTable(info()->literal()->suspend_count(), 0);
 
-  // The generator resume trampoline abuses the new.target register both to
-  // indicate that this is a resume call and to pass in the generator object.
-  // In ordinary calls, new.target is always undefined because generator
-  // functions are non-constructable.
-  builder()->MoveRegister(Register::new_target(), generator_object_);
-
   BytecodeLabel regular_call;
   builder()
-      ->LoadAccumulatorWithRegister(generator_object_)
+      ->LoadAccumulatorWithRegister(generator_object())
       .JumpIfUndefined(&regular_call);
 
   // This is a resume call. Restore the current context and the registers,
@@ -999,9 +1027,9 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
     RegisterAllocationScope register_scope(this);
     Register generator_context = register_allocator()->NewRegister();
     builder()
-        ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object_)
+        ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object())
         .PushContext(generator_context)
-        .RestoreGeneratorState(generator_object_)
+        .RestoreGeneratorState(generator_object())
         .StoreAccumulatorInRegister(generator_state_)
         .SwitchOnSmiNoFeedback(generator_jump_table_);
   }
@@ -2238,8 +2266,8 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
   if (IsAsyncGeneratorFunction(info()->literal()->kind())) {
     RegisterList args = register_allocator()->NewRegisterList(3);
     builder()
-        ->MoveRegister(generator_object_, args[0])  // generator
-        .StoreAccumulatorInRegister(args[1])        // value
+        ->MoveRegister(generator_object(), args[0])  // generator
+        .StoreAccumulatorInRegister(args[1])         // value
         .LoadTrue()
         .StoreAccumulatorInRegister(args[2])  // done
         .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
@@ -2550,7 +2578,7 @@ void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
   RegisterList registers(0, register_allocator()->next_register_index());
 
   // Save context, registers, and state. Then return.
-  builder()->SuspendGenerator(generator_object_, registers, suspend_id);
+  builder()->SuspendGenerator(generator_object(), registers, suspend_id);
 
   builder()->SetReturnPosition(kNoSourcePosition, info()->literal());
   builder()->Return();  // Hard return (ignore any finally blocks).
@@ -2559,7 +2587,7 @@ void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
   builder()->Bind(generator_jump_table_, suspend_id);
 
   // Clobbers all registers.
-  builder()->RestoreGeneratorRegisters(generator_object_, registers);
+  builder()->RestoreGeneratorRegisters(generator_object(), registers);
 
   // Update state to indicate that we have finished resuming. Loop headers
   // rely on this.
@@ -2570,7 +2598,7 @@ void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
   // When resuming execution of a generator, module or async function, the sent
   // value is in the [[input_or_debug_pos]] slot.
   builder()->CallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
-                         generator_object_);
+                         generator_object());
 }
 
 void BytecodeGenerator::VisitYield(Yield* expr) {
@@ -2585,10 +2613,10 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
       RegisterAllocationScope register_scope(this);
       RegisterList args = register_allocator()->NewRegisterList(3);
       builder()
-          ->MoveRegister(generator_object_, args[0])  // generator
-          .StoreAccumulatorInRegister(args[1])        // value
+          ->MoveRegister(generator_object(), args[0])  // generator
+          .StoreAccumulatorInRegister(args[1])         // value
           .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
-          .StoreAccumulatorInRegister(args[2])        // is_caught
+          .StoreAccumulatorInRegister(args[2])  // is_caught
           .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
     } else {
       // Generator yields (with the exception of the initial yield) wrap the
@@ -2616,7 +2644,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
   Register input = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(input).CallRuntime(
-      Runtime::kInlineGeneratorGetResumeMode, generator_object_);
+      Runtime::kInlineGeneratorGetResumeMode, generator_object());
 
   // Now dispatch on resume mode.
   STATIC_ASSERT(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
@@ -2861,7 +2889,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       builder()->StoreAccumulatorInRegister(input);
       builder()
           ->CallRuntime(Runtime::kInlineGeneratorGetResumeMode,
-                        generator_object_)
+                        generator_object())
           .StoreAccumulatorInRegister(resume_mode);
 
       loop.BindContinueTarget();
@@ -2911,7 +2939,7 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
               : Context::ASYNC_GENERATOR_AWAIT_CAUGHT;
       args = register_allocator()->NewRegisterList(2);
       builder()
-          ->MoveRegister(generator_object_, args[0])
+          ->MoveRegister(generator_object(), args[0])
           .StoreAccumulatorInRegister(args[1]);
     } else {
       await_builtin_context_index =
@@ -2920,7 +2948,7 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
               : Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX;
       args = register_allocator()->NewRegisterList(3);
       builder()
-          ->MoveRegister(generator_object_, args[0])
+          ->MoveRegister(generator_object(), args[0])
           .StoreAccumulatorInRegister(args[1]);
 
       // AsyncFunction Await builtins require a 3rd parameter to hold the outer
@@ -2943,7 +2971,7 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
   BytecodeLabel resume_next;
   builder()
       ->StoreAccumulatorInRegister(input)
-      .CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator_object_)
+      .CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator_object())
       .StoreAccumulatorInRegister(resume_mode)
       .LoadLiteral(Smi::FromInt(JSGeneratorObject::kNext))
       .CompareOperation(Token::EQ_STRICT, resume_mode)
@@ -3996,32 +4024,46 @@ void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
 void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   if (variable == nullptr) return;
 
+  // The generator resume trampoline abuses the new.target register
+  // to pass in the generator object.  In ordinary calls, new.target is always
+  // undefined because generator functions are non-constructible, so don't
+  // assign anything to the new.target variable.
+  if (info()->literal()->CanSuspend()) return;
+
+  if (variable->location() == VariableLocation::LOCAL) {
+    // The new.target register was already assigned by entry trampoline.
+    DCHECK_EQ(incoming_new_target_or_generator_.index(),
+              GetRegisterForLocalVariable(variable).index());
+    return;
+  }
+
   // Store the new target we were called with in the given variable.
-  builder()->LoadAccumulatorWithRegister(Register::new_target());
+  builder()->LoadAccumulatorWithRegister(incoming_new_target_or_generator_);
   BuildVariableAssignment(variable, Token::INIT, FeedbackSlot::Invalid(),
                           HoleCheckMode::kElided);
-
-  // TODO(mstarzinger): The <new.target> register is not set by the deoptimizer
-  // and we need to make sure {BytecodeRegisterOptimizer} flushes its state
-  // before a local variable containing the <new.target> is used. Using a label
-  // as below flushes the entire pipeline, we should be more specific here.
-  BytecodeLabel flush_state_label;
-  builder()->Bind(&flush_state_label);
 }
 
 void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
   DCHECK(IsResumableFunction(info()->literal()->kind()));
-  DCHECK_NOT_NULL(closure_scope()->generator_object_var());
 
+  Variable* generator_object_var = closure_scope()->generator_object_var();
   RegisterAllocationScope register_scope(this);
   RegisterList args = register_allocator()->NewRegisterList(2);
   builder()
       ->MoveRegister(Register::function_closure(), args[0])
       .MoveRegister(builder()->Receiver(), args[1])
       .CallRuntime(Runtime::kInlineCreateJSGeneratorObject, args)
-      .StoreAccumulatorInRegister(generator_object_);
-  BuildVariableAssignment(closure_scope()->generator_object_var(), Token::INIT,
-                          FeedbackSlot::Invalid(), HoleCheckMode::kElided);
+      .StoreAccumulatorInRegister(generator_object());
+
+  if (generator_object_var->location() == VariableLocation::LOCAL) {
+    // The generator object register is already set to the variable's local
+    // register.
+    DCHECK_EQ(generator_object().index(),
+              GetRegisterForLocalVariable(generator_object_var).index());
+  } else {
+    BuildVariableAssignment(generator_object_var, Token::INIT,
+                            FeedbackSlot::Invalid(), HoleCheckMode::kElided);
+  }
 }
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {
@@ -4211,12 +4253,22 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
   Visit(stmt);
 }
 
+Register BytecodeGenerator::GetRegisterForLocalVariable(Variable* variable) {
+  DCHECK_EQ(VariableLocation::LOCAL, variable->location());
+  return builder()->Local(variable->index());
+}
+
 FunctionKind BytecodeGenerator::function_kind() const {
   return info()->literal()->kind();
 }
 
 LanguageMode BytecodeGenerator::language_mode() const {
   return current_scope()->language_mode();
+}
+
+Register BytecodeGenerator::generator_object() const {
+  DCHECK(info()->literal()->CanSuspend());
+  return incoming_new_target_or_generator_;
 }
 
 int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {

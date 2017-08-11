@@ -54,12 +54,6 @@ class BytecodeGraphBuilder {
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
 
-  // Get or create the node that represents the outer function context.
-  Node* GetFunctionContext();
-
-  // Get or create the node that represents the incoming new target value.
-  Node* GetNewTarget();
-
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
 
@@ -377,9 +371,7 @@ class BytecodeGraphBuilder {
   bool needs_eager_checkpoint_;
 
   // Nodes representing values in the activation record.
-  SetOncePointer<Node> function_context_;
   SetOncePointer<Node> function_closure_;
-  SetOncePointer<Node> new_target_;
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;

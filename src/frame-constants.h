@@ -272,24 +272,22 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
 
 class InterpreterFrameConstants : public AllStatic {
  public:
-  // Fixed frame includes new.target, bytecode array, and bytecode offset.
+  // Fixed frame includes bytecode array and bytecode offset.
   static const int kFixedFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 2 * kPointerSize;
   static const int kFixedFrameSizeFromFp =
-      StandardFrameConstants::kFixedFrameSizeFromFp + 3 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kPointerSize;
 
   // FP-relative.
   static const int kLastParamFromFp = StandardFrameConstants::kCallerSPOffset;
   static const int kCallerPCOffsetFromFp =
       StandardFrameConstants::kCallerPCOffset;
-  static const int kNewTargetFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
   static const int kBytecodeArrayFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kPointerSize;
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
   static const int kBytecodeOffsetFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kPointerSize;
   static const int kRegisterFileFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 4 * kPointerSize;
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
 
   static const int kExpressionsOffset = kRegisterFileFromFp;
 

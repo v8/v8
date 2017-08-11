@@ -1455,8 +1455,7 @@ bool BytecodeArrayBuilder::RegisterIsValid(Register reg) const {
     return false;
   }
 
-  if (reg.is_current_context() || reg.is_function_closure() ||
-      reg.is_new_target()) {
+  if (reg.is_current_context() || reg.is_function_closure()) {
     return true;
   } else if (reg.is_parameter()) {
     int parameter_index = reg.ToParameterIndex(parameter_count());

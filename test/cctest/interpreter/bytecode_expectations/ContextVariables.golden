@@ -385,17 +385,17 @@ snippet: "
   var b = 100;
   return b
 "
-frame size: 2
+frame size: 3
 parameter count: 1
 bytecode array length: 787
 bytecodes: [
                 B(CreateFunctionContext), U8(254),
-                B(PushContext), R(0),
+                B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
                 B(CreateUnmappedArguments),
                 B(Wide), B(StaCurrentContextSlot), U16(257),
-                B(Ldar), R(new_target),
+                B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(5),
   /*   30 E> */ B(StackCheck),
   /*   57 S> */ B(LdaZero),
@@ -899,8 +899,8 @@ bytecodes: [
   /* 3435 S> */ B(LdaZero),
   /* 3435 E> */ B(StaCurrentContextSlot), U8(255),
   /* 3438 S> */ B(LdaGlobal), U8(0), U8(2),
-                B(Star), R(1),
-  /* 3438 E> */ B(CallUndefinedReceiver0), R(1), U8(0),
+                B(Star), R(2),
+  /* 3438 E> */ B(CallUndefinedReceiver0), R(2), U8(0),
   /* 3454 S> */ B(LdaSmi), I8(100),
   /* 3454 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
   /* 3459 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),

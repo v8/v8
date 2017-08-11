@@ -853,7 +853,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // There are no translation commands for the caller's pc and fp, the
-  // context, the function, new.target and the bytecode offset.  Synthesize
+  // context, the function and the bytecode offset.  Synthesize
   // their values and set them up
   // explicitly.
   //
@@ -941,13 +941,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
-
-  // The new.target slot is only used during function activiation which is
-  // before the first deopt point, so should never be needed. Just set it to
-  // undefined.
-  output_offset -= kPointerSize;
-  Object* new_target = isolate_->heap()->undefined_value();
-  WriteValueToOutput(new_target, 0, frame_index, output_offset, "new_target  ");
 
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
@@ -1961,8 +1954,7 @@ unsigned Deoptimizer::ComputeJavascriptFixedSize(SharedFunctionInfo* shared) {
 // static
 unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
   // The fixed part of the frame consists of the return address, frame
-  // pointer, function, context, new.target, bytecode offset and all the
-  // incoming arguments.
+  // pointer, function, context, bytecode offset and all the incoming arguments.
   return ComputeIncomingArgumentSize(shared) +
          InterpreterFrameConstants::kFixedFrameSize;
 }

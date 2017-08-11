@@ -17,6 +17,7 @@
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/flags.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/list.h"
 #include "src/messages.h"
 #include "src/property-details.h"
@@ -3310,6 +3311,13 @@ class BytecodeArray : public FixedArrayBase {
   inline int parameter_count() const;
   inline void set_parameter_count(int number_of_parameters);
 
+  // Register used to pass the incoming new.target or generator object from the
+  // fucntion call.
+  inline interpreter::Register incoming_new_target_or_generator_register()
+      const;
+  inline void set_incoming_new_target_or_generator_register(
+      interpreter::Register incoming_new_target_or_generator_register);
+
   // Accessors for profiling count.
   inline int interrupt_budget() const;
   inline void set_interrupt_budget(int interrupt_budget);
@@ -3370,7 +3378,10 @@ class BytecodeArray : public FixedArrayBase {
       kHandlerTableOffset + kPointerSize;
   static const int kFrameSizeOffset = kSourcePositionTableOffset + kPointerSize;
   static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
-  static const int kInterruptBudgetOffset = kParameterSizeOffset + kIntSize;
+  static const int kIncomingNewTargetOrGeneratorRegisterOffset =
+      kParameterSizeOffset + kIntSize;
+  static const int kInterruptBudgetOffset =
+      kIncomingNewTargetOrGeneratorRegisterOffset + kIntSize;
   static const int kOSRNestingLevelOffset = kInterruptBudgetOffset + kIntSize;
   static const int kBytecodeAgeOffset = kOSRNestingLevelOffset + kCharSize;
   static const int kHeaderSize = kBytecodeAgeOffset + kCharSize;

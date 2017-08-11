@@ -754,7 +754,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 //
 // The live registers are:
 //   o edi: the JS function object being called
-//   o edx: the new target
+//   o edx: the incoming new target or generator object
 //   o esi: our context
 //   o ebp: the caller's frame pointer
 //   o esp: stack pointer (pointing to return address)
@@ -783,7 +783,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(ebp, esp);
   __ push(esi);  // Callee's context.
   __ push(edi);  // Callee's JS function.
-  __ push(edx);  // Callee's new target.
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
@@ -855,6 +854,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ j(greater_equal, &loop_header);
   }
 
+  // If the bytecode array has a valid incoming new target or generator object
+  // register, initialize it with incoming value which was passed in edx.
+  Label no_incoming_new_target_or_generator_register;
+  __ mov(eax, FieldOperand(
+                  kInterpreterBytecodeArrayRegister,
+                  BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+  __ test(eax, eax);
+  __ j(zero, &no_incoming_new_target_or_generator_register);
+  __ mov(Operand(ebp, eax, times_pointer_size, 0), edx);
+  __ bind(&no_incoming_new_target_or_generator_register);
+
   // Load accumulator, bytecode offset and dispatch table into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ mov(kInterpreterBytecodeOffsetRegister,
@@ -894,7 +904,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // function has been switched to a different kind of code and we heal the
   // closure by switching the code entry field over to the new code as well.
   __ bind(&switch_to_different_code_kind);
-  __ pop(edx);  // Callee's new target.
   __ pop(edi);  // Callee's JS function.
   __ pop(esi);  // Callee's context.
   __ leave();   // Leave the frame so we can tail call.

@@ -40,10 +40,6 @@ class V8_EXPORT_PRIVATE Register final {
   static Register current_context();
   bool is_current_context() const;
 
-  // Returns the register for the incoming new target value.
-  static Register new_target();
-  bool is_new_target() const;
-
   // Returns the register for the bytecode array.
   static Register bytecode_array();
   bool is_bytecode_array() const;

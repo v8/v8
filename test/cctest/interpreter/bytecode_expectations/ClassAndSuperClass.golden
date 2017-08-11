@@ -106,11 +106,9 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 40
 bytecodes: [
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(0),
   /*  113 E> */ B(StackCheck),
   /*  118 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(2),
@@ -151,11 +149,9 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 41
+bytecode array length: 36
 bytecodes: [
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(0),
   /*  112 E> */ B(StackCheck),
   /*  117 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(2),

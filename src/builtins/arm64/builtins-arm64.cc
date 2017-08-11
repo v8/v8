@@ -1117,7 +1117,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 //
 // The live registers are:
 //   - x1: the JS function object being called.
-//   - x3: the new target
+//   - x3: the incoming new target or generator object
 //   - cp: our context.
 //   - fp: our caller's frame pointer.
 //   - jssp: stack pointer.
@@ -1189,9 +1189,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
-  // Push new.target, bytecode array and Smi tagged bytecode array offset.
+  // Push bytecode array and Smi tagged bytecode array offset.
   __ SmiTag(x0, kInterpreterBytecodeOffsetRegister);
-  __ Push(x3, kInterpreterBytecodeArrayRegister, x0);
+  __ Push(kInterpreterBytecodeArrayRegister, x0);
 
   // Allocate the local and temporary register file on the stack.
   {
@@ -1219,6 +1219,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ PushMultipleTimes(x10, x11);
     __ Bind(&loop_header);
   }
+
+  // If the bytecode array has a valid incoming new target or generator object
+  // register, initialize it with incoming value which was passed in x3.
+  Label no_incoming_new_target_or_generator_register;
+  __ Ldrsw(x10,
+           FieldMemOperand(
+               kInterpreterBytecodeArrayRegister,
+               BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+  __ Tst(x10, x10);
+  __ B(eq, &no_incoming_new_target_or_generator_register);
+  __ Str(x3, MemOperand(fp, x10, LSL, kPointerSizeLog2));
+  __ Bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator and dispatch table into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);

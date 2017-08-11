@@ -2795,23 +2795,19 @@ int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 
-
 Address ByteArray::GetDataStartAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
 }
-
 
 byte BytecodeArray::get(int index) {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
-
 void BytecodeArray::set(int index, byte value) {
   DCHECK(index >= 0 && index < this->length());
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize, value);
 }
-
 
 void BytecodeArray::set_frame_size(int frame_size) {
   DCHECK_GE(frame_size, 0);
@@ -2819,16 +2815,13 @@ void BytecodeArray::set_frame_size(int frame_size) {
   WRITE_INT_FIELD(this, kFrameSizeOffset, frame_size);
 }
 
-
 int BytecodeArray::frame_size() const {
   return READ_INT_FIELD(this, kFrameSizeOffset);
 }
 
-
 int BytecodeArray::register_count() const {
   return frame_size() / kPointerSize;
 }
-
 
 void BytecodeArray::set_parameter_count(int number_of_parameters) {
   DCHECK_GE(number_of_parameters, 0);
@@ -2836,6 +2829,30 @@ void BytecodeArray::set_parameter_count(int number_of_parameters) {
   // it to be used directly by generated code.
   WRITE_INT_FIELD(this, kParameterSizeOffset,
                   (number_of_parameters << kPointerSizeLog2));
+}
+
+interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
+    const {
+  int register_operand =
+      READ_INT_FIELD(this, kIncomingNewTargetOrGeneratorRegisterOffset);
+  if (register_operand == 0) {
+    return interpreter::Register::invalid_value();
+  } else {
+    return interpreter::Register::FromOperand(register_operand);
+  }
+}
+
+void BytecodeArray::set_incoming_new_target_or_generator_register(
+    interpreter::Register incoming_new_target_or_generator_register) {
+  if (!incoming_new_target_or_generator_register.is_valid()) {
+    WRITE_INT_FIELD(this, kIncomingNewTargetOrGeneratorRegisterOffset, 0);
+  } else {
+    DCHECK(incoming_new_target_or_generator_register.index() <
+           register_count());
+    DCHECK_NE(0, incoming_new_target_or_generator_register.ToOperand());
+    WRITE_INT_FIELD(this, kIncomingNewTargetOrGeneratorRegisterOffset,
+                    incoming_new_target_or_generator_register.ToOperand());
+  }
 }
 
 int BytecodeArray::interrupt_budget() const {
