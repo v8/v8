@@ -16,6 +16,7 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 void PublishSegment(ConcurrentMarking::MarkingWorklist* worklist,
                     HeapObject* object) {
@@ -57,5 +58,6 @@ TEST(ConcurrentMarkingReschedule) {
   delete concurrent_marking;
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

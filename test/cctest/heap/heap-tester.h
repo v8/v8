@@ -43,27 +43,28 @@
   V(RegressMissingWriteBarrierInAllocate)                 \
   V(WriteBarriersInCopyJSObject)
 
-#define HEAP_TEST(Name)                                                       \
-  CcTest register_test_##Name(v8::internal::HeapTester::Test##Name, __FILE__, \
-                              #Name, true, true);                             \
-  void v8::internal::HeapTester::Test##Name()
+#define HEAP_TEST(Name)                                                   \
+  CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \
+                              __FILE__, #Name, true, true);               \
+  void v8::internal::heap::HeapTester::Test##Name()
 
-#define UNINITIALIZED_HEAP_TEST(Name)                                         \
-  CcTest register_test_##Name(v8::internal::HeapTester::Test##Name, __FILE__, \
-                              #Name, true, false);                            \
-  void v8::internal::HeapTester::Test##Name()
+#define UNINITIALIZED_HEAP_TEST(Name)                                     \
+  CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \
+                              __FILE__, #Name, true, false);              \
+  void v8::internal::heap::HeapTester::Test##Name()
 
-#define THREADED_HEAP_TEST(Name)                                             \
-  RegisterThreadedTest register_##Name(v8::internal::HeapTester::Test##Name, \
-                                       #Name);                               \
+#define THREADED_HEAP_TEST(Name)                          \
+  RegisterThreadedTest register_##Name(                   \
+      v8::internal::heap::HeapTester::Test##Name, #Name); \
   /* */ HEAP_TEST(Name)
-
 
 namespace v8 {
 namespace internal {
 
 template <typename T>
 class Handle;
+
+namespace heap {
 
 class HeapTester {
  public:
@@ -84,6 +85,7 @@ class HeapTester {
   static void ResetWeakHandle(bool global_gc);
 };
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8
 

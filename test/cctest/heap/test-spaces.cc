@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/platform/platform.h"
+#include "src/factory.h"
 #include "src/heap/spaces-inl.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
 // (disallowed) include: src/heap/incremental-marking.h -> src/objects-inl.h
@@ -40,72 +41,7 @@
 
 namespace v8 {
 namespace internal {
-
-#if 0
-static void VerifyRegionMarking(Address page_start) {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  Page* p = Page::FromAddress(page_start);
-
-  p->SetRegionMarks(Page::kAllRegionsCleanMarks);
-
-  for (Address addr = p->ObjectAreaStart();
-       addr < p->ObjectAreaEnd();
-       addr += kPointerSize) {
-    CHECK(!Page::FromAddress(addr)->IsRegionDirty(addr));
-  }
-
-  for (Address addr = p->ObjectAreaStart();
-       addr < p->ObjectAreaEnd();
-       addr += kPointerSize) {
-    Page::FromAddress(addr)->MarkRegionDirty(addr);
-  }
-
-  for (Address addr = p->ObjectAreaStart();
-       addr < p->ObjectAreaEnd();
-       addr += kPointerSize) {
-    CHECK(Page::FromAddress(addr)->IsRegionDirty(addr));
-  }
-#endif
-}
-#endif
-
-
-// TODO(gc) you can no longer allocate pages like this. Details are hidden.
-#if 0
-TEST(Page) {
-  byte* mem = NewArray<byte>(2*Page::kPageSize);
-  CHECK(mem != NULL);
-
-  Address start = reinterpret_cast<Address>(mem);
-  Address page_start = RoundUp(start, Page::kPageSize);
-
-  Page* p = Page::FromAddress(page_start);
-  // Initialized Page has heap pointer, normally set by memory_allocator.
-  p->heap_ = CcTest::heap();
-  CHECK(p->address() == page_start);
-  CHECK(p->is_valid());
-
-  p->opaque_header = 0;
-  p->SetIsLargeObjectPage(false);
-  CHECK(!p->next_page()->is_valid());
-
-  CHECK(p->ObjectAreaStart() == page_start + Page::kObjectStartOffset);
-  CHECK(p->ObjectAreaEnd() == page_start + Page::kPageSize);
-
-  CHECK(p->Offset(page_start + Page::kObjectStartOffset) ==
-        Page::kObjectStartOffset);
-  CHECK(p->Offset(page_start + Page::kPageSize) == Page::kPageSize);
-
-  CHECK(p->OffsetToAddress(Page::kObjectStartOffset) == p->ObjectAreaStart());
-  CHECK(p->OffsetToAddress(Page::kPageSize) == p->ObjectAreaEnd());
-
-  // test region marking
-  VerifyRegionMarking(page_start);
-
-  DeleteArray(mem);
-}
-#endif
-
+namespace heap {
 
 // Temporarily sets a given allocator in an isolate.
 class TestMemoryAllocatorScope {
@@ -759,5 +695,6 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(0u, shrunk);
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

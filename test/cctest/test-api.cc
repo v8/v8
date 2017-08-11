@@ -7787,8 +7787,7 @@ static void ResetUseValueAndSetFlag(
   data.GetParameter()->flag = true;
 }
 
-
-void v8::internal::HeapTester::ResetWeakHandle(bool global_gc) {
+void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
   using v8::Context;
   using v8::Local;
   using v8::Object;
@@ -7835,8 +7834,8 @@ void v8::internal::HeapTester::ResetWeakHandle(bool global_gc) {
 
 
 THREADED_HEAP_TEST(ResetWeakHandle) {
-  v8::internal::HeapTester::ResetWeakHandle(false);
-  v8::internal::HeapTester::ResetWeakHandle(true);
+  v8::internal::heap::HeapTester::ResetWeakHandle(false);
+  v8::internal::heap::HeapTester::ResetWeakHandle(true);
 }
 
 static void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }

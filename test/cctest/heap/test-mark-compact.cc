@@ -52,6 +52,10 @@
 using namespace v8::internal;
 using v8::Just;
 
+namespace v8 {
+namespace internal {
+namespace heap {
+
 TEST(SequentialMarkingDeque) {
   CcTest::InitializeVM();
   SequentialMarkingDeque s(CcTest::i_isolate()->heap());
@@ -364,3 +368,7 @@ TEST(Regress5829) {
 }
 
 #endif  // __linux__ and !USE_SIMULATOR
+
+}  // namespace heap
+}  // namespace internal
+}  // namespace v8

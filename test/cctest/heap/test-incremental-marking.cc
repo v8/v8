@@ -30,6 +30,7 @@ using v8::Isolate;
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 class MockPlatform : public TestPlatform {
  public:
@@ -74,5 +75,6 @@ TEST(IncrementalMarkingUsingTasks) {
   CHECK(marking->IsStopped());
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

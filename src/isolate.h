@@ -40,6 +40,10 @@ class ConsoleDelegate;
 
 namespace internal {
 
+namespace heap {
+class HeapTester;
+}  // namespace heap
+
 class AccessCompilerData;
 class AddressToIndexHashMap;
 class AstStringConstants;
@@ -1611,7 +1615,7 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
-  friend class HeapTester;
+  friend class heap::HeapTester;
   friend class OptimizingCompileDispatcher;
   friend class SweeperThread;
   friend class ThreadManager;

@@ -26,6 +26,11 @@
 namespace v8 {
 namespace internal {
 
+namespace heap {
+class HeapTester;
+class TestMemoryAllocatorScope;
+}  // namespace heap
+
 using v8::MemoryPressureLevel;
 
 // Defines all the roots in Heap.
@@ -2432,7 +2437,7 @@ class Heap {
   friend class PagedSpace;
   friend class Scavenger;
   friend class StoreBuffer;
-  friend class TestMemoryAllocatorScope;
+  friend class heap::TestMemoryAllocatorScope;
 
   // The allocator interface.
   friend class Factory;
@@ -2441,7 +2446,7 @@ class Heap {
   friend class Isolate;
 
   // Used in cctest.
-  friend class HeapTester;
+  friend class heap::HeapTester;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };

@@ -31,6 +31,11 @@
 namespace v8 {
 namespace internal {
 
+namespace heap {
+class HeapTester;
+class TestCodeRangeScope;
+}  // namespace heap
+
 class AllocationInfo;
 class AllocationObserver;
 class CompactionSpace;
@@ -1432,7 +1437,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   base::VirtualMemory last_chunk_;
   Unmapper unmapper_;
 
-  friend class TestCodeRangeScope;
+  friend class heap::TestCodeRangeScope;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };
@@ -2224,7 +2229,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   friend class MarkCompactCollector;
 
   // Used in cctest.
-  friend class HeapTester;
+  friend class heap::HeapTester;
 };
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };

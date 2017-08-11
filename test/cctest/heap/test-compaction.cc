@@ -18,6 +18,7 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 namespace {
 
@@ -374,5 +375,6 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
   }
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

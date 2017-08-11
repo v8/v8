@@ -16,8 +16,9 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
-Page* v8::internal::HeapTester::AllocateByteArraysOnPage(
+Page* HeapTester::AllocateByteArraysOnPage(
     Heap* heap, std::vector<ByteArray*>* byte_arrays) {
   const int kLength = 256 - ByteArray::kHeaderSize;
   const int kSize = ByteArray::SizeFor(kLength);
@@ -181,5 +182,6 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
   }
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

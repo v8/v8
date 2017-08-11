@@ -57,6 +57,7 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 // We only start allocation-site tracking with the second instantiation.
 static const int kPretenureCreationCount =
@@ -6222,5 +6223,6 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
   }
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

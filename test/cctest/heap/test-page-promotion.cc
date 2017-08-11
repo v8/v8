@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 namespace {
 
@@ -197,5 +198,6 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
   isolate->Dispose();
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

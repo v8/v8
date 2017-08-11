@@ -22,6 +22,7 @@ bool IsTracked(i::JSArrayBuffer* buf) {
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 // The following tests make sure that JSArrayBuffer tracking works expected when
 // moving the objects through various spaces during GC phases.
@@ -371,5 +372,6 @@ TEST(ArrayBuffer_RetainedSizeDecreases) {
   CHECK_EQ(0, retained_after - retained_before);
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8
