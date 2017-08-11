@@ -1093,35 +1093,27 @@ class RepresentationSelector {
     ProcessInput(node, 0, UseInfo::AnyTagged());  // Parameters.
     ProcessInput(node, 1, UseInfo::AnyTagged());  // Registers.
 
-    // Expression stack/accumulator.
-    if (node->InputAt(2)->opcode() == IrOpcode::kStateValues ||
-        node->InputAt(2)->opcode() == IrOpcode::kTypedStateValues) {
-      // TODO(turbofan): This should only be produced by AST graph builder.
-      // Remove once we switch to bytecode graph builder exclusively.
-      ProcessInput(node, 2, UseInfo::AnyTagged());
-    } else {
-      // Accumulator is a special flower - we need to remember its type in
-      // a singleton typed-state-values node (as if it was a singleton
-      // state-values node).
-      if (propagate()) {
-        EnqueueInput(node, 2, UseInfo::Any());
-      } else if (lower()) {
-        Zone* zone = jsgraph_->zone();
-        Node* accumulator = node->InputAt(2);
-        if (accumulator == jsgraph_->OptimizedOutConstant()) {
-          node->ReplaceInput(2, jsgraph_->SingleDeadTypedStateValues());
-        } else {
-          ZoneVector<MachineType>* types =
-              new (zone->New(sizeof(ZoneVector<MachineType>)))
-                  ZoneVector<MachineType>(1, zone);
-          (*types)[0] = DeoptMachineTypeOf(
-              GetInfo(accumulator)->representation(), TypeOf(accumulator));
+    // Accumulator is a special flower - we need to remember its type in
+    // a singleton typed-state-values node (as if it was a singleton
+    // state-values node).
+    if (propagate()) {
+      EnqueueInput(node, 2, UseInfo::Any());
+    } else if (lower()) {
+      Zone* zone = jsgraph_->zone();
+      Node* accumulator = node->InputAt(2);
+      if (accumulator == jsgraph_->OptimizedOutConstant()) {
+        node->ReplaceInput(2, jsgraph_->SingleDeadTypedStateValues());
+      } else {
+        ZoneVector<MachineType>* types =
+            new (zone->New(sizeof(ZoneVector<MachineType>)))
+                ZoneVector<MachineType>(1, zone);
+        (*types)[0] = DeoptMachineTypeOf(GetInfo(accumulator)->representation(),
+                                         TypeOf(accumulator));
 
-          node->ReplaceInput(2, jsgraph_->graph()->NewNode(
-                                    jsgraph_->common()->TypedStateValues(
-                                        types, SparseInputMask::Dense()),
-                                    accumulator));
-        }
+        node->ReplaceInput(
+            2, jsgraph_->graph()->NewNode(jsgraph_->common()->TypedStateValues(
+                                              types, SparseInputMask::Dense()),
+                                          accumulator));
       }
     }
 
