@@ -465,7 +465,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       black_allocation_(false),
       have_code_to_deoptimize_(false),
       marking_worklist_(heap),
-      sweeper_(heap) {
+      sweeper_(heap, non_atomic_marking_state()) {
   old_to_new_slots_ = -1;
 }
 
@@ -2111,12 +2111,11 @@ class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
  public:
   YoungGenerationMarkingVisitor(
-      Heap* heap, MinorMarkCompactCollector::MarkingWorklist* global_worklist,
-      int task_id)
+      Heap* heap, MinorMarkCompactCollector::MarkingState* marking_state,
+      MinorMarkCompactCollector::MarkingWorklist* global_worklist, int task_id)
       : heap_(heap),
         worklist_(global_worklist, task_id),
-        marking_state_(heap_->minor_mark_compact_collector()->marking_state()) {
-  }
+        marking_state_(marking_state) {}
 
   V8_INLINE void VisitPointers(HeapObject* host, Object** start,
                                Object** end) final {
@@ -2199,7 +2198,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
         collector_(collector),
         marking_worklist_(global_worklist, task_id),
         marking_state_(collector->marking_state()),
-        visitor_(isolate->heap(), global_worklist, task_id) {
+        visitor_(isolate->heap(), marking_state_, global_worklist, task_id) {
     local_live_bytes_.reserve(isolate->heap()->new_space()->Capacity() /
                               Page::kPageSize);
   }
@@ -2384,8 +2383,8 @@ class GlobalHandlesMarkingItem : public MarkingItem {
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
       worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
-      main_marking_visitor_(
-          new YoungGenerationMarkingVisitor(heap, worklist_, kMainMarker)),
+      main_marking_visitor_(new YoungGenerationMarkingVisitor(
+          heap, marking_state(), worklist_, kMainMarker)),
       page_parallel_job_semaphore_(0) {
   static_assert(
       kNumMarkers <= MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks,

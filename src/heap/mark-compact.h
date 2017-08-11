@@ -611,10 +611,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     int RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                  FreeSpaceTreatmentMode free_space_mode);
 
-    explicit Sweeper(Heap* heap)
+    explicit Sweeper(Heap* heap,
+                     MarkCompactCollector::NonAtomicMarkingState* marking_state)
         : heap_(heap),
-          marking_state_(
-              heap->mark_compact_collector()->non_atomic_marking_state()),
+          marking_state_(marking_state),
           num_tasks_(0),
           pending_sweeper_tasks_semaphore_(0),
           sweeping_in_progress_(false),
