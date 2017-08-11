@@ -803,27 +803,6 @@ TEST(BytecodeArray) {
   CHECK_NE(array->constant_pool(), old_constant_pool_address);
 }
 
-TEST(BytecodeArrayAging) {
-  static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
-  static const int kRawBytesSize = sizeof(kRawBytes);
-  static const int kFrameSize = 32;
-  static const int kParameterCount = 2;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  HandleScope scope(isolate);
-
-  Handle<BytecodeArray> array =
-      factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize,
-                                kParameterCount, factory->empty_fixed_array());
-
-  CHECK_EQ(BytecodeArray::kFirstBytecodeAge, array->bytecode_age());
-  array->MakeOlder();
-  CHECK_EQ(BytecodeArray::kQuadragenarianBytecodeAge, array->bytecode_age());
-  array->set_bytecode_age(BytecodeArray::kLastBytecodeAge);
-  array->MakeOlder();
-  CHECK_EQ(BytecodeArray::kLastBytecodeAge, array->bytecode_age());
-}
 
 static const char* not_so_random_string_table[] = {
   "abstract",

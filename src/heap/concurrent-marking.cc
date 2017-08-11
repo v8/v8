@@ -162,12 +162,14 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitBytecodeArray(Map* map, BytecodeArray* object) {
-    if (!ShouldVisit(object)) return 0;
-    int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
-    object->MakeOlder();
-    return size;
+    if (marking_state_.IsGrey(object)) {
+      int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
+      VisitMapPointer(object, object->map_slot());
+      BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
+      // Aging of bytecode arrays is done on the main thread.
+      bailout_.Push(object);
+    }
+    return 0;
   }
 
   int VisitAllocationSite(Map* map, AllocationSite* object) {
