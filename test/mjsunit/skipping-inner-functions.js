@@ -248,3 +248,50 @@ function TestSloppyEvalInFunctionWithComplexParams() {
 }
 
 TestSloppyEvalInFunctionWithComplexParams();
+
+function TestSkippableFunctionInForOfHeader() {
+  var c;
+  function inner() {
+    for (let [a, b = c = function() { return a; }] of [[10]]) {
+    }
+  }
+  inner();
+  var result = c();
+  assertEquals(10, result);
+}
+
+TestSkippableFunctionInForOfHeader();
+
+function TestSkippableFunctionInForOfBody() {
+  var c;
+  function inner() {
+    for (let [a, b] of [[10, 11]]) {
+      c = function f() {
+        return a + b;
+      }
+    }
+  }
+  inner();
+  var result = c();
+  assertEquals(21, result);
+}
+
+TestSkippableFunctionInForOfBody();
+
+
+function TestSkippableFunctionInForOfHeaderAndBody() {
+  var c1;
+  var c2;
+  function inner() {
+    for (let [a, b = c1 = function() { return a; }] of [[10]]) {
+      c2 = function f() {
+        return a + 1;
+      }
+    }
+  }
+  inner();
+  var result = c1() + c2();
+  assertEquals(21, result);
+}
+
+TestSkippableFunctionInForOfHeaderAndBody();

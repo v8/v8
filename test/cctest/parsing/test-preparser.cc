@@ -374,6 +374,41 @@ TEST(PreParserScopeAnalysis) {
       {"for (let [var1, var2] of [[1, 1], [2, 2]]) { () => { var2 = 3; } }"},
       {"for (const [var1, var2] of [[1, 1], [2, 2]]) { () => { var2 = 3; } }"},
 
+      // Skippable function in loop header
+      {"for (let [var1, var2 = function() { }] of [[1]]) { }"},
+      {"for (let [var1, var2 = function() { var1; }] of [[1]]) { }"},
+      {"for (let [var1, var2 = function() { var2; }] of [[1]]) { }"},
+      {"for (let [var1, var2 = function() { var1; var2; }] of [[1]]) { }"},
+      {"for (let [var1, var2 = function() { var1 = 0; }] of [[1]]) { }"},
+      {"for (let [var1, var2 = function() { var2 = 0; }] of [[1]]) { }"},
+      {"for (let [var1, var2 = function() { var1 = 0; var2 = 0; }] of [[1]]) { "
+       "}"},
+
+      {"for (let [var1, var2 = function() { }] of [[1]]) { function f() { "
+       "var1; } }"},
+      {"for (let [var1, var2 = function() { }] of [[1]]) { function f() { "
+       "var2; } }"},
+      {"for (let [var1, var2 = function() { }] of [[1]]) { function f() { "
+       "var1; var2; } }"},
+      {"for (let [var1, var2 = function() { }] of [[1]]) { function f() { "
+       "var1 = 0; } }"},
+      {"for (let [var1, var2 = function() { }] of [[1]]) { function f() { "
+       "var2 = 0; } }"},
+      {"for (let [var1, var2 = function() { }] of [[1]]) { function f() { "
+       "var1 = 0; var2 = 0; } }"},
+      {"for (let [var1, var2 = function() { var1; }] of [[1]]) { "
+       "function f() { var1; } }"},
+      {"for (let [var1, var2 = function() { var1; }] of [[1]]) { "
+       "function f() { var2; } }"},
+      {"for (let [var1, var2 = function() { var1; }] of [[1]]) { "
+       "function f() { var1; var2; } }"},
+      {"for (let [var1, var2 = function() { var2; }] of [[1]]) { "
+       "function f() { var1; } }"},
+      {"for (let [var1, var2 = function() { var2; }] of [[1]]) { "
+       "function f() { var2; } }"},
+      {"for (let [var1, var2 = function() { var2; }] of [[1]]) { "
+       "function f() { var1; var2; } }"},
+
       // Loops without declarations
       {"var var1 = 0; for ( ; var1 < 2; ++var1) { }"},
       {"var var1 = 0; for ( ; var1 < 2; ++var1) { function foo() { var1; } }"},
