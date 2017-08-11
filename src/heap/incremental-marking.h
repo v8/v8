@@ -253,7 +253,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   bool black_allocation() { return black_allocation_; }
 
-  void StartBlackAllocationForTesting() { StartBlackAllocation(); }
+  void StartBlackAllocationForTesting() {
+    if (!black_allocation_) {
+      StartBlackAllocation();
+    }
+  }
 
   void AbortBlackAllocation();
 

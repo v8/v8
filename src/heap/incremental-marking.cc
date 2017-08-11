@@ -584,6 +584,7 @@ void IncrementalMarking::StartMarking() {
 
 void IncrementalMarking::StartBlackAllocation() {
   DCHECK(FLAG_black_allocation);
+  DCHECK(!black_allocation_);
   DCHECK(IsMarking());
   black_allocation_ = true;
   heap()->old_space()->MarkAllocationInfoBlack();
