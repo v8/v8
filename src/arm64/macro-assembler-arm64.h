@@ -1323,10 +1323,6 @@ class MacroAssembler : public TurboAssembler {
   STLX_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
-  // V8-specific load/store helpers.
-  void Load(const Register& rt, const MemOperand& addr, Representation r);
-  void Store(const Register& rt, const MemOperand& addr, Representation r);
-
   // Branch type inversion relies on these relations.
   STATIC_ASSERT((reg_zero == (reg_not_zero ^ 1)) &&
                 (reg_bit_clear == (reg_bit_set ^ 1)) &&
@@ -1730,8 +1726,6 @@ class MacroAssembler : public TurboAssembler {
 
   void LoadInstanceDescriptors(Register map,
                                Register descriptors);
-  void EnumLengthUntagged(Register dst, Register map);
-  void NumberOfOwnDescriptors(Register dst, Register map);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
                     AccessorComponent accessor);
 
@@ -1851,21 +1845,11 @@ class MacroAssembler : public TurboAssembler {
     CallRuntime(function, function->nargs, save_doubles);
   }
 
-  void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {
-    const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, kSaveFPRegs);
-  }
-
   void TailCallRuntime(Runtime::FunctionId fid);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
-
-  // Convenience function: call an external reference.
-  void CallExternalReference(const ExternalReference& ext,
-                             int num_arguments);
-
 
   // Registers used through the invocation chain are hard-coded.
   // We force passing the parameters to ensure the contracts are correctly
@@ -1919,26 +1903,12 @@ class MacroAssembler : public TurboAssembler {
   //
   // If the new space is exhausted control continues at the gc_required label.
   // In this case, the result and scratch registers may still be clobbered.
-  void Allocate(Register object_size, Register result, Register result_end,
-                Register scratch, Label* gc_required, AllocationFlags flags);
-
   void Allocate(int object_size,
                 Register result,
                 Register scratch1,
                 Register scratch2,
                 Label* gc_required,
                 AllocationFlags flags);
-
-  // Allocates a heap number or jumps to the gc_required label if the young
-  // space is full and a scavenge is needed.
-  // All registers are clobbered.
-  // If no heap_number_map register is provided, the function will take care of
-  // loading it.
-  void AllocateHeapNumber(Register result, Label* gc_required,
-                          Register scratch1, Register scratch2,
-                          CPURegister value = NoVReg,
-                          CPURegister heap_number_map = NoReg,
-                          MutableMode mode = IMMUTABLE);
 
   // Allocate and initialize a JSValue wrapper with the specified {constructor}
   // and {value}.
@@ -1948,11 +1918,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Support functions.
-
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
 
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
@@ -2077,16 +2042,8 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Frames.
 
-  // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadFeedbackVector(Register vector);
-
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
-  // Returns map with validated enum cache in object register.
-  void CheckEnumCache(Register object, Register scratch0, Register scratch1,
-                      Register scratch2, Register scratch3, Register scratch4,
-                      Label* call_runtime);
 
   // The stack pointer has to switch between csp and jssp when setting up and
   // destroying the exit frame. Hence preserving/restoring the registers is
@@ -2136,8 +2093,6 @@ class MacroAssembler : public TurboAssembler {
                       const Register& scratch,
                       bool restore_context);
 
-  void LoadContext(Register dst, int context_chain_length);
-
   // Load the global object from the current context.
   void LoadGlobalObject(Register dst) {
     LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
@@ -2180,10 +2135,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Store value in register src in the safepoint stack slot for register dst.
   void StoreToSafepointRegisterSlot(Register src, Register dst);
-
-  // Load the value of the src register from its safepoint stack slot
-  // into register dst.
-  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void CheckPageFlag(const Register& object, const Register& scratch, int mask,
                      Condition cc, Label* condition_met);

@@ -12,7 +12,6 @@
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/isolate-inl.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"

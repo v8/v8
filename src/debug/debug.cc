@@ -20,7 +20,6 @@
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
 #include "src/interpreter/interpreter.h"

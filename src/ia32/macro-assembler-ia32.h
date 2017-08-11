@@ -284,11 +284,6 @@ class MacroAssembler : public TurboAssembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
-  int jit_cookie() const { return jit_cookie_; }
-
-  void Load(Register dst, const Operand& src, Representation r);
-  void Store(Register src, const Operand& dst, Representation r);
-
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int32_t x) {
     if (x == 0) {
@@ -467,9 +462,6 @@ class MacroAssembler : public TurboAssembler {
   // register eax (untouched).
   void LeaveApiExitFrame(bool restore_context);
 
-  // Find the function context up the context chain.
-  void LoadContext(Register dst, int context_chain_length);
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
@@ -483,11 +475,6 @@ class MacroAssembler : public TurboAssembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { pushad(); }
   void PopSafepointRegisters() { popad(); }
-  // Store the value in register/immediate src in the safepoint
-  // register stack slot for register dst.
-  void StoreToSafepointRegisterSlot(Register dst, Register src);
-  void StoreToSafepointRegisterSlot(Register dst, Immediate src);
-  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void CmpHeapObject(Register reg, Handle<HeapObject> object);
   void PushObject(Handle<Object> object);
@@ -534,11 +521,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  // Support for constant splitting.
-  bool IsUnsafeImmediate(const Immediate& x);
-  void SafeMove(Register dst, const Immediate& x);
-  void SafePush(const Immediate& x);
-
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
@@ -555,23 +537,6 @@ class MacroAssembler : public TurboAssembler {
   // against maps that are ElementsKind transition maps of the specified map.
   void CheckMap(Register obj, Handle<Map> map, Label* fail,
                 SmiCheckType smi_check_type);
-
-  // Check if the object in register heap_object is a string. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectStringType(Register heap_object, Register map,
-                               Register instance_type);
-
-  // FCmp is similar to integer cmp, but requires unsigned
-  // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
-  void FCmp();
-
-  void ClampUint8(Register reg);
-
-  void ClampDoubleToUint8(XMMRegister input_reg, XMMRegister scratch_reg,
-                          Register result_reg);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
                  XMMRegister scratch, MinusZeroMode minus_zero_mode,
@@ -605,26 +570,8 @@ class MacroAssembler : public TurboAssembler {
     test(value, Immediate(kSmiTagMask));
     j(not_zero, smi_label, distance);
   }
-  // Jump if the value cannot be represented by a smi.
-  inline void JumpIfNotValidSmiValue(Register value, Register scratch,
-                                     Label* on_invalid,
-                                     Label::Distance distance = Label::kFar) {
-    mov(scratch, value);
-    add(scratch, Immediate(0x40000000U));
-    j(sign, on_invalid, distance);
-  }
-
-  // Jump if the unsigned integer value cannot be represented by a smi.
-  inline void JumpIfUIntNotValidSmiValue(
-      Register value, Label* on_invalid,
-      Label::Distance distance = Label::kFar) {
-    cmp(value, Immediate(0x40000000U));
-    j(above_equal, on_invalid, distance);
-  }
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
-  void EnumLength(Register dst, Register map);
-  void NumberOfOwnDescriptors(Register dst, Register map);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
                     AccessorComponent accessor);
 
@@ -634,20 +581,6 @@ class MacroAssembler : public TurboAssembler {
     static const int mask = Field::kMask >> Field::kShift;
     if (shift != 0) {
       sar(reg, shift);
-    }
-    and_(reg, Immediate(mask));
-  }
-
-  template<typename Field>
-  void DecodeFieldToSmi(Register reg) {
-    static const int shift = Field::kShift;
-    static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
-    STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
-    STATIC_ASSERT(kSmiTag == 0);
-    if (shift < kSmiTagSize) {
-      shl(reg, kSmiTagSize - shift);
-    } else if (shift > kSmiTagSize) {
-      sar(reg, shift - kSmiTagSize);
     }
     and_(reg, Immediate(mask));
   }
@@ -703,41 +636,10 @@ class MacroAssembler : public TurboAssembler {
   void Allocate(int object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
-  void Allocate(int header_size, ScaleFactor element_size,
-                Register element_count, RegisterValueType element_count_type,
-                Register result, Register result_end, Register scratch,
-                Label* gc_required, AllocationFlags flags);
-
-  void Allocate(Register object_size, Register result, Register result_end,
-                Register scratch, Label* gc_required, AllocationFlags flags);
-
-  // Allocate a heap number in new space with undefined value. The
-  // register scratch2 can be passed as no_reg; the others must be
-  // valid registers. Returns tagged pointer in result register, or
-  // jumps to gc_required if new space is full.
-  void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
-                          Label* gc_required, MutableMode mode = IMMUTABLE);
-
   // Allocate and initialize a JSValue wrapper with the specified {constructor}
   // and {value}.
   void AllocateJSValue(Register result, Register constructor, Register value,
                        Register scratch, Label* gc_required);
-
-  // Initialize fields with filler values.  Fields starting at |current_address|
-  // not including |end_address| are overwritten with the value in |filler|.  At
-  // the end the loop, |current_address| takes the value of |end_address|.
-  void InitializeFieldsWithFiller(Register current_address,
-                                  Register end_address, Register filler);
-
-  // ---------------------------------------------------------------------------
-  // Support functions.
-
-  // Check a boolean-bit of a Smi field.
-  void BooleanBitTest(Register object, int field_offset, int bit_index);
-
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done.
-  void GetMapConstructor(Register result, Register map, Register temp);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -751,10 +653,6 @@ class MacroAssembler : public TurboAssembler {
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
-  void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {
-    const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, kSaveFPRegs);
-  }
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid,
@@ -768,9 +666,6 @@ class MacroAssembler : public TurboAssembler {
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
     CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
   }
-
-  // Convenience function: call an external reference.
-  void CallExternalReference(ExternalReference ref, int num_arguments);
 
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid);
@@ -810,10 +705,6 @@ class MacroAssembler : public TurboAssembler {
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
 
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged, the result is in edx, and eax gets clobbered.
-  void TruncatingDiv(Register dividend, int32_t divisor);
-
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
@@ -841,36 +732,15 @@ class MacroAssembler : public TurboAssembler {
   void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
                                        Label::Distance distance = Label::kFar);
 
-  void EmitSeqStringSetCharCheck(Register string, Register index,
-                                 Register value, uint32_t encoding_mask);
 
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
 
-  // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadFeedbackVector(Register vector);
-
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
-  // Expects object in eax and returns map with validated enum cache
-  // in eax.  Assumes that any other register can be used as a scratch.
-  void CheckEnumCache(Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, conditional code is set to equal.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Label* no_memento_found);
-
  private:
-  int jit_cookie_;
-
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual, Label* done,

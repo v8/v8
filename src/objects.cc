@@ -19,6 +19,8 @@
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/base/bits.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
@@ -39,7 +41,6 @@
 #include "src/field-index.h"
 #include "src/field-type.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/globals.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
@@ -14783,35 +14784,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
       os << "\n";
     }
     os << "\n";
-  } else if (kind() == FUNCTION) {
-    unsigned offset = back_edge_table_offset();
-    // If there is no back edge table, the "table start" will be at or after
-    // (due to alignment) the end of the instruction stream.
-    if (static_cast<int>(offset) < instruction_size()) {
-      DisallowHeapAllocation no_gc;
-      BackEdgeTable back_edges(this, &no_gc);
-
-      os << "Back edges (size = " << back_edges.length() << ")\n";
-      os << "ast_id  pc_offset  loop_depth\n";
-
-      for (uint32_t i = 0; i < back_edges.length(); i++) {
-        os << std::setw(6) << back_edges.ast_id(i).ToInt() << "  "
-           << std::setw(9) << std::hex << back_edges.pc_offset(i) << std::dec
-           << "  " << std::setw(10) << back_edges.loop_depth(i) << "\n";
-      }
-
-      os << "\n";
-    }
-#ifdef OBJECT_PRINT
-    if (!type_feedback_info()->IsUndefined(GetIsolate())) {
-      TypeFeedbackInfo* info = TypeFeedbackInfo::cast(type_feedback_info());
-      HeapObject::PrintHeader(os, "TypeFeedbackInfo");
-      os << "\n - ic_total_count: " << info->ic_total_count()
-         << ", ic_with_type_info_count: " << info->ic_with_type_info_count()
-         << ", ic_generic_count: " << info->ic_generic_count() << "\n";
-      os << "\n";
-    }
-#endif
   }
 
   if (handler_table()->length() > 0) {

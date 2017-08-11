@@ -1596,8 +1596,7 @@ void Assembler::orr(Register dst, Register src1, Register src2, SBit s,
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // Don't allow nop instructions in the form mov rn, rn to be generated using
-  // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
-  // or MarkCode(int/NopMarkerTypes) pseudo instructions.
+  // the mov instruction. They must be generated using nop(int/NopMarkerTypes).
   DCHECK(!(src.IsRegister() && src.rm().is(dst) && s == LeaveCC && cond == al));
   AddrMode1(cond | MOV | s, dst, no_reg, src);
 }

@@ -230,7 +230,6 @@
       'test-code-stubs.h',
       'test-code-stubs-ia32.cc',
       'test-disasm-ia32.cc',
-      'test-macro-assembler-ia32.cc',
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-ia32.cc',
     ],

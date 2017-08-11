@@ -449,8 +449,6 @@ class MacroAssembler : public TurboAssembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
-  int jit_cookie() const { return jit_cookie_; }
-
   // Prevent the use of the RootArray during the lifetime of this
   // scope object.
   class NoRootArrayScope BASE_EMBEDDED {
@@ -484,6 +482,7 @@ class MacroAssembler : public TurboAssembler {
   //   operation(operand, ..);
   void Load(Register destination, ExternalReference source);
   void Store(ExternalReference destination, Register source);
+
   // Pushes the address of the external reference onto the stack.
   void PushAddress(ExternalReference source);
 
@@ -658,11 +657,6 @@ class MacroAssembler : public TurboAssembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { Pushad(); }
   void PopSafepointRegisters() { Popad(); }
-  // Store the value in register src in the safepoint register stack
-  // slot for register dst.
-  void StoreToSafepointRegisterSlot(Register dst, const Immediate& imm);
-  void StoreToSafepointRegisterSlot(Register dst, Register src);
-  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -691,26 +685,12 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
 
   // ---------------------------------------------------------------------------
-  // Smi tagging, untagging and operations on tagged smis.
-
-  // Support for constant splitting.
-  bool IsUnsafeInt(const int32_t x);
-  void SafeMove(Register dst, Smi* src);
-  void SafePush(Smi* src);
-
   // Conversions between tagged smi values and non-tagged integer values.
 
   // Tag an integer value. The result must be known to be a valid smi value.
   // Only uses the low 32 bits of the src register. Sets the N and Z flags
   // based on the value of the resulting smi.
   void Integer32ToSmi(Register dst, Register src);
-
-  // Stores an integer32 value into a memory field that already holds a smi.
-  void Integer32ToSmiField(const Operand& dst, Register src);
-
-  // Adds constant to src and tags the result as a smi.
-  // Result must be a valid smi.
-  void Integer64PlusConstantToSmi(Register dst, Register src, int constant);
 
   // Convert smi to 64-bit integer (sign extended if necessary).
   void SmiToInteger64(Register dst, Register src);
@@ -741,46 +721,15 @@ class MacroAssembler : public TurboAssembler {
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
 
-  // Is the value a non-negative tagged smi.
-  Condition CheckNonNegativeSmi(Register src);
-
   // Are both values tagged smis.
   Condition CheckBothSmi(Register first, Register second);
-
-  // Are both values non-negative tagged smis.
-  Condition CheckBothNonNegativeSmi(Register first, Register second);
 
   // Are either value a tagged smi.
   Condition CheckEitherSmi(Register first,
                            Register second,
                            Register scratch = kScratchRegister);
-
-  // Checks whether an 32-bit integer value is a valid for conversion
-  // to a smi.
-  Condition CheckInteger32ValidSmiValue(Register src);
-
-  // Checks whether an 32-bit unsigned integer value is a valid for
-  // conversion to a smi.
-  Condition CheckUInteger32ValidSmiValue(Register src);
-
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
-
-  // Jump if the value can be represented by a smi.
-  void JumpIfValidSmiValue(Register src, Label* on_valid,
-                           Label::Distance near_jump = Label::kFar);
-
-  // Jump if the value cannot be represented by a smi.
-  void JumpIfNotValidSmiValue(Register src, Label* on_invalid,
-                              Label::Distance near_jump = Label::kFar);
-
-  // Jump if the unsigned integer value can be represented by a smi.
-  void JumpIfUIntValidSmiValue(Register src, Label* on_valid,
-                               Label::Distance near_jump = Label::kFar);
-
-  // Jump if the unsigned integer value cannot be represented by a smi.
-  void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid,
-                                  Label::Distance near_jump = Label::kFar);
 
   // Jump to label if the value is not a tagged smi.
   void JumpIfNotSmi(Register src,
@@ -791,28 +740,11 @@ class MacroAssembler : public TurboAssembler {
   void JumpIfNotSmi(Operand src, Label* on_not_smi,
                     Label::Distance near_jump = Label::kFar);
 
-  // Jump to label if the value is not a non-negative tagged smi.
-  void JumpUnlessNonNegativeSmi(Register src,
-                                Label* on_not_smi,
-                                Label::Distance near_jump = Label::kFar);
-
-  // Jump to label if the value, which must be a tagged smi, has value equal
-  // to the constant.
-  void JumpIfSmiEqualsConstant(Register src,
-                               Smi* constant,
-                               Label* on_equals,
-                               Label::Distance near_jump = Label::kFar);
-
   // Jump if either or both register are not smi values.
   void JumpIfNotBothSmi(Register src1,
                         Register src2,
                         Label* on_not_both_smi,
                         Label::Distance near_jump = Label::kFar);
-
-  // Jump if either or both register are not non-negative smi values.
-  void JumpUnlessBothNonNegativeSmi(Register src1, Register src2,
-                                    Label* on_not_both_smi,
-                                    Label::Distance near_jump = Label::kFar);
 
   // Operations on tagged smi values.
 
@@ -843,13 +775,6 @@ class MacroAssembler : public TurboAssembler {
   void SmiSubConstant(Register dst, Register src, Smi* constant,
                       SmiOperationConstraints constraints, Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
-
-  // Negating a smi can give a negative zero or too large positive value.
-  // NOTICE: This operation jumps on success, not failure!
-  void SmiNeg(Register dst,
-              Register src,
-              Label* on_smi_result,
-              Label::Distance near_jump = Label::kFar);
 
   // Adds smi values and return the result as a smi.
   // If dst is src1, then src1 will be destroyed if the operation is
@@ -891,79 +816,6 @@ class MacroAssembler : public TurboAssembler {
               Register src1,
               const Operand& src2);
 
-  // Multiplies smi values and return the result as a smi,
-  // if possible.
-  // If dst is src1, then src1 will be destroyed, even if
-  // the operation is unsuccessful.
-  void SmiMul(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Divides one smi by another and returns the quotient.
-  // Clobbers rax and rdx registers.
-  void SmiDiv(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Divides one smi by another and returns the remainder.
-  // Clobbers rax and rdx registers.
-  void SmiMod(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Bitwise operations.
-  void SmiNot(Register dst, Register src);
-  void SmiAnd(Register dst, Register src1, Register src2);
-  void SmiOr(Register dst, Register src1, Register src2);
-  void SmiXor(Register dst, Register src1, Register src2);
-  void SmiAndConstant(Register dst, Register src1, Smi* constant);
-  void SmiOrConstant(Register dst, Register src1, Smi* constant);
-  void SmiXorConstant(Register dst, Register src1, Smi* constant);
-
-  void SmiShiftLeftConstant(Register dst,
-                            Register src,
-                            int shift_value,
-                            Label* on_not_smi_result = NULL,
-                            Label::Distance near_jump = Label::kFar);
-  void SmiShiftLogicalRightConstant(Register dst,
-                                    Register src,
-                                    int shift_value,
-                                    Label* on_not_smi_result,
-                                    Label::Distance near_jump = Label::kFar);
-  void SmiShiftArithmeticRightConstant(Register dst,
-                                       Register src,
-                                       int shift_value);
-
-  // Shifts a smi value to the left, and returns the result if that is a smi.
-  // Uses and clobbers rcx, so dst may not be rcx.
-  void SmiShiftLeft(Register dst,
-                    Register src1,
-                    Register src2,
-                    Label* on_not_smi_result = NULL,
-                    Label::Distance near_jump = Label::kFar);
-  // Shifts a smi value to the right, shifting in zero bits at the top, and
-  // returns the unsigned interpretation of the result if that is a smi.
-  // Uses and clobbers rcx, so dst may not be rcx.
-  void SmiShiftLogicalRight(Register dst,
-                            Register src1,
-                            Register src2,
-                            Label* on_not_smi_result,
-                            Label::Distance near_jump = Label::kFar);
-  // Shifts a smi value to the right, sign extending the top, and
-  // returns the signed interpretation of the result. That will always
-  // be a valid smi value, since it's numerically smaller than the
-  // original.
-  // Uses and clobbers rcx, so dst may not be rcx.
-  void SmiShiftArithmeticRight(Register dst,
-                               Register src1,
-                               Register src2);
-
   // Specialized operations
 
   // Select the non-smi register of two registers where exactly one is a
@@ -984,32 +836,8 @@ class MacroAssembler : public TurboAssembler {
   // src is always unchanged.
   SmiIndex SmiToIndex(Register dst, Register src, int shift);
 
-  // Converts a positive smi to a negative index.
-  SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
-
-  // Add the value of a smi in memory to an int32 register.
-  // Sets flags as a normal add.
-  void AddSmiField(Register dst, const Operand& src);
-
-  // Save away a raw integer with pointer size on the stack as two integers
-  // masquerading as smis so that the garbage collector skips visiting them.
-  void PushRegisterAsTwoSmis(Register src, Register scratch = kScratchRegister);
-  // Reconstruct a raw integer with pointer size from two integers masquerading
-  // as smis on the top of stack.
-  void PopRegisterAsTwoSmis(Register dst, Register scratch = kScratchRegister);
-
-  void Test(const Operand& dst, Smi* source);
-
-
   // ---------------------------------------------------------------------------
   // String macros.
-
-  // If object is a string, its map is loaded into object_map.
-  void JumpIfNotString(Register object,
-                       Register object_map,
-                       Label* not_string,
-                       Label::Distance near_jump = Label::kFar);
-
 
   void JumpIfNotBothSequentialOneByteStrings(
       Register first_object, Register second_object, Register scratch1,
@@ -1020,11 +848,6 @@ class MacroAssembler : public TurboAssembler {
       Register first_object_instance_type, Register second_object_instance_type,
       Register scratch1, Register scratch2, Label* on_fail,
       Label::Distance near_jump = Label::kFar);
-
-  void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,
-                                 Register value,
-                                 uint32_t encoding_mask);
 
   // Checks if the given register or operand is a unique name
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
@@ -1039,16 +862,11 @@ class MacroAssembler : public TurboAssembler {
   void Load(Register dst, const Operand& src, Representation r);
   void Store(const Operand& dst, Register src, Representation r);
 
-  void Cvtsd2si(Register dst, XMMRegister src);
-
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Smi* src);
   void Cmp(const Operand& dst, Smi* src);
   void PushObject(Handle<Object> source);
-
-  // Move a Smi or HeapNumber.
-  void MoveNumber(Register dst, double value);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -1165,36 +983,12 @@ class MacroAssembler : public TurboAssembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
-  // Check if the object in register heap_object is a string. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectStringType(Register heap_object,
-                               Register map,
-                               Register instance_type);
-
-  // FCmp compares and pops the two values on top of the FPU stack.
-  // The flag results are similar to integer cmp, but requires unsigned
-  // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
-  void FCmp();
-
-  void ClampUint8(Register reg);
-
-  void ClampDoubleToUint8(XMMRegister input_reg,
-                          XMMRegister temp_xmm_reg,
-                          Register result_reg);
-
   void DoubleToI(Register result_reg, XMMRegister input_reg,
                  XMMRegister scratch, MinusZeroMode minus_zero_mode,
                  Label* lost_precision, Label* is_nan, Label* minus_zero,
                  Label::Distance dst = Label::kFar);
 
-  void LoadUint32(XMMRegister dst, Register src);
-
   void LoadInstanceDescriptors(Register map, Register descriptors);
-  void EnumLength(Register dst, Register map);
-  void NumberOfOwnDescriptors(Register dst, Register map);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
                     AccessorComponent accessor);
 
@@ -1206,26 +1000,6 @@ class MacroAssembler : public TurboAssembler {
       shrp(reg, Immediate(shift));
     }
     andp(reg, Immediate(mask));
-  }
-
-  template<typename Field>
-  void DecodeFieldToSmi(Register reg) {
-    if (SmiValuesAre32Bits()) {
-      andp(reg, Immediate(Field::kMask));
-      shlp(reg, Immediate(kSmiShift - Field::kShift));
-    } else {
-      static const int shift = Field::kShift;
-      static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
-      DCHECK(SmiValuesAre31Bits());
-      DCHECK(kSmiShift == kSmiTagSize);
-      DCHECK((mask & 0x80000000u) == 0);
-      if (shift < kSmiShift) {
-        shlp(reg, Immediate(kSmiShift - shift));
-      } else if (shift > kSmiShift) {
-        sarp(reg, Immediate(shift - kSmiShift));
-      }
-      andp(reg, Immediate(mask));
-    }
   }
 
   // Abort execution if argument is a smi, enabled via --debug-code.
@@ -1282,30 +1056,6 @@ class MacroAssembler : public TurboAssembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  void Allocate(int header_size,
-                ScaleFactor element_size,
-                Register element_count,
-                Register result,
-                Register result_end,
-                Register scratch,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  void Allocate(Register object_size,
-                Register result,
-                Register result_end,
-                Register scratch,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  // Allocate a heap number in new space with undefined value. Returns
-  // tagged pointer in result register, or jumps to gc_required if new
-  // space is full.
-  void AllocateHeapNumber(Register result,
-                          Register scratch,
-                          Label* gc_required,
-                          MutableMode mode = IMMUTABLE);
-
   // Allocate and initialize a JSValue wrapper with the specified {constructor}
   // and {value}.
   void AllocateJSValue(Register result, Register constructor, Register value,
@@ -1313,18 +1063,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Support functions.
-
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done.
-  void GetMapConstructor(Register result, Register map, Register temp);
-
-  // Find the function context up the context chain.
-  void LoadContext(Register dst, int context_chain_length);
-
-  // Load the global object from the current context.
-  void LoadGlobalObject(Register dst) {
-    LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
-  }
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
@@ -1354,12 +1092,6 @@ class MacroAssembler : public TurboAssembler {
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
-  // Call a runtime function and save the value of XMM registers.
-  void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {
-    const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, kSaveFPRegs);
-  }
-
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
@@ -1373,30 +1105,12 @@ class MacroAssembler : public TurboAssembler {
     CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
   }
 
-  // Convenience function: call an external reference.
-  void CallExternalReference(const ExternalReference& ext,
-                             int num_arguments);
-
   // Convenience function: tail call a runtime routine (jump)
   void TailCallRuntime(Runtime::FunctionId fid);
 
   // Jump to a runtime routines
   void JumpToExternalReference(const ExternalReference& ext,
                                bool builtin_exit_frame = false);
-
-  // ---------------------------------------------------------------------------
-  // Utilities
-
-  // Initialize fields with filler values.  Fields starting at |current_address|
-  // not including |end_address| are overwritten with the value in |filler|.  At
-  // the end the loop, |current_address| takes the value of |end_address|.
-  void InitializeFieldsWithFiller(Register current_address,
-                                  Register end_address, Register filler);
-
-
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged, the result is in rdx, and rax gets clobbered.
-  void TruncatingDiv(Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -1413,33 +1127,14 @@ class MacroAssembler : public TurboAssembler {
     return SafepointRegisterStackIndex(reg.code());
   }
 
-  // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadFeedbackVector(Register vector);
-
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
-  // Expects object in rax and returns map with validated enum cache
-  // in rax.  Assumes that any other register can be used as a scratch.
-  void CheckEnumCache(Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to equal.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Label* no_memento_found);
 
  private:
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14, r15.
   static const int kSafepointPushRegisterIndices[Register::kNumRegisters];
   static const int kNumSafepointSavedRegisters = 12;
-
-  int jit_cookie_;
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,

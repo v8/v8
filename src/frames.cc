@@ -10,7 +10,6 @@
 #include "src/base/bits.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic-stats.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"

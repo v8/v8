@@ -9,7 +9,6 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/full-codegen/full-codegen.h"
 
 namespace v8 {
 namespace internal {

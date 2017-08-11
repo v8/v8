@@ -16,7 +16,6 @@
 
 #include "src/v8.h"
 
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"

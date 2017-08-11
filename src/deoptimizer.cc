@@ -9,10 +9,10 @@
 #include "src/accessors.h"
 #include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"
+#include "src/callable.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
@@ -992,7 +992,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       // If we are lazy deopting to a catch handler, we set the accumulator to
       // the exception (which lives in the result register).
       intptr_t accumulator_value =
-          input_->GetRegister(FullCodeGenerator::result_register().code());
+          input_->GetRegister(kInterpreterAccumulatorRegister.code());
       WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
                          frame_index, output_offset, "accumulator ");
       value_iterator++;
@@ -1317,7 +1317,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   if (is_topmost) {
     // Ensure the result is restored back when we return to the stub.
     output_offset -= kPointerSize;
-    Register result_reg = FullCodeGenerator::result_register();
+    Register result_reg = kReturnRegister0;
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset, "subcall result\n");
@@ -1501,7 +1501,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   if (should_preserve_result) {
     // Ensure the result is restored back when we return to the stub.
     output_offset -= kPointerSize;
-    Register result_reg = FullCodeGenerator::result_register();
+    Register result_reg = kReturnRegister0;
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset,
@@ -1691,7 +1691,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   intptr_t value;
 
-  Register result_reg = FullCodeGenerator::result_register();
+  Register result_reg = kReturnRegister0;
   if (must_handle_result) {
     value = input_->GetRegister(result_reg.code());
   } else {

@@ -758,8 +758,6 @@ DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 DEFINE_BOOL(trace_codegen, false,
             "print name of functions for which code is generated")
 DEFINE_BOOL(trace, false, "trace function calls")
-DEFINE_BOOL(mask_constants_with_cookie, true,
-            "use random jit cookie to mask large constants")
 
 // codegen.cc
 DEFINE_BOOL(lazy, true, "use lazy compilation")

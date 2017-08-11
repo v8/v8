@@ -781,51 +781,6 @@ void TurboAssembler::LoadStorePairMacro(const CPURegister& rt,
   }
 }
 
-
-void MacroAssembler::Load(const Register& rt,
-                          const MemOperand& addr,
-                          Representation r) {
-  DCHECK(!r.IsDouble());
-
-  if (r.IsInteger8()) {
-    Ldrsb(rt, addr);
-  } else if (r.IsUInteger8()) {
-    Ldrb(rt, addr);
-  } else if (r.IsInteger16()) {
-    Ldrsh(rt, addr);
-  } else if (r.IsUInteger16()) {
-    Ldrh(rt, addr);
-  } else if (r.IsInteger32()) {
-    Ldr(rt.W(), addr);
-  } else {
-    DCHECK(rt.Is64Bits());
-    Ldr(rt, addr);
-  }
-}
-
-
-void MacroAssembler::Store(const Register& rt,
-                           const MemOperand& addr,
-                           Representation r) {
-  DCHECK(!r.IsDouble());
-
-  if (r.IsInteger8() || r.IsUInteger8()) {
-    Strb(rt, addr);
-  } else if (r.IsInteger16() || r.IsUInteger16()) {
-    Strh(rt, addr);
-  } else if (r.IsInteger32()) {
-    Str(rt.W(), addr);
-  } else {
-    DCHECK(rt.Is64Bits());
-    if (r.IsHeapObject()) {
-      AssertNotSmi(rt);
-    } else if (r.IsSmi()) {
-      AssertSmi(rt);
-    }
-    Str(rt, addr);
-  }
-}
-
 bool TurboAssembler::NeedExtraInstructionsOrRegisterBranch(
     Label* label, ImmBranchType b_type) {
   bool need_longer_range = false;
@@ -1561,20 +1516,6 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
   Ldr(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
 }
 
-
-void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
-  Ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
-  DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
-}
-
-
-void MacroAssembler::EnumLengthUntagged(Register dst, Register map) {
-  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
-  Ldrsw(dst, FieldMemOperand(map, Map::kBitField3Offset));
-  And(dst, dst, Map::EnumLengthBits::kMask);
-}
-
-
 void MacroAssembler::LoadAccessor(Register dst, Register holder,
                                   int accessor_index,
                                   AccessorComponent accessor) {
@@ -1585,62 +1526,6 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
   int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
                                            : AccessorPair::kSetterOffset;
   Ldr(dst, FieldMemOperand(dst, offset));
-}
-
-
-void MacroAssembler::CheckEnumCache(Register object, Register scratch0,
-                                    Register scratch1, Register scratch2,
-                                    Register scratch3, Register scratch4,
-                                    Label* call_runtime) {
-  DCHECK(!AreAliased(object, scratch0, scratch1, scratch2, scratch3, scratch4));
-
-  Register empty_fixed_array_value = scratch0;
-  Register current_object = scratch1;
-  Register null_value = scratch4;
-
-  LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  Label next, start;
-
-  Mov(current_object, object);
-
-  // Check if the enum length field is properly initialized, indicating that
-  // there is an enum cache.
-  Register map = scratch2;
-  Register enum_length = scratch3;
-  Ldr(map, FieldMemOperand(current_object, HeapObject::kMapOffset));
-
-  EnumLengthUntagged(enum_length, map);
-  Cmp(enum_length, kInvalidEnumCacheSentinel);
-  B(eq, call_runtime);
-
-  LoadRoot(null_value, Heap::kNullValueRootIndex);
-  B(&start);
-
-  Bind(&next);
-  Ldr(map, FieldMemOperand(current_object, HeapObject::kMapOffset));
-
-  // For all objects but the receiver, check that the cache is empty.
-  EnumLengthUntagged(enum_length, map);
-  Cbnz(enum_length, call_runtime);
-
-  Bind(&start);
-
-  // Check that there are no elements. Register current_object contains the
-  // current JS object we've reached through the prototype chain.
-  Label no_elements;
-  Ldr(current_object, FieldMemOperand(current_object,
-                                      JSObject::kElementsOffset));
-  Cmp(current_object, empty_fixed_array_value);
-  B(eq, &no_elements);
-
-  // Second chance, the object may be using the empty slow element dictionary.
-  CompareRoot(current_object, Heap::kEmptySlowElementDictionaryRootIndex);
-  B(ne, call_runtime);
-
-  Bind(&no_elements);
-  Ldr(current_object, FieldMemOperand(map, Map::kPrototypeOffset));
-  Cmp(current_object, null_value);
-  B(ne, &next);
 }
 
 void MacroAssembler::InNewSpace(Register object,
@@ -1806,16 +1691,6 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x1, ExternalReference(f, isolate()));
 
   CEntryStub stub(isolate(), 1, save_doubles);
-  CallStub(&stub);
-}
-
-
-void MacroAssembler::CallExternalReference(const ExternalReference& ext,
-                                           int num_arguments) {
-  Mov(x0, num_arguments);
-  Mov(x1, ext);
-
-  CEntryStub stub(isolate(), 1);
   CallStub(&stub);
 }
 
@@ -2518,12 +2393,6 @@ void TurboAssembler::Prologue(bool code_pre_aging) {
   }
 }
 
-void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
-  Ldr(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  Ldr(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
-  Ldr(vector, FieldMemOperand(vector, Cell::kValueOffset));
-}
-
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
   Register type_reg = temps.AcquireX();
@@ -2744,22 +2613,6 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
   IncrementCounter(counter, -value, scratch1, scratch2);
 }
 
-
-void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
-  if (context_chain_length > 0) {
-    // Move up the chain of contexts to the context containing the slot.
-    Ldr(dst, MemOperand(cp, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-    for (int i = 1; i < context_chain_length; i++) {
-      Ldr(dst, MemOperand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-    }
-  } else {
-    // Slot is in the current function context.  Move it into the
-    // destination register in case we store into it (the write barrier
-    // cannot be allowed to destroy the context in cp).
-    Mov(dst, cp);
-  }
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -2874,143 +2727,6 @@ void MacroAssembler::Allocate(int object_size,
   // Tag the object.
   ObjectTag(result, result);
 }
-
-
-void MacroAssembler::Allocate(Register object_size, Register result,
-                              Register result_end, Register scratch,
-                              Label* gc_required, AllocationFlags flags) {
-  if (!FLAG_inline_new) {
-    if (emit_debug_code()) {
-      // Trash the registers to simulate an allocation failure.
-      // We apply salt to the original zap value to easily spot the values.
-      Mov(result, (kDebugZapValue & ~0xffL) | 0x11L);
-      Mov(scratch, (kDebugZapValue & ~0xffL) | 0x21L);
-      Mov(result_end, (kDebugZapValue & ~0xffL) | 0x21L);
-    }
-    B(gc_required);
-    return;
-  }
-
-  UseScratchRegisterScope temps(this);
-  Register scratch2 = temps.AcquireX();
-
-  // |object_size| and |result_end| may overlap, other registers must not.
-  DCHECK(!AreAliased(object_size, result, scratch, scratch2));
-  DCHECK(!AreAliased(result_end, result, scratch, scratch2));
-  DCHECK(object_size.Is64Bits() && result.Is64Bits() && scratch.Is64Bits() &&
-         result_end.Is64Bits());
-
-  // Check relative positions of allocation top and limit addresses.
-  // The values must be adjacent in memory to allow the use of LDP.
-  ExternalReference heap_allocation_top =
-      AllocationUtils::GetAllocationTopReference(isolate(), flags);
-  ExternalReference heap_allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-  intptr_t top = reinterpret_cast<intptr_t>(heap_allocation_top.address());
-  intptr_t limit = reinterpret_cast<intptr_t>(heap_allocation_limit.address());
-  DCHECK((limit - top) == kPointerSize);
-
-  // Set up allocation top address and allocation limit registers.
-  Register top_address = scratch;
-  Register alloc_limit = scratch2;
-  Mov(top_address, heap_allocation_top);
-
-  if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    // Load allocation top into result and allocation limit into alloc_limit.
-    Ldp(result, alloc_limit, MemOperand(top_address));
-  } else {
-    if (emit_debug_code()) {
-      // Assert that result actually contains top on entry.
-      Ldr(alloc_limit, MemOperand(top_address));
-      Cmp(result, alloc_limit);
-      Check(eq, kUnexpectedAllocationTop);
-    }
-    // Load allocation limit. Result already contains allocation top.
-    Ldr(alloc_limit, MemOperand(top_address, limit - top));
-  }
-
-  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
-  // the same alignment on ARM64.
-  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
-
-  // Calculate new top and bail out if new space is exhausted
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    Adds(result_end, result, Operand(object_size, LSL, kPointerSizeLog2));
-  } else {
-    Adds(result_end, result, object_size);
-  }
-
-  if (emit_debug_code()) {
-    Tst(result_end, kObjectAlignmentMask);
-    Check(eq, kUnalignedAllocationInNewSpace);
-  }
-
-  Ccmp(result_end, alloc_limit, NoFlag, cc);
-  B(hi, gc_required);
-
-  Str(result_end, MemOperand(top_address));
-
-  // Tag the object.
-  ObjectTag(result, result);
-}
-
-// Allocates a heap number or jumps to the need_gc label if the young space
-// is full and a scavenge is needed.
-void MacroAssembler::AllocateHeapNumber(Register result,
-                                        Label* gc_required,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        CPURegister value,
-                                        CPURegister heap_number_map,
-                                        MutableMode mode) {
-  DCHECK(!value.IsValid() || value.Is64Bits());
-  UseScratchRegisterScope temps(this);
-
-  // Allocate an object in the heap for the heap number and tag it as a heap
-  // object.
-  Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  Heap::RootListIndex map_index = mode == MUTABLE
-      ? Heap::kMutableHeapNumberMapRootIndex
-      : Heap::kHeapNumberMapRootIndex;
-
-  // Prepare the heap number map.
-  if (!heap_number_map.IsValid()) {
-    // If we have a valid value register, use the same type of register to store
-    // the map so we can use STP to store both in one instruction.
-    if (value.IsValid() && value.IsVRegister()) {
-      heap_number_map = temps.AcquireD();
-    } else {
-      heap_number_map = scratch1;
-    }
-    LoadRoot(heap_number_map, map_index);
-  }
-  if (emit_debug_code()) {
-    Register map;
-    if (heap_number_map.IsVRegister()) {
-      map = scratch1;
-      Fmov(map, DoubleRegister(heap_number_map));
-    } else {
-      map = Register(heap_number_map);
-    }
-    AssertRegisterIsRoot(map, map_index);
-  }
-
-  // Store the heap number map and the value in the allocated object.
-  if (value.IsSameSizeAndType(heap_number_map)) {
-    STATIC_ASSERT(HeapObject::kMapOffset + kPointerSize ==
-                  HeapNumber::kValueOffset);
-    Stp(heap_number_map, value,
-        FieldMemOperand(result, HeapObject::kMapOffset));
-  } else {
-    Str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
-    if (value.IsValid()) {
-      Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
-    }
-  }
-}
-
 
 void MacroAssembler::JumpIfObjectType(Register object,
                                       Register map,
@@ -3152,19 +2868,6 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   __ Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
   DecodeField<Map::ElementsKindBits>(result);
-}
-
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp, Register temp2) {
-  Label done, loop;
-  Ldr(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
-  Bind(&loop);
-  JumpIfSmi(result, &done);
-  CompareObjectType(result, temp, temp2, MAP_TYPE);
-  B(ne, &done);
-  Ldr(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
-  B(&loop);
-  Bind(&done);
 }
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
@@ -3310,10 +3013,6 @@ void MacroAssembler::PushSafepointRegisters() {
 
 void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
   Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
-}
-
-void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
-  Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
 }
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {

@@ -10,7 +10,6 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

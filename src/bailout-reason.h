@@ -60,8 +60,6 @@ namespace internal {
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                   \
     "Input GPR is expected to have upper32 cleared")                           \
   V(kInputStringTooLong, "Input string too long")                              \
-  V(kInteger32ToSmiFieldWritingToNonSmiLocation,                               \
-    "Integer32ToSmiField writing to non-smi location")                         \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                 \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")           \

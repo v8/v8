@@ -11,7 +11,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/counters.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"

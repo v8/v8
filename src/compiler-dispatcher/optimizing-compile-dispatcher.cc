@@ -7,7 +7,6 @@
 #include "src/base/atomicops.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
