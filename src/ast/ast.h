@@ -116,7 +116,6 @@ namespace internal {
 // Forward declarations
 class AstNodeFactory;
 class Declaration;
-class Module;
 class BreakableStatement;
 class Expression;
 class IterationStatement;
