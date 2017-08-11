@@ -236,7 +236,6 @@ enum ContextLookupFlags {
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
   V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
-  V(CURRENT_MODULE_INDEX, Module, current_module)                              \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
