@@ -44,8 +44,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
-  Reduction ReduceJSLoadProperty(Node* node);
-  Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
@@ -102,7 +100,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   CompilationDependencies* dependencies_;
   JSGraph* jsgraph_;
   Type* empty_string_type_;
-  Type* shifted_int32_ranges_[4];
   Type* pointer_comparable_type_;
   TypeCache const& type_cache_;
 };

@@ -34,30 +34,6 @@ size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
-
-// An access descriptor for loads/stores of array buffers.
-class BufferAccess final {
- public:
-  explicit BufferAccess(ExternalArrayType external_array_type)
-      : external_array_type_(external_array_type) {}
-
-  ExternalArrayType external_array_type() const { return external_array_type_; }
-  MachineType machine_type() const;
-
- private:
-  ExternalArrayType const external_array_type_;
-};
-
-V8_EXPORT_PRIVATE bool operator==(BufferAccess, BufferAccess);
-bool operator!=(BufferAccess, BufferAccess);
-
-size_t hash_value(BufferAccess);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BufferAccess);
-
-V8_EXPORT_PRIVATE BufferAccess const BufferAccessOf(const Operator* op)
-    WARN_UNUSED_RESULT;
-
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -485,12 +461,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
-
-  // load-buffer buffer, offset, length
-  const Operator* LoadBuffer(BufferAccess);
-
-  // store-buffer buffer, offset, length, value
-  const Operator* StoreBuffer(BufferAccess);
 
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);

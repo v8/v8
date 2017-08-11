@@ -2492,53 +2492,6 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kLoadBuffer: {
-        if (truncation.IsUnused()) return VisitUnused(node);
-        BufferAccess access = BufferAccessOf(node->op());
-        ProcessInput(node, 0, UseInfo::PointerInt());        // buffer
-        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // offset
-        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // length
-        ProcessRemainingInputs(node, 3);
-
-        MachineRepresentation output;
-        if (truncation.IdentifiesUndefinedAndNaN()) {
-          if (truncation.IdentifiesUndefinedAndZero()) {
-            // If undefined is truncated to a non-NaN number, we can use
-            // the load's representation.
-            output = access.machine_type().representation();
-          } else {
-            // If undefined is truncated to a number, but the use can
-            // observe NaN, we need to output at least the float32
-            // representation.
-            if (access.machine_type().representation() ==
-                MachineRepresentation::kFloat32) {
-              output = access.machine_type().representation();
-            } else {
-              output = MachineRepresentation::kFloat64;
-            }
-          }
-        } else {
-          // If undefined is not truncated away, we need to have the tagged
-          // representation.
-          output = MachineRepresentation::kTagged;
-        }
-        SetOutput(node, output);
-        if (lower()) lowering->DoLoadBuffer(node, output, changer_);
-        return;
-      }
-      case IrOpcode::kStoreBuffer: {
-        BufferAccess access = BufferAccessOf(node->op());
-        ProcessInput(node, 0, UseInfo::PointerInt());        // buffer
-        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // offset
-        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // length
-        ProcessInput(node, 3,
-                     TruncatingUseInfoFromRepresentation(
-                         access.machine_type().representation()));  // value
-        ProcessRemainingInputs(node, 4);
-        SetOutput(node, MachineRepresentation::kNone);
-        if (lower()) lowering->DoStoreBuffer(node);
-        return;
-      }
       case IrOpcode::kLoadElement: {
         if (truncation.IsUnused()) return VisitUnused(node);
         ElementAccess access = ElementAccessOf(node->op());
@@ -3218,75 +3171,6 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
   }
 
   selector->DeferReplacement(node, value);
-}
-
-void SimplifiedLowering::DoLoadBuffer(Node* node,
-                                      MachineRepresentation output_rep,
-                                      RepresentationChanger* changer) {
-  DCHECK_EQ(IrOpcode::kLoadBuffer, node->opcode());
-  DCHECK_NE(MachineRepresentation::kNone, output_rep);
-  MachineType const access_type = BufferAccessOf(node->op()).machine_type();
-  if (output_rep != access_type.representation()) {
-    Node* const buffer = node->InputAt(0);
-    Node* const offset = node->InputAt(1);
-    Node* const length = node->InputAt(2);
-    Node* const effect = node->InputAt(3);
-    Node* const control = node->InputAt(4);
-    Node* const index =
-        machine()->Is64()
-            ? graph()->NewNode(machine()->ChangeUint32ToUint64(), offset)
-            : offset;
-
-    Node* check = graph()->NewNode(machine()->Uint32LessThan(), offset, length);
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue = graph()->NewNode(machine()->Load(access_type), buffer, index,
-                                   effect, if_true);
-    Type* element_type =
-        Type::Intersect(NodeProperties::GetType(node), Type::Number(), zone());
-    Node* vtrue = changer->GetRepresentationFor(
-        etrue, access_type.representation(), element_type, node,
-        UseInfo(output_rep, Truncation::None()));
-
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* efalse = effect;
-    Node* vfalse;
-    if (output_rep == MachineRepresentation::kTagged) {
-      vfalse = jsgraph()->UndefinedConstant();
-    } else if (output_rep == MachineRepresentation::kFloat64) {
-      vfalse =
-          jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
-    } else if (output_rep == MachineRepresentation::kFloat32) {
-      vfalse =
-          jsgraph()->Float32Constant(std::numeric_limits<float>::quiet_NaN());
-    } else {
-      vfalse = jsgraph()->Int32Constant(0);
-    }
-
-    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
-
-    // Replace effect uses of {node} with the {ephi}.
-    NodeProperties::ReplaceUses(node, node, ephi);
-
-    // Turn the {node} into a Phi.
-    node->ReplaceInput(0, vtrue);
-    node->ReplaceInput(1, vfalse);
-    node->ReplaceInput(2, merge);
-    node->TrimInputCount(3);
-    NodeProperties::ChangeOp(node, common()->Phi(output_rep, 2));
-  } else {
-    NodeProperties::ChangeOp(node, machine()->CheckedLoad(access_type));
-  }
-}
-
-void SimplifiedLowering::DoStoreBuffer(Node* node) {
-  DCHECK_EQ(IrOpcode::kStoreBuffer, node->opcode());
-  MachineRepresentation const rep =
-      BufferAccessOf(node->op()).machine_type().representation();
-  NodeProperties::ChangeOp(node, machine()->CheckedStore(rep));
 }
 
 Node* SimplifiedLowering::Float64Round(Node* const node) {

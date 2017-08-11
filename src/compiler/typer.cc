@@ -1911,18 +1911,6 @@ Type* Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;
 }
 
-Type* Typer::Visitor::TypeLoadBuffer(Node* node) {
-  switch (BufferAccessOf(node->op()).external_array_type()) {
-#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
-  case kExternal##ElemType##Array:                          \
-    return Type::Union(typer_->cache_.k##ElemType, Type::Undefined(), zone());
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  }
-  UNREACHABLE();
-}
-
-
 Type* Typer::Visitor::TypeLoadElement(Node* node) {
   return ElementAccessOf(node->op()).type;
 }
@@ -1941,12 +1929,6 @@ Type* Typer::Visitor::TypeLoadTypedElement(Node* node) {
 Type* Typer::Visitor::TypeStoreField(Node* node) {
   UNREACHABLE();
 }
-
-
-Type* Typer::Visitor::TypeStoreBuffer(Node* node) {
-  UNREACHABLE();
-}
-
 
 Type* Typer::Visitor::TypeStoreElement(Node* node) {
   UNREACHABLE();

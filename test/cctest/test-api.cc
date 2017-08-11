@@ -25403,46 +25403,6 @@ TEST(StringConcatOverflow) {
 }
 
 
-TEST(TurboAsmDisablesNeuter) {
-  i::FLAG_opt = true;
-  i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext context;
-  const char* load =
-      "function Module(stdlib, foreign, heap) {"
-      "  'use asm';"
-      "  var MEM32 = new stdlib.Int32Array(heap);"
-      "  function load() { return MEM32[0]; }"
-      "  return { load: load };"
-      "}"
-      "var buffer = new ArrayBuffer(4);"
-      "var module = Module(this, {}, buffer);"
-      "%OptimizeFunctionOnNextCall(module.load);"
-      "module.load();"
-      "buffer";
-
-  v8::Local<v8::ArrayBuffer> result = CompileRun(load).As<v8::ArrayBuffer>();
-  CHECK(!result->IsNeuterable());
-
-  const char* store =
-      "function Module(stdlib, foreign, heap) {"
-      "  'use asm';"
-      "  var MEM32 = new stdlib.Int32Array(heap);"
-      "  function store() { MEM32[0] = 0; }"
-      "  return { store: store };"
-      "}"
-      "var buffer = new ArrayBuffer(4);"
-      "var module = Module(this, {}, buffer);"
-      "%OptimizeFunctionOnNextCall(module.store);"
-      "module.store();"
-      "buffer";
-
-  result = CompileRun(store).As<v8::ArrayBuffer>();
-  CHECK(!result->IsNeuterable());
-}
-
-
 TEST(GetPrototypeAccessControl) {
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();

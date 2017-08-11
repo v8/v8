@@ -411,13 +411,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
                       Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
                                   graph()->zone()),
                       graph()->zone())),
-      type_cache_(TypeCache::Get()) {
-  for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
-    double min = kMinInt / (1 << k);
-    double max = kMaxInt / (1 << k);
-    shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
-  }
-}
+      type_cache_(TypeCache::Get()) {}
 
 Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
   JSBinopReduction r(this, node);
@@ -1131,131 +1125,6 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
         effect, control);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
-  }
-  return NoChange();
-}
-
-Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
-  Node* key = NodeProperties::GetValueInput(node, 1);
-  Node* base = NodeProperties::GetValueInput(node, 0);
-  Type* key_type = NodeProperties::GetType(key);
-  HeapObjectMatcher mbase(base);
-  if (mbase.HasValue() && mbase.Value()->IsJSTypedArray()) {
-    Handle<JSTypedArray> const array =
-        Handle<JSTypedArray>::cast(mbase.Value());
-    if (!array->GetBuffer()->was_neutered() &&
-        !array->GetBuffer()->is_wasm_buffer()) {
-      array->GetBuffer()->set_is_neuterable(false);
-      BufferAccess const access(array->type());
-      size_t const k =
-          ElementSizeLog2Of(access.machine_type().representation());
-      double const byte_length = array->byte_length()->Number();
-      CHECK_LT(k, arraysize(shifted_int32_ranges_));
-      if (key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
-        // JSLoadProperty(typed-array, int32)
-        Handle<FixedTypedArrayBase> elements =
-            Handle<FixedTypedArrayBase>::cast(handle(array->elements()));
-        Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
-        Node* length = jsgraph()->Constant(byte_length);
-        Node* effect = NodeProperties::GetEffectInput(node);
-        Node* control = NodeProperties::GetControlInput(node);
-        // Check if we can avoid the bounds check.
-        if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
-          Node* load = graph()->NewNode(
-              simplified()->LoadElement(
-                  AccessBuilder::ForTypedArrayElement(array->type(), true)),
-              buffer, key, effect, control);
-          ReplaceWithValue(node, load, load);
-          return Replace(load);
-        }
-        // Compute byte offset.
-        Node* offset =
-            (k == 0) ? key : graph()->NewNode(
-                                 simplified()->NumberShiftLeft(), key,
-                                 jsgraph()->Constant(static_cast<double>(k)));
-        Node* load = graph()->NewNode(simplified()->LoadBuffer(access), buffer,
-                                      offset, length, effect, control);
-        ReplaceWithValue(node, load, load);
-        return Replace(load);
-      }
-    }
-  }
-  return NoChange();
-}
-
-Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
-  Node* key = NodeProperties::GetValueInput(node, 1);
-  Node* base = NodeProperties::GetValueInput(node, 0);
-  Node* value = NodeProperties::GetValueInput(node, 2);
-  Type* key_type = NodeProperties::GetType(key);
-  Type* value_type = NodeProperties::GetType(value);
-
-  if (!value_type->Is(Type::PlainPrimitive())) return NoChange();
-
-  HeapObjectMatcher mbase(base);
-  if (mbase.HasValue() && mbase.Value()->IsJSTypedArray()) {
-    Handle<JSTypedArray> const array =
-        Handle<JSTypedArray>::cast(mbase.Value());
-    if (!array->GetBuffer()->was_neutered() &&
-        !array->GetBuffer()->is_wasm_buffer()) {
-      array->GetBuffer()->set_is_neuterable(false);
-      BufferAccess const access(array->type());
-      size_t const k =
-          ElementSizeLog2Of(access.machine_type().representation());
-      double const byte_length = array->byte_length()->Number();
-      CHECK_LT(k, arraysize(shifted_int32_ranges_));
-      if (access.external_array_type() != kExternalUint8ClampedArray &&
-          key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
-        // JSLoadProperty(typed-array, int32)
-        Handle<FixedTypedArrayBase> elements =
-            Handle<FixedTypedArrayBase>::cast(handle(array->elements()));
-        Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
-        Node* length = jsgraph()->Constant(byte_length);
-        Node* effect = NodeProperties::GetEffectInput(node);
-        Node* control = NodeProperties::GetControlInput(node);
-        // Convert to a number first.
-        if (!value_type->Is(Type::Number())) {
-          Reduction number_reduction = ReduceJSToNumberInput(value);
-          if (number_reduction.Changed()) {
-            value = number_reduction.replacement();
-          } else {
-            value =
-                graph()->NewNode(simplified()->PlainPrimitiveToNumber(), value);
-          }
-        }
-        // Check if we can avoid the bounds check.
-        if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
-          RelaxControls(node);
-          node->ReplaceInput(0, buffer);
-          DCHECK_EQ(key, node->InputAt(1));
-          node->ReplaceInput(2, value);
-          node->ReplaceInput(3, effect);
-          node->ReplaceInput(4, control);
-          node->TrimInputCount(5);
-          NodeProperties::ChangeOp(
-              node,
-              simplified()->StoreElement(
-                  AccessBuilder::ForTypedArrayElement(array->type(), true)));
-          return Changed(node);
-        }
-        // Compute byte offset.
-        Node* offset =
-            (k == 0) ? key : graph()->NewNode(
-                                 simplified()->NumberShiftLeft(), key,
-                                 jsgraph()->Constant(static_cast<double>(k)));
-        // Turn into a StoreBuffer operation.
-        RelaxControls(node);
-        node->ReplaceInput(0, buffer);
-        node->ReplaceInput(1, offset);
-        node->ReplaceInput(2, length);
-        node->ReplaceInput(3, value);
-        node->ReplaceInput(4, effect);
-        node->ReplaceInput(5, control);
-        node->TrimInputCount(6);
-        NodeProperties::ChangeOp(node, simplified()->StoreBuffer(access));
-        return Changed(node);
-      }
-    }
   }
   return NoChange();
 }
@@ -2264,10 +2133,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSTypeOf(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
-    case IrOpcode::kJSLoadProperty:
-      return ReduceJSLoadProperty(node);
-    case IrOpcode::kJSStoreProperty:
-      return ReduceJSStoreProperty(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:

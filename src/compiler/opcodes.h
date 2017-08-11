@@ -338,11 +338,9 @@
   V(ConvertTaggedHoleToUndefined)   \
   V(Allocate)                       \
   V(LoadField)                      \
-  V(LoadBuffer)                     \
   V(LoadElement)                    \
   V(LoadTypedElement)               \
   V(StoreField)                     \
-  V(StoreBuffer)                    \
   V(StoreElement)                   \
   V(StoreTypedElement)              \
   V(TransitionAndStoreElement)      \
