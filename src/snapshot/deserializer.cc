@@ -385,97 +385,10 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
     STATIC_ASSERT((within & ~kWhereToPointMask) == 0);   \
     STATIC_ASSERT((space_number & ~kSpaceMask) == 0);
 
-#define CASE_BODY(where, how, within, space_number_if_any)                     \
-  {                                                                            \
-    bool emit_write_barrier = false;                                           \
-    bool current_was_incremented = false;                                      \
-    int space_number = space_number_if_any == kAnyOldSpace                     \
-                           ? (data & kSpaceMask)                               \
-                           : space_number_if_any;                              \
-    if (where == kNewObject && how == kPlain && within == kStartOfObject) {    \
-      ReadObject(space_number, current);                                       \
-      emit_write_barrier = (space_number == NEW_SPACE);                        \
-    } else {                                                                   \
-      Object* new_object = NULL; /* May not be a real Object pointer. */       \
-      if (where == kNewObject) {                                               \
-        ReadObject(space_number, &new_object);                                 \
-      } else if (where == kBackref) {                                          \
-        emit_write_barrier = (space_number == NEW_SPACE);                      \
-        new_object = GetBackReferencedObject(data & kSpaceMask);               \
-      } else if (where == kBackrefWithSkip) {                                  \
-        int skip = source_.GetInt();                                           \
-        current = reinterpret_cast<Object**>(                                  \
-            reinterpret_cast<Address>(current) + skip);                        \
-        emit_write_barrier = (space_number == NEW_SPACE);                      \
-        new_object = GetBackReferencedObject(data & kSpaceMask);               \
-      } else if (where == kRootArray) {                                        \
-        int id = source_.GetInt();                                             \
-        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id); \
-        new_object = isolate->heap()->root(root_index);                        \
-        emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
-        hot_objects_.Add(HeapObject::cast(new_object));                        \
-      } else if (where == kPartialSnapshotCache) {                             \
-        int cache_index = source_.GetInt();                                    \
-        new_object = isolate->partial_snapshot_cache()->at(cache_index);       \
-        emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
-      } else if (where == kExternalReference) {                                \
-        int skip = source_.GetInt();                                           \
-        current = reinterpret_cast<Object**>(                                  \
-            reinterpret_cast<Address>(current) + skip);                        \
-        uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());       \
-        Address address = external_reference_table_->address(reference_id);    \
-        new_object = reinterpret_cast<Object*>(address);                       \
-      } else if (where == kAttachedReference) {                                \
-        int index = source_.GetInt();                                          \
-        new_object = *attached_objects_[index];                                \
-        emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
-      } else {                                                                 \
-        DCHECK(where == kBuiltin);                                             \
-        DCHECK(deserializing_user_code());                                     \
-        int builtin_id = source_.GetInt();                                     \
-        DCHECK_LE(0, builtin_id);                                              \
-        DCHECK_LT(builtin_id, Builtins::builtin_count);                        \
-        Builtins::Name name = static_cast<Builtins::Name>(builtin_id);         \
-        new_object = isolate->builtins()->builtin(name);                       \
-        emit_write_barrier = false;                                            \
-      }                                                                        \
-      if (within == kInnerPointer) {                                           \
-        DCHECK(how == kFromCode);                                              \
-        if (new_object->IsCode()) {                                            \
-          Code* new_code_object = Code::cast(new_object);                      \
-          new_object =                                                         \
-              reinterpret_cast<Object*>(new_code_object->instruction_start()); \
-        } else {                                                               \
-          Cell* cell = Cell::cast(new_object);                                 \
-          new_object = reinterpret_cast<Object*>(cell->ValueAddress());        \
-        }                                                                      \
-      }                                                                        \
-      if (how == kFromCode) {                                                  \
-        Address location_of_branch_data = reinterpret_cast<Address>(current);  \
-        Assembler::deserialization_set_special_target_at(                      \
-            isolate, location_of_branch_data,                                  \
-            Code::cast(HeapObject::FromAddress(current_object_address)),       \
-            reinterpret_cast<Address>(new_object));                            \
-        location_of_branch_data += Assembler::kSpecialTargetSize;              \
-        current = reinterpret_cast<Object**>(location_of_branch_data);         \
-        current_was_incremented = true;                                        \
-      } else {                                                                 \
-        UnalignedCopy(current, &new_object);                                   \
-      }                                                                        \
-    }                                                                          \
-    if (emit_write_barrier && write_barrier_needed) {                          \
-      Address current_address = reinterpret_cast<Address>(current);            \
-      SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));      \
-      isolate->heap()->RecordWrite(                                            \
-          HeapObject::FromAddress(current_object_address),                     \
-          reinterpret_cast<Object**>(current_address),                         \
-          *reinterpret_cast<Object**>(current_address));                       \
-    }                                                                          \
-    if (!current_was_incremented) {                                            \
-      current++;                                                               \
-    }                                                                          \
-    break;                                                                     \
-  }
+#define CASE_BODY(where, how, within, space_number_if_any)                   \
+  current = ReadDataCase<where, how, within, space_number_if_any>(           \
+      isolate, current, current_object_address, data, write_barrier_needed); \
+  break;
 
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
@@ -760,5 +673,100 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
   CHECK_EQ(limit, current);
   return true;
 }
+
+template <int where, int how, int within, int space_number_if_any>
+Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
+                                    Address current_object_address, byte data,
+                                    bool write_barrier_needed) {
+  bool emit_write_barrier = false;
+  bool current_was_incremented = false;
+  int space_number = space_number_if_any == kAnyOldSpace ? (data & kSpaceMask)
+                                                         : space_number_if_any;
+  if (where == kNewObject && how == kPlain && within == kStartOfObject) {
+    ReadObject(space_number, current);
+    emit_write_barrier = (space_number == NEW_SPACE);
+  } else {
+    Object* new_object = NULL; /* May not be a real Object pointer. */
+    if (where == kNewObject) {
+      ReadObject(space_number, &new_object);
+    } else if (where == kBackref) {
+      emit_write_barrier = (space_number == NEW_SPACE);
+      new_object = GetBackReferencedObject(data & kSpaceMask);
+    } else if (where == kBackrefWithSkip) {
+      int skip = source_.GetInt();
+      current =
+          reinterpret_cast<Object**>(reinterpret_cast<Address>(current) + skip);
+      emit_write_barrier = (space_number == NEW_SPACE);
+      new_object = GetBackReferencedObject(data & kSpaceMask);
+    } else if (where == kRootArray) {
+      int id = source_.GetInt();
+      Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+      new_object = isolate->heap()->root(root_index);
+      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      hot_objects_.Add(HeapObject::cast(new_object));
+    } else if (where == kPartialSnapshotCache) {
+      int cache_index = source_.GetInt();
+      new_object = isolate->partial_snapshot_cache()->at(cache_index);
+      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+    } else if (where == kExternalReference) {
+      int skip = source_.GetInt();
+      current =
+          reinterpret_cast<Object**>(reinterpret_cast<Address>(current) + skip);
+      uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
+      Address address = external_reference_table_->address(reference_id);
+      new_object = reinterpret_cast<Object*>(address);
+    } else if (where == kAttachedReference) {
+      int index = source_.GetInt();
+      new_object = *attached_objects_[index];
+      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+    } else {
+      DCHECK(where == kBuiltin);
+      DCHECK(deserializing_user_code());
+      int builtin_id = source_.GetInt();
+      DCHECK_LE(0, builtin_id);
+      DCHECK_LT(builtin_id, Builtins::builtin_count);
+      Builtins::Name name = static_cast<Builtins::Name>(builtin_id);
+      new_object = isolate->builtins()->builtin(name);
+      emit_write_barrier = false;
+    }
+    if (within == kInnerPointer) {
+      DCHECK(how == kFromCode);
+      if (new_object->IsCode()) {
+        Code* new_code_object = Code::cast(new_object);
+        new_object =
+            reinterpret_cast<Object*>(new_code_object->instruction_start());
+      } else {
+        Cell* cell = Cell::cast(new_object);
+        new_object = reinterpret_cast<Object*>(cell->ValueAddress());
+      }
+    }
+    if (how == kFromCode) {
+      Address location_of_branch_data = reinterpret_cast<Address>(current);
+      Assembler::deserialization_set_special_target_at(
+          isolate, location_of_branch_data,
+          Code::cast(HeapObject::FromAddress(current_object_address)),
+          reinterpret_cast<Address>(new_object));
+      location_of_branch_data += Assembler::kSpecialTargetSize;
+      current = reinterpret_cast<Object**>(location_of_branch_data);
+      current_was_incremented = true;
+    } else {
+      UnalignedCopy(current, &new_object);
+    }
+  }
+  if (emit_write_barrier && write_barrier_needed) {
+    Address current_address = reinterpret_cast<Address>(current);
+    SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
+    isolate->heap()->RecordWrite(
+        HeapObject::FromAddress(current_object_address),
+        reinterpret_cast<Object**>(current_address),
+        *reinterpret_cast<Object**>(current_address));
+  }
+  if (!current_was_incremented) {
+    current++;
+  }
+
+  return current;
+}
+
 }  // namespace internal
 }  // namespace v8

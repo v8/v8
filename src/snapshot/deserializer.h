@@ -110,6 +110,14 @@ class Deserializer : public SerializerDeserializer {
   // the heap. Return false if the object content has been deferred.
   bool ReadData(Object** start, Object** end, int space,
                 Address object_address);
+
+  // A helper function for ReadData, templatized on the bytecode for efficiency.
+  // Returns the new value of {current}.
+  template <int where, int how, int within, int space_number_if_any>
+  inline Object** ReadDataCase(Isolate* isolate, Object** current,
+                               Address current_object_address, byte data,
+                               bool write_barrier_needed);
+
   void ReadObject(int space_number, Object** write_back);
   Address Allocate(int space_index, int size);
 
@@ -120,7 +128,7 @@ class Deserializer : public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  List<Handle<HeapObject> > attached_objects_;
+  List<Handle<HeapObject>> attached_objects_;
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
