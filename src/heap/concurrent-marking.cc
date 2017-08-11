@@ -188,9 +188,21 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitMap(Map* map, Map* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
+  int VisitMap(Map* meta_map, Map* map) {
+    if (marking_state_.IsGrey(map)) {
+      // Maps have ad-hoc weakness for descriptor arrays. They also clear the
+      // code-cache. Conservatively visit strong fields skipping the
+      // descriptor array field and the code cache field.
+      VisitMapPointer(map, map->map_slot());
+      VisitPointer(map, HeapObject::RawField(map, Map::kPrototypeOffset));
+      VisitPointer(
+          map, HeapObject::RawField(map, Map::kConstructorOrBackPointerOffset));
+      VisitPointer(map, HeapObject::RawField(
+                            map, Map::kTransitionsOrPrototypeInfoOffset));
+      VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
+      VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));
+      bailout_.Push(map);
+    }
     return 0;
   }
 
