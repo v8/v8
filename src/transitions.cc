@@ -519,8 +519,6 @@ Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
 }
 
 void TransitionArray::Zap() {
-  // Do not zap the next link that is used by GC.
-  STATIC_ASSERT(kNextLinkIndex + 1 == kPrototypeTransitionsIndex);
   MemsetPointer(data_start() + kPrototypeTransitionsIndex,
                 GetHeap()->the_hole_value(),
                 length() - kPrototypeTransitionsIndex);

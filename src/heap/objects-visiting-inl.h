@@ -210,13 +210,7 @@ int MarkingVisitor<ConcreteVisitor>::VisitTransitionArray(
       visitor->VisitPointer(array, array->GetTargetSlot(i));
     }
   }
-  // Enqueue the array in linked list of encountered transition arrays if it is
-  // not already in the list.
-  if (array->next_link()->IsUndefined(heap_->isolate())) {
-    array->set_next_link(heap_->encountered_transition_arrays(),
-                         UPDATE_WEAK_WRITE_BARRIER);
-    heap_->set_encountered_transition_arrays(array);
-  }
+  collector_->AddTransitionArray(array);
   return TransitionArray::BodyDescriptor::SizeOf(map, array);
 }
 

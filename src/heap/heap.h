@@ -748,13 +748,6 @@ class Heap {
   }
   void IterateEncounteredWeakCollections(RootVisitor* visitor);
 
-  void set_encountered_transition_arrays(Object* transition_array) {
-    encountered_transition_arrays_ = transition_array;
-  }
-  Object* encountered_transition_arrays() const {
-    return encountered_transition_arrays_;
-  }
-
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
 
@@ -2290,8 +2283,6 @@ class Heap {
   // marking. It is initialized during marking, destroyed after marking and
   // contains Smi(0) while marking is not active.
   Object* encountered_weak_collections_;
-
-  Object* encountered_transition_arrays_;
 
   List<GCCallbackPair> gc_epilogue_callbacks_;
   List<GCCallbackPair> gc_prologue_callbacks_;

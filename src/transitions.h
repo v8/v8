@@ -235,10 +235,6 @@ class TransitionArray : public FixedArray {
 
   void Sort();
 
-  // This field should be used only by the GC.
-  inline void set_next_link(Object* next, WriteBarrierMode mode);
-  inline Object* next_link();
-
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros.
   void Print();
@@ -281,10 +277,9 @@ class TransitionArray : public FixedArray {
                                               int value);
 
   // Layout for full transition arrays.
-  static const int kNextLinkIndex = 0;
-  static const int kPrototypeTransitionsIndex = 1;
-  static const int kTransitionLengthIndex = 2;
-  static const int kFirstIndex = 3;
+  static const int kPrototypeTransitionsIndex = 0;
+  static const int kTransitionLengthIndex = 1;
+  static const int kFirstIndex = 2;
 
   // Layout of map transition entries in full transition arrays.
   static const int kTransitionKey = 0;

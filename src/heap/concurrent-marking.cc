@@ -74,13 +74,13 @@ class ConcurrentMarkingVisitor final
  public:
   using BaseClass = HeapVisitor<int, ConcurrentMarkingVisitor>;
 
-  explicit ConcurrentMarkingVisitor(
-      ConcurrentMarking::MarkingWorklist* shared,
-      ConcurrentMarking::MarkingWorklist* bailout,
-      ConcurrentMarking::WeakCellWorklist* weak_cells, int task_id)
+  explicit ConcurrentMarkingVisitor(ConcurrentMarking::MarkingWorklist* shared,
+                                    ConcurrentMarking::MarkingWorklist* bailout,
+                                    WeakObjects* weak_objects, int task_id)
       : shared_(shared, task_id),
         bailout_(bailout, task_id),
-        weak_cells_(weak_cells, task_id) {}
+        weak_objects_(weak_objects),
+        task_id_(task_id) {}
 
   bool ShouldVisit(HeapObject* object) {
     return marking_state_.GreyToBlack(object);
@@ -217,10 +217,30 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitTransitionArray(Map* map, TransitionArray* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
-    return 0;
+  int VisitTransitionArray(Map* map, TransitionArray* array) {
+    if (!ShouldVisit(array)) return 0;
+    VisitMapPointer(array, array->map_slot());
+    // Visit strong references.
+    if (array->HasPrototypeTransitions()) {
+      VisitPointer(array, array->GetPrototypeTransitionsSlot());
+    }
+    int num_transitions = array->number_of_entries();
+    for (int i = 0; i < num_transitions; ++i) {
+      VisitPointer(array, array->GetKeySlot(i));
+      // A TransitionArray can hold maps or (transitioning StoreIC) handlers.
+      // Maps have custom weak handling; handlers (which in turn weakly point
+      // to maps) are marked strongly for now, and will be cleared during
+      // compaction when the maps they refer to are dead.
+      Object* target = array->GetRawTarget(i);
+      if (target->IsHeapObject()) {
+        Map* map = HeapObject::cast(target)->synchronized_map();
+        if (map->instance_type() != MAP_TYPE) {
+          VisitPointer(array, array->GetTargetSlot(i));
+        }
+      }
+    }
+    weak_objects_->transition_arrays.Push(task_id_, array);
+    return TransitionArray::BodyDescriptor::SizeOf(map, array);
   }
 
   int VisitWeakCell(Map* map, WeakCell* object) {
@@ -237,7 +257,7 @@ class ConcurrentMarkingVisitor final
         // If we do not know about liveness of values of weak cells, we have to
         // process them when we know the liveness of the whole transitive
         // closure.
-        weak_cells_.Push(object);
+        weak_objects_->weak_cells.Push(task_id_, object);
       }
     }
     return WeakCell::BodyDescriptor::SizeOf(map, object);
@@ -295,8 +315,9 @@ class ConcurrentMarkingVisitor final
   }
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
-  ConcurrentMarking::WeakCellWorklist::View weak_cells_;
+  WeakObjects* weak_objects_;
   ConcurrentMarkingState marking_state_;
+  int task_id_;
   SlotSnapshot slot_snapshot_;
 };
 
@@ -325,11 +346,11 @@ class ConcurrentMarking::Task : public CancelableTask {
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
                                      MarkingWorklist* bailout,
-                                     WeakCellWorklist* weak_cells)
+                                     WeakObjects* weak_objects)
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
-      weak_cells_(weak_cells),
+      weak_objects_(weak_objects),
       pending_task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
@@ -343,7 +364,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 void ConcurrentMarking::Run(int task_id, TaskInterrupt* interrupt) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
-  ConcurrentMarkingVisitor visitor(shared_, bailout_, weak_cells_, task_id);
+  ConcurrentMarkingVisitor visitor(shared_, bailout_, weak_objects_, task_id);
   double time_ms;
   size_t total_bytes_marked = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -386,7 +407,8 @@ void ConcurrentMarking::Run(int task_id, TaskInterrupt* interrupt) {
       base::LockGuard<base::Mutex> guard(&interrupt->lock);
       bailout_->FlushToGlobal(task_id);
     }
-    weak_cells_->FlushToGlobal(task_id);
+    weak_objects_->weak_cells.FlushToGlobal(task_id);
+    weak_objects_->transition_arrays.FlushToGlobal(task_id);
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;

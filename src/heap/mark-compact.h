@@ -477,6 +477,12 @@ class MajorNonAtomicMarkingState final
   }
 };
 
+// Weak objects encountered during marking.
+struct WeakObjects {
+  Worklist<WeakCell*, 64> weak_cells;
+  Worklist<TransitionArray*, 64> transition_arrays;
+};
+
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
@@ -586,8 +592,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
   };
-
-  using WeakCellWorklist = Worklist<WeakCell*, 64 /* segment size */>;
 
   class RootMarkingVisitor;
   class CustomRootBodyMarkingVisitor;
@@ -738,10 +742,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
 
-  WeakCellWorklist* weak_cells() { return &weak_cells_; }
+  WeakObjects* weak_objects() { return &weak_objects_; }
 
   void AddWeakCell(WeakCell* weak_cell) {
-    weak_cells_.Push(kMainThread, weak_cell);
+    weak_objects_.weak_cells.Push(kMainThread, weak_cell);
+  }
+
+  void AddTransitionArray(TransitionArray* array) {
+    weak_objects_.transition_arrays.Push(kMainThread, array);
   }
 
   Sweeper& sweeper() { return sweeper_; }
@@ -878,9 +886,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // transition.
   void ClearWeakCellsAndSimpleMapTransitions(
       DependentCode** dependent_code_list);
-  void AbortWeakCells();
-
-  void AbortTransitionArrays();
+  void AbortWeakObjects();
 
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
@@ -939,7 +945,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool have_code_to_deoptimize_;
 
   MarkingWorklist marking_worklist_;
-  WeakCellWorklist weak_cells_;
+  WeakObjects weak_objects_;
 
   // Candidates for pages that should be evacuated.
   std::vector<Page*> evacuation_candidates_;

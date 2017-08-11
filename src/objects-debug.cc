@@ -513,8 +513,6 @@ void TransitionArray::TransitionArrayVerify() {
     VerifyPointer(e);
   }
   CHECK_LE(LengthFor(number_of_transitions()), length());
-  CHECK(next_link()->IsUndefined(GetIsolate()) || next_link()->IsSmi() ||
-        next_link()->IsTransitionArray());
 }
 
 void JSArgumentsObject::JSArgumentsObjectVerify() {

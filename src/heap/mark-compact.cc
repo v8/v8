@@ -481,7 +481,7 @@ void MinorMarkCompactCollector::SetUp() {}
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
-  weak_cells_.Clear();
+  AbortWeakObjects();
   marking_worklist()->TearDown();
 }
 
@@ -1008,8 +1008,7 @@ void MarkCompactCollector::Prepare() {
     heap()->incremental_marking()->AbortBlackAllocation();
     ClearMarkbits();
     AbortWeakCollections();
-    AbortWeakCells();
-    AbortTransitionArrays();
+    AbortWeakObjects();
     AbortCompaction();
     heap_->local_embedder_heap_tracer()->AbortTracing();
     marking_worklist()->Clear();
@@ -2798,6 +2797,9 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MarkDependentCodeForDeoptimization(dependent_code_list);
 
   ClearWeakCollections();
+
+  DCHECK(weak_objects_.weak_cells.IsGlobalEmpty());
+  DCHECK(weak_objects_.transition_arrays.IsGlobalEmpty());
 }
 
 
@@ -2894,10 +2896,8 @@ void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
 }
 
 void MarkCompactCollector::ClearFullMapTransitions() {
-  HeapObject* undefined = heap()->undefined_value();
-  Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::kZero) {
-    TransitionArray* array = TransitionArray::cast(obj);
+  TransitionArray* array;
+  while (weak_objects_.transition_arrays.Pop(kMainThread, &array)) {
     int num_transitions = array->number_of_entries();
     if (num_transitions > 0) {
       Map* map = array->GetTarget(0);
@@ -2912,10 +2912,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         TrimDescriptorArray(parent, descriptors);
       }
     }
-    obj = array->next_link();
-    array->set_next_link(undefined, SKIP_WRITE_BARRIER);
   }
-  heap()->set_encountered_transition_arrays(Smi::kZero);
 }
 
 bool MarkCompactCollector::CompactTransitionArray(
@@ -3088,7 +3085,7 @@ void MarkCompactCollector::ClearWeakCellsAndSimpleMapTransitions(
   DependentCode* dependent_code_head =
       DependentCode::cast(heap->empty_fixed_array());
   WeakCell* weak_cell;
-  while (weak_cells_.Pop(kMainThread, &weak_cell)) {
+  while (weak_objects_.weak_cells.Pop(kMainThread, &weak_cell)) {
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
     HeapObject* value = HeapObject::cast(weak_cell->value());
@@ -3139,17 +3136,9 @@ void MarkCompactCollector::ClearWeakCellsAndSimpleMapTransitions(
   *dependent_code_list = dependent_code_head;
 }
 
-void MarkCompactCollector::AbortWeakCells() { weak_cells_.Clear(); }
-
-void MarkCompactCollector::AbortTransitionArrays() {
-  HeapObject* undefined = heap()->undefined_value();
-  Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::kZero) {
-    TransitionArray* array = TransitionArray::cast(obj);
-    obj = array->next_link();
-    array->set_next_link(undefined, SKIP_WRITE_BARRIER);
-  }
-  heap()->set_encountered_transition_arrays(Smi::kZero);
+void MarkCompactCollector::AbortWeakObjects() {
+  weak_objects_.weak_cells.Clear();
+  weak_objects_.transition_arrays.Clear();
 }
 
 void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,

@@ -9,6 +9,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/worklist.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -30,9 +31,9 @@ TEST(ConcurrentMarking) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
-  ConcurrentMarking::WeakCellWorklist weak_cells;
+  WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &weak_cells);
+      new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->EnsureCompleted();
@@ -44,9 +45,9 @@ TEST(ConcurrentMarkingReschedule) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
-  ConcurrentMarking::WeakCellWorklist weak_cells;
+  WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &weak_cells);
+      new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->EnsureCompleted();

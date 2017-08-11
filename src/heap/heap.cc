@@ -177,7 +177,6 @@ Heap::Heap()
   set_native_contexts_list(NULL);
   set_allocation_sites_list(Smi::kZero);
   set_encountered_weak_collections(Smi::kZero);
-  set_encountered_transition_arrays(Smi::kZero);
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -2738,11 +2737,7 @@ AllocationResult Heap::AllocateTransitionArray(int capacity) {
   // Transition arrays are tenured. When black allocation is on we have to
   // add the transition array to the list of encountered_transition_arrays.
   if (incremental_marking()->black_allocation()) {
-    array->set_next_link(encountered_transition_arrays(),
-                         UPDATE_WEAK_WRITE_BARRIER);
-    set_encountered_transition_arrays(array);
-  } else {
-    array->set_next_link(undefined_value(), SKIP_WRITE_BARRIER);
+    mark_compact_collector()->AddTransitionArray(array);
   }
   return array;
 }
@@ -5965,7 +5960,7 @@ bool Heap::SetUp() {
         mark_compact_collector_->marking_worklist();
     concurrent_marking_ = new ConcurrentMarking(
         this, marking_worklist->shared(), marking_worklist->bailout(),
-        mark_compact_collector_->weak_cells());
+        mark_compact_collector_->weak_objects());
   } else {
     concurrent_marking_ =
         new ConcurrentMarking(this, nullptr, nullptr, nullptr);
