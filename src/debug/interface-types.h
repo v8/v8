@@ -39,6 +39,7 @@ class V8_EXPORT_PRIVATE Location {
  private:
   int line_number_;
   int column_number_;
+  bool is_empty_;
 };
 
 /**

@@ -9757,29 +9757,26 @@ debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
 }
 
 debug::Location::Location(int line_number, int column_number)
-    : line_number_(line_number), column_number_(column_number) {
-  CHECK(line_number >= 0);
-  CHECK(column_number >= 0);
-}
+    : line_number_(line_number),
+      column_number_(column_number),
+      is_empty_(false) {}
 
 debug::Location::Location()
     : line_number_(v8::Function::kLineOffsetNotFound),
-      column_number_(v8::Function::kLineOffsetNotFound) {}
+      column_number_(v8::Function::kLineOffsetNotFound),
+      is_empty_(true) {}
 
 int debug::Location::GetLineNumber() const {
-  CHECK(line_number_ >= 0);
+  DCHECK(!IsEmpty());
   return line_number_;
 }
 
 int debug::Location::GetColumnNumber() const {
-  CHECK(column_number_ >= 0);
+  DCHECK(!IsEmpty());
   return column_number_;
 }
 
-bool debug::Location::IsEmpty() const {
-  return line_number_ == v8::Function::kLineOffsetNotFound &&
-         column_number_ == v8::Function::kLineOffsetNotFound;
-}
+bool debug::Location::IsEmpty() const { return is_empty_; }
 
 void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
                              PersistentValueVector<debug::Script>& scripts) {
