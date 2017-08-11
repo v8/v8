@@ -620,7 +620,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
        BinaryOperationFeedback::kSignedSmall},
       {Token::Value::DIV, ast_factory.NewSmi(3), ast_factory.NewSmi(2),
        isolate->factory()->NewHeapNumber(3.0 / 2.0),
-       BinaryOperationFeedback::kNumber},
+       BinaryOperationFeedback::kSignedSmallInputs},
       {Token::Value::DIV, ast_factory.NewNumber(3.1415), ast_factory.NewSmi(3),
        isolate->factory()->NewHeapNumber(3.1415 / 3),
        BinaryOperationFeedback::kNumber},

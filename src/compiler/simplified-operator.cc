@@ -401,6 +401,8 @@ std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
       return os << "SignedSmall";
+    case NumberOperationHint::kSignedSmallInputs:
+      return os << "SignedSmallInputs";
     case NumberOperationHint::kSigned32:
       return os << "Signed32";
     case NumberOperationHint::kNumber:
@@ -780,6 +782,8 @@ struct SimplifiedOperatorGlobalCache final {
   };                                                                        \
   Name##Operator<NumberOperationHint::kSignedSmall>                         \
       k##Name##SignedSmallOperator;                                         \
+  Name##Operator<NumberOperationHint::kSignedSmallInputs>                   \
+      k##Name##SignedSmallInputsOperator;                                   \
   Name##Operator<NumberOperationHint::kSigned32> k##Name##Signed32Operator; \
   Name##Operator<NumberOperationHint::kNumber> k##Name##NumberOperator;     \
   Name##Operator<NumberOperationHint::kNumberOrOddball>                     \
@@ -940,6 +944,8 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
       return &cache_.kSpeculativeToNumberSignedSmallOperator;
+    case NumberOperationHint::kSignedSmallInputs:
+      break;
     case NumberOperationHint::kSigned32:
       return &cache_.kSpeculativeToNumberSigned32Operator;
     case NumberOperationHint::kNumber:
@@ -1067,6 +1073,8 @@ const Operator* SimplifiedOperatorBuilder::StringFromCodePoint(
     switch (hint) {                                                           \
       case NumberOperationHint::kSignedSmall:                                 \
         return &cache_.k##Name##SignedSmallOperator;                          \
+      case NumberOperationHint::kSignedSmallInputs:                           \
+        return &cache_.k##Name##SignedSmallInputsOperator;                    \
       case NumberOperationHint::kSigned32:                                    \
         return &cache_.k##Name##Signed32Operator;                             \
       case NumberOperationHint::kNumber:                                      \

@@ -91,6 +91,7 @@ UseInfo CheckedUseInfoAsWord32FromHint(
     IdentifyZeros identify_zeros = kDistinguishZeros) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
+    case NumberOperationHint::kSignedSmallInputs:
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros);
     case NumberOperationHint::kSigned32:
       return UseInfo::CheckedSigned32AsWord32(identify_zeros);
@@ -105,6 +106,7 @@ UseInfo CheckedUseInfoAsWord32FromHint(
 UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
+    case NumberOperationHint::kSignedSmallInputs:
     case NumberOperationHint::kSigned32:
       // Not used currently.
       UNREACHABLE();
@@ -1654,8 +1656,8 @@ class RepresentationSelector {
         // Try to use type feedback.
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         switch (hint) {
+          case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
-          case NumberOperationHint::kSigned32: {
             if (propagate()) {
               VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                          MachineRepresentation::kBit);
@@ -1679,7 +1681,9 @@ class RepresentationSelector {
               }
             }
             return;
-          }
+          case NumberOperationHint::kSignedSmallInputs:
+            // This doesn't make sense for compare operations.
+            UNREACHABLE();
           case NumberOperationHint::kNumberOrOddball:
             // Abstract and strict equality don't perform ToNumber conversions
             // on Oddballs, so make sure we don't accidentially sneak in a
@@ -1850,19 +1854,21 @@ class RepresentationSelector {
           }
         }
 
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSigned32 ||
+            hint == NumberOperationHint::kSignedSmall ||
+            hint == NumberOperationHint::kSignedSmallInputs) {
           // If the result is truncated, we only need to check the inputs.
           if (truncation.IsUsedAsWord32()) {
             VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                        MachineRepresentation::kWord32);
             if (lower()) DeferReplacement(node, lowering->Int32Div(node));
-          } else {
+            return;
+          } else if (hint != NumberOperationHint::kSignedSmallInputs) {
             VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                        MachineRepresentation::kWord32, Type::Signed32());
             if (lower()) ChangeToInt32OverflowOp(node);
+            return;
           }
-          return;
         }
 
         // default case => Float64Div
@@ -2656,6 +2662,7 @@ class RepresentationSelector {
         switch (hint) {
           case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
+          case NumberOperationHint::kSignedSmallInputs:
             VisitUnop(node, CheckedUseInfoAsWord32FromHint(hint),
                       MachineRepresentation::kWord32, Type::Signed32());
             break;

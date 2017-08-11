@@ -13,6 +13,8 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
       return os << "None";
     case BinaryOperationHint::kSignedSmall:
       return os << "SignedSmall";
+    case BinaryOperationHint::kSignedSmallInputs:
+      return os << "SignedSmallInputs";
     case BinaryOperationHint::kSigned32:
       return os << "Signed32";
     case BinaryOperationHint::kNumber:

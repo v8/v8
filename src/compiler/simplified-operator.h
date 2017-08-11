@@ -234,10 +234,11 @@ Handle<Map> FastMapParameterOf(const Operator* op);
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
-  kSignedSmall,      // Inputs were always Smi so far, output was in Smi range.
-  kSigned32,         // Inputs and output were Signed32 so far.
-  kNumber,           // Inputs were Number, output was Number.
-  kNumberOrOddball,  // Inputs were Number or Oddball, output was Number.
+  kSignedSmall,        // Inputs were Smi, output was in Smi.
+  kSignedSmallInputs,  // Inputs were Smi, output was Number.
+  kSigned32,           // Inputs were Signed32, output was Number.
+  kNumber,             // Inputs were Number, output was Number.
+  kNumberOrOddball,    // Inputs were Number or Oddball, output was Number.
 };
 
 size_t hash_value(NumberOperationHint);

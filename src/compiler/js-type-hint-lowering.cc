@@ -22,6 +22,9 @@ bool BinaryOperationHintToNumberOperationHint(
     case BinaryOperationHint::kSignedSmall:
       *number_hint = NumberOperationHint::kSignedSmall;
       return true;
+    case BinaryOperationHint::kSignedSmallInputs:
+      *number_hint = NumberOperationHint::kSignedSmallInputs;
+      return true;
     case BinaryOperationHint::kSigned32:
       *number_hint = NumberOperationHint::kSigned32;
       return true;
