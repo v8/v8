@@ -276,15 +276,6 @@ int MarkingVisitor<ConcreteVisitor>::VisitJSWeakCollection(
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
-    Map* map, SharedFunctionInfo* sfi) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, sfi);
-  SharedFunctionInfo::BodyDescriptor::IterateBody(sfi, size, visitor);
-  return size;
-}
-
-template <typename ConcreteVisitor>
 int MarkingVisitor<ConcreteVisitor>::VisitBytecodeArray(Map* map,
                                                         BytecodeArray* array) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);

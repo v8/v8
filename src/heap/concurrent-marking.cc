@@ -206,17 +206,6 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
-    if (marking_state_.IsGrey(object)) {
-      int size = SharedFunctionInfo::BodyDescriptorWeak::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      SharedFunctionInfo::BodyDescriptorWeak::IterateBody(object, size, this);
-      // Resetting of IC age counter is done on the main thread.
-      bailout_.Push(object);
-    }
-    return 0;
-  }
-
   int VisitTransitionArray(Map* map, TransitionArray* array) {
     if (!ShouldVisit(array)) return 0;
     VisitMapPointer(array, array->map_slot());
