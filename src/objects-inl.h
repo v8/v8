@@ -1442,7 +1442,7 @@ void WeakCell::initialize(HeapObject* val) {
   // all weak cells.
   Heap* heap = val->GetHeap();
   WriteBarrierMode mode =
-      heap->mark_compact_collector()->marking_state()->IsBlack(this)
+      heap->incremental_marking()->marking_state()->IsBlack(this)
           ? UPDATE_WRITE_BARRIER
           : UPDATE_WEAK_WRITE_BARRIER;
   CONDITIONAL_WRITE_BARRIER(heap, this, kValueOffset, val, mode);

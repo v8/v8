@@ -29,7 +29,7 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   // 3) The page is not marked as aborted compaction anymore.
   CHECK(page->heap()
             ->mark_compact_collector()
-            ->marking_state()
+            ->non_atomic_marking_state()
             ->bitmap(page)
             ->IsClean());
   CHECK(!page->IsEvacuationCandidate());

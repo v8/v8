@@ -3361,9 +3361,9 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
     lo_space()->AdjustLiveBytes(by);
   } else if (!in_heap_iterator() &&
              !mark_compact_collector()->sweeping_in_progress() &&
-             mark_compact_collector()->marking_state()->IsBlack(object)) {
+             incremental_marking()->marking_state()->IsBlack(object)) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
-    mark_compact_collector()->marking_state()->IncrementLiveBytes(
+    incremental_marking()->marking_state()->IncrementLiveBytes(
         MemoryChunk::FromAddress(object->address()), by);
   }
 }
@@ -3479,9 +3479,9 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        mark_compact_collector()->marking_state()->IsBlackOrGrey(filler)) {
+        incremental_marking()->marking_state()->IsBlackOrGrey(filler)) {
       Page* page = Page::FromAddress(new_end);
-      mark_compact_collector()->marking_state()->bitmap(page)->ClearRange(
+      incremental_marking()->marking_state()->bitmap(page)->ClearRange(
           page->AddressToMarkbitIndex(new_end),
           page->AddressToMarkbitIndex(new_end + bytes_to_trim));
     }
@@ -4569,8 +4569,8 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
   // Iterate black objects in old space, code space, map space, and large
   // object space for side effects.
-  MarkCompactCollector::MarkingState* marking_state =
-      mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state =
+      incremental_marking()->marking_state();
   for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
     const Heap::Reservation& res = reservations[i];
     for (auto& chunk : res) {

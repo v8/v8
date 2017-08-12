@@ -84,9 +84,8 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
 
   HeapObject* target = nullptr;
   if (allocation.To(&target)) {
-    DCHECK(
-        heap()->mark_compact_collector()->non_atomic_marking_state()->IsWhite(
-            target));
+    DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
+        target));
     const bool self_success = MigrateObject(map, object, target, object_size);
     if (!self_success) {
       allocator_.FreeLast(NEW_SPACE, target, object_size);
@@ -111,9 +110,8 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
 
   HeapObject* target = nullptr;
   if (allocation.To(&target)) {
-    DCHECK(
-        heap()->mark_compact_collector()->non_atomic_marking_state()->IsWhite(
-            target));
+    DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
+        target));
     const bool self_success = MigrateObject(map, object, target, object_size);
     if (!self_success) {
       allocator_.FreeLast(OLD_SPACE, target, object_size);

@@ -432,30 +432,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   friend class YoungGenerationMarkingVisitor;
 };
 
-class MajorMarkingState final
-    : public MarkingStateBase<MajorMarkingState, AccessMode::ATOMIC> {
- public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
-    return Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize);
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
-        ->Increment(by);
-  }
-
-  intptr_t live_bytes(MemoryChunk* chunk) const {
-    return reinterpret_cast<base::AtomicNumber<intptr_t>*>(
-               &chunk->live_byte_count_)
-        ->Value();
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
-        ->SetValue(value);
-  }
-};
-
 class MajorNonAtomicMarkingState final
     : public MarkingStateBase<MajorNonAtomicMarkingState,
                               AccessMode::NON_ATOMIC> {
@@ -486,13 +462,7 @@ struct WeakObjects {
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
-#ifdef V8_CONCURRENT_MARKING
-  using MarkingState = MajorMarkingState;
-#else
-  using MarkingState = MajorNonAtomicMarkingState;
-#endif
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
-  using AtomicMarkingState = MajorMarkingState;
 
   static const int kMainThread = 0;
   // Wrapper for the shared and bailout worklists.
@@ -676,10 +646,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kKeepMarking,
     kClearMarkbits,
   };
-
-  MarkingState* marking_state() { return &marking_state_; }
-
-  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
 
   NonAtomicMarkingState* non_atomic_marking_state() {
     return &non_atomic_marking_state_;
@@ -956,8 +922,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   Sweeper sweeper_;
 
-  MarkingState marking_state_;
-  AtomicMarkingState atomic_marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
   friend class FullEvacuator;

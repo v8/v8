@@ -697,12 +697,13 @@ class MemoryChunk {
   void InitializeReservedMemory() { reservation_.Reset(); }
 
   friend class ConcurrentMarkingState;
-  friend class MinorMarkingState;
-  friend class MinorNonAtomicMarkingState;
-  friend class MajorMarkingState;
+  friend class IncrementalAtomicMarkingState;
+  friend class IncrementalNonAtomicMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
+  friend class MinorMarkingState;
+  friend class MinorNonAtomicMarkingState;
 };
 
 static_assert(kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory,

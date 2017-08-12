@@ -568,8 +568,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
 
-  heap->mark_compact_collector()->non_atomic_marking_state()->ClearLiveness(
-      chunk);
+  heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(chunk);
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
 
@@ -941,8 +940,8 @@ void Page::CreateBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_NE(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  MarkCompactCollector::MarkingState* marking_state =
-      heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state =
+      heap()->incremental_marking()->marking_state();
   marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
                                         AddressToMarkbitIndex(end));
   marking_state->IncrementLiveBytes(this, static_cast<int>(end - start));
@@ -953,8 +952,8 @@ void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_NE(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  MarkCompactCollector::MarkingState* marking_state =
-      heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state =
+      heap()->incremental_marking()->marking_state();
   marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
                                           AddressToMarkbitIndex(end));
   marking_state->IncrementLiveBytes(this, -static_cast<int>(end - start));
@@ -1626,8 +1625,8 @@ void PagedSpace::EmptyAllocationInfo() {
 
     // Clear the bits in the unused black area.
     if (current_top != current_limit) {
-      MarkCompactCollector::MarkingState* marking_state =
-          heap()->mark_compact_collector()->marking_state();
+      IncrementalMarking::MarkingState* marking_state =
+          heap()->incremental_marking()->marking_state();
       marking_state->bitmap(page)->ClearRange(
           page->AddressToMarkbitIndex(current_top),
           page->AddressToMarkbitIndex(current_limit));
@@ -1647,9 +1646,8 @@ void PagedSpace::IncreaseCapacity(size_t bytes) {
 
 void PagedSpace::ReleasePage(Page* page) {
   DCHECK_EQ(
-      0,
-      heap()->mark_compact_collector()->non_atomic_marking_state()->live_bytes(
-          page));
+      0, heap()->incremental_marking()->non_atomic_marking_state()->live_bytes(
+             page));
   DCHECK_EQ(page->owner(), this);
 
   free_list_.EvictFreeListItems(page);
@@ -1682,8 +1680,8 @@ void PagedSpace::Print() {}
 void PagedSpace::Verify(ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
-  MarkCompactCollector::MarkingState* marking_state =
-      heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state =
+      heap()->incremental_marking()->marking_state();
   for (Page* page : *this) {
     CHECK(page->owner() == this);
     if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
@@ -1847,8 +1845,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
             to_remove);
       }
     }
-    MarkCompactCollector::NonAtomicMarkingState* marking_state =
-        heap()->mark_compact_collector()->non_atomic_marking_state();
+    IncrementalMarking::NonAtomicMarkingState* marking_state =
+        heap()->incremental_marking()->non_atomic_marking_state();
     while (actual_pages < expected_pages) {
       actual_pages++;
       current_page =
@@ -1930,8 +1928,8 @@ void NewSpace::ResetAllocationInfo() {
   to_space_.Reset();
   UpdateAllocationInfo();
   // Clear all mark-bits in the to-space.
-  MarkCompactCollector::NonAtomicMarkingState* marking_state =
-      heap()->mark_compact_collector()->non_atomic_marking_state();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
   for (Page* p : to_space_) {
     marking_state->ClearLiveness(p);
   }
@@ -2221,8 +2219,8 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   Page* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
-  MarkCompactCollector::NonAtomicMarkingState* marking_state =
-      heap()->mark_compact_collector()->non_atomic_marking_state();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
@@ -2293,10 +2291,8 @@ void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
       page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
       page->SetFlag(MemoryChunk::IN_TO_SPACE);
       page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
-      heap()
-          ->mark_compact_collector()
-          ->non_atomic_marking_state()
-          ->SetLiveBytes(page, 0);
+      heap()->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(
+          page, 0);
     } else {
       page->SetFlag(MemoryChunk::IN_FROM_SPACE);
       page->ClearFlag(MemoryChunk::IN_TO_SPACE);
@@ -3293,7 +3289,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                ClearRecordedSlots::kNo);
 
   if (heap()->incremental_marking()->black_allocation()) {
-    heap()->mark_compact_collector()->marking_state()->WhiteToBlack(object);
+    heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
   }
   return object;
 }
@@ -3338,8 +3334,8 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
 
 
 void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
-  MarkCompactCollector::NonAtomicMarkingState* marking_state =
-      heap()->mark_compact_collector()->non_atomic_marking_state();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
   LargeObjectIterator it(this);
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     if (marking_state->IsBlackOrGrey(obj)) {
@@ -3388,8 +3384,8 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
 void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* previous = nullptr;
   LargePage* current = first_page_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state =
-      heap()->mark_compact_collector()->non_atomic_marking_state();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
   while (current != nullptr) {
     HeapObject* object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
@@ -3550,8 +3546,7 @@ void Page::Print() {
   for (HeapObject* object = objects.Next(); object != NULL;
        object = objects.Next()) {
     bool is_marked =
-        heap()->mark_compact_collector()->marking_state()->IsBlackOrGrey(
-            object);
+        heap()->incremental_marking()->marking_state()->IsBlackOrGrey(object);
     PrintF(" %c ", (is_marked ? '!' : ' '));  // Indent a little.
     if (is_marked) {
       mark_size += object->Size();
@@ -3561,7 +3556,7 @@ void Page::Print() {
   }
   printf(" --------------------------------------\n");
   printf(" Marked: %x, LiveCount: %" V8PRIdPTR "\n", mark_size,
-         heap()->mark_compact_collector()->marking_state()->live_bytes(this));
+         heap()->incremental_marking()->marking_state()->live_bytes(this));
 }
 
 #endif  // DEBUG

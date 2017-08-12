@@ -80,7 +80,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   // it would be a violation of the invariant to record it's slots.
   const bool record_slots =
       is_compacting_ &&
-      heap()->mark_compact_collector()->atomic_marking_state()->IsBlack(target);
+      heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for

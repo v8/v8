@@ -76,7 +76,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
     // Sanity check that the page meets the requirements for promotion.
     const int threshold_bytes =
         FLAG_page_promotion_threshold * Page::kAllocatableMemory / 100;
-    CHECK_GE(heap->mark_compact_collector()->marking_state()->live_bytes(
+    CHECK_GE(heap->incremental_marking()->marking_state()->live_bytes(
                  to_be_promoted_page),
              threshold_bytes);
 

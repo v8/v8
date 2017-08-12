@@ -1178,8 +1178,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // in compacting mode and |obj_value|'s page is an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsCompacting());
-  MarkCompactCollector::MarkingState* marking_state =
-      heap->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state =
+      heap->incremental_marking()->marking_state();
   CHECK(marking_state->IsBlack(*obj));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
@@ -1501,8 +1501,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // still active and |obj_value|'s page is indeed an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking());
-  MarkCompactCollector::MarkingState* marking_state =
-      heap->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsBlack(*obj));
   CHECK(marking_state->IsBlack(*obj_value));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));

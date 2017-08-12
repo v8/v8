@@ -2201,8 +2201,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   CHECK(f->IsOptimized());
 
-  MarkCompactCollector::MarkingState* marking_state =
-      CcTest::heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
 
   while (!marking_state->IsBlack(f->code()) && !marking->IsStopped()) {
     // Discard any pending GC requests otherwise we will get GC when we enter
@@ -4882,8 +4881,7 @@ TEST(Regress3631) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
   HeapObject* weak_map_table = HeapObject::cast(weak_map->table());
-  MarkCompactCollector::MarkingState* marking_state =
-      CcTest::heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   while (!marking_state->IsBlack(weak_map_table) && !marking->IsStopped()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
@@ -5610,8 +5608,8 @@ TEST(Regress598319) {
   }
 
   CHECK(heap->lo_space()->Contains(arr.get()));
-  MarkCompactCollector::MarkingState* marking_state =
-      CcTest::heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking* marking = heap->incremental_marking();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsWhite(arr.get()));
   for (int i = 0; i < arr.get()->length(); i++) {
     HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
@@ -5619,7 +5617,6 @@ TEST(Regress598319) {
   }
 
   // Start incremental marking.
-  IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
@@ -5813,8 +5810,7 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   isolate->factory()->NewFixedArray(4, TENURED);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(50, TENURED);
   CHECK(heap->old_space()->Contains(*array));
-  MarkCompactCollector::MarkingState* marking_state =
-      CcTest::heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsBlack(*array));
 
   // Now left trim the allocated black area. A filler has to be installed
@@ -5858,8 +5854,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  MarkCompactCollector::MarkingState* marking_state =
-      CcTest::heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsBlack(*array));
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
@@ -5926,8 +5921,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  MarkCompactCollector::MarkingState* marking_state =
-      CcTest::heap()->mark_compact_collector()->marking_state();
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsBlack(*array));
 
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
