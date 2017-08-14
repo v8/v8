@@ -1809,23 +1809,7 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
 
 Node* WasmGraphBuilder::Throw(Node* input) {
   SetNeedsStackCheck();
-  MachineOperatorBuilder* machine = jsgraph()->machine();
-
-  // Pass the thrown value as two SMIs:
-  //
-  // upper = static_cast<uint32_t>(input) >> 16;
-  // lower = input & 0xFFFF;
-  //
-  // This is needed because we can't safely call BuildChangeInt32ToTagged from
-  // this method.
-  //
-  // TODO(wasm): figure out how to properly pass this to the runtime function.
-  Node* upper = BuildChangeInt32ToSmi(
-      graph()->NewNode(machine->Word32Shr(), input, Int32Constant(16)));
-  Node* lower = BuildChangeInt32ToSmi(
-      graph()->NewNode(machine->Word32And(), input, Int32Constant(0xFFFFu)));
-
-  Node* parameters[] = {lower, upper};  // thrown value
+  Node* parameters[] = {BuildChangeInt32ToSmi(input)};
   return BuildCallToRuntime(Runtime::kWasmThrow, parameters,
                             arraysize(parameters));
 }
@@ -1838,45 +1822,13 @@ Node* WasmGraphBuilder::Rethrow() {
 
 Node* WasmGraphBuilder::Catch(Node* input, wasm::WasmCodePosition position) {
   SetNeedsStackCheck();
-  CommonOperatorBuilder* common = jsgraph()->common();
-
   Node* parameters[] = {input};  // caught value
   Node* value = BuildCallToRuntime(Runtime::kWasmSetCaughtExceptionValue,
                                    parameters, arraysize(parameters));
-
-  Node* is_smi;
-  Node* is_heap;
-  BranchExpectFalse(BuildTestNotSmi(value), &is_heap, &is_smi);
-
-  // is_smi
-  Node* smi_i32 = BuildChangeSmiToInt32(value);
-  Node* is_smi_effect = *effect_;
-
-  // is_heap
-  *control_ = is_heap;
-  Node* heap_f64 = BuildLoadHeapNumberValue(value, is_heap);
-
-  // *control_ needs to point to the current control dependency (is_heap) in
-  // case BuildI32SConvertF64 needs to insert nodes that depend on the "current"
-  // control node.
-  Node* heap_i32 = BuildI32SConvertF64(heap_f64, position);
-  // *control_ contains the control node that should be used when merging the
-  // result for the catch clause. It may be different than *control_ because
-  // BuildI32SConvertF64 may introduce a new control node (used for trapping if
-  // heap_f64 cannot be converted to an i32.
-  is_heap = *control_;
-  Node* is_heap_effect = *effect_;
-
-  Node* merge = graph()->NewNode(common->Merge(2), is_heap, is_smi);
-  Node* effect_merge = graph()->NewNode(common->EffectPhi(2), is_heap_effect,
-                                        is_smi_effect, merge);
-
-  Node* value_i32 = graph()->NewNode(
-      common->Phi(MachineRepresentation::kWord32, 2), heap_i32, smi_i32, merge);
-
-  *control_ = merge;
-  *effect_ = effect_merge;
-  return value_i32;
+  parameters[0] = value;
+  value = BuildCallToRuntime(Runtime::kWasmGetExceptionTag, parameters,
+                             arraysize(parameters));
+  return BuildChangeSmiToInt32(value);
 }
 
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,

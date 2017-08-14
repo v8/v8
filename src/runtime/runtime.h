@@ -636,8 +636,9 @@ namespace internal {
   F(ThrowWasmErrorFromTrapIf, 1, 1)    \
   F(ThrowWasmStackOverflow, 0, 1)      \
   F(WasmThrowTypeError, 0, 1)          \
-  F(WasmThrow, 2, 1)                   \
+  F(WasmThrow, 1, 1)                   \
   F(WasmRethrow, 0, 1)                 \
+  F(WasmGetExceptionTag, 1, 1)         \
   F(WasmSetCaughtExceptionValue, 1, 1) \
   F(WasmRunInterpreter, 3, 1)          \
   F(WasmStackGuard, 0, 1)              \

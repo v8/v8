@@ -88,8 +88,13 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
 }
 
 bool Isolate::is_catchable_by_wasm(Object* exception) {
-  return is_catchable_by_javascript(exception) &&
-         (exception->IsNumber() || exception->IsSmi());
+  if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
+    return false;
+  HandleScope scope(this);
+  Handle<Object> exception_handle(exception, this);
+  return JSReceiver::HasProperty(Handle<JSReceiver>::cast(exception_handle),
+                                 factory()->WasmExceptionTag_string())
+      .IsJust();
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

@@ -385,6 +385,9 @@ function assertWasmThrows(values, code) {
       eval(code);
     }
   } catch (e) {
+    assertTrue(e instanceof WebAssembly.RuntimeError);
+    assertNotEquals(e['WasmExceptionTag'], undefined);
+    assertTrue(Number.isInteger(e['WasmExceptionTag']));
     // TODO(kschimpf): Extract values from the exception.
     let e_values = [];
     assertEquals(values, e_values);

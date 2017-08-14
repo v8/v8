@@ -703,6 +703,7 @@ class ErrorUtils : public AllStatic {
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapInvalidIndex, "invalid index into function table")                 \
   T(WasmTrapTypeError, "invalid type")                                         \
+  T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \
   T(AsmJsCompiled, "Converted asm.js to WebAssembly: %")                       \

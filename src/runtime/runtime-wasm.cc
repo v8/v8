@@ -23,6 +23,9 @@ namespace v8 {
 namespace internal {
 
 namespace {
+
+constexpr int kInvalidExceptionTag = -1;
+
 WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
@@ -142,20 +145,20 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
-  // TODO(kschimpf): Change this to build a runtime exception with
-  // wasm properties, instead of just an integer.
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(lower, 0);
-  CONVERT_SMI_ARG_CHECKED(upper, 1);
-
-  const int32_t thrown_value = (upper << 16) | lower;
-
-  // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetWasmContextOnStackTop(isolate));
 
-  return isolate->Throw(*isolate->factory()->NewNumberFromInt(thrown_value));
+  DCHECK_EQ(1, args.length());
+  Handle<Object> tag = args.at(0);
+  Handle<Object> except = isolate->factory()->NewWasmRuntimeError(
+      static_cast<MessageTemplate::Template>(
+          MessageTemplate::kWasmExceptionError));
+  DCHECK(tag->IsSmi());
+  CHECK(!JSReceiver::SetProperty(
+             except, isolate->factory()->WasmExceptionTag_string(), tag, STRICT)
+             .is_null());
+  return isolate->Throw(*except);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRethrow) {
@@ -166,14 +169,28 @@ RUNTIME_FUNCTION(Runtime_WasmRethrow) {
   return isolate->Throw(exception);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmSetCaughtExceptionValue) {
+RUNTIME_FUNCTION(Runtime_WasmGetExceptionTag) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Object* exception = args[0];
-  // The unwinder will only deliver exceptions to wasm if the exception is a
-  // Number or a Smi (which we have just converted to a Number.) This logic
-  // lives in Isolate::is_catchable_by_wasm(Object*).
-  CHECK(exception->IsNumber());
+  DCHECK(isolate->is_catchable_by_wasm(exception));
+  Handle<Object> exception_handle(exception, isolate);
+  Handle<Object> tag_handle;
+  if (JSReceiver::GetProperty(Handle<JSReceiver>::cast(exception_handle),
+                              isolate->factory()->WasmExceptionTag_string())
+          .ToHandle(&tag_handle)) {
+    if (tag_handle->IsSmi()) return *tag_handle;
+  }
+  return Smi::FromInt(kInvalidExceptionTag);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmSetCaughtExceptionValue) {
+  // TODO(kschimpf): Implement stack of caught exceptions, rather than
+  // just innermost.
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Object* exception = args[0];
+  DCHECK(isolate->is_catchable_by_wasm(exception));
   isolate->set_wasm_caught_exception(exception);
   return exception;
 }
