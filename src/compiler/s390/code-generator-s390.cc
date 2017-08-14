@@ -2406,7 +2406,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   FlagsCondition condition = branch->condition;
 
   Condition cond = FlagsConditionToCondition(condition, op);
-  if (op == kS390_CmpDouble) {
+  if (op == kS390_CmpFloat || op == kS390_CmpDouble) {
     // check for unordered if necessary
     // Branching to flabel/tlabel according to what's expected by tests
     if (cond == le || cond == eq || cond == lt) {
@@ -2487,14 +2487,12 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
 
   ArchOpcode op = instr->arch_opcode();
   Condition cond = FlagsConditionToCondition(condition, op);
-  if (op == kS390_CmpDouble) {
+  if (op == kS390_CmpFloat || op == kS390_CmpDouble) {
     // check for unordered if necessary
-    if (cond == le) {
+    if (cond == le || cond == eq || cond == lt) {
       __ bunordered(&end);
-      // Unnecessary for eq/lt since only FU bit will be set.
-    } else if (cond == gt) {
+    } else if (cond == gt || cond == ne || cond == ge) {
       __ bunordered(tlabel);
-      // Unnecessary for ne/ge since only FU bit will be set.
     }
   }
   __ b(cond, tlabel);
