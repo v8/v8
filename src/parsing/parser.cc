@@ -2122,32 +2122,21 @@ Statement* Parser::InitializeForOfStatement(
     result_value = factory()->NewProperty(result_proxy, value_literal, nopos);
   }
 
-  // {{completion = kAbruptCompletion;}}
-  Statement* set_completion_abrupt;
-  if (finalize) {
-    Expression* proxy = factory()->NewVariableProxy(completion);
-    Expression* assignment = factory()->NewAssignment(
-        Token::ASSIGN, proxy,
-        factory()->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
-
-    set_completion_abrupt =
-        IgnoreCompletion(factory()->NewExpressionStatement(assignment, nopos));
-  }
-
-  // do { let tmp = #result_value; #set_completion_abrupt; tmp }
+  // {{tmp = #result_value, completion = kAbruptCompletion, tmp}}
   // Expression* result_value (gets overwritten)
   if (finalize) {
-    Variable* var_tmp = NewTemporary(avfactory->empty_string());
-    Expression* tmp = factory()->NewVariableProxy(var_tmp);
-    Expression* assignment =
-        factory()->NewAssignment(Token::ASSIGN, tmp, result_value, nopos);
+    Variable* tmp = NewTemporary(avfactory->empty_string());
+    Expression* save_result = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(tmp), result_value, nopos);
 
-    Block* block = factory()->NewBlock(nullptr, 2, false, nopos);
-    block->statements()->Add(
-        factory()->NewExpressionStatement(assignment, nopos), zone());
-    block->statements()->Add(set_completion_abrupt, zone());
+    Expression* set_completion_abrupt = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(completion),
+        factory()->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
 
-    result_value = factory()->NewDoExpression(block, var_tmp, nopos);
+    result_value = factory()->NewBinaryOperation(Token::COMMA, save_result,
+                                                 set_completion_abrupt, nopos);
+    result_value = factory()->NewBinaryOperation(
+        Token::COMMA, result_value, factory()->NewVariableProxy(tmp), nopos);
   }
 
   // each = #result_value;
