@@ -332,6 +332,12 @@
           "test_flags": ["construct-all-typedarrays"]
         },
         {
+          "name": "SetFromArrayLike",
+          "main": "run.js",
+          "resources": ["set-from-arraylike.js"],
+          "test_flags": ["set-from-arraylike"]
+        },
+        {
           "name": "SetFromDifferentType",
           "main": "run.js",
           "resources": ["set-from-different-type.js"],
