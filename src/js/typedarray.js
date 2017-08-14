@@ -317,6 +317,7 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   }
 }
 
+// 22.2.3.23%TypedArray%.prototype.set ( overloaded [ , offset ] )
 DEFINE_METHOD_LEN(
   GlobalTypedArray.prototype,
   set(obj, offset) {
@@ -328,7 +329,7 @@ DEFINE_METHOD_LEN(
     }
 
     switch (%TypedArraySetFastCases(this, obj, intOffset)) {
-      // These numbers should be synchronized with runtime.cc.
+      // These numbers should be synchronized with runtime-typedarray.cc.
       case 0: // TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE
         return;
       case 1: // TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING

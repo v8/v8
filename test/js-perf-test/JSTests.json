@@ -332,6 +332,12 @@
           "test_flags": ["construct-all-typedarrays"]
         },
         {
+          "name": "SetFromSameType",
+          "main": "run.js",
+          "resources": ["set-from-same-type.js"],
+          "test_flags": ["set-from-same-type"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "resources": ["sort.js"],
