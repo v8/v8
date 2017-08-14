@@ -1231,7 +1231,7 @@ class ParserBase {
   // Parse a C-style for loop: 'for (<init>; <cond>; <step>) { ... }'
   StatementT ParseStandardForLoop(int stmt_pos, StatementT init,
                                   bool bound_names_are_lexical,
-                                  ForInfo* for_info, BlockState* for_state,
+                                  ForInfo* for_info,
                                   ZoneList<const AstRawString*>* labels,
                                   bool* ok);
   StatementT ParseForAwaitStatement(ZoneList<const AstRawString*>* labels,
@@ -5594,7 +5594,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
   // Standard 'for' loop, we have parsed the initializer at this point.
   return ParseStandardForLoop(stmt_pos, init, bound_names_are_lexical,
-                              &for_info, &for_state, labels, ok);
+                              &for_info, labels, ok);
 }
 
 template <typename Impl>
@@ -5732,8 +5732,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     int stmt_pos, StatementT init, bool bound_names_are_lexical,
-    ForInfo* for_info, BlockState* for_state,
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok) {
   auto loop = factory()->NewForStatement(labels, stmt_pos);
   typename Types::Target target(this, loop);
 
