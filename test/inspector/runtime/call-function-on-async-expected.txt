@@ -69,8 +69,14 @@ Running test: testExceptionInFunctionExpression
 
 Running test: testFunctionReturnNotPromise
 {
-    code : -32000
-    message : Result of the function call is not a promise
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
 }
 
 Running test: testFunctionReturnResolvedPromiseReturnByValue

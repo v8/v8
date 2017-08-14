@@ -50,10 +50,10 @@ InspectorTest.runTestSuite([
       "({a : 1})",
       "(function() { return 239; })",
       [],
-      /* returnByValue */ false,
+      /* returnByValue */ true,
       /* generatePreview */ false,
       /* awaitPromise */ true)
-      .then((result) => InspectorTest.logMessage(result.error))
+      .then((result) => InspectorTest.logMessage(result))
       .then(() => next());
   },
 

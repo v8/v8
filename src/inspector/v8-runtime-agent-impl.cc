@@ -190,9 +190,8 @@ void V8RuntimeAgentImpl::evaluate(
     return;
   }
   scope.injectedScript()->addPromiseCallback(
-      m_session, maybeResultValue, "Result of the evaluation is not a promise",
-      objectGroup.fromMaybe(""), returnByValue.fromMaybe(false),
-      generatePreview.fromMaybe(false),
+      m_session, maybeResultValue, objectGroup.fromMaybe(""),
+      returnByValue.fromMaybe(false), generatePreview.fromMaybe(false),
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -206,10 +205,14 @@ void V8RuntimeAgentImpl::awaitPromise(
     callback->sendFailure(response);
     return;
   }
+  if (!scope.object()->IsPromise()) {
+    callback->sendFailure(
+        Response::Error("Could not find promise with given id"));
+    return;
+  }
   scope.injectedScript()->addPromiseCallback(
-      m_session, scope.object(), "Could not find promise with given id",
-      scope.objectGroupName(), returnByValue.fromMaybe(false),
-      generatePreview.fromMaybe(false),
+      m_session, scope.object(), scope.objectGroupName(),
+      returnByValue.fromMaybe(false), generatePreview.fromMaybe(false),
       EvaluateCallbackWrapper<AwaitPromiseCallback>::wrap(std::move(callback)));
 }
 
@@ -304,8 +307,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
   }
 
   scope.injectedScript()->addPromiseCallback(
-      m_session, maybeResultValue,
-      "Result of the function call is not a promise", scope.objectGroupName(),
+      m_session, maybeResultValue, scope.objectGroupName(),
       returnByValue.fromMaybe(false), generatePreview.fromMaybe(false),
       EvaluateCallbackWrapper<CallFunctionOnCallback>::wrap(
           std::move(callback)));
@@ -514,7 +516,6 @@ void V8RuntimeAgentImpl::runScript(
   }
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue.ToLocalChecked(),
-      "Result of the script execution is not a promise",
       objectGroup.fromMaybe(""), returnByValue.fromMaybe(false),
       generatePreview.fromMaybe(false),
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));

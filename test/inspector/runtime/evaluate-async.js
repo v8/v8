@@ -80,7 +80,8 @@ InspectorTest.runAsyncTestSuite([
   {
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({
       expression: "({})",
-      awaitPromise: true
+      awaitPromise: true,
+      returnByValue: true
     }));
   },
 
@@ -99,6 +100,13 @@ InspectorTest.runAsyncTestSuite([
       expression: "throw 239",
       awaitPromise: true
     }));
+  },
+
+  async function testThenableJob()
+  {
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+      expression: '({then: resolve => resolve(42)})',
+      awaitPromise: true}));
   },
 
   async function testLastEvaluatedResult()

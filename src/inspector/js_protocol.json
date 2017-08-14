@@ -218,7 +218,7 @@
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
                     { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
                     { "name": "userGesture", "type": "boolean", "optional": true, "experimental": true, "description": "Whether execution should be treated as initiated by user in the UI." },
-                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should wait for promise to be resolved. If the result of evaluation is not a Promise, it's considered to be an error." }
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Evaluation result." },
@@ -249,7 +249,7 @@
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object which should be sent by value." },
                     { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
                     { "name": "userGesture", "type": "boolean", "optional": true, "experimental": true, "description": "Whether execution should be treated as initiated by user in the UI." },
-                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should wait for promise to be resolved. If the result of evaluation is not a Promise, it's considered to be an error." }
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Call result." },
@@ -336,7 +336,7 @@
                     { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Determines whether Command Line API should be available during the evaluation." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object which should be sent by value." },
                     { "name": "generatePreview", "type": "boolean", "optional": true, "description": "Whether preview should be generated for the result." },
-                    { "name": "awaitPromise", "type": "boolean", "optional": true, "description": "Whether execution should wait for promise to be resolved. If the result of evaluation is not a Promise, it's considered to be an error." }
+                    { "name": "awaitPromise", "type": "boolean", "optional": true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Run result." },

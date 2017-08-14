@@ -60,11 +60,21 @@ using protocol::Maybe;
 class InjectedScript::ProtocolPromiseHandler {
  public:
   static bool add(V8InspectorSessionImpl* session,
-                  v8::Local<v8::Context> context,
-                  v8::Local<v8::Promise> promise,
-                  const String16& notPromiseError, int executionContextId,
-                  const String16& objectGroup, bool returnByValue,
-                  bool generatePreview, EvaluateCallback* callback) {
+                  v8::Local<v8::Context> context, v8::Local<v8::Value> value,
+                  int executionContextId, const String16& objectGroup,
+                  bool returnByValue, bool generatePreview,
+                  EvaluateCallback* callback) {
+    v8::Local<v8::Promise::Resolver> resolver;
+    if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
+      callback->sendFailure(Response::InternalError());
+      return false;
+    }
+    if (!resolver->Resolve(context, value).FromMaybe(false)) {
+      callback->sendFailure(Response::InternalError());
+      return false;
+    }
+
+    v8::Local<v8::Promise> promise = resolver->GetPromise();
     V8InspectorImpl* inspector = session->inspector();
     ProtocolPromiseHandler* handler =
         new ProtocolPromiseHandler(session, executionContextId, objectGroup,
@@ -456,24 +466,18 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 
 void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
-    const String16& notPromiseError, const String16& objectGroup,
-    bool returnByValue, bool generatePreview,
+    const String16& objectGroup, bool returnByValue, bool generatePreview,
     std::unique_ptr<EvaluateCallback> callback) {
   if (value.IsEmpty()) {
     callback->sendFailure(Response::InternalError());
     return;
   }
-  if (!value.ToLocalChecked()->IsPromise()) {
-    callback->sendFailure(Response::Error(notPromiseError));
-    return;
-  }
   v8::MicrotasksScope microtasksScope(m_context->isolate(),
                                       v8::MicrotasksScope::kRunMicrotasks);
-  if (ProtocolPromiseHandler::add(session, m_context->context(),
-                                  value.ToLocalChecked().As<v8::Promise>(),
-                                  notPromiseError, m_context->contextId(),
-                                  objectGroup, returnByValue, generatePreview,
-                                  callback.get())) {
+  if (ProtocolPromiseHandler::add(
+          session, m_context->context(), value.ToLocalChecked(),
+          m_context->contextId(), objectGroup, returnByValue, generatePreview,
+          callback.get())) {
     m_evaluateCallbacks.insert(callback.release());
   }
 }

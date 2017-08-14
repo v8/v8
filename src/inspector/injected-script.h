@@ -99,7 +99,6 @@ class InjectedScript final {
 
   void addPromiseCallback(V8InspectorSessionImpl* session,
                           v8::MaybeLocal<v8::Value> value,
-                          const String16& notPromiseError,
                           const String16& objectGroup, bool returnByValue,
                           bool generatePreview,
                           std::unique_ptr<EvaluateCallback> callback);
