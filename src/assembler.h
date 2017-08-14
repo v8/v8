@@ -505,10 +505,10 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  Address wasm_memory_reference();
-  Address wasm_global_reference();
-  uint32_t wasm_function_table_size_reference();
-  uint32_t wasm_memory_size_reference();
+  Address wasm_memory_reference() const;
+  Address wasm_global_reference() const;
+  uint32_t wasm_function_table_size_reference() const;
+  uint32_t wasm_memory_size_reference() const;
   void update_wasm_memory_reference(
       Isolate* isolate, Address old_base, Address new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
@@ -626,10 +626,13 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
-  void unchecked_update_wasm_memory_reference(Isolate* isolate, Address address,
-                                              ICacheFlushMode flush_mode);
-  void unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
-                                  ICacheFlushMode flush_mode);
+  void set_embedded_address(Isolate* isolate, Address address,
+                            ICacheFlushMode flush_mode);
+  void set_embedded_size(Isolate* isolate, uint32_t size,
+                         ICacheFlushMode flush_mode);
+
+  uint32_t embedded_size() const;
+  Address embedded_address() const;
 
   // On ARM, note that pc_ is the address of the constant pool entry
   // to be relocated and not the address of the instruction

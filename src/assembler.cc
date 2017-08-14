@@ -310,8 +310,7 @@ void RelocInfo::update_wasm_memory_reference(
   Address updated_reference = new_base + (wasm_memory_reference() - old_base);
   // The reference is not checked here but at runtime. Validity of references
   // may change over time.
-  unchecked_update_wasm_memory_reference(isolate, updated_reference,
-                                         icache_flush_mode);
+  set_embedded_address(isolate, updated_reference, icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_memory_size(Isolate* isolate, uint32_t old_size,
@@ -321,8 +320,7 @@ void RelocInfo::update_wasm_memory_size(Isolate* isolate, uint32_t old_size,
   uint32_t current_size_reference = wasm_memory_size_reference();
   uint32_t updated_size_reference =
       new_size + (current_size_reference - old_size);
-  unchecked_update_wasm_size(isolate, updated_size_reference,
-                             icache_flush_mode);
+  set_embedded_size(isolate, updated_size_reference, icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_global_reference(
@@ -333,15 +331,34 @@ void RelocInfo::update_wasm_global_reference(
   DCHECK_LE(old_base, wasm_global_reference());
   updated_reference = new_base + (wasm_global_reference() - old_base);
   DCHECK_LE(new_base, updated_reference);
-  unchecked_update_wasm_memory_reference(isolate, updated_reference,
-                                         icache_flush_mode);
+  set_embedded_address(isolate, updated_reference, icache_flush_mode);
+}
+
+Address RelocInfo::wasm_global_reference() const {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return embedded_address();
+}
+
+uint32_t RelocInfo::wasm_function_table_size_reference() const {
+  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
+  return embedded_size();
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() const {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return embedded_size();
+}
+
+Address RelocInfo::wasm_memory_reference() const {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return embedded_address();
 }
 
 void RelocInfo::update_wasm_function_table_size_reference(
     Isolate* isolate, uint32_t old_size, uint32_t new_size,
     ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  unchecked_update_wasm_size(isolate, new_size, icache_flush_mode);
+  set_embedded_size(isolate, new_size, icache_flush_mode);
 }
 
 void RelocInfo::set_target_address(Isolate* isolate, Address target,
