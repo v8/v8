@@ -8,10 +8,6 @@
 
 #include "test/cctest/cctest.h"
 
-// Sanitizers aren't configured to return NULL on allocation failure.
-#if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
-    !defined(THREAD_SANITIZER)
-
 using v8::internal::AccountingAllocator;
 
 using v8::IdleTask;
@@ -20,6 +16,10 @@ using v8::Task;
 
 #include "src/allocation.h"
 #include "src/zone/accounting-allocator.h"
+
+// ASAN isn't configured to return NULL, so skip all of these tests.
+#if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
 
 namespace {
 
@@ -46,6 +46,23 @@ bool DidCallOnCriticalMemoryPressure() {
          AllocationPlatform::current_platform->oom_callback_called;
 }
 
+// No OS should be able to malloc/new this number of bytes. Generate enough
+// random values in the address space to get a very large fraction of it. Using
+// even larger values is that overflow from rounding or padding can cause the
+// allocations to succeed somehow.
+size_t GetHugeMemoryAmount() {
+  static size_t huge_memory = 0;
+  if (!huge_memory) {
+    for (int i = 0; i < 100; i++) {
+      huge_memory |= bit_cast<size_t>(v8::base::OS::GetRandomMmapAddr());
+    }
+    // Make it larger than the available address space.
+    huge_memory *= 2;
+    CHECK_NE(0, huge_memory);
+  }
+  return huge_memory;
+}
+
 void OnMallocedOperatorNewOOM(const char* location, const char* message) {
   // exit(0) if the OOM callback was called and location matches expectation.
   if (DidCallOnCriticalMemoryPressure())
@@ -65,123 +82,72 @@ void OnAlignedAllocOOM(const char* location, const char* message) {
   exit(1);
 }
 
-// Grow the size using the alloc'ed address. This exhausts the address space
-// quickly so tests reliably generate alloc failures.
-size_t GrowSize(size_t size, void* address) {
-  return size | bit_cast<size_t>(address);
-}
-
-static const int kLargeishAllocation = 16 * 1024 * 1024;
-
 }  // namespace
 
 TEST(AccountingAllocatorOOM) {
   AllocationPlatform platform;
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
-  // Start with an allocation that should succeed on all platforms, and grow it
-  // until we get a failure.
-  size_t size = kLargeishAllocation;
-  while (true) {
-    v8::internal::Segment* result = allocator.GetSegment(size);
-    if (result == nullptr) {
-      CHECK(platform.oom_callback_called);
-      break;
-    }
-    size = GrowSize(size, result);
-    // Leak the allocation.
-  }
+  v8::internal::Segment* result = allocator.GetSegment(GetHugeMemoryAmount());
+  // On a few systems, allocation somehow succeeds.
+  CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
 TEST(MallocedOperatorNewOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnMallocedOperatorNewOOM);
-  // Start with an allocation that should succeed on all platforms, and grow it
-  // until we get a failure.
-  size_t size = kLargeishAllocation;
-  // On failure, Malloced::New won't return.
-  // Callback behavior is checked in OnMallocedOperatorNewOOM before exit.
-  while (true) {
-    void* result = v8::internal::Malloced::New(size);
-    CHECK_NOT_NULL(result);
-    size = GrowSize(size, result);
-    // Leak the allocation.
-  }
+  // On failure, this won't return, since a Malloced::New failure is fatal.
+  // In that case, behavior is checked in OnMallocedOperatorNewOOM before exit.
+  void* result = v8::internal::Malloced::New(GetHugeMemoryAmount());
+  // On a few systems, allocation somehow succeeds.
+  CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
 TEST(NewArrayOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnNewArrayOOM);
-  // Start with an allocation that should succeed on all platforms, and grow it
-  // until we get a failure.
-  size_t size = kLargeishAllocation;
   // On failure, this won't return, since a NewArray failure is fatal.
-  // Callback behavior is checked in OnNewArrayOOM before exit.
-  while (true) {
-    int8_t* result = v8::internal::NewArray<int8_t>(size);
-    CHECK_NOT_NULL(result);
-    size = GrowSize(size, result);
-    // Leak the allocation.
-  }
+  // In that case, behavior is checked in OnNewArrayOOM before exit.
+  int8_t* result = v8::internal::NewArray<int8_t>(GetHugeMemoryAmount());
+  // On a few systems, allocation somehow succeeds.
+  CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
 TEST(AlignedAllocOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnAlignedAllocOOM);
-  // Start with an allocation that should succeed on all platforms, and grow it
-  // until we get a failure.
-  size_t size = kLargeishAllocation;
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
-  // Callback behavior is checked in OnAlignedAllocOOM before exit.
-  while (true) {
-    void* result =
-        v8::internal::AlignedAlloc(size, v8::base::OS::AllocateAlignment());
-    CHECK_NOT_NULL(result);
-    size = GrowSize(size, result);
-    // Leak the allocation.
-  }
+  // In that case, behavior is checked in OnAlignedAllocOOM before exit.
+  void* result = v8::internal::AlignedAlloc(GetHugeMemoryAmount(),
+                                            v8::base::OS::AllocateAlignment());
+  // On a few systems, allocation somehow succeeds.
+  CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
 TEST(AllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  // Start with an allocation that should succeed on all platforms, and grow it
-  // until we get a failure.
-  size_t size = kLargeishAllocation;
-  while (true) {
-    auto* result = new v8::base::VirtualMemory();
-    bool success = v8::internal::AllocVirtualMemory(size, nullptr, result);
-    if (!success) {
-      CHECK(!result->IsReserved());
-      CHECK(platform.oom_callback_called);
-      break;
-    }
-    size = GrowSize(size, result->address());
-    // Leak the allocation.
-  }
+  v8::base::VirtualMemory result;
+  bool success =
+      v8::internal::AllocVirtualMemory(GetHugeMemoryAmount(), nullptr, &result);
+  // On a few systems, allocation somehow succeeds.
+  CHECK_IMPLIES(success, result.IsReserved());
+  CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
 }
 
 TEST(AlignedAllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  // Start with an allocation that should succeed on all platforms, and grow it
-  // until we get a failure.
-  size_t size = kLargeishAllocation;
-  while (true) {
-    auto* result = new v8::base::VirtualMemory();
-    bool success = v8::internal::AlignedAllocVirtualMemory(
-        size, v8::base::OS::AllocateAlignment(), nullptr, result);
-    if (!success) {
-      CHECK(!result->IsReserved());
-      CHECK(platform.oom_callback_called);
-      break;
-    }
-    size = GrowSize(size, result->address());
-    // Leak the allocation.
-  }
+  v8::base::VirtualMemory result;
+  bool success = v8::internal::AlignedAllocVirtualMemory(
+      GetHugeMemoryAmount(), v8::base::OS::AllocateAlignment(), nullptr,
+      &result);
+  // On a few systems, allocation somehow succeeds.
+  CHECK_IMPLIES(success, result.IsReserved());
+  CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
 }
 
 #endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&
