@@ -29,7 +29,6 @@ class PlatformInterfaceDescriptor;
   V(StoreWithVector)                       \
   V(StoreNamedTransition)                  \
   V(StoreTransition)                       \
-  V(VarArgFunction)                        \
   V(FastNewClosure)                        \
   V(FastNewFunctionContext)                \
   V(FastNewObject)                         \
@@ -63,9 +62,6 @@ class PlatformInterfaceDescriptor;
   V(ArrayNArgumentsConstructor)            \
   V(Compare)                               \
   V(BinaryOp)                              \
-  V(BinaryOpWithAllocationSite)            \
-  V(BinaryOpWithVector)                    \
-  V(CountOp)                               \
   V(StringAdd)                             \
   V(StringCharAt)                          \
   V(StringCharCodeAt)                      \
@@ -728,25 +724,6 @@ class BinaryOpDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kAllocationSite, kLeft, kRight)
-  DECLARE_DESCRIPTOR(BinaryOpWithAllocationSiteDescriptor,
-                     CallInterfaceDescriptor)
-};
-
-class BinaryOpWithVectorDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kVector, kFunction)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BinaryOpWithVectorDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-class CountOpDescriptor final : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(CountOpDescriptor, CallInterfaceDescriptor)
-};
-
 class StringAddDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kLeft, kRight)
@@ -822,13 +799,6 @@ class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
 
   static const Register exponent();
-};
-
-class VarArgFunctionDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kActualArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(VarArgFunctionDescriptor,
-                                               CallInterfaceDescriptor)
 };
 
 // TODO(turbofan): We should probably rename this to GrowFastElementsDescriptor.
