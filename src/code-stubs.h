@@ -961,63 +961,6 @@ enum EmbedMode {
   NOT_PART_OF_IC_HANDLER
 };
 
-
-// Generates code implementing String.prototype.charCodeAt.
-//
-// Only supports the case when the receiver is a string and the index
-// is a number (smi or heap number) that is a valid index into the
-// string. Additional index constraints are specified by the
-// flags. Otherwise, bails out to the provided labels.
-//
-// Register usage: |object| may be changed to another string in a way
-// that doesn't affect charCodeAt/charAt semantics, |index| is
-// preserved, |scratch| and |result| are clobbered.
-class StringCharCodeAtGenerator {
- public:
-  StringCharCodeAtGenerator(Register object, Register index, Register result,
-                            Label* receiver_not_string, Label* index_not_number,
-                            Label* index_out_of_range,
-                            ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
-      : object_(object),
-        index_(index),
-        result_(result),
-        receiver_not_string_(receiver_not_string),
-        index_not_number_(index_not_number),
-        index_out_of_range_(index_out_of_range),
-        check_mode_(check_mode) {
-    DCHECK(!result_.is(object_));
-    DCHECK(!result_.is(index_));
-  }
-
-  // Generates the fast case code. On the fallthrough path |result|
-  // register contains the result.
-  void GenerateFast(MacroAssembler* masm);
-
-  // Generates the slow case code. Must not be naturally
-  // reachable. Expected to be put after a ret instruction (e.g., in
-  // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
-                    const RuntimeCallHelper& call_helper);
-
- private:
-  Register object_;
-  Register index_;
-  Register result_;
-
-  Label* receiver_not_string_;
-  Label* index_not_number_;
-  Label* index_out_of_range_;
-
-  ReceiverCheckMode check_mode_;
-
-  Label call_runtime_;
-  Label index_not_smi_;
-  Label got_smi_index_;
-  Label exit_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringCharCodeAtGenerator);
-};
-
 class DoubleToIStub : public PlatformCodeStub {
  public:
   DoubleToIStub(Isolate* isolate, Register source, Register destination,
