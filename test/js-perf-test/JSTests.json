@@ -332,6 +332,12 @@
           "test_flags": ["construct-all-typedarrays"]
         },
         {
+          "name": "SetFromDifferentType",
+          "main": "run.js",
+          "resources": ["set-from-different-type.js"],
+          "test_flags": ["set-from-different-type"]
+        },
+        {
           "name": "SetFromSameType",
           "main": "run.js",
           "resources": ["set-from-same-type.js"],
