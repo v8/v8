@@ -1116,7 +1116,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 //
 // The live registers are:
 //   o r4: the JS function object being called.
-//   o r6: the new target
+//   o r6: the incoming new target or generator object
 //   o cp: our context
 //   o pp: the caller's constant pool pointer (if enabled)
 //   o fp: the caller's frame pointer
@@ -1196,9 +1196,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
-  // Push new.target, bytecode array and Smi tagged bytecode array offset.
+  // Push bytecode array and Smi tagged bytecode array offset.
   __ SmiTag(r3, kInterpreterBytecodeOffsetRegister);
-  __ Push(r6, kInterpreterBytecodeArrayRegister, r3);
+  __ Push(kInterpreterBytecodeArrayRegister, r3);
 
   // Allocate the local and temporary register file on the stack.
   {
@@ -1208,9 +1208,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
-    __ sub(r6, sp, r5);
+    __ sub(r8, sp, r5);
     __ LoadRoot(r0, Heap::kRealStackLimitRootIndex);
-    __ cmpl(r6, r0);
+    __ cmpl(r8, r0);
     __ bge(&ok);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -1218,15 +1218,28 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // If ok, push undefined as the initial value for all register file entries.
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     Label loop, no_args;
-    __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
     __ ShiftRightImm(r5, r5, Operand(kPointerSizeLog2), SetRC);
     __ beq(&no_args, cr0);
     __ mtctr(r5);
     __ bind(&loop);
-    __ push(r6);
+    __ push(r8);
     __ bdnz(&loop);
     __ bind(&no_args);
   }
+
+  // If the bytecode array has a valid incoming new target or generator object
+  // register, initialize it with incoming value which was passed in r6.
+  Label no_incoming_new_target_or_generator_register;
+  __ LoadWordArith(
+      r8, FieldMemOperand(
+              kInterpreterBytecodeArrayRegister,
+              BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+  __ cmpi(r8, Operand::Zero());
+  __ beq(&no_incoming_new_target_or_generator_register);
+  __ ShiftLeftImm(r8, r8, Operand(kPointerSizeLog2));
+  __ StorePX(r6, MemOperand(fp, r8));
+  __ bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator and dispatch table into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
