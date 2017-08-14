@@ -1258,14 +1258,6 @@ void TurboAssembler::Push(Smi* smi) {
   Push(tmp);
 }
 
-void MacroAssembler::PushObject(Handle<Object> handle) {
-  if (handle->IsHeapObject()) {
-    Push(Handle<HeapObject>::cast(handle));
-  } else {
-    Push(Smi::cast(*handle));
-  }
-}
-
 void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
   DCHECK(count >= 0);
   uint64_t size = count * unit_size;

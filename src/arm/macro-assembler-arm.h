@@ -575,22 +575,12 @@ class MacroAssembler : public TurboAssembler {
             Condition cond = al);
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
-  // The scratch register is not used for ARMv7.
-  // scratch can be the same register as src (in which case it is trashed), but
-  // not the same as dst.
-  void Bfi(Register dst, Register src, Register scratch, int lsb, int width,
-           Condition cond = al);
-
-  void PushObject(Handle<Object> object);
 
   void Load(Register dst, const MemOperand& src, Representation r);
   void Store(Register src, const MemOperand& dst, Representation r);
 
   // ---------------------------------------------------------------------------
   // GC Support
-
-  void IncrementalMarkingRecordWriteHelper(Register object, Register value,
-                                           Register address);
 
   enum RememberedSetFinalAction { kReturnAtEnd, kFallThroughAtEnd };
 
@@ -925,8 +915,6 @@ class MacroAssembler : public TurboAssembler {
   void SmiTst(Register value);
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotSmi(Register value, Label* not_smi_label);
-  // Jump if either of the registers contain a non-smi.
-  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
@@ -952,10 +940,6 @@ class MacroAssembler : public TurboAssembler {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // Abort execution if reg is not the root value with the given index,
-  // enabled via --debug-code.
-  void AssertIsRoot(Register reg, Heap::RootListIndex index);
-
   // ---------------------------------------------------------------------------
   // String utilities
 
@@ -966,13 +950,6 @@ class MacroAssembler : public TurboAssembler {
                                                     Register scratch1,
                                                     Register scratch2,
                                                     Label* failure);
-
-  // Checks if both objects are sequential one-byte strings and jumps to label
-  // if either is not.
-  void JumpIfNotBothSequentialOneByteStrings(Register first, Register second,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* not_flat_one_byte_strings);
 
   // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
@@ -1020,8 +997,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
-  MemOperand SafepointRegisterSlot(Register reg);
-  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.

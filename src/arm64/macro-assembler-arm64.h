@@ -1597,8 +1597,6 @@ class MacroAssembler : public TurboAssembler {
   void PushMultipleTimes(CPURegister src, Register count);
   void PushMultipleTimes(CPURegister src, int count);
 
-  inline void PushObject(Handle<Object> handle);
-
   // Sometimes callers need to push or pop multiple registers in a way that is
   // difficult to structure efficiently for fixed Push or Pop calls. This scope
   // allows push requests to be queued up, then flushed at once. The
@@ -2132,9 +2130,6 @@ class MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  // Store value in register src in the safepoint stack slot for register dst.
-  void StoreToSafepointRegisterSlot(Register src, Register dst);
 
   void CheckPageFlag(const Register& object, const Register& scratch, int mask,
                      Condition cc, Label* condition_met);

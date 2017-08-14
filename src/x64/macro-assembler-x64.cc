@@ -1952,15 +1952,6 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   }
 }
 
-void MacroAssembler::PushObject(Handle<Object> source) {
-  AllowDeferredHandleDereference smi_check;
-  if (source->IsSmi()) {
-    Push(Smi::cast(*source));
-  } else {
-    Push(Handle<HeapObject>::cast(source));
-  }
-}
-
 void TurboAssembler::Push(Handle<HeapObject> source) {
   Move(kScratchRegister, source);
   Push(kScratchRegister);

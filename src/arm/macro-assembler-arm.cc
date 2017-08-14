@@ -220,14 +220,6 @@ void TurboAssembler::Push(Smi* smi) {
   push(scratch);
 }
 
-void MacroAssembler::PushObject(Handle<Object> handle) {
-  if (handle->IsHeapObject()) {
-    Push(Handle<HeapObject>::cast(handle));
-  } else {
-    Push(Smi::cast(*handle));
-  }
-}
-
 void TurboAssembler::Move(Register dst, Smi* smi) { mov(dst, Operand(smi)); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
@@ -352,29 +344,6 @@ void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
   }
 }
 
-
-void MacroAssembler::Bfi(Register dst,
-                         Register src,
-                         Register scratch,
-                         int lsb,
-                         int width,
-                         Condition cond) {
-  DCHECK(0 <= lsb && lsb < 32);
-  DCHECK(0 <= width && width < 32);
-  DCHECK(lsb + width < 32);
-  DCHECK(!scratch.is(dst));
-  if (width == 0) return;
-  if (!CpuFeatures::IsSupported(ARMv7) || predictable_code_size()) {
-    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
-    bic(dst, dst, Operand(mask));
-    and_(scratch, src, Operand((1 << width) - 1));
-    mov(scratch, Operand(scratch, LSL, lsb));
-    orr(dst, dst, scratch);
-  } else {
-    CpuFeatureScope scope(this, ARMv7);
-    bfi(dst, src, lsb, width, cond);
-  }
-}
 
 void TurboAssembler::Bfc(Register dst, Register src, int lsb, int width,
                          Condition cond) {
@@ -732,20 +701,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // which means that lowest encodings are closest to the stack pointer.
   DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
   return reg_code;
-}
-
-MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
-  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
-}
-
-MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
-  // Number of d-regs not known at snapshot time.
-  DCHECK(!serializer_enabled());
-  // General purpose registers are pushed last on the stack.
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  int doubles_size = config->num_allocatable_double_registers() * kDoubleSize;
-  int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
-  return MemOperand(sp, doubles_size + register_offset);
 }
 
 void TurboAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
@@ -2102,16 +2057,6 @@ void MacroAssembler::SmiTag(Register dst, Register src, SBit s) {
   add(dst, src, Operand(src), s);
 }
 
-void MacroAssembler::JumpIfNotBothSmi(Register reg1,
-                                      Register reg2,
-                                      Label* on_not_both_smi) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(reg1, Operand(kSmiTagMask));
-  tst(reg2, Operand(kSmiTagMask), eq);
-  b(ne, on_not_both_smi);
-}
-
-
 void MacroAssembler::UntagAndJumpIfSmi(
     Register dst, Register src, Label* smi_case) {
   STATIC_ASSERT(kSmiTag == 0);
@@ -2236,13 +2181,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 }
 
 
-void MacroAssembler::AssertIsRoot(Register reg, Heap::RootListIndex index) {
-  if (emit_debug_code()) {
-    CompareRoot(reg, index);
-    Check(eq, kHeapNumberMapRegisterClobbered);
-  }
-}
-
 void MacroAssembler::JumpIfNonSmisNotBothSequentialOneByteStrings(
     Register first, Register second, Register scratch1, Register scratch2,
     Label* failure) {
@@ -2256,19 +2194,6 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialOneByteStrings(
   JumpIfBothInstanceTypesAreNotSequentialOneByte(scratch1, scratch2, scratch1,
                                                  scratch2, failure);
 }
-
-void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register first,
-                                                           Register second,
-                                                           Register scratch1,
-                                                           Register scratch2,
-                                                           Label* failure) {
-  // Check that neither is a smi.
-  and_(scratch1, first, Operand(second));
-  JumpIfSmi(scratch1, failure);
-  JumpIfNonSmisNotBothSequentialOneByteStrings(first, second, scratch1,
-                                               scratch2, failure);
-}
-
 
 void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
                                                      Label* not_unique_name) {

@@ -9,9 +9,6 @@ namespace v8 {
 namespace internal {
 
 
-void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
-
-
 class StringHelper : public AllStatic {
  public:
   // Compares two flat one-byte strings and returns result in r0.

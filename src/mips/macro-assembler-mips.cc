@@ -85,20 +85,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
-MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
-  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
-}
-
-
-MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
-  UNIMPLEMENTED_MIPS();
-  // General purpose registers are pushed last on the stack.
-  int doubles_size = DoubleRegister::kMaxNumRegisters * kDoubleSize;
-  int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
-  return MemOperand(sp, doubles_size + register_offset);
-}
-
-
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cc,
@@ -1279,19 +1265,6 @@ void TurboAssembler::MultiPush(RegList regs) {
 }
 
 
-void MacroAssembler::MultiPushReversed(RegList regs) {
-  int16_t num_to_push = base::bits::CountPopulation(regs);
-  int16_t stack_offset = num_to_push * kPointerSize;
-
-  Subu(sp, sp, Operand(stack_offset));
-  for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
-      stack_offset -= kPointerSize;
-      sw(ToRegister(i), MemOperand(sp, stack_offset));
-    }
-  }
-}
-
 void TurboAssembler::MultiPop(RegList regs) {
   int16_t stack_offset = 0;
 
@@ -1304,18 +1277,6 @@ void TurboAssembler::MultiPop(RegList regs) {
   addiu(sp, sp, stack_offset);
 }
 
-
-void MacroAssembler::MultiPopReversed(RegList regs) {
-  int16_t stack_offset = 0;
-
-  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
-      lw(ToRegister(i), MemOperand(sp, stack_offset));
-      stack_offset += kPointerSize;
-    }
-  }
-  addiu(sp, sp, stack_offset);
-}
 
 void TurboAssembler::MultiPushFPU(RegList regs) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
@@ -1331,19 +1292,6 @@ void TurboAssembler::MultiPushFPU(RegList regs) {
 }
 
 
-void MacroAssembler::MultiPushReversedFPU(RegList regs) {
-  int16_t num_to_push = base::bits::CountPopulation(regs);
-  int16_t stack_offset = num_to_push * kDoubleSize;
-
-  Subu(sp, sp, Operand(stack_offset));
-  for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
-      stack_offset -= kDoubleSize;
-      Sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
-    }
-  }
-}
-
 void TurboAssembler::MultiPopFPU(RegList regs) {
   int16_t stack_offset = 0;
 
@@ -1356,18 +1304,6 @@ void TurboAssembler::MultiPopFPU(RegList regs) {
   addiu(sp, sp, stack_offset);
 }
 
-
-void MacroAssembler::MultiPopReversedFPU(RegList regs) {
-  int16_t stack_offset = 0;
-
-  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
-      Ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
-      stack_offset += kDoubleSize;
-    }
-  }
-  addiu(sp, sp, stack_offset);
-}
 
 void TurboAssembler::AddPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
@@ -3764,14 +3700,6 @@ void TurboAssembler::Push(Smi* smi) {
   push(scratch);
 }
 
-void MacroAssembler::PushObject(Handle<Object> handle) {
-  if (handle->IsHeapObject()) {
-    Push(Handle<HeapObject>::cast(handle));
-  } else {
-    Push(Smi::cast(*handle));
-  }
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -5053,18 +4981,6 @@ void MacroAssembler::JumpIfNotSmi(Register value,
 }
 
 
-void MacroAssembler::JumpIfNotBothSmi(Register reg1,
-                                      Register reg2,
-                                      Label* on_not_both_smi) {
-  STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(1, kSmiTagMask);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  or_(scratch, reg1, reg2);
-  JumpIfNotSmi(scratch, on_not_both_smi);
-}
-
-
 void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
                                      Label* on_either_smi) {
@@ -5165,27 +5081,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 }
 
 
-void MacroAssembler::AssertIsRoot(Register reg, Heap::RootListIndex index) {
-  if (emit_debug_code()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(!reg.is(scratch));
-    LoadRoot(scratch, index);
-    Check(eq, kHeapNumberMapRegisterClobbered, reg, Operand(scratch));
-  }
-}
-
-
-void MacroAssembler::JumpIfNotHeapNumber(Register object,
-                                         Register heap_number_map,
-                                         Register scratch,
-                                         Label* on_not_heap_number) {
-  lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  Branch(on_not_heap_number, ne, scratch, Operand(heap_number_map));
-}
-
-
 void MacroAssembler::JumpIfNonSmisNotBothSequentialOneByteStrings(
     Register first, Register second, Register scratch1, Register scratch2,
     Label* failure) {
@@ -5200,19 +5095,6 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialOneByteStrings(
                                                  scratch2, failure);
 }
 
-
-void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register first,
-                                                           Register second,
-                                                           Register scratch1,
-                                                           Register scratch2,
-                                                           Label* failure) {
-  // Check that neither is a smi.
-  STATIC_ASSERT(kSmiTag == 0);
-  And(scratch1, first, Operand(second));
-  JumpIfSmi(scratch1, failure);
-  JumpIfNonSmisNotBothSequentialOneByteStrings(first, second, scratch1,
-                                               scratch2, failure);
-}
 
 void TurboAssembler::Float32Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {

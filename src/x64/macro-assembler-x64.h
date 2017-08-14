@@ -866,7 +866,6 @@ class MacroAssembler : public TurboAssembler {
   void Cmp(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Smi* src);
   void Cmp(const Operand& dst, Smi* src);
-  void PushObject(Handle<Object> source);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -1185,7 +1184,6 @@ class MacroAssembler : public TurboAssembler {
                           Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
-  Operand SafepointRegisterSlot(Register reg);
   static int SafepointRegisterStackIndex(int reg_code) {
     return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
   }

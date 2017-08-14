@@ -718,7 +718,6 @@ class MacroAssembler : public TurboAssembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  void PushObject(Handle<Object> handle);
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
@@ -1030,8 +1029,6 @@ class MacroAssembler : public TurboAssembler {
     TestIfSmi(value, r0);
     bne(not_smi_label, cr0);
   }
-  // Jump if either of the registers contain a non-smi.
-  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
@@ -1070,16 +1067,6 @@ class MacroAssembler : public TurboAssembler {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // Abort execution if reg is not the root value with the given index,
-  // enabled via --debug-code.
-  void AssertIsRoot(Register reg, Heap::RootListIndex index);
-
-  // ---------------------------------------------------------------------------
-  // HeapNumber utilities
-
-  void JumpIfNotHeapNumber(Register object, Register heap_number_map,
-                           Register scratch, Label* on_not_heap_number);
-
   // ---------------------------------------------------------------------------
   // String utilities
 
@@ -1091,13 +1078,6 @@ class MacroAssembler : public TurboAssembler {
                                                     Register scratch2,
                                                     Label* failure);
 
-  // Checks if both objects are sequential one-byte strings and jumps to label
-  // if either is not.
-  void JumpIfNotBothSequentialOneByteStrings(Register first, Register second,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* not_flat_one_byte_strings);
-
   // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
   void JumpIfBothInstanceTypesAreNotSequentialOneByte(
@@ -1108,10 +1088,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Patching helpers.
-
-  // Decode offset from constant pool load instruction(s).
-  // Caller must place the instruction word at <location> in <result>.
-  void DecodeConstantPoolOffset(Register result, Register location);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
@@ -1130,17 +1106,6 @@ class MacroAssembler : public TurboAssembler {
 
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to eq.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Register scratch2_reg,
-                                       Label* no_memento_found);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1166,9 +1131,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
-  MemOperand SafepointRegisterSlot(Register reg);
-  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
-
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.

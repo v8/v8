@@ -476,13 +476,10 @@ class MacroAssembler : public TurboAssembler {
   void PushSafepointRegisters() { pushad(); }
   void PopSafepointRegisters() { popad(); }
 
-  void CmpHeapObject(Register reg, Handle<HeapObject> object);
-  void PushObject(Handle<Object> object);
-
   void CmpObject(Register reg, Handle<Object> object) {
     AllowDeferredHandleDereference heap_object_check;
     if (object->IsHeapObject()) {
-      CmpHeapObject(reg, Handle<HeapObject>::cast(object));
+      cmp(reg, Handle<HeapObject>::cast(object));
     } else {
       cmp(reg, Immediate(Smi::cast(*object)));
     }
@@ -584,8 +581,6 @@ class MacroAssembler : public TurboAssembler {
     }
     and_(reg, Immediate(mask));
   }
-
-  void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object);
@@ -732,7 +727,6 @@ class MacroAssembler : public TurboAssembler {
   void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
                                        Label::Distance distance = Label::kFar);
 
-
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
@@ -772,7 +766,6 @@ class MacroAssembler : public TurboAssembler {
                           Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
-  Operand SafepointRegisterSlot(Register reg);
   static int SafepointRegisterStackIndex(int reg_code);
 
   // Needs access to SafepointRegisterStackIndex for compiled frame

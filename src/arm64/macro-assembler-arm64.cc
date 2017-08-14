@@ -3011,10 +3011,6 @@ void MacroAssembler::PushSafepointRegisters() {
   PushXRegList(kSafepointSavedRegisters);
 }
 
-void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
-  Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
-}
-
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
   DCHECK(CPURegList::GetSafepointSavedRegisters().list() == 0x6ffcffff);

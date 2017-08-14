@@ -82,7 +82,12 @@ void MacroAssembler::CompareRoot(const Operand& with,
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
-  PushObject(isolate()->heap()->root_handle(index));
+  Handle<Object> object = isolate()->heap()->root_handle(index);
+  if (object->IsHeapObject()) {
+    Push(Handle<HeapObject>::cast(object));
+  } else {
+    Push(Smi::cast(*object));
+  }
 }
 
 #define REG(Name) \
@@ -1343,28 +1348,12 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   }
 }
 
-Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
-  return Operand(esp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
-}
-
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the lowest encoding,
   // which means that lowest encodings are furthest away from
   // the stack pointer.
   DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
   return kNumSafepointRegisters - reg_code - 1;
-}
-
-void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  cmp(reg, object);
-}
-
-void MacroAssembler::PushObject(Handle<Object> object) {
-  if (object->IsHeapObject()) {
-    Push(Handle<HeapObject>::cast(object));
-  } else {
-    Push(Smi::cast(*object));
-  }
 }
 
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
@@ -1777,17 +1766,6 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
   mov(dst, FieldOperand(dst, offset));
 }
 
-
-void MacroAssembler::LoadPowerOf2(XMMRegister dst,
-                                  Register scratch,
-                                  int power) {
-  DCHECK(is_uintn(power + HeapNumber::kExponentBias,
-                  HeapNumber::kExponentBits));
-  mov(scratch, Immediate(power + HeapNumber::kExponentBias));
-  movd(dst, scratch);
-  psllq(dst, HeapNumber::kMantissaBits);
-}
-
 void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
                                                            Register object2,
                                                            Register scratch1,
@@ -1820,7 +1798,6 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
   cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << kShift));
   j(not_equal, failure);
 }
-
 
 void MacroAssembler::JumpIfNotUniqueNameInstanceType(Operand operand,
                                                      Label* not_unique_name,
