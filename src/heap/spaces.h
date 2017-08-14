@@ -2046,9 +2046,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
       int size_in_bytes, UpdateSkipList update_skip_list = UPDATE_SKIP_LIST);
 
-  MUST_USE_RESULT inline AllocationResult AllocateRawUnalignedSynchronized(
-      int size_in_bytes);
-
   // Allocate the requested number of bytes in the space double aligned if
   // possible, return a failure object if not.
   MUST_USE_RESULT inline AllocationResult AllocateRawAligned(

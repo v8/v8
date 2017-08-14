@@ -358,13 +358,6 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
 }
 
 
-AllocationResult PagedSpace::AllocateRawUnalignedSynchronized(
-    int size_in_bytes) {
-  base::LockGuard<base::Mutex> lock_guard(&space_mutex_);
-  return AllocateRawUnaligned(size_in_bytes);
-}
-
-
 // Raw allocation.
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
