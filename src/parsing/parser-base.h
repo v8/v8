@@ -5640,7 +5640,8 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
 
   Expect(Token::RPAREN, CHECK_OK);
 
-  StatementT final_loop = impl()->NullStatement();
+  ExpressionT each_variable = impl()->EmptyExpression();
+  BlockT body_block = impl()->NullBlock();
   {
     BlockState block_state(&scope_, inner_block_scope);
     scope()->set_start_position(scanner()->location().beg_pos);
@@ -5651,17 +5652,16 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     StatementT body = ParseStatement(nullptr, CHECK_OK);
     impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
 
-    BlockT body_block = impl()->NullBlock();
-    ExpressionT each_variable = impl()->EmptyExpression();
     impl()->DesugarBindingInForEachStatement(for_info, &body_block,
                                              &each_variable, CHECK_OK);
     body_block->statements()->Add(body, zone());
-    final_loop = impl()->InitializeForEachStatement(loop, each_variable,
-                                                    enumerable, body_block);
 
     scope()->set_end_position(scanner()->location().end_pos);
     body_block->set_scope(scope()->FinalizeBlockScope());
   }
+
+  StatementT final_loop = impl()->InitializeForEachStatement(
+      loop, each_variable, enumerable, body_block);
 
   init_block = impl()->CreateForEachStatementTDZ(init_block, *for_info, ok);
 
@@ -5704,8 +5704,8 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   }
 
   Expect(Token::RPAREN, CHECK_OK);
-  Scope* for_scope = scope();
 
+  StatementT body = impl()->NullStatement();
   {
     BlockState block_state(zone(), &scope_);
     scope()->set_start_position(scanner()->location().beg_pos);
@@ -5713,20 +5713,20 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     SourceRange body_range;
     SourceRangeScope range_scope(scanner(), &body_range);
 
-    StatementT body = ParseStatement(nullptr, CHECK_OK);
+    body = ParseStatement(nullptr, CHECK_OK);
     scope()->set_end_position(scanner()->location().end_pos);
-    StatementT final_loop =
-        impl()->InitializeForEachStatement(loop, expression, enumerable, body);
     impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
 
-    for_scope = for_scope->FinalizeBlockScope();
-    USE(for_scope);
-    DCHECK_NULL(for_scope);
     Scope* block_scope = scope()->FinalizeBlockScope();
     USE(block_scope);
     DCHECK_NULL(block_scope);
-    return final_loop;
   }
+  StatementT final_loop =
+      impl()->InitializeForEachStatement(loop, expression, enumerable, body);
+  Scope* for_scope = scope()->FinalizeBlockScope();
+  USE(for_scope);
+  DCHECK_NULL(for_scope);
+  return final_loop;
 }
 
 template <typename Impl>
@@ -5921,8 +5921,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   Expect(Token::RPAREN, CHECK_OK);
 
-  StatementT final_loop = impl()->NullStatement();
-  Scope* for_scope = scope();
+  StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, inner_block_scope);
     scope()->set_start_position(scanner()->location().beg_pos);
@@ -5930,7 +5929,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     SourceRange body_range;
     SourceRangeScope range_scope(scanner(), &body_range);
 
-    StatementT body = ParseStatement(nullptr, CHECK_OK);
+    body = ParseStatement(nullptr, CHECK_OK);
     scope()->set_end_position(scanner()->location().end_pos);
     impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
 
@@ -5940,33 +5939,30 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
                                                &each_variable, CHECK_OK);
       body_block->statements()->Add(body, zone());
       body_block->set_scope(scope()->FinalizeBlockScope());
-
-      const bool finalize = true;
-      final_loop = impl()->InitializeForOfStatement(
-          loop, each_variable, iterable, body_block, finalize,
-          IteratorType::kAsync, each_keyword_pos);
+      body = body_block;
     } else {
-      const bool finalize = true;
-      final_loop = impl()->InitializeForOfStatement(
-          loop, each_variable, iterable, body, finalize, IteratorType::kAsync,
-          each_keyword_pos);
-
-      for_scope = for_scope->FinalizeBlockScope();
-      DCHECK_NULL(for_scope);
-      USE(for_scope);
       Scope* block_scope = scope()->FinalizeBlockScope();
       DCHECK_NULL(block_scope);
       USE(block_scope);
-      return final_loop;
     }
   }
+  const bool finalize = true;
+  StatementT final_loop = impl()->InitializeForOfStatement(
+      loop, each_variable, iterable, body, finalize, IteratorType::kAsync,
+      each_keyword_pos);
 
-  DCHECK(has_declarations);
+  if (!has_declarations) {
+    Scope* for_scope = scope()->FinalizeBlockScope();
+    DCHECK_NULL(for_scope);
+    USE(for_scope);
+    return final_loop;
+  }
+
   BlockT init_block =
       impl()->CreateForEachStatementTDZ(impl()->NullBlock(), for_info, ok);
 
-  for_scope->set_end_position(scanner()->location().end_pos);
-  for_scope = for_scope->FinalizeBlockScope();
+  scope()->set_end_position(scanner()->location().end_pos);
+  Scope* for_scope = scope()->FinalizeBlockScope();
   // Parsed for-in loop w/ variable declarations.
   if (!impl()->IsNullStatement(init_block)) {
     init_block->statements()->Add(final_loop, zone());

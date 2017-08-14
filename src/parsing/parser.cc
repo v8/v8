@@ -4981,12 +4981,7 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
     Block* try_block = factory()->NewBlock(nullptr, 1, false, nopos);
     try_block->statements()->Add(loop, zone());
 
-    // The scope in which the parser creates this loop.
-    Scope* loop_scope = scope()->outer_scope();
-    DCHECK_EQ(loop_scope->scope_type(), BLOCK_SCOPE);
-    DCHECK_EQ(scope()->scope_type(), BLOCK_SCOPE);
-
-    FinalizeIteratorUse(loop_scope, var_completion, closing_condition,
+    FinalizeIteratorUse(scope(), var_completion, closing_condition,
                         loop->iterator(), try_block, final_loop, type);
   }
 
