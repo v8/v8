@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "a1420b85586c1fa3eaf68808bbb095334d2d271d",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "5bad4f2f7ff109c73fff6f9acf825d872e595923",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "17b4a4d98c80b1ec736649d5a73496a0e6d12d4c",
 }
