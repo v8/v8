@@ -122,6 +122,9 @@
           'gn_release_simulate_arm64_msan_no_origins_edge',
       'V8 Linux MSAN chained origins':
           'gn_release_simulate_arm64_msan_edge',
+      'V8 Linux64 UBSan - release builder': 'gn_release_x64_ubsan_recover',
+      'V8 Linux64 UBSanVptr - release builder':
+          'gn_release_x64_ubsan_vptr_recover_edge',
     },
     'client.v8.ports': {
       # Arm.
@@ -406,8 +409,12 @@
       'minimal_symbols', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_ubsan_recover': [
+      'gn', 'release_bot', 'x64', 'ubsan_recover', 'swarming'],
     'gn_release_x64_ubsan_vptr': [
       'gn', 'release_bot', 'x64', 'ubsan_vptr', 'swarming'],
+    'gn_release_x64_ubsan_vptr_recover_edge': [
+      'gn', 'release_bot', 'x64', 'edge', 'ubsan_vptr_recover', 'swarming'],
     'gn_release_x64_ubsan_vptr_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols', 'swarming'],
     'gn_release_x64_valgrind': [
@@ -727,11 +734,21 @@
       'gyp_defines': 'clang=1 tsan=1',
     },
 
+    'ubsan_recover': {
+      # Ubsan with recovery.
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false',
+    },
+
     'ubsan_vptr': {
       # TODO(krasin): Remove is_ubsan_no_recover=true when
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan_vptr instead.
       'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=true',
+    },
+
+    'ubsan_vptr_recover': {
+      # Ubsan vptr with recovery.
+      'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=false',
     },
 
     'valgrind': {
