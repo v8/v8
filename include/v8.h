@@ -1170,8 +1170,8 @@ class V8_EXPORT Module {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
   /**
-   * Returns the namespace object of this module. The module must have
-   * been successfully instantiated before and must not be errored.
+   * Returns the namespace object of this module.
+   * The module's status must be kEvaluated.
    */
   Local<Value> GetModuleNamespace();
 };
