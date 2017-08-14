@@ -37,8 +37,13 @@ struct BuiltinMetadata {
                               { FUNCTION_ADDR(Builtin_##Name) }},
 #define DECL_API(Name, ...) { #Name, Builtins::API, \
                               { FUNCTION_ADDR(Builtin_##Name) }},
+#ifdef V8_TARGET_BIG_ENDIAN
 #define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-                                     { reinterpret_cast<Address>(Count) }},
+  { reinterpret_cast<Address>(Count << (kBitsPerByte * (kPointerSize - 1))) }},
+#else
+#define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
+                              { reinterpret_cast<Address>(Count) }},
+#endif
 #define DECL_TFC(Name, ...) { #Name, Builtins::TFC, {} },
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
 #define DECL_TFH(Name, ...) { #Name, Builtins::TFH, {} },
