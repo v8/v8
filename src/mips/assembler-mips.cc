@@ -1151,6 +1151,16 @@ void Assembler::GenInstrImmediate(Opcode opcode, Register rs, Register rt,
   emit(instr, is_compact_branch);
 }
 
+void Assembler::GenInstrImmediate(Opcode opcode, Register base, Register rt,
+                                  int32_t offset9, int bit6,
+                                  SecondaryField func) {
+  DCHECK(base.is_valid() && rt.is_valid() && is_int9(offset9) &&
+         is_uint1(bit6));
+  Instr instr = opcode | (base.code() << kBaseShift) | (rt.code() << kRtShift) |
+                ((offset9 << kImm9Shift) & kImm9Mask) | bit6 << kBit6Shift |
+                func;
+  emit(instr);
+}
 
 void Assembler::GenInstrImmediate(Opcode opcode, Register rs, SecondaryField SF,
                                   int32_t j,
@@ -2147,6 +2157,28 @@ void Assembler::swr(Register rd, const MemOperand& rs) {
   GenInstrImmediate(SWR, rs.rm(), rd, rs.offset_);
 }
 
+void Assembler::ll(Register rd, const MemOperand& rs) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    DCHECK(is_int9(rs.offset_));
+    GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 0, LL_R6);
+  } else {
+    DCHECK(IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r1) ||
+           IsMipsArchVariant(kMips32r2));
+    DCHECK(is_int16(rs.offset_));
+    GenInstrImmediate(LL, rs.rm(), rd, rs.offset_);
+  }
+}
+
+void Assembler::sc(Register rd, const MemOperand& rs) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    DCHECK(is_int9(rs.offset_));
+    GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 0, SC_R6);
+  } else {
+    DCHECK(IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r1) ||
+           IsMipsArchVariant(kMips32r2));
+    GenInstrImmediate(SC, rs.rm(), rd, rs.offset_);
+  }
+}
 
 void Assembler::lui(Register rd, int32_t j) {
   DCHECK(is_uint16(j));

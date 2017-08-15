@@ -1316,6 +1316,22 @@ TEST(madd_msub_maddf_msubf) {
   VERIFY_RUN();
 }
 
+TEST(atomic_load_store) {
+  SET_UP();
+  if (kArchVariant == kMips64r6) {
+    COMPARE(ll(v0, MemOperand(v1, -1)), "7c62ffb6       ll     v0, -1(v1)");
+    COMPARE(sc(v0, MemOperand(v1, 1)), "7c6200a6       sc     v0, 1(v1)");
+    COMPARE(lld(v0, MemOperand(v1, -1)), "7c62ffb7       lld     v0, -1(v1)");
+    COMPARE(scd(v0, MemOperand(v1, 1)), "7c6200a7       scd     v0, 1(v1)");
+  } else {
+    COMPARE(ll(v0, MemOperand(v1, -1)), "c062ffff       ll     v0, -1(v1)");
+    COMPARE(sc(v0, MemOperand(v1, 1)), "e0620001       sc     v0, 1(v1)");
+    COMPARE(lld(v0, MemOperand(v1, -1)), "d062ffff       lld     v0, -1(v1)");
+    COMPARE(scd(v0, MemOperand(v1, 1)), "f0620001       scd     v0, 1(v1)");
+  }
+  VERIFY_RUN();
+}
+
 TEST(MSA_BRANCH) {
   SET_UP();
   if ((kArchVariant == kMips64r6) && CpuFeatures::IsSupported(MIPS_SIMD)) {

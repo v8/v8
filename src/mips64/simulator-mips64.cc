@@ -5963,6 +5963,32 @@ void Simulator::DecodeTypeImmediate() {
       Write2W(addr, mem_value, instr_.instr());
       break;
     }
+    case LL: {
+      // LL/SC sequence cannot be simulated properly
+      DCHECK(kArchVariant == kMips64r2);
+      set_register(rt_reg, ReadW(rs + se_imm16, instr_.instr()));
+      break;
+    }
+    case SC: {
+      // LL/SC sequence cannot be simulated properly
+      DCHECK(kArchVariant == kMips64r2);
+      WriteW(rs + se_imm16, static_cast<int32_t>(rt), instr_.instr());
+      set_register(rt_reg, 1);
+      break;
+    }
+    case LLD: {
+      // LL/SC sequence cannot be simulated properly
+      DCHECK(kArchVariant == kMips64r2);
+      set_register(rt_reg, ReadD(rs + se_imm16, instr_.instr()));
+      break;
+    }
+    case SCD: {
+      // LL/SC sequence cannot be simulated properly
+      DCHECK(kArchVariant == kMips64r2);
+      WriteD(rs + se_imm16, rt, instr_.instr());
+      set_register(rt_reg, 1);
+      break;
+    }
     case LWC1:
       set_fpu_register(ft_reg, kFPUInvalidResult);  // Trash upper 32 bits.
       set_fpu_register_word(ft_reg,
@@ -6046,6 +6072,48 @@ void Simulator::DecodeTypeImmediate() {
       SetResult(rs_reg, alu_out);
       break;
     }
+    case SPECIAL3: {
+      switch (instr_.FunctionFieldRaw()) {
+        case LL_R6: {
+          // LL/SC sequence cannot be simulated properly
+          DCHECK(kArchVariant == kMips64r6);
+          int64_t base = get_register(instr_.BaseValue());
+          int32_t offset9 = instr_.Imm9Value();
+          set_register(rt_reg, ReadW(base + offset9, instr_.instr()));
+          break;
+        }
+        case LLD_R6: {
+          // LL/SC sequence cannot be simulated properly
+          DCHECK(kArchVariant == kMips64r6);
+          int64_t base = get_register(instr_.BaseValue());
+          int32_t offset9 = instr_.Imm9Value();
+          set_register(rt_reg, ReadD(base + offset9, instr_.instr()));
+          break;
+        }
+        case SC_R6: {
+          // LL/SC sequence cannot be simulated properly
+          DCHECK(kArchVariant == kMips64r6);
+          int64_t base = get_register(instr_.BaseValue());
+          int32_t offset9 = instr_.Imm9Value();
+          WriteW(base + offset9, static_cast<int32_t>(rt), instr_.instr());
+          set_register(rt_reg, 1);
+          break;
+        }
+        case SCD_R6: {
+          // LL/SC sequence cannot be simulated properly
+          DCHECK(kArchVariant == kMips64r6);
+          int64_t base = get_register(instr_.BaseValue());
+          int32_t offset9 = instr_.Imm9Value();
+          WriteD(base + offset9, rt, instr_.instr());
+          set_register(rt_reg, 1);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+      break;
+    }
+
     case MSA:
       switch (instr_.MSAMinorOpcodeField()) {
         case kMsaMinorI8:

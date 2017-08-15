@@ -570,6 +570,10 @@ class TurboAssembler : public Assembler {
   // MIPS32 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void ExtractBits(Register dest, Register source, Register pos, int size,
+                   bool sign_extend = false);
+  void InsertBits(Register dest, Register source, Register pos, int size);
+
   void Seb(Register rd, Register rt);
   void Seh(Register rd, Register rt);
   void Neg_s(FPURegister fd, FPURegister fs);
@@ -624,6 +628,9 @@ class TurboAssembler : public Assembler {
 
   void Ldc1(FPURegister fd, const MemOperand& src);
   void Sdc1(FPURegister fs, const MemOperand& dst);
+
+  void Ll(Register rd, const MemOperand& rs);
+  void Sc(Register rd, const MemOperand& rs);
 
   // Perform a floating-point min or max operation with the
   // (IEEE-754-compatible) semantics of MIPS32's Release 6 MIN.fmt/MAX.fmt.

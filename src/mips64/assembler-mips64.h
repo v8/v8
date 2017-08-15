@@ -1052,6 +1052,12 @@ class Assembler : public AssemblerBase {
   void ld(Register rd, const MemOperand& rs);
   void sd(Register rd, const MemOperand& rs);
 
+  // ----------Atomic instructions--------------
+
+  void ll(Register rd, const MemOperand& rs);
+  void sc(Register rd, const MemOperand& rs);
+  void lld(Register rd, const MemOperand& rs);
+  void scd(Register rd, const MemOperand& rs);
 
   // ---------PC-Relative-instructions-----------
 
@@ -2231,6 +2237,8 @@ class Assembler : public AssemblerBase {
   void GenInstrImmediate(
       Opcode opcode, Register r1, FPURegister r2, int32_t j,
       CompactBranchType is_compact_branch = CompactBranchType::NO);
+  void GenInstrImmediate(Opcode opcode, Register base, Register rt,
+                         int32_t offset9, int bit6, SecondaryField func);
   void GenInstrImmediate(
       Opcode opcode, Register rs, int32_t offset21,
       CompactBranchType is_compact_branch = CompactBranchType::NO);

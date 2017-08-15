@@ -5662,6 +5662,19 @@ void Simulator::DecodeTypeImmediate() {
       WriteW(addr, mem_value, instr_.instr());
       break;
     }
+    case LL: {
+      // LL/SC sequence cannot be simulated properly
+      DCHECK(!IsMipsArchVariant(kMips32r6));
+      set_register(rt_reg, ReadW(rs + se_imm16, instr_.instr()));
+      break;
+    }
+    case SC: {
+      // LL/SC sequence cannot be simulated properly
+      DCHECK(!IsMipsArchVariant(kMips32r6));
+      WriteW(rs + se_imm16, rt, instr_.instr());
+      set_register(rt_reg, 1);
+      break;
+    }
     case LWC1:
       set_fpu_register_hi_word(ft_reg, 0);
       set_fpu_register_word(ft_reg,
@@ -5724,6 +5737,30 @@ void Simulator::DecodeTypeImmediate() {
         }
       }
       SetResult(rs_reg, alu_out);
+      break;
+    }
+    case SPECIAL3: {
+      switch (instr_.FunctionFieldRaw()) {
+        case LL_R6: {
+          // LL/SC sequence cannot be simulated properly
+          DCHECK(IsMipsArchVariant(kMips32r6));
+          int32_t base = get_register(instr_.BaseValue());
+          int32_t offset9 = instr_.Imm9Value();
+          set_register(rt_reg, ReadW(base + offset9, instr_.instr()));
+          break;
+        }
+        case SC_R6: {
+          // LL/SC sequence cannot be simulated properly
+          DCHECK(IsMipsArchVariant(kMips32r6));
+          int32_t base = get_register(instr_.BaseValue());
+          int32_t offset9 = instr_.Imm9Value();
+          WriteW(base + offset9, rt, instr_.instr());
+          set_register(rt_reg, 1);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
     case MSA:

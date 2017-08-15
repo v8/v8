@@ -917,13 +917,7 @@ void TurboAssembler::Nor(Register rd, Register rs, const Operand& rt) {
 }
 
 void TurboAssembler::Neg(Register rs, const Operand& rt) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  DCHECK(rt.is_reg());
-  DCHECK(!scratch.is(rs));
-  DCHECK(!scratch.is(rt.rm()));
-  li(scratch, -1);
-  xor_(rs, rt.rm(), scratch);
+  dsubu(rs, zero_reg, rt.rm());
 }
 
 void TurboAssembler::Slt(Register rd, Register rs, const Operand& rt) {
@@ -1437,6 +1431,62 @@ void TurboAssembler::Sdc1(FPURegister fs, const MemOperand& src) {
   sdc1(fs, tmp);
 }
 
+void TurboAssembler::Ll(Register rd, const MemOperand& rs) {
+  bool is_one_instruction = (kArchVariant == kMips64r6) ? is_int9(rs.offset())
+                                                        : is_int16(rs.offset());
+  if (is_one_instruction) {
+    ll(rd, rs);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, rs.offset());
+    daddu(scratch, scratch, rs.rm());
+    ll(rd, MemOperand(scratch, 0));
+  }
+}
+
+void TurboAssembler::Lld(Register rd, const MemOperand& rs) {
+  bool is_one_instruction = (kArchVariant == kMips64r6) ? is_int9(rs.offset())
+                                                        : is_int16(rs.offset());
+  if (is_one_instruction) {
+    lld(rd, rs);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, rs.offset());
+    daddu(scratch, scratch, rs.rm());
+    lld(rd, MemOperand(scratch, 0));
+  }
+}
+
+void TurboAssembler::Sc(Register rd, const MemOperand& rs) {
+  bool is_one_instruction = (kArchVariant == kMips64r6) ? is_int9(rs.offset())
+                                                        : is_int16(rs.offset());
+  if (is_one_instruction) {
+    sc(rd, rs);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, rs.offset());
+    daddu(scratch, scratch, rs.rm());
+    sc(rd, MemOperand(scratch, 0));
+  }
+}
+
+void TurboAssembler::Scd(Register rd, const MemOperand& rs) {
+  bool is_one_instruction = (kArchVariant == kMips64r6) ? is_int9(rs.offset())
+                                                        : is_int16(rs.offset());
+  if (is_one_instruction) {
+    scd(rd, rs);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, rs.offset());
+    daddu(scratch, scratch, rs.rm());
+    scd(rd, MemOperand(scratch, 0));
+  }
+}
+
 void TurboAssembler::li(Register dst, Handle<HeapObject> value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
@@ -1901,6 +1951,41 @@ void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
     dinsm_(rt, rs, pos, size);
   } else {
     dinsu_(rt, rs, pos, size);
+  }
+}
+
+void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
+                                 int size, bool sign_extend) {
+  srav(dest, source, pos);
+  Dext(dest, dest, 0, size);
+  if (sign_extend) {
+    switch (size) {
+      case 8:
+        seb(dest, dest);
+        break;
+      case 16:
+        seh(dest, dest);
+        break;
+      case 32:
+        // sign-extend word
+        sll(dest, dest, 0);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
+                                int size) {
+  Ror(dest, dest, pos);
+  Dins(dest, source, 0, size);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Dsubu(scratch, pos, Operand(64));
+    Neg(scratch, Operand(scratch));
+    Ror(dest, dest, scratch);
   }
 }
 

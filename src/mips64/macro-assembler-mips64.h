@@ -589,6 +589,9 @@ class TurboAssembler : public Assembler {
   void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void ExtractBits(Register dest, Register source, Register pos, int size,
+                   bool sign_extend = false);
+  void InsertBits(Register dest, Register source, Register pos, int size);
   void Neg_s(FPURegister fd, FPURegister fs);
   void Neg_d(FPURegister fd, FPURegister fs);
 
@@ -638,6 +641,12 @@ class TurboAssembler : public Assembler {
 
   void Ldc1(FPURegister fd, const MemOperand& src);
   void Sdc1(FPURegister fs, const MemOperand& dst);
+
+  void Ll(Register rd, const MemOperand& rs);
+  void Sc(Register rd, const MemOperand& rs);
+
+  void Lld(Register rd, const MemOperand& rs);
+  void Scd(Register rd, const MemOperand& rs);
 
   // Perform a floating-point min or max operation with the
   // (IEEE-754-compatible) semantics of MIPS32's Release 6 MIN.fmt/MAX.fmt.

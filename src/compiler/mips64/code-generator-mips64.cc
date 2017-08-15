@@ -546,6 +546,42 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ sync();                                                 \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_BINOP(bin_instr)                                 \
+  do {                                                                   \
+    Label binop;                                                         \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ sync();                                                           \
+    __ bind(&binop);                                                     \
+    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));        \
+    __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                 \
+                 Operand(i.InputRegister(2)));                           \
+    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));          \
+    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));    \
+    __ sync();                                                           \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_BINOP_EXT(sign_extend, size, bin_instr)               \
+  do {                                                                        \
+    Label binop;                                                              \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
+    __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                       \
+    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                            \
+             Operand(i.TempRegister(3)));                                     \
+    __ sll(i.TempRegister(3), i.TempRegister(3), 3);                          \
+    __ sync();                                                                \
+    __ bind(&binop);                                                          \
+    __ Ll(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));               \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(1), i.TempRegister(3), \
+                   size, sign_extend);                                        \
+    __ bin_instr(i.TempRegister(2), i.OutputRegister(0),                      \
+                 Operand(i.InputRegister(2)));                                \
+    __ InsertBits(i.TempRegister(1), i.TempRegister(2), i.TempRegister(3),    \
+                  size);                                                      \
+    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));               \
+    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));         \
+    __ sync();                                                                \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
   do {                                                                      \
     FrameScope scope(tasm(), StackFrame::MANUAL);                           \
@@ -1889,33 +1925,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeInt16:
     case kAtomicCompareExchangeUint16:
     case kAtomicCompareExchangeWord32:
-    case kAtomicAddInt8:
-    case kAtomicAddUint8:
-    case kAtomicAddInt16:
-    case kAtomicAddUint16:
-    case kAtomicAddWord32:
-    case kAtomicSubInt8:
-    case kAtomicSubUint8:
-    case kAtomicSubInt16:
-    case kAtomicSubUint16:
-    case kAtomicSubWord32:
-    case kAtomicAndInt8:
-    case kAtomicAndUint8:
-    case kAtomicAndInt16:
-    case kAtomicAndUint16:
-    case kAtomicAndWord32:
-    case kAtomicOrInt8:
-    case kAtomicOrUint8:
-    case kAtomicOrInt16:
-    case kAtomicOrUint16:
-    case kAtomicOrWord32:
-    case kAtomicXorInt8:
-    case kAtomicXorUint8:
-    case kAtomicXorInt16:
-    case kAtomicXorUint16:
-    case kAtomicXorWord32:
       UNREACHABLE();
       break;
+#define ATOMIC_BINOP_CASE(op, inst)             \
+  case kAtomic##op##Int8:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(true, 8, inst);   \
+    break;                                      \
+  case kAtomic##op##Uint8:                      \
+    ASSEMBLE_ATOMIC_BINOP_EXT(false, 8, inst);  \
+    break;                                      \
+  case kAtomic##op##Int16:                      \
+    ASSEMBLE_ATOMIC_BINOP_EXT(true, 16, inst);  \
+    break;                                      \
+  case kAtomic##op##Uint16:                     \
+    ASSEMBLE_ATOMIC_BINOP_EXT(false, 16, inst); \
+    break;                                      \
+  case kAtomic##op##Word32:                     \
+    ASSEMBLE_ATOMIC_BINOP(inst);                \
+    break;
+      ATOMIC_BINOP_CASE(Add, Addu)
+      ATOMIC_BINOP_CASE(Sub, Subu)
+      ATOMIC_BINOP_CASE(And, And)
+      ATOMIC_BINOP_CASE(Or, Or)
+      ATOMIC_BINOP_CASE(Xor, Xor)
+#undef ATOMIC_BINOP_CASE
     case kMips64AssertEqual:
       __ Assert(eq, static_cast<BailoutReason>(i.InputOperand(2).immediate()),
                 i.InputRegister(0), Operand(i.InputRegister(1)));

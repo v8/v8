@@ -778,13 +778,7 @@ void TurboAssembler::Nor(Register rd, Register rs, const Operand& rt) {
 }
 
 void TurboAssembler::Neg(Register rs, const Operand& rt) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  DCHECK(rt.is_reg());
-  DCHECK(!scratch.is(rs));
-  DCHECK(!scratch.is(rt.rm()));
-  li(scratch, -1);
-  xor_(rs, rt.rm(), scratch);
+  subu(rs, zero_reg, rt.rm());
 }
 
 void TurboAssembler::Slt(Register rd, Register rs, const Operand& rt) {
@@ -1212,6 +1206,36 @@ void TurboAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
   }
 }
 
+void TurboAssembler::Ll(Register rd, const MemOperand& rs) {
+  bool is_one_instruction = IsMipsArchVariant(kMips32r6)
+                                ? is_int9(rs.offset())
+                                : is_int16(rs.offset());
+  if (is_one_instruction) {
+    ll(rd, rs);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, rs.offset());
+    addu(scratch, scratch, rs.rm());
+    ll(rd, MemOperand(scratch, 0));
+  }
+}
+
+void TurboAssembler::Sc(Register rd, const MemOperand& rs) {
+  bool is_one_instruction = IsMipsArchVariant(kMips32r6)
+                                ? is_int9(rs.offset())
+                                : is_int16(rs.offset());
+  if (is_one_instruction) {
+    sc(rd, rs);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, rs.offset());
+    addu(scratch, scratch, rs.rm());
+    sc(rd, MemOperand(scratch, 0));
+  }
+}
+
 void TurboAssembler::li(Register dst, Handle<HeapObject> value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
@@ -1533,6 +1557,36 @@ void TurboAssembler::Ins(Register rt, Register rs, uint16_t pos,
     nor(scratch, scratch, zero_reg);
     and_(scratch, rt, scratch);
     or_(rt, t8, scratch);
+  }
+}
+
+void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
+                                 int size, bool sign_extend) {
+  srav(dest, source, pos);
+  Ext(dest, dest, 0, size);
+  if (size == 8) {
+    if (sign_extend) {
+      Seb(dest, dest);
+    }
+  } else if (size == 16) {
+    if (sign_extend) {
+      Seh(dest, dest);
+    }
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
+                                int size) {
+  Ror(dest, dest, pos);
+  Ins(dest, source, 0, size);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Subu(scratch, pos, Operand(32));
+    Neg(scratch, Operand(scratch));
+    Ror(dest, dest, scratch);
   }
 }
 
