@@ -30,7 +30,6 @@ class V8_EXPORT_PRIVATE BytecodeLoopAssignments {
 
   bool ContainsParameter(int index) const;
   bool ContainsLocal(int index) const;
-  bool ContainsAccumulator() const;
 
   int parameter_count() const { return parameter_count_; }
   int local_count() const { return bit_vector_->length() - parameter_count_; }

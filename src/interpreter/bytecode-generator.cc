@@ -124,6 +124,10 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
     CMD_ASYNC_RETURN,
     CMD_RETHROW
   };
+  static constexpr bool CommandUsesAccumulator(Command command) {
+    return command != CMD_BREAK && command != CMD_CONTINUE;
+  }
+
   void PerformCommand(Command command, Statement* statement,
                       int source_position);
   virtual bool Execute(Command command, Statement* statement,
@@ -180,7 +184,9 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
     DCHECK_EQ(deferred_[token].statement, statement);
     DCHECK_EQ(deferred_[token].token, token);
 
-    builder()->StoreAccumulatorInRegister(result_register_);
+    if (CommandUsesAccumulator(command)) {
+      builder()->StoreAccumulatorInRegister(result_register_);
+    }
     builder()->LoadLiteral(Smi::FromInt(token));
     builder()->StoreAccumulatorInRegister(token_register_);
   }
@@ -217,7 +223,9 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
           .CompareOperation(Token::EQ_STRICT, token_register_)
           .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
 
-      builder()->LoadAccumulatorWithRegister(result_register_);
+      if (CommandUsesAccumulator(entry.command)) {
+        builder()->LoadAccumulatorWithRegister(result_register_);
+      }
       execution_control()->PerformCommand(entry.command, entry.statement,
                                           kNoSourcePosition);
     } else {
@@ -231,9 +239,11 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
           .SwitchOnSmiNoFeedback(jump_table)
           .Jump(&fall_through);
       for (const Entry& entry : deferred_) {
-        builder()
-            ->Bind(jump_table, entry.token)
-            .LoadAccumulatorWithRegister(result_register_);
+        builder()->Bind(jump_table, entry.token);
+
+        if (CommandUsesAccumulator(entry.command)) {
+          builder()->LoadAccumulatorWithRegister(result_register_);
+        }
         execution_control()->PerformCommand(entry.command, entry.statement,
                                             kNoSourcePosition);
       }

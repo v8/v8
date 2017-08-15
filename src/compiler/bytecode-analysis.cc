@@ -59,13 +59,6 @@ bool BytecodeLoopAssignments::ContainsLocal(int index) const {
   return bit_vector_->Contains(parameter_count_ + index);
 }
 
-bool BytecodeLoopAssignments::ContainsAccumulator() const {
-  // TODO(leszeks): This assumes the accumulator is always assigned. This is
-  // probably correct, but that assignment is also probably dead, so we should
-  // check liveness.
-  return true;
-}
-
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
                                    Zone* zone, bool do_liveness_analysis)
     : bytecode_array_(bytecode_array),
@@ -206,8 +199,21 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
         table->LookupRange(current_offset, &handler_context, nullptr);
 
     if (handler_offset != -1) {
+      bool was_accumulator_live = out_liveness.AccumulatorIsLive();
       out_liveness.Union(*liveness_map.GetInLiveness(handler_offset));
       out_liveness.MarkRegisterLive(handler_context);
+      if (!was_accumulator_live) {
+        // The accumulator is reset to the exception on entry into a handler,
+        // and so shouldn't be considered live coming out of this bytecode just
+        // because it's live coming into the handler. So, kill the accumulator
+        // if the handler is the only thing that made it live.
+        out_liveness.MarkAccumulatorDead();
+
+        // TODO(leszeks): Ideally the accumulator wouldn't be considered live at
+        // the start of the handler, but looking up if the current bytecode is
+        // the start of a handler is not free, so we should only do it if we
+        // decide it's necessary.
+      }
     }
   }
 }
@@ -548,6 +554,36 @@ bool BytecodeAnalysis::LivenessIsValid() {
     next_bytecode_in_liveness = liveness.in;
   }
 
+  // Ensure that the accumulator is not live when jumping out of a loop, or on
+  // the back-edge of a loop.
+  for (iterator.GoToStart(); iterator.IsValid() && invalid_offset == -1;
+       ++iterator) {
+    Bytecode bytecode = iterator.current_bytecode();
+    int current_offset = iterator.current_offset();
+    int loop_header = GetLoopOffsetFor(current_offset);
+
+    // We only care if we're inside a loop.
+    if (loop_header == -1) continue;
+
+    // We only care about jumps.
+    if (!Bytecodes::IsJump(bytecode)) continue;
+
+    int jump_target = iterator.GetJumpTargetOffset();
+
+    // If this is a forward jump to somewhere else in the same loop, ignore it.
+    if (Bytecodes::IsForwardJump(bytecode) &&
+        GetLoopOffsetFor(jump_target) == loop_header) {
+      continue;
+    }
+
+    // The accumulator must be dead at the start of the target of the jump.
+    if (liveness_map_.GetLiveness(jump_target).in->AccumulatorIsLive()) {
+      invalid_offset = jump_target;
+      which_invalid = 0;
+      break;
+    }
+  }
+
   if (invalid_offset != -1) {
     OFStream of(stderr);
     of << "Invalid liveness:" << std::endl;
@@ -582,21 +618,28 @@ bool BytecodeAnalysis::LivenessIsValid() {
         loop_indent--;
       }
       for (int i = 0; i < loop_indent; ++i) {
-        of << " | ";
+        of << "| ";
       }
       if (forward_iterator.current_bytecode() == Bytecode::kJumpLoop) {
-        of << " `-" << current_offset;
+        of << "`-";
       } else if (IsLoopHeader(current_offset)) {
-        of << " .>" << current_offset;
+        of << ".>";
         loop_indent++;
       }
-      forward_iterator.PrintTo(of) << std::endl;
+      forward_iterator.PrintTo(of);
+      if (Bytecodes::IsJump(forward_iterator.current_bytecode())) {
+        of << " (@" << forward_iterator.GetJumpTargetOffset() << ")";
+      }
+      of << std::endl;
 
       if (current_offset == invalid_offset) {
         // Underline the invalid liveness.
         if (which_invalid == 0) {
           for (int i = 0; i < in_liveness.length(); ++i) {
             of << '^';
+          }
+          for (int i = 0; i < out_liveness.length() + 3; ++i) {
+            of << ' ';
           }
         } else {
           for (int i = 0; i < in_liveness.length() + 3; ++i) {
@@ -610,7 +653,7 @@ bool BytecodeAnalysis::LivenessIsValid() {
         // Make sure to draw the loop indentation marks on this additional line.
         of << " : " << current_offset << " : ";
         for (int i = 0; i < loop_indent; ++i) {
-          of << " | ";
+          of << "| ";
         }
 
         of << std::endl;

@@ -310,11 +310,6 @@ void BytecodeGraphBuilder::Environment::PrepareForLoop(
     }
   }
 
-  if (assignments.ContainsAccumulator()) {
-    values_[accumulator_base()] =
-        builder()->NewPhi(1, values_[accumulator_base()], control);
-  }
-
   // Connect to the loop end.
   Node* terminate = builder()->graph()->NewNode(
       builder()->common()->Terminate(), effect, control);
@@ -384,12 +379,6 @@ void BytecodeGraphBuilder::Environment::PrepareForLoopExit(
                                       values_[register_base() + i], loop_exit);
       values_[register_base() + i] = rename;
     }
-  }
-
-  if (assignments.ContainsAccumulator()) {
-    Node* rename = graph()->NewNode(common()->LoopExitValue(),
-                                    values_[accumulator_base()], loop_exit);
-    values_[accumulator_base()] = rename;
   }
 }
 
