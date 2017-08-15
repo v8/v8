@@ -1399,23 +1399,17 @@ class WasmFullDecoder : public WasmDecoder {
         PrintF(" ");
         for (size_t i = 0; i < control_.size(); ++i) {
           Control* c = &control_[i];
-          enum ControlKind {
-            kControlIf,
-            kControlBlock,
-            kControlLoop,
-            kControlTry
-          };
           switch (c->kind) {
-            case kControlIf:
+            case v8::internal::wasm::kControlIf:
               PrintF("I");
               break;
-            case kControlBlock:
+            case v8::internal::wasm::kControlBlock:
               PrintF("B");
               break;
-            case kControlLoop:
+            case v8::internal::wasm::kControlLoop:
               PrintF("L");
               break;
-            case kControlTry:
+            case v8::internal::wasm::kControlTry:
               PrintF("T");
               break;
             default:
