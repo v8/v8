@@ -26,7 +26,6 @@ class V8_EXPORT_PRIVATE BytecodeLoopAssignments {
 
   void Add(interpreter::Register r);
   void AddList(interpreter::Register r, uint32_t count);
-  void AddAll();
   void Union(const BytecodeLoopAssignments& other);
 
   bool ContainsParameter(int index) const;

@@ -42,7 +42,6 @@ void BytecodeLoopAssignments::AddList(interpreter::Register r, uint32_t count) {
   }
 }
 
-void BytecodeLoopAssignments::AddAll() { bit_vector_->AddAll(); }
 
 void BytecodeLoopAssignments::Union(const BytecodeLoopAssignments& other) {
   bit_vector_->Union(*other.bit_vector_);
@@ -281,9 +280,6 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
 
       if (is_osr_loop) {
         osr_entry_point_ = loop_header;
-        // OSR "assigns" everything to OSR values on entry into an OSR loop, so
-        // we need to make sure to considered everything to be assigned.
-        loop_stack_.top().loop_info->assignments().AddAll();
       }
 
       // Save the index so that we can do another pass later.
