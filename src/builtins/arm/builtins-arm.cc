@@ -1207,14 +1207,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // If the bytecode array has a valid incoming new target or generator object
   // register, initialize it with incoming value which was passed in r3.
-  Label no_incoming_new_target_or_generator_register;
   __ ldr(r9, FieldMemOperand(
                  kInterpreterBytecodeArrayRegister,
                  BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
-  __ tst(r9, r9);
-  __ b(eq, &no_incoming_new_target_or_generator_register);
-  __ str(r3, MemOperand(fp, r9, LSL, kPointerSizeLog2));
-  __ bind(&no_incoming_new_target_or_generator_register);
+  __ cmp(r9, Operand::Zero());
+  __ str(r3, MemOperand(fp, r9, LSL, kPointerSizeLog2), ne);
 
   // Load accumulator and dispatch table into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);

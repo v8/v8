@@ -1227,8 +1227,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
            FieldMemOperand(
                kInterpreterBytecodeArrayRegister,
                BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
-  __ Tst(x10, x10);
-  __ B(eq, &no_incoming_new_target_or_generator_register);
+  __ Cbz(x10, &no_incoming_new_target_or_generator_register);
   __ Str(x3, MemOperand(fp, x10, LSL, kPointerSizeLog2));
   __ Bind(&no_incoming_new_target_or_generator_register);
 
@@ -1254,8 +1253,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // kInterpreterBytecodeArrayRegister is already loaded with
   // SharedFunctionInfo::kFunctionDataOffset.
   __ Bind(&maybe_load_debug_bytecode_array);
-  __ Ldr(x10, FieldMemOperand(x11, DebugInfo::kFlagsOffset));
-  __ SmiUntag(x10);
+  __ Ldrsw(x10, UntagSmiFieldMemOperand(x11, DebugInfo::kFlagsOffset));
   __ TestAndBranchIfAllClear(x10, DebugInfo::kHasBreakInfo,
                              &bytecode_array_loaded);
   __ Ldr(kInterpreterBytecodeArrayRegister,
