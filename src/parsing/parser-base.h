@@ -5775,8 +5775,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     if (function_state_->contains_function_or_eval()) {
       scope()->set_is_hidden();
       return impl()->DesugarLexicalBindingsInForStatement(
-          loop, init, cond, next, body, body_range, inner_scope, *for_info,
-          CHECK_OK);
+          loop, init, cond, next, body, inner_scope, *for_info, CHECK_OK);
     } else {
       inner_scope = inner_scope->FinalizeBlockScope();
       CHECK_NULL(inner_scope);
