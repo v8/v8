@@ -2952,7 +2952,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   }
 
   if (delegating) {
-    return impl()->RewriteYieldStar(expression, pos);
+    ExpressionT yieldstar = factory()->NewYieldStar(expression, pos);
+    impl()->RecordSuspendSourceRange(yieldstar, PositionAfterSemicolon());
+    return yieldstar;
   }
 
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().

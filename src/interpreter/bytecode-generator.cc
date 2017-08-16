@@ -2727,6 +2727,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 //             let iteratorReturn = iterator.return;
 //             if (!IS_NULL_OR_UNDEFINED(iteratorReturn)) {
 //               output = %_Call(iteratorReturn, iterator);
+//               if (IS_ASYNC_GENERATOR) output = await output;
 //               if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
 //             }
 //             throw MakeTypeError(kThrowMethodMissing);
@@ -2734,11 +2735,18 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 //           output = %_Call(iteratorThrow, iterator, input);
 //           break;
 //       }
+//
+//       if (IS_ASYNC_GENERATOR) output = await output;
 //       if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
 //       if (output.done) break;
 //
 //       // From the generator to its user:
 //       // Forward output, receive new input, and determine resume mode.
+//       if (IS_ASYNC_GENERATOR) {
+//         // AsyncGeneratorYield abstract operation awaits the operand before
+//         // resolving the promise for the current AsyncGeneratorRequest.
+//         %_AsyncGeneratorYield(output.value)
+//       }
 //       input = Suspend(output);
 //       resumeMode = %GeneratorGetResumeMode();
 //     }
@@ -2749,11 +2757,11 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 //     output.value
 //   }
 void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
-  // TODO(tebbi): Also desugar async generator yield* in the BytecodeGenerator.
-  DCHECK(!IsAsyncGeneratorFunction(function_kind()));
-
   Register output = register_allocator()->NewRegister();
   Register resume_mode = register_allocator()->NewRegister();
+  IteratorType iterator_type = IsAsyncGeneratorFunction(function_kind())
+                                   ? IteratorType::kAsync
+                                   : IteratorType::kNormal;
 
   {
     RegisterAllocationScope register_scope(this);
@@ -2761,10 +2769,12 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
     RegisterList iterator_and_input = register_allocator()->NewRegisterList(2);
 
     Register iterator = iterator_and_input[0];
-    BuildGetIterator(expr->expression(), IteratorType::kNormal,
+
+    BuildGetIterator(expr->expression(), iterator_type,
                      expr->load_iterable_iterator_slot(),
                      expr->call_iterable_iterator_slot(),
-                     FeedbackSlot::Invalid(), FeedbackSlot::Invalid());
+                     expr->load_iterable_async_iterator_slot(),
+                     expr->call_iterable_async_iterator_slot());
     builder()->StoreAccumulatorInRegister(iterator);
     Register input = iterator_and_input[1];
     builder()->LoadUndefined().StoreAccumulatorInRegister(input);
@@ -2776,8 +2786,11 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       // This loop builder does not construct counters as the loop is not
       // visible to the user, and we therefore neither pass the block coverage
       // builder nor the expression.
+      //
+      // YieldStar in AsyncGenerator functions includes 3 suspend points, rather
+      // than 1. These are documented in the YieldStar AST node.
       LoopBuilder loop(builder(), nullptr, nullptr);
-      VisitIterationHeader(expr->suspend_id(), 1, &loop);
+      VisitIterationHeader(expr->suspend_id(), expr->suspend_count(), &loop);
 
       {
         BytecodeLabels after_switch(zone());
@@ -2827,7 +2840,11 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           return_input.Bind(builder());
           {
             builder()->LoadAccumulatorWithRegister(input);
-            execution_control()->ReturnAccumulator();
+            if (iterator_type == IteratorType::kAsync) {
+              execution_control()->AsyncReturnAccumulator();
+            } else {
+              execution_control()->ReturnAccumulator();
+            }
           }
         }
 
@@ -2870,8 +2887,16 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
                 .JumpIfNull(throw_throw_method_missing.New())
                 .CallProperty(
                     iterator_return, RegisterList(iterator),
-                    feedback_index(expr->call_iterator_return_slot2()))
-                .JumpIfJSReceiver(throw_throw_method_missing.New())
+                    feedback_index(expr->call_iterator_return_slot2()));
+
+            if (iterator_type == IteratorType::kAsync) {
+              // For async generators, await the result of the .return() call.
+              BuildAwait(expr->await_iterator_close_suspend_id());
+              builder()->StoreAccumulatorInRegister(output);
+            }
+
+            builder()
+                ->JumpIfJSReceiver(throw_throw_method_missing.New())
                 .CallRuntime(Runtime::kThrowIteratorResultNotAnObject, output);
 
             throw_throw_method_missing.Bind(builder());
@@ -2880,6 +2905,11 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         }
 
         after_switch.Bind(builder());
+      }
+
+      if (iterator_type == IteratorType::kAsync) {
+        // Await the result of the method invocation.
+        BuildAwait(expr->await_delegated_iterator_output_suspend_id());
       }
 
       // Check that output is an object.
@@ -2898,7 +2928,27 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       loop.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 
       // Suspend the current generator.
-      builder()->LoadAccumulatorWithRegister(output);
+      if (iterator_type == IteratorType::kNormal) {
+        builder()->LoadAccumulatorWithRegister(output);
+      } else {
+        RegisterAllocationScope register_scope(this);
+        DCHECK(iterator_type == IteratorType::kAsync);
+        // If generatorKind is async, perform AsyncGeneratorYield(output.value),
+        // which will await `output.value` before resolving the current
+        // AsyncGeneratorRequest's promise.
+        builder()->LoadNamedProperty(
+            output, ast_string_constants()->value_string(),
+            feedback_index(expr->load_output_value_slot()));
+
+        RegisterList args = register_allocator()->NewRegisterList(3);
+        builder()
+            ->MoveRegister(generator_object(), args[0])  // generator
+            .StoreAccumulatorInRegister(args[1])         // value
+            .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
+            .StoreAccumulatorInRegister(args[2])  // is_caught
+            .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
+      }
+
       BuildSuspendPoint(expr->suspend_id());
       builder()->StoreAccumulatorInRegister(input);
       builder()
@@ -2923,7 +2973,11 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       .CompareOperation(Token::EQ_STRICT, resume_mode)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &completion_is_output_value)
       .LoadAccumulatorWithRegister(output_value);
-  execution_control()->ReturnAccumulator();
+  if (iterator_type == IteratorType::kAsync) {
+    execution_control()->AsyncReturnAccumulator();
+  } else {
+    execution_control()->ReturnAccumulator();
+  }
 
   builder()->Bind(&completion_is_output_value);
   BuildIncrementBlockCoverageCounterIfEnabled(expr,

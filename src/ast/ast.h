@@ -614,7 +614,7 @@ class ForInStatement final : public ForEachStatement {
 
   // Type feedback information.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
   FeedbackSlot EachFeedbackSlot() const { return each_slot_; }
   FeedbackSlot ForInFeedbackSlot() {
     DCHECK(!for_in_feedback_slot_.IsInvalid());
@@ -826,7 +826,7 @@ class CaseClause final : public Expression {
   ZoneList<Statement*>* statements() const { return statements_; }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
 
   FeedbackSlot CompareOperationFeedbackSlot() { return feedback_slot_; }
 
@@ -1086,7 +1086,7 @@ class Literal final : public Expression {
 class MaterializedLiteral : public Expression {
  public:
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     literal_slot_ = spec->AddLiteralSlot();
   }
 
@@ -1365,7 +1365,7 @@ class ObjectLiteral final : public AggregateLiteral {
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
 
  private:
   friend class AstNodeFactory;
@@ -1481,7 +1481,7 @@ class ArrayLiteral final : public AggregateLiteral {
   void RewindSpreads();
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
   FeedbackSlot LiteralFeedbackSlot() const { return literal_slot_; }
 
  private:
@@ -1658,7 +1658,7 @@ class Property final : public Expression {
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     if (key()->IsPropertyName()) {
       property_feedback_slot_ = spec->AddLoadICSlot();
     } else {
@@ -1712,7 +1712,7 @@ class Call final : public Expression {
 
   // Type feedback information.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
 
   FeedbackSlot CallFeedbackICSlot() const { return ic_slot_; }
 
@@ -1810,7 +1810,7 @@ class CallNew final : public Expression {
 
   // Type feedback information.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     // CallNew stores feedback in the exact same way as Call. We can
     // piggyback on the type feedback infrastructure for calls.
     callnew_feedback_slot_ = spec->AddCallICSlot();
@@ -1932,7 +1932,7 @@ class BinaryOperation final : public Expression {
   void set_right(Expression* e) { right_ = e; }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
 
   FeedbackSlot BinaryOperationFeedbackSlot() const { return feedback_slot_; }
 
@@ -1990,7 +1990,7 @@ class CountOperation final : public Expression {
   }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
   FeedbackSlot CountSlot() const { return slot_; }
 
  private:
@@ -2027,7 +2027,7 @@ class CompareOperation final : public Expression {
   void set_right(Expression* e) { right_ = e; }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
 
   FeedbackSlot CompareOperationFeedbackSlot() const { return feedback_slot_; }
 
@@ -2145,7 +2145,7 @@ class Assignment : public Expression {
   }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
   FeedbackSlot AssignmentSlot() const { return slot_; }
 
  protected:
@@ -2288,8 +2288,39 @@ class Yield final : public Suspend {
 
 class YieldStar final : public Suspend {
  public:
+  // In addition to the normal suspend for yield*, a yield* in an async
+  // generator has 2 additional suspends:
+  //   - One for awaiting the iterator result of closing the generator when
+  //     resumed with a "throw" completion, and a throw method is not present
+  //     on the delegated iterator (await_iterator_close_suspend_id)
+  //   - One for awaiting the iterator result yielded by the delegated iterator
+  //     (await_delegated_iterator_output_suspend_id)
+  int await_iterator_close_suspend_id() const {
+    DCHECK_NE(-1, await_iterator_close_suspend_id_);
+    return await_iterator_close_suspend_id_;
+  }
+  void set_await_iterator_close_suspend_id(int id) {
+    await_iterator_close_suspend_id_ = id;
+  }
+
+  int await_delegated_iterator_output_suspend_id() const {
+    DCHECK_NE(-1, await_delegated_iterator_output_suspend_id_);
+    return await_delegated_iterator_output_suspend_id_;
+  }
+  void set_await_delegated_iterator_output_suspend_id(int id) {
+    await_delegated_iterator_output_suspend_id_ = id;
+  }
+
+  inline int suspend_count() const {
+    if (await_iterator_close_suspend_id_ != -1) {
+      DCHECK_NE(-1, await_delegated_iterator_output_suspend_id_);
+      return 3;
+    }
+    return 1;
+  }
+
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     load_iterable_iterator_slot_ = spec->AddLoadICSlot();
     load_iterator_return_slot_ = spec->AddLoadICSlot();
     load_iterator_next_slot_ = spec->AddLoadICSlot();
@@ -2301,6 +2332,10 @@ class YieldStar final : public Suspend {
     call_iterator_return_slot2_ = spec->AddCallICSlot();
     call_iterator_next_slot_ = spec->AddCallICSlot();
     call_iterator_throw_slot_ = spec->AddCallICSlot();
+    if (IsAsyncGeneratorFunction(kind)) {
+      load_iterable_async_iterator_slot_ = spec->AddLoadICSlot();
+      call_iterable_async_iterator_slot_ = spec->AddCallICSlot();
+    }
   }
 
   FeedbackSlot load_iterable_iterator_slot() const {
@@ -2334,13 +2369,21 @@ class YieldStar final : public Suspend {
   FeedbackSlot call_iterator_throw_slot() const {
     return call_iterator_throw_slot_;
   }
+  FeedbackSlot load_iterable_async_iterator_slot() const {
+    return load_iterable_async_iterator_slot_;
+  }
+  FeedbackSlot call_iterable_async_iterator_slot() const {
+    return call_iterable_async_iterator_slot_;
+  }
 
  private:
   friend class AstNodeFactory;
 
   YieldStar(Expression* expression, int pos)
       : Suspend(kYieldStar, expression, pos,
-                Suspend::OnAbruptResume::kNoControl) {}
+                Suspend::OnAbruptResume::kNoControl),
+        await_iterator_close_suspend_id_(-1),
+        await_delegated_iterator_output_suspend_id_(-1) {}
 
   FeedbackSlot load_iterable_iterator_slot_;
   FeedbackSlot load_iterator_return_slot_;
@@ -2353,6 +2396,12 @@ class YieldStar final : public Suspend {
   FeedbackSlot call_iterator_return_slot2_;
   FeedbackSlot call_iterator_next_slot_;
   FeedbackSlot call_iterator_throw_slot_;
+
+  FeedbackSlot load_iterable_async_iterator_slot_;
+  FeedbackSlot call_iterable_async_iterator_slot_;
+
+  int await_iterator_close_suspend_id_;
+  int await_delegated_iterator_output_suspend_id_;
 };
 
 class Await final : public Suspend {
@@ -2420,7 +2469,7 @@ class FunctionLiteral final : public Expression {
   LanguageMode language_mode() const;
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
@@ -2660,7 +2709,7 @@ class ClassLiteral final : public Expression {
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FunctionKind kind, FeedbackSlotCache* cache);
 
   bool NeedsProxySlot() const {
     return class_variable_proxy() != nullptr &&
@@ -2715,7 +2764,7 @@ class NativeFunctionLiteral final : public Expression {
   FeedbackSlot LiteralFeedbackSlot() const { return literal_feedback_slot_; }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     // TODO(mvstanton): The FeedbackSlotCache can be adapted
     // to always return the same slot for this case.
     literal_feedback_slot_ = spec->AddCreateClosureSlot();
@@ -2833,7 +2882,7 @@ class GetIterator final : public Expression {
   void set_iterable(Expression* iterable) { iterable_ = iterable; }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache) {
+                           FunctionKind kind, FeedbackSlotCache* cache) {
     iterator_property_feedback_slot_ = spec->AddLoadICSlot();
     iterator_call_feedback_slot_ = spec->AddCallICSlot();
     if (hint() == IteratorType::kAsync) {

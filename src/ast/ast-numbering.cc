@@ -62,7 +62,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
     node->AssignFeedbackSlots(properties_.get_spec(), language_mode_,
-                              &slot_cache_);
+                              function_kind_, &slot_cache_);
   }
 
   class LanguageModeScope {
@@ -198,7 +198,12 @@ void AstNumberingVisitor::VisitSuspend(Suspend* node) {
 void AstNumberingVisitor::VisitYield(Yield* node) { VisitSuspend(node); }
 
 void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
-  VisitSuspend(node);
+  node->set_suspend_id(suspend_count_++);
+  if (IsAsyncGeneratorFunction(function_kind_)) {
+    node->set_await_iterator_close_suspend_id(suspend_count_++);
+    node->set_await_delegated_iterator_output_suspend_id(suspend_count_++);
+  }
+  Visit(node->expression());
   ReserveFeedbackSlots(node);
 }
 

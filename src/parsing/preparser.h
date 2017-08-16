@@ -653,6 +653,9 @@ class PreParserFactory {
   PreParserExpression NewAwait(PreParserExpression expression, int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewYieldStar(PreParserExpression iterable, int pos) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewConditional(PreParserExpression condition,
                                      PreParserExpression then_expression,
                                      PreParserExpression else_expression,
@@ -1031,10 +1034,6 @@ class PreParser : public ParserBase<PreParser> {
                                           PreParserStatement block,
                                           PreParserExpression return_value,
                                           bool* ok) {}
-  V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression expression,
-                                                 int pos) {
-    return PreParserExpression::Default();
-  }
   V8_INLINE void RewriteNonPattern(bool* ok) { ValidateExpression(ok); }
 
   void DeclareAndInitializeVariables(

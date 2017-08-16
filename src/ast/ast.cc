@@ -246,6 +246,7 @@ static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
 
 void ForInStatement::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                          LanguageMode language_mode,
+                                         FunctionKind kind,
                                          FeedbackSlotCache* cache) {
   AssignVectorSlots(each(), spec, language_mode, &each_slot_);
   for_in_feedback_slot_ = spec->AddGeneralSlot();
@@ -261,12 +262,14 @@ Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
 
 void Assignment::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                      LanguageMode language_mode,
+                                     FunctionKind kind,
                                      FeedbackSlotCache* cache) {
   AssignVectorSlots(target(), spec, language_mode, &slot_);
 }
 
 void CountOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                          LanguageMode language_mode,
+                                         FunctionKind kind,
                                          FeedbackSlotCache* cache) {
   AssignVectorSlots(expression(), spec, language_mode, &slot_);
   // Assign a slot to collect feedback about binary operations. Used only in
@@ -375,6 +378,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
 
 void ClassLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                        LanguageMode language_mode,
+                                       FunctionKind kind,
                                        FeedbackSlotCache* cache) {
   // This logic that computes the number of slots needed for vector store
   // ICs must mirror BytecodeGenerator::VisitClassLiteral.
@@ -412,8 +416,9 @@ bool ObjectLiteral::Property::emit_store() const { return emit_store_; }
 
 void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                         LanguageMode language_mode,
+                                        FunctionKind kind,
                                         FeedbackSlotCache* cache) {
-  MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, cache);
+  MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, kind, cache);
 
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitObjectLiteral.
@@ -770,8 +775,9 @@ void ArrayLiteral::RewindSpreads() {
 
 void ArrayLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                        LanguageMode language_mode,
+                                       FunctionKind kind,
                                        FeedbackSlotCache* cache) {
-  MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, cache);
+  MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, kind, cache);
 
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitArrayLiteral.
@@ -835,6 +841,7 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
 
 void BinaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                           LanguageMode language_mode,
+                                          FunctionKind kind,
                                           FeedbackSlotCache* cache) {
   // Feedback vector slot is only used by interpreter for binary operations.
   // Full-codegen uses AstId to record type feedback.
@@ -881,6 +888,7 @@ static bool IsTypeof(Expression* expr) {
 
 void CompareOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                            LanguageMode language_mode,
+                                           FunctionKind kind,
                                            FeedbackSlotCache* cache_) {
   // Feedback vector slot is only used by interpreter for binary operations.
   // Full-codegen uses AstId to record type feedback.
@@ -1022,7 +1030,7 @@ bool Expression::IsMonomorphic() const {
 }
 
 void Call::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                               LanguageMode language_mode,
+                               LanguageMode language_mode, FunctionKind kind,
                                FeedbackSlotCache* cache) {
   ic_slot_ = spec->AddCallICSlot();
 }
@@ -1060,6 +1068,7 @@ CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
 
 void CaseClause::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                      LanguageMode language_mode,
+                                     FunctionKind kind,
                                      FeedbackSlotCache* cache) {
   feedback_slot_ = spec->AddInterpreterCompareICSlot();
 }
