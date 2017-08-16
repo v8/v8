@@ -294,22 +294,6 @@ class UpdateTypedSlotHelper {
     return result;
   }
 
-  // Updates a debug target slot using an untyped slot callback.
-  // The callback accepts Object** and returns SlotCallbackResult.
-  template <typename Callback>
-  static SlotCallbackResult UpdateDebugTarget(RelocInfo* rinfo,
-                                              Callback callback) {
-    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-           rinfo->IsPatchedDebugBreakSlotSequence());
-    Code* old_target =
-        Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-    Object* new_target = old_target;
-    SlotCallbackResult result = callback(&new_target);
-    rinfo->set_debug_call_address(old_target->GetIsolate(),
-                                  Code::cast(new_target)->instruction_start());
-    return result;
-  }
-
   // Updates a typed slot using an untyped slot callback.
   // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
@@ -323,13 +307,6 @@ class UpdateTypedSlotHelper {
       }
       case CODE_ENTRY_SLOT: {
         return UpdateCodeEntry(addr, callback);
-      }
-      case DEBUG_TARGET_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0, NULL);
-        if (rinfo.IsPatchedDebugBreakSlotSequence()) {
-          return UpdateDebugTarget(&rinfo, callback);
-        }
-        return REMOVE_SLOT;
       }
       case EMBEDDED_OBJECT_SLOT: {
         RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
@@ -350,8 +327,6 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
     return CODE_TARGET_SLOT;
   } else if (RelocInfo::IsEmbeddedObject(rmode)) {
     return EMBEDDED_OBJECT_SLOT;
-  } else if (RelocInfo::IsDebugBreakSlot(rmode)) {
-    return DEBUG_TARGET_SLOT;
   }
   UNREACHABLE();
 }

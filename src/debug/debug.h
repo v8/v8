@@ -107,102 +107,46 @@ class BreakLocation {
   DebugBreakType type_;
   int position_;
 
-  friend class CodeBreakIterator;
-  friend class BytecodeArrayBreakIterator;
+  friend class BreakIterator;
 };
 
 class BreakIterator {
  public:
-  static std::unique_ptr<BreakIterator> GetIterator(
-      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code);
+  explicit BreakIterator(Handle<DebugInfo> debug_info);
 
-  virtual ~BreakIterator() {}
+  BreakLocation GetBreakLocation();
+  bool Done() const { return source_position_iterator_.done(); }
+  void Next();
 
-  virtual BreakLocation GetBreakLocation() = 0;
-  virtual bool Done() const = 0;
-  virtual void Next() = 0;
-
+  void SkipToPosition(int position);
   void SkipTo(int count) {
     while (count-- > 0) Next();
   }
 
-  virtual int code_offset() = 0;
+  int code_offset() { return source_position_iterator_.code_offset(); }
   int break_index() const { return break_index_; }
   inline int position() const { return position_; }
   inline int statement_position() const { return statement_position_; }
 
-  virtual bool IsDebugBreak() = 0;
-  virtual void ClearDebugBreak() = 0;
-  virtual void SetDebugBreak() = 0;
+  bool IsDebugBreak();
+  void ClearDebugBreak();
+  void SetDebugBreak();
 
- protected:
-  explicit BreakIterator(Handle<DebugInfo> debug_info);
-
+ private:
   int BreakIndexFromPosition(int position);
 
   Isolate* isolate() { return debug_info_->GetIsolate(); }
+
+  DebugBreakType GetDebugBreakType();
 
   Handle<DebugInfo> debug_info_;
   int break_index_;
   int position_;
   int statement_position_;
-
- private:
+  SourcePositionTableIterator source_position_iterator_;
   DisallowHeapAllocation no_gc_;
+
   DISALLOW_COPY_AND_ASSIGN(BreakIterator);
-};
-
-class CodeBreakIterator : public BreakIterator {
- public:
-  explicit CodeBreakIterator(Handle<DebugInfo> debug_info);
-  ~CodeBreakIterator() override {}
-
-  BreakLocation GetBreakLocation() override;
-  bool Done() const override { return reloc_iterator_.done(); }
-  void Next() override;
-
-  bool IsDebugBreak() override;
-  void ClearDebugBreak() override;
-  void SetDebugBreak() override;
-
-  void SkipToPosition(int position);
-
-  int code_offset() override;
-
- private:
-  int GetModeMask();
-  DebugBreakType GetDebugBreakType();
-
-  RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
-  RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
-
-  RelocIterator reloc_iterator_;
-  SourcePositionTableIterator source_position_iterator_;
-  DISALLOW_COPY_AND_ASSIGN(CodeBreakIterator);
-};
-
-class BytecodeArrayBreakIterator : public BreakIterator {
- public:
-  explicit BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info);
-  ~BytecodeArrayBreakIterator() override {}
-
-  BreakLocation GetBreakLocation() override;
-  bool Done() const override { return source_position_iterator_.done(); }
-  void Next() override;
-
-  bool IsDebugBreak() override;
-  void ClearDebugBreak() override;
-  void SetDebugBreak() override;
-
-  void SkipToPosition(int position);
-
-  int code_offset() override { return source_position_iterator_.code_offset(); }
-
- private:
-  DebugBreakType GetDebugBreakType();
-
-  SourcePositionTableIterator source_position_iterator_;
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBreakIterator);
 };
 
 // Linked list holding debug info objects. The debug info objects are kept as
@@ -619,7 +563,7 @@ class Debug {
   friend class LegacyDebugDelegate;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
-  friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
+  friend void CheckDebuggerUnloaded();               // In test-debug.cc
 
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
@@ -802,22 +746,12 @@ class DebugCodegen : public AllStatic {
     IGNORE_RESULT_REGISTER
   };
 
-  static void GenerateDebugBreakStub(MacroAssembler* masm,
-                                     DebugBreakCallHelperMode mode);
-
-  static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode);
-
   // Builtin to drop frames to restart function.
   static void GenerateFrameDropperTrampoline(MacroAssembler* masm);
 
   // Builtin to atomically (wrt deopts) handle debugger statement and
   // drop frames to restart function if necessary.
   static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
-
-  static void PatchDebugBreakSlot(Isolate* isolate, Address pc,
-                                  Handle<Code> code);
-  static bool DebugBreakSlotIsPatched(Address pc);
-  static void ClearDebugBreakSlot(Isolate* isolate, Address pc);
 };
 
 

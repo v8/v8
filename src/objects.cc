@@ -13582,7 +13582,7 @@ bool SharedFunctionInfo::HasBreakInfo() const {
   if (!HasDebugInfo()) return false;
   DebugInfo* info = DebugInfo::cast(debug_info());
   bool has_break_info = info->HasBreakInfo();
-  DCHECK_IMPLIES(has_break_info, HasDebugCode());
+  DCHECK_IMPLIES(has_break_info, HasBytecodeArray());
   return has_break_info;
 }
 
@@ -13903,16 +13903,6 @@ void ObjectVisitor::VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) {
     VisitPointer(host, &new_pointer);
     DCHECK_EQ(old_pointer, new_pointer);
   }
-}
-
-void ObjectVisitor::VisitDebugTarget(Code* host, RelocInfo* rinfo) {
-  DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-         rinfo->IsPatchedDebugBreakSlotSequence());
-  Object* old_pointer =
-      Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-  Object* new_pointer = old_pointer;
-  VisitPointer(host, &new_pointer);
-  DCHECK_EQ(old_pointer, new_pointer);
 }
 
 void ObjectVisitor::VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) {
@@ -14237,12 +14227,10 @@ bool Code::IsOld() {
 
 
 byte* Code::FindCodeAgeSequence() {
-  return FLAG_age_code &&
-      prologue_offset() != Code::kPrologueOffsetNotSet &&
-      (kind() == OPTIMIZED_FUNCTION ||
-       (kind() == FUNCTION && !has_debug_break_slots()))
-      ? instruction_start() + prologue_offset()
-      : NULL;
+  return FLAG_age_code && prologue_offset() != Code::kPrologueOffsetNotSet &&
+                 kind() == OPTIMIZED_FUNCTION
+             ? instruction_start() + prologue_offset()
+             : NULL;
 }
 
 

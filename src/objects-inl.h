@@ -3715,7 +3715,7 @@ bool Code::IsCodeStubOrIC() const {
 }
 
 ExtraICState Code::extra_ic_state() const {
-  DCHECK(is_compare_ic_stub() || is_debug_stub());
+  DCHECK(is_compare_ic_stub());
   return ExtractExtraICStateFromFlags(flags());
 }
 
@@ -3835,20 +3835,6 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   if (is_promise_rejection()) return HandlerTable::PROMISE;
   if (is_exception_caught()) return HandlerTable::CAUGHT;
   return HandlerTable::UNCAUGHT;
-}
-
-bool Code::has_debug_break_slots() const {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
-}
-
-
-void Code::set_has_debug_break_slots(bool value) {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
-  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
 }
 
 bool Code::has_reloc_info_for_serialization() const {
@@ -3982,18 +3968,6 @@ bool Code::is_inline_cache_stub() const {
   }
 }
 
-bool Code::is_debug_stub() const {
-  if (kind() != BUILTIN) return false;
-  switch (builtin_index()) {
-#define CASE_DEBUG_BUILTIN(name) case Builtins::k##name:
-    BUILTIN_LIST_DBG(CASE_DEBUG_BUILTIN)
-#undef CASE_DEBUG_BUILTIN
-      return true;
-    default:
-      return false;
-  }
-  return false;
-}
 bool Code::is_handler() const { return kind() == HANDLER; }
 bool Code::is_stub() const { return kind() == STUB; }
 bool Code::is_compare_ic_stub() const { return kind() == COMPARE_IC; }

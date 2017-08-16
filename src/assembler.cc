@@ -639,10 +639,6 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  return DebugCodegen::DebugBreakSlotIsPatched(pc_);
-}
-
 #ifdef DEBUG
 bool RelocInfo::RequiresRelocation(Isolate* isolate, const CodeDesc& desc) {
   // Ensure there are no code targets or embedded objects present in the
@@ -690,14 +686,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "constant pool";
     case VENEER_POOL:
       return "veneer pool";
-    case DEBUG_BREAK_SLOT_AT_POSITION:
-      return "debug break slot at position";
-    case DEBUG_BREAK_SLOT_AT_RETURN:
-      return "debug break slot at return";
-    case DEBUG_BREAK_SLOT_AT_CALL:
-      return "debug break slot at call";
-    case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
-      return "debug break slot at tail call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
     case WASM_MEMORY_REFERENCE:
@@ -791,10 +779,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_ID:
     case CONST_POOL:
     case VENEER_POOL:
-    case DEBUG_BREAK_SLOT_AT_POSITION:
-    case DEBUG_BREAK_SLOT_AT_RETURN:
-    case DEBUG_BREAK_SLOT_AT_CALL:
-    case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
     case WASM_MEMORY_REFERENCE:
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
@@ -1932,13 +1916,6 @@ void Assembler::RecordComment(const char* msg) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
-}
-
-
-void Assembler::RecordDebugBreakSlot(RelocInfo::Mode mode) {
-  EnsureSpace ensure_space(this);
-  DCHECK(RelocInfo::IsDebugBreakSlot(mode));
-  RecordRelocInfo(mode);
 }
 
 

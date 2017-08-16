@@ -71,11 +71,9 @@ class DebugInfo : public Struct {
   int GetBreakPointCount();
 
   inline bool HasDebugBytecodeArray();
-  inline bool HasDebugCode();
 
   inline BytecodeArray* OriginalBytecodeArray();
   inline BytecodeArray* DebugBytecodeArray();
-  inline Code* DebugCode();
 
   // --- Block Coverage ---
   // ----------------------

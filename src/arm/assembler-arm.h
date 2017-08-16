@@ -863,21 +863,9 @@ class Assembler : public AssemblerBase {
   // Size of an instruction.
   static constexpr int kInstrSize = sizeof(Instr);
 
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  // Patched debug break slot code is:
-  //  ldr  ip, [pc, #0]   @ emitted address and start
-  //  blx  ip
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 2 * kInstrSize;
-
   // Difference between address of current opcode and value read from pc
   // register.
   static constexpr int kPcLoadDelta = 8;
-
-  static constexpr int kDebugBreakSlotInstructions = 4;
-  static constexpr int kDebugBreakSlotLength =
-      kDebugBreakSlotInstructions * kInstrSize;
-
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
@@ -1611,11 +1599,6 @@ class Assembler : public AssemblerBase {
 
     DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
   };
-
-  // Debugging
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

@@ -3780,7 +3780,6 @@ class Code: public HeapObject {
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub() const;
-  inline bool is_debug_stub() const;
   inline bool is_handler() const;
   inline bool is_stub() const;
   inline bool is_compare_ic_stub() const;
@@ -3819,11 +3818,6 @@ class Code: public HeapObject {
   // (e.g., NumberConstructor_ConstructStub).
   inline bool is_construct_stub() const;
   inline void set_is_construct_stub(bool value);
-
-  // [has_debug_break_slots]: For FUNCTION kind, tells if it has
-  // been compiled with debug break slots.
-  inline bool has_debug_break_slots() const;
-  inline void set_has_debug_break_slots(bool value);
 
   // [has_reloc_info_for_serialization]: For FUNCTION kind, tells if its
   // reloc info includes runtime and external references to support
@@ -4137,10 +4131,7 @@ class Code: public HeapObject {
 
   // KindSpecificFlags1 layout (FUNCTION)
   static const int kFullCodeFlags = kKindSpecificFlags1Offset;
-  static const int kFullCodeFlagsHasDebugBreakSlotsField = 0;
-  static const int kFullCodeFlagsHasRelocInfoForSerialization = 1;
-  class FullCodeFlagsHasDebugBreakSlotsField
-      : public BitField<bool, kFullCodeFlagsHasDebugBreakSlotsField, 1> {};
+  static const int kFullCodeFlagsHasRelocInfoForSerialization = 0;
   class FullCodeFlagsHasRelocInfoForSerialization
       : public BitField<bool, kFullCodeFlagsHasRelocInfoForSerialization, 1> {};
 
@@ -7430,9 +7421,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) {}
-
-  // Visits a debug call target in the instruction stream.
-  virtual void VisitDebugTarget(Code* host, RelocInfo* rinfo);
 
   // Visits the byte sequence in a function's prologue that contains information
   // about the code's age.

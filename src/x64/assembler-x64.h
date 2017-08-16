@@ -568,13 +568,6 @@ class Assembler : public AssemblerBase {
       kMoveAddressIntoScratchRegisterInstructionLength +
       kCallScratchRegisterInstructionLength;
 
-  // The debug break slot must be able to contain an indirect call sequence.
-  static constexpr int kDebugBreakSlotLength = kCallSequenceLength;
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  static constexpr int kPatchDebugBreakSlotAddressOffset =
-      kMoveAddressIntoScratchRegisterInstructionLength - kPointerSize;
-
   // One byte opcode for test eax,0xXXXXXXXX.
   static constexpr byte kTestEaxByte = 0xA9;
   // One byte opcode for test al, 0xXX.
@@ -2001,9 +1994,6 @@ class Assembler : public AssemblerBase {
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
   }
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

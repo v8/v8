@@ -262,7 +262,6 @@ InlineCacheState IC::StateFromCode(Code* code) {
       return stub.GetICState();
     }
     default:
-      if (code->is_debug_stub()) return UNINITIALIZED;
       UNREACHABLE();
   }
 }
@@ -475,9 +474,6 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
 
 void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
   Code* target = GetTargetAtAddress(address, constant_pool);
-
-  // Don't clear debug break inline cache as it will remove the break point.
-  if (target->is_debug_stub()) return;
 
   if (target->kind() == Code::COMPARE_IC) {
     CompareIC::Clear(isolate, address, target, constant_pool);

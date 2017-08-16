@@ -275,11 +275,6 @@ bool SharedFunctionInfo::HasDebugInfo() const {
   return has_debug_info;
 }
 
-bool SharedFunctionInfo::HasDebugCode() const {
-  if (HasBaselineCode()) return code()->has_debug_break_slots();
-  return HasBytecodeArray();
-}
-
 bool SharedFunctionInfo::IsApiFunction() {
   return function_data()->IsFunctionTemplateInfo();
 }

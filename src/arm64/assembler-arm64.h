@@ -1019,13 +1019,6 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 0;
-
-  // Number of instructions necessary to be able to later patch it to a call.
-  static constexpr int kDebugBreakSlotInstructions = 5;
-  static constexpr int kDebugBreakSlotLength =
-      kDebugBreakSlotInstructions * kInstructionSize;
-
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
   // number of calls to EndBlockConstpool.
@@ -1073,9 +1066,6 @@ class Assembler : public AssemblerBase {
                          int id);
 
   int buffer_space() const;
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record the emission of a constant pool.
   //

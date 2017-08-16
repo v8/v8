@@ -5179,17 +5179,6 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
-    Object* target =
-        Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-    if (ShouldHaveBeenRecorded(host, target)) {
-      CHECK(
-          InTypedSet(DEBUG_TARGET_SLOT, rinfo->pc()) ||
-          (rinfo->IsInConstantPool() &&
-           InTypedSet(CODE_ENTRY_SLOT, rinfo->constant_pool_entry_address())));
-    }
-  }
-
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     Object* target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, target)) {

@@ -42,10 +42,8 @@ namespace internal {
 //      Args: name, code kind, extra IC state, interface descriptor
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name
-// DBG: Builtin in platform-dependent assembly, used by the debugger.
-//      Args: name
 
-#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)              \
+#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                   \
   /* Code aging */                                                             \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                        \
                                                                                \
@@ -196,10 +194,8 @@ namespace internal {
   TFC(NewUnmappedArgumentsElements, NewArgumentsElements, 1)                   \
                                                                                \
   /* Debugger */                                                               \
-  DBG(FrameDropperTrampoline)                                                  \
-  DBG(HandleDebuggerStatement)                                                 \
-  DBG(Return_DebugBreak)                                                       \
-  DBG(Slot_DebugBreak)                                                         \
+  ASM(FrameDropperTrampoline)                                                  \
+  ASM(HandleDebuggerStatement)                                                 \
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToObject, TypeConversion, 1)                                             \
@@ -1099,8 +1095,8 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, 1, kValue)
 
 #ifdef V8_INTL_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)   \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)    \
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)        \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)         \
                                                                \
   TFS(StringToLowerCaseIntl, kString)                          \
   /* ES #sec-string.prototype.tolowercase */                   \
@@ -1112,18 +1108,18 @@ namespace internal {
   /* ecma402 #sec-intl.numberformat.prototype.formattoparts */ \
   CPP(NumberFormatPrototypeFormatToParts)
 #else
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \
-                                                             \
-  /* no-op fallback version */                               \
-  CPP(StringPrototypeNormalize)                              \
-  /* same as toLowercase; fallback version */                \
-  CPP(StringPrototypeToLocaleLowerCase)                      \
-  /* same as toUppercase; fallback version */                \
-  CPP(StringPrototypeToLocaleUpperCase)                      \
-  /* (obsolete) Unibrow version */                           \
-  CPP(StringPrototypeToLowerCase)                            \
-  /* (obsolete) Unibrow version */                           \
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)  \
+                                                        \
+  /* no-op fallback version */                          \
+  CPP(StringPrototypeNormalize)                         \
+  /* same as toLowercase; fallback version */           \
+  CPP(StringPrototypeToLocaleLowerCase)                 \
+  /* same as toUppercase; fallback version */           \
+  CPP(StringPrototypeToLocaleUpperCase)                 \
+  /* (obsolete) Unibrow version */                      \
+  CPP(StringPrototypeToLowerCase)                       \
+  /* (obsolete) Unibrow version */                      \
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 
@@ -1155,31 +1151,27 @@ namespace internal {
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V, V)
+#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
 
 #define BUILTIN_LIST_C(V)                                            \
   BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V, V)
-
-#define BUILTIN_LIST_DBG(V)                                                    \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
 #define BUILTIN_LIST_TFS(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               V, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFJ(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFC(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTINS_WITH_UNTAGGED_PARAMS(V) V(WasmCompileLazy)
 

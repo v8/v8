@@ -688,21 +688,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kCallTargetAddressOffset =
       (kMovInstructions + 2) * kInstrSize;
 
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  // Patched debug break slot code is a FIXED_SEQUENCE:
-  //   mov r0, <address>
-  //   mtlr r0
-  //   blrl
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
-
-  // This is the length of the code sequence from SetDebugBreakAtSlot()
-  // FIXED_SEQUENCE
-  static constexpr int kDebugBreakSlotInstructions =
-      kMovInstructionsNoConstantPool + 2;
-  static constexpr int kDebugBreakSlotLength =
-      kDebugBreakSlotInstructions * kInstrSize;
-
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);
   }
@@ -1412,11 +1397,6 @@ class Assembler : public AssemblerBase {
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstantPoolEntrySharingScope);
   };
-
-  // Debugging
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

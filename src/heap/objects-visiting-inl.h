@@ -385,17 +385,6 @@ void MarkingVisitor<ConcreteVisitor>::VisitEmbeddedPointer(Code* host,
 }
 
 template <typename ConcreteVisitor>
-void MarkingVisitor<ConcreteVisitor>::VisitDebugTarget(Code* host,
-                                                       RelocInfo* rinfo) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-         rinfo->IsPatchedDebugBreakSlotSequence());
-  Code* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-  collector_->RecordRelocSlot(host, rinfo, target);
-  visitor->MarkObject(host, target);
-}
-
-template <typename ConcreteVisitor>
 void MarkingVisitor<ConcreteVisitor>::VisitCodeTarget(Code* host,
                                                       RelocInfo* rinfo) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);

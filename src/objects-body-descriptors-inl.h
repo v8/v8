@@ -500,8 +500,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                     RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-                    RelocInfo::kDebugBreakSlotMask;
+                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
     IteratePointers(obj, kRelocationInfoOffset, kNextCodeLinkOffset, v);
     v->VisitNextCodeLink(Code::cast(obj),
@@ -527,8 +526,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                     RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-                    RelocInfo::kDebugBreakSlotMask;
+                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
     Heap* heap = obj->GetHeap();
     IteratePointers<StaticVisitor>(heap, obj, kRelocationInfoOffset,

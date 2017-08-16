@@ -567,13 +567,6 @@ class Assembler : public AssemblerBase {
 
   static constexpr int kCallInstructionLength = 5;
 
-  // The debug break slot must be able to contain a call instruction.
-  static constexpr int kDebugBreakSlotLength = kCallInstructionLength;
-
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
-
   // One byte opcode for test al, 0xXX.
   static constexpr byte kTestAlByte = 0xA8;
   // One byte opcode for nop.
@@ -1687,10 +1680,6 @@ class Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
-
-  // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
 

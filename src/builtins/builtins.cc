@@ -49,10 +49,9 @@ struct BuiltinMetadata {
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
 #define DECL_TFH(Name, ...) { #Name, Builtins::TFH, {} },
 #define DECL_ASM(Name, ...) { #Name, Builtins::ASM, {} },
-#define DECL_DBG(Name, ...) { #Name, Builtins::DBG, {} },
 const BuiltinMetadata builtin_metadata[] = {
   BUILTIN_LIST(DECL_CPP, DECL_API, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH,
-               DECL_ASM, DECL_DBG)
+               DECL_ASM)
 };
 #undef DECL_CPP
 #undef DECL_API
@@ -61,7 +60,6 @@ const BuiltinMetadata builtin_metadata[] = {
 #undef DECL_TFS
 #undef DECL_TFH
 #undef DECL_ASM
-#undef DECL_DBG
 // clang-format on
 
 }  // namespace
@@ -173,7 +171,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN)
 #undef CASE_OTHER
     case kConsoleAssert: {
       return Callable(code, BuiltinDescriptor(isolate));
@@ -239,7 +237,6 @@ const char* Builtins::KindNameOf(int index) {
     case TFS: return "TFS";
     case TFH: return "TFH";
     case ASM: return "ASM";
-    case DBG: return "DBG";
   }
   // clang-format on
   UNREACHABLE();

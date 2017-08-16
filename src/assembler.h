@@ -343,12 +343,6 @@ class RelocInfo {
     RUNTIME_ENTRY,
     COMMENT,
 
-    // Additional code inserted for debug break slot.
-    DEBUG_BREAK_SLOT_AT_POSITION,
-    DEBUG_BREAK_SLOT_AT_RETURN,
-    DEBUG_BREAK_SLOT_AT_CALL,
-    DEBUG_BREAK_SLOT_AT_TAIL_CALL,
-
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
@@ -432,19 +426,6 @@ class RelocInfo {
   }
   static inline bool IsInternalReferenceEncoded(Mode mode) {
     return mode == INTERNAL_REFERENCE_ENCODED;
-  }
-  static inline bool IsDebugBreakSlot(Mode mode) {
-    return IsDebugBreakSlotAtPosition(mode) || IsDebugBreakSlotAtReturn(mode) ||
-           IsDebugBreakSlotAtCall(mode);
-  }
-  static inline bool IsDebugBreakSlotAtPosition(Mode mode) {
-    return mode == DEBUG_BREAK_SLOT_AT_POSITION;
-  }
-  static inline bool IsDebugBreakSlotAtReturn(Mode mode) {
-    return mode == DEBUG_BREAK_SLOT_AT_RETURN;
-  }
-  static inline bool IsDebugBreakSlotAtCall(Mode mode) {
-    return mode == DEBUG_BREAK_SLOT_AT_CALL;
   }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
@@ -585,12 +566,6 @@ class RelocInfo {
   // can only be called if rmode_ is INTERNAL_REFERENCE.
   INLINE(Address target_internal_reference_address());
 
-  // Read/modify the address of a call instruction. This is used to relocate
-  // the break points where straight-line code is patched with a call
-  // instruction.
-  INLINE(Address debug_call_address());
-  INLINE(void set_debug_call_address(Isolate*, Address target));
-
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
   INLINE(void WipeOut(Isolate* isolate));
@@ -599,10 +574,6 @@ class RelocInfo {
 
   template <typename ObjectVisitor>
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
-
-  // Check whether this debug break slot has been patched with a call to the
-  // debugger.
-  bool IsPatchedDebugBreakSlotSequence();
 
 #ifdef DEBUG
   // Check whether the given code contains relocation information that
@@ -620,9 +591,6 @@ class RelocInfo {
 #endif
 
   static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
-  static const int kDebugBreakSlotMask = 1 << DEBUG_BREAK_SLOT_AT_POSITION |
-                                         1 << DEBUG_BREAK_SLOT_AT_RETURN |
-                                         1 << DEBUG_BREAK_SLOT_AT_CALL;
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
@@ -1013,7 +981,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference debug_is_active_address(Isolate* isolate);
   static ExternalReference debug_hook_on_function_call_address(
       Isolate* isolate);
-  static ExternalReference debug_after_break_target_address(Isolate* isolate);
 
   static ExternalReference is_profiling_address(Isolate* isolate);
   static ExternalReference invoke_function_callback(Isolate* isolate);

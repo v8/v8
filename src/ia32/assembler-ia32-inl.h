@@ -64,12 +64,6 @@ void RelocInfo::apply(intptr_t delta) {
       int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
       *p -= delta;  // Relocate entry.
     }
-  } else if (IsDebugBreakSlot(rmode_) && IsPatchedDebugBreakSlotSequence()) {
-    // Special handling of a debug break slot when a break point is set (call
-    // instruction has been inserted).
-    int32_t* p = reinterpret_cast<int32_t*>(
-        pc_ + Assembler::kPatchDebugBreakSlotAddressOffset);
-    *p -= delta;  // Relocate entry.
   } else if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
@@ -184,23 +178,6 @@ void RelocInfo::set_code_age_stub(Code* stub,
 }
 
 
-Address RelocInfo::debug_call_address() {
-  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  Address location = pc_ + Assembler::kPatchDebugBreakSlotAddressOffset;
-  return Assembler::target_address_at(location, host_);
-}
-
-void RelocInfo::set_debug_call_address(Isolate* isolate, Address target) {
-  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  Address location = pc_ + Assembler::kPatchDebugBreakSlotAddressOffset;
-  Assembler::set_target_address_at(isolate, location, host_, target);
-  if (host() != NULL) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target_code);
-  }
-}
-
 void RelocInfo::WipeOut(Isolate* isolate) {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
@@ -228,9 +205,6 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitInternalReference(host(), this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(host(), this);
-  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence()) {
-    visitor->VisitDebugTarget(host(), this);
   } else if (IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
   }
@@ -251,9 +225,6 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence()) {
-    StaticVisitor::VisitDebugTarget(heap, this);
   } else if (IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }

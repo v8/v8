@@ -125,7 +125,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)             \
   F(HandleDebuggerStatement, 0, 1)              \
-  F(DebugBreak, 1, 1)                           \
   F(DebugBreakOnBytecode, 1, 1)                 \
   F(SetDebugEventListener, 2, 1)                \
   F(ScheduleBreak, 0, 1)                        \

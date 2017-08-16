@@ -49,7 +49,7 @@ class Builtins {
   };
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG };
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -146,7 +146,7 @@ class Builtins {
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, DECLARE_ASM, DECLARE_ASM)
+               DECLARE_TF, DECLARE_TF, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

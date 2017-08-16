@@ -1729,13 +1729,9 @@ Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
                      Code);
 }
 
-
-Handle<Code> Factory::NewCode(const CodeDesc& desc,
-                              Code::Flags flags,
-                              Handle<Object> self_ref,
-                              bool immovable,
-                              int prologue_offset,
-                              bool is_debug) {
+Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
+                              Handle<Object> self_ref, bool immovable,
+                              int prologue_offset) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
@@ -1787,11 +1783,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
       break;
     default:
       break;
-  }
-
-  if (is_debug) {
-    DCHECK(code->kind() == Code::FUNCTION);
-    code->set_has_debug_break_slots(true);
   }
 
   // Allow self references to created code object by patching the handle to

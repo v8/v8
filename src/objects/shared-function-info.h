@@ -201,9 +201,6 @@ class SharedFunctionInfo : public HeapObject {
   bool HasCoverageInfo() const;
   CoverageInfo* GetCoverageInfo() const;
 
-  // A function has debug code if the compiled code has debug break slots.
-  inline bool HasDebugCode() const;
-
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
 

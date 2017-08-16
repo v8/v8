@@ -666,33 +666,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kCallSequenceLength = 8;
 #endif
 
-  // This is the length of the BreakLocationIterator::SetDebugBreakAtReturn()
-  // code patch FIXED_SEQUENCE in bytes!
-  // JS Return Sequence = Call Sequence + BKPT
-  // static constexpr int kJSReturnSequenceLength = kCallSequenceLength + 2;
-
-  // This is the length of the code sequence from SetDebugBreakAtSlot()
-  // FIXED_SEQUENCE in bytes!
-  static constexpr int kDebugBreakSlotLength = kCallSequenceLength;
-  static constexpr int kPatchDebugBreakSlotReturnOffset =
-      kCallTargetAddressOffset;
-
-  // Length to patch between the start of the JS return sequence
-  // from SetDebugBreakAtReturn and the address from
-  // break_address_from_return_address.
-  //
-  // frame->pc() in Debug::SetAfterBreakTarget will point to BKPT in
-  // JS return sequence, so the length to patch will not include BKPT
-  // instruction length.
-  // static constexpr int kPatchReturnSequenceAddressOffset =
-  //     kCallSequenceLength - kPatchDebugBreakSlotReturnOffset;
-
-  // Length to patch between the start of the FIXED call sequence from
-  // SetDebugBreakAtSlot() and the the address from
-  // break_address_from_return_address.
-  static constexpr int kPatchDebugBreakSlotAddressOffset =
-      kDebugBreakSlotLength - kPatchDebugBreakSlotReturnOffset;
-
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);
   }
@@ -1423,11 +1396,6 @@ class Assembler : public AssemblerBase {
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
   }
-
-  // Debugging
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

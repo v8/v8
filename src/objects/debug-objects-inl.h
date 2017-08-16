@@ -37,13 +37,6 @@ bool DebugInfo::HasDebugBytecodeArray() {
   return debug_bytecode_array()->IsBytecodeArray();
 }
 
-bool DebugInfo::HasDebugCode() {
-  Code* code = shared()->code();
-  bool has = code->kind() == Code::FUNCTION;
-  DCHECK(!has || code->has_debug_break_slots());
-  return has;
-}
-
 BytecodeArray* DebugInfo::OriginalBytecodeArray() {
   DCHECK(HasDebugBytecodeArray());
   return shared()->bytecode_array();
@@ -52,11 +45,6 @@ BytecodeArray* DebugInfo::OriginalBytecodeArray() {
 BytecodeArray* DebugInfo::DebugBytecodeArray() {
   DCHECK(HasDebugBytecodeArray());
   return BytecodeArray::cast(debug_bytecode_array());
-}
-
-Code* DebugInfo::DebugCode() {
-  DCHECK(HasDebugCode());
-  return shared()->code();
 }
 
 }  // namespace internal

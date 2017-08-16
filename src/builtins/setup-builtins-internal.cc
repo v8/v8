@@ -263,7 +263,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   AddBuiltin(builtins, index++, code);
 
   BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH,
-               BUILD_ASM, BUILD_ASM);
+               BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_API

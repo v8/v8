@@ -1058,7 +1058,7 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
   DCHECK(shared->is_compiled());
-  DCHECK(shared->HasDebugCode());
+  DCHECK(shared->HasBytecodeArray());
   return true;
 }
 

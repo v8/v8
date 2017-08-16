@@ -1476,17 +1476,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
-    DCHECK_EQ(host, rinfo->host());
-    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-           rinfo->IsPatchedDebugBreakSlotSequence());
-    Code* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-    // The target is always in old space, we don't have to record the slot in
-    // the old-to-new remembered set.
-    DCHECK(!collector_->heap()->InNewSpace(target));
-    collector_->RecordRelocSlot(host, rinfo, target);
-  }
-
   inline void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
@@ -1586,7 +1575,6 @@ class YoungGenerationRecordMigratedSlotVisitor final
       : RecordMigratedSlotVisitor(collector) {}
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
-  void VisitDebugTarget(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final {
     UNREACHABLE();
   }
@@ -3218,10 +3206,6 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlotInternal);
-  }
-
-  void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateDebugTarget(rinfo, UpdateSlotInternal);
   }
 
  private:
