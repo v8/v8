@@ -2878,7 +2878,8 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
                               new_node->address() + size_in_bytes);
   } else if (bytes_left > kThreshold &&
              owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
-             FLAG_incremental_marking) {
+             FLAG_incremental_marking &&
+             !owner_->is_local()) {  // Not needed on CompactionSpaces.
     size_t linear_size = owner_->RoundSizeDownToObjectAlignment(kThreshold);
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
