@@ -794,15 +794,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                   &maybe_load_debug_bytecode_array);
   __ bind(&bytecode_array_loaded);
 
-  // Check whether we should continue to use the interpreter.
-  // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
-  // Ignition bytecode.
-  Label switch_to_different_code_kind;
-  __ Move(ecx, masm->CodeObject());  // Self-reference to this code.
-  __ cmp(ecx, FieldOperand(eax, SharedFunctionInfo::kCodeOffset));
-  __ j(not_equal, &switch_to_different_code_kind);
-
-  // Increment invocation count for the function.
   __ inc(FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
@@ -899,22 +890,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(ecx, DebugInfo::kDebugBytecodeArrayOffset));
   __ jmp(&bytecode_array_loaded);
-
-  // If the shared code is no longer this entry trampoline, then the underlying
-  // function has been switched to a different kind of code and we heal the
-  // closure by switching the code entry field over to the new code as well.
-  __ bind(&switch_to_different_code_kind);
-  __ pop(edi);  // Callee's JS function.
-  __ pop(esi);  // Callee's context.
-  __ leave();   // Leave the frame so we can tail call.
-  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kCodeOffset));
-  __ mov(FieldOperand(edi, JSFunction::kCodeOffset), ecx);
-  __ mov(eax, ecx);  // Write barrier clobbers eax below.
-  __ RecordWriteField(edi, JSFunction::kCodeOffset, eax, ebx, kDontSaveFPRegs,
-                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
-  __ jmp(ecx);
 }
 
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,

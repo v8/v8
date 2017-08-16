@@ -872,14 +872,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                   &maybe_load_debug_bytecode_array);
   __ bind(&bytecode_array_loaded);
 
-  // Check whether we should continue to use the interpreter.
-  // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
-  // Ignition bytecode.
-  Label switch_to_different_code_kind;
-  __ Move(rcx, masm->CodeObject());  // Self-reference to this code.
-  __ cmpp(rcx, FieldOperand(rax, SharedFunctionInfo::kCodeOffset));
-  __ j(not_equal, &switch_to_different_code_kind);
-
   // Increment invocation count for the function.
   __ incl(
       FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
@@ -977,20 +969,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(kInterpreterBytecodeArrayRegister,
           FieldOperand(rcx, DebugInfo::kDebugBytecodeArrayOffset));
   __ jmp(&bytecode_array_loaded);
-
-  // If the shared code is no longer this entry trampoline, then the underlying
-  // function has been switched to a different kind of code and we heal the
-  // closure by switching the code entry field over to the new code as well.
-  __ bind(&switch_to_different_code_kind);
-  __ leave();  // Leave the frame so we can tail call.
-  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kCodeOffset));
-  __ movp(FieldOperand(rdi, JSFunction::kCodeOffset), rcx);
-  __ movp(r14, rcx);  // Write barrier clobbers r14 below.
-  __ RecordWriteField(rdi, JSFunction::kCodeOffset, r14, r15, kDontSaveFPRegs,
-                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
-  __ jmp(rcx);
 }
 
 static void Generate_StackOverflowCheck(
