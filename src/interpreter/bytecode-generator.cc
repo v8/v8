@@ -2488,7 +2488,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 
   // Evaluate the value and potentially handle compound assignments by loading
   // the left-hand side value and performing a binary operation.
-  if (expr->is_compound()) {
+  if (expr->IsCompoundAssignment()) {
     switch (assign_type) {
       case VARIABLE: {
         VariableProxy* proxy = expr->target()->AsVariableProxy();
@@ -2519,17 +2519,17 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
         break;
       }
     }
-    FeedbackSlot slot = expr->binary_operation()->BinaryOperationFeedbackSlot();
+    BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
+    FeedbackSlot slot = binop->BinaryOperationFeedbackSlot();
     if (expr->value()->IsSmiLiteral()) {
       builder()->BinaryOperationSmiLiteral(
-          expr->binary_op(), expr->value()->AsLiteral()->AsSmiLiteral(),
+          binop->op(), expr->value()->AsLiteral()->AsSmiLiteral(),
           feedback_index(slot));
     } else {
       Register old_value = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(old_value);
       VisitForAccumulatorValue(expr->value());
-      builder()->BinaryOperation(expr->binary_op(), old_value,
-                                 feedback_index(slot));
+      builder()->BinaryOperation(binop->op(), old_value, feedback_index(slot));
     }
   } else {
     VisitForAccumulatorValue(expr->value());
@@ -2569,6 +2569,10 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     }
   }
+}
+
+void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
+  VisitAssignment(expr);
 }
 
 // Suspends the generator to resume at |suspend_id|, with output stored in the

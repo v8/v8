@@ -2458,7 +2458,7 @@ void Parser::AddArrowFunctionFormalParameters(
   Expression* initializer = nullptr;
   if (expr->IsAssignment()) {
     Assignment* assignment = expr->AsAssignment();
-    DCHECK(!assignment->is_compound());
+    DCHECK(!assignment->IsCompoundAssignment());
     initializer = assignment->value();
     expr = assignment->target();
   }

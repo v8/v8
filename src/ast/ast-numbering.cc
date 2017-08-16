@@ -313,12 +313,15 @@ void AstNumberingVisitor::VisitProperty(Property* node) {
 
 
 void AstNumberingVisitor::VisitAssignment(Assignment* node) {
-  if (node->is_compound()) VisitBinaryOperation(node->binary_operation());
   VisitReference(node->target());
   Visit(node->value());
   ReserveFeedbackSlots(node);
 }
 
+void AstNumberingVisitor::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitBinaryOperation(node->binary_operation());
+  VisitAssignment(node);
+}
 
 void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
   Visit(node->left());

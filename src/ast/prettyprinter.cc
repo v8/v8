@@ -269,6 +269,10 @@ void CallPrinter::VisitAssignment(Assignment* node) {
   Find(node->value());
 }
 
+void CallPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitAssignment(node);
+}
+
 void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
 
 void CallPrinter::VisitYieldStar(YieldStar* node) { Find(node->expression()); }
@@ -1139,6 +1143,10 @@ void AstPrinter::VisitAssignment(Assignment* node) {
   IndentedScope indent(this, Token::Name(node->op()), node->position());
   Visit(node->target());
   Visit(node->value());
+}
+
+void AstPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitAssignment(node);
 }
 
 void AstPrinter::VisitYield(Yield* node) {

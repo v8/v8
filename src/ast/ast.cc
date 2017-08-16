@@ -251,12 +251,9 @@ void ForInStatement::AssignFeedbackSlots(FeedbackVectorSpec* spec,
   for_in_feedback_slot_ = spec->AddGeneralSlot();
 }
 
-Assignment::Assignment(Token::Value op, Expression* target, Expression* value,
-                       int pos)
-    : Expression(pos, kAssignment),
-      target_(target),
-      value_(value),
-      binary_operation_(NULL) {
+Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
+                       Expression* value, int pos)
+    : Expression(pos, node_type), target_(target), value_(value) {
   bit_field_ |= IsUninitializedField::encode(false) |
                 KeyTypeField::encode(ELEMENT) |
                 StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op);
@@ -277,24 +274,6 @@ void CountOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
   binary_operation_slot_ = spec->AddInterpreterBinaryOpICSlot();
 }
 
-
-Token::Value Assignment::binary_op() const {
-  switch (op()) {
-    case Token::ASSIGN_BIT_OR: return Token::BIT_OR;
-    case Token::ASSIGN_BIT_XOR: return Token::BIT_XOR;
-    case Token::ASSIGN_BIT_AND: return Token::BIT_AND;
-    case Token::ASSIGN_SHL: return Token::SHL;
-    case Token::ASSIGN_SAR: return Token::SAR;
-    case Token::ASSIGN_SHR: return Token::SHR;
-    case Token::ASSIGN_ADD: return Token::ADD;
-    case Token::ASSIGN_SUB: return Token::SUB;
-    case Token::ASSIGN_MUL: return Token::MUL;
-    case Token::ASSIGN_DIV: return Token::DIV;
-    case Token::ASSIGN_MOD: return Token::MOD;
-    default: UNREACHABLE();
-  }
-  return Token::ILLEGAL;
-}
 
 bool FunctionLiteral::ShouldEagerCompile() const {
   return scope()->ShouldEagerCompile();

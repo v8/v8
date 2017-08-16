@@ -72,6 +72,7 @@ namespace internal {
 
 #define PROPERTY_NODE_LIST(V) \
   V(Assignment)               \
+  V(CompoundAssignment)       \
   V(CountOperation)           \
   V(Property)
 
@@ -2099,24 +2100,14 @@ class Conditional final : public Expression {
   Expression* else_expression_;
 };
 
-
-class Assignment final : public Expression {
+class Assignment : public Expression {
  public:
-  Assignment* AsSimpleAssignment() { return !is_compound() ? this : NULL; }
-
-  Token::Value binary_op() const;
-
   Token::Value op() const { return TokenField::decode(bit_field_); }
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
 
   void set_target(Expression* e) { target_ = e; }
   void set_value(Expression* e) { value_ = e; }
-
-  BinaryOperation* binary_operation() const { return binary_operation_; }
-
-  // This check relies on the definition order of token in token.h.
-  bool is_compound() const { return op() > Token::ASSIGN; }
 
   // Type feedback information.
   bool IsUninitialized() const {
@@ -2157,10 +2148,12 @@ class Assignment final : public Expression {
                            FeedbackSlotCache* cache);
   FeedbackSlot AssignmentSlot() const { return slot_; }
 
+ protected:
+  Assignment(NodeType type, Token::Value op, Expression* target,
+             Expression* value, int pos);
+
  private:
   friend class AstNodeFactory;
-
-  Assignment(Token::Value op, Expression* target, Expression* value, int pos);
 
   class IsUninitializedField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
@@ -2175,10 +2168,23 @@ class Assignment final : public Expression {
   FeedbackSlot slot_;
   Expression* target_;
   Expression* value_;
-  BinaryOperation* binary_operation_;
   SmallMapList receiver_types_;
 };
 
+class CompoundAssignment final : public Assignment {
+ public:
+  BinaryOperation* binary_operation() const { return binary_operation_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  CompoundAssignment(Token::Value op, Expression* target, Expression* value,
+                     int pos, BinaryOperation* binary_operation)
+      : Assignment(kCompoundAssignment, op, target, value, pos),
+        binary_operation_(binary_operation) {}
+
+  BinaryOperation* binary_operation_;
+};
 
 // The RewritableExpression class is a wrapper for AST nodes that wait
 // for some potential rewriting.  However, even if such nodes are indeed
@@ -3360,12 +3366,15 @@ class AstNodeFactory final BASE_EMBEDDED {
       target->AsVariableProxy()->set_is_assigned();
     }
 
-    Assignment* assign = new (zone_) Assignment(op, target, value, pos);
-    if (assign->is_compound()) {
-      assign->binary_operation_ =
-          NewBinaryOperation(assign->binary_op(), target, value, pos + 1);
+    if (op == Token::ASSIGN || op == Token::INIT) {
+      return new (zone_)
+          Assignment(AstNode::kAssignment, op, target, value, pos);
+    } else {
+      return new (zone_) CompoundAssignment(
+          op, target, value, pos,
+          NewBinaryOperation(Token::BinaryOpForAssignment(op), target, value,
+                             pos + 1));
     }
-    return assign;
   }
 
   Suspend* NewYield(Expression* expression, int pos,
