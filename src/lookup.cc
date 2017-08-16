@@ -629,6 +629,12 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   }
 }
 
+bool LookupIterator::HolderIsReceiver() const {
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  // Optimization that only works if configuration_ is not mutable.
+  if (!check_prototype_chain()) return true;
+  return *receiver_ == *holder_;
+}
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);

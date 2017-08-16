@@ -197,6 +197,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     return Handle<T>::cast(holder_);
   }
 
+  bool HolderIsReceiver() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
 
   bool check_prototype_chain() const {
