@@ -1069,26 +1069,28 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
 }
 
 void Heap::ReportExternalMemoryPressure() {
+  const GCCallbackFlags kGCCallbackFlagsForExternalMemory =
+      static_cast<GCCallbackFlags>(
+          kGCCallbackFlagSynchronousPhantomCallbackProcessing |
+          kGCCallbackFlagCollectAllExternalMemory);
   if (external_memory_ >
       (external_memory_at_last_mark_compact_ + external_memory_hard_limit())) {
     CollectAllGarbage(
         kReduceMemoryFootprintMask | kFinalizeIncrementalMarkingMask,
         GarbageCollectionReason::kExternalMemoryPressure,
         static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
-                                     kGCCallbackFlagCollectAllExternalMemory));
+                                     kGCCallbackFlagsForExternalMemory));
     return;
   }
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->CanBeActivated()) {
-      StartIncrementalMarking(
-          i::Heap::kNoGCFlags, GarbageCollectionReason::kExternalMemoryPressure,
-          static_cast<GCCallbackFlags>(
-              kGCCallbackFlagSynchronousPhantomCallbackProcessing |
-              kGCCallbackFlagCollectAllExternalMemory));
+      StartIncrementalMarking(i::Heap::kNoGCFlags,
+                              GarbageCollectionReason::kExternalMemoryPressure,
+                              kGCCallbackFlagsForExternalMemory);
     } else {
       CollectAllGarbage(i::Heap::kNoGCFlags,
                         GarbageCollectionReason::kExternalMemoryPressure,
-                        kGCCallbackFlagSynchronousPhantomCallbackProcessing);
+                        kGCCallbackFlagsForExternalMemory);
     }
   } else {
     // Incremental marking is turned on an has already been started.
@@ -1099,6 +1101,9 @@ void Heap::ReportExternalMemoryPressure() {
             Max(kMinStepSize, static_cast<double>(external_memory_) /
                                   external_memory_limit_ * kMinStepSize));
     const double deadline = MonotonicallyIncreasingTimeInMs() + ms_step;
+    // Extend the gc callback flags with external memory flags.
+    current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
+        current_gc_callback_flags_ | kGCCallbackFlagsForExternalMemory);
     incremental_marking()->AdvanceIncrementalMarking(
         deadline, IncrementalMarking::GC_VIA_STACK_GUARD,
         IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
