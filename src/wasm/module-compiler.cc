@@ -1364,7 +1364,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           }
           if (imported_maximum_size > table.maximum_size) {
             thrower_->LinkError(
-                "memory import %d has a larger maximum size %" PRIx64
+                " table import %d has a larger maximum size %" PRIx64
                 " than the module's declared maximum %u",
                 index, imported_maximum_size, table.maximum_size);
             return -1;
@@ -1766,13 +1766,6 @@ void InstanceBuilder::InitializeTables(
         // Fill the table with invalid signature indexes so that
         // uninitialized entries will always fail the signature check.
         table_instance.signature_table->set(i, Smi::FromInt(kInvalidSigIndex));
-      }
-    } else {
-      // Table is imported, patch table bounds check
-      DCHECK(table_size <= table_instance.function_table->length());
-      if (table_size < table_instance.function_table->length()) {
-        code_specialization->PatchTableSize(
-            table_size, table_instance.function_table->length());
       }
     }
     int int_index = static_cast<int>(index);
