@@ -149,7 +149,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   // functions.
   std::unique_ptr<ProducedPreParsedScopeData::DataGatheringScope>
       produced_preparsed_scope_data_scope;
-  if (FLAG_experimental_preparser_scope_analysis && !IsArrowFunction(kind)) {
+  if (FLAG_preparser_scope_analysis && !IsArrowFunction(kind)) {
     track_unresolved_variables_ = true;
     produced_preparsed_scope_data_scope.reset(
         new ProducedPreParsedScopeData::DataGatheringScope(function_scope,
@@ -301,7 +301,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       produced_preparsed_scope_data_scope;
   if (!function_state_->next_function_is_likely_called() &&
       produced_preparsed_scope_data_ != nullptr) {
-    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    DCHECK(FLAG_preparser_scope_analysis);
     DCHECK(track_unresolved_variables_);
     produced_preparsed_scope_data_scope.reset(
         new ProducedPreParsedScopeData::DataGatheringScope(function_scope,
@@ -387,7 +387,7 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters, bool* ok) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (FLAG_experimental_preparser_scope_analysis &&
+  if (FLAG_preparser_scope_analysis &&
       scope()->AsDeclarationScope()->calls_sloppy_eval()) {
     DCHECK_NOT_NULL(produced_preparsed_scope_data_);
     // We cannot replicate the Scope structure constructed by the Parser,
@@ -431,7 +431,7 @@ void PreParser::DeclareAndInitializeVariables(
       declaration_descriptor->scope->RemoveUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
-      if (FLAG_experimental_preparser_scope_analysis) {
+      if (FLAG_preparser_scope_analysis) {
         MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
         // This is only necessary if there is an initializer, but we don't have
         // that information here.  Consequently, the preparser sometimes says

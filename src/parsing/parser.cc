@@ -2844,7 +2844,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
   // FIXME(marja): There are 3 ways to skip functions now. Unify them.
   DCHECK_NOT_NULL(consumed_preparsed_scope_data_);
   if (consumed_preparsed_scope_data_->HasData()) {
-    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    DCHECK(FLAG_preparser_scope_analysis);
     int end_position;
     LanguageMode language_mode;
     int num_inner_functions;

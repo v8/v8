@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-preparser-scope-analysis
+// Flags: --preparser-scope-analysis
 
 // Tests for cases where PreParser must bail out of creating data for skipping
 // inner functions, since it cannot replicate the Scope structure created by

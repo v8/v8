@@ -13846,7 +13846,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     // value after compiling, but avoid overwriting values set manually by the
     // bootstrapper.
     shared_info->set_length(SharedFunctionInfo::kInvalidLength);
-    if (FLAG_experimental_preparser_scope_analysis) {
+    if (FLAG_preparser_scope_analysis) {
       ProducedPreParsedScopeData* scope_data =
           lit->produced_preparsed_scope_data();
       if (scope_data != nullptr) {

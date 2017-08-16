@@ -616,7 +616,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       Variable* var = DeclareVariableName(name, VAR);
       if (var != kDummyPreParserVariable &&
           var != kDummyPreParserLexicalVariable) {
-        DCHECK(FLAG_experimental_preparser_scope_analysis);
+        DCHECK(FLAG_preparser_scope_analysis);
         var->set_maybe_assigned();
       }
     }
@@ -677,7 +677,7 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   scope->set_should_eager_compile();
 
   if (scope->must_use_preparsed_scope_data_) {
-    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    DCHECK(FLAG_preparser_scope_analysis);
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
   }
@@ -1047,7 +1047,7 @@ Variable* DeclarationScope::DeclareParameterName(
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
   }
-  if (FLAG_experimental_preparser_scope_analysis) {
+  if (FLAG_preparser_scope_analysis) {
     Variable* var;
     if (declare_as_local) {
       var = Declare(zone(), name, VAR);
@@ -1216,7 +1216,7 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   DCHECK(scope_info_.is_null());
 
   // Declare the variable in the declaration scope.
-  if (FLAG_experimental_preparser_scope_analysis) {
+  if (FLAG_preparser_scope_analysis) {
     Variable* var = LookupLocal(name);
     DCHECK_NE(var, kDummyPreParserLexicalVariable);
     DCHECK_NE(var, kDummyPreParserVariable);
@@ -1507,7 +1507,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 }
 
 void Scope::SavePreParsedScopeData() {
-  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  DCHECK(FLAG_preparser_scope_analysis);
   if (ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(this)) {
     AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
   }
@@ -1519,7 +1519,7 @@ void Scope::SavePreParsedScopeData() {
 
 void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
   if (produced_preparsed_scope_data_ != nullptr) {
-    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    DCHECK(FLAG_preparser_scope_analysis);
     produced_preparsed_scope_data_->SaveScopeAllocationData(this);
   }
 }
@@ -1528,8 +1528,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
 
-  if (!outer_scope_->is_script_scope() ||
-      FLAG_experimental_preparser_scope_analysis) {
+  if (!outer_scope_->is_script_scope() || FLAG_preparser_scope_analysis) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
@@ -1552,7 +1551,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
       function_ = ast_node_factory->CopyVariable(function_);
     }
 
-    if (FLAG_experimental_preparser_scope_analysis) {
+    if (FLAG_preparser_scope_analysis) {
       SavePreParsedScopeData();
     }
   }
@@ -2271,8 +2270,7 @@ void ModuleScope::AllocateModuleVariables() {
 
 void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
-  DCHECK_IMPLIES(!FLAG_experimental_preparser_scope_analysis,
-                 num_stack_slots_ == 0);
+  DCHECK_IMPLIES(!FLAG_preparser_scope_analysis, num_stack_slots_ == 0);
 
   // Don't allocate variables of preparsed scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {

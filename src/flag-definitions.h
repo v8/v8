@@ -885,7 +885,7 @@ DEFINE_BOOL(trace_maps, false, "trace map creation")
 // preparser.cc
 DEFINE_BOOL(use_parse_tasks, false, "use parse tasks")
 DEFINE_BOOL(trace_parse_tasks, false, "trace parse task creation")
-DEFINE_NEG_IMPLICATION(use_parse_tasks, experimental_preparser_scope_analysis)
+DEFINE_NEG_IMPLICATION(use_parse_tasks, preparser_scope_analysis)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
@@ -895,10 +895,9 @@ DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
 DEFINE_BOOL(aggressive_lazy_inner_functions, false,
             "even lazier inner function parsing")
 DEFINE_IMPLICATION(aggressive_lazy_inner_functions, lazy_inner_functions)
-DEFINE_BOOL(experimental_preparser_scope_analysis, false,
+DEFINE_BOOL(preparser_scope_analysis, false,
             "perform scope analysis for preparsed inner functions")
-DEFINE_IMPLICATION(experimental_preparser_scope_analysis,
-                   aggressive_lazy_inner_functions)
+DEFINE_IMPLICATION(preparser_scope_analysis, aggressive_lazy_inner_functions)
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")

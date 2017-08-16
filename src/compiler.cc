@@ -850,7 +850,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     Handle<SharedFunctionInfo> shared(function->shared());
     ParseInfo parse_info(shared);
     parse_info.set_lazy_compile();
-    if (FLAG_experimental_preparser_scope_analysis) {
+    if (FLAG_preparser_scope_analysis) {
       if (shared->HasPreParsedScopeData()) {
         Handle<PreParsedScopeData> data(
             PreParsedScopeData::cast(shared->preparsed_scope_data()));

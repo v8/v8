@@ -109,7 +109,7 @@ ProducedPreParsedScopeData::DataGatheringScope::DataGatheringScope(
     : function_scope_(function_scope),
       preparser_(preparser),
       produced_preparsed_scope_data_(nullptr) {
-  if (FLAG_experimental_preparser_scope_analysis) {
+  if (FLAG_preparser_scope_analysis) {
     ProducedPreParsedScopeData* parent =
         preparser->produced_preparsed_scope_data();
     Zone* main_zone = preparser->main_zone();
@@ -123,7 +123,7 @@ ProducedPreParsedScopeData::DataGatheringScope::DataGatheringScope(
 }
 
 ProducedPreParsedScopeData::DataGatheringScope::~DataGatheringScope() {
-  if (FLAG_experimental_preparser_scope_analysis) {
+  if (FLAG_preparser_scope_analysis) {
     preparser_->set_produced_preparsed_scope_data(
         produced_preparsed_scope_data_->parent_);
   }
@@ -131,7 +131,7 @@ ProducedPreParsedScopeData::DataGatheringScope::~DataGatheringScope() {
 
 void ProducedPreParsedScopeData::DataGatheringScope::MarkFunctionAsSkippable(
     int end_position, int num_inner_functions) {
-  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  DCHECK(FLAG_preparser_scope_analysis);
   DCHECK_NOT_NULL(produced_preparsed_scope_data_);
   DCHECK_NOT_NULL(produced_preparsed_scope_data_->parent_);
   produced_preparsed_scope_data_->parent_->AddSkippableFunction(
@@ -144,7 +144,7 @@ void ProducedPreParsedScopeData::AddSkippableFunction(
     int start_position, int end_position, int num_parameters,
     int num_inner_functions, LanguageMode language_mode,
     bool uses_super_property) {
-  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  DCHECK(FLAG_preparser_scope_analysis);
   DCHECK_EQ(scope_data_start_, -1);
   DCHECK(previously_produced_preparsed_scope_data_.is_null());
 
@@ -174,7 +174,7 @@ void ProducedPreParsedScopeData::AddSkippableFunction(
 
 void ProducedPreParsedScopeData::SaveScopeAllocationData(
     DeclarationScope* scope) {
-  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  DCHECK(FLAG_preparser_scope_analysis);
   DCHECK(previously_produced_preparsed_scope_data_.is_null());
   DCHECK_EQ(scope_data_start_, -1);
   DCHECK_EQ(backing_store_.size() % SkippableFunctionDataOffsets::kSize, 0);
@@ -434,7 +434,7 @@ ConsumedPreParsedScopeData::GetDataForSkippableFunction(
 
 void ConsumedPreParsedScopeData::RestoreScopeAllocationData(
     DeclarationScope* scope) {
-  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  DCHECK(FLAG_preparser_scope_analysis);
   DCHECK_EQ(scope->scope_type(), ScopeType::FUNCTION_SCOPE);
   DCHECK(!data_.is_null());
 

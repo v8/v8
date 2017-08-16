@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-preparser-scope-analysis
+// Flags: --preparser-scope-analysis
 
 (function TestBasicSkipping() {
   var result = 0;
