@@ -3443,6 +3443,11 @@ TNode<BoolT> CodeStubAssembler::IsDictionaryMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::DictionaryMap>(bit_field3);
 }
 
+Node* CodeStubAssembler::IsExtensibleMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return IsSetWord32(LoadMapBitField2(map), 1 << Map::kIsExtensible);
+}
+
 Node* CodeStubAssembler::IsCallableMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsCallable);
@@ -5744,7 +5749,7 @@ void CodeStubAssembler::TryLookupProperty(
   }
   BIND(&if_objectisspecial);
   {
-    // Handle global object here and other special objects in runtime.
+    // Handle global object here and bailout for other special objects.
     GotoIfNot(Word32Equal(instance_type, Int32Constant(JS_GLOBAL_OBJECT_TYPE)),
               if_bailout);
 
@@ -5774,6 +5779,7 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
   TryLookupProperty(object, map, instance_type, unique_name, if_found, if_found,
                     &if_found_global, &var_meta_storage, &var_name_index,
                     if_not_found, if_bailout);
+
   BIND(&if_found_global);
   {
     VARIABLE(var_value, MachineRepresentation::kTagged);
@@ -6244,7 +6250,7 @@ template void CodeStubAssembler::NumberDictionaryLookup<
 void CodeStubAssembler::TryPrototypeChainLookup(
     Node* receiver, Node* key, const LookupInHolder& lookup_property_in_holder,
     const LookupInHolder& lookup_element_in_holder, Label* if_end,
-    Label* if_bailout) {
+    Label* if_bailout, Label* if_proxy) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   Label if_objectisnotsmi(this);
   Branch(TaggedIsSmi(receiver), if_bailout, &if_objectisnotsmi);
@@ -6256,10 +6262,15 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     Label if_objectisreceiver(this);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     STATIC_ASSERT(FIRST_JS_RECEIVER_TYPE == JS_PROXY_TYPE);
-    Branch(
-        Int32GreaterThan(instance_type, Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-        &if_objectisreceiver, if_bailout);
+    Branch(Int32GreaterThanOrEqual(instance_type,
+                                   Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+           &if_objectisreceiver, if_bailout);
     BIND(&if_objectisreceiver);
+
+    if (if_proxy) {
+      GotoIf(Word32Equal(instance_type, Int32Constant(JS_PROXY_TYPE)),
+             if_proxy);
+    }
   }
 
   VARIABLE(var_index, MachineType::PointerRepresentation());
@@ -8851,11 +8862,10 @@ Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::HasProperty(
-    Node* object, Node* key, Node* context,
-    Runtime::FunctionId fallback_runtime_function_id) {
+Node* CodeStubAssembler::HasProperty(Node* object, Node* key, Node* context,
+                                     HasPropertyLookupMode mode) {
   Label call_runtime(this, Label::kDeferred), return_true(this),
-      return_false(this), end(this);
+      return_false(this), end(this), if_proxy(this, Label::kDeferred);
 
   CodeStubAssembler::LookupInHolder lookup_property_in_holder =
       [this, &return_true](Node* receiver, Node* holder, Node* holder_map,
@@ -8876,9 +8886,27 @@ Node* CodeStubAssembler::HasProperty(
 
   TryPrototypeChainLookup(object, key, lookup_property_in_holder,
                           lookup_element_in_holder, &return_false,
-                          &call_runtime);
+                          &call_runtime, &if_proxy);
 
   VARIABLE(result, MachineRepresentation::kTagged);
+
+  BIND(&if_proxy);
+  {
+    Node* name = ToName(context, key);
+    switch (mode) {
+      case kHasProperty:
+        GotoIf(IsPrivateSymbol(name), &return_false);
+
+        result.Bind(
+            CallBuiltin(Builtins::kProxyHasProperty, context, object, name));
+        Goto(&end);
+        break;
+      case kForInHasProperty:
+        Goto(&call_runtime);
+        break;
+    }
+  }
+
   BIND(&return_true);
   {
     result.Bind(BooleanConstant(true));
@@ -8893,6 +8921,16 @@ Node* CodeStubAssembler::HasProperty(
 
   BIND(&call_runtime);
   {
+    Runtime::FunctionId fallback_runtime_function_id;
+    switch (mode) {
+      case kHasProperty:
+        fallback_runtime_function_id = Runtime::kHasProperty;
+        break;
+      case kForInHasProperty:
+        fallback_runtime_function_id = Runtime::kForInHasProperty;
+        break;
+    }
+
     result.Bind(
         CallRuntime(fallback_runtime_function_id, context, object, key));
     Goto(&end);

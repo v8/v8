@@ -547,7 +547,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
       // b. Let kPresent be HasProperty(O, Pk).
       // c. ReturnIfAbrupt(kPresent).
-      Node* k_present = HasProperty(o(), p_k, context());
+      Node* k_present = HasProperty(o(), p_k, context(), kHasProperty);
 
       // d. If kPresent is true, then
       GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);

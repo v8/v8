@@ -25,8 +25,7 @@ Node* ForInBuiltinsAssembler::ForInFilter(Node* key, Node* object,
 
   VARIABLE(var_result, MachineRepresentation::kTagged, key);
 
-  Node* has_property =
-      HasProperty(object, key, context, Runtime::kForInHasProperty);
+  Node* has_property = HasProperty(object, key, context, kForInHasProperty);
 
   Label end(this);
   GotoIf(WordEqual(has_property, BooleanConstant(true)), &end);

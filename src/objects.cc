@@ -5474,35 +5474,40 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
   bool boolean_trap_result = trap_result_obj->BooleanValue();
   // 9. If booleanTrapResult is false, then:
   if (!boolean_trap_result) {
-    // 9a. Let targetDesc be ? target.[[GetOwnProperty]](P).
-    PropertyDescriptor target_desc;
-    Maybe<bool> target_found = JSReceiver::GetOwnPropertyDescriptor(
-        isolate, target, name, &target_desc);
-    MAYBE_RETURN(target_found, Nothing<bool>());
-    // 9b. If targetDesc is not undefined, then:
-    if (target_found.FromJust()) {
-      // 9b i. If targetDesc.[[Configurable]] is false, throw a TypeError
-      //       exception.
-      if (!target_desc.configurable()) {
-        isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kProxyHasNonConfigurable, name));
-        return Nothing<bool>();
-      }
-      // 9b ii. Let extensibleTarget be ? IsExtensible(target).
-      Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
-      MAYBE_RETURN(extensible_target, Nothing<bool>());
-      // 9b iii. If extensibleTarget is false, throw a TypeError exception.
-      if (!extensible_target.FromJust()) {
-        isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kProxyHasNonExtensible, name));
-        return Nothing<bool>();
-      }
-    }
+    MAYBE_RETURN(JSProxy::CheckHasTrap(isolate, name, target), Nothing<bool>());
   }
   // 10. Return booleanTrapResult.
   return Just(boolean_trap_result);
 }
 
+Maybe<bool> JSProxy::CheckHasTrap(Isolate* isolate, Handle<Name> name,
+                                  Handle<JSReceiver> target) {
+  // 9a. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  PropertyDescriptor target_desc;
+  Maybe<bool> target_found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
+  MAYBE_RETURN(target_found, Nothing<bool>());
+  // 9b. If targetDesc is not undefined, then:
+  if (target_found.FromJust()) {
+    // 9b i. If targetDesc.[[Configurable]] is false, throw a TypeError
+    //       exception.
+    if (!target_desc.configurable()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyHasNonConfigurable, name));
+      return Nothing<bool>();
+    }
+    // 9b ii. Let extensibleTarget be ? IsExtensible(target).
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    MAYBE_RETURN(extensible_target, Nothing<bool>());
+    // 9b iii. If extensibleTarget is false, throw a TypeError exception.
+    if (!extensible_target.FromJust()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyHasNonExtensible, name));
+      return Nothing<bool>();
+    }
+  }
+  return Just(true);
+}
 
 Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
                                  Handle<Object> value, Handle<Object> receiver,

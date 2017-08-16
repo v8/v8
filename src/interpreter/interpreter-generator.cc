@@ -2098,7 +2098,8 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
   Node* property = LoadRegister(reg_index);
   Node* object = GetAccumulator();
   Node* context = GetContext();
-  SetAccumulator(HasProperty(object, property, context));
+
+  SetAccumulator(HasProperty(object, property, context, kHasProperty));
   Dispatch();
 }
 

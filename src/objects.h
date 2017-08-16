@@ -6292,6 +6292,12 @@ class JSProxy: public JSReceiver {
                                                  Handle<JSProxy> proxy,
                                                  Handle<Name> name);
 
+  // This function never returns false.
+  // It returns either true or throws.
+  MUST_USE_RESULT static Maybe<bool> CheckHasTrap(Isolate* isolate,
+                                                  Handle<Name> name,
+                                                  Handle<JSReceiver> target);
+
   // ES6 9.5.8
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,

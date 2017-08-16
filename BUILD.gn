@@ -994,6 +994,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-promise-gen.cc",
     "src/builtins/builtins-promise-gen.h",
     "src/builtins/builtins-proxy-gen.cc",
+    "src/builtins/builtins-proxy-gen.h",
     "src/builtins/builtins-proxy-helpers-gen.cc",
     "src/builtins/builtins-proxy-helpers-gen.h",
     "src/builtins/builtins-regexp-gen.cc",

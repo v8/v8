@@ -71,5 +71,18 @@ RUNTIME_FUNCTION(Runtime_CheckProxyGetTrapResult) {
       isolate, JSProxy::CheckGetTrapResult(isolate, name, target, trap_result));
 }
 
+RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
+
+  RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      isolate, JSProxy::CheckHasTrap(isolate, name, target),
+      *isolate->factory()->undefined_value());
+  return *isolate->factory()->undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

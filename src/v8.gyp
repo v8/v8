@@ -207,6 +207,7 @@
         'builtins/builtins-promise-gen.cc',
         'builtins/builtins-promise-gen.h',
         'builtins/builtins-proxy-gen.cc',
+        'builtins/builtins-proxy-gen.h',
         'builtins/builtins-proxy-helpers-gen.cc',
         'builtins/builtins-proxy-helpers-gen.h',
         'builtins/builtins-regexp-gen.cc',

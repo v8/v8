@@ -868,6 +868,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAllocationSite(Node* object);
   Node* IsAnyHeapNumber(Node* object);
   Node* IsBoolean(Node* object);
+  Node* IsExtensibleMap(Node* map);
   Node* IsCallableMap(Node* map);
   Node* IsCallable(Node* object);
   Node* IsConsStringInstanceType(Node* instance_type);
@@ -1383,10 +1384,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Upon reaching the end of prototype chain the control goes to {if_end}.
   // If it can't handle the case {receiver}/{key} case then the control goes
   // to {if_bailout}.
+  // If {if_proxy} is nullptr, proxies go to if_bailout.
   void TryPrototypeChainLookup(Node* receiver, Node* key,
                                const LookupInHolder& lookup_property_in_holder,
                                const LookupInHolder& lookup_element_in_holder,
-                               Label* if_end, Label* if_bailout);
+                               Label* if_end, Label* if_bailout,
+                               Label* if_proxy = nullptr);
 
   // Instanceof helpers.
   // Returns true if {object} has {prototype} somewhere in it's prototype
@@ -1565,9 +1568,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // instructions, e.g. Branch(SameValue(...), &label).
   Node* SameValue(Node* lhs, Node* rhs);
 
-  Node* HasProperty(
-      Node* object, Node* key, Node* context,
-      Runtime::FunctionId fallback_runtime_function_id = Runtime::kHasProperty);
+  enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
+
+  Node* HasProperty(Node* object, Node* key, Node* context,
+                    HasPropertyLookupMode mode);
 
   Node* ClassOf(Node* object);
 
