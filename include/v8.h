@@ -5986,6 +5986,8 @@ V8_INLINE Local<Boolean> False(Isolate* isolate);
  *
  * The arguments for set_max_semi_space_size, set_max_old_space_size,
  * set_max_executable_size, set_code_range_size specify limits in MB.
+ *
+ * The argument for set_max_semi_space_size_in_kb is in KB.
  */
 class V8_EXPORT ResourceConstraints {
  public:
@@ -6003,10 +6005,28 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit);
 
-  int max_semi_space_size() const { return max_semi_space_size_; }
-  void set_max_semi_space_size(int limit_in_mb) {
-    max_semi_space_size_ = limit_in_mb;
+  // Returns the max semi-space size in MB.
+  V8_DEPRECATE_SOON("Use max_semi_space_size_in_kb()",
+                    int max_semi_space_size()) {
+    return static_cast<int>(max_semi_space_size_in_kb_ / 1024);
   }
+
+  // Sets the max semi-space size in MB.
+  V8_DEPRECATE_SOON("Use set_max_semi_space_size_in_kb(size_t limit_in_kb)",
+                    void set_max_semi_space_size(int limit_in_mb)) {
+    max_semi_space_size_in_kb_ = limit_in_mb * 1024;
+  }
+
+  // Returns the max semi-space size in KB.
+  size_t max_semi_space_size_in_kb() const {
+    return max_semi_space_size_in_kb_;
+  }
+
+  // Sets the max semi-space size in KB.
+  void set_max_semi_space_size_in_kb(size_t limit_in_kb) {
+    max_semi_space_size_in_kb_ = limit_in_kb;
+  }
+
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
@@ -6032,7 +6052,10 @@ class V8_EXPORT ResourceConstraints {
   }
 
  private:
-  int max_semi_space_size_;
+  // max_semi_space_size_ is in KB
+  size_t max_semi_space_size_in_kb_;
+
+  // The remaining limits are in MB
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
