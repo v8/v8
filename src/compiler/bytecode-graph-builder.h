@@ -242,8 +242,9 @@ class BytecodeGraphBuilder {
   // Builds loop exit nodes for every exited loop between the current bytecode
   // offset and {target_offset}.
   void BuildLoopExitsForBranch(int target_offset);
-  void BuildLoopExitsForFunctionExit();
-  void BuildLoopExitsUntilLoop(int loop_offset);
+  void BuildLoopExitsForFunctionExit(const BytecodeLivenessState* liveness);
+  void BuildLoopExitsUntilLoop(int loop_offset,
+                               const BytecodeLivenessState* liveness);
 
   // Simulates entry and exit of exception handlers.
   void ExitThenEnterExceptionHandlers(int current_offset);
