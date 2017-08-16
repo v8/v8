@@ -202,9 +202,6 @@ class TurboAssembler : public Assembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-  void Pxor(XMMRegister dst, XMMRegister src) { Pxor(dst, Operand(src)); }
-  void Pxor(XMMRegister dst, const Operand& src);
-
   void Pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshuflw(dst, Operand(src), shuffle);
   }
@@ -232,9 +229,33 @@ class TurboAssembler : public Assembler {
 
 #undef AVX_OP2_WITH_TYPE
 
+// Only use these macros when non-destructive source of AVX version is not
+// needed.
+#define AVX_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, src_type src) {                 \
+    if (CpuFeatures::IsSupported(AVX)) {                        \
+      CpuFeatureScope scope(this, AVX);                         \
+      v##name(dst, dst, src);                                   \
+    } else {                                                    \
+      name(dst, src);                                           \
+    }                                                           \
+  }
+#define AVX_OP3_XO(macro_name, name)                            \
+  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
+  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, const Operand&)
+
+  AVX_OP3_XO(Pcmpeqd, pcmpeqd)
+  AVX_OP3_XO(Psubd, psubd)
+  AVX_OP3_XO(Pxor, pxor)
+
+#undef AVX_OP3_XO
+#undef AVX_OP3_WITH_TYPE
+
   // Non-SSE2 instructions.
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
   void Pshufb(XMMRegister dst, const Operand& src);
+  void Psignd(XMMRegister dst, XMMRegister src) { Psignd(dst, Operand(src)); }
+  void Psignd(XMMRegister dst, const Operand& src);
 
   void Pextrb(Register dst, XMMRegister src, int8_t imm8);
   void Pextrw(Register dst, XMMRegister src, int8_t imm8);

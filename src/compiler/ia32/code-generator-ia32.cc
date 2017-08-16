@@ -1904,6 +1904,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(2), i.InputInt8(1));
       break;
     }
+    case kIA32I32x4Neg: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(0);
+      Register ireg = {dst.code()};
+      if (src.is_reg(ireg)) {
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Psignd(dst, kScratchDoubleReg);
+      } else {
+        __ Pxor(dst, dst);
+        __ Psubd(dst, src);
+      }
+      break;
+    }
     case kSSEI32x4Shl: {
       __ pslld(i.OutputSimd128Register(), i.InputInt8(1));
       break;
@@ -1977,6 +1990,57 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(1));
       break;
     }
+    case kSSEI32x4Eq: {
+      __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4Eq: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4Ne: {
+      __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      break;
+    }
+    case kAVXI32x4Ne: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpxor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+               kScratchDoubleReg);
+      break;
+    }
+    case kSSEI32x4GtS: {
+      __ pcmpgtd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI32x4GtS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpcmpgtd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4GeS: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(1);
+      __ pminsd(dst, src);
+      __ pcmpeqd(dst, src);
+      break;
+    }
+    case kAVXI32x4GeS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister src1 = i.InputSimd128Register(0);
+      Operand src2 = i.InputOperand(1);
+      __ vpminsd(kScratchDoubleReg, src1, src2);
+      __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      break;
+    }
     case kSSEI32x4ShrU: {
       __ psrld(i.OutputSimd128Register(), i.InputInt8(1));
       break;
@@ -2007,6 +2071,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpmaxud(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
+      break;
+    }
+    case kSSEI32x4GtU: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(1);
+      __ pmaxud(dst, src);
+      __ pcmpeqd(dst, src);
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ pxor(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXI32x4GtU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src1 = i.InputSimd128Register(0);
+      Operand src2 = i.InputOperand(1);
+      __ vpmaxud(kScratchDoubleReg, src1, src2);
+      __ vpcmpeqd(dst, kScratchDoubleReg, src2);
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpxor(dst, dst, kScratchDoubleReg);
+      break;
+    }
+    case kSSEI32x4GeU: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(1);
+      __ pminud(dst, src);
+      __ pcmpeqd(dst, src);
+      break;
+    }
+    case kAVXI32x4GeU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister src1 = i.InputSimd128Register(0);
+      Operand src2 = i.InputOperand(1);
+      __ vpminud(kScratchDoubleReg, src1, src2);
+      __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
     case kIA32I16x8Splat: {

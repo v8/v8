@@ -2132,20 +2132,11 @@ void InstructionSelector::VisitI32x4Mul(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4MaxS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4MinS(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4Eq(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4Ne(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4MinU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4MaxU(Node* node) { UNIMPLEMENTED(); }
@@ -2206,7 +2197,7 @@ void InstructionSelector::VisitI16x8SConvertI32x4(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4GtS(Node* node) { UNIMPLEMENTED(); }
@@ -2216,11 +2207,7 @@ void InstructionSelector::VisitI32x4GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI16x8Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ExtractLane(Node* node) { UNIMPLEMENTED(); }

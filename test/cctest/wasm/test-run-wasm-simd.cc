@@ -923,8 +923,6 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || SIMD_LOWERING_TARGET || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 void RunI32x4UnOpTest(WasmOpcode simd_op, Int32UnOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
   byte a = 0;
@@ -938,8 +936,6 @@ void RunI32x4UnOpTest(WasmOpcode simd_op, Int32UnOp expected_op) {
 }
 
 WASM_SIMD_TEST(I32x4Neg) { RunI32x4UnOpTest(kExprI32x4Neg, Negate); }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || SIMD_LOWERING_TARGET ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || SIMD_LOWERING_TARGET || \
     V8_TARGET_ARCH_X64
@@ -990,6 +986,8 @@ WASM_SIMD_TEST(S128And) { RunI32x4BinOpTest(kExprS128And, And); }
 WASM_SIMD_TEST(S128Or) { RunI32x4BinOpTest(kExprS128Or, Or); }
 
 WASM_SIMD_TEST(S128Xor) { RunI32x4BinOpTest(kExprS128Xor, Xor); }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 void RunI32x4CompareOpTest(WasmOpcode simd_op, Int32CompareOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -1034,8 +1032,6 @@ WASM_SIMD_TEST(I32x4GtU) {
 WASM_SIMD_TEST(I32x4GeU) {
   RunI32x4CompareOpTest(kExprI32x4GeU, UnsignedGreaterEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 void RunI32x4ShiftOpTest(WasmOpcode simd_op, Int32ShiftOp expected_op,
                          int shift) {
