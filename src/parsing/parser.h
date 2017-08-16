@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_PARSER_H_
 #define V8_PARSING_PARSER_H_
 
+#include <cstddef>
+
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -173,6 +175,7 @@ struct ParserTypes<Parser> {
   typedef ZoneList<v8::internal::Statement*>* StatementList;
   typedef v8::internal::Block* Block;
   typedef v8::internal::BreakableStatement* BreakableStatement;
+  typedef v8::internal::ForStatement* ForStatement;
   typedef v8::internal::IterationStatement* IterationStatement;
 
   // For constructing objects returned by the traversing functions.
@@ -870,7 +873,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsNullStatementList(ZoneList<Statement*>* stmts) {
     return stmts == nullptr;
   }
-  V8_INLINE static Statement* NullStatement() { return nullptr; }
+  // TODO(adamk): Use nullptr_t throughout more widely to remove redundant code.
+  V8_INLINE static std::nullptr_t NullStatement() { return nullptr; }
   V8_INLINE bool IsNullStatement(Statement* stmt) { return stmt == nullptr; }
   V8_INLINE bool IsEmptyStatement(Statement* stmt) {
     DCHECK_NOT_NULL(stmt);

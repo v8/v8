@@ -197,9 +197,6 @@ class SourceRangeScope final {
 //   // Synonyms for ParserBase<Impl> and Impl, respectively.
 //   typedef Base;
 //   typedef Impl;
-//   // TODO(nikolaos): this one will probably go away, as it is
-//   // not related to pure parsing.
-//   typedef Variable;
 //   // Return types for traversing functions.
 //   typedef Identifier;
 //   typedef Expression;
@@ -214,6 +211,7 @@ class SourceRangeScope final {
 //   typedef StatementList;
 //   typedef Block;
 //   typedef BreakableStatement;
+//   typedef ForStatement;
 //   typedef IterationStatement;
 //   // For constructing objects returned by the traversing functions.
 //   typedef Factory;
@@ -241,6 +239,7 @@ class ParserBase {
   typedef typename Types::Statement StatementT;
   typedef typename Types::StatementList StatementListT;
   typedef typename Types::Block BlockT;
+  typedef typename Types::ForStatement ForStatementT;
   typedef typename v8::internal::ExpressionClassifier<Types>
       ExpressionClassifier;
 
@@ -1228,12 +1227,17 @@ class ParserBase {
       int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
       ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok);
 
-  // Parse a C-style for loop: 'for (<init>; <cond>; <step>) { ... }'
-  StatementT ParseStandardForLoop(int stmt_pos, StatementT init,
-                                  bool bound_names_are_lexical,
-                                  ForInfo* for_info,
-                                  ZoneList<const AstRawString*>* labels,
-                                  bool* ok);
+  // Parse a C-style for loop: 'for (<init>; <cond>; <next>) { ... }'
+  // "for (<init>;" is assumed to have been parser already.
+  ForStatementT ParseStandardForLoop(int stmt_pos,
+                                     ZoneList<const AstRawString*>* labels,
+                                     ExpressionT* cond, StatementT* next,
+                                     StatementT* body, bool* ok);
+  // Same as the above, but handles those cases where <init> is a
+  // variable declaration.
+  StatementT ParseStandardForLoopWithDeclarations(
+      int stmt_pos, StatementT init, bool bound_names_are_lexical,
+      ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok);
   StatementT ParseForAwaitStatement(ZoneList<const AstRawString*>* labels,
                                     bool* ok);
 
@@ -5530,17 +5534,15 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   ForInfo for_info(this);
   bool bound_names_are_lexical = false;
 
-  // Create an in-between scope for let-bound iteration variables.
-  BlockState for_state(zone(), &scope_);
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  scope()->set_start_position(scanner()->location().beg_pos);
-
-  StatementT init = impl()->NullStatement();
 
   if (peek() == Token::VAR || peek() == Token::CONST ||
       (peek() == Token::LET && IsNextLetKeyword())) {
     // The initializer contains declarations.
+    // Create an in-between scope for let-bound iteration variables.
+    BlockState for_state(zone(), &scope_);
+    scope()->set_start_position(scanner()->location().beg_pos);
 
     // Create an inner block scope which will be the parent scope of scopes
     // possibly created by ParseVariableDeclarations.
@@ -5559,8 +5561,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
                                                    inner_block_scope, ok);
     }
 
+    Expect(Token::SEMICOLON, CHECK_OK);
+
     // One or more declaration not followed by in/of.
-    init = impl()->BuildInitializationBlock(
+    StatementT init = impl()->BuildInitializationBlock(
         &for_info.parsing_result,
         bound_names_are_lexical ? &for_info.bound_names : nullptr, CHECK_OK);
 
@@ -5568,7 +5572,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     // No variable declarations will have been created in inner_block_scope.
     DCHECK_NULL(finalized);
     USE(finalized);
-  } else if (peek() != Token::SEMICOLON) {
+    // Standard 'for' loop, we have parsed the initializer at this point.
+    return ParseStandardForLoopWithDeclarations(
+        stmt_pos, init, bound_names_are_lexical, &for_info, labels, ok);
+  }
+
+  StatementT init = impl()->NullStatement();
+  if (peek() != Token::SEMICOLON) {
     // The initializer does not contain declarations.
     int lhs_beg_pos = peek_position();
     ExpressionClassifier classifier(this);
@@ -5594,9 +5604,16 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     init = factory()->NewExpressionStatement(expression, lhs_beg_pos);
   }
 
+  Expect(Token::SEMICOLON, CHECK_OK);
+
   // Standard 'for' loop, we have parsed the initializer at this point.
-  return ParseStandardForLoop(stmt_pos, init, bound_names_are_lexical,
-                              &for_info, labels, ok);
+  ExpressionT cond = impl()->EmptyExpression();
+  StatementT next = impl()->NullStatement();
+  StatementT body = impl()->NullStatement();
+  ForStatementT loop =
+      ParseStandardForLoop(stmt_pos, labels, &cond, &next, &body, CHECK_OK);
+  loop->Initialize(init, cond, next, body);
+  return loop;
 }
 
 template <typename Impl>
@@ -5685,7 +5702,6 @@ typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
     ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok) {
-  scope()->set_is_hidden();
   // Initializer is reference followed by in/of.
   if (!expression->IsArrayLiteral() && !expression->IsObjectLiteral()) {
     expression = impl()->CheckAndRewriteReferenceExpression(
@@ -5709,43 +5725,20 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
 
   StatementT body = impl()->NullStatement();
   {
-    BlockState block_state(zone(), &scope_);
-    scope()->set_start_position(scanner()->location().beg_pos);
-
     SourceRange body_range;
     SourceRangeScope range_scope(scanner(), &body_range);
 
     body = ParseStatement(nullptr, CHECK_OK);
-    scope()->set_end_position(scanner()->location().end_pos);
     impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
-
-    Scope* block_scope = scope()->FinalizeBlockScope();
-    USE(block_scope);
-    DCHECK_NULL(block_scope);
   }
-  StatementT final_loop =
-      impl()->InitializeForEachStatement(loop, expression, enumerable, body);
-  Scope* for_scope = scope()->FinalizeBlockScope();
-  USE(for_scope);
-  DCHECK_NULL(for_scope);
-  return final_loop;
+  return impl()->InitializeForEachStatement(loop, expression, enumerable, body);
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
+typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseStandardForLoopWithDeclarations(
     int stmt_pos, StatementT init, bool bound_names_are_lexical,
     ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok) {
-  auto loop = factory()->NewForStatement(labels, stmt_pos);
-  typename Types::Target target(this, loop);
-
-  Expect(Token::SEMICOLON, CHECK_OK);
-
-  ExpressionT cond = impl()->EmptyExpression();
-  StatementT next = impl()->NullStatement();
-  StatementT body = impl()->NullStatement();
-
-  SourceRange body_range;
-
   // If there are let bindings, then condition and the next statement of the
   // for loop must be parsed in a new scope.
   Scope* inner_scope = scope();
@@ -5753,22 +5746,15 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     inner_scope = NewScopeWithParent(inner_scope, BLOCK_SCOPE);
     inner_scope->set_start_position(scanner()->location().beg_pos);
   }
+
+  ForStatementT loop = impl()->NullStatement();
+  ExpressionT cond = impl()->EmptyExpression();
+  StatementT next = impl()->NullStatement();
+  StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, inner_scope);
-
-    if (peek() != Token::SEMICOLON) {
-      cond = ParseExpression(true, CHECK_OK);
-    }
-    Expect(Token::SEMICOLON, CHECK_OK);
-
-    if (peek() != Token::RPAREN) {
-      ExpressionT exp = ParseExpression(true, CHECK_OK);
-      next = factory()->NewExpressionStatement(exp, exp->position());
-    }
-    Expect(Token::RPAREN, CHECK_OK);
-
-    SourceRangeScope range_scope(scanner(), &body_range);
-    body = ParseStatement(nullptr, CHECK_OK);
+    loop =
+        ParseStandardForLoop(stmt_pos, labels, &cond, &next, &body, CHECK_OK);
   }
 
   scope()->set_end_position(scanner()->location().end_pos);
@@ -5812,12 +5798,38 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     block->statements()->Add(loop, zone());
     block->set_scope(for_scope);
     loop->Initialize(init, cond, next, body);
-    impl()->RecordIterationStatementSourceRange(loop, body_range);
     return block;
   }
 
   loop->Initialize(init, cond, next, body);
+  return loop;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
+    int stmt_pos, ZoneList<const AstRawString*>* labels, ExpressionT* cond,
+    StatementT* next, StatementT* body, bool* ok) {
+  ForStatementT loop = factory()->NewForStatement(labels, stmt_pos);
+  typename Types::Target target(this, loop);
+
+  if (peek() != Token::SEMICOLON) {
+    *cond = ParseExpression(true, CHECK_OK);
+  }
+  Expect(Token::SEMICOLON, CHECK_OK);
+
+  if (peek() != Token::RPAREN) {
+    ExpressionT exp = ParseExpression(true, CHECK_OK);
+    *next = factory()->NewExpressionStatement(exp, exp->position());
+  }
+  Expect(Token::RPAREN, CHECK_OK);
+
+  SourceRange body_range;
+  {
+    SourceRangeScope range_scope(scanner(), &body_range);
+    *body = ParseStatement(nullptr, CHECK_OK);
+  }
   impl()->RecordIterationStatementSourceRange(loop, body_range);
+
   return loop;
 }
 

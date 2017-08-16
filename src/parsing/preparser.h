@@ -873,6 +873,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserStatement Block;
   typedef PreParserStatement BreakableStatement;
   typedef PreParserStatement IterationStatement;
+  typedef PreParserStatement ForStatement;
 
   // For constructing objects returned by the traversing functions.
   typedef PreParserFactory Factory;
