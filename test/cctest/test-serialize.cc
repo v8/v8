@@ -597,9 +597,9 @@ v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
   CHECK_EQ(reinterpret_cast<void*>(2016), data);
   InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
       holder->GetAlignedPointerFromInternalField(index));
+  if (embedder_field == nullptr) return {nullptr, 0};
   int size = sizeof(*embedder_field);
   char* payload = new char[size];
-  DCHECK(embedder_field != nullptr);
   // We simply use memcpy to serialize the content.
   memcpy(payload, embedder_field, size);
   return {payload, size};
@@ -609,6 +609,10 @@ std::vector<InternalFieldData*> deserialized_data;
 
 void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
                                v8::StartupData payload, void* data) {
+  if (payload.raw_size == 0) {
+    holder->SetAlignedPointerInInternalField(index, nullptr);
+    return;
+  }
   CHECK_EQ(reinterpret_cast<void*>(2017), data);
   InternalFieldData* embedder_field = new InternalFieldData{0};
   memcpy(embedder_field, payload.data, payload.raw_size);
@@ -660,6 +664,7 @@ void TypedArrayTestHelper(const char* code,
         v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
                                               reinterpret_cast<void*>(2017)));
     delete[] blob.data;  // We can dispose of the snapshot blob now.
+    CHECK(deserialized_data.empty());  // We do not expect any embedder data.
     v8::Context::Scope c_scope(context);
     TestInt32Expectations(expectations);
   }

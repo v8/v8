@@ -141,8 +141,6 @@ void PartialSerializer::SerializeEmbedderFields() {
     int embedder_fields_count = obj->GetEmbedderFieldCount();
     for (int i = 0; i < embedder_fields_count; i++) {
       if (obj->GetEmbedderField(i)->IsHeapObject()) continue;
-      // Do not attempt to serialize nullptr embedder fields.
-      if (obj->GetEmbedderField(i) == 0) continue;
 
       StartupData data = serialize_embedder_fields_.callback(
           v8::Utils::ToLocal(obj), i, serialize_embedder_fields_.data);
