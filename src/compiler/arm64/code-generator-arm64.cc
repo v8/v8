@@ -2676,7 +2676,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     VRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
       VRegister dst = g.ToDoubleRegister(destination);
-      __ Fmov(dst, src);
+      if (destination->IsSimd128Register()) {
+        __ Mov(dst.Q(), src.Q());
+      } else {
+        __ Mov(dst, src);
+      }
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, tasm());
@@ -2759,18 +2763,24 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     VRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
       VRegister dst = g.ToDoubleRegister(destination);
-      __ Fmov(temp, src);
-      __ Fmov(src, dst);
-      __ Fmov(dst, temp);
+      if (source->IsSimd128Register()) {
+        __ Mov(temp.Q(), src.Q());
+        __ Mov(src.Q(), dst.Q());
+        __ Mov(dst.Q(), temp.Q());
+      } else {
+        __ Mov(temp, src);
+        __ Mov(src, dst);
+        __ Mov(dst, temp);
+      }
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, tasm());
       if (source->IsSimd128Register()) {
-        __ Fmov(temp.Q(), src.Q());
+        __ Mov(temp.Q(), src.Q());
         __ Ldr(src.Q(), dst);
         __ Str(temp.Q(), dst);
       } else {
-        __ Fmov(temp, src);
+        __ Mov(temp, src);
         __ Ldr(src, dst);
         __ Str(temp, dst);
       }
