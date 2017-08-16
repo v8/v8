@@ -5017,8 +5017,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
-          DCHECK(!descs->GetDetails(i).representation().IsDouble());
-          Handle<Object> value(from->RawFastPropertyAt(index), isolate());
+          Handle<Object> value =
+              JSObject::FastPropertyAt(from, details.representation(), index);
           JSObject::AddProperty(to, key, value, details.attributes());
         } else {
           DCHECK_EQ(kAccessor, details.kind());
