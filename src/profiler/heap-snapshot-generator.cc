@@ -165,44 +165,17 @@ const char* HeapEntry::TypeAsString() {
 }
 
 
-// It is very important to keep objects that form a heap snapshot
-// as small as possible.
-namespace {  // Avoid littering the global namespace.
-
-template <size_t ptr_size> struct SnapshotSizeConstants;
-
-template <> struct SnapshotSizeConstants<4> {
-  static constexpr int kExpectedHeapGraphEdgeSize = 12;
-  static constexpr int kExpectedHeapEntrySize = 28;
-};
-constexpr int SnapshotSizeConstants<4>::kExpectedHeapGraphEdgeSize;
-constexpr int SnapshotSizeConstants<4>::kExpectedHeapEntrySize;
-
-template <> struct SnapshotSizeConstants<8> {
-  static constexpr int kExpectedHeapGraphEdgeSize = 24;
-  static constexpr int kExpectedHeapEntrySize = 40;
-};
-constexpr int SnapshotSizeConstants<8>::kExpectedHeapGraphEdgeSize;
-constexpr int SnapshotSizeConstants<8>::kExpectedHeapEntrySize;
-
-}  // namespace
-
-
 HeapSnapshot::HeapSnapshot(HeapProfiler* profiler)
     : profiler_(profiler),
       root_index_(HeapEntry::kNoEntry),
       gc_roots_index_(HeapEntry::kNoEntry),
       max_snapshot_js_object_id_(0) {
-  STATIC_ASSERT(
-      sizeof(HeapGraphEdge) ==
-      SnapshotSizeConstants<kPointerSize>::kExpectedHeapGraphEdgeSize);
-  STATIC_ASSERT(
-      sizeof(HeapEntry) ==
-      SnapshotSizeConstants<kPointerSize>::kExpectedHeapEntrySize);
-  USE(SnapshotSizeConstants<4>::kExpectedHeapGraphEdgeSize);
-  USE(SnapshotSizeConstants<4>::kExpectedHeapEntrySize);
-  USE(SnapshotSizeConstants<8>::kExpectedHeapGraphEdgeSize);
-  USE(SnapshotSizeConstants<8>::kExpectedHeapEntrySize);
+  // It is very important to keep objects that form a heap snapshot
+  // as small as possible. Check assumptions about data structure sizes.
+  STATIC_ASSERT(((kPointerSize == 4) && (sizeof(HeapGraphEdge) == 12)) ||
+                ((kPointerSize == 8) && (sizeof(HeapGraphEdge) == 24)));
+  STATIC_ASSERT(((kPointerSize == 4) && (sizeof(HeapEntry) == 28)) ||
+                ((kPointerSize == 8) && (sizeof(HeapEntry) == 40)));
   for (int i = 0; i < VisitorSynchronization::kNumberOfSyncTags; ++i) {
     gc_subroot_indexes_[i] = HeapEntry::kNoEntry;
   }
