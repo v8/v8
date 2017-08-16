@@ -2948,8 +2948,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFloatStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
-        __ str(ip, dst);
+        Register temp = kScratchReg;
+        __ mov(temp, Operand(bit_cast<int32_t>(src.ToFloat32())));
+        __ str(temp, dst);
       } else {
         SwVfpRegister dst = g.ToFloatRegister(destination);
         __ vmov(dst, Float32(src.ToFloat32AsInt()));
