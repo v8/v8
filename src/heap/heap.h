@@ -2669,9 +2669,7 @@ class AllocationObserver {
   intptr_t bytes_to_next_step_;
 
  private:
-  friend class LargeObjectSpace;
-  friend class NewSpace;
-  friend class PagedSpace;
+  friend class Space;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
 

@@ -1381,6 +1381,17 @@ void Space::AllocationStep(Address soon_object, int size) {
   }
 }
 
+intptr_t Space::GetNextInlineAllocationStepSize() {
+  intptr_t next_step = 0;
+  for (int i = 0; i < allocation_observers_->length(); ++i) {
+    AllocationObserver* o = (*allocation_observers_)[i];
+    next_step = next_step ? Min(next_step, o->bytes_to_next_step())
+                          : o->bytes_to_next_step();
+  }
+  DCHECK(allocation_observers_->length() == 0 || next_step != 0);
+  return next_step;
+}
+
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
     : Space(heap, space, executable), anchor_(this), free_list_(this) {
@@ -2095,18 +2106,6 @@ void NewSpace::StartNextInlineAllocationStep() {
         allocation_observers_->length() ? allocation_info_.top() : 0;
     UpdateInlineAllocationLimit(0);
   }
-}
-
-
-intptr_t NewSpace::GetNextInlineAllocationStepSize() {
-  intptr_t next_step = 0;
-  for (int i = 0; i < allocation_observers_->length(); ++i) {
-    AllocationObserver* o = (*allocation_observers_)[i];
-    next_step = next_step ? Min(next_step, o->bytes_to_next_step())
-                          : o->bytes_to_next_step();
-  }
-  DCHECK(allocation_observers_->length() == 0 || next_step != 0);
-  return next_step;
 }
 
 void NewSpace::AddAllocationObserver(AllocationObserver* observer) {

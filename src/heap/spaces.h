@@ -969,6 +969,8 @@ class Space : public Malloced {
 #endif
 
  protected:
+  intptr_t GetNextInlineAllocationStepSize();
+
   std::unique_ptr<List<AllocationObserver*>> allocation_observers_;
   bool allocation_observers_paused_;
 
@@ -2746,7 +2748,6 @@ class NewSpace : public Space {
   // different when we cross a page boundary or reset the space.
   void InlineAllocationStep(Address top, Address new_top, Address soon_object,
                             size_t size);
-  intptr_t GetNextInlineAllocationStepSize();
   void StartNextInlineAllocationStep();
 
   friend class SemiSpaceIterator;
