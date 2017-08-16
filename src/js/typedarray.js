@@ -250,21 +250,7 @@ TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
 %SetForceInlineFlag(GlobalTypedArray.prototype.subarray);
 
 
-
-function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
-  if (offset > 0) {
-    for (var i = 0; i < sourceLength; i++) {
-      target[offset + i] = source[i];
-    }
-  }
-  else {
-    for (var i = 0; i < sourceLength; i++) {
-      target[i] = source[i];
-    }
-  }
-}
-
-function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
+ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   var sourceElementSize = source.BYTES_PER_ELEMENT;
   var targetElementSize = target.BYTES_PER_ELEMENT;
   var sourceLength = %_TypedArrayGetLength(source);
@@ -339,7 +325,7 @@ DEFINE_METHOD_LEN(
         if (intOffset === 0) {
           %TypedArrayCopyElements(this, obj, %_TypedArrayGetLength(obj));
         } else {
-          TypedArraySetFromArrayLike(
+          %_TypedArraySetFromArrayLike(
               this, obj, %_TypedArrayGetLength(obj), intOffset);
         }
         return;
@@ -359,7 +345,7 @@ DEFINE_METHOD_LEN(
         if (intOffset + l > %_TypedArrayGetLength(this)) {
           throw %make_range_error(kTypedArraySetSourceTooLarge);
         }
-        TypedArraySetFromArrayLike(this, obj, l, intOffset);
+        %_TypedArraySetFromArrayLike(this, obj, l, intOffset);
         return;
     }
   },

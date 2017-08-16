@@ -110,6 +110,32 @@ enum TypedArraySetResultCodes {
   TYPED_ARRAY_SET_NON_TYPED_ARRAY = 3
 };
 
+// TypedArraySetFromArrayLike(target, source, source_length, offset);
+RUNTIME_FUNCTION(Runtime_TypedArraySetFromArrayLike) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
+
+  CONVERT_INT32_ARG_CHECKED(source_length, 2);
+  DCHECK_GE(source_length, 0);
+
+  CONVERT_INT32_ARG_CHECKED(offset, 3);
+  DCHECK_GE(offset, 0);
+
+  for (int i = 0; i < source_length; i++) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       Object::GetElement(isolate, source, i));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + i, value,
+                           LanguageMode::STRICT));
+  }
+
+  return *target;
+}
 
 RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   HandleScope scope(isolate);
