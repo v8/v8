@@ -7,7 +7,6 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-var kPageSize = 0x10000;
 
 function genGrowMemoryBuilder() {
   var builder = new WasmModuleBuilder();
