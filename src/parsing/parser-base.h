@@ -2887,8 +2887,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
     // expression.
-    if ((op == Token::INIT || op == Token::ASSIGN) &&
-        (!right->IsCall() && !right->IsCallNew())) {
+    if (op == Token::ASSIGN && !right->IsCall() && !right->IsCallNew()) {
       fni_->Infer();
     } else {
       fni_->RemoveLastFunction();
@@ -2904,6 +2903,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     return impl()->RewriteAssignExponentiation(expression, right, pos);
   }
 
+  DCHECK_NE(op, Token::INIT);
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
   if (is_destructuring_assignment) {
