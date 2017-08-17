@@ -214,7 +214,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
            (IsElement() || !name_->IsPrivate());
   }
   void PrepareForDataProperty(Handle<Object> value);
-  void PrepareTransitionToDataProperty(Handle<JSObject> receiver,
+  bool PrepareTransitionToDataProperty(Handle<JSObject> receiver,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
                                        Object::StoreFromKeyed store_mode);

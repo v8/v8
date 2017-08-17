@@ -200,11 +200,11 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
 
   DCHECK_NE(kNotFound, insertion_index);
   for (int i = 0; i < insertion_index; ++i) {
-    result->Set(i, array->GetKey(i), array->GetTarget(i));
+    result->Set(i, array->GetKey(i), array->GetRawTarget(i));
   }
   result->Set(insertion_index, *name, *target);
   for (int i = insertion_index; i < number_of_transitions; ++i) {
-    result->Set(i + 1, array->GetKey(i), array->GetTarget(i));
+    result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
 
   SLOW_DCHECK(result->IsSortedNoDuplicates());
@@ -258,7 +258,7 @@ Object* TransitionsAccessor::SearchHandler(Name* name,
                                                       out_transition);
       }
       if (raw_handler->IsFixedArray()) {
-        return StoreHandler::ValidFixedArrayHandlerOrNull(raw_handler, name,
+        return StoreHandler::ValidFixedArrayHandlerOrNull(raw_handler, nullptr,
                                                           out_transition);
       }
       return nullptr;

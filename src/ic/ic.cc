@@ -1562,7 +1562,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         if (it->HolderIsReceiverOrHiddenPrototype()) return false;
 
         if (it->ExtendingNonExtensible(receiver)) return false;
-        it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
+        created_new_transition_ = it->PrepareTransitionToDataProperty(
+            receiver, value, NONE, store_mode);
         return it->IsCacheableTransition();
       }
     }
@@ -1570,7 +1571,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 
   receiver = it->GetStoreTarget();
   if (it->ExtendingNonExtensible(receiver)) return false;
-  it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
+  created_new_transition_ =
+      it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
   return it->IsCacheableTransition();
 }
 
@@ -1793,8 +1795,10 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
       Handle<Object> handler =
           StoreTransition(receiver_map(), holder, transition, lookup->name());
-      TransitionsAccessor(receiver_map())
-          .UpdateHandler(*lookup->name(), *handler);
+      if (!created_new_transition_) {
+        TransitionsAccessor(receiver_map())
+            .UpdateHandler(*lookup->name(), *handler);
+      }
       return handler;
     }
 

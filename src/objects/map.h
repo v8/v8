@@ -528,12 +528,10 @@ class Map : public HeapObject {
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
   inline bool TooManyFastProperties(StoreFromKeyed store_mode) const;
-  static Handle<Map> TransitionToDataProperty(Handle<Map> map,
-                                              Handle<Name> name,
-                                              Handle<Object> value,
-                                              PropertyAttributes attributes,
-                                              PropertyConstness constness,
-                                              StoreFromKeyed store_mode);
+  static Handle<Map> TransitionToDataProperty(
+      Handle<Map> map, Handle<Name> name, Handle<Object> value,
+      PropertyAttributes attributes, PropertyConstness constness,
+      StoreFromKeyed store_mode, bool* created_new_map);
   static Handle<Map> TransitionToAccessorProperty(
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
       Handle<Object> getter, Handle<Object> setter,

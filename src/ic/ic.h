@@ -373,6 +373,8 @@ class StoreIC : public IC {
                                  Handle<Map> transition, Handle<Name> name);
 
   friend class IC;
+
+  bool created_new_transition_ = false;
 };
 
 class StoreGlobalIC : public StoreIC {
