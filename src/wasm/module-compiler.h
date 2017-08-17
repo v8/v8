@@ -27,7 +27,8 @@ class ModuleCompiler {
   // In {CompileToModuleObject}, it will transfer ownership to the generated
   // {WasmModuleWrapper}. If this method is not called, ownership may be
   // reclaimed by explicitely releasing the {module_} field.
-  ModuleCompiler(Isolate* isolate, std::unique_ptr<WasmModule> module);
+  ModuleCompiler(Isolate* isolate, std::unique_ptr<WasmModule> module,
+                 Handle<Code> centry_stub);
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
@@ -48,7 +49,7 @@ class ModuleCompiler {
 
     ~CompilationUnitBuilder() { DCHECK(units_.empty()); }
 
-    void AddUnit(const ModuleEnv* module_env, const WasmFunction* function,
+    void AddUnit(compiler::ModuleEnv* module_env, const WasmFunction* function,
                  uint32_t buffer_offset, Vector<const uint8_t> bytes,
                  WasmName name) {
       units_.emplace_back(new compiler::WasmCompilationUnit(
@@ -128,9 +129,7 @@ class ModuleCompiler {
 
   size_t InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
                                     const ModuleWireBytes& wire_bytes,
-                                    const ModuleEnv* module_env);
-
-  void ReopenHandlesInDeferredScope();
+                                    compiler::ModuleEnv* module_env);
 
   void RestartCompilationTasks();
 
@@ -143,17 +142,18 @@ class ModuleCompiler {
                                           int* func_index);
 
   void CompileInParallel(const ModuleWireBytes& wire_bytes,
-                         const ModuleEnv* module_env,
+                         compiler::ModuleEnv* module_env,
                          std::vector<Handle<Code>>& results,
                          ErrorThrower* thrower);
 
   void CompileSequentially(const ModuleWireBytes& wire_bytes,
-                           const ModuleEnv* module_env,
+                           compiler::ModuleEnv* module_env,
                            std::vector<Handle<Code>>& results,
                            ErrorThrower* thrower);
 
   void ValidateSequentially(const ModuleWireBytes& wire_bytes,
-                            const ModuleEnv* module_env, ErrorThrower* thrower);
+                            compiler::ModuleEnv* module_env,
+                            ErrorThrower* thrower);
 
   MaybeHandle<WasmModuleObject> CompileToModuleObject(
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
@@ -346,7 +346,7 @@ class AsyncCompileJob {
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
   std::unique_ptr<ModuleCompiler> compiler_;
-  std::unique_ptr<ModuleEnv> module_env_;
+  std::unique_ptr<compiler::ModuleEnv> module_env_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
@@ -364,8 +364,6 @@ class AsyncCompileJob {
     return async_counters_;
   }
   Counters* counters() const { return async_counters().get(); }
-
-  void ReopenHandlesInDeferredScope();
 
   void AsyncCompileFailed(ErrorThrower& thrower);
 

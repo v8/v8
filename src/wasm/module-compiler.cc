@@ -83,7 +83,8 @@ size_t ModuleCompiler::CodeGenerationSchedule::GetRandomIndexInSchedule() {
 }
 
 ModuleCompiler::ModuleCompiler(Isolate* isolate,
-                               std::unique_ptr<WasmModule> module)
+                               std::unique_ptr<WasmModule> module,
+                               Handle<Code> centry_stub)
     : isolate_(isolate),
       module_(std::move(module)),
       async_counters_(isolate->async_counters()),
@@ -97,7 +98,7 @@ ModuleCompiler::ModuleCompiler(Isolate* isolate,
           Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
               V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())),
       stopped_compilation_tasks_(num_background_tasks_),
-      centry_stub_(CEntryStub(isolate, 1).GetCode()) {}
+      centry_stub_(centry_stub) {}
 
 // The actual runnable task that performs compilations in the background.
 ModuleCompiler::CompilationTask::CompilationTask(ModuleCompiler* compiler)
@@ -150,8 +151,8 @@ bool ModuleCompiler::FetchAndExecuteCompilationUnit(
 
 size_t ModuleCompiler::InitializeCompilationUnits(
     const std::vector<WasmFunction>& functions,
-    const ModuleWireBytes& wire_bytes, const ModuleEnv* module_env) {
-  uint32_t start = module_env->module()->num_imported_functions +
+    const ModuleWireBytes& wire_bytes, compiler::ModuleEnv* module_env) {
+  uint32_t start = module_env->module->num_imported_functions +
                    FLAG_skip_compiling_wasm_funcs;
   uint32_t num_funcs = static_cast<uint32_t>(functions.size());
   uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
@@ -166,10 +167,6 @@ size_t ModuleCompiler::InitializeCompilationUnits(
   }
   builder.Commit();
   return funcs_to_compile;
-}
-
-void ModuleCompiler::ReopenHandlesInDeferredScope() {
-  centry_stub_ = handle(*centry_stub_, isolate_);
 }
 
 void ModuleCompiler::RestartCompilationTasks() {
@@ -220,10 +217,10 @@ MaybeHandle<Code> ModuleCompiler::FinishCompilationUnit(ErrorThrower* thrower,
 }
 
 void ModuleCompiler::CompileInParallel(const ModuleWireBytes& wire_bytes,
-                                       const ModuleEnv* module_env,
+                                       compiler::ModuleEnv* module_env,
                                        std::vector<Handle<Code>>& results,
                                        ErrorThrower* thrower) {
-  const WasmModule* module = module_env->module();
+  const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
 
   //-----------------------------------------------------------------------
@@ -277,12 +274,12 @@ void ModuleCompiler::CompileInParallel(const ModuleWireBytes& wire_bytes,
 }
 
 void ModuleCompiler::CompileSequentially(const ModuleWireBytes& wire_bytes,
-                                         const ModuleEnv* module_env,
+                                         compiler::ModuleEnv* module_env,
                                          std::vector<Handle<Code>>& results,
                                          ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
-  const WasmModule* module = module_env->module();
+  const WasmModule* module = module_env->module;
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
        i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
@@ -302,11 +299,11 @@ void ModuleCompiler::CompileSequentially(const ModuleWireBytes& wire_bytes,
 }
 
 void ModuleCompiler::ValidateSequentially(const ModuleWireBytes& wire_bytes,
-                                          const ModuleEnv* module_env,
+                                          compiler::ModuleEnv* module_env,
                                           ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
-  const WasmModule* module = module_env->module();
+  const WasmModule* module = module_env->module;
   for (uint32_t i = 0; i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
     if (func.imported) continue;
@@ -365,7 +362,8 @@ void RecordStats(Code* code, Counters* counters) {
 void RecordStats(Handle<FixedArray> functions, Counters* counters) {
   DisallowHeapAllocation no_gc;
   for (int i = 0; i < functions->length(); ++i) {
-    RecordStats(Code::cast(functions->get(i)), counters);
+    Object* val = functions->get(i);
+    if (val->IsCode()) RecordStats(Code::cast(val), counters);
   }
 }
 Handle<Script> CreateWasmScript(Isolate* isolate,
@@ -520,14 +518,48 @@ double MonotonicallyIncreasingTimeInMs() {
          base::Time::kMillisecondsPerSecond;
 }
 
-void SetFunctionTablesToDefault(Factory* factory, wasm::ModuleEnv* module_env) {
-  for (uint32_t i = 0,
-                e = static_cast<uint32_t>(module_env->function_tables().size());
-       i < e; ++i) {
-    DCHECK(module_env->function_tables()[i].is_null());
-    DCHECK(module_env->signature_tables()[i].is_null());
-    module_env->SetFunctionTable(i, factory->NewFixedArray(1, TENURED),
-                                 factory->NewFixedArray(1, TENURED));
+std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
+    Factory* factory, WasmModule* module, Handle<Code> illegal_builtin) {
+  std::vector<Handle<FixedArray>> function_tables;
+  std::vector<Handle<FixedArray>> signature_tables;
+  std::vector<SignatureMap*> signature_maps;
+
+  for (size_t i = 0; i < module->function_tables.size(); i++) {
+    auto& function_table = module->function_tables[i];
+    function_tables.push_back(factory->NewFixedArray(1, TENURED));
+    signature_tables.push_back(factory->NewFixedArray(1, TENURED));
+    signature_maps.push_back(&function_table.map);
+  }
+
+  std::vector<Handle<Code>> empty_code;
+
+  compiler::ModuleEnv result = {
+      module,            // --
+      function_tables,   // --
+      signature_tables,  // --
+      signature_maps,    // --
+      empty_code,        // --
+      illegal_builtin,   // --
+      0,                 // --
+      0,                 // --
+      0                  // --
+  };
+  return std::unique_ptr<compiler::ModuleEnv>(new compiler::ModuleEnv(result));
+}
+
+Handle<WasmCompiledModule> NewCompiledModule(
+    Isolate* isolate, Handle<WasmSharedModuleData> shared,
+    Handle<FixedArray> code_table, compiler::ModuleEnv* env) {
+  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
+      isolate, shared, code_table, env->function_tables, env->signature_tables);
+  return compiled_module;
+}
+
+template <typename T>
+void ReopenHandles(Isolate* isolate, const std::vector<Handle<T>>& vec) {
+  auto& mut = const_cast<std::vector<Handle<T>>&>(vec);
+  for (size_t i = 0; i < mut.size(); i++) {
+    mut[i] = Handle<T>(*mut[i], isolate);
   }
 }
 
@@ -547,9 +579,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
                                   ? BUILTIN_CODE(isolate_, WasmCompileLazy)
                                   : BUILTIN_CODE(isolate_, Illegal);
 
-  ModuleEnv env(module_.get(), init_builtin);
-
-  SetFunctionTablesToDefault(factory, &env);
+  auto env = CreateDefaultModuleEnv(factory, module_.get(), init_builtin);
 
   // The {code_table} array contains import wrappers and functions (which
   // are both included in {functions.size()}, and export wrappers).
@@ -570,12 +600,12 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
         funcs_to_compile > 1 &&
         V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads() > 0;
     // Avoid a race condition by collecting results into a second vector.
-    std::vector<Handle<Code>> results(env.module()->functions.size());
+    std::vector<Handle<Code>> results(env->module->functions.size());
 
     if (compile_parallel) {
-      CompileInParallel(wire_bytes, &env, results, thrower);
+      CompileInParallel(wire_bytes, env.get(), results, thrower);
     } else {
-      CompileSequentially(wire_bytes, &env, results, thrower);
+      CompileSequentially(wire_bytes, env.get(), results, thrower);
     }
     if (thrower->error()) return {};
 
@@ -594,7 +624,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     // TODO(clemensh): According to the spec, we can actually skip validation
     // at module creation time, and return a function that always traps at
     // (lazy) compilation time.
-    ValidateSequentially(wire_bytes, &env, thrower);
+    ValidateSequentially(wire_bytes, env.get(), thrower);
   }
   if (thrower->error()) return {};
 
@@ -636,12 +666,12 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
       script, asm_js_offset_table);
   if (lazy_compile) WasmSharedModuleData::PrepareForLazyCompilation(shared);
 
-  // Create the compiled module object, and populate with compiled functions
+  // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate_, shared, code_table, env);
+      NewCompiledModule(isolate_, shared, code_table, env.get());
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
@@ -937,7 +967,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     CHECK(memory->byte_length()->ToUint32(&mem_size));
     LoadDataSegments(mem_start, mem_size);
 
-    uint32_t old_mem_size = compiled_module_->mem_size();
+    uint32_t old_mem_size = compiled_module_->GetEmbeddedMemSizeOrZero();
     Address old_mem_start = compiled_module_->GetEmbeddedMemStartOrNull();
     // We might get instantiated again with the same memory. No patching
     // needed in this case.
@@ -1877,14 +1907,6 @@ AsyncCompileJob::~AsyncCompileJob() {
   for (auto d : deferred_handles_) delete d;
 }
 
-void AsyncCompileJob::ReopenHandlesInDeferredScope() {
-  DeferredHandleScope deferred(isolate_);
-  code_table_ = handle(*code_table_, isolate_);
-  module_env_->ReopenHandles(isolate_);
-  compiler_->ReopenHandlesInDeferredScope();
-  deferred_handles_.push_back(deferred.Detach());
-}
-
 void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
   RejectPromise(isolate_, context_, thrower, module_promise_);
   isolate_->wasm_compilation_manager()->RemoveJob(this);
@@ -2031,39 +2053,49 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
   std::unique_ptr<WasmModule> module_;
   void RunInForeground() override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
-    HandleScope scope(job_->isolate_);
+    Isolate* isolate = job_->isolate_;
+    HandleScope scope(isolate);
 
-    Factory* factory = job_->isolate_->factory();
-    // Initialize {code_table_} with the illegal builtin. All call sites
-    // will be patched at instantiation.
-    // TODO(wasm): Fix this for lazy compilation.
-    Handle<Code> illegal_builtin = BUILTIN_CODE(job_->isolate_, Illegal);
-    job_->module_env_.reset(new ModuleEnv(module_.get(), illegal_builtin));
-    ModuleEnv* module_env = job_->module_env_.get();
-
-    SetFunctionTablesToDefault(factory, module_env);
+    Factory* factory = isolate->factory();
+    Handle<Code> illegal_builtin = BUILTIN_CODE(isolate, Illegal);
+    job_->module_env_ =
+        CreateDefaultModuleEnv(factory, module_.get(), illegal_builtin);
 
     // The {code_table} array contains import wrappers and functions (which
     // are both included in {functions.size()}, and export wrappers.
     // The results of compilation will be written into it.
+    // Initialize {code_table_} with the illegal builtin. All call sites
+    // will be patched at instantiation.
     int code_table_size = static_cast<int>(module_->functions.size() +
                                            module_->num_exported_functions);
     job_->code_table_ = factory->NewFixedArray(code_table_size, TENURED);
 
-    // TODO(wasm): Fix this for lazy compilation.
-    for (int i = 0; i < code_table_size; ++i) {
-      job_->code_table_->set(static_cast<int>(i), *illegal_builtin);
-    }
-
     // Transfer ownership of the {WasmModule} to the {ModuleCompiler}, but
     // keep a pointer.
     WasmModule* module = module_.get();
-    job_->compiler_.reset(
-        new ModuleCompiler(job_->isolate_, std::move(module_)));
-    job_->compiler_->EnableThrottling();
+    Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
 
-    // Reopen all handles which should survive in the DeferredHandleScope.
-    job_->ReopenHandlesInDeferredScope();
+    {
+      // Now reopen the handles in a deferred scope in order to use
+      // them in the concurrent steps.
+      DeferredHandleScope deferred(isolate);
+
+      centry_stub = Handle<Code>(*centry_stub, isolate);
+      job_->code_table_ = Handle<FixedArray>(*job_->code_table_, isolate);
+      compiler::ModuleEnv* env = job_->module_env_.get();
+      ReopenHandles(isolate, env->function_tables);
+      ReopenHandles(isolate, env->signature_tables);
+      ReopenHandles(isolate, env->function_code);
+      Handle<Code>* mut =
+          const_cast<Handle<Code>*>(&env->default_function_code);
+      *mut = Handle<Code>(**mut, isolate);
+
+      job_->deferred_handles_.push_back(deferred.Detach());
+    }
+
+    job_->compiler_.reset(
+        new ModuleCompiler(isolate, std::move(module_), centry_stub));
+    job_->compiler_->EnableThrottling();
 
     DCHECK_LE(module->num_imported_functions, module->functions.size());
     size_t num_functions =
@@ -2203,8 +2235,8 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
     for (int i = FLAG_skip_compiling_wasm_funcs,
              e = job_->code_table_->length();
          i < e; ++i) {
-      Code* code = Code::cast(job_->code_table_->get(i));
-      RecordStats(code, job_->counters());
+      Object* val = job_->code_table_->get(i);
+      if (val->IsCode()) RecordStats(Code::cast(val), job_->counters());
     }
 
     // Create heap objects for script and module bytes to be stored in the
@@ -2243,9 +2275,8 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of
     // this object.
-    job_->compiled_module_ = WasmCompiledModule::New(
-        job_->isolate_, shared, job_->code_table_, *job_->module_env_);
-
+    job_->compiled_module_ = NewCompiledModule(
+        job_->isolate_, shared, job_->code_table_, job_->module_env_.get());
     // Finish the wasm script now and make it public to the debugger.
     script->set_wasm_compiled_module(*job_->compiled_module_);
     job_->isolate_->debug()->OnAfterCompile(script);

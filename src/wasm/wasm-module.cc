@@ -212,48 +212,43 @@ void RecordLazyCodeStats(Code* code, Counters* counters) {
   counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
 }
 
-ModuleEnv CreateModuleEnvFromRuntimeObject(
+compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   DisallowHeapAllocation no_gc;
-  // Store a vector of handles to be embedded in the generated code.
-  // TODO(clemensh): For concurrent compilation, these will have to live in a
-  // DeferredHandleScope.
-  wasm::ModuleEnv module_env(compiled_module->module(),
-                             BUILTIN_CODE(isolate, WasmCompileLazy));
+  WasmModule* module = compiled_module->module();
 
-  // We set unchecked because the data on the compiled module
-  // is authoritative.
-  module_env.SetMemSizeUnchecked(compiled_module->has_embedded_mem_size()
-                                     ? compiled_module->embedded_mem_size()
-                                     : 0);
-  module_env.set_mem_start(
-      reinterpret_cast<byte*>(compiled_module->has_embedded_mem_start()
-                                  ? compiled_module->embedded_mem_start()
-                                  : 0));
-  module_env.set_globals_start(reinterpret_cast<byte*>(
-      compiled_module->has_globals_start() ? compiled_module->globals_start()
-                                           : 0));
+  std::vector<Handle<FixedArray>> function_tables;
+  std::vector<Handle<FixedArray>> signature_tables;
+  std::vector<SignatureMap*> signature_maps;
 
-  DCHECK_EQ(compiled_module->has_function_tables(),
-            compiled_module->has_signature_tables());
+  int num_function_tables = static_cast<int>(module->function_tables.size());
+  for (int i = 0; i < num_function_tables; i++) {
+    FixedArray* ft = compiled_module->ptr_to_function_tables();
+    FixedArray* st = compiled_module->ptr_to_signature_tables();
 
-  if (compiled_module->has_function_tables()) {
-    // TODO(clemensh): For concurrent compilation, these will have to live in a
-    // DeferredHandleScope.
-    FixedArray* function_tables = compiled_module->ptr_to_function_tables();
-    FixedArray* signature_tables = compiled_module->ptr_to_signature_tables();
-    DCHECK_EQ(function_tables->length(), signature_tables->length());
-    DCHECK_EQ(function_tables->length(), module_env.function_tables().size());
-    for (uint32_t i = 0, e = static_cast<uint32_t>(
-                             module_env.function_tables().size());
-         i < e; ++i) {
-      int index = static_cast<int>(i);
-      module_env.SetFunctionTable(
-          i, handle(FixedArray::cast(function_tables->get(index))),
-          handle(FixedArray::cast(signature_tables->get(index))));
-    }
+    // TODO(clemensh): defer these handles for concurrent compilation.
+    function_tables.push_back(handle(FixedArray::cast(ft->get(i))));
+    signature_tables.push_back(handle(FixedArray::cast(st->get(i))));
+    signature_maps.push_back(&module->function_tables[i].map);
   }
-  return module_env;
+
+  std::vector<Handle<Code>> empty_code;
+
+  compiler::ModuleEnv result = {
+      module,                                             // --
+      function_tables,                                    // --
+      signature_tables,                                   // --
+      signature_maps,                                     // --
+      empty_code,                                         // --
+      BUILTIN_CODE(isolate, WasmCompileLazy),             // --
+      reinterpret_cast<uintptr_t>(                        // --
+          compiled_module->GetEmbeddedMemStartOrNull()),  // --
+      reinterpret_cast<uint32_t>(                         // --
+          compiled_module->GetEmbeddedMemSizeOrZero()),   // --
+      reinterpret_cast<uintptr_t>(                        // --
+          compiled_module->GetGlobalsStartOrNull())       // --
+  };
+  return result;
 }
 
 }  // namespace
@@ -804,9 +799,10 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  ModuleCompiler helper(isolate, std::move(result.val));
-  return helper.CompileToModuleObject(thrower, bytes, asm_js_script,
-                                      asm_js_offset_table_bytes);
+  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
+  ModuleCompiler compiler(isolate, std::move(result.val), centry_stub);
+  return compiler.CompileToModuleObject(thrower, bytes, asm_js_script,
+                                        asm_js_offset_table_bytes);
 }
 
 MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
@@ -826,9 +822,10 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  ModuleCompiler helper(isolate, std::move(result.val));
-  return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
-                                      Vector<const byte>());
+  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
+  ModuleCompiler compiler(isolate, std::move(result.val), centry_stub);
+  return compiler.CompileToModuleObject(thrower, bytes, Handle<Script>(),
+                                        Vector<const byte>());
 }
 
 MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
@@ -1001,12 +998,12 @@ void LazyCompilationOrchestrator::CompileFunction(
     return;
   }
 
-  wasm::ModuleEnv module_env =
-      CreateModuleEnvFromRuntimeObject(isolate, compiled_module);
+  compiler::ModuleEnv module_env =
+      CreateModuleEnvFromCompiledModule(isolate, compiled_module);
 
   const uint8_t* module_start = compiled_module->module_bytes()->GetChars();
 
-  const WasmFunction* func = &module_env.module()->functions[func_index];
+  const WasmFunction* func = &module_env.module->functions[func_index];
   wasm::FunctionBody body{func->sig, func->code.offset(),
                           module_start + func->code.offset(),
                           module_start + func->code.end_offset()};

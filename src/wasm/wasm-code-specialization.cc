@@ -95,7 +95,6 @@ void CodeSpecialization::RelocateMemoryReferences(Address old_start,
                                                   uint32_t new_size) {
   DCHECK(old_mem_start == nullptr && old_mem_size == 0 &&
          new_mem_start == nullptr && new_mem_size == 0);
-  DCHECK(old_start != new_start || old_size != new_size);
   old_mem_start = old_start;
   old_mem_size = old_size;
   new_mem_start = new_start;
@@ -104,14 +103,12 @@ void CodeSpecialization::RelocateMemoryReferences(Address old_start,
 
 void CodeSpecialization::RelocateGlobals(Address old_start, Address new_start) {
   DCHECK(old_globals_start == 0 && new_globals_start == 0);
-  DCHECK(old_start != 0 || new_start != 0);
   old_globals_start = old_start;
   new_globals_start = new_start;
 }
 
 void CodeSpecialization::PatchTableSize(uint32_t old_size, uint32_t new_size) {
   DCHECK(old_function_table_size == 0 && new_function_table_size == 0);
-  DCHECK(old_size != 0 || new_size != 0);
   old_function_table_size = old_size;
   new_function_table_size = new_size;
 }
