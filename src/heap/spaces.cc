@@ -1750,7 +1750,9 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
     CHECK_LE(black_size, marking_state->live_bytes(page));
   }
   CHECK(allocation_pointer_found_in_space);
+#ifdef DEBUG
   VerifyCountersAfterSweeping();
+#endif
 }
 #endif  // VERIFY_HEAP
 
