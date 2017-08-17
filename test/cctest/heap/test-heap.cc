@@ -3845,7 +3845,6 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 }
 
 TEST(AllocationSiteCreation) {
-  FLAG_always_opt = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();

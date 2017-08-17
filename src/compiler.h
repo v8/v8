@@ -47,10 +47,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // whereas successful compilation ensures the {is_compiled} predicate on the
   // given function holds (except for live-edit, which compiles the world).
 
-  static bool Compile(Handle<SharedFunctionInfo> shared,
-                      ClearExceptionFlag flag);
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
+  static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
   // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
@@ -76,6 +75,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // is appended with inner function literals which should be eagerly compiled.
   static bool Analyze(ParseInfo* parse_info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
+  // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
+  static bool EnsureBytecode(ParseInfo* parse_info, Isolate* isolate,
+                             Handle<SharedFunctionInfo> shared_info);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or

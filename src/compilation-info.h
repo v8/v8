@@ -36,17 +36,18 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
   enum Flag {
-    kIsEval = 1 << 0,
-    kIsNative = 1 << 1,
-    kSerializing = 1 << 2,
-    kAccessorInliningEnabled = 1 << 3,
-    kFunctionContextSpecializing = 1 << 4,
-    kInliningEnabled = 1 << 5,
-    kDisableFutureOptimization = 1 << 6,
-    kSplittingEnabled = 1 << 7,
-    kSourcePositionsEnabled = 1 << 8,
-    kBailoutOnUninitialized = 1 << 9,
-    kLoopPeelingEnabled = 1 << 10,
+    kIsDebug = 1 << 0,
+    kIsEval = 1 << 1,
+    kIsNative = 1 << 2,
+    kSerializing = 1 << 3,
+    kAccessorInliningEnabled = 1 << 4,
+    kFunctionContextSpecializing = 1 << 5,
+    kInliningEnabled = 1 << 6,
+    kDisableFutureOptimization = 1 << 7,
+    kSplittingEnabled = 1 << 8,
+    kSourcePositionsEnabled = 1 << 9,
+    kBailoutOnUninitialized = 1 << 10,
+    kLoopPeelingEnabled = 1 << 11,
   };
 
   // Construct a compilation info for unoptimized compilation.
@@ -107,6 +108,11 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // Flags used by unoptimized compilation.
 
+  // Compiles marked as debug produce unoptimized code with debug break slots.
+  // Inner functions that cannot be compiled w/o context are compiled eagerly.
+  void MarkAsDebug() { SetFlag(kIsDebug); }
+  bool is_debug() const { return GetFlag(kIsDebug); }
+
   void MarkAsSerializing() { SetFlag(kSerializing); }
   bool will_serialize() const { return GetFlag(kSerializing); }
 
@@ -155,7 +161,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     // Generate a pre-aged prologue if we are optimizing for size, which
     // will make code old more aggressive. Only apply to Code::FUNCTION,
     // since only functions are aged in the compilation cache.
-    return FLAG_optimize_for_size && FLAG_age_code &&
+    return FLAG_optimize_for_size && FLAG_age_code && !is_debug() &&
            output_code_kind() == Code::FUNCTION;
   }
 

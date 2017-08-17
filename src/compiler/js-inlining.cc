@@ -504,11 +504,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  if (!shared_info->is_compiled() &&
-      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION)) {
+  ParseInfo parse_info(shared_info);
+  if (!Compiler::EnsureBytecode(&parse_info, info_->isolate(), shared_info)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
+    if (info_->isolate()->has_pending_exception()) {
+      info_->isolate()->clear_pending_exception();
+    }
     return NoChange();
   }
 
@@ -540,8 +543,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       flags |= JSTypeHintLowering::kBailoutOnUninitialized;
     }
     BytecodeGraphBuilder graph_builder(
-        zone(), shared_info, feedback_vector, BailoutId::None(), jsgraph(),
-        call.frequency(), source_positions_, inlining_id, flags, false);
+        parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
+        jsgraph(), call.frequency(), source_positions_, inlining_id, flags,
+        false);
     graph_builder.CreateGraph();
 
     // Extract the inlinee start/end nodes.

@@ -30,6 +30,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   literal_ = literal;
   source_range_map_ = parse_info->source_range_map();
 
+  if (parse_info->is_debug()) MarkAsDebug();
   if (parse_info->is_eval()) MarkAsEval();
   if (parse_info->is_native()) MarkAsNative();
   if (parse_info->will_serialize()) MarkAsSerializing();

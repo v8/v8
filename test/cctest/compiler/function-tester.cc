@@ -146,8 +146,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
     info.MarkAsInliningEnabled();
   }
 
-  CHECK(function->is_compiled() ||
-        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
+  CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureLiterals(function);
 
