@@ -5257,6 +5257,23 @@ void Heap::VerifyRememberedSetFor(HeapObject* object) {
 }
 #endif
 
+#ifdef DEBUG
+void Heap::VerifyCountersAfterSweeping() {
+  PagedSpaces spaces(this);
+  for (PagedSpace* space = spaces.next(); space != nullptr;
+       space = spaces.next()) {
+    space->VerifyCountersAfterSweeping();
+  }
+}
+
+void Heap::VerifyCountersBeforeConcurrentSweeping() {
+  PagedSpaces spaces(this);
+  for (PagedSpace* space = spaces.next(); space != nullptr;
+       space = spaces.next()) {
+    space->VerifyCountersBeforeConcurrentSweeping();
+  }
+}
+#endif
 
 void Heap::ZapFromSpace() {
   if (!new_space_->IsFromSpaceCommitted()) return;

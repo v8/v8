@@ -609,13 +609,14 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   Page* page = Page::FromAddress(array->address());
 
   // Reset space so high water mark is consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK(filler->IsFreeSpace());
-  size_t shrunk = page->ShrinkToHighWaterMark();
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   size_t should_have_shrunk =
       RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
                 base::OS::CommitPageSize());
@@ -636,10 +637,11 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
-  const size_t shrunk = page->ShrinkToHighWaterMark();
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   CHECK_EQ(0u, shrunk);
 }
 
@@ -658,14 +660,15 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
 
-  const size_t shrunk = page->ShrinkToHighWaterMark();
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   CHECK_EQ(0u, shrunk);
 }
 
@@ -684,14 +687,15 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
 
-  const size_t shrunk = page->ShrinkToHighWaterMark();
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   CHECK_EQ(0u, shrunk);
 }
 

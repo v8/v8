@@ -1044,6 +1044,9 @@ void IncrementalMarking::FinalizeSweeping() {
     heap_->mark_compact_collector()->EnsureSweepingCompleted();
   }
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
+#ifdef DEBUG
+    heap_->VerifyCountersAfterSweeping();
+#endif
     StartMarking();
   }
 }

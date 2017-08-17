@@ -1496,6 +1496,9 @@ class Heap {
 #endif
 
 #ifdef DEBUG
+  void VerifyCountersAfterSweeping();
+  void VerifyCountersBeforeConcurrentSweeping();
+
   void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
 
   void Print();

@@ -53,6 +53,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
                                 static_cast<PagedSpace*>(heap()->old_space()),
                                 Executability::NOT_EXECUTABLE);
   heap()->old_space()->UnlinkFreeListCategories(page);
+  heap()->old_space()->AccountRemovedPage(page);
   EXPECT_NE(nullptr, page);
   const int page_size = getpagesize();
   void* start_address = static_cast<void*>(page->address());
@@ -72,6 +73,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
                                 static_cast<PagedSpace*>(heap()->old_space()),
                                 Executability::NOT_EXECUTABLE);
   heap()->old_space()->UnlinkFreeListCategories(page);
+  heap()->old_space()->AccountRemovedPage(page);
   EXPECT_NE(nullptr, page);
   const int page_size = getpagesize();
   void* start_address = static_cast<void*>(page->address());

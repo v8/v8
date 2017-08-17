@@ -184,7 +184,7 @@ class FreeListCategory {
   // category is currently unlinked.
   void Relink();
 
-  bool Free(FreeSpace* node, size_t size_in_bytes, FreeMode mode);
+  void Free(FreeSpace* node, size_t size_in_bytes, FreeMode mode);
 
   // Picks a node from the list and stores its size in |node_size|. Returns
   // nullptr if the category is empty.
@@ -677,8 +677,10 @@ class MemoryChunk {
 
   base::AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
 
-  // PagedSpace free-list statistics.
-  base::AtomicNumber<intptr_t> available_in_free_list_;
+  // Byte allocated on the page, which includes all objects on the page
+  // and the linear allocation area.
+  base::AtomicNumber<intptr_t> allocated_bytes_;
+  // Freed memory that was not added to the free list.
   base::AtomicNumber<intptr_t> wasted_memory_;
 
   // next_chunk_ holds a pointer of type MemoryChunk
@@ -704,6 +706,7 @@ class MemoryChunk {
   friend class MemoryChunkValidator;
   friend class MinorMarkingState;
   friend class MinorNonAtomicMarkingState;
+  friend class PagedSpace;
 };
 
 static_assert(kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory,
@@ -801,9 +804,9 @@ class Page : public MemoryChunk {
 
   size_t AvailableInFreeList();
 
-  size_t LiveBytesFromFreeList() {
-    DCHECK_GE(area_size(), wasted_memory() + available_in_free_list());
-    return area_size() - wasted_memory() - available_in_free_list();
+  size_t AvailableInFreeListFromAllocatedBytes() {
+    DCHECK_GE(area_size(), wasted_memory() + allocated_bytes());
+    return area_size() - wasted_memory() - allocated_bytes();
   }
 
   FreeListCategory* free_list_category(FreeListCategoryType type) {
@@ -814,16 +817,18 @@ class Page : public MemoryChunk {
 
   size_t wasted_memory() { return wasted_memory_.Value(); }
   void add_wasted_memory(size_t waste) { wasted_memory_.Increment(waste); }
-  size_t available_in_free_list() { return available_in_free_list_.Value(); }
-  void add_available_in_free_list(size_t available) {
-    DCHECK_LE(available, area_size());
-    available_in_free_list_.Increment(available);
+  size_t allocated_bytes() { return allocated_bytes_.Value(); }
+  void IncreaseAllocatedBytes(size_t bytes) {
+    DCHECK_LE(bytes, area_size());
+    allocated_bytes_.Increment(bytes);
   }
-  void remove_available_in_free_list(size_t available) {
-    DCHECK_LE(available, area_size());
-    DCHECK_GE(available_in_free_list(), available);
-    available_in_free_list_.Decrement(available);
+  void DecreaseAllocatedBytes(size_t bytes) {
+    DCHECK_LE(bytes, area_size());
+    DCHECK_GE(allocated_bytes(), bytes);
+    allocated_bytes_.Decrement(bytes);
   }
+
+  void ResetAllocatedBytes();
 
   size_t ShrinkToHighWaterMark();
 
@@ -1611,47 +1616,39 @@ class AllocationStats BASE_EMBEDDED {
   void Clear() {
     capacity_ = 0;
     max_capacity_ = 0;
-    size_ = 0;
+    ClearSize();
   }
 
-  void ClearSize() { size_ = capacity_; }
+  void ClearSize() {
+    size_ = 0;
+#ifdef DEBUG
+    allocated_on_page_.clear();
+#endif
+  }
 
   // Accessors for the allocation statistics.
   size_t Capacity() { return capacity_; }
   size_t MaxCapacity() { return max_capacity_; }
   size_t Size() { return size_; }
+#ifdef DEBUG
+  size_t AllocatedOnPage(Page* page) { return allocated_on_page_[page]; }
+#endif
 
-  // Grow the space by adding available bytes.  They are initially marked as
-  // being in use (part of the size), but will normally be immediately freed,
-  // putting them on the free list and removing them from size_.
-  void ExpandSpace(size_t bytes) {
-    DCHECK_GE(size_ + bytes, size_);
-    DCHECK_GE(capacity_ + bytes, capacity_);
-    capacity_ += bytes;
-    size_ += bytes;
-    if (capacity_ > max_capacity_) {
-      max_capacity_ = capacity_;
-    }
-  }
-
-  // Shrink the space by removing available bytes.  Since shrinking is done
-  // during sweeping, bytes have been marked as being in use (part of the size)
-  // and are hereby freed.
-  void ShrinkSpace(size_t bytes) {
-    DCHECK_GE(capacity_, bytes);
-    DCHECK_GE(size_, bytes);
-    capacity_ -= bytes;
-    size_ -= bytes;
-  }
-
-  void AllocateBytes(size_t bytes) {
+  void IncreaseAllocatedBytes(size_t bytes, Page* page) {
     DCHECK_GE(size_ + bytes, size_);
     size_ += bytes;
+#ifdef DEBUG
+    allocated_on_page_[page] += bytes;
+#endif
   }
 
-  void DeallocateBytes(size_t bytes) {
+  void DecreaseAllocatedBytes(size_t bytes, Page* page) {
     DCHECK_GE(size_, bytes);
     size_ -= bytes;
+#ifdef DEBUG
+    DCHECK_GE(allocated_on_page_[page], bytes);
+    allocated_on_page_[page] -= bytes;
+#endif
   }
 
   void DecreaseCapacity(size_t bytes) {
@@ -1663,16 +1660,8 @@ class AllocationStats BASE_EMBEDDED {
   void IncreaseCapacity(size_t bytes) {
     DCHECK_GE(capacity_ + bytes, capacity_);
     capacity_ += bytes;
-  }
-
-  // Merge |other| into |this|.
-  void Merge(const AllocationStats& other) {
-    DCHECK_GE(capacity_ + other.capacity_, capacity_);
-    DCHECK_GE(size_ + other.size_, size_);
-    capacity_ += other.capacity_;
-    size_ += other.size_;
-    if (other.max_capacity_ > max_capacity_) {
-      max_capacity_ = other.max_capacity_;
+    if (capacity_ > max_capacity_) {
+      max_capacity_ = capacity_;
     }
   }
 
@@ -1686,6 +1675,10 @@ class AllocationStats BASE_EMBEDDED {
 
   // |size_|: The number of allocated bytes.
   size_t size_;
+
+#ifdef DEBUG
+  std::unordered_map<Page*, size_t, Page::Hasher> allocated_on_page_;
+#endif
 };
 
 // A free list maintaining free blocks of memory. The free list is organized in
@@ -2062,7 +2055,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // no attempt to add area to free list is made.
   size_t Free(Address start, size_t size_in_bytes) {
     size_t wasted = free_list_.Free(start, size_in_bytes, kLinkCategory);
-    accounting_stats_.DeallocateBytes(size_in_bytes);
+    Page* page = Page::FromAddress(start);
+    accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
     DCHECK_GE(size_in_bytes, wasted);
     return size_in_bytes - wasted;
   }
@@ -2093,14 +2087,25 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   void MarkAllocationInfoBlack();
   void UnmarkAllocationInfo();
 
-  void AccountAllocatedBytes(size_t bytes) {
-    accounting_stats_.AllocateBytes(bytes);
+  void DecreaseAllocatedBytes(size_t bytes, Page* page) {
+    accounting_stats_.DecreaseAllocatedBytes(bytes, page);
   }
-
-  void IncreaseCapacity(size_t bytes);
+  void IncreaseAllocatedBytes(size_t bytes, Page* page) {
+    accounting_stats_.IncreaseAllocatedBytes(bytes, page);
+  }
+  void DecreaseCapacity(size_t bytes) {
+    accounting_stats_.DecreaseCapacity(bytes);
+  }
+  void IncreaseCapacity(size_t bytes) {
+    accounting_stats_.IncreaseCapacity(bytes);
+  }
 
   // Releases an unused page and shrinks the space.
   void ReleasePage(Page* page);
+
+  void AccountAddedPage(Page* page);
+  void AccountRemovedPage(Page* page);
+  void RefineAllocatedBytesAfterSweeping(Page* page);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -2116,6 +2121,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 #endif
 
 #ifdef DEBUG
+  void VerifyCountersAfterSweeping();
+  void VerifyCountersBeforeConcurrentSweeping();
   // Print meta info and objects in this space.
   void Print() override;
 
@@ -2161,6 +2168,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // Shrink immortal immovable pages of the space to be exactly the size needed
   // using the high water mark.
   void ShrinkImmortalImmovablePages();
+
+  size_t ShrinkPageToHighWaterMark(Page* page);
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 

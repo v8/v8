@@ -863,7 +863,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     CHECK_NULL(p->typed_slot_set<OLD_TO_OLD>());
     CHECK(p->SweepingDone());
     DCHECK(p->area_size() == area_size);
-    pages.push_back(std::make_pair(p->LiveBytesFromFreeList(), p));
+    pages.push_back(std::make_pair(p->allocated_bytes(), p));
   }
 
   int candidate_count = 0;
@@ -1043,6 +1043,10 @@ void MarkCompactCollector::Prepare() {
 
 void MarkCompactCollector::Finish() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
+
+#ifdef DEBUG
+  heap()->VerifyCountersBeforeConcurrentSweeping();
+#endif
 
   if (!heap()->delay_sweeper_tasks_for_testing_) {
     sweeper().StartSweeperTasks();
@@ -3703,9 +3707,14 @@ int MarkCompactCollector::Sweeper::RawSweep(
     skip_list->Clear();
   }
 
+  intptr_t live_bytes = 0;
   intptr_t freed_bytes = 0;
   intptr_t max_freed_bytes = 0;
   int curr_region = -1;
+
+  // Set the allocated_bytes counter to area_size. The free operations below
+  // will decrease the counter to actual live bytes.
+  p->ResetAllocatedBytes();
 
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
@@ -3738,6 +3747,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
     }
     Map* map = object->synchronized_map();
     int size = object->SizeFromMap(map);
+    live_bytes += size;
     if (rebuild_skip_list) {
       int new_region_start = SkipList::RegionNumber(free_end);
       int new_region_end =
@@ -3788,9 +3798,18 @@ int MarkCompactCollector::Sweeper::RawSweep(
     }
   }
 
-  // Clear the mark bits of that page and reset live bytes count.
-  marking_state_->ClearLiveness(p);
-
+  marking_state_->bitmap(p)->Clear();
+  if (free_list_mode == IGNORE_FREE_LIST) {
+    marking_state_->SetLiveBytes(p, 0);
+    // We did not free memory, so have to adjust allocated bytes here.
+    intptr_t freed_bytes = p->area_size() - live_bytes;
+    p->DecreaseAllocatedBytes(freed_bytes);
+  } else {
+    // Keep the old live bytes counter of the page until RefillFreeList, where
+    // the space size is refined.
+    // The allocated_bytes() counter is precisely the total size of objects.
+    DCHECK_EQ(live_bytes, p->allocated_bytes());
+  }
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
   return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
@@ -4539,9 +4558,10 @@ void MarkCompactCollector::Sweeper::PrepareToBeSweptPage(AllocationSpace space,
   page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
   DCHECK_GE(page->area_size(),
             static_cast<size_t>(marking_state_->live_bytes(page)));
-  size_t to_sweep = page->area_size() - marking_state_->live_bytes(page);
-  if (space != NEW_SPACE)
-    heap_->paged_space(space)->accounting_stats_.ShrinkSpace(to_sweep);
+  if (space != NEW_SPACE) {
+    heap_->paged_space(space)->IncreaseAllocatedBytes(
+        marking_state_->live_bytes(page), page);
+  }
 }
 
 Page* MarkCompactCollector::Sweeper::GetSweepingPageSafe(
@@ -4582,6 +4602,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
                          Heap::ShouldZapGarbage()
                              ? FreeSpaceTreatmentMode::ZAP_FREE_SPACE
                              : FreeSpaceTreatmentMode::IGNORE_FREE_SPACE);
+      space->IncreaseAllocatedBytes(p->allocated_bytes(), p);
       continue;
     }
 

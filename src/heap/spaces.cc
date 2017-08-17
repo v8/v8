@@ -561,7 +561,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
   chunk->mutex_ = new base::RecursiveMutex();
-  chunk->available_in_free_list_ = 0;
+  chunk->allocated_bytes_ = chunk->area_size();
   chunk->wasted_memory_ = 0;
   chunk->young_generation_bitmap_ = nullptr;
   chunk->set_next_chunk(nullptr);
@@ -597,6 +597,7 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   // In the case we do not free the memory, we effectively account for the whole
   // page as allocated memory that cannot be used for further allocations.
   if (mode == kFreeMemory) {
+    owner->IncreaseAllocatedBytes(page->area_size(), page);
     owner->Free(page->area_start(), page->area_size());
   }
   page->InitializationMemoryFence();
@@ -867,10 +868,10 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                  executable, owner, &reservation);
 }
 
+void Page::ResetAllocatedBytes() { allocated_bytes_.SetValue(area_size()); }
 
 void Page::ResetFreeListStatistics() {
   wasted_memory_ = 0;
-  available_in_free_list_ = 0;
 }
 
 size_t Page::AvailableInFreeList() {
@@ -1372,6 +1373,7 @@ void Space::ResumeAllocationObservers() {
 
 void Space::AllocationStep(Address soon_object, int size) {
   if (!allocation_observers_paused_) {
+    heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
     for (int i = 0; i < allocation_observers_->length(); ++i) {
       AllocationObserver* o = (*allocation_observers_)[i];
       o->AllocationStep(size, soon_object, size);
@@ -1421,19 +1423,26 @@ void PagedSpace::RefillFreeList() {
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
-      if (is_local() && (p->owner() != this)) {
-        base::LockGuard<base::Mutex> guard(
-            reinterpret_cast<PagedSpace*>(p->owner())->mutex());
+      if (is_local()) {
+        DCHECK_NE(this, p->owner());
+        PagedSpace* owner = reinterpret_cast<PagedSpace*>(p->owner());
+        base::LockGuard<base::Mutex> guard(owner->mutex());
+        owner->RefineAllocatedBytesAfterSweeping(p);
         p->Unlink();
+        owner->AccountRemovedPage(p);
         p->set_owner(this);
         p->InsertAfter(anchor_.prev_page());
+        AccountAddedPage(p);
+      } else {
+        base::LockGuard<base::Mutex> guard(mutex());
+        DCHECK_EQ(this, p->owner());
+        RefineAllocatedBytesAfterSweeping(p);
       }
       added += RelinkFreeListCategories(p);
       added += p->wasted_memory();
       if (is_local() && (added > kCompactionMemoryWanted)) break;
     }
   }
-  accounting_stats_.IncreaseCapacity(added);
 }
 
 void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
@@ -1446,29 +1455,26 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
 
   other->EmptyAllocationInfo();
 
-  // Update and clear accounting statistics.
-  accounting_stats_.Merge(other->accounting_stats_);
-  other->accounting_stats_.Clear();
-
   // The linear allocation area of {other} should be destroyed now.
   DCHECK(other->top() == nullptr);
   DCHECK(other->limit() == nullptr);
 
-  AccountCommitted(other->CommittedMemory());
-
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
     Page* p = *(it++);
-
     // Relinking requires the category to be unlinked.
     other->UnlinkFreeListCategories(p);
-
     p->Unlink();
+    other->AccountRemovedPage(p);
     p->set_owner(this);
     p->InsertAfter(anchor_.prev_page());
+    this->AccountAddedPage(p);
     RelinkFreeListCategories(p);
-    DCHECK_EQ(p->AvailableInFreeList(), p->available_in_free_list());
+    DCHECK_EQ(p->AvailableInFreeList(),
+              p->AvailableInFreeListFromAllocatedBytes());
   }
+  DCHECK_EQ(0u, other->Size());
+  DCHECK_EQ(0u, other->Capacity());
 }
 
 
@@ -1490,9 +1496,34 @@ bool PagedSpace::ContainsSlow(Address addr) {
   return false;
 }
 
+void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
+  CHECK(page->SweepingDone());
+  auto marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
+  // The live_byte on the page was accounted in the space allocated
+  // bytes counter. After sweeping allocated_bytes() contains the
+  // accurate live byte count on the page.
+  DecreaseAllocatedBytes(marking_state->live_bytes(page), page);
+  IncreaseAllocatedBytes(page->allocated_bytes(), page);
+  marking_state->SetLiveBytes(page, 0);
+}
+
+void PagedSpace::AccountAddedPage(Page* page) {
+  CHECK(page->SweepingDone());
+  AccountCommitted(page->size());
+  IncreaseCapacity(page->area_size());
+  IncreaseAllocatedBytes(page->allocated_bytes(), page);
+}
+
+void PagedSpace::AccountRemovedPage(Page* page) {
+  CHECK(page->SweepingDone());
+  DecreaseAllocatedBytes(page->allocated_bytes(), page);
+  DecreaseCapacity(page->area_size());
+  AccountUncommitted(page->size());
+}
+
 Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
   base::LockGuard<base::Mutex> guard(mutex());
-
   // Check for pages that still contain free list entries. Bail out for smaller
   // categories.
   const int minimum_category =
@@ -1509,22 +1540,24 @@ Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
   if (!page && static_cast<int>(kTiniest) >= minimum_category)
     page = free_list()->GetPageForCategoryType(kTiniest);
   if (!page) return nullptr;
-
-  AccountUncommitted(page->size());
-  accounting_stats_.DeallocateBytes(page->LiveBytesFromFreeList());
-  accounting_stats_.DecreaseCapacity(page->area_size());
   page->Unlink();
+  AccountRemovedPage(page);
   UnlinkFreeListCategories(page);
   return page;
 }
 
 void PagedSpace::AddPage(Page* page) {
-  AccountCommitted(page->size());
-  accounting_stats_.IncreaseCapacity(page->area_size());
-  accounting_stats_.AllocateBytes(page->LiveBytesFromFreeList());
   page->set_owner(this);
-  RelinkFreeListCategories(page);
   page->InsertAfter(anchor()->prev_page());
+  AccountAddedPage(page);
+  RelinkFreeListCategories(page);
+}
+
+size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
+  size_t unused = page->ShrinkToHighWaterMark();
+  accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
+  AccountUncommitted(unused);
+  return unused;
 }
 
 void PagedSpace::ShrinkImmortalImmovablePages() {
@@ -1535,9 +1568,7 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
 
   for (Page* page : *this) {
     DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
-    size_t unused = page->ShrinkToHighWaterMark();
-    accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
-    AccountUncommitted(unused);
+    ShrinkPageToHighWaterMark(page);
   }
 }
 
@@ -1640,10 +1671,6 @@ void PagedSpace::EmptyAllocationInfo() {
   Free(current_top, current_limit - current_top);
 }
 
-void PagedSpace::IncreaseCapacity(size_t bytes) {
-  accounting_stats_.ExpandSpace(bytes);
-}
-
 void PagedSpace::ReleasePage(Page* page) {
   DCHECK_EQ(
       0, heap()->incremental_marking()->non_atomic_marking_state()->live_bytes(
@@ -1662,9 +1689,8 @@ void PagedSpace::ReleasePage(Page* page) {
     DCHECK(page->prev_chunk() != NULL);
     page->Unlink();
   }
-
   AccountUncommitted(page->size());
-  accounting_stats_.ShrinkSpace(page->area_size());
+  accounting_stats_.DecreaseCapacity(page->area_size());
   heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
 }
 
@@ -1724,8 +1750,52 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
     CHECK_LE(black_size, marking_state->live_bytes(page));
   }
   CHECK(allocation_pointer_found_in_space);
+  VerifyCountersAfterSweeping();
 }
 #endif  // VERIFY_HEAP
+
+#ifdef DEBUG
+void PagedSpace::VerifyCountersAfterSweeping() {
+  size_t total_capacity = 0;
+  size_t total_allocated = 0;
+  for (Page* page : *this) {
+    CHECK(page->SweepingDone());
+    total_capacity += page->area_size();
+    HeapObjectIterator it(page);
+    size_t real_allocated = 0;
+    for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
+      if (!object->IsFiller()) {
+        real_allocated += object->Size();
+      }
+    }
+    total_allocated += page->allocated_bytes();
+    // The real size can be smaller than the accounted size if array trimming,
+    // object slack tracking happened after sweeping.
+    DCHECK_LE(real_allocated, accounting_stats_.AllocatedOnPage(page));
+    DCHECK_EQ(page->allocated_bytes(), accounting_stats_.AllocatedOnPage(page));
+  }
+  DCHECK_EQ(total_capacity, accounting_stats_.Capacity());
+  DCHECK_EQ(total_allocated, accounting_stats_.Size());
+}
+
+void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
+  size_t total_capacity = 0;
+  size_t total_allocated = 0;
+  auto marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
+  for (Page* page : *this) {
+    size_t page_allocated =
+        page->SweepingDone()
+            ? page->allocated_bytes()
+            : static_cast<size_t>(marking_state->live_bytes(page));
+    total_capacity += page->area_size();
+    total_allocated += page_allocated;
+    DCHECK_EQ(page_allocated, accounting_stats_.AllocatedOnPage(page));
+  }
+  DCHECK_EQ(total_capacity, accounting_stats_.Capacity());
+  DCHECK_EQ(total_allocated, accounting_stats_.Size());
+}
+#endif
 
 // -----------------------------------------------------------------------------
 // NewSpace implementation
@@ -2384,8 +2454,6 @@ void SemiSpace::Verify() {
         CHECK(
             !page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       }
-      // TODO(gc): Check that the live_bytes_count_ field matches the
-      // black marking on the page (if we make it match in new-space).
     }
     CHECK_EQ(page->prev_page()->next_page(), page);
     page = page->next_page();
@@ -2654,17 +2722,15 @@ FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
   return nullptr;
 }
 
-bool FreeListCategory::Free(FreeSpace* free_space, size_t size_in_bytes,
+void FreeListCategory::Free(FreeSpace* free_space, size_t size_in_bytes,
                             FreeMode mode) {
-  if (!page()->CanAllocate()) return false;
-
+  CHECK(page()->CanAllocate());
   free_space->set_next(top());
   set_top(free_space);
   available_ += size_in_bytes;
   if ((mode == kLinkCategory) && (prev() == nullptr) && (next() == nullptr)) {
     owner()->AddCategory(this);
   }
-  return true;
 }
 
 
@@ -2687,7 +2753,6 @@ void FreeListCategory::Relink() {
 }
 
 void FreeListCategory::Invalidate() {
-  page()->remove_available_in_free_list(available());
   Reset();
   type_ = kInvalidCategory;
 }
@@ -2716,6 +2781,7 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
                                         ClearRecordedSlots::kNo);
 
   Page* page = Page::FromAddress(start);
+  page->DecreaseAllocatedBytes(size_in_bytes);
 
   // Blocks have to be a minimum size to hold free list items.
   if (size_in_bytes < kMinBlockSize) {
@@ -2728,10 +2794,9 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  if (page->free_list_category(type)->Free(free_space, size_in_bytes, mode)) {
-    page->add_available_in_free_list(size_in_bytes);
-  }
-  DCHECK_EQ(page->AvailableInFreeList(), page->available_in_free_list());
+  page->free_list_category(type)->Free(free_space, size_in_bytes, mode);
+  DCHECK_EQ(page->AvailableInFreeList(),
+            page->AvailableInFreeListFromAllocatedBytes());
   return 0;
 }
 
@@ -2742,8 +2807,6 @@ FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t* node_size) {
     FreeListCategory* current = it.Next();
     node = current->PickNodeFromList(node_size);
     if (node != nullptr) {
-      Page::FromAddress(node->address())
-          ->remove_available_in_free_list(*node_size);
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
@@ -2758,8 +2821,6 @@ FreeSpace* FreeList::TryFindNodeIn(FreeListCategoryType type, size_t* node_size,
   FreeSpace* node =
       categories_[type]->TryPickNodeFromList(minimum_size, node_size);
   if (node != nullptr) {
-    Page::FromAddress(node->address())
-        ->remove_available_in_free_list(*node_size);
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
   }
   return node;
@@ -2774,8 +2835,6 @@ FreeSpace* FreeList::SearchForNodeInList(FreeListCategoryType type,
     FreeListCategory* current = it.Next();
     node = current->SearchForNodeInList(minimum_size, node_size);
     if (node != nullptr) {
-      Page::FromAddress(node->address())
-          ->remove_available_in_free_list(*node_size);
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
@@ -2793,27 +2852,26 @@ FreeSpace* FreeList::FindNodeFor(size_t size_in_bytes, size_t* node_size) {
   // size of a free list category. This operation is constant time.
   FreeListCategoryType type =
       SelectFastAllocationFreeListCategoryType(size_in_bytes);
-  for (int i = type; i < kHuge; i++) {
+  for (int i = type; i < kHuge && node == nullptr; i++) {
     node = FindNodeIn(static_cast<FreeListCategoryType>(i), node_size);
-    if (node != nullptr) return node;
   }
 
-  // Next search the huge list for free list nodes. This takes linear time in
-  // the number of huge elements.
-  node = SearchForNodeInList(kHuge, node_size, size_in_bytes);
+  if (node == nullptr) {
+    // Next search the huge list for free list nodes. This takes linear time in
+    // the number of huge elements.
+    node = SearchForNodeInList(kHuge, node_size, size_in_bytes);
+  }
+
+  if (node == nullptr && type != kHuge) {
+    // We didn't find anything in the huge list. Now search the best fitting
+    // free list for a node that has at least the requested size.
+    type = SelectFreeListCategoryType(size_in_bytes);
+    node = TryFindNodeIn(type, node_size, size_in_bytes);
+  }
+
   if (node != nullptr) {
-    DCHECK(IsVeryLong() || Available() == SumFreeLists());
-    return node;
+    Page::FromAddress(node->address())->IncreaseAllocatedBytes(*node_size);
   }
-
-  // We need a huge block of memory, but we didn't find anything in the huge
-  // list.
-  if (type == kHuge) return nullptr;
-
-  // Now search the best fitting free list for a node that has at least the
-  // requested size.
-  type = SelectFreeListCategoryType(size_in_bytes);
-  node = TryFindNodeIn(type, node_size, size_in_bytes);
 
   DCHECK(IsVeryLong() || Available() == SumFreeLists());
   return node;
@@ -2868,7 +2926,8 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  owner_->AccountAllocatedBytes(new_node_size);
+  owner_->IncreaseAllocatedBytes(new_node_size,
+                                 Page::FromAddress(new_node->address()));
 
   if (owner_->heap()->inline_allocation_disabled()) {
     // Keep the linear allocation area empty if requested to do so, just
