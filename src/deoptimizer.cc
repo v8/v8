@@ -3571,58 +3571,27 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_index(*index);
       return object;
     }
-    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE: {
-      Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      // Initialize the index to zero to make the heap verifier happy.
-      object->set_index(Smi::FromInt(0));
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> iterated_object = materializer.FieldAt(value_index);
-      Handle<Object> next_index = materializer.FieldAt(value_index);
-      Handle<Object> iterated_object_map = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_object(*iterated_object);
-      object->set_index(*next_index);
-      object->set_object_map(*iterated_object_map);
-      return object;
-    }
+#define ARRAY_ITERATOR_CASE(type) case type:
+      ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
+#undef ARRAY_ITERATOR_CASE
+      {
+        Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
+            isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+        slot->value_ = object;
+        // Initialize the index to zero to make the heap verifier happy.
+        object->set_index(Smi::FromInt(0));
+        Handle<Object> properties = materializer.FieldAt(value_index);
+        Handle<Object> elements = materializer.FieldAt(value_index);
+        Handle<Object> iterated_object = materializer.FieldAt(value_index);
+        Handle<Object> next_index = materializer.FieldAt(value_index);
+        Handle<Object> iterated_object_map = materializer.FieldAt(value_index);
+        object->set_raw_properties_or_hash(*properties);
+        object->set_elements(FixedArrayBase::cast(*elements));
+        object->set_object(*iterated_object);
+        object->set_index(*next_index);
+        object->set_object_map(*iterated_object_map);
+        return object;
+      }
     case JS_STRING_ITERATOR_TYPE: {
       Handle<JSStringIterator> object = Handle<JSStringIterator>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));

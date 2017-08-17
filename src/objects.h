@@ -413,45 +413,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
   V(JS_STRING_ITERATOR_TYPE)                                    \
                                                                 \
-  V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                           \
-  V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                            \
-  V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                         \
-                                                                \
-  V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
-  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
-  V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
-  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
-  V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
-  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
-  V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
-  V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
-  V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
-                                                                \
-  V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)                  \
-  V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
-  V(JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
-  V(JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE)                \
-  V(JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)               \
-  V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)         \
-  V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
-                                                                \
-  V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                         \
-  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                          \
-  V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                        \
-  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                         \
-  V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                        \
-  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                         \
-  V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)                       \
-  V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)                       \
-  V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)                 \
-                                                                \
-  V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)                      \
-  V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)                \
-  V(JS_FAST_ARRAY_VALUE_ITERATOR_TYPE)                          \
-  V(JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE)                    \
-  V(JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)                   \
-  V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)             \
-  V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)                       \
+  ARRAY_ITERATOR_TYPE_LIST(V)                                   \
                                                                 \
   V(WASM_INSTANCE_TYPE)                                         \
   V(WASM_MEMORY_TYPE)                                           \
@@ -513,6 +475,47 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)             \
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,       \
     ThinOneByteString)
+
+#define ARRAY_ITERATOR_TYPE_LIST(V)                     \
+  V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                   \
+  V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                    \
+  V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                 \
+                                                        \
+  V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
+  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)              \
+  V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
+  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
+  V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
+  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
+  V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
+  V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
+  V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)     \
+                                                        \
+  V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)          \
+  V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)    \
+  V(JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)              \
+  V(JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE)        \
+  V(JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)       \
+  V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE) \
+  V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
+                                                        \
+  V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                 \
+  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                  \
+  V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                \
+  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                 \
+  V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                \
+  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                 \
+  V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)               \
+  V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)               \
+  V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)         \
+                                                        \
+  V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)              \
+  V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)        \
+  V(JS_FAST_ARRAY_VALUE_ITERATOR_TYPE)                  \
+  V(JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE)            \
+  V(JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)           \
+  V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)     \
+  V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -768,47 +771,11 @@ enum InstanceType : uint8_t {
   JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
 
-  JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
-  JS_FAST_ARRAY_KEY_ITERATOR_TYPE,
-  JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE,
+#define ARRAY_ITERATOR_TYPE(type) type,
+  ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_TYPE)
+#undef ARRAY_ITERATOR_TYPE
 
-  JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-
-  JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-
-  JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_INT8_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_INT16_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_INT32_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE,
-
-  JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FAST_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
-  JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE,
-
-  WASM_INSTANCE_TYPE,
+      WASM_INSTANCE_TYPE,
   WASM_MEMORY_TYPE,
   WASM_MODULE_TYPE,
   WASM_TABLE_TYPE,
