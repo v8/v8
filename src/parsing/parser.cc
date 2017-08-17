@@ -811,9 +811,14 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info) {
       impl()->GetDefaultStrings(&raw_name, &variable_name);
     } else {
       bool is_strict_reserved = true;
-      raw_name = ParseIdentifierOrStrictReservedWord(info->function_kind(),
-                                                     &is_strict_reserved, &ok);
+      bool is_await = false;
+      raw_name = ParseIdentifierOrStrictReservedWord(
+          info->function_kind(), &is_strict_reserved, &is_await, &ok);
       if (!ok) return nullptr;
+      // If the function name is "await", ParseIdentifierOrStrictReservedWord
+      // recognized the error.
+      DCHECK(!is_await);
+
       function_name_validity = is_strict_reserved
                                    ? kFunctionNameIsStrictReserved
                                    : kFunctionNameValidityUnknown;

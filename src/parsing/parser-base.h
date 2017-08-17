@@ -1027,11 +1027,11 @@ class ParserBase {
   // containing function.
   IdentifierT ParseIdentifierOrStrictReservedWord(FunctionKind function_kind,
                                                   bool* is_strict_reserved,
-                                                  bool* ok);
+                                                  bool* is_await, bool* ok);
   IdentifierT ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
-                                                  bool* ok) {
-    return ParseIdentifierOrStrictReservedWord(function_state_->kind(),
-                                               is_strict_reserved, ok);
+                                                  bool* is_await, bool* ok) {
+    return ParseIdentifierOrStrictReservedWord(
+        function_state_->kind(), is_strict_reserved, is_await, ok);
   }
 
   IdentifierT ParseIdentifierName(bool* ok);
@@ -1675,12 +1675,14 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
 template <class Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
-    FunctionKind function_kind, bool* is_strict_reserved, bool* ok) {
+    FunctionKind function_kind, bool* is_strict_reserved, bool* is_await,
+    bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_ &&
                                     !IsAsyncFunction(function_kind)) ||
       next == Token::ASYNC) {
     *is_strict_reserved = false;
+    *is_await = next == Token::AWAIT;
   } else if (next == Token::ESCAPED_STRICT_RESERVED_WORD ||
              next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
              next == Token::STATIC ||
@@ -1852,9 +1854,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       bool is_strict_reserved_name = false;
       Scanner::Location class_name_location = Scanner::Location::invalid();
       if (peek_any_identifier()) {
+        bool is_await = false;
         name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
-                                                   CHECK_OK);
+                                                   &is_await, CHECK_OK);
         class_name_location = scanner()->location();
+        if (is_await) {
+          classifier()->RecordAsyncArrowFormalParametersError(
+              scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
+        }
       }
       return ParseClassLiteral(name, class_name_location,
                                is_strict_reserved_name, class_token_pos, ok);
@@ -3442,8 +3449,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
       Consume(Token::IDENTIFIER);
       DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
     } else if (peek_any_identifier()) {
+      bool is_await = false;
       name = ParseIdentifierOrStrictReservedWord(
-          function_kind, &is_strict_reserved_name, CHECK_OK);
+          function_kind, &is_strict_reserved_name, &is_await, CHECK_OK);
       function_name_location = scanner()->location();
       function_type = FunctionLiteral::kNamedExpression;
     }
@@ -3904,7 +3912,8 @@ ParserBase<Impl>::ParseHoistableDeclaration(
     name_validity = kSkipFunctionNameCheck;
   } else {
     bool is_strict_reserved;
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved,
+    bool is_await = false;
+    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, &is_await,
                                                CHECK_OK_CUSTOM(NullStatement));
     name_validity = is_strict_reserved ? kFunctionNameIsStrictReserved
                                        : kFunctionNameValidityUnknown;
@@ -3967,7 +3976,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
   if (default_export && (peek() == Token::EXTENDS || peek() == Token::LBRACE)) {
     impl()->GetDefaultStrings(&name, &variable_name);
   } else {
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved,
+    bool is_await = false;
+    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, &is_await,
                                                CHECK_OK_CUSTOM(NullStatement));
     variable_name = name;
   }
@@ -4478,8 +4488,12 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
     DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
+    bool is_await = false;
     name = ParseIdentifierOrStrictReservedWord(kind, &is_strict_reserved,
-                                               CHECK_OK);
+                                               &is_await, CHECK_OK);
+    // If the function name is "await", ParseIdentifierOrStrictReservedWord
+    // recognized the error.
+    DCHECK(!is_await);
   }
   return impl()->ParseFunctionLiteral(
       name, scanner()->location(),

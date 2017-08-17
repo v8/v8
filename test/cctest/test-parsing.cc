@@ -9088,41 +9088,8 @@ TEST(AsyncAwaitErrors) {
     NULL
   };
 
-  const char* formal_parameters_data[] = {
-    "var f = async({ await }) => 1;",
-    "var f = async({ await = 1 }) => 1;",
-    "var f = async({ await } = {}) => 1;",
-    "var f = async({ await = 1 } = {}) => 1;",
-    "var f = async([await]) => 1;",
-    "var f = async([await] = []) => 1;",
-    "var f = async([await = 1]) => 1;",
-    "var f = async([await = 1] = []) => 1;",
-    "var f = async(...await) => 1;",
-    "var f = async(await) => 1;",
-    "var f = async(await = 1) => 1;",
-    "var f = async(...[await]) => 1;",
-    "var f = async(x = await) => 1;",
-
-    // v8:5190
-    "var f = async(1) => 1",
-    "var f = async('str') => 1",
-    "var f = async(/foo/) => 1",
-    "var f = async({ foo = async(1) => 1 }) => 1",
-    "var f = async({ foo = async(a) => 1 })",
-
-    "var f = async(x = async(await)) => 1;",
-    "var f = async(x = { [await]: 1 }) => 1;",
-    "var f = async(x = class extends (await) { }) => 1;",
-    "var f = async(x = class { static [await]() {} }) => 1;",
-    "var f = async({ x = await }) => 1;",
-
-    NULL
-  };
-  // clang-format on
-
   RunParserSyncTest(context_data, error_data, kError);
   RunParserSyncTest(strict_context_data, strict_error_data, kError);
-  RunParserSyncTest(context_data, formal_parameters_data, kError);
 
   // clang-format off
   const char* async_body_context_data[][2] = {
@@ -9164,6 +9131,69 @@ TEST(AsyncAwaitErrors) {
   // clang-format on
 
   RunParserSyncTest(async_body_context_data, async_body_error_data, kError);
+}
+
+TEST(AsyncAwaitFormalParameters) {
+  // clang-format off
+  const char* context_for_formal_parameters[][2] = {
+    { "async function f(", ") {}" },
+    { "var f = async function f(", ") {}" },
+    { "var f = async(", ") => {}" },
+    { "'use strict'; async function f(", ") {}" },
+    { "'use strict'; var f = async function f(", ") {}" },
+    { "'use strict'; var f = async(", ") => {}" },
+    { nullptr, nullptr }
+  };
+
+  const char* good_formal_parameters[] = {
+    "x = function await() {}",
+    "x = function *await() {}",
+    "x = function() { let await = 0; }",
+    "x = () => { let await = 0; }",
+    nullptr
+  };
+
+  const char* bad_formal_parameters[] = {
+    "{ await }",
+    "{ await = 1 }",
+    "{ await } = {}",
+    "{ await = 1 } = {}",
+    "[await]",
+    "[await] = []",
+    "[await = 1]",
+    "[await = 1] = []",
+    "...await",
+    "await",
+    "await = 1",
+    "...[await]",
+    "x = await",
+
+    // v8:5190
+    "1) => 1",
+    "'str') => 1",
+    "/foo/) => 1",
+    "{ foo = async(1) => 1 }) => 1",
+    "{ foo = async(a) => 1 })",
+
+    "x = async(await)",
+    "x = { [await]: 1 }",
+    "x = class extends (await) { }",
+    "x = class { static [await]() {} }",
+    "{ x = await }",
+
+    // v8:6714
+    "x = class await {}",
+    "x = 1 ? class await {} : 0",
+    "x = async function await() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_for_formal_parameters, good_formal_parameters,
+                    kSuccess);
+
+  RunParserSyncTest(context_for_formal_parameters, bad_formal_parameters,
+                    kError);
 }
 
 TEST(AsyncAwaitModule) {
