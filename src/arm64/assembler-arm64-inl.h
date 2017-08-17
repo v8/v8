@@ -38,8 +38,7 @@ inline CPURegister::RegisterType CPURegister::type() const {
   return reg_type;
 }
 
-
-inline RegList CPURegister::Bit() const {
+inline RegList CPURegister::bit() const {
   DCHECK(static_cast<size_t>(reg_code) < (sizeof(RegList) * kBitsPerByte));
   return IsValid() ? 1UL << reg_code : 0;
 }

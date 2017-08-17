@@ -2849,10 +2849,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    const RegList gp_regs = x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit() |
-                            x4.Bit() | x5.Bit() | x6.Bit() | x7.Bit();
-    const RegList fp_regs = d0.Bit() | d1.Bit() | d2.Bit() | d3.Bit() |
-                            d4.Bit() | d5.Bit() | d6.Bit() | d7.Bit();
+    const RegList gp_regs = x0.bit() | x1.bit() | x2.bit() | x3.bit() |
+                            x4.bit() | x5.bit() | x6.bit() | x7.bit();
+    const RegList fp_regs = d0.bit() | d1.bit() | d2.bit() | d3.bit() |
+                            d4.bit() | d5.bit() | d6.bit() | d7.bit();
     __ PushXRegList(gp_regs);
     __ PushDRegList(fp_regs);
 

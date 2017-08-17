@@ -224,10 +224,10 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].Bit();
+      unique_regs |= regs[i].bit();
     } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].Bit();
+      unique_fpregs |= regs[i].bit();
     } else {
       DCHECK(!regs[i].IsValid());
     }
