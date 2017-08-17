@@ -30,8 +30,8 @@ class PreParserIdentifier {
   static PreParserIdentifier Default() {
     return PreParserIdentifier(kUnknownIdentifier);
   }
-  static PreParserIdentifier Empty() {
-    return PreParserIdentifier(kEmptyIdentifier);
+  static PreParserIdentifier Null() {
+    return PreParserIdentifier(kNullIdentifier);
   }
   static PreParserIdentifier Eval() {
     return PreParserIdentifier(kEvalIdentifier);
@@ -75,7 +75,7 @@ class PreParserIdentifier {
   static PreParserIdentifier Name() {
     return PreParserIdentifier(kNameIdentifier);
   }
-  bool IsEmpty() const { return type_ == kEmptyIdentifier; }
+  bool IsNull() const { return type_ == kNullIdentifier; }
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
@@ -99,7 +99,7 @@ class PreParserIdentifier {
 
  private:
   enum Type {
-    kEmptyIdentifier,
+    kNullIdentifier,
     kUnknownIdentifier,
     kFutureReservedIdentifier,
     kFutureStrictReservedIdentifier,
@@ -130,9 +130,9 @@ class PreParserIdentifier {
 class PreParserExpression {
  public:
   PreParserExpression()
-      : code_(TypeField::encode(kEmpty)), variables_(nullptr) {}
+      : code_(TypeField::encode(kNull)), variables_(nullptr) {}
 
-  static PreParserExpression Empty() { return PreParserExpression(); }
+  static PreParserExpression Null() { return PreParserExpression(); }
 
   static PreParserExpression Default(
       ZoneList<VariableProxy*>* variables = nullptr) {
@@ -251,7 +251,7 @@ class PreParserExpression {
         ExpressionTypeField::encode(kNoTemplateTagExpression));
   }
 
-  bool IsEmpty() const { return TypeField::decode(code_) == kEmpty; }
+  bool IsNull() const { return TypeField::decode(code_) == kNull; }
 
   bool IsIdentifier() const {
     return TypeField::decode(code_) == kIdentifierExpression;
@@ -348,7 +348,7 @@ class PreParserExpression {
 
  private:
   enum Type {
-    kEmpty,
+    kNull,
     kExpression,
     kIdentifierExpression,
     kStringLiteralExpression,
@@ -514,9 +514,12 @@ class PreParserStatement {
     return code_ == kJumpStatement;
   }
 
-  bool IsNullStatement() { return code_ == kNullStatement; }
+  bool IsNull() { return code_ == kNullStatement; }
 
-  bool IsEmptyStatement() { return code_ == kEmptyStatement; }
+  bool IsEmptyStatement() {
+    DCHECK(!IsNull());
+    return code_ == kEmptyStatement;
+  }
 
   // Dummy implementation for making statement->somefunc() work in both Parser
   // and PreParser.
@@ -999,7 +1002,9 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
                                  bool tail) {}
   V8_INLINE PreParserExpression CloseTemplateLiteral(
-      TemplateLiteralState* state, int start, PreParserExpression tag);
+      TemplateLiteralState* state, int start, PreParserExpression tag) {
+    return PreParserExpression::Default();
+  }
   V8_INLINE void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 
   V8_INLINE void SetLanguageMode(Scope* scope, LanguageMode mode) {
@@ -1459,62 +1464,29 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   // "null" return type creators.
-  V8_INLINE static PreParserIdentifier EmptyIdentifier() {
-    return PreParserIdentifier::Empty();
+  V8_INLINE static PreParserIdentifier NullIdentifier() {
+    return PreParserIdentifier::Null();
   }
-  V8_INLINE static bool IsEmptyIdentifier(PreParserIdentifier name) {
-    return name.IsEmpty();
+  V8_INLINE static PreParserExpression NullExpression() {
+    return PreParserExpression::Null();
   }
-  V8_INLINE static PreParserExpression EmptyExpression() {
-    return PreParserExpression::Empty();
+  V8_INLINE static PreParserExpression NullLiteralProperty() {
+    return PreParserExpression::Null();
   }
-  V8_INLINE static PreParserExpression EmptyLiteral() {
-    return PreParserExpression::Default();
-  }
-  V8_INLINE static PreParserExpression EmptyObjectLiteralProperty() {
-    return PreParserExpression::Default();
-  }
-  V8_INLINE static PreParserExpression EmptyClassLiteralProperty() {
-    return PreParserExpression::Default();
-  }
-  V8_INLINE static PreParserExpression EmptyFunctionLiteral() {
-    return PreParserExpression::Default();
-  }
-
-  V8_INLINE static bool IsEmptyExpression(PreParserExpression expr) {
-    return expr.IsEmpty();
-  }
-
   V8_INLINE static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList::Null();
-  }
-
-  V8_INLINE static bool IsNullExpressionList(PreParserExpressionList exprs) {
-    return exprs.IsNull();
   }
 
   V8_INLINE static PreParserStatementList NullStatementList() {
     return PreParserStatementList::Null();
   }
-
-  V8_INLINE static bool IsNullStatementList(PreParserStatementList stmts) {
-    return stmts.IsNull();
-  }
-
   V8_INLINE static PreParserStatement NullStatement() {
     return PreParserStatement::Null();
   }
 
-  V8_INLINE bool IsNullStatement(PreParserStatement stmt) {
-    return stmt.IsNullStatement();
-  }
-
-  V8_INLINE bool IsEmptyStatement(PreParserStatement stmt) {
-    return stmt.IsEmptyStatement();
-  }
-
-  V8_INLINE static PreParserStatement NullBlock() {
-    return PreParserStatement::Null();
+  template <typename T>
+  V8_INLINE static bool IsNull(T subject) {
+    return subject.IsNull();
   }
 
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
@@ -1654,7 +1626,7 @@ class PreParser : public ParserBase<PreParser> {
       parameters->params.Add(new (zone()) PreParserFormalParameters::Parameter(
           pattern.variables_, is_rest));
     }
-    parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
+    parameters->UpdateArityAndFunctionLength(!initializer.IsNull(), is_rest);
   }
 
   V8_INLINE void DeclareFormalParameters(
@@ -1770,12 +1742,6 @@ PreParserExpression PreParser::SpreadCallNew(PreParserExpression function,
                                              PreParserExpressionList args,
                                              int pos) {
   return factory()->NewCallNew(function, args, pos);
-}
-
-PreParserExpression PreParser::CloseTemplateLiteral(TemplateLiteralState* state,
-                                                    int start,
-                                                    PreParserExpression tag) {
-  return EmptyExpression();
 }
 
 }  // namespace internal

@@ -843,42 +843,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   // "null" return type creators.
-  V8_INLINE static const AstRawString* EmptyIdentifier() { return nullptr; }
-  V8_INLINE static bool IsEmptyIdentifier(const AstRawString* name) {
-    return name == nullptr;
-  }
-  V8_INLINE static Expression* EmptyExpression() { return nullptr; }
-  V8_INLINE static Literal* EmptyLiteral() { return nullptr; }
-  V8_INLINE static ObjectLiteralProperty* EmptyObjectLiteralProperty() {
-    return nullptr;
-  }
-  V8_INLINE static ClassLiteralProperty* EmptyClassLiteralProperty() {
-    return nullptr;
-  }
-  V8_INLINE static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
-  V8_INLINE static Block* NullBlock() { return nullptr; }
-
-  V8_INLINE static bool IsEmptyExpression(Expression* expr) {
-    return expr == nullptr;
-  }
-
-  // Used in error return values.
+  V8_INLINE static std::nullptr_t NullIdentifier() { return nullptr; }
+  V8_INLINE static std::nullptr_t NullExpression() { return nullptr; }
+  V8_INLINE static std::nullptr_t NullLiteralProperty() { return nullptr; }
   V8_INLINE static ZoneList<Expression*>* NullExpressionList() {
     return nullptr;
   }
-  V8_INLINE static bool IsNullExpressionList(ZoneList<Expression*>* exprs) {
-    return exprs == nullptr;
-  }
   V8_INLINE static ZoneList<Statement*>* NullStatementList() { return nullptr; }
-  V8_INLINE static bool IsNullStatementList(ZoneList<Statement*>* stmts) {
-    return stmts == nullptr;
-  }
-  // TODO(adamk): Use nullptr_t throughout more widely to remove redundant code.
   V8_INLINE static std::nullptr_t NullStatement() { return nullptr; }
-  V8_INLINE bool IsNullStatement(Statement* stmt) { return stmt == nullptr; }
-  V8_INLINE bool IsEmptyStatement(Statement* stmt) {
-    DCHECK_NOT_NULL(stmt);
-    return stmt->IsEmpty();
+
+  template <typename T>
+  V8_INLINE static bool IsNull(T subject) {
+    return subject == nullptr;
   }
 
   // Non-NULL empty string.
