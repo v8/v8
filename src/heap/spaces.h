@@ -1629,7 +1629,7 @@ class AllocationStats BASE_EMBEDDED {
   }
 
   // Accessors for the allocation statistics.
-  size_t Capacity() { return capacity_; }
+  size_t Capacity() { return capacity_.Value(); }
   size_t MaxCapacity() { return max_capacity_; }
   size_t Size() { return size_; }
 #ifdef DEBUG
@@ -1654,23 +1654,28 @@ class AllocationStats BASE_EMBEDDED {
   }
 
   void DecreaseCapacity(size_t bytes) {
-    DCHECK_GE(capacity_, bytes);
-    DCHECK_GE(capacity_ - bytes, size_);
-    capacity_ -= bytes;
+    size_t capacity = capacity_.Value();
+    DCHECK_GE(capacity, bytes);
+    DCHECK_GE(capacity - bytes, size_);
+    USE(capacity);
+    capacity_.Decrement(bytes);
   }
 
   void IncreaseCapacity(size_t bytes) {
-    DCHECK_GE(capacity_ + bytes, capacity_);
-    capacity_ += bytes;
-    if (capacity_ > max_capacity_) {
-      max_capacity_ = capacity_;
+    size_t capacity = capacity_.Value();
+    DCHECK_GE(capacity + bytes, capacity);
+    capacity_.Increment(bytes);
+    if (capacity > max_capacity_) {
+      max_capacity_ = capacity;
     }
   }
 
  private:
   // |capacity_|: The number of object-area bytes (i.e., not including page
   // bookkeeping structures) currently in the space.
-  size_t capacity_;
+  // During evacuation capacity of the main spaces is accessed from multiple
+  // threads to check the old generation hard limit.
+  base::AtomicNumber<size_t> capacity_;
 
   // |max_capacity_|: The maximum capacity ever observed.
   size_t max_capacity_;
