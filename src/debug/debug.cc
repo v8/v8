@@ -1190,7 +1190,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       // Code that cannot be compiled lazily are internal and not debuggable.
       DCHECK(candidates[i]->allows_lazy_compilation());
       if (!candidates[i]->is_compiled()) {
-        if (!Compiler::CompileDebugCode(candidates[i])) {
+        if (!Compiler::Compile(candidates[i], Compiler::CLEAR_EXCEPTION)) {
           return false;
         } else {
           was_compiled = true;
@@ -1317,7 +1317,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     HandleScope scope(isolate_);
     // Code that cannot be compiled lazily are internal and not debuggable.
     DCHECK(shared->allows_lazy_compilation());
-    if (!Compiler::CompileDebugCode(handle(shared))) break;
+    if (!Compiler::Compile(handle(shared), Compiler::CLEAR_EXCEPTION)) break;
   }
   return isolate_->factory()->undefined_value();
 }
@@ -1328,7 +1328,8 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   // Return if we already have the break info for shared.
   if (shared->HasBreakInfo()) return true;
   if (!shared->IsSubjectToDebugging()) return false;
-  if (!shared->is_compiled() && !Compiler::CompileDebugCode(shared)) {
+  if (!shared->is_compiled() &&
+      !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION)) {
     return false;
   }
   CreateBreakInfo(shared);
@@ -2160,7 +2161,10 @@ ReturnValueScope::~ReturnValueScope() {
 bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {
   DCHECK(isolate_->needs_side_effect_check());
   DisallowJavascriptExecution no_js(isolate_);
-  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) return false;
+  if (!function->is_compiled() &&
+      !Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
+    return false;
+  }
   Deoptimizer::DeoptimizeFunction(*function);
   if (!function->shared()->HasNoSideEffect()) {
     if (FLAG_trace_side_effect_free_debug_evaluate) {
