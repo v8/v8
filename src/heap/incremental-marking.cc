@@ -55,8 +55,13 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
   DCHECK(!marking_state()->IsImpossible(value_heap_obj));
   DCHECK(!marking_state()->IsImpossible(obj));
-  const bool need_recording =
-      FLAG_concurrent_marking || marking_state()->IsBlack(obj);
+#ifdef V8_CONCURRENT_MARKING
+  // The write barrier stub generated with V8_CONCURRENT_MARKING does not
+  // check the color of the source object.
+  const bool need_recording = true;
+#else
+  const bool need_recording = marking_state()->IsBlack(obj);
+#endif
 
   if (need_recording && WhiteToGreyAndPush(value_heap_obj)) {
     RestartIfNotMarking();
@@ -556,9 +561,13 @@ void IncrementalMarking::StartMarking() {
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
-  if (FLAG_concurrent_marking && !black_allocation_) {
+#ifdef V8_CONCURRENT_MARKING
+  // The write-barrier does not check the color of the source object.
+  // Start black allocation earlier to ensure faster marking progress.
+  if (!black_allocation_) {
     StartBlackAllocation();
   }
+#endif
 
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(this);
