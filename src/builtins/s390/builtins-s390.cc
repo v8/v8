@@ -1600,8 +1600,11 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ Pop(r2, r3, r5);
     __ SmiUntag(r2);
   }
-  // On failure, tail call back to regular js.
-  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  // On failure, tail call back to regular js by re-calling the function
+  // which has be reset to the compile lazy builtin.
+  __ LoadP(ip, FieldMemOperand(r3, JSFunction::kCodeOffset));
+  __ AddP(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ JumpToJSEntry(ip);
 }
 
 static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {

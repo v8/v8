@@ -923,9 +923,8 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   // We should never reach here if the function is already compiled or optimized
   DCHECK(!function->is_compiled());
   DCHECK(!function->IsOptimized());
-  // TODO(leszeks): DCHECK that there there aren't any optimization markers or
-  // optimized code on the feedback vector once asm.js calls the compile lazy
-  // builtin rather than the runtime function.
+  DCHECK(!function->HasOptimizationMarker());
+  DCHECK(!function->HasOptimizedCode());
 
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared_info = handle(function->shared());
