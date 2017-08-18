@@ -42,17 +42,17 @@ T Xor(T a, T b) {
 void RunU32BinOp(WasmOpcode wasm_op, Uint32BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(kExecuteCompiled);
-  uint32_t* memory = r.module().AddMemoryElems<uint32_t>(8);
+  uint32_t* memory = r.builder().AddMemoryElems<uint32_t>(8);
 
   BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0)));
 
   FOR_UINT32_INPUTS(i) {
     uint32_t initial = *i;
     FOR_UINT32_INPUTS(j) {
-      r.module().WriteMemory(&memory[0], initial);
+      r.builder().WriteMemory(&memory[0], initial);
       CHECK_EQ(initial, r.Call(*j));
       uint32_t expected = expected_op(*i, *j);
-      CHECK_EQ(expected, r.module().ReadMemory(&memory[0]));
+      CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
 }
@@ -66,17 +66,17 @@ WASM_EXEC_TEST(I32Xor) { RunU32BinOp(kExprI32AtomicXor, Xor); }
 void RunU16BinOp(WasmOpcode wasm_op, Uint16BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(kExecuteCompiled);
-  uint16_t* memory = r.module().AddMemoryElems<uint16_t>(8);
+  uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(8);
 
   BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0)));
 
   FOR_UINT16_INPUTS(i) {
     uint16_t initial = *i;
     FOR_UINT16_INPUTS(j) {
-      r.module().WriteMemory(&memory[0], initial);
+      r.builder().WriteMemory(&memory[0], initial);
       CHECK_EQ(initial, r.Call(*j));
       uint16_t expected = expected_op(*i, *j);
-      CHECK_EQ(expected, r.module().ReadMemory(&memory[0]));
+      CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
 }
@@ -90,17 +90,17 @@ WASM_EXEC_TEST(I32Xor16U) { RunU16BinOp(kExprI32AtomicXor16U, Xor); }
 void RunU8BinOp(WasmOpcode wasm_op, Uint8BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(kExecuteCompiled);
-  uint8_t* memory = r.module().AddMemoryElems<uint8_t>(8);
+  uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(8);
 
   BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0)));
 
   FOR_UINT8_INPUTS(i) {
     uint8_t initial = *i;
     FOR_UINT8_INPUTS(j) {
-      r.module().WriteMemory(&memory[0], initial);
+      r.builder().WriteMemory(&memory[0], initial);
       CHECK_EQ(initial, r.Call(*j));
       uint8_t expected = expected_op(*i, *j);
-      CHECK_EQ(expected, r.module().ReadMemory(&memory[0]));
+      CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
 }
