@@ -279,6 +279,7 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
   Handle<Name> trap_name = factory()->has_string();
   Node* trap = GetMethod(context, handler, trap_name, &trap_undefined);
 
+  GotoIf(TaggedIsSmi(trap), &trap_not_callable);
   GotoIfNot(IsCallable(trap), &trap_not_callable);
 
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, « target, P
