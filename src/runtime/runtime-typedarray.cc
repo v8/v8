@@ -137,6 +137,95 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFromArrayLike) {
   return *target;
 }
 
+// TypedArraySetFromOverlappingTypedArray(target, source, offset);
+RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
+
+  CONVERT_INT32_ARG_CHECKED(offset, 2);
+  DCHECK_GE(offset, 0);
+
+  size_t sourceElementSize = source->element_size();
+  size_t targetElementSize = target->element_size();
+
+  uint32_t source_length = source->length_value();
+
+  // Copy left part.
+
+  // First un-mutated byte after the next write
+  uint32_t target_ptr = 0;
+  CHECK(target->byte_offset()->ToUint32(&target_ptr));
+  target_ptr += (offset + 1) * targetElementSize;
+
+  // Next read at sourcePtr. We do not care for memory changing before
+  // sourcePtr - we have already copied it.
+  uint32_t source_ptr = 0;
+  CHECK(source->byte_offset()->ToUint32(&source_ptr));
+
+  uint32_t left_index;
+  for (left_index = 0; left_index < source_length && target_ptr <= source_ptr;
+       left_index++) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value, Object::GetElement(isolate, source, left_index));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + left_index, value,
+                           LanguageMode::STRICT));
+
+    target_ptr += targetElementSize;
+    source_ptr += sourceElementSize;
+  }
+
+  // Copy right part;
+  // First unmutated byte before the next write
+  CHECK(target->byte_offset()->ToUint32(&target_ptr));
+  target_ptr += (offset + source_length - 1) * targetElementSize;
+
+  // Next read before sourcePtr. We do not care for memory changing after
+  // sourcePtr - we have already copied it.
+  CHECK(target->byte_offset()->ToUint32(&source_ptr));
+  source_ptr += source_length * sourceElementSize;
+
+  uint32_t right_index;
+  for (right_index = source_length - 1;
+       right_index > left_index && target_ptr >= source_ptr; right_index--) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value, Object::GetElement(isolate, source, right_index));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + right_index, value,
+                           LanguageMode::STRICT));
+
+    target_ptr -= targetElementSize;
+    source_ptr -= sourceElementSize;
+  }
+
+  std::vector<Handle<Object>> temp(right_index + 1 - left_index);
+
+  for (uint32_t i = left_index; i <= right_index; i++) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       Object::GetElement(isolate, source, i));
+    temp[i - left_index] = value;
+  }
+
+  for (uint32_t i = left_index; i <= right_index; i++) {
+    Handle<Object> value;
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + i, temp[i - left_index],
+                           LanguageMode::STRICT));
+  }
+
+  return *target;
+}
+
 RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

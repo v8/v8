@@ -250,60 +250,6 @@ TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
 %SetForceInlineFlag(GlobalTypedArray.prototype.subarray);
 
 
- function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
-  var sourceElementSize = source.BYTES_PER_ELEMENT;
-  var targetElementSize = target.BYTES_PER_ELEMENT;
-  var sourceLength = %_TypedArrayGetLength(source);
-
-  // Copy left part.
-  function CopyLeftPart() {
-    // First un-mutated byte after the next write
-    var targetPtr = %_ArrayBufferViewGetByteOffset(target) +
-                    (offset + 1) * targetElementSize;
-    // Next read at sourcePtr. We do not care for memory changing before
-    // sourcePtr - we have already copied it.
-    var sourcePtr = %_ArrayBufferViewGetByteOffset(source);
-    for (var leftIndex = 0;
-         leftIndex < sourceLength && targetPtr <= sourcePtr;
-         leftIndex++) {
-      target[offset + leftIndex] = source[leftIndex];
-      targetPtr += targetElementSize;
-      sourcePtr += sourceElementSize;
-    }
-    return leftIndex;
-  }
-  var leftIndex = CopyLeftPart();
-
-  // Copy right part;
-  function CopyRightPart() {
-    // First unmutated byte before the next write
-    var targetPtr = %_ArrayBufferViewGetByteOffset(target) +
-                    (offset + sourceLength - 1) * targetElementSize;
-    // Next read before sourcePtr. We do not care for memory changing after
-    // sourcePtr - we have already copied it.
-    var sourcePtr = %_ArrayBufferViewGetByteOffset(source) +
-                    sourceLength * sourceElementSize;
-    for(var rightIndex = sourceLength - 1;
-        rightIndex >= leftIndex && targetPtr >= sourcePtr;
-        rightIndex--) {
-      target[offset + rightIndex] = source[rightIndex];
-      targetPtr -= targetElementSize;
-      sourcePtr -= sourceElementSize;
-    }
-    return rightIndex;
-  }
-  var rightIndex = CopyRightPart();
-
-  var temp = new GlobalArray(rightIndex + 1 - leftIndex);
-  for (var i = leftIndex; i <= rightIndex; i++) {
-    temp[i - leftIndex] = source[i];
-  }
-  for (i = leftIndex; i <= rightIndex; i++) {
-    target[offset + i] = temp[i - leftIndex];
-  }
-}
-
-// 22.2.3.23%TypedArray%.prototype.set ( overloaded [ , offset ] )
 DEFINE_METHOD_LEN(
   GlobalTypedArray.prototype,
   set(obj, offset) {
@@ -319,7 +265,7 @@ DEFINE_METHOD_LEN(
       case 0: // TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE
         return;
       case 1: // TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING
-        TypedArraySetFromOverlappingTypedArray(this, obj, intOffset);
+        %_TypedArraySetFromOverlapping(this, obj, intOffset);
         return;
       case 2: // TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING
         if (intOffset === 0) {
