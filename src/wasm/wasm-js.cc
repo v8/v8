@@ -22,8 +22,6 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
-typedef uint8_t byte;
-
 using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
@@ -73,7 +71,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     return i::wasm::ModuleWireBytes(nullptr, nullptr);
   }
 
-  const byte* start = nullptr;
+  const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = args[0];
   if (source->IsArrayBuffer()) {
@@ -81,7 +79,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(source);
     ArrayBuffer::Contents contents = buffer->GetContents();
 
-    start = reinterpret_cast<const byte*>(contents.Data());
+    start = reinterpret_cast<const uint8_t*>(contents.Data());
     length = contents.ByteLength();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
@@ -91,7 +89,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     ArrayBuffer::Contents contents = buffer->GetContents();
 
     start =
-        reinterpret_cast<const byte*>(contents.Data()) + array->ByteOffset();
+        reinterpret_cast<const uint8_t*>(contents.Data()) + array->ByteOffset();
     length = array->ByteLength();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
