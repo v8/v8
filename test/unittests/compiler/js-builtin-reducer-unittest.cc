@@ -32,7 +32,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), jsgraph.common());
 
     JSBuiltinReducer reducer(&graph_reducer, &jsgraph, nullptr,
                              native_context());

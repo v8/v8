@@ -171,7 +171,7 @@ bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
   // control input is inside the loop.
   Node* loop_node = loop_tree->GetLoopControl(loop);
   for (Node* node : loop_tree->LoopNodes(loop)) {
-    for (Node* use : node->uses()) {
+    for (Node* use : node->raw_uses()) {
       if (!loop_tree->Contains(loop, use)) {
         bool unmarked_exit;
         switch (node->opcode()) {

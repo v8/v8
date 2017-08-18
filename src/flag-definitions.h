@@ -469,6 +469,9 @@ DEFINE_INT(turbo_revisit_whole_graph_threshold, 100,
            "enable revisiting of whole graph for reducers instead of marking "
            "{turbo_revisit_whole_graph_threshold} percents of individual nodes "
            "for revisit")
+DEFINE_BOOL(turbo_reduction_placeholder, false,
+            "transform a replaced node into a placeholder, to postpone "
+            "updating the edges to its uses, doing it as lazily as possible.")
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,

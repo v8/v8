@@ -398,6 +398,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
   const Operator* TypeGuard(Type* type);
 
+  const Operator* ReplacementPlaceholder(int nb_value, int nb_effect,
+                                         int nb_control);
+
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.
   const Operator* ResizeMergeOrPhi(const Operator* op, int size);

@@ -60,7 +60,7 @@ void CheckUseChain(Node* node, Node** uses, int use_count) {
   {
     // Check that iterating over the uses gives the right counts.
     NodeMSet use_set;
-    for (auto use : node->uses()) {
+    for (auto use : node->raw_uses()) {
       use_set.insert(use);
     }
     CHECK(expect_set == use_set);
@@ -80,7 +80,7 @@ void CheckUseChain(Node* node, Node** uses, int use_count) {
 
   {
     // Check the use nodes actually have the node as inputs.
-    for (Node* use : node->uses()) {
+    for (Node* use : node->raw_uses()) {
       size_t count = 0;
       for (Node* input : use->inputs()) {
         if (input == node) count++;
@@ -111,7 +111,7 @@ void CheckInputs(Node* node, Node** inputs, int input_count) {
     if (!input) continue;  // skip null inputs
     bool found = false;
     // Check regular use list.
-    for (Node* use : input->uses()) {
+    for (Node* use : input->raw_uses()) {
       if (use == node) {
         found = true;
         break;

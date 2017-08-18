@@ -98,6 +98,7 @@ class Verifier::Visitor {
 
 
 void Verifier::Visitor::Check(Node* node) {
+  DCHECK_NE(node->opcode(), IrOpcode::kReplacementPlaceholder);
   int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
   int frame_state_count =
@@ -222,7 +223,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kBranch: {
       // Branch uses are IfTrue and IfFalse.
       int count_true = 0, count_false = 0;
-      for (const Node* use : node->uses()) {
+      for (const Node* use : node->raw_uses()) {
         CHECK(use->opcode() == IrOpcode::kIfTrue ||
               use->opcode() == IrOpcode::kIfFalse);
         if (use->opcode() == IrOpcode::kIfTrue) ++count_true;
@@ -262,10 +263,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kSwitch: {
       // Switch uses are Case and Default.
       int count_case = 0, count_default = 0;
-      for (const Node* use : node->uses()) {
+      for (const Node* use : node->raw_uses()) {
         switch (use->opcode()) {
           case IrOpcode::kIfValue: {
-            for (const Node* user : node->uses()) {
+            for (const Node* user : node->raw_uses()) {
               if (user != use && user->opcode() == IrOpcode::kIfValue) {
                 CHECK_NE(OpParameter<int32_t>(use->op()),
                          OpParameter<int32_t>(user->op()));
@@ -318,7 +319,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kReturn:
     case IrOpcode::kThrow:
       // Deoptimize, Return and Throw uses are End.
-      for (const Node* use : node->uses()) {
+      for (const Node* use : node->raw_uses()) {
         CHECK_EQ(IrOpcode::kEnd, use->opcode());
       }
       // Type is empty.
@@ -332,7 +333,7 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(IrOpcode::kLoop,
                NodeProperties::GetControlInput(node)->opcode());
       // Terminate uses are End.
-      for (const Node* use : node->uses()) {
+      for (const Node* use : node->raw_uses()) {
         CHECK_EQ(IrOpcode::kEnd, use->opcode());
       }
       // Type is empty.
@@ -1290,6 +1291,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kTypeGuard:
       CheckTypeIs(node, TypeGuardTypeOf(node->op()));
       break;
+    case IrOpcode::kReplacementPlaceholder:
+      UNREACHABLE();
+      break;
 
     // Machine operators
     // -----------------------
@@ -1491,7 +1495,7 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs) {
   for (Node* proj : all.reachable) {
     if (proj->opcode() != IrOpcode::kProjection) continue;
     Node* node = proj->InputAt(0);
-    for (Node* other : node->uses()) {
+    for (Node* other : node->raw_uses()) {
       if (all.IsLive(other) && other != proj &&
           other->opcode() == IrOpcode::kProjection &&
           other->InputAt(0) == node &&
@@ -1749,6 +1753,8 @@ void Verifier::VerifyNode(Node* node) {
            node->InputCount());
   // If this node has no effect or no control outputs,
   // we check that none of its uses are effect or control inputs.
+
+  DCHECK_NE(node->opcode(), IrOpcode::kReplacementPlaceholder);
   bool check_no_control = node->op()->ControlOutputCount() == 0;
   bool check_no_effect = node->op()->EffectOutputCount() == 0;
   bool check_no_frame_state = node->opcode() != IrOpcode::kFrameState;

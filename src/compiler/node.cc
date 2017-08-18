@@ -130,13 +130,15 @@ Node* Node::Clone(Zone* zone, NodeId id, const Node* node) {
 void Node::Kill() {
   DCHECK_NOT_NULL(op());
   NullAllInputs();
-  DCHECK(uses().empty());
+  DCHECK(raw_uses().empty());
 }
 
 
 void Node::AppendInput(Zone* zone, Node* new_to) {
   DCHECK_NOT_NULL(zone);
   DCHECK_NOT_NULL(new_to);
+  // In case this test fails then replace new_to by its input.
+  DCHECK_NE(new_to->opcode(), IrOpcode::kReplacementPlaceholder);
 
   int inline_count = InlineCountField::decode(bit_field_);
   int inline_capacity = InlineCapacityField::decode(bit_field_);
@@ -433,15 +435,66 @@ Node::UseEdges::iterator Node::UseEdges::iterator::operator++(int n) {
 
 bool Node::UseEdges::empty() const { return begin() == end(); }
 
-
-Node::Uses::const_iterator Node::Uses::const_iterator::operator++(int n) {
+Node::RawUses::const_iterator Node::RawUses::const_iterator::operator++(int n) {
   const_iterator result(*this);
   ++(*this);
   return result;
 }
 
+Node::Uses::iterator Node::Uses::iterator::operator++(int n) {
+  iterator result(*this);
+  ++(*this);
+  return result;
+}
 
-bool Node::Uses::empty() const { return begin() == end(); }
+// Take all uses of the placeholder and put them as uses of new_input.
+void Node::RewindPlaceholderUses(Node::Use* use, Node* new_input) {
+  DCHECK(new_input);
+  Node* placeholder = use->from();
+  DCHECK_EQ(placeholder->opcode(), IrOpcode::kReplacementPlaceholder);
+  if (placeholder->raw_uses().empty()) return;
+
+// Vector to check that the rewiring of the uses was correctly performed.
+#ifdef DEBUG
+  std::vector<Node*> expected_uses;
+  for (Node* u : new_input->raw_uses()) {
+    expected_uses.push_back(u);
+  }
+  std::vector<Node*>::iterator it;
+  for (it = expected_uses.begin(); *it != placeholder; ++it) {
+  }
+  while (it != expected_uses.end() && *it == placeholder) ++it;
+#endif
+
+  // The last use_edge is used to rewire the {placeholder}'s uses to new_input.
+  Edge last_use_edge = *(placeholder->raw_use_edges().begin());
+  for (Edge use_edge : placeholder->raw_use_edges()) {
+    last_use_edge = use_edge;
+#ifdef DEBUG
+    Node* user = use_edge.from();
+    it = expected_uses.insert(it, user);
+    ++it;
+#endif
+    *(use_edge.use()->input_ptr()) = new_input;
+  }
+
+  if (use->next) {
+    use->next->prev = last_use_edge.use();
+    last_use_edge.use()->next = use->next;
+  }
+  use->next = placeholder->first_use_;
+  placeholder->first_use_->prev = use;
+  placeholder->first_use_ = nullptr;
+#ifdef DEBUG
+  int i = 0;
+  for (Node* u : new_input->raw_uses()) {
+    DCHECK_EQ(u, expected_uses[i++]);
+  }
+#endif
+}
+
+bool Node::RawUses::empty() const { return begin() == end(); }
+bool Node::Uses::empty() { return begin() == end(); }
 
 }  // namespace compiler
 }  // namespace internal

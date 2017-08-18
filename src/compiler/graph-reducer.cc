@@ -25,8 +25,10 @@ enum class GraphReducer::State : uint8_t {
 
 void Reducer::Finalize() {}
 
-GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
+GraphReducer::GraphReducer(Zone* zone, Graph* graph,
+                           CommonOperatorBuilder* common, Node* dead)
     : graph_(graph),
+      common_(common),
       dead_(dead),
       state_(graph, 4),
       reducers_(zone),
@@ -134,6 +136,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
 
 
 void GraphReducer::ReduceTop() {
+  DCHECK(!stack_.empty());
   NodeState& entry = stack_.top();
   Node* node = entry.node;
   DCHECK(state_.Get(node) == State::kOnStack);
@@ -146,6 +149,15 @@ void GraphReducer::ReduceTop() {
   int start = entry.input_index < node_inputs.count() ? entry.input_index : 0;
   for (int i = start; i < node_inputs.count(); ++i) {
     Node* input = node_inputs[i];
+    // If we are the use of a placeholder, then we rewire ourself to our actual
+    // parent.
+    if (input->opcode() == IrOpcode::kReplacementPlaceholder) {
+      while (input->opcode() == IrOpcode::kReplacementPlaceholder) {
+        input = input->InputAt(
+            0);  // TODO(leszeks) check input type and take correct input.
+      }
+      node->ReplaceInput(i, input);
+    }
     if (input != node && Recurse(input)) {
       entry.input_index = i + 1;
       return;
@@ -153,11 +165,23 @@ void GraphReducer::ReduceTop() {
   }
   for (int i = 0; i < start; ++i) {
     Node* input = node_inputs[i];
+
+    if (input->opcode() == IrOpcode::kReplacementPlaceholder) {
+      while (input->opcode() == IrOpcode::kReplacementPlaceholder) {
+        input = input->InputAt(
+            0);  // TODO(leszeks) check input type and take correct input.
+      }
+      node->ReplaceInput(i, input);
+    }
+
     if (input != node && Recurse(input)) {
       entry.input_index = i + 1;
       return;
     }
   }
+
+  // The placeholder node cannot be reduced.
+  if (node->opcode() == IrOpcode::kReplacementPlaceholder) return Pop();
 
   // Remember the max node id before reduction.
   NodeId const max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
@@ -210,16 +234,45 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
   if (replacement->id() <= max_id) {
-    // {replacement} is an old node, so unlink {node} and assume that
-    // {replacement} was already reduced and finish.
-    for (Edge edge : node->use_edges()) {
-      Node* const user = edge.from();
-      Verifier::VerifyEdgeInputReplacement(edge, replacement);
-      edge.UpdateTo(replacement);
-      // Don't revisit this node if it refers to itself.
-      if (user != node) Revisit(user);
+    if (FLAG_turbo_reduction_placeholder &&
+        update_and_get_revisit_all_nodes(nb_visited_nodes())) {
+      // We replace change {node} to be a placeholder, and link it to
+      // {replacement}, so that the rewiring of {node}'s users will be done as
+      // lazy as possible.
+      int has_value_output = replacement->op()->ValueOutputCount() ? 1 : 0;
+      int has_effect_output = replacement->op()->EffectOutputCount() ? 1 : 0;
+      int has_control_output = replacement->op()->ControlOutputCount() ? 1 : 0;
+      int nb_total_output =
+          has_value_output + has_effect_output + has_control_output;
+      if (!nb_total_output || node->raw_uses().empty()) {
+        // We assume {node} only has itself as uses. Otherwise a DCHECK in kill
+        // will fail.
+        node->Kill();
+        return;
+      }
+      node->TrimInputCount(0);
+      Node* new_input = replacement;
+      while (new_input->opcode() == IrOpcode::kReplacementPlaceholder) {
+        new_input = new_input->InputAt(0);
+      }
+      DCHECK_NE(new_input->opcode(), IrOpcode::kReplacementPlaceholder);
+      for (int i = 0; i < nb_total_output; i++) {
+        node->AppendInput(graph()->zone(), new_input);
+      }
+      node->set_op(common()->ReplacementPlaceholder(
+          has_value_output, has_effect_output, has_control_output));
+
+    } else {
+      for (Edge edge : node->use_edges()) {
+        Node* const user = edge.from();
+        Verifier::VerifyEdgeInputReplacement(edge, replacement);
+        edge.UpdateTo(replacement);
+        // Don't revisit this node if it refers to itself.
+        if (user != node) Revisit(user);
+      }
+      node->Kill();
     }
-    node->Kill();
+
   } else {
     // Replace all old uses of {node} with {replacement}, but allow new nodes
     // created by this reduction to use {node}.
@@ -232,7 +285,7 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
       }
     }
     // Unlink {node} if it's no longer used.
-    if (node->uses().empty()) node->Kill();
+    if (node->raw_uses().empty()) node->Kill();
 
     // If there was a replacement, reduce it after popping {node}.
     Recurse(replacement);

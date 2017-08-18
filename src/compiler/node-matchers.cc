@@ -16,7 +16,7 @@ bool NodeMatcher::IsComparison() const {
 BranchMatcher::BranchMatcher(Node* branch)
     : NodeMatcher(branch), if_true_(nullptr), if_false_(nullptr) {
   if (branch->opcode() != IrOpcode::kBranch) return;
-  for (Node* use : branch->uses()) {
+  for (Node* use : branch->raw_uses()) {
     if (use->opcode() == IrOpcode::kIfTrue) {
       DCHECK_NULL(if_true_);
       if_true_ = use;

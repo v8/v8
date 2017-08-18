@@ -6,6 +6,7 @@
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/node-marker.h"
 #include "src/globals.h"
 #include "src/zone/zone-containers.h"
@@ -127,7 +128,8 @@ class AdvancedReducer : public Reducer {
 class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
-  GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
+  GraphReducer(Zone* zone, Graph* graph, CommonOperatorBuilder* common,
+               Node* dead = nullptr);
   ~GraphReducer();
 
   Graph* graph() const { return graph_; }
@@ -197,7 +199,10 @@ class V8_EXPORT_PRIVATE GraphReducer
   int nb_visited_nodes() { return nb_visited_nodes_; }
   void incr_nb_visited_nodes() { nb_visited_nodes_++; }
 
+  CommonOperatorBuilder* common() const { return common_; }
+
   Graph* const graph_;
+  CommonOperatorBuilder* common_;
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;

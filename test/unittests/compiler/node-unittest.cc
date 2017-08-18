@@ -36,7 +36,7 @@ TEST_F(NodeTest, New) {
   Node* const node = Node::New(zone(), 1, &kOp0, 0, nullptr, false);
   EXPECT_EQ(1U, node->id());
   EXPECT_EQ(0, node->UseCount());
-  EXPECT_TRUE(node->uses().empty());
+  EXPECT_TRUE(node->raw_uses().empty());
   EXPECT_EQ(0, node->InputCount());
   EXPECT_TRUE(node->inputs().empty());
   EXPECT_EQ(&kOp0, node->op());
@@ -50,15 +50,15 @@ TEST_F(NodeTest, NewWithInputs) {
   EXPECT_EQ(0, n0->InputCount());
   Node* n1 = Node::New(zone(), 1, &kOp1, 1, &n0, false);
   EXPECT_EQ(1, n0->UseCount());
-  EXPECT_THAT(n0->uses(), UnorderedElementsAre(n1));
+  EXPECT_THAT(n0->raw_uses(), UnorderedElementsAre(n1));
   EXPECT_EQ(0, n1->UseCount());
   EXPECT_EQ(1, n1->InputCount());
   EXPECT_EQ(n0, n1->InputAt(0));
   Node* n0_n1[] = {n0, n1};
   Node* n2 = Node::New(zone(), 2, &kOp2, 2, n0_n1, false);
   EXPECT_EQ(2, n0->UseCount());
-  EXPECT_THAT(n0->uses(), UnorderedElementsAre(n1, n2));
-  EXPECT_THAT(n1->uses(), UnorderedElementsAre(n2));
+  EXPECT_THAT(n0->raw_uses(), UnorderedElementsAre(n1, n2));
+  EXPECT_THAT(n1->raw_uses(), UnorderedElementsAre(n2));
   EXPECT_EQ(2, n2->InputCount());
   EXPECT_EQ(n0, n2->InputAt(0));
   EXPECT_EQ(n1, n2->InputAt(1));
@@ -89,14 +89,14 @@ TEST_F(NodeTest, InputIteratorTwo) {
 
 TEST_F(NodeTest, UseIteratorEmpty) {
   Node* node = Node::New(zone(), 0, &kOp0, 0, nullptr, false);
-  EXPECT_EQ(node->uses().begin(), node->uses().end());
+  EXPECT_EQ(node->raw_uses().begin(), node->raw_uses().end());
 }
 
 
 TEST_F(NodeTest, UseIteratorOne) {
   Node* n0 = Node::New(zone(), 0, &kOp0, 0, nullptr, false);
   Node* n1 = Node::New(zone(), 1, &kOp1, 1, &n0, false);
-  EXPECT_THAT(n0->uses(), ElementsAre(n1));
+  EXPECT_THAT(n0->raw_uses(), ElementsAre(n1));
 }
 
 
@@ -105,7 +105,7 @@ TEST_F(NodeTest, UseIteratorTwo) {
   Node* n1 = Node::New(zone(), 1, &kOp1, 1, &n0, false);
   Node* n0_n1[] = {n0, n1};
   Node* n2 = Node::New(zone(), 2, &kOp2, 2, n0_n1, false);
-  EXPECT_THAT(n0->uses(), UnorderedElementsAre(n1, n2));
+  EXPECT_THAT(n0->raw_uses(), UnorderedElementsAre(n1, n2));
 }
 
 
@@ -140,13 +140,13 @@ TEST_F(NodeTest, ReplaceUsesNone) {
   Node* n0_n1[] = {n0, n1};
   Node* n2 = Node::New(zone(), 2, &kOp2, 2, n0_n1, false);
   Node* node = Node::New(zone(), 42, &kOp0, 0, nullptr, false);
-  EXPECT_TRUE(node->uses().empty());
+  EXPECT_TRUE(node->raw_uses().empty());
   node->ReplaceUses(n0);
-  EXPECT_TRUE(node->uses().empty());
+  EXPECT_TRUE(node->raw_uses().empty());
   node->ReplaceUses(n1);
-  EXPECT_TRUE(node->uses().empty());
+  EXPECT_TRUE(node->raw_uses().empty());
   node->ReplaceUses(n2);
-  EXPECT_TRUE(node->uses().empty());
+  EXPECT_TRUE(node->raw_uses().empty());
 }
 
 
@@ -255,8 +255,8 @@ TEST_F(NodeTest, BigNodes) {
       EXPECT_EQ(inputs[i], node->InputAt(i));
     }
 
-    EXPECT_THAT(n0->uses(), Contains(node));
-    EXPECT_THAT(n1->uses(), Contains(node));
+    EXPECT_THAT(n0->raw_uses(), Contains(node));
+    EXPECT_THAT(n1->raw_uses(), Contains(node));
     EXPECT_THAT(node->inputs(), ElementsAreArray(inputs, size));
   }
 }

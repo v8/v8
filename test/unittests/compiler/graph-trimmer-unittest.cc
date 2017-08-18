@@ -57,7 +57,7 @@ TEST_F(GraphTrimmerTest, DeadUseOfStart) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
   TrimGraph();
   EXPECT_THAT(dead0->inputs(), ElementsAre(nullptr));
-  EXPECT_THAT(graph()->start()->uses(), ElementsAre(graph()->end()));
+  EXPECT_THAT(graph()->start()->raw_uses(), ElementsAre(graph()->end()));
 }
 
 
@@ -67,8 +67,8 @@ TEST_F(GraphTrimmerTest, DeadAndLiveUsesOfStart) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), live0));
   TrimGraph();
   EXPECT_THAT(dead0->inputs(), ElementsAre(nullptr));
-  EXPECT_THAT(graph()->start()->uses(), ElementsAre(live0));
-  EXPECT_THAT(live0->uses(), ElementsAre(graph()->end()));
+  EXPECT_THAT(graph()->start()->raw_uses(), ElementsAre(live0));
+  EXPECT_THAT(live0->raw_uses(), ElementsAre(graph()->end()));
 }
 
 
@@ -77,7 +77,7 @@ TEST_F(GraphTrimmerTest, Roots) {
   Node* const live1 = graph()->NewNode(&kLive0, graph()->start());
   graph()->SetEnd(graph()->NewNode(common()->End(1), live0));
   TrimGraph(live1);
-  EXPECT_THAT(graph()->start()->uses(), UnorderedElementsAre(live0, live1));
+  EXPECT_THAT(graph()->start()->raw_uses(), UnorderedElementsAre(live0, live1));
 }
 
 }  // namespace compiler

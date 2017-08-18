@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
 #include "src/globals.h"
@@ -28,10 +29,11 @@ class V8_EXPORT_PRIVATE Typer {
   Typer(Isolate* isolate, Flags flags, Graph* graph);
   ~Typer();
 
-  void Run();
+  void Run(CommonOperatorBuilder* common);
   // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
   void Run(const ZoneVector<Node*>& roots,
-           LoopVariableOptimizer* induction_vars);
+           LoopVariableOptimizer* induction_vars,
+           CommonOperatorBuilder* common);
 
  private:
   class Visitor;

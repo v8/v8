@@ -39,7 +39,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), jsgraph.common());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph,
                              MaybeHandle<FeedbackVector>(), native_context(),
                              zone());

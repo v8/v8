@@ -32,7 +32,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), jsgraph.common());
     SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph);
     return reducer.Reduce(node);
   }

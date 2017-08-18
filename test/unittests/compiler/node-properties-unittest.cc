@@ -62,10 +62,10 @@ TEST_F(NodePropertiesTest, ReplaceUses) {
   EXPECT_EQ(1, r_effect->UseCount());
   EXPECT_EQ(1, r_success->UseCount());
   EXPECT_EQ(1, r_exception->UseCount());
-  EXPECT_THAT(r_value->uses(), ElementsAre(use_value));
-  EXPECT_THAT(r_effect->uses(), ElementsAre(use_effect));
-  EXPECT_THAT(r_success->uses(), ElementsAre(use_success));
-  EXPECT_THAT(r_exception->uses(), ElementsAre(use_exception));
+  EXPECT_THAT(r_value->raw_uses(), ElementsAre(use_value));
+  EXPECT_THAT(r_effect->raw_uses(), ElementsAre(use_effect));
+  EXPECT_THAT(r_success->raw_uses(), ElementsAre(use_success));
+  EXPECT_THAT(r_exception->raw_uses(), ElementsAre(use_exception));
 }
 
 

@@ -252,7 +252,6 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   Verifier::VerifyNode(node);
 }
 
-
 // static
 Node* NodeProperties::FindFrameStateBefore(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);

@@ -85,6 +85,12 @@ class V8_EXPORT_PRIVATE Node final {
     return *GetInputPtrConst(index);
   }
 
+ private:
+  struct Use;
+
+ public:
+  static void RewindPlaceholderUses(Use* use, Node* new_input);
+
   void ReplaceInput(int index, Node* new_to) {
     BOUNDS_CHECK(index);
     Node** input_ptr = GetInputPtr(index);
@@ -92,6 +98,13 @@ class V8_EXPORT_PRIVATE Node final {
     if (old_to != new_to) {
       Use* use = GetUsePtr(index);
       if (old_to) old_to->RemoveUse(use);
+
+      if (new_to != NULL) {
+        while (new_to->opcode() == IrOpcode::kReplacementPlaceholder) {
+          new_to = new_to->InputAt(0);
+        }
+        DCHECK_NE(new_to->opcode(), IrOpcode::kReplacementPlaceholder);
+      }
       *input_ptr = new_to;
       if (new_to) new_to->AppendUse(use);
     }
@@ -115,6 +128,26 @@ class V8_EXPORT_PRIVATE Node final {
   class Inputs;
   inline Inputs inputs() const;
 
+  class RawUseEdges final {
+   public:
+    typedef Edge value_type;
+
+    class iterator;
+    inline iterator begin() const;
+    inline iterator end() const;
+
+    bool empty() const;
+
+    explicit RawUseEdges(Node* node) : node_(node) {}
+
+   private:
+    Node* node_;
+  };
+
+  // Returns an iterable object to browse exactly the use edges. Does not do
+  // anything regarding the placeholders.
+  RawUseEdges raw_use_edges() { return RawUseEdges(this); }
+
   class UseEdges final {
    public:
     typedef Edge value_type;
@@ -131,9 +164,12 @@ class V8_EXPORT_PRIVATE Node final {
     Node* node_;
   };
 
+  // Returns an iterable object to browse the use edges of {node} which are not
+  // reduction placeholders. The placeholders get removed, and their uses get
+  // put at the place they were in the use list of {node}.
   UseEdges use_edges() { return UseEdges(this); }
 
-  class V8_EXPORT_PRIVATE Uses final {
+  class V8_EXPORT_PRIVATE RawUses final {
    public:
     typedef Node* value_type;
 
@@ -143,12 +179,35 @@ class V8_EXPORT_PRIVATE Node final {
 
     bool empty() const;
 
+    explicit RawUses(Node* node) : node_(node) {}
+
+   private:
+    Node* node_;
+  };
+
+  // Returns an iterable object to browse exactly the uses. Does not do anything
+  // regarding the placeholders.
+  RawUses raw_uses() { return RawUses(this); }
+
+  class V8_EXPORT_PRIVATE Uses final {
+   public:
+    typedef Node* value_type;
+
+    class iterator;
+    inline iterator begin();
+    inline iterator end() const;
+
+    bool empty();
+
     explicit Uses(Node* node) : node_(node) {}
 
    private:
     Node* node_;
   };
 
+  // Returns an iterable object to browse the uses of {node} which are not
+  // reduction placeholders. The placeholders get removed, and their uses get
+  // put at the place they were in the use list of {node}.
   Uses uses() { return Uses(this); }
 
   // Returns true if {owner} is the user of {this} node.
@@ -165,7 +224,6 @@ class V8_EXPORT_PRIVATE Node final {
   void Print() const;
 
  private:
-  struct Use;
   // Out of line storage for inputs when the number of inputs overflowed the
   // capacity of the inline-allocated space.
   struct OutOfLineInputs {
@@ -298,6 +356,7 @@ class V8_EXPORT_PRIVATE Node final {
   friend class Edge;
   friend class NodeMarkerBase;
   friend class NodeProperties;
+  friend class GraphReducer;
 
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
@@ -375,6 +434,8 @@ class Edge final {
     return index;
   }
 
+  Node::Use* use() const { return use_; }
+
   bool operator==(const Edge& other) { return input_ptr_ == other.input_ptr_; }
   bool operator!=(const Edge& other) { return !(*this == other); }
 
@@ -388,6 +449,7 @@ class Edge final {
   }
 
  private:
+  friend class Node::RawUseEdges::iterator;
   friend class Node::UseEdges::iterator;
   friend class Node::InputEdges;
   friend class Node::InputEdges::iterator;
@@ -543,7 +605,7 @@ Node::Inputs::const_iterator Node::Inputs::end() const {
 Node* Node::Inputs::operator[](int index) const { return input_root_[index]; }
 
 // A forward iterator to visit the uses edges of a node.
-class Node::UseEdges::iterator final {
+class Node::RawUseEdges::iterator final {
  public:
   iterator(const iterator& other)
       : current_(other.current_), next_(other.next_) {}
@@ -562,9 +624,10 @@ class Node::UseEdges::iterator final {
   iterator operator++(int);
 
  private:
-  friend class Node::UseEdges;
+  friend class Node::RawUseEdges;
 
   iterator() : current_(nullptr), next_(nullptr) {}
+
   explicit iterator(Node* node)
       : current_(node->first_use_),
         next_(current_ ? current_->next : nullptr) {}
@@ -573,6 +636,74 @@ class Node::UseEdges::iterator final {
   Node::Use* next_;
 };
 
+Node::RawUseEdges::iterator Node::RawUseEdges::begin() const {
+  return Node::RawUseEdges::iterator(this->node_);
+}
+
+Node::RawUseEdges::iterator Node::RawUseEdges::end() const {
+  return Node::RawUseEdges::iterator();
+}
+
+// A forward iterator to visit the uses edges of a node.
+class Node::UseEdges::iterator final {
+ public:
+  iterator(const iterator& other)
+      : current_(other.current_), next_(other.next_) {}
+
+  Edge operator*() const { return Edge(current_, current_->input_ptr()); }
+  bool operator==(const iterator& other) const {
+    return current_ == other.current_;
+  }
+  bool operator!=(const iterator& other) const { return !(*this == other); }
+  iterator& operator++() {
+    DCHECK_NOT_NULL(current_);
+
+    current_ = next_;
+    ReplacePlaceholderWithUses();
+    next_ = current_ ? current_->next : nullptr;
+    if (current_)
+      DCHECK_NE(this->current_->from()->opcode(),
+                IrOpcode::kReplacementPlaceholder);
+    return *this;
+  }
+  iterator operator++(int);
+
+ private:
+  friend class Node::UseEdges;
+
+  iterator() : current_(nullptr), next_(nullptr) {}
+  explicit iterator(Node* node)
+      : current_(node->first_use_), next_(current_ ? current_->next : nullptr) {
+    ReplacePlaceholderWithUses();
+    next_ = current_ ? current_->next : nullptr;
+  }
+
+  // Gets rid of the next contiguous placeholders in the use list and rewind the
+  // uses of these placeholders directly to *{this}.
+  void ReplacePlaceholderWithUses() {
+    // We will return the first non placeholder use.
+    while (current_ &&
+           current_->from()->opcode() == IrOpcode::kReplacementPlaceholder) {
+      Node* placeholder = current_->from();
+      // We take the last occurrence of the current placeholder.
+      while (current_->next && current_->next->from() == placeholder) {
+        current_ = current_->next;
+      }
+      // We put the uses of the placeholder right after it and update the state
+      // of the iterator.
+      Node::RewindPlaceholderUses(current_, *(current_->input_ptr()));
+      current_ = current_->next;
+      // The placeholder gets removed from the uses. We continue the while loop
+      // because the new next use may also be a placeholder (in case either the
+      // previous placeholder had no uses, or because its first use was a
+      // placeholder).
+      placeholder->Kill();
+    }
+  }
+
+  Node::Use* current_;
+  Node::Use* next_;
+};
 
 Node::UseEdges::iterator Node::UseEdges::begin() const {
   return Node::UseEdges::iterator(this->node_);
@@ -585,7 +716,7 @@ Node::UseEdges::iterator Node::UseEdges::end() const {
 
 
 // A forward iterator to visit the uses of a node.
-class Node::Uses::const_iterator final {
+class Node::RawUses::const_iterator final {
  public:
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;
@@ -623,7 +754,7 @@ class Node::Uses::const_iterator final {
   const_iterator operator++(int);
 
  private:
-  friend class Node::Uses;
+  friend class Node::RawUses;
 
   const_iterator() : current_(nullptr) {}
   explicit const_iterator(Node* node)
@@ -641,13 +772,75 @@ class Node::Uses::const_iterator final {
 #endif
 };
 
-
-Node::Uses::const_iterator Node::Uses::begin() const {
+Node::RawUses::const_iterator Node::RawUses::begin() const {
   return const_iterator(this->node_);
 }
 
+Node::RawUses::const_iterator Node::RawUses::end() const {
+  return const_iterator();
+}
 
-Node::Uses::const_iterator Node::Uses::end() const { return const_iterator(); }
+// A forward iterator to visit the uses of a node.
+class Node::Uses::iterator final {
+ public:
+  typedef std::forward_iterator_tag iterator_category;
+  typedef int difference_type;
+  typedef Node* value_type;
+  typedef Node** pointer;
+  typedef Node*& reference;
+
+  iterator(const iterator& other)
+      : current_(other.current_), next_(other.next_) {}
+
+  Node* operator*() const { return current_->from(); }
+  bool operator==(const iterator& other) const {
+    return other.current_ == current_;
+  }
+  bool operator!=(const iterator& other) const {
+    return other.current_ != current_;
+  }
+  iterator& operator++() {
+    DCHECK_NOT_NULL(current_);
+    current_ = next_;
+
+    ReplacePlaceholderWithUses();
+    next_ = current_ ? current_->next : nullptr;
+    if (current_)
+      DCHECK_NE(this->current_->from()->opcode(),
+                IrOpcode::kReplacementPlaceholder);
+    return *this;
+  }
+  iterator operator++(int);
+
+ private:
+  friend class Node::Uses;
+
+  iterator() : current_(nullptr) {}
+  explicit iterator(Node* node)
+      : current_(node->first_use_), next_(current_ ? current_->next : nullptr) {
+    ReplacePlaceholderWithUses();
+    next_ = current_ ? current_->next : nullptr;
+  }
+
+  void ReplacePlaceholderWithUses() {
+    while (current_ &&
+           current_->from()->opcode() == IrOpcode::kReplacementPlaceholder) {
+      Node* placeholder = current_->from();
+      while (current_->next && current_->next->from() == placeholder) {
+        current_ = current_->next;
+      }
+      Node::RewindPlaceholderUses(current_, *(current_->input_ptr()));
+      current_ = current_->next;
+      placeholder->Kill();
+    }
+  }
+  Node::Use* current_;
+  Node::Use* next_;
+};
+
+Node::Uses::iterator Node::Uses::begin() { return iterator(this->node_); }
+
+Node::Uses::iterator Node::Uses::end() const { return iterator(); }
 
 }  // namespace compiler
 }  // namespace internal

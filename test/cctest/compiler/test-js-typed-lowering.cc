@@ -40,7 +40,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         context_node(NULL) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
-    typer.Run();
+    typer.Run(&common);
   }
 
   Isolate* isolate;
@@ -92,7 +92,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(main_zone(), &graph);
+    GraphReducer graph_reducer(main_zone(), &graph, jsgraph.common());
     JSTypedLowering reducer(&graph_reducer, &deps, &jsgraph, main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();

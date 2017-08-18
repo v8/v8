@@ -73,7 +73,8 @@
   V(Projection)             \
   V(Retain)                 \
   V(MapGuard)               \
-  V(TypeGuard)
+  V(TypeGuard)              \
+  V(ReplacementPlaceholder)
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \

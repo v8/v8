@@ -340,15 +340,17 @@ class Typer::Visitor : public Reducer {
   }
 };
 
-void Typer::Run() { Run(NodeVector(zone()), nullptr); }
+void Typer::Run(CommonOperatorBuilder* common) {
+  Run(NodeVector(zone()), nullptr, common);
+}
 
-void Typer::Run(const NodeVector& roots,
-                LoopVariableOptimizer* induction_vars) {
+void Typer::Run(const NodeVector& roots, LoopVariableOptimizer* induction_vars,
+                CommonOperatorBuilder* common) {
   if (induction_vars != nullptr) {
     induction_vars->ChangeToInductionVariablePhis();
   }
   Visitor visitor(this, induction_vars);
-  GraphReducer graph_reducer(zone(), graph());
+  GraphReducer graph_reducer(zone(), graph(), common);
   graph_reducer.AddReducer(&visitor);
   for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();
@@ -614,6 +616,8 @@ Type* Typer::Visitor::TypeParameter(Node* node) {
 }
 
 Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
+
+Type* Typer::Visitor::TypeReplacementPlaceholder(Node* node) { UNREACHABLE(); }
 
 Type* Typer::Visitor::TypeRetain(Node* node) {
   UNREACHABLE();

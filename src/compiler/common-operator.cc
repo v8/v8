@@ -459,6 +459,14 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(5)                           \
   V(6)
 
+#define CACHED_REPLACEMENT_PLACEHOLDER_LIST(V) \
+  V(0, 0, 1)                                   \
+  V(0, 1, 0)                                   \
+  V(0, 1, 1)                                   \
+  V(1, 0, 0)                                   \
+  V(1, 0, 1)                                   \
+  V(1, 1, 0)                                   \
+  V(1, 1, 1)
 
 #define CACHED_PHI_LIST(V) \
   V(kTagged, 1)            \
@@ -755,6 +763,21 @@ struct CommonOperatorGlobalCache final {
   StateValuesOperator<input_count> kStateValues##input_count##Operator;
   CACHED_STATE_VALUES_LIST(CACHED_STATE_VALUES)
 #undef CACHED_STATE_VALUES
+
+  template <int nb_value, int nb_effect, int nb_control>
+  struct ReplacementPlaceholderOperator final : public Operator {
+    ReplacementPlaceholderOperator()
+        : Operator(IrOpcode::kReplacementPlaceholder,
+                   Operator::kPure,           // opcode
+                   "ReplacementPlaceholder",  // name
+                   nb_value, nb_effect, nb_control, nb_value, nb_effect,
+                   nb_control) {}  // counts
+  };
+#define CACHED_REPLACEMENT_PLACEHOLDER(nb_value, nb_effect, nb_control) \
+  ReplacementPlaceholderOperator<nb_value, nb_effect, nb_control>       \
+      kReplacementPlaceholder##nb_value##nb_effect##nb_control##Operator;
+  CACHED_REPLACEMENT_PLACEHOLDER_LIST(CACHED_REPLACEMENT_PLACEHOLDER)
+#undef CACHED_REPLACEMENT_PLACEHOLDER
 };
 
 static base::LazyInstance<CommonOperatorGlobalCache>::type
@@ -1378,6 +1401,22 @@ CommonOperatorBuilder::CreateFrameStateFunctionInfo(
     Handle<SharedFunctionInfo> shared_info) {
   return new (zone()->New(sizeof(FrameStateFunctionInfo)))
       FrameStateFunctionInfo(type, parameter_count, local_count, shared_info);
+}
+
+const Operator* CommonOperatorBuilder::ReplacementPlaceholder(int nb_value,
+                                                              int nb_effect,
+                                                              int nb_control) {
+  // Each of the parameters is either 0 or 1.
+  int hash = nb_value + (nb_effect << 1) + (nb_control << 2);
+  switch (hash) {
+#define CACHED_REPLACEMENT_PLACEHOLDER(value, effect, control) \
+  case value + (effect << 1) + (control << 2):                 \
+    return &cache_.kReplacementPlaceholder##value##effect##control##Operator;
+    CACHED_REPLACEMENT_PLACEHOLDER_LIST(CACHED_REPLACEMENT_PLACEHOLDER)
+#undef CACHED_REPLACEMENT_PLACEHOLDER
+    default:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace compiler

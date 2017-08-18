@@ -42,7 +42,7 @@ void AllNodes::Mark(Zone* local_zone, Node* end, const Graph* graph) {
       }
     }
     if (!only_inputs_) {
-      for (Node* use : reachable[i]->uses()) {
+      for (Node* use : reachable[i]->raw_uses()) {
         if (use == nullptr || use->id() >= graph->NodeCount()) {
           continue;
         }

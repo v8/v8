@@ -519,7 +519,8 @@ class SourcePositionWrapper final : public Reducer {
 class JSGraphReducer final : public GraphReducer {
  public:
   JSGraphReducer(JSGraph* jsgraph, Zone* zone)
-      : GraphReducer(zone, jsgraph->graph(), jsgraph->Dead()) {}
+      : GraphReducer(zone, jsgraph->graph(), jsgraph->common(),
+                     jsgraph->Dead()) {}
   ~JSGraphReducer() final {}
 };
 
@@ -990,7 +991,7 @@ struct TyperPhase {
     LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
                                          data->common(), temp_zone);
     if (FLAG_turbo_loop_variable) induction_vars.Run();
-    typer->Run(roots, &induction_vars);
+    typer->Run(roots, &induction_vars, data->common());
   }
 };
 

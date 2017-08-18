@@ -34,7 +34,7 @@ class EscapeAnalysisTest : public TypedGraphTest {
   void Analysis() { escape_analysis_.Run(); }
 
   void Transformation() {
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), common());
     EscapeAnalysisReducer escape_reducer(&graph_reducer, &jsgraph_,
                                          &escape_analysis_, zone());
     graph_reducer.AddReducer(&escape_reducer);

@@ -2630,7 +2630,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
           ->MoveRegister(generator_object(), args[0])  // generator
           .StoreAccumulatorInRegister(args[1])         // value
           .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
-          .StoreAccumulatorInRegister(args[2])  // is_caught
+          .StoreAccumulatorInRegister(args[2])        // is_caught
           .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
     } else {
       // Generator yields (with the exception of the initial yield) wrap the

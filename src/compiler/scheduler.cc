@@ -1266,7 +1266,7 @@ class ScheduleEarlyNodeVisitor {
 
     // Propagate schedule early position.
     DCHECK_NOT_NULL(data->minimum_block_);
-    for (auto use : node->uses()) {
+    for (auto use : node->raw_uses()) {
       PropagateMinimumPositionToNode(data->minimum_block_, use);
     }
   }

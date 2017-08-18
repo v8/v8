@@ -250,7 +250,7 @@ class LoopFinderImpl {
   void SetLoopMarkForLoopHeader(Node* node, int loop_num) {
     DCHECK_EQ(IrOpcode::kLoop, node->opcode());
     SetLoopMark(node, loop_num);
-    for (Node* use : node->uses()) {
+    for (Node* use : node->raw_uses()) {
       if (NodeProperties::IsPhi(use)) {
         SetLoopMark(use, loop_num);
       }
@@ -260,7 +260,7 @@ class LoopFinderImpl {
 
       if (use->opcode() == IrOpcode::kLoopExit) {
         SetLoopMark(use, loop_num);
-        for (Node* exit_use : use->uses()) {
+        for (Node* exit_use : use->raw_uses()) {
           if (exit_use->opcode() == IrOpcode::kLoopExitValue ||
               exit_use->opcode() == IrOpcode::kLoopExitEffect) {
             SetLoopMark(exit_use, loop_num);
