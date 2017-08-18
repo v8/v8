@@ -312,18 +312,32 @@ void LoadElimination::AbstractElements::Print() const {
 
 Node* LoadElimination::AbstractField::Lookup(Node* object) const {
   for (auto pair : info_for_node_) {
-    if (MustAlias(object, pair.first)) return pair.second;
+    if (MustAlias(object, pair.first)) return pair.second.value;
   }
   return nullptr;
 }
 
+namespace {
+
+bool MayAlias(MaybeHandle<Name> x, MaybeHandle<Name> y) {
+  if (!x.address()) return true;
+  if (!y.address()) return true;
+  if (x.address() != y.address()) return false;
+  return true;
+}
+
+}  // namespace
+
 LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
-    Node* object, Zone* zone) const {
+    Node* object, MaybeHandle<Name> name, Zone* zone) const {
   for (auto pair : this->info_for_node_) {
     if (MayAlias(object, pair.first)) {
       AbstractField* that = new (zone) AbstractField(zone);
       for (auto pair : this->info_for_node_) {
-        if (!MayAlias(object, pair.first)) that->info_for_node_.insert(pair);
+        if (!MayAlias(object, pair.first) ||
+            !MayAlias(name, pair.second.name)) {
+          that->info_for_node_.insert(pair);
+        }
       }
       return that;
     }
@@ -334,8 +348,8 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
 void LoadElimination::AbstractField::Print() const {
   for (auto pair : info_for_node_) {
     PrintF("    #%d:%s -> #%d:%s\n", pair.first->id(),
-           pair.first->op()->mnemonic(), pair.second->id(),
-           pair.second->op()->mnemonic());
+           pair.first->op()->mnemonic(), pair.second.value->id(),
+           pair.second.value->op()->mnemonic());
   }
 }
 
@@ -525,20 +539,22 @@ LoadElimination::AbstractState::KillElement(Node* object, Node* index,
 }
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
-    Node* object, size_t index, Node* value, Zone* zone) const {
+    Node* object, size_t index, Node* value, MaybeHandle<Name> name,
+    Zone* zone) const {
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->fields_[index]) {
-    that->fields_[index] = that->fields_[index]->Extend(object, value, zone);
+    that->fields_[index] =
+        that->fields_[index]->Extend(object, value, name, zone);
   } else {
-    that->fields_[index] = new (zone) AbstractField(object, value, zone);
+    that->fields_[index] = new (zone) AbstractField(object, value, name, zone);
   }
   return that;
 }
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
-    Node* object, size_t index, Zone* zone) const {
+    Node* object, size_t index, MaybeHandle<Name> name, Zone* zone) const {
   if (AbstractField const* this_field = this->fields_[index]) {
-    this_field = this_field->Kill(object, zone);
+    this_field = this_field->Kill(object, name, zone);
     if (this->fields_[index] != this_field) {
       AbstractState* that = new (zone) AbstractState(*this);
       that->fields_[index] = this_field;
@@ -549,17 +565,18 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
 }
 
 LoadElimination::AbstractState const*
-LoadElimination::AbstractState::KillFields(Node* object, Zone* zone) const {
+LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
+                                           Zone* zone) const {
   for (size_t i = 0;; ++i) {
     if (i == arraysize(fields_)) return this;
     if (AbstractField const* this_field = this->fields_[i]) {
-      AbstractField const* that_field = this_field->Kill(object, zone);
+      AbstractField const* that_field = this_field->Kill(object, name, zone);
       if (that_field != this_field) {
         AbstractState* that = new (zone) AbstractState(*this);
         that->fields_[i] = that_field;
         while (++i < arraysize(fields_)) {
           if (this->fields_[i] != nullptr) {
-            that->fields_[i] = this->fields_[i]->Kill(object, zone);
+            that->fields_[i] = this->fields_[i]->Kill(object, name, zone);
           }
         }
         return that;
@@ -672,11 +689,11 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   // We know that the resulting elements have the fixed array map.
   state = state->AddMaps(node, fixed_array_maps, zone());
   // Kill the previous elements on {object}.
-  state =
-      state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
+  state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
+                           MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
   state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
-                          zone());
+                          MaybeHandle<Name>(), zone());
   return UpdateState(node, state);
 }
 
@@ -697,15 +714,15 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   }
   if (flags & GrowFastElementsFlag::kArrayObject) {
     // Kill the previous Array::length on {object}.
-    state =
-        state->KillField(object, FieldIndexOf(JSArray::kLengthOffset), zone());
+    state = state->KillField(object, FieldIndexOf(JSArray::kLengthOffset),
+                             factory()->length_string(), zone());
   }
   // Kill the previous elements on {object}.
-  state =
-      state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
+  state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
+                           MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
   state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
-                          zone());
+                          MaybeHandle<Name>(), zone());
   return UpdateState(node, state);
 }
 
@@ -739,7 +756,7 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
     case ElementsTransition::kSlowTransition:
       // Kill the elements as well.
       state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
-                               zone());
+                               MaybeHandle<Name>(), zone());
       break;
   }
   return UpdateState(node, state);
@@ -764,8 +781,8 @@ Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
     state = state->AddMaps(object, object_maps, zone());
   }
   // Kill the elements as well.
-  state =
-      state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
+  state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
+                           MaybeHandle<Name>(), zone());
   return UpdateState(node, state);
 }
 
@@ -800,7 +817,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
           return Replace(replacement);
         }
       }
-      state = state->AddField(object, field_index, node, zone());
+      state = state->AddField(object, field_index, node, access.name, zone());
     }
   }
   Handle<Map> field_map;
@@ -838,11 +855,12 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
         return Replace(effect);
       }
       // Kill all potentially aliasing fields and record the new value.
-      state = state->KillField(object, field_index, zone());
-      state = state->AddField(object, field_index, new_value, zone());
+      state = state->KillField(object, field_index, access.name, zone());
+      state =
+          state->AddField(object, field_index, new_value, access.name, zone());
     } else {
       // Unsupported StoreField operator.
-      state = state->KillFields(object, zone());
+      state = state->KillFields(object, access.name, zone());
     }
   }
   return UpdateState(node, state);
@@ -1032,19 +1050,22 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
         switch (current->opcode()) {
           case IrOpcode::kEnsureWritableFastElements: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            state = state->KillField(object,
+                                     FieldIndexOf(JSObject::kElementsOffset),
+                                     MaybeHandle<Name>(), zone());
             break;
           }
           case IrOpcode::kMaybeGrowFastElements: {
             GrowFastElementsFlags flags =
                 GrowFastElementsFlagsOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            state = state->KillField(object,
+                                     FieldIndexOf(JSObject::kElementsOffset),
+                                     MaybeHandle<Name>(), zone());
             if (flags & GrowFastElementsFlag::kArrayObject) {
-              state = state->KillField(
-                  object, FieldIndexOf(JSArray::kLengthOffset), zone());
+              state =
+                  state->KillField(object, FieldIndexOf(JSArray::kLengthOffset),
+                                   factory()->length_string(), zone());
             }
             break;
           }
@@ -1062,7 +1083,8 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                 case ElementsTransition::kSlowTransition:
                   // Kill the elements as well.
                   state = state->KillField(
-                      object, FieldIndexOf(JSObject::kElementsOffset), zone());
+                      object, FieldIndexOf(JSObject::kElementsOffset),
+                      MaybeHandle<Name>(), zone());
                   break;
               }
             }
@@ -1073,8 +1095,9 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             // Invalidate what we know about the {object}s map.
             state = state->KillMaps(object, zone());
             // Kill the elements as well.
-            state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            state = state->KillField(object,
+                                     FieldIndexOf(JSObject::kElementsOffset),
+                                     MaybeHandle<Name>(), zone());
             break;
           }
           case IrOpcode::kStoreField: {
@@ -1086,9 +1109,10 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             } else {
               int field_index = FieldIndexOf(access);
               if (field_index < 0) {
-                state = state->KillFields(object, zone());
+                state = state->KillFields(object, access.name, zone());
               } else {
-                state = state->KillField(object, field_index, zone());
+                state =
+                    state->KillField(object, field_index, access.name, zone());
               }
             }
             break;

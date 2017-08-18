@@ -130,19 +130,21 @@ class V8_EXPORT_PRIVATE LoadElimination final
   class AbstractField final : public ZoneObject {
    public:
     explicit AbstractField(Zone* zone) : info_for_node_(zone) {}
-    AbstractField(Node* object, Node* value, Zone* zone)
+    AbstractField(Node* object, Node* value, MaybeHandle<Name> name, Zone* zone)
         : info_for_node_(zone) {
-      info_for_node_.insert(std::make_pair(object, value));
+      info_for_node_.insert(std::make_pair(object, Field(value, name)));
     }
 
-    AbstractField const* Extend(Node* object, Node* value, Zone* zone) const {
+    AbstractField const* Extend(Node* object, Node* value,
+                                MaybeHandle<Name> name, Zone* zone) const {
       AbstractField* that = new (zone) AbstractField(zone);
       that->info_for_node_ = this->info_for_node_;
-      that->info_for_node_.insert(std::make_pair(object, value));
+      that->info_for_node_.insert(std::make_pair(object, Field(value, name)));
       return that;
     }
     Node* Lookup(Node* object) const;
-    AbstractField const* Kill(Node* object, Zone* zone) const;
+    AbstractField const* Kill(Node* object, MaybeHandle<Name> name,
+                              Zone* zone) const;
     bool Equals(AbstractField const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
@@ -151,10 +153,10 @@ class V8_EXPORT_PRIVATE LoadElimination final
       AbstractField* copy = new (zone) AbstractField(zone);
       for (auto this_it : this->info_for_node_) {
         Node* this_object = this_it.first;
-        Node* this_value = this_it.second;
+        Field this_second = this_it.second;
         auto that_it = that->info_for_node_.find(this_object);
         if (that_it != that->info_for_node_.end() &&
-            that_it->second == this_value) {
+            that_it->second == this_second) {
           copy->info_for_node_.insert(this_it);
         }
       }
@@ -164,7 +166,19 @@ class V8_EXPORT_PRIVATE LoadElimination final
     void Print() const;
 
    private:
-    ZoneMap<Node*, Node*> info_for_node_;
+    struct Field {
+      Field() {}
+      Field(Node* value, MaybeHandle<Name> name) : value(value), name(name) {}
+
+      bool operator==(const Field& other) const {
+        return value == other.value && name.address() == other.name.address();
+      }
+
+      Node* value = nullptr;
+      MaybeHandle<Name> name;
+    };
+
+    ZoneMap<Node*, Field> info_for_node_;
   };
 
   static size_t const kMaxTrackedFields = 32;
@@ -229,10 +243,11 @@ class V8_EXPORT_PRIVATE LoadElimination final
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
     AbstractState const* AddField(Node* object, size_t index, Node* value,
-                                  Zone* zone) const;
+                                  MaybeHandle<Name> name, Zone* zone) const;
     AbstractState const* KillField(Node* object, size_t index,
-                                   Zone* zone) const;
-    AbstractState const* KillFields(Node* object, Zone* zone) const;
+                                   MaybeHandle<Name> name, Zone* zone) const;
+    AbstractState const* KillFields(Node* object, MaybeHandle<Name> name,
+                                    Zone* zone) const;
     Node* LookupField(Node* object, size_t index) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
