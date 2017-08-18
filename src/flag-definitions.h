@@ -465,6 +465,10 @@ DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
 DEFINE_BOOL(turbo_experimental, false,
             "enable crashing features, for testing purposes only")
+DEFINE_INT(turbo_revisit_whole_graph_threshold, 100,
+           "enable revisiting of whole graph for reducers instead of marking "
+           "{turbo_revisit_whole_graph_threshold} percents of individual nodes "
+           "for revisit")
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,

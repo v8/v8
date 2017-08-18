@@ -31,7 +31,10 @@ GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
-      stack_(zone) {
+      stack_(zone),
+      nb_traversed_uses_(0),
+      nb_visited_nodes_(0),
+      revisit_all_nodes_(false) {
   if (dead != nullptr) {
     NodeProperties::SetType(dead_, Type::None());
   }
@@ -62,6 +65,14 @@ void GraphReducer::ReduceNode(Node* node) {
         // state can change while in queue.
         Push(node);
       }
+    } else if (update_and_get_revisit_all_nodes(nb_visited_nodes())) {
+      // We revisit the graph again due to the
+      // turbo_revisit_whole_graph_threshold flag.
+      set_revisit_all_nodes(false);
+      reset_nb_traversed_uses();
+      reset_nb_visited_nodes();
+      state_.reset(graph_);
+      Push(graph()->end());
     } else {
       // Run all finalizers.
       for (Reducer* const reducer : reducers_) reducer->Finalize();
@@ -74,9 +85,12 @@ void GraphReducer::ReduceNode(Node* node) {
   DCHECK(stack_.empty());
 }
 
-
-void GraphReducer::ReduceGraph() { ReduceNode(graph()->end()); }
-
+void GraphReducer::ReduceGraph() {
+  set_revisit_all_nodes(false);
+  reset_nb_traversed_uses();
+  reset_nb_visited_nodes();
+  ReduceNode(graph()->end());
+}
 
 Reduction GraphReducer::Reduce(Node* const node) {
   auto skip = reducers_.end();
@@ -156,6 +170,7 @@ void GraphReducer::ReduceTop() {
 
   // Check if the reduction is an in-place update of the {node}.
   Node* const replacement = reduction.replacement();
+
   if (replacement == node) {
     // In-place update of {node}, may need to recurse on an input.
     Node::Inputs node_inputs = node->inputs();
@@ -174,7 +189,9 @@ void GraphReducer::ReduceTop() {
   // Check if we have a new replacement.
   if (replacement != node) {
     Replace(node, replacement, max_id);
-  } else {
+  } else if (!update_and_get_revisit_all_nodes(nb_visited_nodes())) {
+    // Always goes here if it's an in-place replacement and the
+    // turbo_revisit_whole_graph_threshold is 100.
     // Revisit all uses of the node.
     for (Node* const user : node->uses()) {
       // Don't revisit this node if it refers to itself.
@@ -264,6 +281,7 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
 void GraphReducer::Pop() {
   Node* node = stack_.top().node;
   state_.Set(node, State::kVisited);
+  nb_visited_nodes_++;
   stack_.pop();
 }
 
@@ -284,6 +302,7 @@ bool GraphReducer::Recurse(Node* node) {
 
 void GraphReducer::Revisit(Node* node) {
   if (state_.Get(node) == State::kVisited) {
+    incr_nb_traversed_uses();
     state_.Set(node, State::kRevisit);
     revisit_.push(node);
   }

@@ -173,12 +173,39 @@ class V8_EXPORT_PRIVATE GraphReducer
   bool Recurse(Node* node);
   void Revisit(Node* node) final;
 
+  bool revisit_all_nodes() { return revisit_all_nodes_; }
+  bool update_and_get_revisit_all_nodes(int ratio_comparison) {
+    if (revisit_all_nodes_) {
+      return true;
+    } else if (FLAG_turbo_revisit_whole_graph_threshold < 100 &&
+               ratio_comparison * FLAG_turbo_revisit_whole_graph_threshold <
+                   nb_traversed_uses_ * 100) {
+      revisit_all_nodes_ = true;
+      return true;
+    }
+    return false;
+  }
+  void set_revisit_all_nodes(bool revisit_all_nodes) {
+    revisit_all_nodes_ = revisit_all_nodes;
+  }
+
+  void reset_nb_traversed_uses() { nb_traversed_uses_ = 0; }
+  int nb_traversed_uses() { return nb_traversed_uses_; }
+  void incr_nb_traversed_uses() { nb_traversed_uses_++; }
+
+  void reset_nb_visited_nodes() { nb_visited_nodes_ = 0; }
+  int nb_visited_nodes() { return nb_visited_nodes_; }
+  void incr_nb_visited_nodes() { nb_visited_nodes_++; }
+
   Graph* const graph_;
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
   ZoneQueue<Node*> revisit_;
   ZoneStack<NodeState> stack_;
+  int nb_traversed_uses_;
+  int nb_visited_nodes_;
+  bool revisit_all_nodes_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };

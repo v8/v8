@@ -16,6 +16,13 @@ NodeMarkerBase::NodeMarkerBase(Graph* graph, uint32_t num_states)
   DCHECK_LT(mark_min_, mark_max_);  // check for wraparound.
 }
 
+void NodeMarkerBase::reset(Graph* graph) {
+  int add = mark_max_ - mark_min_;
+  graph->mark_max_ += add;
+  mark_min_ += add;
+  mark_max_ += add;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
