@@ -217,6 +217,10 @@ void GCTracer::Start(GarbageCollector collector,
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {
+  if (incremental_marking_duration_ > 0) {
+    heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
+        static_cast<int>(incremental_marking_duration_));
+  }
   incremental_marking_bytes_ = 0;
   incremental_marking_duration_ = 0;
   for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
