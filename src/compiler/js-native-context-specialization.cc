@@ -783,6 +783,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Perform map check on {receiver}.
       MapHandles const& receiver_maps = access_info.receiver_maps();
       {
+        // Whether to insert a dedicated MapGuard node into the
+        // effect to be able to learn from the control flow.
+        bool insert_map_guard = true;
+
         // Emit a (sequence of) map checks for other {receiver}s.
         ZoneVector<Node*> this_controls(zone());
         ZoneVector<Node*> this_effects(zone());
@@ -794,6 +798,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_effects.push_back(this_effect);
           this_controls.push_back(fallthrough_control);
           fallthrough_control = nullptr;
+
+          // Don't insert a MapGuard in this case, as the CheckMaps
+          // node already gives you all the information you need
+          // along the effect chain.
+          insert_map_guard = false;
         } else {
           for (auto map : receiver_maps) {
             Node* check =
@@ -816,6 +825,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_effects.push_back(receiverissmi_effect);
           this_controls.push_back(receiverissmi_control);
           receiverissmi_effect = receiverissmi_control = nullptr;
+
+          // The {receiver} can also be a Smi in this case, so
+          // a MapGuard doesn't make sense for this at all.
+          insert_map_guard = false;
         }
 
         // Create single chokepoint for the control.
@@ -831,6 +844,16 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_effect =
               graph()->NewNode(common()->EffectPhi(this_control_count),
                                this_control_count + 1, &this_effects.front());
+        }
+
+        // Introduce a MapGuard to learn from this on the effect chain.
+        if (insert_map_guard) {
+          ZoneHandleSet<Map> maps;
+          for (auto receiver_map : receiver_maps) {
+            maps.insert(receiver_map, graph()->zone());
+          }
+          this_effect = graph()->NewNode(common()->MapGuard(maps), receiver,
+                                         this_effect, this_control);
         }
       }
 

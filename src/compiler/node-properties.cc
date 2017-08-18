@@ -360,6 +360,14 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
   InferReceiverMapsResult result = kReliableReceiverMaps;
   while (true) {
     switch (effect->opcode()) {
+      case IrOpcode::kMapGuard: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_return = MapGuardMapsOf(effect->op());
+          return result;
+        }
+        break;
+      }
       case IrOpcode::kCheckMaps: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {

@@ -72,6 +72,7 @@
   V(LoopExitEffect)         \
   V(Projection)             \
   V(Retain)                 \
+  V(MapGuard)               \
   V(TypeGuard)
 
 #define COMMON_OP_LIST(V) \

@@ -269,6 +269,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   Reduction ReduceArrayBufferWasNeutered(Node* node);
   Reduction ReduceCheckMaps(Node* node);
+  Reduction ReduceMapGuard(Node* node);
   Reduction ReduceEnsureWritableFastElements(Node* node);
   Reduction ReduceMaybeGrowFastElements(Node* node);
   Reduction ReduceTransitionElementsKind(Node* node);

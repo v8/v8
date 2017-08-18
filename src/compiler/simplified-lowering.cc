@@ -2761,6 +2761,9 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kMapGuard:
+        // Eliminate MapGuard nodes here.
+        return VisitUnused(node);
       case IrOpcode::kCheckMaps:
       case IrOpcode::kTransitionElementsKind: {
         VisitInputs(node);

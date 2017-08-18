@@ -98,6 +98,8 @@ Reduction LoadElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kArrayBufferWasNeutered:
       return ReduceArrayBufferWasNeutered(node);
+    case IrOpcode::kMapGuard:
+      return ReduceMapGuard(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
     case IrOpcode::kEnsureWritableFastElements:
@@ -618,6 +620,22 @@ Reduction LoadElimination::ReduceArrayBufferWasNeutered(Node* node) {
     return Replace(check);
   }
   state = state->AddCheck(node, zone());
+  return UpdateState(node, state);
+}
+
+Reduction LoadElimination::ReduceMapGuard(Node* node) {
+  ZoneHandleSet<Map> const maps = MapGuardMapsOf(node->op());
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (maps.contains(object_maps)) return Replace(effect);
+    state = state->KillMaps(object, zone());
+    // TODO(turbofan): Compute the intersection.
+  }
+  state = state->AddMaps(object, maps, zone());
   return UpdateState(node, state);
 }
 

@@ -861,6 +861,8 @@ Type* Typer::Visitor::TypeProjection(Node* node) {
   return Type::Any();
 }
 
+Type* Typer::Visitor::TypeMapGuard(Node* node) { UNREACHABLE(); }
+
 Type* Typer::Visitor::TypeTypeGuard(Node* node) {
   Type* const type = Operand(node, 0);
   return typer_->operation_typer()->TypeTypeGuard(node->op(), type);

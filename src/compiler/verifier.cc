@@ -1284,6 +1284,9 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kMapGuard:
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kTypeGuard:
       CheckTypeIs(node, TypeGuardTypeOf(node->op()));
       break;
