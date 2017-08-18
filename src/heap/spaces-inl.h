@@ -161,9 +161,9 @@ void PagedSpace::UnlinkFreeListCategories(Page* page) {
   });
 }
 
-intptr_t PagedSpace::RelinkFreeListCategories(Page* page) {
+size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
-  intptr_t added = 0;
+  size_t added = 0;
   page->ForAllFreeListCategories([&added](FreeListCategory* category) {
     added += category->available();
     category->Relink();

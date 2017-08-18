@@ -1414,7 +1414,7 @@ void PagedSpace::RefillFreeList() {
     return;
   }
   MarkCompactCollector* collector = heap()->mark_compact_collector();
-  intptr_t added = 0;
+  size_t added = 0;
   {
     Page* p = nullptr;
     while ((p = collector->sweeper().GetSweptPageSafe(this)) != nullptr) {
@@ -1426,17 +1426,14 @@ void PagedSpace::RefillFreeList() {
         PagedSpace* owner = reinterpret_cast<PagedSpace*>(p->owner());
         base::LockGuard<base::Mutex> guard(owner->mutex());
         owner->RefineAllocatedBytesAfterSweeping(p);
-        p->Unlink();
-        owner->AccountRemovedPage(p);
-        p->set_owner(this);
-        p->InsertAfter(anchor_.prev_page());
-        AccountAddedPage(p);
+        owner->RemovePage(p);
+        added += AddPage(p);
       } else {
         base::LockGuard<base::Mutex> guard(mutex());
         DCHECK_EQ(this, p->owner());
         RefineAllocatedBytesAfterSweeping(p);
+        added += RelinkFreeListCategories(p);
       }
-      added += RelinkFreeListCategories(p);
       added += p->wasted_memory();
       if (is_local() && (added > kCompactionMemoryWanted)) break;
     }
@@ -1461,13 +1458,8 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   for (auto it = other->begin(); it != other->end();) {
     Page* p = *(it++);
     // Relinking requires the category to be unlinked.
-    other->UnlinkFreeListCategories(p);
-    p->Unlink();
-    other->AccountRemovedPage(p);
-    p->set_owner(this);
-    p->InsertAfter(anchor_.prev_page());
-    this->AccountAddedPage(p);
-    RelinkFreeListCategories(p);
+    other->RemovePage(p);
+    AddPage(p);
     DCHECK_EQ(p->AvailableInFreeList(),
               p->AvailableInFreeListFromAllocatedBytes());
   }
@@ -1506,20 +1498,6 @@ void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
   marking_state->SetLiveBytes(page, 0);
 }
 
-void PagedSpace::AccountAddedPage(Page* page) {
-  CHECK(page->SweepingDone());
-  AccountCommitted(page->size());
-  IncreaseCapacity(page->area_size());
-  IncreaseAllocatedBytes(page->allocated_bytes(), page);
-}
-
-void PagedSpace::AccountRemovedPage(Page* page) {
-  CHECK(page->SweepingDone());
-  DecreaseAllocatedBytes(page->allocated_bytes(), page);
-  DecreaseCapacity(page->area_size());
-  AccountUncommitted(page->size());
-}
-
 Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
   base::LockGuard<base::Mutex> guard(mutex());
   // Check for pages that still contain free list entries. Bail out for smaller
@@ -1538,17 +1516,27 @@ Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
   if (!page && static_cast<int>(kTiniest) >= minimum_category)
     page = free_list()->GetPageForCategoryType(kTiniest);
   if (!page) return nullptr;
-  page->Unlink();
-  AccountRemovedPage(page);
-  UnlinkFreeListCategories(page);
+  RemovePage(page);
   return page;
 }
 
-void PagedSpace::AddPage(Page* page) {
+size_t PagedSpace::AddPage(Page* page) {
+  CHECK(page->SweepingDone());
   page->set_owner(this);
   page->InsertAfter(anchor()->prev_page());
-  AccountAddedPage(page);
-  RelinkFreeListCategories(page);
+  AccountCommitted(page->size());
+  IncreaseCapacity(page->area_size());
+  IncreaseAllocatedBytes(page->allocated_bytes(), page);
+  return RelinkFreeListCategories(page);
+}
+
+void PagedSpace::RemovePage(Page* page) {
+  CHECK(page->SweepingDone());
+  page->Unlink();
+  UnlinkFreeListCategories(page);
+  DecreaseAllocatedBytes(page->allocated_bytes(), page);
+  DecreaseCapacity(page->area_size());
+  AccountUncommitted(page->size());
 }
 
 size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {

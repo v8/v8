@@ -1952,7 +1952,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
  public:
   typedef PageIterator iterator;
 
-  static const intptr_t kCompactionMemoryWanted = 500 * KB;
+  static const size_t kCompactionMemoryWanted = 500 * KB;
 
   // Creates a space with an id.
   PagedSpace(Heap* heap, AllocationSpace id, Executability executable);
@@ -2101,8 +2101,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
     accounting_stats_.IncreaseCapacity(bytes);
   }
 
-  void AccountAddedPage(Page* page);
-  void AccountRemovedPage(Page* page);
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
   // The dummy page that anchors the linked list of pages.
@@ -2110,7 +2108,10 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   Page* InitializePage(MemoryChunk* chunk, Executability executable);
   void ReleasePage(Page* page);
-  void AddPage(Page* page);
+  // Adds the page to this space and returns the number of bytes added to the
+  // free list of the space.
+  size_t AddPage(Page* page);
+  void RemovePage(Page* page);
   // Remove a page if it has at least |size_in_bytes| bytes available that can
   // be used for allocation.
   Page* RemovePageSafe(int size_in_bytes);
@@ -2164,7 +2165,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   base::Mutex* mutex() { return &space_mutex_; }
 
   inline void UnlinkFreeListCategories(Page* page);
-  inline intptr_t RelinkFreeListCategories(Page* page);
+  inline size_t RelinkFreeListCategories(Page* page);
 
   iterator begin() { return iterator(anchor_.next_page()); }
   iterator end() { return iterator(&anchor_); }
