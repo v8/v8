@@ -339,6 +339,7 @@ class RelocInfo {
     WASM_MEMORY_SIZE_REFERENCE,
     WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     WASM_PROTECTED_INSTRUCTION_LANDING,
+    WASM_GLOBAL_HANDLE,
 
     RUNTIME_ENTRY,
     COMMENT,
@@ -446,16 +447,15 @@ class RelocInfo {
     return mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
   }
   static inline bool IsWasmReference(Mode mode) {
-    return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE ||
-           mode == WASM_MEMORY_SIZE_REFERENCE ||
-           mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
+    return IsWasmPtrReference(mode) || IsWasmSizeReference(mode);
   }
   static inline bool IsWasmSizeReference(Mode mode) {
     return mode == WASM_MEMORY_SIZE_REFERENCE ||
            mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
   }
   static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE;
+    return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE ||
+           mode == WASM_GLOBAL_HANDLE;
   }
   static inline bool IsWasmProtectedLanding(Mode mode) {
     return mode == WASM_PROTECTED_INSTRUCTION_LANDING;
@@ -490,6 +490,8 @@ class RelocInfo {
   Address wasm_global_reference() const;
   uint32_t wasm_function_table_size_reference() const;
   uint32_t wasm_memory_size_reference() const;
+  Address global_handle() const;
+
   void update_wasm_memory_reference(
       Isolate* isolate, Address old_base, Address new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
@@ -505,6 +507,10 @@ class RelocInfo {
   void set_target_address(
       Isolate* isolate, Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  void set_global_handle(
+      Isolate* isolate, Address address,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
