@@ -2949,6 +2949,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
       case Token::RPAREN:
       case Token::COLON:
       case Token::COMMA:
+      case Token::IN:
         // The above set of tokens is the complete set of tokens that can appear
         // after an AssignmentExpression, and none of them can start an
         // AssignmentExpression.  This allows us to avoid looking for an RHS for

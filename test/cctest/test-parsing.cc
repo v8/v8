@@ -5642,67 +5642,60 @@ TEST(ConstParsingInForInError) {
   RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0);
 }
 
+TEST(InitializedDeclarationsInForInOf) {
+  // https://tc39.github.io/ecma262/#sec-initializers-in-forin-statement-heads
 
-TEST(InitializedDeclarationsInStrictForInError) {
-  const char* context_data[][2] = {{"'use strict';", ""},
-                                   {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+  // Initialized declarations only allowed for
+  // - sloppy mode (not strict mode)
+  // - for-in (not for-of)
+  // - var (not let / const)
 
-  const char* data[] = {
-      "for (var i = 1 in {}) {}",
-      "for (var i = void 0 in [1, 2, 3]) {}",
-      "for (let i = 1 in {}) {}",
-      "for (let i = void 0 in [1, 2, 3]) {}",
-      "for (const i = 1 in {}) {}",
-      "for (const i = void 0 in [1, 2, 3]) {}",
-      NULL};
-  RunParserSyncTest(context_data, data, kError);
-}
+  // clang-format off
+  const char* strict_context[][2] = {{"'use strict';", ""},
+                                     {"function foo(){ 'use strict';", "}"},
+                                     {"function* foo(){ 'use strict';", "}"},
+                                     {nullptr, nullptr}};
 
+  const char* sloppy_context[][2] = {{"", ""},
+                                     {"function foo(){ ", "}"},
+                                     {"function* foo(){ ", "}"},
+                                     {"function foo(){ var yield = 0; ", "}"},
+                                     {nullptr, nullptr}};
 
-TEST(InitializedDeclarationsInStrictForOfError) {
-  const char* context_data[][2] = {{"'use strict';", ""},
-                                   {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
-
-  const char* data[] = {
-      "for (var i = 1 of {}) {}",
-      "for (var i = void 0 of [1, 2, 3]) {}",
+  const char* let_const_var_for_of[] = {
       "for (let i = 1 of {}) {}",
       "for (let i = void 0 of [1, 2, 3]) {}",
       "for (const i = 1 of {}) {}",
       "for (const i = void 0 of [1, 2, 3]) {}",
-      NULL};
-  RunParserSyncTest(context_data, data, kError);
-}
-
-
-TEST(InitializedDeclarationsInSloppyForInError) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"function foo(){", "}"},
-                                   {NULL, NULL}};
-
-  const char* data[] = {
-      "for (var i = 1 in {}) {}",
-      "for (var i = void 0 in [1, 2, 3]) {}",
-      NULL};
-  // TODO(caitp): This should be an error in sloppy mode.
-  RunParserSyncTest(context_data, data, kSuccess);
-}
-
-
-TEST(InitializedDeclarationsInSloppyForOfError) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"function foo(){", "}"},
-                                   {NULL, NULL}};
-
-  const char* data[] = {
       "for (var i = 1 of {}) {}",
       "for (var i = void 0 of [1, 2, 3]) {}",
-      NULL};
-  RunParserSyncTest(context_data, data, kError);
-}
+      nullptr};
 
+  const char* let_const_for_in[] = {
+      "for (let i = 1 in {}) {}",
+      "for (let i = void 0 in [1, 2, 3]) {}",
+      "for (const i = 1 in {}) {}",
+      "for (const i = void 0 in [1, 2, 3]) {}",
+      nullptr};
+
+  const char* var_for_in[] = {
+      "for (var i = 1 in {}) {}",
+      "for (var i = void 0 in [1, 2, 3]) {}",
+      "for (var i = yield in [1, 2, 3]) {}",
+      nullptr};
+  // clang-format on
+
+  // The only allowed case is sloppy + var + for-in.
+  RunParserSyncTest(sloppy_context, var_for_in, kSuccess);
+
+  // Everything else is disallowed.
+  RunParserSyncTest(sloppy_context, let_const_var_for_of, kError);
+  RunParserSyncTest(sloppy_context, let_const_for_in, kError);
+
+  RunParserSyncTest(strict_context, let_const_var_for_of, kError);
+  RunParserSyncTest(strict_context, let_const_for_in, kError);
+  RunParserSyncTest(strict_context, var_for_in, kError);
+}
 
 TEST(ForInMultipleDeclarationsError) {
   const char* context_data[][2] = {{"", ""},
