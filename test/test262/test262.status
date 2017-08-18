@@ -332,8 +332,6 @@
   'intl402/NumberFormat/prototype/formatToParts/*': ['--harmony-number-format-to-parts'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327
-  'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],

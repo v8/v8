@@ -254,7 +254,7 @@ DEFINE_METHOD_LEN(
   GlobalTypedArray.prototype,
   set(obj, offset) {
     var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
-    if (intOffset < 0) throw %make_type_error(kTypedArraySetNegativeOffset);
+    if (intOffset < 0) throw %make_range_error(kTypedArraySetNegativeOffset);
 
     if (intOffset > %_MaxSmi()) {
       throw %make_range_error(kTypedArraySetSourceTooLarge);
