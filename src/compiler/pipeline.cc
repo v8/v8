@@ -893,7 +893,7 @@ struct GraphBuilderPhase {
     BytecodeGraphBuilder graph_builder(
         temp_zone, data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector()),
-        data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
+        data->info()->osr_offset(), data->jsgraph(), CallFrequency(1.0f),
         data->source_positions(), SourcePosition::kNotInlined, flags);
     graph_builder.CreateGraph();
   }

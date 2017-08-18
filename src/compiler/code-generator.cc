@@ -623,11 +623,11 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
 
   if (info->is_osr()) {
     DCHECK(osr_pc_offset_ >= 0);
-    data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_ast_id().ToInt()));
+    data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_offset().ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
   } else {
-    BailoutId osr_ast_id = BailoutId::None();
-    data->SetOsrBytecodeOffset(Smi::FromInt(osr_ast_id.ToInt()));
+    BailoutId osr_offset = BailoutId::None();
+    data->SetOsrBytecodeOffset(Smi::FromInt(osr_offset.ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(-1));
   }
 

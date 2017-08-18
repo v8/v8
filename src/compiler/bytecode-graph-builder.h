@@ -27,7 +27,7 @@ class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
-      Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
+      Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
       JSGraph* jsgraph, CallFrequency invocation_frequency,
       SourcePositionTable* source_positions,
       int inlining_id = SourcePosition::kNotInlined,
@@ -349,7 +349,7 @@ class BytecodeGraphBuilder {
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
-  BailoutId osr_ast_id_;
+  BailoutId osr_offset_;
   int currently_peeled_loop_offset_;
   bool stack_check_;
 

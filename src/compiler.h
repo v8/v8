@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Generate and return optimized code for OSR, or empty handle on failure.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
-      Handle<JSFunction> function, BailoutId osr_ast_id,
+      Handle<JSFunction> function, BailoutId osr_offset,
       JavaScriptFrame* osr_frame);
 };
 

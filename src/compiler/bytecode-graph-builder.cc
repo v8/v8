@@ -474,7 +474,7 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
-    Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
+    Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, int inlining_id,
     JSTypeHintLowering::Flags flags, bool stack_check)
@@ -493,7 +493,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_iterator_(nullptr),
       bytecode_analysis_(nullptr),
       environment_(nullptr),
-      osr_ast_id_(osr_ast_id),
+      osr_offset_(osr_offset),
       currently_peeled_loop_offset_(-1),
       stack_check_(stack_check),
       merge_environments_(local_zone),
@@ -831,7 +831,7 @@ void BytecodeGraphBuilder::VisitSingleBytecode(
 void BytecodeGraphBuilder::VisitBytecodes() {
   BytecodeAnalysis bytecode_analysis(bytecode_array(), local_zone(),
                                      FLAG_analyze_environment_liveness);
-  bytecode_analysis.Analyze(osr_ast_id_);
+  bytecode_analysis.Analyze(osr_offset_);
   set_bytecode_analysis(&bytecode_analysis);
 
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
