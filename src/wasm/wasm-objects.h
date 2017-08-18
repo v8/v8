@@ -545,11 +545,11 @@ class WasmCompiledModule : public FixedArray {
   // Returns true if the position is valid inside this module, false otherwise.
   bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
 
-  // Get the asm.js source position from a byte offset.
-  // Must only be called if the associated wasm object was created from asm.js.
-  static int GetAsmJsSourcePosition(Handle<WasmCompiledModule> compiled_module,
-                                    uint32_t func_index, uint32_t byte_offset,
-                                    bool is_at_number_conversion);
+  // Get the source position from a given function index and byte offset,
+  // for either asm.js or pure WASM modules.
+  static int GetSourcePosition(Handle<WasmCompiledModule> compiled_module,
+                               uint32_t func_index, uint32_t byte_offset,
+                               bool is_at_number_conversion);
 
   // Compute the disassembly of a wasm function.
   // Returns the disassembly string and a list of <byte_offset, line, column>

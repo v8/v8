@@ -1623,21 +1623,14 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       int func_index = elements->WasmFunctionIndex(i)->value();
       int code_offset = elements->Offset(i)->value();
       // TODO(wasm): Clean this up (bug 5007).
-      int pos = code_offset < 0
-                    ? (-1 - code_offset)
-                    : elements->Code(i)->SourcePosition(code_offset);
-      if (elements->IsAsmJsWasmFrame(i)) {
-        // For asm.js frames, make an additional translation step to get the
-        // asm.js source position.
-        bool at_to_number_conversion =
-            elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
-        pos = WasmCompiledModule::GetAsmJsSourcePosition(
-            compiled_module, func_index, pos, at_to_number_conversion);
-      } else {
-        // For pure wasm, make the function-local position module-relative by
-        // adding the function offset.
-        pos += compiled_module->GetFunctionOffset(func_index);
-      }
+      int byte_offset = code_offset < 0
+                            ? (-1 - code_offset)
+                            : elements->Code(i)->SourcePosition(code_offset);
+      bool is_at_number_conversion =
+          elements->IsAsmJsWasmFrame(i) &&
+          elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
+      byte pos = WasmCompiledModule::GetSourcePosition(
+          compiled_module, func_index, byte_offset, is_at_number_conversion);
       Handle<Script> script(compiled_module->script());
 
       *target = MessageLocation(script, pos, pos + 1);

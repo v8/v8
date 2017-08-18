@@ -1360,16 +1360,24 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
 
 }  // namespace
 
-int WasmCompiledModule::GetAsmJsSourcePosition(
+int WasmCompiledModule::GetSourcePosition(
     Handle<WasmCompiledModule> compiled_module, uint32_t func_index,
     uint32_t byte_offset, bool is_at_number_conversion) {
   Isolate* isolate = compiled_module->GetIsolate();
+  const WasmModule* module = compiled_module->module();
+
+  if (!module->is_asm_js()) {
+    // for non-asm.js modules, we just add the function's start offset
+    // to make a module-relative position.
+    return byte_offset + compiled_module->GetFunctionOffset(func_index);
+  }
+
+  // asm.js modules have an additional offset table that must be searched.
   Handle<ByteArray> offset_table =
       GetDecodedAsmJsOffsetTable(compiled_module, isolate);
 
-  DCHECK_LT(func_index, compiled_module->module()->functions.size());
-  uint32_t func_code_offset =
-      compiled_module->module()->functions[func_index].code.offset();
+  DCHECK_LT(func_index, module->functions.size());
+  uint32_t func_code_offset = module->functions[func_index].code.offset();
   uint32_t total_offset = func_code_offset + byte_offset;
 
   // Binary search for the total byte offset.

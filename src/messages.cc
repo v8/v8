@@ -767,7 +767,7 @@ int AsmJsWasmStackFrame::GetPosition() const {
   Handle<WasmCompiledModule> compiled_module(
       WasmInstanceObject::cast(*wasm_instance_)->compiled_module(), isolate_);
   DCHECK_LE(0, byte_offset);
-  return WasmCompiledModule::GetAsmJsSourcePosition(
+  return WasmCompiledModule::GetSourcePosition(
       compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset),
       is_at_number_conversion_);
 }
