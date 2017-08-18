@@ -699,8 +699,7 @@ class MemoryChunk {
   void InitializeReservedMemory() { reservation_.Reset(); }
 
   friend class ConcurrentMarkingState;
-  friend class IncrementalAtomicMarkingState;
-  friend class IncrementalNonAtomicMarkingState;
+  friend class MajorAtomicMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;

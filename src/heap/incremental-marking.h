@@ -22,52 +22,6 @@ class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
 
-class IncrementalAtomicMarkingState final
-    : public MarkingStateBase<IncrementalAtomicMarkingState,
-                              AccessMode::ATOMIC> {
- public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
-    return Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize);
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
-        ->Increment(by);
-  }
-
-  intptr_t live_bytes(MemoryChunk* chunk) const {
-    return reinterpret_cast<base::AtomicNumber<intptr_t>*>(
-               &chunk->live_byte_count_)
-        ->Value();
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
-        ->SetValue(value);
-  }
-};
-
-class IncrementalNonAtomicMarkingState final
-    : public MarkingStateBase<IncrementalNonAtomicMarkingState,
-                              AccessMode::NON_ATOMIC> {
- public:
-  Bitmap* bitmap(const MemoryChunk* chunk) const {
-    return Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize);
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_ += by;
-  }
-
-  intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->live_byte_count_;
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_ = value;
-  }
-};
-
 class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
   enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
@@ -79,12 +33,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
 #ifdef V8_CONCURRENT_MARKING
-  using MarkingState = IncrementalAtomicMarkingState;
+  using MarkingState = MajorAtomicMarkingState;
 #else
-  using MarkingState = IncrementalNonAtomicMarkingState;
+  using MarkingState = MajorNonAtomicMarkingState;
 #endif
-  using AtomicMarkingState = IncrementalAtomicMarkingState;
-  using NonAtomicMarkingState = IncrementalNonAtomicMarkingState;
+  using AtomicMarkingState = MajorAtomicMarkingState;
+  using NonAtomicMarkingState = MajorNonAtomicMarkingState;
 
   class PauseBlackAllocationScope {
    public:

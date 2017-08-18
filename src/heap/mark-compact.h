@@ -432,6 +432,30 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   friend class YoungGenerationMarkingVisitor;
 };
 
+class MajorAtomicMarkingState final
+    : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
+ public:
+  Bitmap* bitmap(const MemoryChunk* chunk) const {
+    return Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize);
+  }
+
+  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
+        ->Increment(by);
+  }
+
+  intptr_t live_bytes(MemoryChunk* chunk) const {
+    return reinterpret_cast<base::AtomicNumber<intptr_t>*>(
+               &chunk->live_byte_count_)
+        ->Value();
+  }
+
+  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
+    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
+        ->SetValue(value);
+  }
+};
+
 class MajorNonAtomicMarkingState final
     : public MarkingStateBase<MajorNonAtomicMarkingState,
                               AccessMode::NON_ATOMIC> {
