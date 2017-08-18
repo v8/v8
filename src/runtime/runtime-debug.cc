@@ -502,7 +502,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   Handle<Object> frame_id(DebugFrameHelper::WrapFrameId(it.frame()->id()),
                           isolate);
 
-  if (frame_inspector.summary().IsWasm()) {
+  if (frame_inspector.IsWasm()) {
     // Create the details array (no dynamic information for wasm).
     Handle<FixedArray> details =
         isolate->factory()->NewFixedArray(kFrameDetailsFirstDynamicIndex);
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<String> func_name = frame_inspector.summary().FunctionName();
+    Handle<String> func_name = frame_inspector.GetFunctionName();
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -526,7 +526,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsLocalCountIndex, Smi::kZero);
 
     // Add the source position.
-    int position = frame_inspector.summary().SourcePosition();
+    int position = frame_inspector.GetSourcePosition();
     details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
 
     // Add the constructor information.
@@ -724,7 +724,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add the receiver (same as in function frame).
-  Handle<Object> receiver = frame_inspector.summary().receiver();
+  Handle<Object> receiver = frame_inspector.GetReceiver();
   DCHECK(function->shared()->IsUserJavaScript());
   // Optimized frames only restore the receiver as best-effort (see
   // OptimizedFrame::Summarize).
