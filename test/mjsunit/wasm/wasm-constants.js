@@ -15,6 +15,9 @@ function bytes() {
   return buffer;
 }
 
+// V8 internal constants
+var kV8MaxPages = 32767;
+
 // Header declaration constants
 var kWasmH0 = 0;
 var kWasmH1 = 0x61;
@@ -28,6 +31,7 @@ var kWasmV3 = 0;
 
 var kHeaderSize = 8;
 var kPageSize = 65536;
+var kSpecMaxPages = 65535;
 
 function bytesWithHeader() {
   var buffer = new ArrayBuffer(kHeaderSize + arguments.length);

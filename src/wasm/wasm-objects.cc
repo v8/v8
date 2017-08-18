@@ -377,8 +377,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
   uint32_t max_pages;
   if (memory_object->has_maximum_pages()) {
-    max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
-    if (FLAG_wasm_max_mem_pages < max_pages) return -1;
+    max_pages = Min(FLAG_wasm_max_mem_pages,
+                    static_cast<uint32_t>(memory_object->maximum_pages()));
   } else {
     max_pages = FLAG_wasm_max_mem_pages;
   }
