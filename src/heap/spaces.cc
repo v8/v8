@@ -868,7 +868,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                  executable, owner, &reservation);
 }
 
-void Page::ResetAllocatedBytes() { allocated_bytes_.SetValue(area_size()); }
+void Page::ResetAllocatedBytes() { allocated_bytes_ = area_size(); }
 
 void Page::ResetFreeListStatistics() {
   wasted_memory_ = 0;

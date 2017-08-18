@@ -363,14 +363,15 @@ class MemoryChunk {
       + kIntptrSize       // intptr_t live_byte_count_
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
-      + kPointerSize    // InvalidatedSlots* invalidated_slots_
-      + kPointerSize    // SkipList* skip_list_
-      + kPointerSize    // AtomicValue high_water_mark_
-      + kPointerSize    // base::RecursiveMutex* mutex_
-      + kPointerSize    // base::AtomicWord concurrent_sweeping_
-      + 2 * kSizetSize  // AtomicNumber free-list statistics
-      + kPointerSize    // AtomicValue next_chunk_
-      + kPointerSize    // AtomicValue prev_chunk_
+      + kPointerSize  // InvalidatedSlots* invalidated_slots_
+      + kPointerSize  // SkipList* skip_list_
+      + kPointerSize  // AtomicValue high_water_mark_
+      + kPointerSize  // base::RecursiveMutex* mutex_
+      + kPointerSize  // base::AtomicWord concurrent_sweeping_
+      + kSizetSize    // size_t allocated_bytes_
+      + kSizetSize    // size_t wasted_memory_
+      + kPointerSize  // AtomicValue next_chunk_
+      + kPointerSize  // AtomicValue prev_chunk_
       + FreeListCategory::kSize * kNumberOfCategories
       // FreeListCategory categories_[kNumberOfCategories]
       + kPointerSize   // LocalArrayBufferTracker* local_tracker_
@@ -679,9 +680,9 @@ class MemoryChunk {
 
   // Byte allocated on the page, which includes all objects on the page
   // and the linear allocation area.
-  base::AtomicNumber<intptr_t> allocated_bytes_;
+  size_t allocated_bytes_;
   // Freed memory that was not added to the free list.
-  base::AtomicNumber<intptr_t> wasted_memory_;
+  size_t wasted_memory_;
 
   // next_chunk_ holds a pointer of type MemoryChunk
   base::AtomicValue<MemoryChunk*> next_chunk_;
@@ -814,17 +815,17 @@ class Page : public MemoryChunk {
 
   bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
 
-  size_t wasted_memory() { return wasted_memory_.Value(); }
-  void add_wasted_memory(size_t waste) { wasted_memory_.Increment(waste); }
-  size_t allocated_bytes() { return allocated_bytes_.Value(); }
+  size_t wasted_memory() { return wasted_memory_; }
+  void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
+  size_t allocated_bytes() { return allocated_bytes_; }
   void IncreaseAllocatedBytes(size_t bytes) {
     DCHECK_LE(bytes, area_size());
-    allocated_bytes_.Increment(bytes);
+    allocated_bytes_ += bytes;
   }
   void DecreaseAllocatedBytes(size_t bytes) {
     DCHECK_LE(bytes, area_size());
     DCHECK_GE(allocated_bytes(), bytes);
-    allocated_bytes_.Decrement(bytes);
+    allocated_bytes_ -= bytes;
   }
 
   void ResetAllocatedBytes();
