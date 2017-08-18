@@ -5811,22 +5811,12 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     //     for (; c; n) b
     //   }
     //
-    // or, desugar
-    //   for (; c; n) b
-    // into
-    //   {
-    //     for (; c; n) b
-    //   }
-    // just in case b introduces a lexical binding some other way, e.g., if b
-    // is a FunctionDeclaration.
+    DCHECK(!impl()->IsNull(init));
     BlockT block = factory()->NewBlock(nullptr, 2, false, kNoSourcePosition);
-    if (!impl()->IsNull(init)) {
-      block->statements()->Add(init, zone());
-      init = impl()->NullStatement();
-    }
+    block->statements()->Add(init, zone());
     block->statements()->Add(loop, zone());
     block->set_scope(for_scope);
-    loop->Initialize(init, cond, next, body);
+    loop->Initialize(impl()->NullStatement(), cond, next, body);
     return block;
   }
 
