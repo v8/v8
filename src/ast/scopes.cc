@@ -602,7 +602,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       DCHECK(!is_being_lazily_parsed_);
       VariableProxy* proxy = factory->NewVariableProxy(name, NORMAL_VARIABLE);
       auto declaration =
-          factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
+          factory->NewVariableDeclaration(proxy, kNoSourcePosition);
       // Based on the preceding checks, it doesn't matter what we pass as
       // allow_harmony_restrictive_generators and
       // sloppy_mode_block_scope_function_redefinition.
@@ -1289,28 +1289,36 @@ Variable* Scope::NewTemporary(const AstRawString* name,
 Declaration* Scope::CheckConflictingVarDeclarations() {
   for (Declaration* decl : decls_) {
     VariableMode mode = decl->proxy()->var()->mode();
-    if (IsLexicalVariableMode(mode) && !is_block_scope()) continue;
 
-    // Iterate through all scopes until and including the declaration scope.
-    Scope* previous = NULL;
-    Scope* current = decl->scope();
     // Lexical vs lexical conflicts within the same scope have already been
     // captured in Parser::Declare. The only conflicts we still need to check
-    // are lexical vs VAR, or any declarations within a declaration block scope
-    // vs lexical declarations in its surrounding (function) scope.
-    if (IsLexicalVariableMode(mode)) current = current->outer_scope_;
-    do {
+    // are lexical vs nested var, or any declarations within a declaration
+    // block scope vs lexical declarations in its surrounding (function) scope.
+    Scope* current = this;
+    if (decl->IsVariableDeclaration() &&
+        decl->AsVariableDeclaration()->AsNested() != nullptr) {
+      DCHECK_EQ(mode, VAR);
+      current = decl->AsVariableDeclaration()->AsNested()->scope();
+    } else if (IsLexicalVariableMode(mode)) {
+      if (!is_block_scope()) continue;
+      DCHECK(is_declaration_scope());
+      DCHECK_EQ(outer_scope()->scope_type(), FUNCTION_SCOPE);
+      current = outer_scope();
+    }
+
+    // Iterate through all scopes until and including the declaration scope.
+    while (true) {
       // There is a conflict if there exists a non-VAR binding.
       Variable* other_var =
           current->variables_.Lookup(decl->proxy()->raw_name());
-      if (other_var != NULL && IsLexicalVariableMode(other_var->mode())) {
+      if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
         return decl;
       }
-      previous = current;
-      current = current->outer_scope_;
-    } while (!previous->is_declaration_scope());
+      if (current->is_declaration_scope()) break;
+      current = current->outer_scope();
+    }
   }
-  return NULL;
+  return nullptr;
 }
 
 Declaration* Scope::CheckLexDeclarationsConflictingWith(

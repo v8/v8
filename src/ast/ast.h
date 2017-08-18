@@ -121,6 +121,7 @@ class BreakableStatement;
 class Expression;
 class IterationStatement;
 class MaterializedLiteral;
+class NestedVariableDeclaration;
 class ProducedPreParsedScopeData;
 class Statement;
 
@@ -418,31 +419,60 @@ class Declaration : public AstNode {
   typedef ThreadedList<Declaration> List;
 
   VariableProxy* proxy() const { return proxy_; }
-  Scope* scope() const { return scope_; }
 
  protected:
-  Declaration(VariableProxy* proxy, Scope* scope, int pos, NodeType type)
-      : AstNode(pos, type), proxy_(proxy), scope_(scope), next_(nullptr) {}
+  Declaration(VariableProxy* proxy, int pos, NodeType type)
+      : AstNode(pos, type), proxy_(proxy), next_(nullptr) {}
 
  private:
   VariableProxy* proxy_;
-  // Nested scope from which the declaration originated.
-  Scope* scope_;
   // Declarations list threaded through the declarations.
   Declaration** next() { return &next_; }
   Declaration* next_;
   friend List;
 };
 
+class VariableDeclaration : public Declaration {
+ public:
+  inline NestedVariableDeclaration* AsNested();
 
-class VariableDeclaration final : public Declaration {
  private:
   friend class AstNodeFactory;
 
-  VariableDeclaration(VariableProxy* proxy, Scope* scope, int pos)
-      : Declaration(proxy, scope, pos, kVariableDeclaration) {}
+  class IsNestedField
+      : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
+
+ protected:
+  VariableDeclaration(VariableProxy* proxy, int pos, bool is_nested = false)
+      : Declaration(proxy, pos, kVariableDeclaration) {
+    bit_field_ = IsNestedField::update(bit_field_, is_nested);
+  }
+
+  static const uint8_t kNextBitFieldIndex = IsNestedField::kNext;
 };
 
+// For var declarations that appear in a block scope.
+// Only distinguished from VariableDeclaration during Scope analysis,
+// so it doesn't get its own NodeType.
+class NestedVariableDeclaration final : public VariableDeclaration {
+ public:
+  Scope* scope() const { return scope_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  NestedVariableDeclaration(VariableProxy* proxy, Scope* scope, int pos)
+      : VariableDeclaration(proxy, pos, true), scope_(scope) {}
+
+  // Nested scope from which the declaration originated.
+  Scope* scope_;
+};
+
+inline NestedVariableDeclaration* VariableDeclaration::AsNested() {
+  return IsNestedField::decode(bit_field_)
+             ? static_cast<NestedVariableDeclaration*>(this)
+             : nullptr;
+}
 
 class FunctionDeclaration final : public Declaration {
  public:
@@ -452,9 +482,8 @@ class FunctionDeclaration final : public Declaration {
  private:
   friend class AstNodeFactory;
 
-  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, Scope* scope,
-                      int pos)
-      : Declaration(proxy, scope, pos, kFunctionDeclaration), fun_(fun) {
+  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, int pos)
+      : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
     DCHECK(fun != NULL);
   }
 
@@ -3105,15 +3134,19 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
-  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
-                                              Scope* scope, int pos) {
-    return new (zone_) VariableDeclaration(proxy, scope, pos);
+  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy, int pos) {
+    return new (zone_) VariableDeclaration(proxy, pos);
+  }
+
+  NestedVariableDeclaration* NewNestedVariableDeclaration(VariableProxy* proxy,
+                                                          Scope* scope,
+                                                          int pos) {
+    return new (zone_) NestedVariableDeclaration(proxy, scope, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
-                                              FunctionLiteral* fun,
-                                              Scope* scope, int pos) {
-    return new (zone_) FunctionDeclaration(proxy, fun, scope, pos);
+                                              FunctionLiteral* fun, int pos) {
+    return new (zone_) FunctionDeclaration(proxy, fun, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,

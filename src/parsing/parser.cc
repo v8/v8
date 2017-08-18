@@ -1429,8 +1429,13 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy = factory()->NewVariableProxy(
       name, NORMAL_VARIABLE, scanner()->location().beg_pos);
-  Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, this->scope(), pos);
+  Declaration* declaration;
+  if (mode == VAR && !scope()->is_declaration_scope()) {
+    DCHECK(scope()->is_block_scope() || scope()->is_with_scope());
+    declaration = factory()->NewNestedVariableDeclaration(proxy, scope(), pos);
+  } else {
+    declaration = factory()->NewVariableDeclaration(proxy, pos);
+  }
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, ok, nullptr,
           scanner()->location().end_pos);
   if (!*ok) return nullptr;
@@ -1491,7 +1496,7 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
 
   Declaration* declaration =
-      factory()->NewFunctionDeclaration(proxy, function, scope(), pos);
+      factory()->NewFunctionDeclaration(proxy, function, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
           CHECK_OK);
   if (names) names->Add(variable_name, zone());
@@ -3234,8 +3239,8 @@ void Parser::DeclareClassVariable(const AstRawString* name,
 
   if (name != nullptr) {
     class_info->proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
-    Declaration* declaration = factory()->NewVariableDeclaration(
-        class_info->proxy, scope(), class_token_pos);
+    Declaration* declaration =
+        factory()->NewVariableDeclaration(class_info->proxy, class_token_pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
             Variable::DefaultInitializationFlag(CONST), ok);
   }

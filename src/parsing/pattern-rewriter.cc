@@ -195,8 +195,16 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   const AstRawString* name = pattern->raw_name();
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, pattern->position());
-  Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, descriptor_->scope, descriptor_->declaration_pos);
+  Declaration* declaration;
+  if (descriptor_->mode == VAR && !descriptor_->scope->is_declaration_scope()) {
+    DCHECK(descriptor_->scope->is_block_scope() ||
+           descriptor_->scope->is_with_scope());
+    declaration = factory()->NewNestedVariableDeclaration(
+        proxy, descriptor_->scope, descriptor_->declaration_pos);
+  } else {
+    declaration =
+        factory()->NewVariableDeclaration(proxy, descriptor_->declaration_pos);
+  }
 
   // When an extra declaration scope needs to be inserted to account for
   // a sloppy eval in a default parameter or function body, the parameter
