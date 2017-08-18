@@ -645,6 +645,14 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       }
       break;
     }
+    case IrOpcode::kMapGuard: {
+      Node* object = current->ValueInput(0);
+      const VirtualObject* vobject = current->GetVirtualObject(object);
+      if (vobject && !vobject->HasEscaped()) {
+        current->MarkForDeletion();
+      }
+      break;
+    }
     case IrOpcode::kStateValues:
     case IrOpcode::kFrameState:
       // These uses are always safe.
