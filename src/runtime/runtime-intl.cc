@@ -34,6 +34,7 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
+#include "unicode/plurrule.h"
 #include "unicode/rbbi.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
@@ -109,6 +110,15 @@ RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
     available_locales = icu::DateFormat::getAvailableLocales(count);
   } else if (service->IsUtf8EqualTo(CStrVector("breakiterator"))) {
     available_locales = icu::BreakIterator::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("pluralrules"))) {
+    // TODO(littledan): For PluralRules, filter out locales that
+    // don't support PluralRules.
+    // PluralRules is missing an appropriate getAvailableLocales method,
+    // so we should filter from all locales, but it's not clear how; see
+    // https://ssl.icu-project.org/trac/ticket/12756
+    available_locales = icu::Locale::getAvailableLocales(count);
+  } else {
+    UNREACHABLE();
   }
 
   UErrorCode error = U_ZERO_ERROR;
@@ -624,6 +634,83 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(result);
+}
+
+RUNTIME_FUNCTION(Runtime_CreatePluralRules) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_plural_rules_function());
+
+  Handle<JSObject> local_object;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
+                                     JSObject::New(constructor, constructor));
+
+  // Set pluralRules as internal field of the resulting JS object.
+  icu::PluralRules* plural_rules;
+  icu::DecimalFormat* decimal_format;
+  bool success = PluralRules::InitializePluralRules(
+      isolate, locale, options, resolved, &plural_rules, &decimal_format);
+
+  if (!success) return isolate->ThrowIllegalOperation();
+
+  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(plural_rules));
+  local_object->SetEmbedderField(1, reinterpret_cast<Smi*>(decimal_format));
+
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          PluralRules::DeletePluralRules,
+                          WeakCallbackType::kInternalFields);
+  return *local_object;
+}
+
+RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, plural_rules_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
+
+  icu::PluralRules* plural_rules =
+      PluralRules::UnpackPluralRules(isolate, plural_rules_holder);
+  CHECK_NOT_NULL(plural_rules);
+
+  icu::DecimalFormat* number_format =
+      PluralRules::UnpackNumberFormat(isolate, plural_rules_holder);
+  CHECK_NOT_NULL(number_format);
+
+  // Currently, PluralRules doesn't implement all the options for rounding that
+  // the Intl spec provides; format and parse the number to round to the
+  // appropriate amount, then apply PluralRules.
+  //
+  // TODO(littledan): If a future ICU version supports an extended API to avoid
+  // this step, then switch to that API. Bug thread:
+  // http://bugs.icu-project.org/trac/ticket/12763
+  icu::UnicodeString rounded_string;
+  number_format->format(number->Number(), rounded_string);
+
+  icu::Formattable formattable;
+  UErrorCode status = U_ZERO_ERROR;
+  number_format->parse(rounded_string, formattable, status);
+  if (!U_SUCCESS(status)) return isolate->ThrowIllegalOperation();
+
+  double rounded = formattable.getDouble(status);
+  if (!U_SUCCESS(status)) return isolate->ThrowIllegalOperation();
+
+  icu::UnicodeString result = plural_rules->select(rounded);
+  return *isolate->factory()
+              ->NewStringFromTwoByte(Vector<const uint16_t>(
+                  reinterpret_cast<const uint16_t*>(
+                      icu::toUCharPtr(result.getBuffer())),
+                  result.length()))
+              .ToHandleChecked();
 }
 
 RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {

@@ -197,11 +197,11 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)       \
-  HARMONY_INPROGRESS_BASE(V)        \
-  V(harmony_number_format_to_parts, \
-    "Intl.NumberFormat.prototype."  \
-    "formatToParts")
+#define HARMONY_INPROGRESS(V)                    \
+  HARMONY_INPROGRESS_BASE(V)                     \
+  V(harmony_number_format_to_parts,              \
+    "Intl.NumberFormat.prototype.formatToParts") \
+  V(harmony_plural_rules, "Intl.PluralRules")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif

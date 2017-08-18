@@ -370,7 +370,7 @@
   'language/module-code/namespace/internals/define-own-property': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
-  'intl402/PluralRules/*': [SKIP],
+  'intl402/PluralRules/*': ['--harmony-plural-rules'],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],

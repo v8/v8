@@ -262,6 +262,8 @@ namespace internal {
   F(CurrencyDigits, 1, 1)                    \
   F(CreateCollator, 3, 1)                    \
   F(InternalCompare, 3, 1)                   \
+  F(CreatePluralRules, 3, 1)                 \
+  F(PluralRulesSelect, 2, 1)                 \
   F(CreateBreakIterator, 3, 1)               \
   F(BreakIteratorAdoptText, 2, 1)            \
   F(BreakIteratorFirst, 1, 1)                \
