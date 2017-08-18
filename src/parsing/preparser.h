@@ -39,32 +39,8 @@ class PreParserIdentifier {
   static PreParserIdentifier Arguments() {
     return PreParserIdentifier(kArgumentsIdentifier);
   }
-  static PreParserIdentifier Undefined() {
-    return PreParserIdentifier(kUndefinedIdentifier);
-  }
-  static PreParserIdentifier FutureReserved() {
-    return PreParserIdentifier(kFutureReservedIdentifier);
-  }
-  static PreParserIdentifier FutureStrictReserved() {
-    return PreParserIdentifier(kFutureStrictReservedIdentifier);
-  }
-  static PreParserIdentifier Let() {
-    return PreParserIdentifier(kLetIdentifier);
-  }
-  static PreParserIdentifier Static() {
-    return PreParserIdentifier(kStaticIdentifier);
-  }
-  static PreParserIdentifier Yield() {
-    return PreParserIdentifier(kYieldIdentifier);
-  }
-  static PreParserIdentifier Prototype() {
-    return PreParserIdentifier(kPrototypeIdentifier);
-  }
   static PreParserIdentifier Constructor() {
     return PreParserIdentifier(kConstructorIdentifier);
-  }
-  static PreParserIdentifier Enum() {
-    return PreParserIdentifier(kEnumIdentifier);
   }
   static PreParserIdentifier Await() {
     return PreParserIdentifier(kAwaitIdentifier);
@@ -79,39 +55,17 @@ class PreParserIdentifier {
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
-  bool IsUndefined() const { return type_ == kUndefinedIdentifier; }
-  bool IsLet() const { return type_ == kLetIdentifier; }
-  bool IsStatic() const { return type_ == kStaticIdentifier; }
-  bool IsYield() const { return type_ == kYieldIdentifier; }
-  bool IsPrototype() const { return type_ == kPrototypeIdentifier; }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
-  bool IsEnum() const { return type_ == kEnumIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
   bool IsName() const { return type_ == kNameIdentifier; }
-
-  // Allow identifier->name()[->length()] to work. The preparser
-  // does not need the actual positions/lengths of the identifiers.
-  const PreParserIdentifier* operator->() const { return this; }
-  const PreParserIdentifier raw_name() const { return *this; }
-
-  int position() const { return 0; }
-  int length() const { return 0; }
 
  private:
   enum Type {
     kNullIdentifier,
     kUnknownIdentifier,
-    kFutureReservedIdentifier,
-    kFutureStrictReservedIdentifier,
-    kLetIdentifier,
-    kStaticIdentifier,
-    kYieldIdentifier,
     kEvalIdentifier,
     kArgumentsIdentifier,
-    kUndefinedIdentifier,
-    kPrototypeIdentifier,
     kConstructorIdentifier,
-    kEnumIdentifier,
     kAwaitIdentifier,
     kAsyncIdentifier,
     kNameIdentifier
@@ -1051,7 +1005,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE ZoneList<const AstRawString*>* DeclareLabel(
       ZoneList<const AstRawString*>* labels, PreParserExpression expr,
       bool* ok) {
-    DCHECK(!expr.AsIdentifier().IsEnum());
     DCHECK(!parsing_module_ || !expr.AsIdentifier().IsAwait());
     DCHECK(IsIdentifier(expr));
     return labels;
@@ -1224,10 +1177,6 @@ class PreParser : public ParserBase<PreParser> {
     return identifier.IsEvalOrArguments();
   }
 
-  V8_INLINE bool IsUndefined(PreParserIdentifier identifier) const {
-    return identifier.IsUndefined();
-  }
-
   V8_INLINE bool IsAwait(PreParserIdentifier identifier) const {
     return identifier.IsAwait();
   }
@@ -1249,10 +1198,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static PreParserExpression AsIdentifierExpression(
       PreParserExpression expression) {
     return expression;
-  }
-
-  V8_INLINE bool IsPrototype(PreParserIdentifier identifier) const {
-    return identifier.IsPrototype();
   }
 
   V8_INLINE bool IsConstructor(PreParserIdentifier identifier) const {

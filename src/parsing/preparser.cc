@@ -43,30 +43,18 @@ namespace {
 
 PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
   // These symbols require slightly different treatement:
-  // - regular keywords (enum, await, etc.; treated in 1st switch.)
+  // - regular keywords (async, await, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
-    case Token::ENUM:
-      return PreParserIdentifier::Enum();
     case Token::AWAIT:
       return PreParserIdentifier::Await();
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      return PreParserIdentifier::FutureStrictReserved();
-    case Token::LET:
-      return PreParserIdentifier::Let();
-    case Token::STATIC:
-      return PreParserIdentifier::Static();
-    case Token::YIELD:
-      return PreParserIdentifier::Yield();
     case Token::ASYNC:
       return PreParserIdentifier::Async();
     default:
       break;
   }
   switch (scanner->current_contextual_token()) {
-    case Token::PROTOTYPE:
-      return PreParserIdentifier::Prototype();
     case Token::CONSTRUCTOR:
       return PreParserIdentifier::Constructor();
     case Token::NAME:
@@ -74,15 +62,14 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
     default:
       break;
   }
-  if (scanner->literal_contains_escapes())
+  if (scanner->literal_contains_escapes()) {
     return PreParserIdentifier::Default();
+  }
   switch (scanner->current_contextual_token()) {
     case Token::EVAL:
       return PreParserIdentifier::Eval();
     case Token::ARGUMENTS:
       return PreParserIdentifier::Arguments();
-    case Token::UNDEFINED:
-      return PreParserIdentifier::Undefined();
     default:
       break;
   }

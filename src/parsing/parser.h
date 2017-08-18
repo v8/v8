@@ -622,10 +622,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return IsEval(identifier) || IsArguments(identifier);
   }
 
-  V8_INLINE bool IsUndefined(const AstRawString* identifier) const {
-    return identifier == ast_value_factory()->undefined_string();
-  }
-
   // Returns true if the expression is of type "this.foo".
   V8_INLINE static bool IsThisProperty(Expression* expression) {
     DCHECK(expression != NULL);
@@ -651,10 +647,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE VariableProxy* AsIdentifierExpression(Expression* expression) {
     return expression->AsVariableProxy();
-  }
-
-  V8_INLINE bool IsPrototype(const AstRawString* identifier) const {
-    return identifier == ast_value_factory()->prototype_string();
   }
 
   V8_INLINE bool IsConstructor(const AstRawString* identifier) const {
