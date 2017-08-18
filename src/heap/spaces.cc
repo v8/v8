@@ -582,42 +582,31 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   return chunk;
 }
 
-template <Page::InitializationMode mode>
-Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
-                       PagedSpace* owner) {
-  Page* page = reinterpret_cast<Page*>(chunk);
-  DCHECK(page->area_size() <= kAllocatableMemory);
-  DCHECK(chunk->owner() == owner);
-
-  owner->IncreaseCapacity(page->area_size());
-  heap->incremental_marking()->SetOldSpacePageFlags(chunk);
-
+Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
+  Page* page = static_cast<Page*>(chunk);
+  DCHECK(page->area_size() <= Page::kAllocatableMemory);
   // Make sure that categories are initialized before freeing the area.
   page->InitializeFreeListCategories();
-  // In the case we do not free the memory, we effectively account for the whole
-  // page as allocated memory that cannot be used for further allocations.
-  if (mode == kFreeMemory) {
-    owner->IncreaseAllocatedBytes(page->area_size(), page);
-    owner->Free(page->area_start(), page->area_size());
-  }
+  page->ResetAllocatedBytes();
+  heap()->incremental_marking()->SetOldSpacePageFlags(page);
   page->InitializationMemoryFence();
   return page;
 }
 
-Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
-                       SemiSpace* owner) {
+Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
-  bool in_to_space = (owner->id() != kFromSpace);
+  bool in_to_space = (id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
                              : MemoryChunk::IN_FROM_SPACE);
   DCHECK(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
                                        : MemoryChunk::IN_TO_SPACE));
   Page* page = static_cast<Page*>(chunk);
-  heap->incremental_marking()->SetNewSpacePageFlags(page);
+  heap()->incremental_marking()->SetNewSpacePageFlags(page);
   page->AllocateLocalTracker();
   if (FLAG_minor_mc) {
     page->AllocateYoungGenerationBitmap();
-    heap->minor_mark_compact_collector()
+    heap()
+        ->minor_mark_compact_collector()
         ->non_atomic_marking_state()
         ->ClearLiveness(page);
   }
@@ -653,10 +642,8 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
   old_page->SetFlags(0, static_cast<uintptr_t>(~0));
-  old_space->AccountCommitted(old_page->size());
-  Page* new_page = Page::Initialize<kDoNotFreeMemory>(
-      old_page->heap(), old_page, NOT_EXECUTABLE, old_space);
-  new_page->InsertAfter(old_space->anchor()->prev_page());
+  Page* new_page = old_space->InitializePage(old_page, NOT_EXECUTABLE);
+  old_space->AddPage(new_page);
   return new_page;
 }
 
@@ -1071,7 +1058,7 @@ Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
     chunk = AllocateChunk(size, size, executable, owner);
   }
   if (chunk == nullptr) return nullptr;
-  return Page::Initialize(isolate_->heap(), chunk, executable, owner);
+  return owner->InitializePage(chunk, executable);
 }
 
 template Page*
@@ -1592,18 +1579,14 @@ bool PagedSpace::Expand() {
 
   if (!heap()->CanExpandOldGeneration(size)) return false;
 
-  Page* p = heap()->memory_allocator()->AllocatePage(size, this, executable());
-  if (p == nullptr) return false;
-
-  AccountCommitted(p->size());
-
+  Page* page =
+      heap()->memory_allocator()->AllocatePage(size, this, executable());
+  if (page == nullptr) return false;
   // Pages created during bootstrapping may contain immortal immovable objects.
-  if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
-
+  if (!heap()->deserialization_complete()) page->MarkNeverEvacuate();
+  AddPage(page);
+  Free(page->area_start(), page->area_size());
   DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
-
-  p->InsertAfter(anchor_.prev_page());
-
   return true;
 }
 

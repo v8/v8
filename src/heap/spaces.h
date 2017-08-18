@@ -622,6 +622,10 @@ class MemoryChunk {
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
+  // Emits a memory barrier. For TSAN builds the other thread needs to perform
+  // MemoryChunk::synchronized_heap() to simulate the barrier.
+  void InitializationMemoryFence();
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -632,10 +636,6 @@ class MemoryChunk {
   void ReleaseAllocatedMemory();
 
   base::VirtualMemory* reserved_memory() { return &reservation_; }
-
-  // Emits a memory barrier. For TSAN builds the other thread needs to perform
-  // MemoryChunk::synchronized_heap() to simulate the barrier.
-  void InitializationMemoryFence();
 
   size_t size_;
   uintptr_t flags_;
@@ -813,6 +813,8 @@ class Page : public MemoryChunk {
     return &categories_[type];
   }
 
+  inline void InitializeFreeListCategories();
+
   bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
 
   size_t wasted_memory() { return wasted_memory_; }
@@ -841,14 +843,6 @@ class Page : public MemoryChunk {
 
  private:
   enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
-
-  template <InitializationMode mode = kFreeMemory>
-  static Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                          Executability executable, PagedSpace* owner);
-  static Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                          Executability executable, SemiSpace* owner);
-
-  inline void InitializeFreeListCategories();
 
   void InitializeAsAnchor(Space* owner);
 
@@ -2107,9 +2101,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
     accounting_stats_.IncreaseCapacity(bytes);
   }
 
-  // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page);
-
   void AccountAddedPage(Page* page);
   void AccountRemovedPage(Page* page);
   void RefineAllocatedBytesAfterSweeping(Page* page);
@@ -2117,6 +2108,12 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
 
+  Page* InitializePage(MemoryChunk* chunk, Executability executable);
+  void ReleasePage(Page* page);
+  void AddPage(Page* page);
+  // Remove a page if it has at least |size_in_bytes| bytes available that can
+  // be used for allocation.
+  Page* RemovePageSafe(int size_in_bytes);
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
@@ -2179,11 +2176,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   size_t ShrinkPageToHighWaterMark(Page* page);
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
-
-  // Remove a page if it has at least |size_in_bytes| bytes available that can
-  // be used for allocation.
-  Page* RemovePageSafe(int size_in_bytes);
-  void AddPage(Page* page);
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -2333,6 +2325,7 @@ class SemiSpace : public Space {
 
   void RemovePage(Page* page);
   void PrependPage(Page* page);
+  Page* InitializePage(MemoryChunk* chunk, Executability executable);
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }

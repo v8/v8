@@ -3616,6 +3616,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     if (ShouldMovePage(page, live_bytes_on_page)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
         EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
+        DCHECK_EQ(heap()->old_space(), page->owner());
+        // The move added page->allocated_bytes to the old space, but we are
+        // going to sweep the page and add page->live_byte_count.
+        heap()->old_space()->DecreaseAllocatedBytes(page->allocated_bytes(),
+                                                    page);
       } else {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
