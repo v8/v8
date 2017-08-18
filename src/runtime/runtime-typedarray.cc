@@ -152,6 +152,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
   size_t targetElementSize = target->element_size();
 
   uint32_t source_length = source->length_value();
+  if (source_length == 0) return *target;
 
   // Copy left part.
 
@@ -191,6 +192,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
   source_ptr += source_length * sourceElementSize;
 
   uint32_t right_index;
+  DCHECK_GE(source_length, 1);
   for (right_index = source_length - 1;
        right_index > left_index && target_ptr >= source_ptr; right_index--) {
     Handle<Object> value;
