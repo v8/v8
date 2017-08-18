@@ -615,6 +615,16 @@ class ElementsAccessorBase : public ElementsAccessor {
                                           filter) != kMaxUInt32;
   }
 
+  bool HasEntry(JSObject* holder, uint32_t entry) final {
+    return Subclass::HasEntryImpl(holder->GetIsolate(), holder->elements(),
+                                  entry);
+  }
+
+  static bool HasEntryImpl(Isolate* isolate, FixedArrayBase* backing_store,
+                           uint32_t entry) {
+    UNIMPLEMENTED();
+  }
+
   bool HasAccessors(JSObject* holder) final {
     return Subclass::HasAccessorsImpl(holder, holder->elements());
   }
