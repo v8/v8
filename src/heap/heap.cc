@@ -1910,9 +1910,6 @@ void Heap::Scavenge() {
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
 
-  // Used for updating survived_since_last_expansion_ at function end.
-  size_t survived_watermark = PromotedSpaceSizeOfObjects();
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_->Flip();
@@ -1998,9 +1995,7 @@ void Heap::Scavenge() {
   });
 
   // Update how much has survived scavenge.
-  DCHECK_GE(PromotedSpaceSizeOfObjects(), survived_watermark);
-  IncrementYoungSurvivorsCounter(PromotedSpaceSizeOfObjects() +
-                                 new_space_->Size() - survived_watermark);
+  IncrementYoungSurvivorsCounter(SurvivedNewSpaceObjectSize());
 
   // Scavenger may find new wrappers by iterating objects promoted onto a black
   // page.

@@ -1407,7 +1407,13 @@ class Heap {
   }
 
   size_t PromotedSinceLastGC() {
-    return PromotedSpaceSizeOfObjects() - old_generation_size_at_last_gc_;
+    size_t old_generation_size = PromotedSpaceSizeOfObjects();
+    if (old_generation_size < old_generation_size_at_last_gc_) {
+      // This can happen if the promoted space size was refined in the
+      // sweeper after mutator doing array trimming.
+      return 0;
+    }
+    return old_generation_size - old_generation_size_at_last_gc_;
   }
 
   int gc_count() const { return gc_count_; }
