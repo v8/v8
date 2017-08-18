@@ -1683,6 +1683,12 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (!cached_handler.is_null()) {
     handler = cached_handler.ToHandleChecked();
   } else if (LookupForWrite(lookup, value, store_mode)) {
+    if (created_new_transition_) {
+      // The first time a transition is performed, there's a good chance that
+      // it won't be taken again, so don't bother creating a handler.
+      TRACE_IC("StoreIC", lookup->name());
+      return;
+    }
     handler = ComputeHandler(lookup);
   } else {
     TRACE_GENERIC_IC("LookupForWrite said 'false'");
@@ -1795,10 +1801,8 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
       Handle<Object> handler =
           StoreTransition(receiver_map(), holder, transition, lookup->name());
-      if (!created_new_transition_) {
-        TransitionsAccessor(receiver_map())
-            .UpdateHandler(*lookup->name(), *handler);
-      }
+      TransitionsAccessor(receiver_map())
+          .UpdateHandler(*lookup->name(), *handler);
       return handler;
     }
 
