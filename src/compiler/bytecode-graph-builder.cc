@@ -796,9 +796,6 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops(
   }
 }
 
-// TODO(alexandret) create an iterator which wraps both bytecode_iterator and
-// source_position_iterator and increments them in one, so we don't need to
-// pass source_position_iterator as an argument here.
 void BytecodeGraphBuilder::VisitSingleBytecode(
     SourcePositionTableIterator* source_position_iterator) {
   const interpreter::BytecodeArrayIterator& iterator = bytecode_iterator();
