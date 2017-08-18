@@ -882,11 +882,6 @@ DEFINE_BOOL(trace_for_in_enumerate, false, "Trace for-in enumerate slow-paths")
 DEFINE_BOOL(trace_maps, false, "trace map creation")
 #endif
 
-// preparser.cc
-DEFINE_BOOL(use_parse_tasks, false, "use parse tasks")
-DEFINE_BOOL(trace_parse_tasks, false, "trace parse task creation")
-DEFINE_NEG_IMPLICATION(use_parse_tasks, preparser_scope_analysis)
-
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_BOOL(trace_parse, false, "trace parsing and preparsing")

@@ -1811,9 +1811,6 @@ void Scope::CheckZones() {
       DCHECK_NULL(scope->inner_scope_);
       continue;
     }
-    if (!scope->replaced_from_parse_task()) {
-      CHECK_EQ(scope->zone(), zone());
-    }
     scope->CheckZones();
   }
 }

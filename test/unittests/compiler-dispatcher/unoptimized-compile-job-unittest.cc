@@ -11,6 +11,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
+#include "src/compiler-dispatcher/unoptimized-compile-job.h"
 #include "src/flags.h"
 #include "src/isolate-inl.h"
 #include "src/parsing/parse-info.h"
@@ -67,31 +68,12 @@ class UnoptimizedCompileJobTest : public TestWithContext {
 
 SaveFlags* UnoptimizedCompileJobTest::save_flags_ = nullptr;
 
-namespace {
-
-const char test_script[] = "(x) { x*x; }";
-
-}  // namespace
-
 #define ASSERT_JOB_STATUS(STATUS, JOB) ASSERT_EQ(STATUS, GetStatus(JOB))
 
 TEST_F(UnoptimizedCompileJobTest, Construct) {
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), nullptr), FLAG_stack_size));
-}
-
-TEST_F(UnoptimizedCompileJobTest, ConstructWithoutSFI) {
-  std::unique_ptr<test::FinishCallback> callback(new test::FinishCallback());
-  std::unique_ptr<test::ScriptResource> resource(
-      new test::ScriptResource(test_script, strlen(test_script)));
-  std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      i_isolate()->thread_id().ToInteger(), tracer(), FLAG_stack_size,
-      test::CreateSource(i_isolate(), resource.get()), 0,
-      static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
-      i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
-      ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
-      callback.get()));
 }
 
 TEST_F(UnoptimizedCompileJobTest, StateTransitions) {
@@ -123,26 +105,6 @@ TEST_F(UnoptimizedCompileJobTest, StateTransitions) {
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
   job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
-}
-
-TEST_F(UnoptimizedCompileJobTest, StateTransitionsParseWithCallback) {
-  std::unique_ptr<test::FinishCallback> callback(new test::FinishCallback());
-  std::unique_ptr<test::ScriptResource> resource(
-      new test::ScriptResource(test_script, strlen(test_script)));
-  std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      i_isolate()->thread_id().ToInteger(), tracer(), FLAG_stack_size,
-      test::CreateSource(i_isolate(), resource.get()), 0,
-      static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
-      i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
-      ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
-      callback.get()));
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToParse, job);
-  job->StepNextOnBackgroundThread();
-  ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kDone, job);
-  job->ResetOnMainThread(i_isolate());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
-  ASSERT_TRUE(callback->result() != nullptr);
 }
 
 TEST_F(UnoptimizedCompileJobTest, SyntaxError) {

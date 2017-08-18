@@ -12,6 +12,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
+#include "src/compiler-dispatcher/unoptimized-compile-job.h"
 #include "src/compiler.h"
 #include "src/flags.h"
 #include "src/handles.h"
@@ -293,8 +294,6 @@ class MockPlatform : public v8::Platform {
 
   DISALLOW_COPY_AND_ASSIGN(MockPlatform);
 };
-
-const char test_script[] = "(x) { x*x; }";
 
 }  // namespace
 
@@ -900,31 +899,6 @@ TEST_F(CompilerDispatcherTest, EnqueueJob) {
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
   ASSERT_FALSE(platform.BackgroundTasksPending());
-}
-
-TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
-  MockPlatform platform;
-  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
-  ASSERT_TRUE(dispatcher.jobs_.empty());
-  ASSERT_TRUE(dispatcher.shared_to_unoptimized_job_id_.empty());
-  std::unique_ptr<test::FinishCallback> callback(new test::FinishCallback());
-  std::unique_ptr<test::ScriptResource> resource(
-      new test::ScriptResource(test_script, strlen(test_script)));
-  ASSERT_TRUE(callback->result() == nullptr);
-  ASSERT_TRUE(dispatcher.Enqueue(CreateSource(i_isolate(), resource.get()), 0,
-                                 static_cast<int>(resource->length()), SLOPPY,
-                                 1, false, false, false, 0, callback.get(),
-                                 nullptr));
-  ASSERT_TRUE(!dispatcher.jobs_.empty());
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
-  ASSERT_TRUE(dispatcher.shared_to_unoptimized_job_id_.empty());
-  ASSERT_TRUE(callback->result() == nullptr);
-
-  ASSERT_TRUE(platform.IdleTaskPending());
-  platform.ClearIdleTask();
-  ASSERT_TRUE(platform.BackgroundTasksPending());
-  platform.ClearBackgroundTasks();
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueAndStep) {

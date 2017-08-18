@@ -2623,8 +2623,6 @@ class FunctionLiteral final : public Expression {
     return produced_preparsed_scope_data_;
   }
 
-  void ReplaceBodyAndScope(FunctionLiteral* other);
-
  private:
   friend class AstNodeFactory;
 

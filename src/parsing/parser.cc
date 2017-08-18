@@ -587,12 +587,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   source = String::Flatten(source);
   FunctionLiteral* result;
 
-  if (FLAG_use_parse_tasks) {
-    source_ = source;
-    compiler_dispatcher_ = isolate->compiler_dispatcher();
-    main_parse_info_ = info;
-  }
-
   {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
     scanner_.Initialize(stream.get(), info->is_module());
@@ -602,14 +596,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     DCHECK_EQ(scanner_.peek_location().beg_pos, source->length());
   }
   HandleSourceURLComments(isolate, info->script());
-
-  if (FLAG_use_parse_tasks) {
-    compiler_dispatcher_->FinishAllNow();
-    StitchAst(info, isolate);
-    source_ = Handle<String>();
-    compiler_dispatcher_ = nullptr;
-    main_parse_info_ = nullptr;
-  }
 
   if (FLAG_trace_parse && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -771,8 +757,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(shared_info->name());
     scanner_.Initialize(stream.get(), info->is_module());
-    info->set_function_name(ast_value_factory()->GetString(name));
-    result = DoParseFunction(info);
+    result = DoParseFunction(info, ast_value_factory()->GetString(name));
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -801,30 +786,8 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseFunction(ParseInfo* info) {
-  const AstRawString* raw_name = info->function_name();
-  FunctionNameValidity function_name_validity = kSkipFunctionNameCheck;
-  if (!raw_name) {
-    bool ok = true;
-    if (peek() == Token::LPAREN) {
-      const AstRawString* variable_name;
-      impl()->GetDefaultStrings(&raw_name, &variable_name);
-    } else {
-      bool is_strict_reserved = true;
-      bool is_await = false;
-      raw_name = ParseIdentifierOrStrictReservedWord(
-          info->function_kind(), &is_strict_reserved, &is_await, &ok);
-      if (!ok) return nullptr;
-      // If the function name is "await", ParseIdentifierOrStrictReservedWord
-      // recognized the error.
-      DCHECK(!is_await);
-
-      function_name_validity = is_strict_reserved
-                                   ? kFunctionNameIsStrictReserved
-                                   : kFunctionNameValidityUnknown;
-    }
-  }
-
+FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
+                                         const AstRawString* raw_name) {
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
@@ -946,7 +909,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info) {
                                   info->start_position(), info->end_position());
     } else {
       result = ParseFunctionLiteral(
-          raw_name, Scanner::Location::invalid(), function_name_validity, kind,
+          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(), &ok);
     }
     // Make sure the results agree.
@@ -2582,16 +2545,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
-  const bool source_is_external =
-      !source_.is_null() && (source_->IsExternalTwoByteString() ||
-                             source_->IsExternalOneByteString());
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   const bool is_top_level =
       impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
-  const bool is_eager_top_level_function = !is_lazy && is_top_level;
   const bool is_expression =
       function_type == FunctionLiteral::kAnonymousExpression ||
       function_type == FunctionLiteral::kNamedExpression;
@@ -2623,14 +2582,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       parse_lazily() && FLAG_lazy_inner_functions && is_lazy_inner_function &&
       (!is_expression || FLAG_aggressive_lazy_inner_functions);
 
-  bool should_use_parse_task =
-      FLAG_use_parse_tasks && parse_lazily() && compiler_dispatcher_ &&
-      is_eager_top_level_function && source_is_external;
-
   // This may be modified later to reflect preparsing decision taken
-  bool should_preparse = (parse_lazily() && (is_lazy_top_level_function ||
-                                             should_use_parse_task)) ||
-                         should_preparse_inner;
+  bool should_preparse =
+      (parse_lazily() && is_lazy_top_level_function) || should_preparse_inner;
 
   ZoneList<Statement*>* body = nullptr;
   int expected_property_count = -1;
@@ -2640,33 +2594,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool has_duplicate_parameters = false;
   int function_literal_id = GetNextFunctionLiteralId();
   ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
-
-  Expect(Token::LPAREN, CHECK_OK);
-
-  if (should_use_parse_task) {
-    int start_pos = scanner()->location().beg_pos;
-    if (function_name_location.IsValid()) {
-      start_pos = function_name_location.beg_pos;
-    }
-    // Warning!
-    // Only sets fields in compiler_hints that are currently used.
-    int compiler_hints = SharedFunctionInfo::FunctionKindBits::encode(kind);
-    if (function_type == FunctionLiteral::kDeclaration) {
-      compiler_hints |= SharedFunctionInfo::IsDeclarationBit::encode(true);
-    }
-    should_use_parse_task = compiler_dispatcher_->Enqueue(
-        source_, start_pos, source_->length(), language_mode,
-        function_literal_id, allow_natives(), parsing_module_,
-        function_type == FunctionLiteral::kNamedExpression, compiler_hints,
-        main_parse_info_, nullptr);
-    if (V8_UNLIKELY(FLAG_trace_parse_tasks)) {
-      PrintF("Spining off task for function at %d: %s\n", start_pos,
-             should_use_parse_task ? "SUCCESS" : "FAILED");
-    }
-    if (!should_use_parse_task) {
-      should_preparse = false;
-    }
-  }
 
   Zone* outer_zone = zone();
   DeclarationScope* scope;
@@ -2692,6 +2619,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     scope->SetScopeName(function_name);
     if (should_preparse) scope->set_needs_migration();
 #endif
+
+    Expect(Token::LPAREN, CHECK_OK);
     scope->set_start_position(scanner()->location().beg_pos);
 
     // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
@@ -2701,8 +2630,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // try to lazy parse in the first place, we'll have to parse eagerly.
     if (should_preparse) {
       DCHECK(parse_lazily());
-      DCHECK(is_lazy_top_level_function || is_lazy_inner_function ||
-             should_use_parse_task);
+      DCHECK(is_lazy_top_level_function || is_lazy_inner_function);
       Scanner::BookmarkScope bookmark(scanner());
       bookmark.Set();
       LazyParsingResult result = SkipFunction(
@@ -2722,7 +2650,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         zone_scope.Reset();
         // Trigger eager (re-)parsing, just below this block.
         should_preparse = false;
-        should_use_parse_task = false;
       }
     }
 
@@ -2783,9 +2710,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_name, scope, body, expected_property_count, num_parameters,
       function_length, duplicate_parameters, function_type, eager_compile_hint,
       pos, true, function_literal_id, produced_preparsed_scope_data);
-  if (should_use_parse_task) {
-    literals_to_stitch_.emplace_back(function_literal);
-  }
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -3491,7 +3415,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
     result = DoParseProgram(info);
   } else {
-    result = DoParseFunction(info);
+    result = DoParseFunction(info, info->function_name());
   }
 
   info->set_literal(result);
@@ -4552,41 +4476,6 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
   }
 
   return final_loop;
-}
-
-void Parser::StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate) {
-  if (literals_to_stitch_.empty()) return;
-  std::map<int, ParseInfo*> child_infos = top_level_parse_info->child_infos();
-  DCHECK(std::is_sorted(literals_to_stitch_.begin(), literals_to_stitch_.end(),
-                        [](FunctionLiteral* a, FunctionLiteral* b) {
-                          return a->start_position() < b->start_position();
-                        }));
-  auto it = literals_to_stitch_.begin();
-  for (auto& child_info : child_infos) {
-    ParseInfo* result = child_info.second;
-    // If the parse task failed the function will be treated as lazy function
-    // and reparsed before it gets called
-    if (!result) continue;
-    result->UpdateStatisticsAfterBackgroundParse(isolate);
-    if (!result->literal()) continue;
-    while ((*it)->start_position() != child_info.first) {
-      if (++it == literals_to_stitch_.end()) {
-        return;
-      }
-    }
-    FunctionLiteral* literal = *it;
-    // FIXME(wiktorg) better handling of default params for arrow functions
-    Scope* outer_scope = literal->scope()->outer_scope();
-    if (outer_scope->is_declaration_scope() &&
-        outer_scope->AsDeclarationScope()->was_lazily_parsed()) {
-      continue;
-    }
-    // TODO(wiktorg) in the future internalize somewhere else (stitching may be
-    // done on streamer thread)
-    result->ast_value_factory()->Internalize(isolate);
-    literal->ReplaceBodyAndScope(result->literal());
-    literal->SetShouldEagerCompile();
-  }
 }
 
 #undef CHECK_OK

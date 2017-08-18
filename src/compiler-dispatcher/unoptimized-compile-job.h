@@ -30,12 +30,6 @@ class String;
 class UnicodeCache;
 class Utf16CharacterStream;
 
-class V8_EXPORT_PRIVATE UnoptimizedCompileJobFinishCallback {
- public:
-  virtual ~UnoptimizedCompileJobFinishCallback() {}
-  virtual void ParseFinished(std::unique_ptr<ParseInfo> parse_info) = 0;
-};
-
 class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
  public:
   enum class Status {
@@ -54,18 +48,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   UnoptimizedCompileJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);
-  // TODO(wiktorg) document it better once I know how it relates to whole stuff
-  // Creates a UnoptimizedCompileJob in ready to parse top-level function state.
-  UnoptimizedCompileJob(int main_thread_id, CompilerDispatcherTracer* tracer,
-                        size_t max_stack_size, Handle<String> source,
-                        int start_position, int end_position,
-                        LanguageMode language_mode, int function_literal_id,
-                        bool native, bool module, bool is_named_expression,
-                        uint32_t hash_seed, AccountingAllocator* zone_allocator,
-                        int compiler_hints,
-                        const AstStringConstants* ast_string_constants,
-                        UnoptimizedCompileJobFinishCallback* finish_callback);
-
   ~UnoptimizedCompileJob() override;
 
   Type type() const override { return kUnoptimizedCompile; }
@@ -122,7 +104,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   Handle<String> wrapper_;             // Global handle.
   std::unique_ptr<v8::String::ExternalStringResourceBase> source_wrapper_;
   size_t max_stack_size_;
-  UnoptimizedCompileJobFinishCallback* finish_callback_ = nullptr;
 
   // Members required for parsing.
   std::unique_ptr<UnicodeCache> unicode_cache_;
@@ -138,8 +119,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   // Transition from kInitial to kReadyToParse.
   void PrepareToParseOnMainThread(Isolate* isolate);
 
-  // Transition from kReadyToParse to kParsed (or kDone if there is
-  // finish_callback).
+  // Transition from kReadyToParse to kParsed.
   void Parse();
 
   // Transition from kParsed to kReadyToAnalyze (or kFailed).

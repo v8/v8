@@ -62,54 +62,6 @@ class TwoByteWrapper : public v8::String::ExternalStringResource {
 
 }  // namespace
 
-UnoptimizedCompileJob::UnoptimizedCompileJob(
-    int main_thread_id, CompilerDispatcherTracer* tracer, size_t max_stack_size,
-    Handle<String> source, int start_position, int end_position,
-    LanguageMode language_mode, int function_literal_id, bool native,
-    bool module, bool is_named_expression, uint32_t hash_seed,
-    AccountingAllocator* zone_allocator, int compiler_hints,
-    const AstStringConstants* ast_string_constants,
-    UnoptimizedCompileJobFinishCallback* finish_callback)
-    : status_(Status::kReadyToParse),
-      main_thread_id_(main_thread_id),
-      tracer_(tracer),
-      max_stack_size_(max_stack_size),
-      finish_callback_(finish_callback),
-      trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
-  parse_info_.reset(new ParseInfo(zone_allocator));
-  DCHECK(source->IsExternalTwoByteString() ||
-         source->IsExternalOneByteString());
-  character_stream_.reset(
-      ScannerStream::For(source, start_position, end_position));
-  parse_info_->set_character_stream(character_stream_.get());
-  parse_info_->set_hash_seed(hash_seed);
-  parse_info_->set_compiler_hints(compiler_hints);
-  parse_info_->set_start_position(start_position);
-  parse_info_->set_end_position(end_position);
-  unicode_cache_.reset(new UnicodeCache());
-  parse_info_->set_unicode_cache(unicode_cache_.get());
-  parse_info_->set_language_mode(language_mode);
-  parse_info_->set_function_literal_id(function_literal_id);
-  parse_info_->set_ast_string_constants(ast_string_constants);
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    parse_info_->set_runtime_call_stats(new (parse_info_->zone())
-                                            RuntimeCallStats());
-  }
-
-  parse_info_->set_native(native);
-  parse_info_->set_module(module);
-  parse_info_->set_is_named_expression(is_named_expression);
-
-  parser_.reset(new Parser(parse_info_.get()));
-  parser_->DeserializeScopeChain(parse_info_.get(), MaybeHandle<ScopeInfo>());
-
-  if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p] created for ", static_cast<void*>(this));
-    ShortPrintOnMainThread();
-    PrintF(" in ready to parse state.\n");
-  }
-}
-
 UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
                                              CompilerDispatcherTracer* tracer,
                                              Handle<SharedFunctionInfo> shared,
@@ -134,7 +86,6 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
 
 UnoptimizedCompileJob::~UnoptimizedCompileJob() {
   DCHECK(status_ == Status::kInitial ||
-         (status_ == Status::kReadyToParse && finish_callback_) ||
          status_ == Status::kDone);
   if (!shared_.is_null()) {
     DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
@@ -335,13 +286,7 @@ void UnoptimizedCompileJob::Parse() {
 
   parser_->set_stack_limit(stack_limit);
   parser_->ParseOnBackground(parse_info_.get());
-
-  if (finish_callback_) {
-    finish_callback_->ParseFinished(std::move(parse_info_));
-    status_ = Status::kDone;
-  } else {
-    status_ = Status::kParsed;
-  }
+  status_ = Status::kParsed;
 }
 
 void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
@@ -491,7 +436,6 @@ void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
   unicode_cache_.reset();
   character_stream_.reset();
   parse_info_.reset();
-  finish_callback_ = nullptr;
 
   if (!source_.is_null()) {
     DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
@@ -543,16 +487,8 @@ double UnoptimizedCompileJob::EstimateRuntimeOfNextStepInMs() const {
 
 void UnoptimizedCompileJob::ShortPrintOnMainThread() {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
-  if (!shared_.is_null()) {
-    shared_->ShortPrint();
-  } else {
-    // TODO(wiktorg) more useful info in those cases
-    if (parse_info_) {
-      PrintF("function at %d", parse_info_->start_position());
-    } else {
-      PrintF("parsed function");
-    }
-  }
+  DCHECK(!shared_.is_null());
+  shared_->ShortPrint();
 }
 
 }  // namespace internal

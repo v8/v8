@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/compiler-dispatcher/unoptimized-compile-job.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -35,7 +34,7 @@ class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
+class V8_EXPORT_PRIVATE ParseInfo {
  public:
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   ParseInfo(Handle<Script> script);
@@ -250,11 +249,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
 
   void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
 
-  // The key of the map is the FunctionLiteral's start_position
-  std::map<int, ParseInfo*> child_infos() const;
-
-  void ParseFinished(std::unique_ptr<ParseInfo> info) override;
-
  private:
   // Various configuration flags for parsing.
   enum Flag {
@@ -312,9 +306,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public UnoptimizedCompileJobFinishCallback {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   std::shared_ptr<DeferredHandles> deferred_handles_;
-
-  std::vector<std::unique_ptr<ParseInfo>> child_infos_;
-  mutable base::Mutex child_infos_mutex_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
