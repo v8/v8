@@ -2328,8 +2328,12 @@ class ThreadImpl {
       if (table_index >= static_cast<uint32_t>(sig_tables->length())) {
         return {ExternalCallResult::INVALID_FUNC};
       }
-      FixedArray* sig_table =
-          FixedArray::cast(sig_tables->get(static_cast<int>(table_index)));
+      // Reconstitute the global handle to sig_table, and, further below,
+      // to the function table, from the address stored in the
+      // respective table of tables.
+      int table_index_as_int = static_cast<int>(table_index);
+      Handle<FixedArray> sig_table(reinterpret_cast<FixedArray**>(
+          WasmCompiledModule::GetTableValue(sig_tables, table_index_as_int)));
       if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
         return {ExternalCallResult::INVALID_FUNC};
       }
@@ -2341,8 +2345,8 @@ class ThreadImpl {
       // Get code object.
       FixedArray* fun_tables = compiled_module->ptr_to_function_tables();
       DCHECK_EQ(sig_tables->length(), fun_tables->length());
-      FixedArray* fun_table =
-          FixedArray::cast(fun_tables->get(static_cast<int>(table_index)));
+      Handle<FixedArray> fun_table(reinterpret_cast<FixedArray**>(
+          WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int)));
       DCHECK_EQ(sig_table->length(), fun_table->length());
       target = Code::cast(fun_table->get(static_cast<int>(entry_index)));
     }

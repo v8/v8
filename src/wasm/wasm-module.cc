@@ -217,18 +217,18 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
   DisallowHeapAllocation no_gc;
   WasmModule* module = compiled_module->module();
 
-  std::vector<Handle<FixedArray>> function_tables;
-  std::vector<Handle<FixedArray>> signature_tables;
+  std::vector<GlobalHandleAddress> function_tables;
+  std::vector<GlobalHandleAddress> signature_tables;
   std::vector<SignatureMap*> signature_maps;
 
   int num_function_tables = static_cast<int>(module->function_tables.size());
-  for (int i = 0; i < num_function_tables; i++) {
+  for (int i = 0; i < num_function_tables; ++i) {
     FixedArray* ft = compiled_module->ptr_to_function_tables();
     FixedArray* st = compiled_module->ptr_to_signature_tables();
 
     // TODO(clemensh): defer these handles for concurrent compilation.
-    function_tables.push_back(handle(FixedArray::cast(ft->get(i))));
-    signature_tables.push_back(handle(FixedArray::cast(st->get(i))));
+    function_tables.push_back(WasmCompiledModule::GetTableValue(ft, i));
+    signature_tables.push_back(WasmCompiledModule::GetTableValue(st, i));
     signature_maps.push_back(&module->function_tables[i].map);
   }
 
