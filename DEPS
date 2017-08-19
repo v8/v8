@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "4fc2460b0e8c612243077868d8c2f469ad6922ec",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "7dff8529d084bea94bbf9f68569a0ffb4427eb65",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "d61a9397e668fa9843c4aa7da9e79460fe590bfb",
   "v8/third_party/icu":
@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "644afd349826cb68204226a16c38bde13abe9c3c",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "d36e2d975b599009ff311719896b88f602987ff8",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "5af0a3a8b89827a8634132080a39ab4b63dee489",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "65d1d42a5df6c0a563a6fdfa58a135679185e5d9",
   "v8/third_party/jinja2":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "874d63052b1c67476cb0830342170ce7f96b2925",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "f0379f8cacdbbc19374aac707516bae86f7addbc",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "17b4a4d98c80b1ec736649d5a73496a0e6d12d4c",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "e9d4018e149d50172ed462a7c21137aa915940ec",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "d9436e5a07a35cf6bc5f6e948c480d0582637482",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "d2ffc23f1e05ee72a2fbb6afdd60db51351247e5",
   },
 }
 
