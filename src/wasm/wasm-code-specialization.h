@@ -39,7 +39,7 @@ class CodeSpecialization {
   // Update all direct call sites based on the code table in the given instance.
   void RelocateDirectCalls(Handle<WasmInstanceObject> instance);
   // Relocate an arbitrary object (e.g. function table).
-  void RelocatePointer(Address old_obj, Address new_obj);
+  void RelocateObject(Handle<Object> old_obj, Handle<Object> new_obj);
 
   // Apply all relocations and patching to all code in the instance (wasm code
   // and exported functions).
@@ -62,7 +62,8 @@ class CodeSpecialization {
 
   Handle<WasmInstanceObject> relocate_direct_calls_instance;
 
-  std::map<Address, Address> pointers_to_relocate;
+  bool has_objects_to_relocate = false;
+  IdentityMap<Handle<Object>, ZoneAllocationPolicy> objects_to_relocate;
 };
 
 }  // namespace wasm

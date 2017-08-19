@@ -68,6 +68,4 @@ gc();
 })();
 
 gc();
-// the first GC will clear the module, the second the instance.
-gc();
 %ValidateWasmOrphanedInstance(instance4);

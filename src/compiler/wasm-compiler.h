@@ -52,14 +52,12 @@ struct ModuleEnv {
   // A pointer to the decoded module's static representation.
   const wasm::WasmModule* module;
   // The function tables are FixedArrays of code used to dispatch indirect
-  // calls. (the same length as module.function_tables). We use the address
-  // to a global handle to the FixedArray.
-  const std::vector<Address> function_tables;
+  // calls. (the same length as module.function_tables)
+  const std::vector<Handle<FixedArray>> function_tables;
   // The signatures tables are FixedArrays of SMIs used to check signatures
   // match at runtime.
   // (the same length as module.function_tables)
-  //  We use the address to a global handle to the FixedArray.
-  const std::vector<Address> signature_tables;
+  const std::vector<Handle<FixedArray>> signature_tables;
   // Signature maps canonicalize {FunctionSig*} to indexes. New entries can be
   // added to a signature map during graph building.
   // Normally, these signature maps correspond to the signature maps in the

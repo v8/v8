@@ -275,14 +275,8 @@ class TestingModule {
       table.map.FindOrInsert(test_module_.functions[function_indexes[i]].sig);
     }
 
-    function_tables_.push_back(
-        isolate_->global_handles()
-            ->Create(*isolate_->factory()->NewFixedArray(table_size))
-            .address());
-    signature_tables_.push_back(
-        isolate_->global_handles()
-            ->Create(*isolate_->factory()->NewFixedArray(table_size))
-            .address());
+    function_tables_.push_back(isolate_->factory()->NewFixedArray(table_size));
+    signature_tables_.push_back(isolate_->factory()->NewFixedArray(table_size));
   }
 
   void PopulateIndirectFunctionTable() {
@@ -290,10 +284,8 @@ class TestingModule {
     // Initialize the fixed arrays in instance->function_tables.
     for (uint32_t i = 0; i < function_tables_.size(); i++) {
       WasmIndirectFunctionTable& table = test_module_.function_tables[i];
-      Handle<FixedArray> function_table(
-          reinterpret_cast<FixedArray**>(function_tables_[i]));
-      Handle<FixedArray> signature_table(
-          reinterpret_cast<FixedArray**>(signature_tables_[i]));
+      Handle<FixedArray> function_table = function_tables_[i];
+      Handle<FixedArray> signature_table = signature_tables_[i];
       int table_size = static_cast<int>(table.values.size());
       for (int j = 0; j < table_size; j++) {
         WasmFunction& function = test_module_.functions[table.values[j]];
@@ -361,8 +353,8 @@ class TestingModule {
   byte* mem_start_;
   uint32_t mem_size_;
   std::vector<Handle<Code>> function_code_;
-  std::vector<GlobalHandleAddress> function_tables_;
-  std::vector<GlobalHandleAddress> signature_tables_;
+  std::vector<Handle<FixedArray>> function_tables_;
+  std::vector<Handle<FixedArray>> signature_tables_;
   V8_ALIGNED(8) byte globals_data_[kMaxGlobalsSize];
   WasmInterpreter* interpreter_;
   Handle<WasmInstanceObject> instance_object_;

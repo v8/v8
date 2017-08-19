@@ -84,7 +84,8 @@ bool IsAtWasmDirectCallTarget(RelocIterator& it) {
 
 }  // namespace
 
-CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone) {}
+CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone)
+    : objects_to_relocate(isolate->heap(), ZoneAllocationPolicy(zone)) {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
@@ -119,8 +120,11 @@ void CodeSpecialization::RelocateDirectCalls(
   relocate_direct_calls_instance = instance;
 }
 
-void CodeSpecialization::RelocatePointer(Address old_ptr, Address new_ptr) {
-  pointers_to_relocate.insert(std::make_pair(old_ptr, new_ptr));
+void CodeSpecialization::RelocateObject(Handle<Object> old_obj,
+                                        Handle<Object> new_obj) {
+  DCHECK(!old_obj.is_null() && !new_obj.is_null());
+  has_objects_to_relocate = true;
+  objects_to_relocate.Set(*old_obj, new_obj);
 }
 
 bool CodeSpecialization::ApplyToWholeInstance(
@@ -187,7 +191,7 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   bool reloc_globals = old_globals_start || new_globals_start;
   bool patch_table_size = old_function_table_size || new_function_table_size;
   bool reloc_direct_calls = !relocate_direct_calls_instance.is_null();
-  bool reloc_pointers = pointers_to_relocate.size() > 0;
+  bool reloc_objects = has_objects_to_relocate;
 
   int reloc_mode = 0;
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
@@ -198,7 +202,7 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   add_mode(reloc_globals, RelocInfo::WASM_GLOBAL_REFERENCE);
   add_mode(patch_table_size, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
   add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
-  add_mode(reloc_pointers, RelocInfo::WASM_GLOBAL_HANDLE);
+  add_mode(reloc_objects, RelocInfo::EMBEDDED_OBJECT);
 
   std::unique_ptr<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
@@ -254,12 +258,13 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
                                        UPDATE_WRITE_BARRIER, icache_flush_mode);
         changed = true;
       } break;
-      case RelocInfo::WASM_GLOBAL_HANDLE: {
-        DCHECK(reloc_pointers);
-        Address old_ptr = it.rinfo()->global_handle();
-        if (pointers_to_relocate.count(old_ptr) == 1) {
-          Address new_ptr = pointers_to_relocate[old_ptr];
-          it.rinfo()->set_global_handle(code->GetIsolate(), new_ptr,
+      case RelocInfo::EMBEDDED_OBJECT: {
+        DCHECK(reloc_objects);
+        Object* old = it.rinfo()->target_object();
+        Handle<Object>* new_obj = objects_to_relocate.Find(old);
+        if (new_obj) {
+          it.rinfo()->set_target_object(HeapObject::cast(**new_obj),
+                                        UPDATE_WRITE_BARRIER,
                                         icache_flush_mode);
           changed = true;
         }

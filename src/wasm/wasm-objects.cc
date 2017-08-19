@@ -177,31 +177,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
   compiled_module->set_weak_wasm_module(link_to_module);
-  Handle<Object> global_handle =
-      isolate->global_handles()->Create(*module_object);
-  GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                          &Finalizer, v8::WeakCallbackType::kFinalizer);
   return module_object;
-}
-
-void WasmModuleObject::Finalizer(const v8::WeakCallbackInfo<void>& data) {
-  DisallowHeapAllocation no_gc;
-  JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
-  WasmModuleObject* module = reinterpret_cast<WasmModuleObject*>(*p);
-  WasmCompiledModule* compiled_module = module->compiled_module();
-  if (compiled_module->has_empty_function_tables()) {
-    DCHECK(compiled_module->has_empty_signature_tables());
-    for (int i = 0, e = compiled_module->empty_function_tables()->length();
-         i < e; ++i) {
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_empty_function_tables(), i)));
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_empty_signature_tables(), i)));
-    }
-  }
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
@@ -263,52 +239,23 @@ void WasmTableObject::grow(Isolate* isolate, uint32_t count) {
         FixedArray::cast(dispatch_tables->get(i + 2)));
     Handle<FixedArray> old_signature_table(
         FixedArray::cast(dispatch_tables->get(i + 3)));
-    Handle<FixedArray> new_function_table = isolate->global_handles()->Create(
-        *isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count));
-    Handle<FixedArray> new_signature_table = isolate->global_handles()->Create(
-        *isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count));
+    Handle<FixedArray> new_function_table =
+        isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count);
+    Handle<FixedArray> new_signature_table =
+        isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count);
 
-    GlobalHandleAddress new_function_table_addr = new_function_table.address();
-    GlobalHandleAddress new_signature_table_addr =
-        new_signature_table.address();
-
-    int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
     // Update dispatch tables with new function/signature tables
     dispatch_tables->set(i + 2, *new_function_table);
     dispatch_tables->set(i + 3, *new_signature_table);
 
     // Patch the code of the respective instance.
-    {
-      DisallowHeapAllocation no_gc;
-      CodeSpecialization code_specialization(isolate, &specialization_zone);
-      WasmInstanceObject* instance =
-          WasmInstanceObject::cast(dispatch_tables->get(i));
-      WasmCompiledModule* compiled_module = instance->compiled_module();
-      GlobalHandleAddress old_function_table_addr =
-          WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_function_tables(), table_index);
-      GlobalHandleAddress old_signature_table_addr =
-          WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_signature_tables(), table_index);
-      code_specialization.PatchTableSize(old_size, old_size + count);
-      code_specialization.RelocatePointer(old_function_table_addr,
-                                          new_function_table_addr);
-      code_specialization.RelocatePointer(old_signature_table_addr,
-                                          new_signature_table_addr);
-      code_specialization.ApplyToWholeInstance(instance);
-      WasmCompiledModule::UpdateTableValue(
-          compiled_module->ptr_to_function_tables(), table_index,
-          new_function_table_addr);
-      WasmCompiledModule::UpdateTableValue(
-          compiled_module->ptr_to_signature_tables(), table_index,
-          new_signature_table_addr);
-      // We need to destroy the global handles this instance held to the
-      // old tables now, otherwise we'd leak global handles.
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(old_function_table_addr));
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(old_signature_table_addr));
-    }
+    CodeSpecialization code_specialization(isolate, &specialization_zone);
+    code_specialization.PatchTableSize(old_size, old_size + count);
+    code_specialization.RelocateObject(old_function_table, new_function_table);
+    code_specialization.RelocateObject(old_signature_table,
+                                       new_signature_table);
+    code_specialization.ApplyToWholeInstance(
+        WasmInstanceObject::cast(dispatch_tables->get(i)));
   }
 }
 
@@ -850,8 +797,8 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
     Handle<FixedArray> code_table,
-    const std::vector<wasm::GlobalHandleAddress>& function_tables,
-    const std::vector<wasm::GlobalHandleAddress>& signature_tables) {
+    const std::vector<Handle<FixedArray>>& function_tables,
+    const std::vector<Handle<FixedArray>>& signature_tables) {
   DCHECK_EQ(function_tables.size(), signature_tables.size());
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
@@ -877,18 +824,12 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     Handle<FixedArray> ft =
         isolate->factory()->NewFixedArray(num_function_tables, TENURED);
     for (int i = 0; i < num_function_tables; ++i) {
-      size_t index = static_cast<size_t>(i);
-      SetTableValue(isolate, ft, i, function_tables[index]);
-      SetTableValue(isolate, st, i, signature_tables[index]);
+      st->set(i, *(signature_tables[i]));
+      ft->set(i, *(function_tables[i]));
     }
-    // TODO(wasm): setting the empty tables here this way is OK under the
-    // assumption that we compile and then instantiate. It needs rework if we do
-    // direct instantiation. The empty tables are used as a default when
-    // resetting the compiled module.
     compiled_module->set_signature_tables(st);
-    compiled_module->set_empty_signature_tables(st);
-    compiled_module->set_function_tables(ft);
     compiled_module->set_empty_function_tables(ft);
+    compiled_module->set_function_tables(ft);
   }
 
   // TODO(mtrofin): copy the rest of the specialization parameters over.
@@ -923,30 +864,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   return ret;
 }
 
-void WasmCompiledModule::SetTableValue(Isolate* isolate,
-                                       Handle<FixedArray> table, int index,
-                                       Address value) {
-  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(
-      static_cast<double>(reinterpret_cast<size_t>(value)), MUTABLE, TENURED);
-  table->set(index, *number);
-}
-
-void WasmCompiledModule::UpdateTableValue(FixedArray* table, int index,
-                                          Address value) {
-  DisallowHeapAllocation no_gc;
-  HeapNumber::cast(table->get(index))
-      ->set_value(static_cast<double>(reinterpret_cast<size_t>(value)));
-}
-
-Address WasmCompiledModule::GetTableValue(FixedArray* table, int index) {
-  DisallowHeapAllocation no_gc;
-  double value = HeapNumber::cast(table->get(index))->value();
-  return reinterpret_cast<Address>(static_cast<size_t>(value));
-}
-
 void WasmCompiledModule::Reset(Isolate* isolate,
-                               WasmCompiledModule* compiled_module,
-                               bool clear_global_handles) {
+                               WasmCompiledModule* compiled_module) {
   DisallowHeapAllocation no_gc;
   TRACE("Resetting %d\n", compiled_module->instance_id());
   Object* undefined = *isolate->factory()->undefined_value();
@@ -979,36 +898,16 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     // Reset function tables.
     if (compiled_module->has_function_tables()) {
       FixedArray* function_tables = compiled_module->ptr_to_function_tables();
-      FixedArray* signature_tables = compiled_module->ptr_to_signature_tables();
       FixedArray* empty_function_tables =
           compiled_module->ptr_to_empty_function_tables();
-      FixedArray* empty_signature_tables =
-          compiled_module->ptr_to_empty_signature_tables();
       if (function_tables != empty_function_tables) {
         DCHECK_EQ(function_tables->length(), empty_function_tables->length());
         for (int i = 0, e = function_tables->length(); i < e; ++i) {
-          GlobalHandleAddress func_addr =
-              WasmCompiledModule::GetTableValue(function_tables, i);
-          GlobalHandleAddress sig_addr =
-              WasmCompiledModule::GetTableValue(signature_tables, i);
-          code_specialization.RelocatePointer(
-              func_addr,
-              WasmCompiledModule::GetTableValue(empty_function_tables, i));
-          code_specialization.RelocatePointer(
-              sig_addr,
-              WasmCompiledModule::GetTableValue(empty_signature_tables, i));
-          // We create a global handle per table per instance. When sharing
-          // tables, to avoid accummulating global handles until the last
-          // instance sharing the table is GC-ed, destroy the handles here.
-          // Except if we call this post-deserialize - because maybe the
-          // instance that originated the {WasmCompiledModule} is still alive.
-          if (clear_global_handles) {
-            GlobalHandles::Destroy(reinterpret_cast<Object**>(func_addr));
-            GlobalHandles::Destroy(reinterpret_cast<Object**>(sig_addr));
-          }
+          code_specialization.RelocateObject(
+              handle(function_tables->get(i), isolate),
+              handle(empty_function_tables->get(i), isolate));
         }
         compiled_module->set_ptr_to_function_tables(empty_function_tables);
-        compiled_module->set_ptr_to_signature_tables(empty_signature_tables);
       }
     }
 
@@ -1166,35 +1065,7 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
       isolate);
   DCHECK(!WasmSharedModuleData::IsWasmSharedModuleData(*shared));
   WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
-  int function_table_count =
-      static_cast<int>(compiled_module->module()->function_tables.size());
-  if (function_table_count > 0) {
-    // The tables are of the right size, but contain bogus global handle
-    // addresses. Produce new global handles for the empty tables, then reset,
-    // which will relocate the code. We end up with a WasmCompiledModule as-if
-    // it were just compiled.
-    DCHECK(compiled_module->has_function_tables());
-    DCHECK(compiled_module->has_signature_tables());
-    DCHECK(compiled_module->has_empty_signature_tables());
-    DCHECK(compiled_module->has_empty_function_tables());
-
-    for (int i = 0; i < function_table_count; ++i) {
-      Handle<Object> global_func_table_handle =
-          isolate->global_handles()->Create(isolate->heap()->undefined_value());
-      Handle<Object> global_sig_table_handle =
-          isolate->global_handles()->Create(isolate->heap()->undefined_value());
-      GlobalHandleAddress new_func_table = global_func_table_handle.address();
-      GlobalHandleAddress new_sig_table = global_sig_table_handle.address();
-      SetTableValue(isolate, compiled_module->empty_function_tables(), i,
-                    new_func_table);
-      SetTableValue(isolate, compiled_module->empty_signature_tables(), i,
-                    new_sig_table);
-    }
-  }
-
-  // Reset, but don't delete any global handles, because their owning instance
-  // may still be active.
-  WasmCompiledModule::Reset(isolate, *compiled_module, false);
+  WasmCompiledModule::Reset(isolate, *compiled_module);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 

@@ -849,8 +849,6 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
     Object* target = nullptr;
     switch (mode) {
       case RelocInfo::CODE_TARGET:
-        // this would be either one of the stubs or builtins, because
-        // we didn't link yet.
         target = reinterpret_cast<Object*>(it.rinfo()->target_address());
         break;
       case RelocInfo::EMBEDDED_OBJECT:
@@ -862,7 +860,9 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
     CHECK_NOT_NULL(target);
     bool is_immovable =
         target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
-    CHECK(is_immovable);
+    // TODO(mtrofin): remove the fixed array part when WebAssembly.Table
+    // is backed by native object, rather than a FixedArray
+    CHECK(is_immovable || target->IsFixedArray());
   }
 }
 
