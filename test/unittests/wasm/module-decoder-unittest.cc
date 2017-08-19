@@ -985,11 +985,16 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
 
 class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
  public:
-  WasmFunctionVerifyTest() {}
+  WasmFunctionVerifyTest() : env(&module, Handle<Code>::null()) {}
   virtual ~WasmFunctionVerifyTest() {}
 
+  const ModuleEnv* get_env() const { return &env; }
+  Vector<const byte> get_bytes() const { return bytes; }
+
+ private:
   WasmModule module;
   Vector<const byte> bytes;
+  ModuleEnv env;
   DISALLOW_COPY_AND_ASSIGN(WasmFunctionVerifyTest);
 };
 
@@ -1008,8 +1013,9 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kExprEnd    // body
   };
 
-  FunctionResult result = SyncDecodeWasmFunction(
-      isolate(), zone(), bytes, &module, data, data + sizeof(data));
+  FunctionResult result =
+      SyncDecodeWasmFunction(isolate(), zone(), get_bytes(),
+                             get_env()->module(), data, data + sizeof(data));
   EXPECT_OK(result);
 
   if (result.val && result.ok()) {

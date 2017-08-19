@@ -79,7 +79,7 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
 
-  uint32_t js_throwing_index = r.builder().AddJsFunction(
+  uint32_t js_throwing_index = r.module().AddJsFunction(
       sigs.v_v(),
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })");
 
@@ -91,7 +91,7 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   BUILD(f2, WASM_CALL_FUNCTION0(wasm_index_1));
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -132,7 +132,7 @@ TEST(CollectDetailedWasmStack_WasmError) {
   BUILD(f2, WASM_CALL_FUNCTION0(0));
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(

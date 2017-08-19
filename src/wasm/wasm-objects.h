@@ -386,7 +386,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, weak_exported_functions)          \
   MACRO(OBJECT, FixedArray, function_tables)                  \
   MACRO(OBJECT, FixedArray, signature_tables)                 \
-  MACRO(OBJECT, FixedArray, empty_function_tables)            \
+  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
   MACRO(LARGE_NUMBER, size_t, embedded_mem_start)             \
   MACRO(LARGE_NUMBER, size_t, globals_start)                  \
   MACRO(LARGE_NUMBER, uint32_t, embedded_mem_size)            \
@@ -417,31 +417,32 @@ class WasmCompiledModule : public FixedArray {
   };
 
  public:
-  static Handle<WasmCompiledModule> New(
-      Isolate* isolate, Handle<WasmSharedModuleData> shared,
-      Handle<FixedArray> code_table,
-      const std::vector<Handle<FixedArray>>& function_tables,
-      const std::vector<Handle<FixedArray>>& signature_tables);
+  static Handle<WasmCompiledModule> New(Isolate* isolate,
+                                        Handle<WasmSharedModuleData> shared,
+                                        Handle<FixedArray> code_table,
+                                        const wasm::ModuleEnv& module_env);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
   Address GetEmbeddedMemStartOrNull() const {
-    return has_embedded_mem_start()
-               ? reinterpret_cast<Address>(embedded_mem_start())
-               : nullptr;
+    DisallowHeapAllocation no_gc;
+    if (has_embedded_mem_start()) {
+      return reinterpret_cast<Address>(embedded_mem_start());
+    }
+    return nullptr;
   }
 
   Address GetGlobalsStartOrNull() const {
-    return has_globals_start() ? reinterpret_cast<Address>(globals_start())
-                               : nullptr;
+    DisallowHeapAllocation no_gc;
+    if (has_globals_start()) {
+      return reinterpret_cast<Address>(globals_start());
+    }
+    return nullptr;
   }
 
-  uint32_t GetEmbeddedMemSizeOrZero() const {
-    return has_embedded_mem_size() ? embedded_mem_size() : 0;
-  }
-
+  uint32_t mem_size() const;
   uint32_t default_mem_size() const;
 
   void ResetSpecializationMemInfoIfNeeded();
