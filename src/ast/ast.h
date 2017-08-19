@@ -2244,13 +2244,16 @@ class RewritableExpression final : public Expression {
  public:
   Expression* expression() const { return expr_; }
   bool is_rewritten() const { return IsRewrittenField::decode(bit_field_); }
+  void set_rewritten() {
+    bit_field_ = IsRewrittenField::update(bit_field_, true);
+  }
 
   void Rewrite(Expression* new_expression) {
     DCHECK(!is_rewritten());
     DCHECK_NOT_NULL(new_expression);
     DCHECK(!new_expression->IsRewritableExpression());
     expr_ = new_expression;
-    bit_field_ = IsRewrittenField::update(bit_field_, true);
+    set_rewritten();
   }
 
  private:

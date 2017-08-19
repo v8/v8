@@ -2427,6 +2427,11 @@ void Parser::AddArrowFunctionFormalParameters(
 
   Expression* initializer = nullptr;
   if (expr->IsAssignment()) {
+    if (expr->IsRewritableExpression()) {
+      // This expression was parsed as a possible destructuring assignment.
+      // Mark it as already-rewritten to avoid an unnecessary visit later.
+      expr->AsRewritableExpression()->set_rewritten();
+    }
     Assignment* assignment = expr->AsAssignment();
     DCHECK(!assignment->IsCompoundAssignment());
     initializer = assignment->value();

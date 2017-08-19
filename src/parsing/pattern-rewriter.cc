@@ -299,14 +299,10 @@ void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
     DCHECK_EQ(AstNode::kArrayLiteral, node->expression()->node_type());
     return Visit(node->expression());
   } else if (context() != ASSIGNMENT) {
-    // TODO(adamk): This early return should be a DCHECK, but in some cases we
-    // try to rewrite the same assignment twice: https://crbug.com/756332
-    // DCHECK(!node->is_rewritten());
-    if (node->is_rewritten()) return;
-
     // This is not a destructuring assignment. Mark the node as rewritten to
     // prevent redundant rewriting and visit the underlying expression.
-    node->Rewrite(node->expression());
+    DCHECK(!node->is_rewritten());
+    node->set_rewritten();
     return Visit(node->expression());
   }
 
