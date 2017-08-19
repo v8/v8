@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/cancelable-task.h"
+#include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -16,7 +17,11 @@ namespace internal {
 
 class Heap;
 class Isolate;
+class MajorNonAtomicMarkingState;
 struct WeakObjects;
+
+using LiveBytesMap =
+    std::unordered_map<MemoryChunk*, intptr_t, MemoryChunk::Hasher>;
 
 class ConcurrentMarking {
  public:
@@ -40,27 +45,33 @@ class ConcurrentMarking {
   void ScheduleTasks();
   void EnsureCompleted();
   void RescheduleTasksIfNeeded();
+  // Flushes the local live bytes into the given marking state.
+  void FlushLiveBytes(MajorNonAtomicMarkingState* marking_state);
+  // This function is called for a new space page that was cleared after
+  // scavenge and is going to be re-used.
+  void ClearLiveness(MemoryChunk* chunk);
 
  private:
-  struct TaskInterrupt {
+  struct TaskState {
     // When the concurrent marking task has this lock, then objects in the
     // heap are guaranteed to not move.
     base::Mutex lock;
     // The main thread sets this flag to true, when it wants the concurrent
     // maker to give up the lock.
-    base::AtomicValue<bool> request;
+    base::AtomicValue<bool> interrupt_request;
     // The concurrent marker waits on this condition until the request
     // flag is cleared by the main thread.
-    base::ConditionVariable condition;
+    base::ConditionVariable interrupt_condition;
+    LiveBytesMap live_bytes;
     char cache_line_padding[64];
   };
   class Task;
-  void Run(int task_id, TaskInterrupt* interrupt);
+  void Run(int task_id, TaskState* task_state);
   Heap* heap_;
   MarkingWorklist* shared_;
   MarkingWorklist* bailout_;
   WeakObjects* weak_objects_;
-  TaskInterrupt task_interrupt_[kTasks + 1];
+  TaskState task_state_[kTasks + 1];
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;
   int pending_task_count_;

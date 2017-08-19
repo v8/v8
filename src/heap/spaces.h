@@ -247,8 +247,8 @@ class MemoryChunk {
  public:
   // Use with std data structures.
   struct Hasher {
-    size_t operator()(Page* const p) const {
-      return reinterpret_cast<size_t>(p) >> kPageSizeBits;
+    size_t operator()(MemoryChunk* const chunk) const {
+      return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
     }
   };
 
@@ -700,6 +700,7 @@ class MemoryChunk {
   void InitializeReservedMemory() { reservation_.Reset(); }
 
   friend class ConcurrentMarkingState;
+  friend class IncrementalMarkingState;
   friend class MajorAtomicMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
@@ -2119,6 +2120,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
   virtual void Verify(ObjectVisitor* visitor);
+
+  void VerifyLiveBytes();
 
   // Overridden by subclasses to verify space-specific object
   // properties (e.g., only maps or free-list nodes are in map space).

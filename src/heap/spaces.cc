@@ -12,6 +12,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/counters.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/slot-set.h"
@@ -1695,8 +1696,6 @@ void PagedSpace::Print() {}
 void PagedSpace::Verify(ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
-  IncrementalMarking::MarkingState* marking_state =
-      heap()->incremental_marking()->marking_state();
   for (Page* page : *this) {
     CHECK(page->owner() == this);
     if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
@@ -1706,7 +1705,6 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
     HeapObjectIterator it(page);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
-    int black_size = 0;
     for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
       CHECK(end_of_previous_object <= object->address());
 
@@ -1729,19 +1727,31 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
       object->IterateBody(map->instance_type(), size, visitor);
-      if (marking_state->IsBlack(object)) {
-        black_size += size;
-      }
-
       CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
-    CHECK_LE(black_size, marking_state->live_bytes(page));
   }
   CHECK(allocation_pointer_found_in_space);
 #ifdef DEBUG
   VerifyCountersAfterSweeping();
 #endif
+}
+
+void PagedSpace::VerifyLiveBytes() {
+  IncrementalMarking::MarkingState* marking_state =
+      heap()->incremental_marking()->marking_state();
+  for (Page* page : *this) {
+    CHECK(page->SweepingDone());
+    HeapObjectIterator it(page);
+    int black_size = 0;
+    for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
+      // All the interior pointers should be contained in the heap.
+      if (marking_state->IsBlack(object)) {
+        black_size += object->Size();
+      }
+    }
+    CHECK_LE(black_size, marking_state->live_bytes(page));
+  }
 }
 #endif  // VERIFY_HEAP
 
@@ -1993,6 +2003,8 @@ void NewSpace::ResetAllocationInfo() {
       heap()->incremental_marking()->non_atomic_marking_state();
   for (Page* p : to_space_) {
     marking_state->ClearLiveness(p);
+    // Concurrent marking may have local live bytes for this page.
+    heap()->concurrent_marking()->ClearLiveness(p);
   }
   InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 }

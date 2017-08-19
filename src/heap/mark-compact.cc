@@ -1001,6 +1001,13 @@ void MarkCompactCollector::Prepare() {
   heap()->memory_allocator()->unmapper()->WaitUntilCompleted();
 
   heap()->concurrent_marking()->EnsureCompleted();
+  heap()->concurrent_marking()->FlushLiveBytes(non_atomic_marking_state());
+
+#ifdef VERIFY_HEAP
+  heap()->old_space()->VerifyLiveBytes();
+  heap()->map_space()->VerifyLiveBytes();
+  heap()->code_space()->VerifyLiveBytes();
+#endif
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
