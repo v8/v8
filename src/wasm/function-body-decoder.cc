@@ -619,11 +619,7 @@ class WasmFullDecoder : public WasmDecoder {
       : WasmFullDecoder(zone, module, nullptr, body) {}
 
   WasmFullDecoder(Zone* zone, TFBuilder* builder, const FunctionBody& body)
-      : WasmFullDecoder(zone,
-                        builder->module_env() == nullptr
-                            ? nullptr
-                            : builder->module_env()->module(),
-                        builder, body) {}
+      : WasmFullDecoder(zone, builder->module(), builder, body) {}
 
   bool Decode() {
     if (FLAG_wasm_code_fuzzer_gen_test) {

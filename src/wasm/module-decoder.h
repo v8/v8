@@ -12,6 +12,11 @@
 
 namespace v8 {
 namespace internal {
+
+namespace compiler {
+struct ModuleEnv;
+}
+
 namespace wasm {
 
 const uint32_t kWasmMagic = 0x6d736100;
@@ -106,7 +111,7 @@ V8_EXPORT_PRIVATE FunctionResult SyncDecodeWasmFunction(
     const byte* function_end);
 
 V8_EXPORT_PRIVATE FunctionResult
-AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, const ModuleEnv* env,
+AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, compiler::ModuleEnv* env,
                         const byte* function_start, const byte* function_end,
                         const std::shared_ptr<Counters> async_counters);
 

@@ -796,7 +796,10 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
-    Handle<FixedArray> code_table, const ModuleEnv& module_env) {
+    Handle<FixedArray> code_table,
+    const std::vector<Handle<FixedArray>>& function_tables,
+    const std::vector<Handle<FixedArray>>& signature_tables) {
+  DCHECK_EQ(function_tables.size(), signature_tables.size());
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
   // WasmCompiledModule::cast would fail since fields are not set yet.
@@ -806,25 +809,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_shared(shared);
   compiled_module->set_native_context(isolate->native_context());
   compiled_module->set_code_table(code_table);
-  size_t function_table_count = shared->module()->function_tables.size();
-  if (function_table_count > 0) {
-    DCHECK_EQ(module_env.function_tables().size(),
-              module_env.signature_tables().size());
-    DCHECK_EQ(module_env.function_tables().size(), function_table_count);
-    int count_as_int = static_cast<int>(function_table_count);
-    Handle<FixedArray> sig_tables =
-        isolate->factory()->NewFixedArray(count_as_int, TENURED);
-    Handle<FixedArray> func_tables =
-        isolate->factory()->NewFixedArray(count_as_int, TENURED);
-    for (int i = 0; i < count_as_int; ++i) {
-      size_t index = static_cast<size_t>(i);
-      sig_tables->set(i, *(module_env.signature_tables()[index]));
-      func_tables->set(i, *(module_env.function_tables()[index]));
-    }
-    compiled_module->set_signature_tables(sig_tables);
-    compiled_module->set_empty_function_tables(func_tables);
-    compiled_module->set_function_tables(func_tables);
-  }
   // TODO(mtrofin): we copy these because the order of finalization isn't
   // reliable, and we need these at Reset (which is called at
   // finalization). If the order were reliable, and top-down, we could instead
@@ -832,6 +816,22 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_initial_pages(shared->module()->initial_pages);
   compiled_module->set_num_imported_functions(
       shared->module()->num_imported_functions);
+
+  int num_function_tables = static_cast<int>(function_tables.size());
+  if (num_function_tables > 0) {
+    Handle<FixedArray> st =
+        isolate->factory()->NewFixedArray(num_function_tables, TENURED);
+    Handle<FixedArray> ft =
+        isolate->factory()->NewFixedArray(num_function_tables, TENURED);
+    for (int i = 0; i < num_function_tables; ++i) {
+      st->set(i, *(signature_tables[i]));
+      ft->set(i, *(function_tables[i]));
+    }
+    compiled_module->set_signature_tables(st);
+    compiled_module->set_empty_function_tables(ft);
+    compiled_module->set_function_tables(ft);
+  }
+
   // TODO(mtrofin): copy the rest of the specialization parameters over.
   // We're currently OK because we're only using defaults.
   return compiled_module;
@@ -871,7 +871,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   Object* undefined = *isolate->factory()->undefined_value();
   Object* fct_obj = compiled_module->ptr_to_code_table();
   if (fct_obj != nullptr && fct_obj != undefined) {
-    uint32_t old_mem_size = compiled_module->mem_size();
+    uint32_t old_mem_size = compiled_module->GetEmbeddedMemSizeOrZero();
     // We use default_mem_size throughout, as the mem size of an uninstantiated
     // module, because if we can statically prove a memory access is over
     // bounds, we'll codegen a trap. See {WasmGraphBuilder::BoundsCheckMem}
@@ -1067,11 +1067,6 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
   WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
   WasmCompiledModule::Reset(isolate, *compiled_module);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
-}
-
-uint32_t WasmCompiledModule::mem_size() const {
-  DCHECK(has_embedded_mem_size() == has_embedded_mem_start());
-  return has_embedded_mem_start() ? embedded_mem_size() : default_mem_size();
 }
 
 uint32_t WasmCompiledModule::default_mem_size() const {
