@@ -861,7 +861,7 @@ class LargePage : public MemoryChunk {
 
   // Uncommit memory that is not in use anymore by the object. If the object
   // cannot be shrunk 0 is returned.
-  Address GetAddressToShrink();
+  Address GetAddressToShrink(Address object_address, size_t object_size);
 
   void ClearOutOfLiveRangeSlots(Address free_start);
 
@@ -2922,8 +2922,6 @@ class LargeObjectSpace : public Space {
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page_ == NULL; }
-
-  void AdjustLiveBytes(int by) { objects_size_ += by; }
 
   LargePage* first_page() { return first_page_; }
 

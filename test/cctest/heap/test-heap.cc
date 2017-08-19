@@ -5646,17 +5646,44 @@ TEST(Regress598319) {
   }
 }
 
+Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
+  // Make sure there is no garbage and the compilation cache is empty.
+  for (int i = 0; i < 5; i++) {
+    CcTest::CollectAllGarbage();
+  }
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  size_t size_before_allocation = heap->SizeOfObjects();
+  Handle<FixedArray> array =
+      heap->isolate()->factory()->NewFixedArray(length, TENURED);
+  size_t size_after_allocation = heap->SizeOfObjects();
+  CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
+  array->Shrink(1);
+  size_t size_after_shrinking = heap->SizeOfObjects();
+  // Shrinking does not change the space size immediately.
+  CHECK_EQ(size_after_allocation, size_after_shrinking);
+  // GC and sweeping updates the size to acccount for shrinking.
+  CcTest::CollectAllGarbage();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  intptr_t size_after_gc = heap->SizeOfObjects();
+  CHECK_EQ(size_after_gc, size_before_allocation + array->Size());
+  return array;
+}
+
 TEST(Regress609761) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
-  Isolate* isolate = heap->isolate();
+  int length = kMaxRegularHeapObjectSize / kPointerSize + 1;
+  Handle<FixedArray> array = ShrinkArrayAndCheckSize(heap, length);
+  CHECK(heap->lo_space()->Contains(*array));
+}
 
-  intptr_t size_before = heap->SizeOfObjects();
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
-  array->Shrink(1);
-  intptr_t size_after = heap->SizeOfObjects();
-  CHECK_EQ(size_after, size_before + array->Size());
+TEST(LiveBytes) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Handle<FixedArray> array = ShrinkArrayAndCheckSize(heap, 2000);
+  CHECK(heap->old_space()->Contains(*array));
 }
 
 TEST(Regress615489) {

@@ -2654,8 +2654,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
-
-  heap->AdjustLiveBytes(this, new_size - size);
   return true;
 }
 
@@ -2725,8 +2723,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   ExternalOneByteString* self = ExternalOneByteString::cast(this);
   self->set_resource(resource);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
-
-  heap->AdjustLiveBytes(this, new_size - size);
   return true;
 }
 
@@ -4033,7 +4029,6 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     Address address = object->address();
     heap->CreateFillerObjectAt(address + new_instance_size, instance_size_delta,
                                ClearRecordedSlots::kYes);
-    heap->AdjustLiveBytes(*object, -instance_size_delta);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -4116,7 +4111,6 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   if (instance_size_delta > 0) {
     heap->CreateFillerObjectAt(object->address() + new_instance_size,
                                instance_size_delta, ClearRecordedSlots::kYes);
-    heap->AdjustLiveBytes(*object, -instance_size_delta);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -12120,8 +12114,6 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   // that are a multiple of pointer size.
   heap->CreateFillerObjectAt(start_of_string + new_size, delta,
                              ClearRecordedSlots::kNo);
-  heap->AdjustLiveBytes(*string, -delta);
-
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
   string->synchronized_set_length(new_length);
@@ -17134,7 +17126,6 @@ void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
     if (size_delta != 0) {
       Heap* heap = isolate->heap();
       heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
-      heap->AdjustLiveBytes(thin, -size_delta);
     }
   }
 }

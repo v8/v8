@@ -716,9 +716,6 @@ class Heap {
 
   static bool IsImmovable(HeapObject* object);
 
-  // Maintain consistency of live bytes during incremental marking.
-  void AdjustLiveBytes(HeapObject* object, int by);
-
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   FixedArrayBase* LeftTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
@@ -1394,6 +1391,7 @@ class Heap {
   void UpdateOldGenerationAllocationCounter() {
     old_generation_allocation_counter_at_last_gc_ =
         OldGenerationAllocationCounter();
+    old_generation_size_at_last_gc_ = 0;
   }
 
   size_t OldGenerationAllocationCounter() {
@@ -1408,12 +1406,20 @@ class Heap {
 
   size_t PromotedSinceLastGC() {
     size_t old_generation_size = PromotedSpaceSizeOfObjects();
-    if (old_generation_size < old_generation_size_at_last_gc_) {
-      // This can happen if the promoted space size was refined in the
-      // sweeper after mutator doing array trimming.
-      return 0;
-    }
+    DCHECK_GE(old_generation_size, old_generation_size_at_last_gc_);
     return old_generation_size - old_generation_size_at_last_gc_;
+  }
+
+  // This is called by the sweeper when it discovers more free space
+  // as expected at the end of the last GC.
+  void NotifyRefinedOldGenerationSize(size_t decreased_bytes) {
+    if (old_generation_size_at_last_gc_ != 0) {
+      // PromotedSpaceSizeOfObjects() is now smaller by |decreased_bytes|.
+      // Adjust old_generation_size_at_last_gc_ too so that PromotedSinceLastGC
+      // stay monotonically non-decreasing function.
+      DCHECK_GE(old_generation_size_at_last_gc_, decreased_bytes);
+      old_generation_size_at_last_gc_ -= decreased_bytes;
+    }
   }
 
   int gc_count() const { return gc_count_; }

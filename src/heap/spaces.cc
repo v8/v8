@@ -1493,8 +1493,15 @@ void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
   // The live_byte on the page was accounted in the space allocated
   // bytes counter. After sweeping allocated_bytes() contains the
   // accurate live byte count on the page.
-  DecreaseAllocatedBytes(marking_state->live_bytes(page), page);
-  IncreaseAllocatedBytes(page->allocated_bytes(), page);
+  size_t old_counter = marking_state->live_bytes(page);
+  size_t new_counter = page->allocated_bytes();
+  DCHECK_GE(old_counter, new_counter);
+  if (old_counter > new_counter) {
+    DecreaseAllocatedBytes(old_counter - new_counter, page);
+    // Give the heap a chance to adjust counters in response to the
+    // more precise and smaller old generation size.
+    heap()->NotifyRefinedOldGenerationSize(old_counter - new_counter);
+  }
   marking_state->SetLiveBytes(page, 0);
 }
 
@@ -3206,12 +3213,12 @@ void PagedSpace::ReportStatistics() {
 void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 #endif
 
-Address LargePage::GetAddressToShrink() {
-  HeapObject* object = GetObject();
+Address LargePage::GetAddressToShrink(Address object_address,
+                                      size_t object_size) {
   if (executable() == EXECUTABLE) {
     return 0;
   }
-  size_t used_size = ::RoundUp((object->address() - address()) + object->Size(),
+  size_t used_size = ::RoundUp((object_address - address()) + object_size,
                                MemoryAllocator::GetCommitPageSize());
   if (used_size < CommittedPhysicalMemory()) {
     return address() + used_size;
@@ -3418,12 +3425,16 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
+  objects_size_ = 0;
   while (current != nullptr) {
     HeapObject* object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
     if (marking_state->IsBlack(object)) {
       Address free_start;
-      if ((free_start = current->GetAddressToShrink()) != 0) {
+      size_t size = static_cast<size_t>(object->Size());
+      objects_size_ += size;
+      if ((free_start = current->GetAddressToShrink(object->address(), size)) !=
+          0) {
         DCHECK(!current->IsFlagSet(Page::IS_EXECUTABLE));
         current->ClearOutOfLiveRangeSlots(free_start);
         RemoveChunkMapEntries(current, free_start);
@@ -3450,7 +3461,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       // Free the chunk.
       size_ -= static_cast<int>(page->size());
       AccountUncommitted(page->size());
-      objects_size_ -= object->Size();
       page_count_--;
 
       RemoveChunkMapEntries(page);

@@ -3352,23 +3352,6 @@ bool Heap::IsImmovable(HeapObject* object) {
   return chunk->NeverEvacuate() || chunk->owner()->identity() == LO_SPACE;
 }
 
-void Heap::AdjustLiveBytes(HeapObject* object, int by) {
-  // As long as the inspected object is black and we are currently not iterating
-  // the heap using HeapIterator, we can update the live byte count. We cannot
-  // update while using HeapIterator because the iterator is temporarily
-  // marking the whole object graph, without updating live bytes.
-  if (lo_space()->Contains(object)) {
-    lo_space()->AdjustLiveBytes(by);
-  } else if (!in_heap_iterator() &&
-             !mark_compact_collector()->sweeping_in_progress() &&
-             incremental_marking()->marking_state()->IsBlack(object)) {
-    DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
-    incremental_marking()->marking_state()->IncrementLiveBytes(
-        MemoryChunk::FromAddress(object->address()), by);
-  }
-}
-
-
 FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
   CHECK_NOT_NULL(object);
@@ -3415,9 +3398,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
 
   FixedArrayBase* new_object =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
-
-  // Maintain consistency of live bytes during incremental marking
-  AdjustLiveBytes(new_object, -bytes_to_trim);
 
   // Remove recorded slots for the new map and length offset.
   ClearRecordedSlot(new_object, HeapObject::RawField(new_object, 0));
@@ -3491,9 +3471,6 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // using release store after creating a filler for the left-over space to
   // avoid races with the sweeper thread.
   object->synchronized_set_length(len - elements_to_trim);
-
-  // Maintain consistency of live bytes during incremental marking
-  AdjustLiveBytes(object, -bytes_to_trim);
 
   // Notify the heap profiler of change in object layout. The array may not be
   // moved during GC, and size has to be adjusted nevertheless.

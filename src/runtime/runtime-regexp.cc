@@ -777,7 +777,6 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   if (!heap->lo_space()->Contains(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
   }
-  heap->AdjustLiveBytes(*answer, -delta);
   return *answer;
 }
 
