@@ -186,6 +186,8 @@ void createBoundFunctionProperty(v8::Local<v8::Context> context,
   createDataProperty(context, console, funcName, func);
 }
 
+enum InspectRequest { kRegular, kCopyToClipboard, kQueryObjects };
+
 }  // namespace
 
 V8Console::V8Console(V8InspectorImpl* inspector) : m_inspector(inspector) {}
@@ -552,10 +554,10 @@ void V8Console::lastEvaluationResultCallback(
 }
 
 static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
-                        int sessionId, bool copyToClipboard,
+                        int sessionId, InspectRequest request,
                         V8InspectorImpl* inspector) {
   if (info.Length() < 1) return;
-  if (!copyToClipboard) info.GetReturnValue().Set(info[0]);
+  if (request == kRegular) info.GetReturnValue().Set(info[0]);
 
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), inspector);
@@ -569,7 +571,11 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
 
   std::unique_ptr<protocol::DictionaryValue> hints =
       protocol::DictionaryValue::create();
-  if (copyToClipboard) hints->setBoolean("copyToClipboard", true);
+  if (request == kCopyToClipboard) {
+    hints->setBoolean("copyToClipboard", true);
+  } else if (request == kQueryObjects) {
+    hints->setBoolean("queryObjects", true);
+  }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     session->runtimeAgent()->inspect(std::move(wrappedObject),
                                      std::move(hints));
@@ -578,12 +584,18 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
 
 void V8Console::inspectCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                                 int sessionId) {
-  inspectImpl(info, sessionId, false, m_inspector);
+  inspectImpl(info, sessionId, kRegular, m_inspector);
 }
 
 void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                              int sessionId) {
-  inspectImpl(info, sessionId, true, m_inspector);
+  inspectImpl(info, sessionId, kCopyToClipboard, m_inspector);
+}
+
+void V8Console::queryObjectsCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
+  if (info.Length() < 1 || !info[0]->IsFunction()) return;
+  inspectImpl(info, sessionId, kQueryObjects, m_inspector);
 }
 
 void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -683,6 +695,10 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   createBoundFunctionProperty(context, commandLineAPI, data, "copy",
                               &V8Console::call<&V8Console::copyCallback>,
                               "function copy(value) { [Command Line API] }");
+  createBoundFunctionProperty(
+      context, commandLineAPI, data, "queryObjects",
+      &V8Console::call<&V8Console::queryObjectsCallback>,
+      "function queryObjects(constructor) { [Command Line API] }");
   createBoundFunctionProperty(
       context, commandLineAPI, data, "$_",
       &V8Console::call<&V8Console::lastEvaluationResultCallback>);

@@ -87,6 +87,20 @@ Running test: testInspect
     }
 }
 {
+    method : Runtime.inspectRequested
+    params : {
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Function
+            description : function Promise() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
     id : <messageId>
     result : {
         result : {
@@ -608,5 +622,18 @@ Running test: testClear
         }
         timestamp : <timestamp>
         type : clear
+    }
+}
+
+Running test: testQueryObjects
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function queryObjects(constructor) { [Command Line API] }
+            objectId : <objectId>
+            type : function
+        }
     }
 }

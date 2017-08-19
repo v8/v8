@@ -24,6 +24,8 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({expression: 'inspect(239)', includeCommandLineAPI: true});
     await Protocol.Runtime.evaluate({expression: 'inspect(-0)', includeCommandLineAPI: true});
     await Protocol.Runtime.evaluate({expression: 'copy(\'hello\')', includeCommandLineAPI: true});
+    await Protocol.Runtime.evaluate({expression: 'queryObjects(Promise)', includeCommandLineAPI: true});
+    await Protocol.Runtime.evaluate({expression: 'queryObjects(1)', includeCommandLineAPI: true});
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: '$0', includeCommandLineAPI: true}));
 
     Protocol.Runtime.evaluate({expression: 'this.inspect = inspect', includeCommandLineAPI: true});
@@ -171,5 +173,9 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Runtime.evaluate({expression: 'this.clear()'});
     InspectorTest.logMessage(await Protocol.Runtime.onceConsoleAPICalled());
     await Protocol.Runtime.disable();
+  },
+
+  async function testQueryObjects() {
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: 'queryObjects', includeCommandLineAPI: true}));
   }
 ]);
