@@ -523,7 +523,7 @@ Heap* MemoryChunk::synchronized_heap() {
 }
 
 void MemoryChunk::InitializationMemoryFence() {
-  base::MemoryFence();
+  base::SeqCst_MemoryFence();
 #ifdef THREAD_SANITIZER
   // Since TSAN does not process memory fences, we use the following annotation
   // to tell TSAN that there is no data race when emitting a

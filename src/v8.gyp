@@ -1848,7 +1848,7 @@
         'base/atomicops.h',
         'base/atomicops_internals_atomicword_compat.h',
         'base/atomicops_internals_portable.h',
-        'base/atomicops_internals_x86_msvc.h',
+        'base/atomicops_internals_std.h',
         'base/base-export.h',
         'base/bits.cc',
         'base/bits.h',
