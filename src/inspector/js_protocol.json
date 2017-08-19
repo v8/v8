@@ -343,6 +343,16 @@
                     { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details."}
                 ],
                 "description": "Runs script with given id in a given context."
+            },
+            {
+                "name": "queryObjects",
+                "parameters": [
+                    { "name": "constructorObjectId", "$ref": "RemoteObjectId", "description": "Identifier of the constructor to return objects for." }
+                ],
+                "returns": [
+                    { "name": "objects", "$ref": "RemoteObject", "description": "Array with objects." }
+                ],
+                "experimental": true
             }
         ],
         "events": [

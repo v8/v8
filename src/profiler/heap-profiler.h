@@ -76,6 +76,10 @@ class HeapProfiler {
 
   Isolate* isolate() const { return heap()->isolate(); }
 
+  void QueryObjects(Handle<Context> context,
+                    debug::QueryObjectPredicate* predicate,
+                    v8::PersistentValueVector<v8::Object>* objects);
+
  private:
   Heap* heap() const;
 

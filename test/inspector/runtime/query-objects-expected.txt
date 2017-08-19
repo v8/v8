@@ -1,0 +1,73 @@
+Checks Runtime.queryObjects
+
+Running test: testClass
+Declare class Foo & store its constructor.
+Create object with class Foo.
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Foo
+    [1] : Foo
+]
+Create object with class Foo.
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Foo
+    [1] : Foo
+    [2] : Foo
+]
+
+Running test: testDerivedNewClass
+Declare class Foo & store its constructor.
+Declare class Boo extends Foo & store its constructor.
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Boo
+    [1] : Foo
+]
+Query objects with Boo constructor.
+Dump each object constructor name.
+[
+    [0] : Boo
+]
+Create object with class Foo
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Boo
+    [1] : Foo
+    [2] : Foo
+]
+Create object with class Boo
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Boo
+    [1] : Boo
+    [2] : Foo
+    [3] : Foo
+]
+Query objects with Boo constructor.
+Dump each object constructor name.
+[
+    [0] : Boo
+    [1] : Boo
+]
+
+Running test: testNewFunction
+Declare Foo & store it.
+Create object using Foo.
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Foo
+]
+Create object using Foo.
+Query objects with Foo constructor.
+Dump each object constructor name.
+[
+    [0] : Foo
+    [1] : Foo
+]

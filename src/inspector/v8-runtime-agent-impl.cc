@@ -42,6 +42,7 @@
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+#include "src/inspector/v8-value-utils.h"
 #include "src/tracing/trace-event.h"
 
 #include "include/v8-inspector.h"
@@ -519,6 +520,21 @@ void V8RuntimeAgentImpl::runScript(
       objectGroup.fromMaybe(""), returnByValue.fromMaybe(false),
       generatePreview.fromMaybe(false),
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));
+}
+
+Response V8RuntimeAgentImpl::queryObjects(
+    const String16& constructorObjectId,
+    std::unique_ptr<protocol::Runtime::RemoteObject>* objects) {
+  InjectedScript::ObjectScope scope(m_session, constructorObjectId);
+  Response response = scope.initialize();
+  if (!response.isSuccess()) return response;
+  if (!scope.object()->IsFunction()) {
+    return Response::Error("Constructor should be instance of Function");
+  }
+  v8::Local<v8::Array> resultArray = m_inspector->debugger()->queryObjects(
+      scope.context(), v8::Local<v8::Function>::Cast(scope.object()));
+  return scope.injectedScript()->wrapObject(
+      resultArray, scope.objectGroupName(), false, false, objects);
 }
 
 void V8RuntimeAgentImpl::restore() {

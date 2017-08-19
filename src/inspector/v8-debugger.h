@@ -88,6 +88,9 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::MaybeLocal<v8::Array> internalProperties(v8::Local<v8::Context>,
                                                v8::Local<v8::Value>);
 
+  v8::Local<v8::Array> queryObjects(v8::Local<v8::Context> context,
+                                    v8::Local<v8::Function> constructor);
+
   void asyncTaskScheduled(const StringView& taskName, void* task,
                           bool recurring);
   void asyncTaskCanceled(void* task);
