@@ -465,24 +465,6 @@ class TurboFanCodeStub : public CodeStub {
   DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
 };
 
-
-// Helper interface to prepare to/restore after making runtime calls.
-class RuntimeCallHelper {
- public:
-  virtual ~RuntimeCallHelper() {}
-
-  virtual void BeforeCall(MacroAssembler* masm) const = 0;
-
-  virtual void AfterCall(MacroAssembler* masm) const = 0;
-
- protected:
-  RuntimeCallHelper() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(RuntimeCallHelper);
-};
-
-
 }  // namespace internal
 }  // namespace v8
 
@@ -508,30 +490,6 @@ class RuntimeCallHelper {
 
 namespace v8 {
 namespace internal {
-
-
-// RuntimeCallHelper implementation used in stubs: enters/leaves a
-// newly created internal frame before/after the runtime call.
-class StubRuntimeCallHelper : public RuntimeCallHelper {
- public:
-  StubRuntimeCallHelper() {}
-
-  void BeforeCall(MacroAssembler* masm) const override;
-
-  void AfterCall(MacroAssembler* masm) const override;
-};
-
-
-// Trivial RuntimeCallHelper implementation.
-class NopRuntimeCallHelper : public RuntimeCallHelper {
- public:
-  NopRuntimeCallHelper() {}
-
-  void BeforeCall(MacroAssembler* masm) const override {}
-
-  void AfterCall(MacroAssembler* masm) const override {}
-};
-
 
 class StringLengthStub : public TurboFanCodeStub {
  public:

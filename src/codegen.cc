@@ -69,21 +69,6 @@ UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
 
 #undef UNARY_MATH_FUNCTION
 
-
-#ifdef DEBUG
-
-Comment::Comment(Assembler* assembler, const char* msg)
-    : assembler_(assembler), msg_(msg) {
-  assembler_->RecordComment(msg);
-}
-
-
-Comment::~Comment() {
-  if (msg_[0] == '[') assembler_->RecordComment("]");
-}
-
-#endif  // DEBUG
-
 void CodeGenerator::MakeCodePrologue(ParseInfo* parse_info,
                                      CompilationInfo* info, const char* kind) {
   bool print_ast = false;
