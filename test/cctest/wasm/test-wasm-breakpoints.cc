@@ -141,10 +141,10 @@ Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
 void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
                    int expected_set_byte_offset = -1) {
   int func_offset =
-      runner.module().GetFunctionAt(function_index)->code.offset();
+      runner.builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
-  Handle<WasmInstanceObject> instance = runner.module().instance_object();
+  Handle<WasmInstanceObject> instance = runner.builder().instance_object();
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module());
   Handle<JSObject> fake_breakpoint_object =
       MakeFakeBreakpoint(runner.main_isolate(), code_offset);
@@ -270,7 +270,7 @@ TEST(WasmCollectPossibleBreakpoints) {
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
-  Handle<WasmInstanceObject> instance = runner.module().instance_object();
+  Handle<WasmInstanceObject> instance = runner.builder().instance_object();
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
   CheckLocations(instance->compiled_module(), {0, 0}, {1, 0},
@@ -297,7 +297,7 @@ TEST(WasmSimpleBreak) {
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Handle<JSFunction> main_fun_wrapper =
-      runner.module().WrapCode(runner.function_index());
+      runner.builder().WrapCode(runner.function_index());
   SetBreakpoint(runner, runner.function_index(), 4, 4);
 
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
@@ -317,7 +317,7 @@ TEST(WasmSimpleStepping) {
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =
-      runner.module().WrapCode(runner.function_index());
+      runner.builder().WrapCode(runner.function_index());
 
   // Set breakpoint at the first I32Const.
   SetBreakpoint(runner, runner.function_index(), 1, 1);
@@ -360,7 +360,7 @@ TEST(WasmStepInAndOut) {
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =
-      runner.module().WrapCode(f2.function_index());
+      runner.builder().WrapCode(f2.function_index());
 
   // Set first breakpoint on the GetLocal (offset 19) before the Call.
   SetBreakpoint(runner, f2.function_index(), 19, 19);
@@ -395,7 +395,7 @@ TEST(WasmGetLocalsAndStack) {
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =
-      runner.module().WrapCode(runner.function_index());
+      runner.builder().WrapCode(runner.function_index());
 
   // Set breakpoint at the first instruction (7 bytes for local decls: num
   // entries + 3x<count, type>).

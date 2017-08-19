@@ -73,9 +73,10 @@ const uint32_t kMaxGlobalsSize = 128;
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject}, {WasmCompiledModule} and, if necessary,
 // the interpreter.
-class TestingModule {
+class TestingModuleBuilder {
  public:
-  explicit TestingModule(Zone* zone, WasmExecutionMode mode = kExecuteCompiled)
+  explicit TestingModuleBuilder(Zone* zone,
+                                WasmExecutionMode mode = kExecuteCompiled)
       : test_module_ptr_(&test_module_),
         isolate_(CcTest::InitIsolateOnce()),
         global_offset(0),
@@ -561,7 +562,7 @@ class WasmFunctionWrapper : private GraphAndBuilders {
 // interpretation (by adding to the interpreter manually).
 class WasmFunctionCompiler : private GraphAndBuilders {
  public:
-  Isolate* isolate() { return testing_module_->isolate(); }
+  Isolate* isolate() { return builder_->isolate(); }
   Graph* graph() const { return main_graph_; }
   Zone* zone() const { return graph()->zone(); }
   CommonOperatorBuilder* common() { return &main_common_; }
@@ -590,9 +591,8 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
     CHECK_GE(kMaxInt, end - start);
     int len = static_cast<int>(end - start);
-    function_->code = {
-        testing_module_->AddBytes(Vector<const byte>(start, len)),
-        static_cast<uint32_t>(len)};
+    function_->code = {builder_->AddBytes(Vector<const byte>(start, len)),
+                       static_cast<uint32_t>(len)};
 
     if (interpreter_) {
       // Add the code to the interpreter.
@@ -600,16 +600,16 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     }
 
     // Build the TurboFan graph.
-    compiler::ModuleEnv module_env = testing_module_->CreateModuleEnv();
+    compiler::ModuleEnv module_env = builder_->CreateModuleEnv();
     TestBuildingGraph(zone(), &jsgraph, &module_env, sig,
                       &source_position_table_, start, end,
                       runtime_exception_support_);
     Handle<Code> code = Compile();
-    testing_module_->SetFunctionCode(function_index(), code);
+    builder_->SetFunctionCode(function_index(), code);
 
     // Add to code table.
     Handle<WasmCompiledModule> compiled_module(
-        testing_module_->instance_object()->compiled_module(), isolate());
+        builder_->instance_object()->compiled_module(), isolate());
     Handle<FixedArray> code_table = compiled_module->code_table();
     if (static_cast<int>(function_index()) >= code_table->length()) {
       Handle<FixedArray> new_arr = isolate()->factory()->NewFixedArray(
@@ -639,21 +639,21 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   friend class WasmRunnerBase;
 
   explicit WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
-                                TestingModule* module, const char* name,
+                                TestingModuleBuilder* builder, const char* name,
                                 bool runtime_exception_support)
       : GraphAndBuilders(zone),
-        jsgraph(module->isolate(), this->graph(), this->common(), nullptr,
+        jsgraph(builder->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
         sig(sig),
         descriptor_(nullptr),
-        testing_module_(module),
+        builder_(builder),
         local_decls(zone, sig),
         source_position_table_(this->graph()),
-        interpreter_(module->interpreter()),
+        interpreter_(builder->interpreter()),
         runtime_exception_support_(runtime_exception_support) {
     // Get a new function from the testing module.
-    int index = module->AddFunction(sig, Handle<Code>::null(), name);
-    function_ = testing_module_->GetFunctionAt(index);
+    int index = builder->AddFunction(sig, Handle<Code>::null(), name);
+    function_ = builder_->GetFunctionAt(index);
   }
 
   Handle<Code> Compile() {
@@ -681,7 +681,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     Handle<FixedArray> deopt_data =
         isolate()->factory()->NewFixedArray(2, TENURED);
     Handle<Object> weak_instance =
-        isolate()->factory()->NewWeakCell(testing_module_->instance_object());
+        isolate()->factory()->NewWeakCell(builder_->instance_object());
     deopt_data->set(0, *weak_instance);
     deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
     code->set_deoptimization_data(*deopt_data);
@@ -700,7 +700,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   FunctionSig* sig;
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
-  TestingModule* testing_module_;
+  TestingModuleBuilder* builder_;
   Vector<const char> debug_name_;
   WasmFunction* function_;
   LocalDeclEncoder local_decls;
@@ -716,7 +716,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   explicit WasmRunnerBase(WasmExecutionMode execution_mode, int num_params,
                           bool runtime_exception_support)
       : zone_(&allocator_, ZONE_NAME),
-        module_(&zone_, execution_mode),
+        builder_(&zone_, execution_mode),
         wrapper_(&zone_, num_params),
         runtime_exception_support_(runtime_exception_support) {}
 
@@ -742,7 +742,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionCompiler& NewFunction(FunctionSig* sig,
                                     const char* name = nullptr) {
     functions_.emplace_back(new WasmFunctionCompiler(
-        &zone_, sig, &module_, name, runtime_exception_support_));
+        &zone_, sig, &builder_, name, runtime_exception_support_));
     return *functions_.back();
   }
 
@@ -757,10 +757,10 @@ class WasmRunnerBase : public HandleAndZoneScope {
     return functions_[0]->interpreter_;
   }
   bool possible_nondeterminism() { return possible_nondeterminism_; }
-  TestingModule& module() { return module_; }
+  TestingModuleBuilder& builder() { return builder_; }
   Zone* zone() { return &zone_; }
 
-  bool interpret() { return module_.interpret(); }
+  bool interpret() { return builder_.interpret(); }
 
   template <typename ReturnType, typename... ParamTypes>
   FunctionSig* CreateSig() {
@@ -795,7 +795,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
  protected:
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
-  TestingModule module_;
+  TestingModuleBuilder builder_;
   std::vector<std::unique_ptr<WasmFunctionCompiler>> functions_;
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
@@ -834,7 +834,7 @@ class WasmRunner : public WasmRunnerBase {
     };
     set_trap_callback_for_testing(trap_callback);
 
-    wrapper_.SetInnerCode(module_.GetFunctionCode(0));
+    wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
     CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                wrapper_.GetWrapperCode(), wrapper_.signature());
     int32_t result = runner.Call(static_cast<void*>(&p)...,
@@ -851,7 +851,7 @@ class WasmRunner : public WasmRunnerBase {
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
     thread->InitFrame(function(), args.data());
     WasmInterpreter::HeapObjectsScope heap_objects_scope(
-        interpreter(), module().instance_object());
+        interpreter(), builder().instance_object());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmValue val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();

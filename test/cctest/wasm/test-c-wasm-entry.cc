@@ -36,8 +36,8 @@ class CWasmEntryArgTester {
         sig_(runner_.template CreateSig<ReturnType, Args...>()) {
     std::vector<uint8_t> code{wasm_function_bytes};
     runner_.Build(code.data(), code.data() + code.size());
-    wasm_code_ = runner_.module().GetFunctionCode(0);
-    Handle<WasmInstanceObject> instance(runner_.module().instance_object());
+    wasm_code_ = runner_.builder().GetFunctionCode(0);
+    Handle<WasmInstanceObject> instance(runner_.builder().instance_object());
     Handle<WasmDebugInfo> debug_info =
         WasmInstanceObject::GetOrCreateDebugInfo(instance);
     c_wasm_entry_fn_ = WasmDebugInfo::GetCWasmEntry(debug_info, sig_);
