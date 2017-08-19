@@ -32,67 +32,33 @@ class SourcePositionTable;
 
 namespace wasm {
 struct DecodeStruct;
-class SignatureMap;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
 typedef compiler::JSGraph TFGraph;
 }  // namespace wasm
 
 namespace compiler {
-
-// The {ModuleEnv} encapsulates the module data that is used by the
-// {WasmGraphBuilder} during graph building. It represents the parameters to
-// which the  compiled code should be specialized, including which code to call
-// for direct calls {function_code}, which tables to use for indirect calls
-// {function_tables}, memory start address and size {mem_start, mem_size},
-// globals start address {globals_start}, as well as signature maps
-// {signature_maps} and the module itself {module}.
-// ModuleEnvs are shareable across multiple compilations.
-struct ModuleEnv {
-  // A pointer to the decoded module's static representation.
-  const wasm::WasmModule* module;
-  // The function tables are FixedArrays of code used to dispatch indirect
-  // calls. (the same length as module.function_tables)
-  const std::vector<Handle<FixedArray>> function_tables;
-  // The signatures tables are FixedArrays of SMIs used to check signatures
-  // match at runtime.
-  // (the same length as module.function_tables)
-  const std::vector<Handle<FixedArray>> signature_tables;
-  // Signature maps canonicalize {FunctionSig*} to indexes. New entries can be
-  // added to a signature map during graph building.
-  // Normally, these signature maps correspond to the signature maps in the
-  // function tables stored in the {module}.
-  const std::vector<wasm::SignatureMap*> signature_maps;
-  // Contains the code objects to call for each indirect call.
-  // (the same length as module.functions)
-  const std::vector<Handle<Code>> function_code;
-  // If the default code is not a null handle, always use it for direct calls.
-  const Handle<Code> default_function_code;
-  // Address of the start of memory.
-  const uintptr_t mem_start;
-  // Size of memory in bytes.
-  const uint32_t mem_size;
-  // Address of the start of the globals region.
-  const uintptr_t globals_start;
-};
-
 class WasmCompilationUnit final {
  public:
   // Use the following constructors if you know you are running on the
   // foreground thread.
   WasmCompilationUnit(Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes,
-                      ModuleEnv* env, const wasm::WasmFunction* function,
+                      const wasm::ModuleEnv* module_env,
+                      const wasm::WasmFunction* function,
                       Handle<Code> centry_stub);
-  WasmCompilationUnit(Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
-                      wasm::WasmName name, int index, Handle<Code> centry_stub);
+  WasmCompilationUnit(Isolate* isolate, const wasm::ModuleEnv* module_env,
+                      wasm::FunctionBody body, wasm::WasmName name, int index,
+                      Handle<Code> centry_stub);
   // Use the following constructors if the compilation may run on a background
   // thread.
   WasmCompilationUnit(Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes,
-                      ModuleEnv* env, const wasm::WasmFunction* function,
+                      const wasm::ModuleEnv* module_env,
+                      const wasm::WasmFunction* function,
                       Handle<Code> centry_stub,
                       const std::shared_ptr<Counters>& async_counters);
-  WasmCompilationUnit(Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
-                      wasm::WasmName name, int index, Handle<Code> centry_stub,
+  WasmCompilationUnit(Isolate* isolate, const wasm::ModuleEnv* module_env,
+                      wasm::FunctionBody body, wasm::WasmName name, int index,
+                      Handle<Code> centry_stub,
                       const std::shared_ptr<Counters>& async_counters);
 
   int func_index() const { return func_index_; }
@@ -102,8 +68,8 @@ class WasmCompilationUnit final {
 
   static MaybeHandle<Code> CompileWasmFunction(
       wasm::ErrorThrower* thrower, Isolate* isolate,
-      const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-      const wasm::WasmFunction* function);
+      const wasm::ModuleWireBytes& wire_bytes,
+      const wasm::ModuleEnv* module_env, const wasm::WasmFunction* function);
 
   void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
   size_t memory_cost() const { return memory_cost_; }
@@ -112,7 +78,7 @@ class WasmCompilationUnit final {
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
 
   Isolate* isolate_;
-  ModuleEnv* env_;
+  const wasm::ModuleEnv* module_env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
@@ -171,8 +137,8 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      ModuleEnv* env, Zone* z, JSGraph* g, Handle<Code> centry_stub_,
-      wasm::FunctionSig* sig,
+      const wasm::ModuleEnv* module_env, Zone* z, JSGraph* g,
+      Handle<Code> centry_stub_, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -318,11 +284,11 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
+  const wasm::ModuleEnv* module_env() const { return module_env_; }
+
   void SetRuntimeExceptionSupport(bool value) {
     has_runtime_exception_support_ = value;
   }
-
-  const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
 
  private:
   static const int kDefaultBufferSize = 16;
@@ -330,7 +296,7 @@ class WasmGraphBuilder {
   Zone* zone_;
   JSGraph* jsgraph_;
   Node* centry_stub_node_;
-  ModuleEnv* env_ = nullptr;
+  const wasm::ModuleEnv* module_env_ = nullptr;
   Node* mem_buffer_ = nullptr;
   Node* mem_size_ = nullptr;
   NodeVector signature_tables_;

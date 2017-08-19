@@ -14,7 +14,6 @@ function instantiate(buffer, ffi) {
 }
 
 (function BasicTest() {
-  print("BasicTest");
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 2, false);
     builder.addFunction("foo", kSig_i_v)
@@ -27,7 +26,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function ImportTest() {
-  print("ImportTest");
     let builder = new WasmModuleBuilder();
   var index = builder.addImport("", "print", makeSig_v_x(kWasmI32));
     builder.addFunction("foo", kSig_v_v)
@@ -41,7 +39,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function LocalsTest() {
-  print("LocalsTest");
     let builder = new WasmModuleBuilder();
     builder.addFunction(undefined, kSig_i_i)
         .addLocals({i32_count: 1})
@@ -55,7 +52,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function LocalsTest2() {
-  print("LocalsTest2");
     // TODO(titzer): i64 only works on 64-bit platforms.
     var types = [
       {locals: {i32_count: 1}, type: kWasmI32},
@@ -79,7 +75,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function CallTest() {
-  print("CallTest");
     let builder = new WasmModuleBuilder();
     builder.addFunction("add", kSig_i_ii)
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
@@ -93,7 +88,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function IndirectCallTest() {
-  print("IndirectCallTest");
     let builder = new WasmModuleBuilder();
     builder.addFunction("add", kSig_i_ii)
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
@@ -110,7 +104,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function DataSegmentTest() {
-  print("DataSegmentTest");
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 1, false);
     builder.addFunction("load", kSig_i_i)
@@ -125,7 +118,6 @@ function instantiate(buffer, ffi) {
 
 
 (function BasicTestWithUint8Array() {
-  print("BasicTestWithUint8Array");
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 2, false);
     builder.addFunction("foo", kSig_i_v)
@@ -152,7 +144,6 @@ function instantiate(buffer, ffi) {
 })();
 
 (function ImportTestTwoLevel() {
-  print("ImportTestTwoLevel");
     let builder = new WasmModuleBuilder();
     var index = builder.addImport("mod", "print", makeSig_v_x(kWasmI32));
     builder.addFunction("foo", kSig_v_v)
