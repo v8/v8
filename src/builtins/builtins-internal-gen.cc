@@ -283,8 +283,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     {
       Node* function = ExternalConstant(
           ExternalReference::store_buffer_overflow_function(this->isolate()));
-      CallCFunction1(MachineType::Int32(), MachineType::Pointer(), function,
-                     isolate);
+      CallCFunction1WithCallerSavedRegisters(
+          MachineType::Int32(), MachineType::Pointer(), function, isolate);
       Goto(next);
     }
   }
@@ -295,7 +295,6 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Node* slot = Parameter(Descriptor::kSlot);
   Node* isolate = Parameter(Descriptor::kIsolate);
   Node* value;
-  Node* function;
 
   Label test_old_to_new_flags(this);
   Label store_buffer_exit(this), store_buffer_incremental_wb(this);
@@ -356,12 +355,12 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
     BIND(&call_incremental_wb);
     {
-      function = ExternalConstant(
+      Node* function = ExternalConstant(
           ExternalReference::incremental_marking_record_write_function(
               this->isolate()));
-      CallCFunction3(MachineType::Int32(), MachineType::Pointer(),
-                     MachineType::Pointer(), MachineType::Pointer(), function,
-                     object, slot, isolate);
+      CallCFunction3WithCallerSavedRegisters(
+          MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+          MachineType::Pointer(), function, object, slot, isolate);
       Goto(&exit);
     }
   }

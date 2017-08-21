@@ -388,6 +388,24 @@ class TurboAssembler : public Assembler {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
+  // Check whether d16-d31 are available on the CPU. The result is given by the
+  // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
+  void CheckFor32DRegs(Register scratch);
+
+  // Does a runtime check for 16/32 FP registers. Either way, pushes 32 double
+  // values to location, saving [d0..(d15|d31)].
+  void SaveFPRegs(Register location, Register scratch);
+
+  // Does a runtime check for 16/32 FP registers. Either way, pops 32 double
+  // values to location, restoring [d0..(d15|d31)].
+  void RestoreFPRegs(Register location, Register scratch);
+
+  void PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                       Register exclusion2 = no_reg,
+                       Register exclusion3 = no_reg);
+  void PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                      Register exclusion2 = no_reg,
+                      Register exclusion3 = no_reg);
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
@@ -845,18 +863,6 @@ class MacroAssembler : public TurboAssembler {
   void TryDoubleToInt32Exact(Register result,
                              DwVfpRegister double_input,
                              LowDwVfpRegister double_scratch);
-
-  // Check whether d16-d31 are available on the CPU. The result is given by the
-  // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
-  void CheckFor32DRegs(Register scratch);
-
-  // Does a runtime check for 16/32 FP registers. Either way, pushes 32 double
-  // values to location, saving [d0..(d15|d31)].
-  void SaveFPRegs(Register location, Register scratch);
-
-  // Does a runtime check for 16/32 FP registers. Either way, pops 32 double
-  // values to location, restoring [d0..(d15|d31)].
-  void RestoreFPRegs(Register location, Register scratch);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

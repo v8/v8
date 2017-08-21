@@ -52,6 +52,8 @@ enum class MachineSemantic {
   kAny
 };
 
+V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep);
+
 class MachineType {
  public:
   MachineType()
@@ -212,6 +214,10 @@ class MachineType {
       default:
         UNREACHABLE();
     }
+  }
+
+  bool LessThanOrEqualPointerSize() {
+    return ElementSizeLog2Of(this->representation()) <= kPointerSizeLog2;
   }
 
  private:

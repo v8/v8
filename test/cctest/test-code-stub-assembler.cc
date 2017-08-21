@@ -30,6 +30,8 @@ int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
   return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
 }
 
+static int sum3(int a0, int a1, int a2) { return a0 + a1 + a2; }
+
 }  // namespace
 
 TEST(CallCFunction9) {
@@ -59,6 +61,31 @@ TEST(CallCFunction9) {
 
   Handle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(36, Handle<Smi>::cast(result)->value());
+}
+
+TEST(CallCFunction3WithCallerSavedRegisters) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  {
+    Node* const fun_constant = m.ExternalConstant(
+        ExternalReference(reinterpret_cast<Address>(sum3), isolate));
+
+    MachineType type_intptr = MachineType::IntPtr();
+
+    Node* const result = m.CallCFunction3WithCallerSavedRegisters(
+        type_intptr, type_intptr, type_intptr, type_intptr, fun_constant,
+        m.IntPtrConstant(0), m.IntPtrConstant(1), m.IntPtrConstant(2));
+    m.Return(m.SmiTag(result));
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(3, Handle<Smi>::cast(result)->value());
 }
 
 namespace {

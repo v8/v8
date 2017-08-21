@@ -37,6 +37,29 @@ CPURegList TurboAssembler::DefaultFPTmpList() {
   return CPURegList(fp_scratch1, fp_scratch2);
 }
 
+void TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+                                     Register exclusion1, Register exclusion2,
+                                     Register exclusion3) {
+  auto list = kCallerSaved;
+  list.Remove(exclusion1, exclusion2, exclusion3);
+  PushCPURegList(list);
+
+  if (fp_mode == kSaveFPRegs) {
+    PushCPURegList(kCallerSavedV);
+  }
+}
+
+void TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                    Register exclusion2, Register exclusion3) {
+  if (fp_mode == kSaveFPRegs) {
+    PopCPURegList(kCallerSavedV);
+  }
+
+  auto list = kCallerSaved;
+  list.Remove(exclusion1, exclusion2, exclusion3);
+  PopCPURegList(list);
+}
+
 void TurboAssembler::LogicalMacro(const Register& rd, const Register& rn,
                                   const Operand& operand, LogicalOp op) {
   UseScratchRegisterScope temps(this);

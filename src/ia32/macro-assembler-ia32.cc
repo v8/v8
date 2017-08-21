@@ -99,7 +99,7 @@ static const Register saved_regs[] = {REG(eax), REG(ecx), REG(edx)};
 
 static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
 
-void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+void TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
                                      Register exclusion1, Register exclusion2,
                                      Register exclusion3) {
   // We don't allow a GC during a store buffer overflow so there is no need to
@@ -121,7 +121,7 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   }
 }
 
-void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+void TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   if (fp_mode == kSaveFPRegs) {
     // Restore all XMM registers except XMM0.

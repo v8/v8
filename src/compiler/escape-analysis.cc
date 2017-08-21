@@ -1122,7 +1122,9 @@ bool EscapeStatusAnalysis::IsEffectBranchPoint(Node* node) {
 namespace {
 
 bool HasFrameStateInput(const Operator* op) {
-  if (op->opcode() == IrOpcode::kCall || op->opcode() == IrOpcode::kTailCall) {
+  if (op->opcode() == IrOpcode::kCall ||
+      op->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
+      op->opcode() == IrOpcode::kTailCall) {
     const CallDescriptor* d = CallDescriptorOf(op);
     return d->NeedsFrameState();
   } else {

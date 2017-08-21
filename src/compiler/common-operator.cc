@@ -95,6 +95,7 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
 
 CallDescriptor const* CallDescriptorOf(const Operator* const op) {
   DCHECK(op->opcode() == IrOpcode::kCall ||
+         op->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
          op->opcode() == IrOpcode::kTailCall);
   return OpParameter<CallDescriptor const*>(op);
 }
@@ -1317,6 +1318,27 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
   return new (zone()) CallOperator(descriptor);
 }
 
+const Operator* CommonOperatorBuilder::CallWithCallerSavedRegisters(
+    const CallDescriptor* descriptor) {
+  class CallOperator final : public Operator1<const CallDescriptor*> {
+   public:
+    explicit CallOperator(const CallDescriptor* descriptor)
+        : Operator1<const CallDescriptor*>(
+              IrOpcode::kCallWithCallerSavedRegisters, descriptor->properties(),
+              "CallWithCallerSavedRegisters",
+              descriptor->InputCount() + descriptor->FrameStateCount(),
+              Operator::ZeroIfPure(descriptor->properties()),
+              Operator::ZeroIfEliminatable(descriptor->properties()),
+              descriptor->ReturnCount(),
+              Operator::ZeroIfPure(descriptor->properties()),
+              Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}
+
+    void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+      os << "[" << *parameter() << "]";
+    }
+  };
+  return new (zone()) CallOperator(descriptor);
+}
 
 const Operator* CommonOperatorBuilder::TailCall(
     const CallDescriptor* descriptor) {
