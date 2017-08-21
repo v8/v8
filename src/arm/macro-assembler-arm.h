@@ -352,6 +352,13 @@ class TurboAssembler : public Assembler {
             bool check_constant_pool = true);
   void Call(Label* target);
 
+  // This should only be used when assembling a deoptimizer call because of
+  // the CheckConstPool invocation, which is only needed for deoptimization.
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    Call(target, rmode);
+    CheckConstPool(false, false);
+  }
+
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
   void Drop(int count, Condition cond = al);

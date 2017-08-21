@@ -149,12 +149,14 @@ class CodeGenerator final : public GapResolver::Assembler {
   // adjusted stack pointer is returned in |slot|.
   bool GetSlotAboveSPBeforeTailCall(Instruction* instr, int* slot);
 
-  Deoptimizer::BailoutType DeoptimizerCallBailout(int deoptimization_id,
-                                                  SourcePosition pos);
+  CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
+                                        SourcePosition pos);
 
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
+
+  CodeGenResult FinalizeAssembleDeoptimizerCall(Address deoptimization_entry);
 
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
@@ -163,9 +165,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
-
-  CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
-                                        SourcePosition pos);
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.

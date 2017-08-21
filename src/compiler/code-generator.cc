@@ -81,21 +81,35 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   frame_access_state_ = new (zone()) FrameAccessState(frame);
 }
 
-Deoptimizer::BailoutType CodeGenerator::DeoptimizerCallBailout(
+CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     int deoptimization_id, SourcePosition pos) {
   DeoptimizeKind deopt_kind = GetDeoptimizationKind(deoptimization_id);
+  Deoptimizer::BailoutType bailout_type;
   switch (deopt_kind) {
     case DeoptimizeKind::kSoft: {
-      return Deoptimizer::SOFT;
+      bailout_type = Deoptimizer::SOFT;
+      break;
     }
     case DeoptimizeKind::kEager: {
-      return Deoptimizer::EAGER;
+      bailout_type = Deoptimizer::EAGER;
+      break;
     }
     case DeoptimizeKind::kLazy: {
-      return Deoptimizer::LAZY;
+      bailout_type = Deoptimizer::LAZY;
+      break;
     }
+    default: { UNREACHABLE(); }
   }
-  UNREACHABLE();
+  DeoptimizeReason deoptimization_reason =
+      GetDeoptimizationReason(deoptimization_id);
+  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+      tasm()->isolate(), deoptimization_id, bailout_type);
+  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
+  if (info()->is_source_positions_enabled()) {
+    tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  }
+  tasm()->CallForDeoptimization(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+  return kSuccess;
 }
 
 void CodeGenerator::AssembleCode() {

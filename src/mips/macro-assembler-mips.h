@@ -278,6 +278,11 @@ class TurboAssembler : public Assembler {
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             COND_ARGS);
   void Call(Label* target);
+
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    Call(target, rmode);
+  }
+
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,
     Register rs = zero_reg, const Operand& rt = Operand(zero_reg)) {

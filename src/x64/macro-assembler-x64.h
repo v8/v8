@@ -316,6 +316,10 @@ class TurboAssembler : public Assembler {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    call(target, rmode);
+  }
+
   // The size of the code generated for different call instructions.
   int CallSize(ExternalReference ext);
   int CallSize(Address destination) { return kCallSequenceLength; }

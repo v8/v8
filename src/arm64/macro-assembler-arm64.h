@@ -871,6 +871,10 @@ class TurboAssembler : public Assembler {
   void Call(Address target, RelocInfo::Mode rmode);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    Call(target, rmode);
+  }
+
   // For every Call variant, there is a matching CallSize function that returns
   // the size (in bytes) of the call sequence.
   static int CallSize(Register target);
