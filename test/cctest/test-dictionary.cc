@@ -85,17 +85,17 @@ static void TestHashMap(Handle<HashMap> table) {
     CHECK_EQ(table->NumberOfElements(), i + 1);
     CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), *value);
-    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
   // code should not be found.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, *key)->IsSmi());
+    CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
     CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -103,7 +103,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, *key);
+    Object* identity_hash = key->GetIdentityHash(isolate);
     CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }
@@ -156,16 +156,16 @@ static void TestHashSet(Handle<HashSet> table) {
     table = HashSet::Add(table, key);
     CHECK_EQ(table->NumberOfElements(), i + 2);
     CHECK(table->Has(isolate, key));
-    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
   // code should not be found.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, *key)->IsSmi());
+    CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
     CHECK(!table->Has(isolate, key));
-    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -173,7 +173,7 @@ static void TestHashSet(Handle<HashSet> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(!table->Has(isolate, key));
-    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, *key);
+    Object* identity_hash = key->GetIdentityHash(isolate);
     CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }

@@ -1448,7 +1448,7 @@ class Object {
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
-  static Smi* GetOrCreateHash(Isolate* isolate, Object* object);
+  Smi* GetOrCreateHash(Isolate* isolate);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -2168,12 +2168,11 @@ class JSReceiver: public HeapObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  static inline Object* GetIdentityHash(Isolate* isolate, JSReceiver* object);
+  inline Object* GetIdentityHash(Isolate* isolate);
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  inline static Smi* GetOrCreateIdentityHash(Isolate* isolate,
-                                             JSReceiver* object);
+  inline Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -2696,9 +2695,9 @@ class JSObject: public JSReceiver {
                                     ElementsKind kind,
                                     Object* object);
 
-  static Object* GetIdentityHash(Isolate* isolate, JSObject* object);
+  Object* GetIdentityHash(Isolate* isolate);
 
-  static Smi* GetOrCreateIdentityHash(Isolate* isolate, JSObject* object);
+  Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
@@ -6333,9 +6332,9 @@ class JSProxy: public JSReceiver {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  static Object* GetIdentityHash(JSProxy* receiver);
+  Object* GetIdentityHash();
 
-  static Smi* GetOrCreateIdentityHash(Isolate* isolate, JSProxy* proxy);
+  Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   static Maybe<bool> SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                         Handle<Symbol> private_name,

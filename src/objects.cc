@@ -2338,15 +2338,15 @@ Object* Object::GetHash() {
   DCHECK(IsJSReceiver());
   JSReceiver* receiver = JSReceiver::cast(this);
   Isolate* isolate = receiver->GetIsolate();
-  return JSReceiver::GetIdentityHash(isolate, receiver);
+  return receiver->GetIdentityHash(isolate);
 }
 
-Smi* Object::GetOrCreateHash(Isolate* isolate, Object* object) {
-  Object* hash = GetSimpleHash(object);
+Smi* Object::GetOrCreateHash(Isolate* isolate) {
+  Object* hash = GetSimpleHash(this);
   if (hash->IsSmi()) return Smi::cast(hash);
 
-  DCHECK(object->IsJSReceiver());
-  return JSReceiver::GetOrCreateIdentityHash(isolate, JSReceiver::cast(object));
+  DCHECK(IsJSReceiver());
+  return JSReceiver::cast(this)->GetOrCreateIdentityHash(isolate);
 }
 
 
@@ -6317,7 +6317,7 @@ void JSReceiver::SetProperties(HeapObject* properties) {
 }
 
 template <typename ProxyType>
-static Smi* GetOrCreateIdentityHashHelper(Isolate* isolate, ProxyType* proxy) {
+Smi* GetOrCreateIdentityHashHelper(Isolate* isolate, ProxyType* proxy) {
   Object* maybe_hash = proxy->hash();
   if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
 
@@ -6326,13 +6326,12 @@ static Smi* GetOrCreateIdentityHashHelper(Isolate* isolate, ProxyType* proxy) {
   return hash;
 }
 
-// static
-Object* JSObject::GetIdentityHash(Isolate* isolate, JSObject* object) {
-  if (object->IsJSGlobalProxy()) {
-    return JSGlobalProxy::cast(object)->hash();
+Object* JSObject::GetIdentityHash(Isolate* isolate) {
+  if (IsJSGlobalProxy()) {
+    return JSGlobalProxy::cast(this)->hash();
   }
 
-  int hash = GetIdentityHashHelper(isolate, object);
+  int hash = GetIdentityHashHelper(isolate, this);
   if (hash == PropertyArray::kNoHashSentinel) {
     return isolate->heap()->undefined_value();
   }
@@ -6340,13 +6339,12 @@ Object* JSObject::GetIdentityHash(Isolate* isolate, JSObject* object) {
   return Smi::FromInt(hash);
 }
 
-// static
-Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate, JSObject* object) {
-  if (object->IsJSGlobalProxy()) {
-    return GetOrCreateIdentityHashHelper(isolate, JSGlobalProxy::cast(object));
+Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
+  if (IsJSGlobalProxy()) {
+    return GetOrCreateIdentityHashHelper(isolate, JSGlobalProxy::cast(this));
   }
 
-  Object* hash_obj = JSObject::GetIdentityHash(isolate, object);
+  Object* hash_obj = GetIdentityHash(isolate);
   if (!hash_obj->IsUndefined(isolate)) {
     return Smi::cast(hash_obj);
   }
@@ -6357,15 +6355,14 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate, JSObject* object) {
   } while (hash == PropertyArray::kNoHashSentinel);
 
   int masked_hash = hash & JSReceiver::kHashMask;
-  object->SetIdentityHash(masked_hash);
+  SetIdentityHash(masked_hash);
   return Smi::FromInt(masked_hash);
 }
 
-// static
-Object* JSProxy::GetIdentityHash(JSProxy* proxy) { return proxy->hash(); }
+Object* JSProxy::GetIdentityHash() { return hash(); }
 
-Smi* JSProxy::GetOrCreateIdentityHash(Isolate* isolate, JSProxy* proxy) {
-  return GetOrCreateIdentityHashHelper(isolate, proxy);
+Smi* JSProxy::GetOrCreateIdentityHash(Isolate* isolate) {
+  return GetOrCreateIdentityHashHelper(isolate, this);
 }
 
 
@@ -17351,7 +17348,7 @@ bool StringSet::Has(Handle<String> name) {
 Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> set,
                                          Handle<Object> key) {
   Isolate* isolate = set->GetIsolate();
-  int32_t hash = Object::GetOrCreateHash(isolate, *key)->value();
+  int32_t hash = key->GetOrCreateHash(isolate)->value();
   if (!set->Has(isolate, key, hash)) {
     set = EnsureCapacity(set, 1);
     int entry = set->FindInsertionEntry(hash);
@@ -18067,7 +18064,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   DCHECK(!value->IsTheHole(isolate));
 
   // Make sure the key object has an identity hash code.
-  int32_t hash = Object::GetOrCreateHash(isolate, *key)->value();
+  int32_t hash = key->GetOrCreateHash(isolate)->value();
 
   return Put(table, key, value, hash);
 }
@@ -18285,7 +18282,7 @@ bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
                                            Handle<Object> key) {
-  int hash = Object::GetOrCreateHash(table->GetIsolate(), *key)->value();
+  int hash = key->GetOrCreateHash(table->GetIsolate())->value();
   int entry = table->HashToEntry(hash);
   // Walk the chain of the bucket and try finding the key.
   while (entry != kNotFound) {
@@ -18418,7 +18415,7 @@ Object* OrderedHashMap::GetHash(Isolate* isolate, Object* key) {
 Handle<OrderedHashMap> OrderedHashMap::Add(Handle<OrderedHashMap> table,
                                            Handle<Object> key,
                                            Handle<Object> value) {
-  int hash = Object::GetOrCreateHash(table->GetIsolate(), *key)->value();
+  int hash = key->GetOrCreateHash(table->GetIsolate())->value();
   int entry = table->HashToEntry(hash);
   // Walk the chain of the bucket and try finding the key.
   {
@@ -18551,7 +18548,7 @@ Handle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
     table = SmallOrderedHashSet::Grow(table);
   }
 
-  int hash = Object::GetOrCreateHash(table->GetIsolate(), *key)->value();
+  int hash = key->GetOrCreateHash(table->GetIsolate())->value();
   int nof = table->NumberOfElements();
 
   // Read the existing bucket values.
@@ -18581,7 +18578,7 @@ Handle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
     table = SmallOrderedHashMap::Grow(table);
   }
 
-  int hash = Object::GetOrCreateHash(table->GetIsolate(), *key)->value();
+  int hash = key->GetOrCreateHash(table->GetIsolate())->value();
   int nof = table->NumberOfElements();
 
   // Read the existing bucket values.

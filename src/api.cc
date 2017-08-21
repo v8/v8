@@ -3105,7 +3105,7 @@ void NativeWeakMap::Set(Local<Value> v8_key, Local<Value> v8_value) {
     DCHECK(false);
     return;
   }
-  int32_t hash = i::Object::GetOrCreateHash(isolate, *key)->value();
+  int32_t hash = key->GetOrCreateHash(isolate)->value();
   i::JSWeakCollection::Set(weak_collection, key, value, hash);
 }
 
@@ -3168,7 +3168,7 @@ bool NativeWeakMap::Delete(Local<Value> v8_key) {
     DCHECK(false);
     return false;
   }
-  int32_t hash = i::Object::GetOrCreateHash(isolate, *key)->value();
+  int32_t hash = key->GetOrCreateHash(isolate)->value();
   return i::JSWeakCollection::Delete(weak_collection, key, hash);
 }
 
@@ -5184,7 +5184,7 @@ int v8::Object::GetIdentityHash() {
   auto isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope scope(isolate);
   auto self = Utils::OpenHandle(this);
-  return i::JSReceiver::GetOrCreateIdentityHash(isolate, *self)->value();
+  return self->GetOrCreateIdentityHash(isolate)->value();
 }
 
 

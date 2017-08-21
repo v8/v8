@@ -19,25 +19,24 @@ namespace internal {
 int AddToSetAndGetHash(Isolate* isolate, Handle<JSObject> obj,
                        bool has_fast_properties) {
   CHECK_EQ(has_fast_properties, obj->HasFastProperties());
-  CHECK_EQ(isolate->heap()->undefined_value(),
-           JSReceiver::GetIdentityHash(isolate, *obj));
+  CHECK_EQ(isolate->heap()->undefined_value(), obj->GetHash());
   Handle<OrderedHashSet> set = isolate->factory()->NewOrderedHashSet();
   OrderedHashSet::Add(set, obj);
   CHECK_EQ(has_fast_properties, obj->HasFastProperties());
-  return Smi::ToInt(JSReceiver::GetIdentityHash(isolate, *obj));
+  return Smi::ToInt(obj->GetHash());
 }
 
 void CheckFastObject(Isolate* isolate, Handle<JSObject> obj, int hash) {
   CHECK(obj->HasFastProperties());
   CHECK(obj->raw_properties_or_hash()->IsPropertyArray());
-  CHECK_EQ(Smi::FromInt(hash), JSReceiver::GetIdentityHash(isolate, *obj));
+  CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
   CHECK_EQ(hash, obj->property_array()->Hash());
 }
 
 void CheckDictionaryObject(Isolate* isolate, Handle<JSObject> obj, int hash) {
   CHECK(!obj->HasFastProperties());
   CHECK(obj->raw_properties_or_hash()->IsDictionary());
-  CHECK_EQ(Smi::FromInt(hash), JSReceiver::GetIdentityHash(isolate, *obj));
+  CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
   CHECK_EQ(hash, obj->property_dictionary()->Hash());
 }
 
@@ -205,7 +204,7 @@ TEST(TransitionSlowToFastWithoutProperties) {
   CHECK_EQ(hash, obj->property_dictionary()->Hash());
 
   JSObject::MigrateSlowToFast(obj, 0, "cctest/test-hashcode");
-  CHECK_EQ(Smi::FromInt(hash), JSReceiver::GetIdentityHash(isolate, *obj));
+  CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
 }
 
 TEST(TransitionSlowToFastWithPropertyArray) {

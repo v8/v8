@@ -5712,17 +5712,14 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   return kSize + embedder_field_count * kPointerSize;
 }
 
-Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate, JSReceiver* object) {
-  return object->IsJSProxy()
-             ? JSProxy::GetOrCreateIdentityHash(isolate, JSProxy::cast(object))
-             : JSObject::GetOrCreateIdentityHash(isolate,
-                                                 JSObject::cast(object));
+Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate) {
+  return IsJSProxy() ? JSProxy::cast(this)->GetOrCreateIdentityHash(isolate)
+                     : JSObject::cast(this)->GetOrCreateIdentityHash(isolate);
 }
 
-Object* JSReceiver::GetIdentityHash(Isolate* isolate, JSReceiver* receiver) {
-  return receiver->IsJSProxy()
-             ? JSProxy::GetIdentityHash(JSProxy::cast(receiver))
-             : JSObject::GetIdentityHash(isolate, JSObject::cast(receiver));
+Object* JSReceiver::GetIdentityHash(Isolate* isolate) {
+  return IsJSProxy() ? JSProxy::cast(this)->GetIdentityHash()
+                     : JSObject::cast(this)->GetIdentityHash(isolate);
 }
 
 

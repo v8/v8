@@ -2918,7 +2918,7 @@ void GlobalProxyIdentityHash(bool set_in_js) {
     CHECK(original_hash->IsSmi());
     hash1 = i::Smi::ToInt(original_hash);
   } else {
-    hash1 = i::Object::GetOrCreateHash(i_isolate, *i_global_proxy)->value();
+    hash1 = i_global_proxy->GetOrCreateHash(i_isolate)->value();
   }
   // Hash should be retained after being detached.
   env->DetachGlobal();
