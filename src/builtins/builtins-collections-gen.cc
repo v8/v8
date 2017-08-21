@@ -29,8 +29,6 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
                                      Node* collection);
 
   Node* CallGetHashRaw(Node* const key);
-  template <typename CollectionType, int entrysize>
-  Node* CallHasRaw(Node* const table, Node* const key);
 
   // Transitions the iterator to the non obsolete backing store.
   // This is a NOP if the [table] is not obsolete.

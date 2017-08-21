@@ -270,12 +270,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "search_string_raw<1-byte, 2-byte>");
   Add(ExternalReference::orderedhashmap_gethash_raw(isolate).address(),
       "orderedhashmap_gethash_raw");
-  Add(ExternalReference::orderedhashtable_has_raw<OrderedHashMap, 2>(isolate)
-          .address(),
-      "orderedhashtable_has_raw<OrderedHashMap, 2>");
-  Add(ExternalReference::orderedhashtable_has_raw<OrderedHashSet, 1>(isolate)
-          .address(),
-      "orderedhashtable_has_raw<OrderedHashSet, 1>");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

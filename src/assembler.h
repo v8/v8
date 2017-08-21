@@ -975,9 +975,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference orderedhashmap_gethash_raw(Isolate* isolate);
 
-  template <typename CollectionType, int entrysize>
-  static ExternalReference orderedhashtable_has_raw(Isolate* isolate);
-
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);
