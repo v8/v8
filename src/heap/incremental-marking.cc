@@ -536,7 +536,7 @@ void IncrementalMarking::StartMarking() {
 
   SetState(MARKING);
 
-  if (FLAG_incremental_marking_wrappers) {
+  {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();
