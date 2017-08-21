@@ -2557,9 +2557,9 @@ void CodeStubAssembler::InitializePropertyArrayLength(Node* property_array,
       this,
       IntPtrOrSmiLessThanOrEqual(
           length, IntPtrOrSmiConstant(PropertyArray::kMaxLength, mode), mode));
-  StoreObjectFieldNoWriteBarrier(property_array, PropertyArray::kLengthOffset,
-                                 ParameterToTagged(length, mode),
-                                 MachineRepresentation::kTaggedSigned);
+  StoreObjectFieldNoWriteBarrier(
+      property_array, PropertyArray::kLengthAndHashOffset,
+      ParameterToTagged(length, mode), MachineRepresentation::kTaggedSigned);
 }
 
 Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,

@@ -491,7 +491,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // doesn't have an existing hash.
   void InitializePropertyArrayLength(Node* property_array, Node* length,
                                      ParameterMode mode);
-  Node* LoadPropertyArrayLength(Node* property_array);
 
   // Check if the map is set for slow properties.
   TNode<BoolT> IsDictionaryMap(SloppyTNode<Map> map);
