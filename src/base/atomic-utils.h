@@ -296,37 +296,12 @@ class AsAtomic8 {
 
   template <typename T>
   static T Release_CompareAndSwap(
-      T* byte_addr, typename std::remove_reference<T>::type old_value,
+      T* addr, typename std::remove_reference<T>::type old_value,
       typename std::remove_reference<T>::type new_value) {
     STATIC_ASSERT(sizeof(T) <= sizeof(base::Atomic8));
-    // Since there is no byte level CAS, we use word level CAS. For that we
-    // need to find the word containing the byte and do a CAS loop that re-
-    // tries if unrelated bits of the word change concurrently.
-    const uintptr_t kAlignmentSize = sizeof(base::AtomicWord);
-    const uintptr_t kAlignmentMask = kAlignmentSize - 1;
-    uintptr_t word_addr =
-        reinterpret_cast<uintptr_t>(byte_addr) & ~kAlignmentMask;
-    uintptr_t byte_offset =
-        reinterpret_cast<uintptr_t>(byte_addr) & kAlignmentMask;
-#if defined(V8_TARGET_BIG_ENDIAN)
-    uintptr_t byte_shift = (kAlignmentSize - 1 - byte_offset) * 8u;
-#else
-    uintptr_t byte_shift = byte_offset * 8u;
-#endif
-    uintptr_t byte_mask = static_cast<uintptr_t>(0xFFu) << byte_shift;
-    uintptr_t* addr = reinterpret_cast<uintptr_t*>(word_addr);
-    uintptr_t actual_word, new_word;
-    base::Atomic8 actual_byte;
-    do {
-      actual_word = base::AsAtomicWord::Relaxed_Load(addr);
-      actual_byte = to_storage_type((actual_word & byte_mask) >> byte_shift);
-      if (actual_byte != to_storage_type(old_value))
-        return to_return_type<T>(actual_byte);
-      uintptr_t new_byte = static_cast<uintptr_t>(new_value);
-      new_word = (actual_word & ~byte_mask) | (new_byte << byte_shift);
-    } while (base::AsAtomicWord::Release_CompareAndSwap(
-                 addr, actual_word, new_word) != actual_word);
-    return old_value;
+    return to_return_type<T>(base::Release_CompareAndSwap(
+        to_storage_addr(addr), to_storage_type(old_value),
+        to_storage_type(new_value)));
   }
 
  private:

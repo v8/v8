@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "src/base/build_config.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace base {
@@ -60,6 +61,15 @@ inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
   atomic_compare_exchange_strong_explicit(
       helper::to_std_atomic(ptr), &old_value, new_value,
       std::memory_order_acquire, std::memory_order_acquire);
+  return old_value;
+}
+
+inline Atomic8 Release_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
+                                      Atomic8 new_value) {
+  bool result = atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_release, std::memory_order_relaxed);
+  USE(result);  // Make gcc compiler happy.
   return old_value;
 }
 
