@@ -409,9 +409,15 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               isolate());
           if (!accessor->IsJSFunction()) {
             CallOptimization optimization(accessor);
-            if (!optimization.is_simple_api_call()) {
-              return false;
-            }
+            if (!optimization.is_simple_api_call()) return false;
+            CallOptimization::HolderLookup lookup;
+            holder =
+                optimization.LookupHolderOfExpectedType(receiver_map, &lookup);
+            if (lookup == CallOptimization::kHolderNotFound) return false;
+            DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
+                           holder.is_null());
+            DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound,
+                           !holder.is_null());
             if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
           }
           if (access_mode == AccessMode::kLoad) {
