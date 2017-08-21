@@ -209,8 +209,16 @@
 #define WRITE_UINT8_FIELD(p, offset, value) \
   (*reinterpret_cast<uint8_t*>(FIELD_ADDR(p, offset)) = value)
 
+#define RELAXED_WRITE_INT8_FIELD(p, offset, value)                             \
+  base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+                      static_cast<base::Atomic8>(value));
+
 #define READ_INT8_FIELD(p, offset) \
   (*reinterpret_cast<const int8_t*>(FIELD_ADDR_CONST(p, offset)))
+
+#define RELAXED_READ_INT8_FIELD(p, offset) \
+  static_cast<int8_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic8*>(FIELD_ADDR_CONST(p, offset))))
 
 #define WRITE_INT8_FIELD(p, offset, value) \
   (*reinterpret_cast<int8_t*>(FIELD_ADDR(p, offset)) = value)

@@ -2890,14 +2890,16 @@ void BytecodeArray::set_osr_loop_nesting_level(int depth) {
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
-  return static_cast<Age>(READ_INT8_FIELD(this, kBytecodeAgeOffset));
+  // Bytecode is aged by the concurrent marker.
+  return static_cast<Age>(RELAXED_READ_INT8_FIELD(this, kBytecodeAgeOffset));
 }
 
 void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
   DCHECK_GE(age, kFirstBytecodeAge);
   DCHECK_LE(age, kLastBytecodeAge);
   STATIC_ASSERT(kLastBytecodeAge <= kMaxInt8);
-  WRITE_INT8_FIELD(this, kBytecodeAgeOffset, static_cast<int8_t>(age));
+  // Bytecode is aged by the concurrent marker.
+  RELAXED_WRITE_INT8_FIELD(this, kBytecodeAgeOffset, static_cast<int8_t>(age));
 }
 
 int BytecodeArray::parameter_count() const {
