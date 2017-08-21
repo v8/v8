@@ -1448,8 +1448,7 @@ class Object {
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
-  // TODO(gsathya): Remove Handle usage, just use Object*.
-  static Smi* GetOrCreateHash(Isolate* isolate, Handle<Object> object);
+  static Smi* GetOrCreateHash(Isolate* isolate, Object* object);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -2174,7 +2173,7 @@ class JSReceiver: public HeapObject {
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
   inline static Smi* GetOrCreateIdentityHash(Isolate* isolate,
-                                             Handle<JSReceiver> object);
+                                             JSReceiver* object);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -2699,8 +2698,7 @@ class JSObject: public JSReceiver {
 
   static Object* GetIdentityHash(Isolate* isolate, JSObject* object);
 
-  static Smi* GetOrCreateIdentityHash(Isolate* isolate,
-                                      Handle<JSObject> object);
+  static Smi* GetOrCreateIdentityHash(Isolate* isolate, JSObject* object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
@@ -6337,7 +6335,7 @@ class JSProxy: public JSReceiver {
 
   static Object* GetIdentityHash(JSProxy* receiver);
 
-  static Smi* GetOrCreateIdentityHash(Isolate* isolate, Handle<JSProxy> proxy);
+  static Smi* GetOrCreateIdentityHash(Isolate* isolate, JSProxy* proxy);
 
   static Maybe<bool> SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                         Handle<Symbol> private_name,

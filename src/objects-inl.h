@@ -5712,12 +5712,11 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   return kSize + embedder_field_count * kPointerSize;
 }
 
-Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate,
-                                         Handle<JSReceiver> object) {
-  return object->IsJSProxy() ? JSProxy::GetOrCreateIdentityHash(
-                                   isolate, Handle<JSProxy>::cast(object))
-                             : JSObject::GetOrCreateIdentityHash(
-                                   isolate, Handle<JSObject>::cast(object));
+Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate, JSReceiver* object) {
+  return object->IsJSProxy()
+             ? JSProxy::GetOrCreateIdentityHash(isolate, JSProxy::cast(object))
+             : JSObject::GetOrCreateIdentityHash(isolate,
+                                                 JSObject::cast(object));
 }
 
 Object* JSReceiver::GetIdentityHash(Isolate* isolate, JSReceiver* receiver) {

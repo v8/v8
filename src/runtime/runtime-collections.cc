@@ -28,7 +28,7 @@ RUNTIME_FUNCTION(Runtime_GenericHash) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  Smi* hash = Object::GetOrCreateHash(isolate, object);
+  Smi* hash = Object::GetOrCreateHash(isolate, *object);
   return hash;
 }
 
