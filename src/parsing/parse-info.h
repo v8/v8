@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   ParseInfo(Handle<Script> script);
   ParseInfo(Handle<SharedFunctionInfo> shared);
 
-  ~ParseInfo() {}
+  ~ParseInfo();
 
   void InitFromIsolate(Isolate* isolate);
 
@@ -91,25 +91,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
                                       : NO_PARSE_RESTRICTION;
   }
 
-  ScriptCompiler::ExternalSourceStream* source_stream() const {
-    return source_stream_;
+  Utf16CharacterStream* character_stream() const {
+    return character_stream_.get();
   }
-  void set_source_stream(ScriptCompiler::ExternalSourceStream* source_stream) {
-    source_stream_ = source_stream;
-  }
-
-  ScriptCompiler::StreamedSource::Encoding source_stream_encoding() const {
-    return source_stream_encoding_;
-  }
-  void set_source_stream_encoding(
-      ScriptCompiler::StreamedSource::Encoding source_stream_encoding) {
-    source_stream_encoding_ = source_stream_encoding;
-  }
-
-  Utf16CharacterStream* character_stream() const { return character_stream_; }
-  void set_character_stream(Utf16CharacterStream* character_stream) {
-    character_stream_ = character_stream;
-  }
+  void set_character_stream(
+      std::unique_ptr<Utf16CharacterStream> character_stream);
+  void ResetCharacterStream();
 
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
@@ -273,9 +260,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //------------- Inputs to parsing and scope analysis -----------------------
   std::shared_ptr<Zone> zone_;
   unsigned flags_;
-  ScriptCompiler::ExternalSourceStream* source_stream_;
-  ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
-  Utf16CharacterStream* character_stream_;
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
   DeclarationScope* script_scope_;
@@ -295,6 +279,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
+  std::unique_ptr<Utf16CharacterStream> character_stream_;
   ScriptData** cached_data_;  // used if available, populated if requested.
   ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
   std::shared_ptr<AstValueFactory> ast_value_factory_;

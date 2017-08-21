@@ -174,9 +174,11 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
 
   Handle<String> source(String::cast(script->source()), isolate);
   parse_info_.reset(new ParseInfo(isolate->allocator()));
+  parse_info_->InitFromIsolate(isolate);
   if (source->IsExternalTwoByteString() || source->IsExternalOneByteString()) {
-    character_stream_.reset(ScannerStream::For(
+    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_->start_position(), shared_->end_position()));
+    parse_info_->set_character_stream(std::move(stream));
   } else {
     source = String::Flatten(source);
     const void* data;
@@ -235,13 +237,11 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
                     .ToHandleChecked();
     }
     wrapper_ = isolate->global_handles()->Create(*wrapper);
-
-    character_stream_.reset(
+    std::unique_ptr<Utf16CharacterStream> stream(
         ScannerStream::For(wrapper_, shared_->start_position() - offset,
                            shared_->end_position() - offset));
+    parse_info_->set_character_stream(std::move(stream));
   }
-  parse_info_->InitFromIsolate(isolate);
-  parse_info_->set_character_stream(character_stream_.get());
   parse_info_->set_hash_seed(isolate->heap()->HashSeed());
   parse_info_->set_is_named_expression(shared_->is_named_expression());
   parse_info_->set_compiler_hints(shared_->compiler_hints());
@@ -331,11 +331,9 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
 
   parser_->HandleSourceURLComments(isolate, script);
 
-  parse_info_->set_character_stream(nullptr);
   parse_info_->set_unicode_cache(nullptr);
   parser_.reset();
   unicode_cache_.reset();
-  character_stream_.reset();
 }
 
 void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
@@ -434,7 +432,6 @@ void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
   compilation_job_.reset();
   parser_.reset();
   unicode_cache_.reset();
-  character_stream_.reset();
   parse_info_.reset();
 
   if (!source_.is_null()) {

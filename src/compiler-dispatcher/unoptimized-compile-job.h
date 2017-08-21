@@ -107,7 +107,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
 
   // Members required for parsing.
   std::unique_ptr<UnicodeCache> unicode_cache_;
-  std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ParseInfo> parse_info_;
   std::unique_ptr<Parser> parser_;
 

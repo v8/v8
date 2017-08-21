@@ -887,7 +887,6 @@ static void CheckParsesToNumber(const char* source) {
   i::Handle<i::Script> script = factory->NewScript(source_code);
 
   i::ParseInfo info(script);
-  i::Parser parser(&info);
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 

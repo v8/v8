@@ -22,7 +22,6 @@
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
-#include "src/parsing/scanner-character-streams.h"
 #include "src/runtime/runtime.h"
 #include "src/string-stream.h"
 #include "src/tracing/trace-event.h"
@@ -495,8 +494,7 @@ Parser::Parser(ParseInfo* info)
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
-  DCHECK(!info->script().is_null() || info->source_stream() != nullptr ||
-         info->character_stream() != nullptr);
+  DCHECK(info->character_stream() != nullptr);
   // Determine if functions can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
   // builtins cannot be handled lazily by the parser, since we have to know
@@ -561,8 +559,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
       runtime_call_stats_, info->is_eval() ? &RuntimeCallStats::ParseEval
                                            : &RuntimeCallStats::ParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
-  Handle<String> source(String::cast(info->script()->source()));
-  isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
@@ -584,17 +580,10 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
 
-  source = String::Flatten(source);
-  FunctionLiteral* result;
+  scanner_.Initialize(info->character_stream(), info->is_module());
+  FunctionLiteral* result = DoParseProgram(info);
+  info->ResetCharacterStream();  // Character stream no longer used.
 
-  {
-    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
-    scanner_.Initialize(stream.get(), info->is_module());
-    result = DoParseProgram(info);
-  }
-  if (result != NULL) {
-    DCHECK_EQ(scanner_.peek_location().beg_pos, source->length());
-  }
   HandleSourceURLComments(isolate, info->script());
 
   if (FLAG_trace_parse && result != nullptr) {
@@ -735,8 +724,6 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
                                       &RuntimeCallStats::ParseFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
-  Handle<String> source(String::cast(info->script()->source()));
-  isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
@@ -750,18 +737,15 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   }
 
   // Initialize parser state.
-  source = String::Flatten(source);
-  FunctionLiteral* result;
-  {
-    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-        source, shared_info->start_position(), shared_info->end_position()));
-    Handle<String> name(shared_info->name());
-    scanner_.Initialize(stream.get(), info->is_module());
-    result = DoParseFunction(info, ast_value_factory()->GetString(name));
-    if (result != nullptr) {
-      Handle<String> inferred_name(shared_info->inferred_name());
-      result->set_inferred_name(inferred_name);
-    }
+  Handle<String> name(shared_info->name());
+  info->set_function_name(ast_value_factory()->GetString(name));
+  scanner_.Initialize(info->character_stream(), info->is_module());
+
+  FunctionLiteral* result = DoParseFunction(info, info->function_name());
+  info->ResetCharacterStream();  // Character stream no longer used.
+  if (result != nullptr) {
+    Handle<String> inferred_name(shared_info->inferred_name());
+    result->set_inferred_name(inferred_name);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -3388,19 +3372,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     }
   }
 
-  std::unique_ptr<Utf16CharacterStream> stream;
-  Utf16CharacterStream* stream_ptr;
-  if (info->character_stream()) {
-    DCHECK(info->source_stream() == nullptr);
-    stream_ptr = info->character_stream();
-  } else {
-    DCHECK(info->character_stream() == nullptr);
-    stream.reset(ScannerStream::For(info->source_stream(),
-                                    info->source_stream_encoding(),
-                                    runtime_call_stats_));
-    stream_ptr = stream.get();
-  }
-  scanner_.Initialize(stream_ptr, info->is_module());
+  scanner_.Initialize(info->character_stream(), info->is_module());
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
@@ -3417,6 +3389,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   } else {
     result = DoParseFunction(info, info->function_name());
   }
+  info->ResetCharacterStream();  // Character stream no longer used.
 
   info->set_literal(result);
 

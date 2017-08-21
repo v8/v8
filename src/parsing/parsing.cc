@@ -10,6 +10,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -21,6 +22,13 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   DCHECK_NULL(info->literal());
 
   VMState<PARSER> state(isolate);
+
+  // Create a character stream for the parser.
+  Handle<String> source(String::cast(info->script()->source()));
+  source = String::Flatten(source);
+  isolate->counters()->total_parse_size()->Increment(source->length());
+  std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
+  info->set_character_stream(std::move(stream));
 
   Parser parser(info);
 
@@ -46,6 +54,14 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   DCHECK(!info->is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
+
+  // Create a character stream for the parser.
+  Handle<String> source(String::cast(info->script()->source()));
+  source = String::Flatten(source);
+  isolate->counters()->total_parse_size()->Increment(source->length());
+  std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
+      source, shared_info->start_position(), shared_info->end_position()));
+  info->set_character_stream(std::move(stream));
 
   VMState<PARSER> state(isolate);
 

@@ -19,9 +19,6 @@ namespace internal {
 ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
     : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
-      source_stream_(nullptr),
-      source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
-      character_stream_(nullptr),
       extension_(nullptr),
       compile_options_(ScriptCompiler::kNoCompileOptions),
       script_scope_(nullptr),
@@ -35,6 +32,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       parameters_end_pos_(kNoSourcePosition),
       function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       max_function_literal_id_(FunctionLiteral::kIdTypeInvalid),
+      character_stream_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
       ast_string_constants_(nullptr),
@@ -98,6 +96,8 @@ ParseInfo::ParseInfo(Handle<Script> script)
     AllocateSourceRangeMap();
   }
 }
+
+ParseInfo::~ParseInfo() {}
 
 // static
 ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
@@ -191,6 +191,14 @@ void ParseInfo::ShareAstValueFactory(ParseInfo* other) {
 void ParseInfo::AllocateSourceRangeMap() {
   DCHECK(block_coverage_enabled());
   set_source_range_map(new (zone()) SourceRangeMap(zone()));
+}
+
+void ParseInfo::ResetCharacterStream() { character_stream_.reset(); }
+
+void ParseInfo::set_character_stream(
+    std::unique_ptr<Utf16CharacterStream> character_stream) {
+  DCHECK(character_stream_.get() == nullptr);
+  character_stream_.swap(character_stream);
 }
 
 }  // namespace internal
