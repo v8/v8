@@ -111,7 +111,6 @@ class PipelineData {
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
-    is_asm_ = info->shared_info()->asm_function();
   }
 
   // For WebAssembly compile entry point.
@@ -139,8 +138,6 @@ class PipelineData {
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         protected_instructions_(protected_instructions) {
-    is_asm_ =
-        info->has_shared_info() ? info->shared_info()->asm_function() : false;
   }
 
   // For machine graph testing entry point.
@@ -160,7 +157,6 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
-    is_asm_ = false;
   }
   // For register allocation testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info,
@@ -177,8 +173,6 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
-    is_asm_ =
-        info->has_shared_info() ? info->shared_info()->asm_function() : false;
   }
 
   ~PipelineData() {
@@ -198,7 +192,6 @@ class PipelineData {
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
 
-  bool is_asm() const { return is_asm_; }
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
 
@@ -368,7 +361,6 @@ class PipelineData {
   PipelineStatistics* pipeline_statistics_ = nullptr;
   bool compilation_failed_ = false;
   bool verify_graph_ = false;
-  bool is_asm_ = false;
   int start_source_position_ = kNoSourcePosition;
   base::Optional<OsrHelper> osr_helper_;
   Handle<Code> code_ = Handle<Code>::null();
@@ -626,15 +618,11 @@ class PipelineCompilationJob final : public CompilationJob {
 };
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
-  if (compilation_info()->shared_info()->asm_function()) {
-    compilation_info()->MarkAsFunctionContextSpecializing();
-  } else {
-    if (!FLAG_always_opt) {
-      compilation_info()->MarkAsBailoutOnUninitialized();
-    }
-    if (FLAG_turbo_loop_peeling) {
-      compilation_info()->MarkAsLoopPeelingEnabled();
-    }
+  if (!FLAG_always_opt) {
+    compilation_info()->MarkAsBailoutOnUninitialized();
+  }
+  if (FLAG_turbo_loop_peeling) {
+    compilation_info()->MarkAsLoopPeelingEnabled();
   }
   if (FLAG_turbo_inlining) {
     compilation_info()->MarkAsInliningEnabled();
@@ -1685,21 +1673,19 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     RunPrintAndVerify("Loop exits eliminated", true);
   }
 
-  if (!data->is_asm()) {
-    if (FLAG_turbo_load_elimination) {
-      Run<LoadEliminationPhase>();
-      RunPrintAndVerify("Load eliminated");
-    }
+  if (FLAG_turbo_load_elimination) {
+    Run<LoadEliminationPhase>();
+    RunPrintAndVerify("Load eliminated");
+  }
 
-    if (FLAG_turbo_escape) {
-      Run<EscapeAnalysisPhase>();
-      if (data->compilation_failed()) {
-        info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
-        data->EndPhaseKind();
-        return false;
-      }
-      RunPrintAndVerify("Escape Analysed");
+  if (FLAG_turbo_escape) {
+    Run<EscapeAnalysisPhase>();
+    if (data->compilation_failed()) {
+      info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
+      data->EndPhaseKind();
+      return false;
     }
+    RunPrintAndVerify("Escape Analysed");
   }
 
   // Perform simplified lowering. This has to run w/o the Typer decorator,

@@ -189,7 +189,6 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       params_(4, zone) {
   DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
-  asm_function_ = outer_scope_->IsAsmModule();
 }
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
@@ -301,7 +300,6 @@ void DeclarationScope::SetDefaults() {
   is_declaration_scope_ = true;
   has_simple_parameters_ = true;
   asm_module_ = false;
-  asm_function_ = false;
   force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
@@ -372,20 +370,10 @@ void DeclarationScope::set_should_eager_compile() {
 
 void DeclarationScope::set_asm_module() {
   asm_module_ = true;
-  // Mark any existing inner function scopes as asm function scopes.
-  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
-    if (inner->is_function_scope()) {
-      inner->AsDeclarationScope()->set_asm_function();
-    }
-  }
 }
 
 bool Scope::IsAsmModule() const {
   return is_function_scope() && AsDeclarationScope()->asm_module();
-}
-
-bool Scope::IsAsmFunction() const {
-  return is_function_scope() && AsDeclarationScope()->asm_function();
 }
 
 Scope* Scope::DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
@@ -418,8 +406,6 @@ Scope* Scope::DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
     } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope =
           new (zone) DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info));
-      if (scope_info->IsAsmFunction())
-        outer_scope->AsDeclarationScope()->set_asm_function();
       if (scope_info->IsAsmModule())
         outer_scope->AsDeclarationScope()->set_asm_module();
     } else if (scope_info->scope_type() == EVAL_SCOPE) {
@@ -1730,7 +1716,6 @@ void Scope::Print(int n) {
     Indent(n1, "// strict mode scope\n");
   }
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
-  if (IsAsmFunction()) Indent(n1, "// scope is an asm function\n");
   if (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval()) {
     Indent(n1, "// scope calls sloppy 'eval'\n");
   }

@@ -89,8 +89,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
                     has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function,
-                    SharedFunctionInfo::IsAsmFunctionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                     SharedFunctionInfo::IsDeclarationBit)
 

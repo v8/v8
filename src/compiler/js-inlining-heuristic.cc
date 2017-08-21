@@ -56,7 +56,7 @@ bool CanInlineFunction(Handle<SharedFunctionInfo> shared) {
   if (!shared->IsUserJavaScript()) return false;
 
   // If there is no bytecode array, it is either not compiled or it is compiled
-  // with full-codegen for asm.js pipeline. In either case we don't want to
+  // with WebAssembly for the asm.js pipeline. In either case we don't want to
   // inline.
   if (!shared->HasBytecodeArray()) return false;
 
@@ -65,8 +65,6 @@ bool CanInlineFunction(Handle<SharedFunctionInfo> shared) {
     return false;
   }
 
-  // Avoid inlining across the boundary of asm.js code.
-  if (shared->asm_function()) return false;
   return true;
 }
 

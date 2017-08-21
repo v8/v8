@@ -13870,7 +13870,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
         *BUILTIN_CODE(shared_info->GetIsolate(), ConstructedNonConstructable));
   }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
-  shared_info->set_asm_function(lit->scope()->asm_function());
   shared_info->set_function_literal_id(lit->function_literal_id());
 
   // For lazy parsed functions, the following flags will be inaccurate since we

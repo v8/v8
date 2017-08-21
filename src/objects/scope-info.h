@@ -84,9 +84,6 @@ class ScopeInfo : public FixedArray {
   // Return if this is a function scope with "use asm".
   inline bool IsAsmModule() { return AsmModuleField::decode(Flags()); }
 
-  // Return if this is a nested function within an asm module scope.
-  inline bool IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
-
   inline bool HasSimpleParameters() {
     return HasSimpleParametersField::decode(Flags());
   }
@@ -314,9 +311,8 @@ class ScopeInfo : public FixedArray {
       : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
   class AsmModuleField
       : public BitField<bool, FunctionVariableField::kNext, 1> {};
-  class AsmFunctionField : public BitField<bool, AsmModuleField::kNext, 1> {};
   class HasSimpleParametersField
-      : public BitField<bool, AsmFunctionField::kNext, 1> {};
+      : public BitField<bool, AsmModuleField::kNext, 1> {};
   class FunctionKindField
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 10> {};
   class HasOuterScopeInfoField

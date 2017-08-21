@@ -144,13 +144,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
   bool has_simple_parameters = false;
   bool asm_module = false;
-  bool asm_function = false;
   bool calls_sloppy_eval = false;
   if (scope->is_function_scope()) {
     DeclarationScope* function_scope = scope->AsDeclarationScope();
     has_simple_parameters = function_scope->has_simple_parameters();
     asm_module = function_scope->asm_module();
-    asm_function = function_scope->asm_function();
   }
   FunctionKind function_kind = kNormalFunction;
   if (scope->is_declaration_scope()) {
@@ -168,7 +166,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       HasNewTargetField::encode(has_new_target) |
       FunctionVariableField::encode(function_name_info) |
       AsmModuleField::encode(asm_module) |
-      AsmFunctionField::encode(asm_function) |
       HasSimpleParametersField::encode(has_simple_parameters) |
       FunctionKindField::encode(function_kind) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
@@ -305,7 +302,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       LanguageModeField::encode(SLOPPY) | DeclarationScopeField::encode(false) |
       ReceiverVariableField::encode(NONE) | HasNewTargetField::encode(false) |
       FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
-      AsmFunctionField::encode(false) | HasSimpleParametersField::encode(true) |
+      HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(kNormalFunction) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
       IsDebugEvaluateScopeField::encode(false);
@@ -359,7 +356,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
               DeclarationScopeField::encode(true) |
               ReceiverVariableField::encode(receiver_info) |
               FunctionVariableField::encode(function_name_info) |
-              AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
+              AsmModuleField::encode(false) |
               HasSimpleParametersField::encode(has_simple_parameters) |
               FunctionKindField::encode(FunctionKind::kNormalFunction) |
               HasOuterScopeInfoField::encode(has_outer_scope_info) |

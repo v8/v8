@@ -199,10 +199,10 @@ bool CompilerDispatcher::CanEnqueue() {
 bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
   if (!CanEnqueue()) return false;
 
-  // We only handle functions (no eval / top-level code / wasm) that are
+  // We only handle functions (no eval / top-level code / native) that are
   // attached to a script.
   if (!function->script()->IsScript() || function->is_toplevel() ||
-      function->asm_function() || function->native()) {
+      function->native()) {
     return false;
   }
 

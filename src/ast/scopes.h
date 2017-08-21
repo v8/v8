@@ -364,7 +364,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
-  bool IsAsmFunction() const;
   // Does this scope have the potential to execute declarations non-linearly?
   bool is_nonlinear() const { return scope_nonlinear_; }
 
@@ -702,8 +701,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   bool asm_module() const { return asm_module_; }
   void set_asm_module();
-  bool asm_function() const { return asm_function_; }
-  void set_asm_function() { asm_function_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);
@@ -935,8 +932,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_simple_parameters_ : 1;
   // This scope contains an "use asm" annotation.
   bool asm_module_ : 1;
-  // This scope's outer context is an asm module.
-  bool asm_function_ : 1;
   bool force_eager_compilation_ : 1;
   // This function scope has a rest parameter.
   bool has_rest_ : 1;

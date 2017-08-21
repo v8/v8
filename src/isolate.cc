@@ -1388,11 +1388,6 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
           return prediction;
         }
 
-        if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
-          DCHECK(summary.AsJavaScript().function()->shared()->asm_function());
-          // asm code cannot contain try-catch.
-          continue;
-        }
         // Must have been constructed from a bytecode array.
         CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
         int code_offset = summary.code_offset();
