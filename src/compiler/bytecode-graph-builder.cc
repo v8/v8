@@ -1539,6 +1539,13 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
                               literal, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
+  int literal_index = bytecode_iterator().GetIndexOperand(0);
+  Node* literal = NewNode(javascript()->CreateEmptyLiteralObject(literal_index),
+                          GetFunctionClosure());
+  environment()->BindAccumulator(literal);
+}
+
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegister(
     Node* callee, Node* receiver, interpreter::Register first_arg,
     int arg_count) {

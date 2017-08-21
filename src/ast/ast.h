@@ -1339,6 +1339,16 @@ class ObjectLiteral final : public AggregateLiteral {
     return HasNullPrototypeField::decode(bit_field_);
   }
 
+  bool is_empty() const {
+    DCHECK(is_initialized());
+    return !has_elements() && properties_count() == 0 &&
+           properties()->length() == 0;
+  }
+
+  bool IsEmptyObjectLiteral() const {
+    return is_empty() && !has_null_prototype();
+  }
+
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
 

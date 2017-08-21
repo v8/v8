@@ -505,6 +505,14 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSCreateEmptyLiteralObject(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  int literal_index = OpParameter<int>(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(literal_index));
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCreateEmptyObjectLiteral);
+  ReplaceWithStubCall(node, callable, flags);
+}
 
 void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());

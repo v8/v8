@@ -225,6 +225,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateLiteralRegExp(node);
     case IrOpcode::kJSCreateEmptyLiteralArray:
       return ReduceJSCreateEmptyLiteralArray(node);
+    case IrOpcode::kJSCreateEmptyLiteralObject:
+      return ReduceJSCreateEmptyLiteralObject(node);
     case IrOpcode::kJSCreateFunctionContext:
       return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:
@@ -892,6 +894,43 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   return Changed(node);
 }
 
+Reduction JSCreateLowering::ReduceNewObject(Node* node,
+                                            Handle<AllocationSite> site) {
+  DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralObject, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Extract tenuring feedback from the {site} and add appropriate code
+  // dependencies on the {site} if deoptimization is enabled.
+  PretenureFlag pretenure = site->GetPretenureMode();
+  dependencies()->AssumeTenuringDecision(site);
+
+  // Retrieve the initial map for the object.
+  Handle<Map> map = factory()->ObjectLiteralMapFromCache(native_context(), 0);
+  DCHECK(!map->is_dictionary_map());
+  DCHECK(!map->IsInobjectSlackTrackingInProgress());
+  Node* js_object_map = jsgraph()->HeapConstant(map);
+
+  // Setup elements and properties.
+  Node* elements = jsgraph()->EmptyFixedArrayConstant();
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+
+  // Perform the allocation of the actual JSArray object.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(map->instance_size(), pretenure);
+  a.Store(AccessBuilder::ForMap(), js_object_map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(), elements);
+  for (int i = 0; i < map->GetInObjectProperties(); i++) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(map, i),
+            jsgraph()->UndefinedConstant());
+  }
+
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
 Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
          node->opcode() == IrOpcode::kJSCreateLiteralObject);
@@ -953,6 +992,23 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
           effect, control, Handle<JSRegExp>::cast(maybe_boilerplate));
       ReplaceWithValue(node, value, effect, control);
       return Replace(value);
+    }
+  }
+  return NoChange();
+}
+
+Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kJSCreateEmptyLiteralObject);
+  int literal_index = OpParameter<int>(node);
+  Handle<FeedbackVector> feedback_vector;
+  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackSlot slot(FeedbackVector::ToSlot(literal_index));
+    Handle<Object> raw_site(feedback_vector->Get(slot), isolate());
+    if (raw_site->IsAllocationSite()) {
+      Handle<AllocationSite> site = Handle<AllocationSite>::cast(raw_site);
+      // The empty object literal doesn't need a boilerplate.
+      DCHECK(!site->PointsToLiteral());
+      return ReduceNewObject(node, site);
     }
   }
   return NoChange();

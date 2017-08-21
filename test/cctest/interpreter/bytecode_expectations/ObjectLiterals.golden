@@ -9,17 +9,15 @@ wrap: yes
 snippet: "
   return { };
 "
-frame size: 1
+frame size: 0
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
-                B(Ldar), R(0),
+  /*   34 S> */ B(CreateEmptyObjectLiteral), U8(0),
   /*   45 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -333,9 +331,9 @@ handlers: [
 snippet: "
   var a = 'test'; return { [a]: 1, __proto__: {} };
 "
-frame size: 5
+frame size: 4
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 34
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -344,9 +342,9 @@ bytecodes: [
   /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), I8(1),
                 B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(2),
-                B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(4),
+                B(CreateEmptyObjectLiteral), U8(0),
+                B(Star), R(3),
                 B(Mov), R(1), R(2),
-                B(Mov), R(4), R(3),
                 B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(2), U8(2),
                 B(Ldar), R(2),
   /*   83 S> */ B(Return),

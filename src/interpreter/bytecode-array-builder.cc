@@ -977,6 +977,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral(
+    int literal_index) {
+  OutputCreateEmptyObjectLiteral(literal_index);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::PushContext(Register context) {
   OutputPushContext(context);
   return *this;

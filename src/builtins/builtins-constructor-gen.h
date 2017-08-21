@@ -33,6 +33,7 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
 
   Node* EmitFastCloneShallowObject(Label* call_runtime, Node* closure,
                                    Node* literals_index);
+  Node* EmitCreateEmptyObjectLiteral(Node* context);
 
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
 

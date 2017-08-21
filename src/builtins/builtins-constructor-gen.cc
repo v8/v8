@@ -777,5 +777,31 @@ TF_BUILTIN(FastCloneShallowObject, ConstructorBuiltinsAssembler) {
                   literals_index, boilerplate_description, flags);
 }
 
+// Used by the CreateEmptyObjectLiteral stub and bytecode.
+Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
+    Node* context) {
+  // TODO(cbruni): check whether we have to enable pretenuring support again for
+  // the empty object literal.
+  Node* native_context = LoadNativeContext(context);
+  Node* object_function =
+      LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX);
+  Node* map = LoadObjectField(object_function,
+                              JSFunction::kPrototypeOrInitialMapOffset);
+  CSA_ASSERT(this, IsMap(map));
+  Node* empty_fixed_array = EmptyFixedArrayConstant();
+  Node* result =
+      AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);
+  HandleSlackTracking(context, result, map, JSObject::kHeaderSize);
+  return result;
+}
+
+TF_BUILTIN(CreateEmptyObjectLiteral, ConstructorBuiltinsAssembler) {
+  // TODO(cbruni): remove closure and literal_index paramters once it's clear
+  // whether we can live without pretenuring support for the empty object
+  // literal.
+  Node* context = Parameter(Descriptor::kContext);
+  Node* result = EmitCreateEmptyObjectLiteral(context);
+  Return(result);
+}
 }  // namespace internal
 }  // namespace v8

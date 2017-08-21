@@ -3884,11 +3884,13 @@ TEST(AllocationSiteCreation) {
   CompileRun("function f5() { return {}; }; f5(); ");
   count = AllocationSitesCount(heap);
   CHECK_EQ(0, count - prev_count);
-  // Allocation-sites + boilerplates are created on the second run only.
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("f5(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(1, count - prev_count);
+  // No AllocationSites are created for the empty object literal.
+  for (int i = 0; i < 5; i++) {
+    prev_count = AllocationSitesCount(heap);
+    CompileRun("f5(); ");
+    count = AllocationSitesCount(heap);
+    CHECK_EQ(0, count - prev_count);
+  }
 
   prev_count = AllocationSitesCount(heap);
   CompileRun("function f6() { return {a:1}; }; f6(); ");

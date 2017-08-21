@@ -618,6 +618,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Array());
       break;
     case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());

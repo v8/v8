@@ -2721,6 +2721,19 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   }
 }
 
+// CreateEmptyObjectLiteral <literal_idx>
+//
+// Creates an empty JSObject literal for literal index <literal_idx>.
+IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
+  // TODO(cbruni): remove literal_index and closure parameter once we know
+  // whether empty object literals work without pretenuring support.
+  Node* context = GetContext();
+  ConstructorBuiltinsAssembler constructor_assembler(state());
+  Node* result = constructor_assembler.EmitCreateEmptyObjectLiteral(context);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // CreateClosure <index> <slot> <tenured>
 //
 // Creates a new closure for SharedFunctionInfo at position |index| in the

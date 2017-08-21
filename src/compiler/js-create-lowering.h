@@ -54,8 +54,9 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateArray(Node* node);
   Reduction ReduceJSCreateIterResultObject(Node* node);
   Reduction ReduceJSCreateKeyValueArray(Node* node);
-  Reduction ReduceJSCreateEmptyLiteralArray(Node* node);
   Reduction ReduceJSCreateLiteralArrayOrObject(Node* node);
+  Reduction ReduceJSCreateEmptyLiteralObject(Node* node);
+  Reduction ReduceJSCreateEmptyLiteralArray(Node* node);
   Reduction ReduceJSCreateLiteralRegExp(Node* node);
   Reduction ReduceJSCreateFunctionContext(Node* node);
   Reduction ReduceJSCreateWithContext(Node* node);
@@ -66,6 +67,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                            Handle<AllocationSite> site);
   Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
                            Handle<AllocationSite> site);
+  Reduction ReduceNewObject(Node* node, Handle<AllocationSite> site);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
   Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,

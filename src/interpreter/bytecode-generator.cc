@@ -1892,6 +1892,16 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
+  int literal_index = feedback_index(expr->literal_slot());
+
+  // Fast path for the empty object literal which doesn't need an
+  // AllocationSite.
+  if (expr->IsEmptyObjectLiteral()) {
+    DCHECK(expr->IsFastCloningSupported());
+    builder()->CreateEmptyObjectLiteral(literal_index);
+    return;
+  }
+
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
       expr->ComputeFlags(), expr->IsFastCloningSupported());
@@ -1909,8 +1919,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // TODO(cbruni): Directly generate runtime call for literals we cannot
   // optimize once the FastCloneShallowObject stub is in sync with the TF
   // optimizations.
-  builder()->CreateObjectLiteral(entry, feedback_index(expr->literal_slot()),
-                                 flags, literal);
+  builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
 
   // Store computed values into the literal.
   int property_index = 0;

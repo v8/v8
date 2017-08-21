@@ -139,6 +139,7 @@
   V(JSCreateLiteralArray)         \
   V(JSCreateEmptyLiteralArray)    \
   V(JSCreateLiteralObject)        \
+  V(JSCreateEmptyLiteralObject)   \
   V(JSCreateLiteralRegExp)        \
   V(JSLoadProperty)               \
   V(JSLoadNamed)                  \

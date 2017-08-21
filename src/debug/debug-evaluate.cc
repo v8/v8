@@ -409,7 +409,9 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateWithContext:
     // Literals.
     case Bytecode::kCreateArrayLiteral:
+    case Bytecode::kCreateEmptyArrayLiteral:
     case Bytecode::kCreateObjectLiteral:
+    case Bytecode::kCreateEmptyObjectLiteral:
     case Bytecode::kCreateRegExpLiteral:
     // Allocations.
     case Bytecode::kCreateClosure:
