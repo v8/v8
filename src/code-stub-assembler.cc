@@ -1155,9 +1155,20 @@ Node* CodeStubAssembler::TaggedDoesntHaveInstanceType(Node* any_tagged,
                 MachineRepresentation::kBit);
 }
 
-TNode<HeapObject> CodeStubAssembler::LoadProperties(
+TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
     SloppyTNode<JSObject> object) {
-  return CAST(LoadObjectField(object, JSObject::kPropertiesOrHashOffset));
+  CSA_SLOW_ASSERT(this, Word32Not(IsDictionaryMap(LoadMap(object))));
+  Node* properties = LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+  return SelectTaggedConstant<HeapObject>(
+      TaggedIsSmi(properties), EmptyFixedArrayConstant(), properties);
+}
+
+TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
+    SloppyTNode<JSObject> object) {
+  CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
+  Node* properties = LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+  return SelectTaggedConstant<HeapObject>(
+      TaggedIsSmi(properties), EmptyPropertyDictionaryConstant(), properties);
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::LoadElements(
@@ -2251,6 +2262,9 @@ Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
   StoreFixedArrayElement(result, NameDictionary::kNextEnumerationIndexIndex,
                          SmiConstant(PropertyDetails::kInitialIndex),
                          SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(result, NameDictionary::kObjectHashIndex,
+                         SmiConstant(PropertyArray::kNoHashSentinel),
+                         SKIP_WRITE_BARRIER);
 
   // Initialize NameDictionary elements.
   Node* result_word = BitcastTaggedToWord(result);
@@ -2489,18 +2503,6 @@ void CodeStubAssembler::InitializePropertyArrayLength(Node* property_array,
   StoreObjectFieldNoWriteBarrier(property_array, PropertyArray::kLengthOffset,
                                  ParameterToTagged(length, mode),
                                  MachineRepresentation::kTaggedSigned);
-}
-
-Node* CodeStubAssembler::LoadPropertyArrayLength(Node* property_array) {
-  // TODO(gsathya): Remove the IsEmptyFixedArray check once we have
-  // proper handling for the Smi case.
-  CSA_SLOW_ASSERT(this, Word32Or(IsEmptyFixedArray(property_array),
-                                 IsPropertyArray(property_array)));
-  Node* const value =
-      LoadObjectField(property_array, PropertyArray::kLengthOffset,
-                      MachineType::TaggedSigned());
-  Node* const length = SmiAnd(value, SmiConstant(PropertyArray::kLengthMask));
-  return length;
 }
 
 Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
@@ -5741,7 +5743,7 @@ void CodeStubAssembler::TryLookupProperty(
   }
   BIND(&if_isslowmap);
   {
-    Node* dictionary = LoadProperties(object);
+    Node* dictionary = LoadSlowProperties(object);
     var_meta_storage->Bind(dictionary);
 
     NameDictionaryLookup<NameDictionary>(dictionary, unique_name, if_found_dict,
@@ -5758,7 +5760,7 @@ void CodeStubAssembler::TryLookupProperty(
     int mask = 1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
     GotoIf(IsSetWord32(bit_field, mask), if_bailout);
 
-    Node* dictionary = LoadProperties(object);
+    Node* dictionary = LoadSlowProperties(object);
     var_meta_storage->Bind(dictionary);
 
     NameDictionaryLookup<GlobalDictionary>(
@@ -5866,7 +5868,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     BIND(&if_backing_store);
     {
       Comment("if_backing_store");
-      Node* properties = LoadProperties(object);
+      Node* properties = LoadFastProperties(object);
       field_index = IntPtrSub(field_index, inobject_properties);
       Node* value = LoadFixedArrayElement(properties, field_index);
 

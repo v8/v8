@@ -1481,6 +1481,7 @@ class Object {
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
+  // TODO(gsathya): Remove Handle usage, just use Object*.
   static Smi* GetOrCreateHash(Isolate* isolate, Handle<Object> object);
 
   // Checks whether this object has the same value as the given one.  This
@@ -1946,6 +1947,62 @@ enum class KeyCollectionMode {
 
 enum class AllocationSiteUpdateMode { kUpdate, kCheckOnly };
 
+class PropertyArray : public HeapObject {
+ public:
+  // [length]: length of the array.
+  inline int length() const;
+
+  // Get the length using acquire loads.
+  inline int synchronized_length() const;
+
+  // This is only used on a newly allocated PropertyArray which
+  // doesn't have an existing hash.
+  inline void initialize_length(int length);
+
+  inline void SetHash(int hash);
+  inline int Hash() const;
+
+  inline Object* get(int index) const;
+
+  inline void set(int index, Object* value);
+  // Setter with explicit barrier mode.
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+
+  // Gives access to raw memory which stores the array's data.
+  inline Object** data_start();
+
+  // Garbage collection support.
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kPointerSize;
+  }
+
+  DECL_CAST(PropertyArray)
+  DECL_PRINTER(PropertyArray)
+  DECL_VERIFIER(PropertyArray)
+
+  // Layout description.
+  // TODO(gsathya): Rename kLengthOffset to kLengthAndHashOffset.
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+
+  // Garbage collection support.
+  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+  static const int kLengthMask = 0x3ff;
+  static const int kHashMask = 0x7ffffc00;
+  STATIC_ASSERT(kLengthMask + kHashMask == 0x7fffffff);
+
+  static const int kMaxLength = kLengthMask;
+  STATIC_ASSERT(kMaxLength > kMaxNumberOfDescriptors);
+
+  static const int kNoHashSentinel = 0;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyArray);
+};
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1962,18 +2019,22 @@ class JSReceiver: public HeapObject {
   // Gets slow properties for non-global objects.
   inline NameDictionary* property_dictionary() const;
 
-  inline void SetProperties(HeapObject* properties);
+  void SetProperties(HeapObject* properties);
 
-  // There are four possible value for the properties offset.
-  // 1) EmptyFixedArray -- This is the standard placeholder.
+  // There are five possible values for the properties offset.
+  // 1) EmptyFixedArray/EmptyPropertyDictionary - This is the standard
+  // placeholder.
   //
-  // 2) TODO(gsathya): Smi -- This is the hash code of the object.
+  // 2) Smi - This is the hash code of the object.
   //
   // 3) PropertyArray - This is similar to a FixedArray but stores
   // the hash code of the object in its length field. This is a fast
   // backing store.
   //
   // 4) NameDictionary - This is the dictionary-mode backing store.
+  //
+  // 4) GlobalDictionary - This is the backing store for the
+  // GlobalObject.
   //
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
@@ -2141,13 +2202,16 @@ class JSReceiver: public HeapObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  static inline Object* GetIdentityHash(Isolate* isolate,
-                                        Handle<JSReceiver> object);
+  static inline Object* GetIdentityHash(Isolate* isolate, JSReceiver* object);
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
   inline static Smi* GetOrCreateIdentityHash(Isolate* isolate,
                                              Handle<JSReceiver> object);
+
+  // Stores the hash code. The hash passed in must be masked with
+  // JSReceiver::kHashMask.
+  void SetIdentityHash(int masked_hash);
 
   // ES6 [[OwnPropertyKeys]] (modulo return type)
   MUST_USE_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
@@ -2158,6 +2222,8 @@ class JSReceiver: public HeapObject {
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
       Handle<JSReceiver> object, PropertyFilter filter);
+
+  static const int kHashMask = PropertyArray::kHashMask;
 
   // Layout description.
   static const int kPropertiesOrHashOffset = HeapObject::kHeaderSize;
@@ -2664,7 +2730,7 @@ class JSObject: public JSReceiver {
                                     ElementsKind kind,
                                     Object* object);
 
-  static Object* GetIdentityHash(Isolate* isolate, Handle<JSObject> object);
+  static Object* GetIdentityHash(Isolate* isolate, JSObject* object);
 
   static Smi* GetOrCreateIdentityHash(Isolate* isolate,
                                       Handle<JSObject> object);
@@ -3040,54 +3106,6 @@ class ArrayList : public FixedArray {
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
-};
-
-class PropertyArray : public HeapObject {
- public:
-  // [length]: length of the array.
-  inline int length() const;
-
-  // Get the length using acquire loads.
-  inline int synchronized_length() const;
-
-  // This is only used on a newly allocated PropertyArray which
-  // doesn't have an existing hash.
-  inline void initialize_length(int length);
-
-  inline Object* get(int index) const;
-
-  // Setter that doesn't need write barrier.
-  inline void set(int index, Object* value);
-  // Setter with explicit barrier mode.
-  inline void set(int index, Object* value, WriteBarrierMode mode);
-
-  // Gives access to raw memory which stores the array's data.
-  inline Object** data_start();
-
-  // Garbage collection support.
-  static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
-  }
-
-  DECL_CAST(PropertyArray)
-  DECL_PRINTER(PropertyArray)
-  DECL_VERIFIER(PropertyArray)
-
-  // Layout description.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
-
-  // Garbage collection support.
-  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
-  static const int kLengthMask = 1023;
-  static const int kMaxLength = kLengthMask;
-  STATIC_ASSERT(kMaxLength > kMaxNumberOfDescriptors);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyArray);
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
@@ -6350,7 +6368,7 @@ class JSProxy: public JSReceiver {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  static Object* GetIdentityHash(Handle<JSProxy> receiver);
+  static Object* GetIdentityHash(JSProxy* receiver);
 
   static Smi* GetOrCreateIdentityHash(Isolate* isolate, Handle<JSProxy> proxy);
 

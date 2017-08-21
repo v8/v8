@@ -35,17 +35,6 @@ static inline v8::Local<v8::Value> Run(v8::Local<v8::Script> script) {
 }
 
 
-template <typename T = Object>
-Handle<T> GetGlobal(const char* name) {
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Handle<String> str_name = factory->InternalizeUtf8String(name);
-
-  Handle<Object> value =
-      Object::GetProperty(isolate->global_object(), str_name).ToHandleChecked();
-  return Handle<T>::cast(value);
-}
-
 
 template <typename T = Object>
 Handle<T> GetLexical(const char* name) {

@@ -301,8 +301,8 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, jsgraph()->Constant(map), effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
-      jsgraph()->EmptyFixedArrayConstant(), effect, control);
+      simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+      value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
       jsgraph()->EmptyFixedArrayConstant(), effect, control);
@@ -1248,8 +1248,8 @@ Reduction JSBuiltinReducer::ReduceCollectionIterator(
         simplified()->StoreField(AccessBuilder::ForMap()), value,
         jsgraph()->Constant(collection_iterator_map), effect, control);
     effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
-        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+        simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+        value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
         jsgraph()->EmptyFixedArrayConstant(), effect, control);
@@ -1666,8 +1666,8 @@ Reduction JSBuiltinReducer::ReduceFunctionBind(Node* node) {
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, jsgraph()->Constant(map), effect, control);
     effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
-        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+        simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+        value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
         jsgraph()->EmptyFixedArrayConstant(), effect, control);
@@ -2343,9 +2343,15 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
             AccessBuilder::ForDictionaryNextEnumerationIndex()),
         value, jsgraph()->SmiConstant(PropertyDetails::kInitialIndex), effect,
         control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForDictionaryObjectHashIndex()),
+        value, jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel), effect,
+        control);
     // Initialize the Properties fields.
-    for (int index = NameDictionary::kNextEnumerationIndexIndex + 1;
-         index < length; index++) {
+    STATIC_ASSERT(NameDictionary::kElementsStartIndex ==
+                  NameDictionary::kObjectHashIndex + 1);
+    for (int index = NameDictionary::kElementsStartIndex; index < length;
+         index++) {
       effect = graph()->NewNode(
           simplified()->StoreField(
               AccessBuilder::ForFixedArraySlot(index, kNoWriteBarrier)),
@@ -2370,8 +2376,8 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
       graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()), value,
                        jsgraph()->HeapConstant(instance_map), effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
-      properties, effect, control);
+      simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+      value, properties, effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
       jsgraph()->EmptyFixedArrayConstant(), effect, control);
@@ -2614,8 +2620,8 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
-        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+        simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+        value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
         jsgraph()->EmptyFixedArrayConstant(), effect, control);

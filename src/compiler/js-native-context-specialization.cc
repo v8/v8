@@ -1677,7 +1677,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* storage = receiver;
     if (!field_index.is_inobject()) {
       storage = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
+          simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
           storage, effect, control);
     }
     FieldAccess field_access = {
@@ -1823,7 +1823,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                                   storage, value, effect, control);
 
         // Atomically switch to the new properties below.
-        field_access = AccessBuilder::ForJSObjectProperties();
+        field_access = AccessBuilder::ForJSObjectPropertiesOrHash();
         value = storage;
         storage = receiver;
       }
@@ -2264,9 +2264,30 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
     values.push_back(jsgraph()->UndefinedConstant());
   }
+
   // Allocate and initialize the new properties.
-  effect = graph()->NewNode(
-      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* hash;
+  if (length == 0) {
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    hash = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTaggedSigned),
+        graph()->NewNode(simplified()->ObjectIsSmi(), properties), properties,
+        jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
+    hash = graph()->NewNode(common()->TypeGuard(Type::SignedSmall()), hash,
+                            control);
+  } else {
+    hash = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForPropertyArrayLength()),
+        properties, effect, control);
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    hash = graph()->NewNode(simplified()->NumberBitwiseAnd(), hash,
+                            jsgraph()->Constant(JSReceiver::kHashMask));
+  }
+
+  Node* new_length_and_hash = graph()->NewNode(
+      simplified()->NumberBitwiseOr(), jsgraph()->Constant(new_length), hash);
   Node* new_properties = effect = graph()->NewNode(
       simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
       jsgraph()->Constant(PropertyArray::SizeFor(new_length)), effect, control);
@@ -2275,13 +2296,12 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       jsgraph()->PropertyArrayMapConstant(), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForPropertyArrayLength()),
-      new_properties, jsgraph()->Constant(new_length), effect, control);
+      new_properties, new_length_and_hash, effect, control);
   for (int i = 0; i < new_length; ++i) {
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
         new_properties, values[i], effect, control);
   }
-  // TODO(gsathya): Update hash code here.
   return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
 }
 

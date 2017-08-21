@@ -623,14 +623,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     {
       Comment("Copy dictionary properties");
       var_properties.Bind(
-          CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
+          CopyNameDictionary(LoadSlowProperties(boilerplate), call_runtime));
       // Slow objects have no in-object properties.
       Goto(&done);
     }
     BIND(&if_fast);
     {
       // TODO(cbruni): support copying out-of-object properties.
-      Node* boilerplate_properties = LoadProperties(boilerplate);
+      Node* boilerplate_properties = LoadFastProperties(boilerplate);
       GotoIfNot(IsEmptyFixedArray(boilerplate_properties), call_runtime);
       var_properties.Bind(EmptyFixedArrayConstant());
       Goto(&done);

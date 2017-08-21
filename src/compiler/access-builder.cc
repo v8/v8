@@ -54,10 +54,10 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
 
 
 // static
-FieldAccess AccessBuilder::ForJSObjectProperties() {
+FieldAccess AccessBuilder::ForJSObjectPropertiesOrHash() {
   FieldAccess access = {kTaggedBase,         JSObject::kPropertiesOrHashOffset,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Internal(),    MachineType::TaggedPointer(),
+                        Type::Any(),         MachineType::AnyTagged(),
                         kPointerWriteBarrier};
   return access;
 }
@@ -477,14 +477,11 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
 }
 
 // static
+// TODO(gsathya): Rename this to PropertyArrayLengthAndHash.
 FieldAccess AccessBuilder::ForPropertyArrayLength() {
-  // TODO(gsathya): Update the value range once we add the hash code.
-  FieldAccess access = {kTaggedBase,
-                        PropertyArray::kLengthOffset,
-                        MaybeHandle<Name>(),
-                        MaybeHandle<Map>(),
-                        TypeCache::Get().kPropertyArrayLengthType,
-                        MachineType::TaggedSigned(),
+  FieldAccess access = {kTaggedBase,         PropertyArray::kLengthOffset,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::SignedSmall(), MachineType::TaggedSigned(),
                         kNoWriteBarrier};
   return access;
 }
@@ -1107,6 +1104,19 @@ FieldAccess AccessBuilder::ForDictionaryNextEnumerationIndex() {
   FieldAccess access = {
       kTaggedBase,
       FixedArray::OffsetOfElementAt(NameDictionary::kNextEnumerationIndexIndex),
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      Type::SignedSmall(),
+      MachineType::TaggedSigned(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForDictionaryObjectHashIndex() {
+  FieldAccess access = {
+      kTaggedBase,
+      FixedArray::OffsetOfElementAt(NameDictionary::kObjectHashIndex),
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
       Type::SignedSmall(),

@@ -85,7 +85,7 @@ static void TestHashMap(Handle<HashMap> table) {
     CHECK_EQ(table->NumberOfElements(), i + 1);
     CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), *value);
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
@@ -95,7 +95,7 @@ static void TestHashMap(Handle<HashMap> table) {
     CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, key)->IsSmi());
     CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -103,7 +103,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, key);
+    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, *key);
     CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }
@@ -156,7 +156,7 @@ static void TestHashSet(Handle<HashSet> table) {
     table = HashSet::Add(table, key);
     CHECK_EQ(table->NumberOfElements(), i + 2);
     CHECK(table->Has(isolate, key));
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
@@ -165,7 +165,7 @@ static void TestHashSet(Handle<HashSet> table) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, key)->IsSmi());
     CHECK(!table->Has(isolate, key));
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(JSReceiver::GetIdentityHash(isolate, *key)->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -173,7 +173,7 @@ static void TestHashSet(Handle<HashSet> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(!table->Has(isolate, key));
-    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, key);
+    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, *key);
     CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }
@@ -268,15 +268,15 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
 
 
 #ifdef DEBUG
-template<class HashMap>
-static void TestHashMapCausesGC(Handle<HashMap> table) {
+template <class HashMap>
+static void TestHashMapDoesNotCauseGC(Handle<HashMap> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   Handle<JSObject> key = factory->NewJSArray(0);
 
-  // Simulate a full heap so that generating an identity hash code
-  // in subsequent calls will request GC.
+  // Even though we simulate a full heap, generating an identity hash
+  // code in subsequent calls will not request GC.
   heap::SimulateFullSpace(CcTest::heap()->new_space());
   heap::SimulateFullSpace(CcTest::heap()->old_space());
 
@@ -286,7 +286,7 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   // Calling Put() should request GC by returning a failure.
   int gc_count = isolate->heap()->gc_count();
   HashMap::Put(table, key, key);
-  CHECK(gc_count < isolate->heap()->gc_count());
+  CHECK(gc_count == isolate->heap()->gc_count());
 }
 
 
@@ -295,7 +295,7 @@ TEST(ObjectHashTableCausesGC) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
+  TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate, 1));
 }
 #endif
 
