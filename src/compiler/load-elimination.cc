@@ -378,6 +378,29 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Kill(
   return this;
 }
 
+LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Merge(
+    AbstractMaps const* that, Zone* zone) const {
+  if (this->Equals(that)) return this;
+  AbstractMaps* copy = new (zone) AbstractMaps(zone);
+  for (auto this_it : this->info_for_node_) {
+    Node* this_object = this_it.first;
+    ZoneHandleSet<Map> this_maps = this_it.second;
+    auto that_it = that->info_for_node_.find(this_object);
+    if (that_it != that->info_for_node_.end() && that_it->second == this_maps) {
+      copy->info_for_node_.insert(this_it);
+    }
+  }
+  return copy;
+}
+
+LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
+    Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
+  AbstractMaps* that = new (zone) AbstractMaps(zone);
+  that->info_for_node_ = this->info_for_node_;
+  that->info_for_node_.insert(std::make_pair(object, maps));
+  return that;
+}
+
 void LoadElimination::AbstractMaps::Print() const {
   for (auto pair : info_for_node_) {
     PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
@@ -960,6 +983,27 @@ Reduction LoadElimination::ReduceStoreTypedElement(Node* node) {
   return UpdateState(node, state);
 }
 
+LoadElimination::AbstractState const* LoadElimination::UpdateStateForPhi(
+    AbstractState const* state, Node* effect_phi, Node* phi) {
+  int predecessor_count = phi->InputCount() - 1;
+  // TODO(jarin) Consider doing a union here. At the moment, we just keep this
+  // consistent with AbstractState::Merge.
+
+  // Check if all the inputs have the same maps.
+  AbstractState const* input_state =
+      node_states_.Get(NodeProperties::GetEffectInput(effect_phi, 0));
+  ZoneHandleSet<Map> object_maps;
+  if (!input_state->LookupMaps(phi->InputAt(0), &object_maps)) return state;
+  for (int i = 1; i < predecessor_count; i++) {
+    input_state =
+        node_states_.Get(NodeProperties::GetEffectInput(effect_phi, i));
+    ZoneHandleSet<Map> input_maps;
+    if (!input_state->LookupMaps(phi->InputAt(i), &input_maps)) return state;
+    if (input_maps != object_maps) return state;
+  }
+  return state->AddMaps(phi, object_maps, zone());
+}
+
 Reduction LoadElimination::ReduceEffectPhi(Node* node) {
   Node* const effect0 = NodeProperties::GetEffectInput(node, 0);
   Node* const control = NodeProperties::GetControlInput(node);
@@ -988,7 +1032,17 @@ Reduction LoadElimination::ReduceEffectPhi(Node* node) {
     Node* const input = NodeProperties::GetEffectInput(node, i);
     state->Merge(node_states_.Get(input), zone());
   }
-  return UpdateState(node, state);
+
+  // For each phi, try to compute the new state for the phi from
+  // the inputs.
+  AbstractState const* state_with_phis = state;
+  for (Node* use : control->uses()) {
+    if (use->opcode() == IrOpcode::kPhi) {
+      state_with_phis = UpdateStateForPhi(state_with_phis, node, use);
+    }
+  }
+
+  return UpdateState(node, state_with_phis);
 }
 
 Reduction LoadElimination::ReduceStart(Node* node) {

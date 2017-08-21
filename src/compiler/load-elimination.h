@@ -194,31 +194,13 @@ class V8_EXPORT_PRIVATE LoadElimination final
     }
 
     AbstractMaps const* Extend(Node* object, ZoneHandleSet<Map> maps,
-                               Zone* zone) const {
-      AbstractMaps* that = new (zone) AbstractMaps(zone);
-      that->info_for_node_ = this->info_for_node_;
-      that->info_for_node_.insert(std::make_pair(object, maps));
-      return that;
-    }
+                               Zone* zone) const;
     bool Lookup(Node* object, ZoneHandleSet<Map>* object_maps) const;
     AbstractMaps const* Kill(Node* object, Zone* zone) const;
     bool Equals(AbstractMaps const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
-    AbstractMaps const* Merge(AbstractMaps const* that, Zone* zone) const {
-      if (this->Equals(that)) return this;
-      AbstractMaps* copy = new (zone) AbstractMaps(zone);
-      for (auto this_it : this->info_for_node_) {
-        Node* this_object = this_it.first;
-        ZoneHandleSet<Map> this_maps = this_it.second;
-        auto that_it = that->info_for_node_.find(this_object);
-        if (that_it != that->info_for_node_.end() &&
-            that_it->second == this_maps) {
-          copy->info_for_node_.insert(this_it);
-        }
-      }
-      return copy;
-    }
+    AbstractMaps const* Merge(AbstractMaps const* that, Zone* zone) const;
 
     void Print() const;
 
@@ -302,6 +284,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
+  AbstractState const* UpdateStateForPhi(AbstractState const* state,
+                                         Node* effect_phi, Node* phi);
 
   static int FieldIndexOf(int offset);
   static int FieldIndexOf(FieldAccess const& access);
