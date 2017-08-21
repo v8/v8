@@ -5115,9 +5115,6 @@ void Heap::Verify() {
   lo_space_->Verify();
 
   mark_compact_collector()->VerifyWeakEmbeddedObjectsInCode();
-  if (FLAG_omit_map_checks_for_leaf_maps) {
-    mark_compact_collector()->VerifyOmittedMapChecks();
-  }
 }
 
 class SlotVerifyingVisitor : public ObjectVisitor {

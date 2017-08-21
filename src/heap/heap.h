@@ -863,7 +863,7 @@ class Heap {
   // This event is triggered after successful allocation of a new object made
   // by runtime. Allocations of target space for object evacuation do not
   // trigger the event. In order to track ALL allocations one must turn off
-  // FLAG_inline_new and FLAG_use_allocation_folding.
+  // FLAG_inline_new.
   inline void OnAllocationEvent(HeapObject* object, int size_in_bytes);
 
   // This event is triggered after object is moved to a new place.

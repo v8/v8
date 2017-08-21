@@ -258,10 +258,6 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       }
     }
     if (info->IsOptimizing()) {
-      if (FLAG_print_unopt_code) {
-        os << "--- Unoptimized code ---\n";
-        info->closure()->shared()->code()->Disassemble(debug_name.get(), os);
-      }
       os << "--- Optimized code ---\n"
          << "optimization_id = " << info->optimization_id() << "\n";
     } else {

@@ -756,7 +756,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VerifyMarkbitsAreClean(PagedSpace* space);
   void VerifyMarkbitsAreClean(NewSpace* space);
   void VerifyWeakEmbeddedObjectsInCode();
-  void VerifyOmittedMapChecks();
 #endif
 
  private:

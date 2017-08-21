@@ -3653,11 +3653,6 @@ bool Map::IsSpecialReceiverMap() const {
   return result;
 }
 
-bool Map::CanOmitMapChecks() const {
-  return is_stable() && FLAG_omit_map_checks_for_leaf_maps;
-}
-
-
 DependentCode* DependentCode::next_link() {
   return DependentCode::cast(get(kNextLinkIndex));
 }

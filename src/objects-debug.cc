@@ -363,11 +363,7 @@ void JSObject::JSObjectVerify() {
         if (r.IsNone()) {
           CHECK(type_is_none);
         } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
-          // If allocation folding is off then GC could happen during inner
-          // object literal creation and we will end up having and undefined
-          // value that does not match the field type.
-          CHECK(!field_type->NowStable() || field_type->NowContains(value) ||
-                (!FLAG_use_allocation_folding && value->IsUndefined(isolate)));
+          CHECK(!field_type->NowStable() || field_type->NowContains(value));
         }
         CHECK_IMPLIES(is_transitionable_fast_elements_kind,
                       !Map::IsInplaceGeneralizableField(details.constness(), r,
@@ -428,17 +424,6 @@ void Map::DictionaryMapVerify() {
   CHECK_EQ(0, unused_property_fields());
   CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
-
-
-void Map::VerifyOmittedMapChecks() {
-  if (!FLAG_omit_map_checks_for_leaf_maps) return;
-  if (!is_stable() ||
-      is_deprecated() ||
-      is_dictionary_map()) {
-    CHECK(dependent_code()->IsEmpty(DependentCode::kPrototypeCheckGroup));
-  }
-}
-
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify() {
   VerifySmiField(kAliasedContextSlot);

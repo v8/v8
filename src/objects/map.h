@@ -609,8 +609,6 @@ class Map : public HeapObject {
 
   inline bool IsSpecialReceiverMap() const;
 
-  inline bool CanOmitMapChecks() const;
-
   static void AddDependentCode(Handle<Map> map,
                                DependentCode::DependencyGroup group,
                                Handle<Code> code);
@@ -625,7 +623,6 @@ class Map : public HeapObject {
 
 #ifdef VERIFY_HEAP
   void DictionaryMapVerify();
-  void VerifyOmittedMapChecks();
 #endif
 
   inline int visitor_id() const;

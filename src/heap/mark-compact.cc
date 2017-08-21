@@ -596,14 +596,6 @@ void MarkCompactCollector::VerifyWeakEmbeddedObjectsInCode() {
   }
 }
 
-
-void MarkCompactCollector::VerifyOmittedMapChecks() {
-  HeapObjectIterator iterator(heap()->map_space());
-  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
-    Map* map = Map::cast(obj);
-    map->VerifyOmittedMapChecks();
-  }
-}
 #endif  // VERIFY_HEAP
 
 void MarkCompactCollector::ClearMarkbitsInPagedSpace(PagedSpace* space) {

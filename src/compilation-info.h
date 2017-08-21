@@ -169,11 +169,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     asm_wasm_data_ = asm_wasm_data;
   }
 
-  bool ShouldTrapOnDeopt() const {
-    return (FLAG_trap_on_deopt && IsOptimizing()) ||
-           (FLAG_trap_on_stub_deopt && IsStub());
-  }
-
   bool has_context() const;
   Context* context() const;
 

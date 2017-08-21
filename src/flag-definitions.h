@@ -273,7 +273,6 @@ DEFINE_BOOL(allocation_site_pretenuring, true,
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation")
-DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,
@@ -333,56 +332,13 @@ DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
               "the file to which the bytecode handler dispatch table is "
               "written (by default, the table is not written to a file)")
 
-// Flags for Crankshaft.
-DEFINE_BOOL(use_allocation_folding, true, "use allocation folding")
-DEFINE_BOOL(use_local_allocation_folding, false, "only fold in basic blocks")
-DEFINE_BOOL(use_write_barrier_elimination, true,
-            "eliminate write barriers targeting allocations in optimized code")
-DEFINE_INT(max_inlining_levels, 5, "maximum number of inlining levels")
-DEFINE_INT(max_inlined_bytecode_size, 500,
-           "maximum size of bytecode for a single inlining")
-DEFINE_INT(max_inlined_bytecode_size_absolute, 4000,
-           "maximum absolute size of bytecode considered for inlining "
-           "(incl. small functions)")
-DEFINE_INT(max_inlined_bytecode_size_cumulative, 1000,
-           "maximum cumulative size of bytecode considered for inlining")
-DEFINE_FLOAT(reserve_inline_budget_scale_factor, 1.2,
-             "maximum cumulative size of bytecode considered for inlining")
-DEFINE_INT(max_inlined_bytecode_size_small, 30,
-           "maximum size of bytecode considered for small function inlining")
-DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
-DEFINE_BOOL(trace_environment_liveness, false,
-            "trace liveness of local variable slots")
-DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
-DEFINE_BOOL(turbo_verify_store_elimination, false,
-            "verify store elimination more rigorously")
-DEFINE_BOOL(trace_alloc, false, "trace register allocator")
-DEFINE_BOOL(trace_all_uses, false, "trace all use positions")
-DEFINE_BOOL(trace_representation, false, "trace representation types")
 DEFINE_BOOL(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_BOOL(trace_migration, false, "trace object migration")
 DEFINE_BOOL(trace_generalization, false, "trace map generalization")
-DEFINE_BOOL(stress_pointer_maps, false, "pointer map for every instruction")
-DEFINE_INT(deopt_every_n_times, 0,
-           "deoptimize every n times a deopt point is passed")
-DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
-DEFINE_BOOL(trap_on_deopt, false, "put a break point before deoptimizing")
-DEFINE_BOOL(trap_on_stub_deopt, false,
-            "put a break point before deoptimizing a stub")
-DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
-DEFINE_BOOL(use_osr, true, "use on-stack replacement")
-DEFINE_BOOL(analyze_environment_liveness, true,
-            "analyze liveness of environment slots and zap dead values")
-DEFINE_BOOL(load_elimination, true, "use load elimination")
-DEFINE_BOOL(check_elimination, true, "use check elimination")
-DEFINE_BOOL(store_elimination, false, "use store elimination")
-DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
-DEFINE_INT(stress_runs, 0, "number of stress runs")
-DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
-DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
 
+// Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
 DEFINE_BOOL(trace_concurrent_recompilation, false,
@@ -394,9 +350,11 @@ DEFINE_INT(concurrent_recompilation_delay, 0,
 DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 
-DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
-            "do not emit check maps for constant values that have a leaf map, "
-            "deoptimize the optimized code if the layout of the maps changes.")
+// Flags for stress-testing the compiler.
+DEFINE_INT(stress_runs, 0, "number of stress runs")
+DEFINE_INT(deopt_every_n_times, 0,
+           "deoptimize every n times a deopt point is passed")
+DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 
 // Flags for TurboFan.
 DEFINE_BOOL(turbo_sp_frame_access, false,
@@ -416,6 +374,9 @@ DEFINE_BOOL(trace_turbo_trimming, false, "trace TurboFan's graph trimmer")
 DEFINE_BOOL(trace_turbo_jt, false, "trace TurboFan's jump threading")
 DEFINE_BOOL(trace_turbo_ceq, false, "trace TurboFan's control equivalence")
 DEFINE_BOOL(trace_turbo_loop, false, "trace TurboFan's loop optimizations")
+DEFINE_BOOL(trace_alloc, false, "trace register allocator")
+DEFINE_BOOL(trace_all_uses, false, "trace all use positions")
+DEFINE_BOOL(trace_representation, false, "trace representation types")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_STRING(turbo_verify_machine_graph, nullptr,
               "verify TurboFan machine graph before instruction selection")
@@ -439,9 +400,31 @@ DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
+DEFINE_INT(max_inlining_levels, 5, "maximum number of inlining levels")
+DEFINE_INT(max_inlined_bytecode_size, 500,
+           "maximum size of bytecode for a single inlining")
+DEFINE_INT(max_inlined_bytecode_size_absolute, 4000,
+           "maximum absolute size of bytecode considered for inlining "
+           "(incl. small functions)")
+DEFINE_INT(max_inlined_bytecode_size_cumulative, 1000,
+           "maximum cumulative size of bytecode considered for inlining")
+DEFINE_FLOAT(reserve_inline_budget_scale_factor, 1.2,
+             "maximum cumulative size of bytecode considered for inlining")
+DEFINE_INT(max_inlined_bytecode_size_small, 30,
+           "maximum size of bytecode considered for small function inlining")
+DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
+DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
+DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
+DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
+DEFINE_BOOL(use_osr, true, "use on-stack replacement")
+DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
+DEFINE_BOOL(analyze_environment_liveness, true,
+            "analyze liveness of environment slots and zap dead values")
+DEFINE_BOOL(trace_environment_liveness, false,
+            "trace liveness of local variable slots")
 DEFINE_BOOL(turbo_load_elimination, true, "enable load elimination in TurboFan")
 DEFINE_BOOL(trace_turbo_load_elimination, false,
             "trace TurboFan load elimination")
@@ -463,6 +446,7 @@ DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
 DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
+DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_experimental, false,
             "enable crashing features, for testing purposes only")
 
@@ -828,13 +812,6 @@ DEFINE_INT(stack_size, V8_DEFAULT_STACK_SIZE_KB,
 DEFINE_INT(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
 
-// full-codegen.cc
-DEFINE_BOOL(always_inline_smi_code, false,
-            "always inline smi code in non-opt code")
-DEFINE_BOOL(verify_operand_stack_depth, false,
-            "emit debug code that verifies the static tracking of the operand "
-            "stack depth")
-
 // execution.cc, messages.cc
 DEFINE_BOOL(clear_exceptions_on_js_entry, false,
             "clear pending exceptions when entering JavaScript")
@@ -1188,9 +1165,6 @@ DEFINE_BOOL(test_small_max_function_context_stub_size, false,
 DEFINE_BOOL(print_code, false, "print generated code")
 DEFINE_BOOL(print_opt_code, false, "print optimized code")
 DEFINE_STRING(print_opt_code_filter, "*", "filter for printing optimized code")
-DEFINE_BOOL(print_unopt_code, false,
-            "print unoptimized code before "
-            "printing optimized code based on it")
 DEFINE_BOOL(print_code_verbose, false, "print more information for code")
 DEFINE_BOOL(print_builtin_code, false, "print generated code for builtins")
 DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
@@ -1208,7 +1182,6 @@ DEFINE_IMPLICATION(sodium, code_comments)
 DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
 DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
-DEFINE_IMPLICATION(print_all_code, print_unopt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
 DEFINE_IMPLICATION(print_all_code, print_builtin_code)
 DEFINE_IMPLICATION(print_all_code, print_code_stubs)
