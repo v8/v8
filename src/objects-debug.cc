@@ -1239,9 +1239,10 @@ void Module::ModuleVerify() {
   VerifySmiField(kHashOffset);
   VerifySmiField(kStatusOffset);
 
-  CHECK((status() < kInstantiating && code()->IsSharedFunctionInfo()) ||
-        (status() < kEvaluating && code()->IsJSFunction()) ||
-        code()->IsModuleInfo());
+  CHECK((status() >= kEvaluating && code()->IsModuleInfo()) ||
+        (status() == kInstantiated && code()->IsJSGeneratorObject()) ||
+        (status() >= kInstantiating && code()->IsJSFunction()) ||
+        (code()->IsSharedFunctionInfo()));
 
   CHECK_EQ(status() == kErrored, !exception()->IsTheHole(GetIsolate()));
 

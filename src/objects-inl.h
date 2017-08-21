@@ -4462,9 +4462,12 @@ ModuleInfo* Module::info() const {
   if (status() >= kEvaluating) {
     return ModuleInfo::cast(code());
   }
-  ScopeInfo* scope_info = status() >= kInstantiating
-                              ? JSFunction::cast(code())->shared()->scope_info()
-                              : SharedFunctionInfo::cast(code())->scope_info();
+  ScopeInfo* scope_info =
+      status() == kInstantiated
+          ? JSGeneratorObject::cast(code())->function()->shared()->scope_info()
+          : status() == kInstantiating
+                ? JSFunction::cast(code())->shared()->scope_info()
+                : SharedFunctionInfo::cast(code())->scope_info();
   return scope_info->ModuleDescriptorInfo();
 }
 

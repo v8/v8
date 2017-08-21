@@ -19588,9 +19588,7 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     // Not yet resolved indirect export.
     Handle<ModuleInfoEntry> entry = Handle<ModuleInfoEntry>::cast(object);
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
-    Handle<Script> script(
-        Script::cast(JSFunction::cast(module->code())->shared()->script()),
-        isolate);
+    Handle<Script> script(module->script(), isolate);
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
@@ -19633,9 +19631,7 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
         continue;  // Indirect export.
       }
 
-      Handle<Script> script(
-          Script::cast(JSFunction::cast(module->code())->shared()->script()),
-          isolate);
+      Handle<Script> script(module->script(), isolate);
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
@@ -19784,6 +19780,20 @@ bool Module::PrepareInstantiate(Handle<Module> module,
   return true;
 }
 
+void Module::RunInitializationCode(Handle<Module> module) {
+  DCHECK_EQ(module->status(), kInstantiating);
+  Isolate* isolate = module->GetIsolate();
+  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Object> argv[] = {module};
+  Handle<Object> generator =
+      Execution::Call(isolate, function, receiver, arraysize(argv), argv)
+          .ToHandleChecked();
+  DCHECK_EQ(*function, Handle<JSGeneratorObject>::cast(generator)->function());
+  module->set_code(*generator);
+}
+
 void Module::MaybeTransitionComponent(Handle<Module> module,
                                       ZoneForwardList<Handle<Module>>* stack,
                                       Status new_status) {
@@ -19801,6 +19811,7 @@ void Module::MaybeTransitionComponent(Handle<Module> module,
       stack->pop_front();
       DCHECK_EQ(ancestor->status(),
                 new_status == kInstantiated ? kInstantiating : kEvaluating);
+      if (new_status == kInstantiated) RunInitializationCode(ancestor);
       ancestor->SetStatus(new_status);
     } while (*ancestor != *module);
   }
@@ -19855,17 +19866,15 @@ bool Module::FinishInstantiate(Handle<Module> module,
     }
   }
 
+  Handle<Script> script(module->script(), isolate);
+  Handle<ModuleInfo> module_info(module->info(), isolate);
+
   // Resolve imports.
-  Handle<ModuleInfo> module_info(shared->scope_info()->ModuleDescriptorInfo(),
-                                 isolate);
   Handle<FixedArray> regular_imports(module_info->regular_imports(), isolate);
   for (int i = 0, n = regular_imports->length(); i < n; ++i) {
     Handle<ModuleInfoEntry> entry(
         ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
     Handle<String> name(String::cast(entry->import_name()), isolate);
-    Handle<Script> script(
-        Script::cast(JSFunction::cast(module->code())->shared()->script()),
-        isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
     Handle<Cell> cell;
@@ -19884,9 +19893,6 @@ bool Module::FinishInstantiate(Handle<Module> module,
         ModuleInfoEntry::cast(special_exports->get(i)), isolate);
     Handle<Object> name(entry->export_name(), isolate);
     if (name->IsUndefined(isolate)) continue;  // Star export.
-    Handle<Script> script(
-        Script::cast(JSFunction::cast(module->code())->shared()->script()),
-        isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
     if (ResolveExport(module, Handle<String>::cast(name), loc, true,
@@ -19950,23 +19956,15 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
   }
   DCHECK_EQ(module->status(), kInstantiated);
 
-  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
-  module->set_code(function->shared()->scope_info()->ModuleDescriptorInfo());
+  Handle<JSGeneratorObject> generator(JSGeneratorObject::cast(module->code()),
+                                      isolate);
+  module->set_code(
+      generator->function()->shared()->scope_info()->ModuleDescriptorInfo());
   module->SetStatus(kEvaluating);
   module->set_dfs_index(*dfs_index);
   module->set_dfs_ancestor_index(*dfs_index);
   stack->push_front(module);
   (*dfs_index)++;
-
-  // Initialization.
-  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
-  Handle<Object> receiver = isolate->factory()->undefined_value();
-  Handle<Object> argv[] = {module};
-  Handle<Object> generator;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, generator,
-      Execution::Call(isolate, function, receiver, arraysize(argv), argv),
-      Object);
 
   // Recursion.
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
@@ -20014,7 +20012,9 @@ namespace {
 void FetchStarExports(Handle<Module> module, Zone* zone,
                       UnorderedModuleSet* visited) {
   DCHECK_NE(module->status(), Module::kErrored);
-  DCHECK_GE(module->status(), Module::kInstantiated);
+  DCHECK_GE(module->status(), Module::kInstantiating);
+
+  if (module->module_namespace()->IsJSModuleNamespace()) return;  // Shortcut.
 
   bool cycle = !visited->insert(module).second;
   if (cycle) return;
@@ -20102,11 +20102,6 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
     return Handle<JSModuleNamespace>::cast(object);
   }
 
-  // Create the namespace object (initially empty).
-  Handle<JSModuleNamespace> ns = isolate->factory()->NewJSModuleNamespace();
-  ns->set_module(*module);
-  module->set_module_namespace(*ns);
-
   // Collect the export names.
   Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
@@ -20129,7 +20124,12 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   } StringLess;
   std::sort(names.begin(), names.end(), StringLess);
 
-  // Create the corresponding properties in the namespace object.
+  // Create the namespace object (initially empty).
+  Handle<JSModuleNamespace> ns = isolate->factory()->NewJSModuleNamespace();
+  ns->set_module(*module);
+  module->set_module_namespace(*ns);
+
+  // Create the properties in the namespace object.
   PropertyAttributes attr = DONT_DELETE;
   for (const auto& name : names) {
     JSObject::SetAccessor(
