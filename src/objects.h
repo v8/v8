@@ -1447,6 +1447,7 @@ class Object {
   // the actual object type. May create and store a hash code if needed and none
   // exists.
   Smi* GetOrCreateHash(Isolate* isolate);
+  static Smi* GetOrCreateHash(Isolate* isolate, Object* key);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used

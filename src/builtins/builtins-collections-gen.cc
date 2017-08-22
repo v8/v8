@@ -30,6 +30,7 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
 
   Node* GetHash(Node* const key);
   Node* CallGetHashRaw(Node* const key);
+  Node* CallGetOrCreateHashRaw(Node* const key);
 
   // Transitions the iterator to the non obsolete backing store.
   // This is a NOP if the [table] is not obsolete.
@@ -427,6 +428,21 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
 
   BIND(&exit);
   args.PopAndReturn(var_result.value());
+}
+
+Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
+  Node* const function_addr =
+      ExternalConstant(ExternalReference::get_or_create_hash_raw(isolate()));
+  Node* const isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+  MachineType type_ptr = MachineType::Pointer();
+  MachineType type_tagged = MachineType::AnyTagged();
+
+  Node* const result = CallCFunction2(type_tagged, type_ptr, type_tagged,
+                                      function_addr, isolate_ptr, key);
+
+  return result;
 }
 
 Node* CollectionsBuiltinsAssembler::CallGetHashRaw(Node* const key) {
@@ -916,8 +932,7 @@ TF_BUILTIN(MapSet, CollectionsBuiltinsAssembler) {
            &add_entry);
 
     // Otherwise, go to runtime to compute the hash code.
-    entry_start_position_or_hash.Bind(
-        SmiUntag(CAST(CallRuntime(Runtime::kGenericHash, context, key))));
+    entry_start_position_or_hash.Bind(SmiUntag(CallGetOrCreateHashRaw(key)));
     Goto(&add_entry);
   }
 
@@ -1083,8 +1098,7 @@ TF_BUILTIN(SetAdd, CollectionsBuiltinsAssembler) {
            &add_entry);
 
     // Otherwise, go to runtime to compute the hash code.
-    entry_start_position_or_hash.Bind(
-        SmiUntag(CAST(CallRuntime(Runtime::kGenericHash, context, key))));
+    entry_start_position_or_hash.Bind(SmiUntag((CallGetOrCreateHashRaw(key))));
     Goto(&add_entry);
   }
 

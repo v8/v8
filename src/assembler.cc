@@ -1409,6 +1409,12 @@ ExternalReference ExternalReference::orderedhashmap_gethash_raw(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 
+ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
+  typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
+  GetOrCreateHash f = Object::GetOrCreateHash;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
 ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(

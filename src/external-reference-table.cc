@@ -266,6 +266,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "search_string_raw<1-byte, 2-byte>");
   Add(ExternalReference::orderedhashmap_gethash_raw(isolate).address(),
       "orderedhashmap_gethash_raw");
+  Add(ExternalReference::get_or_create_hash_raw(isolate).address(),
+      "get_or_create_hash_raw");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

@@ -989,6 +989,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference orderedhashmap_gethash_raw(Isolate* isolate);
 
+  static ExternalReference get_or_create_hash_raw(Isolate* isolate);
+
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);

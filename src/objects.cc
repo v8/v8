@@ -2343,6 +2343,11 @@ Object* Object::GetHash() {
   return receiver->GetIdentityHash(isolate);
 }
 
+// static
+Smi* Object::GetOrCreateHash(Isolate* isolate, Object* key) {
+  return key->GetOrCreateHash(isolate);
+}
+
 Smi* Object::GetOrCreateHash(Isolate* isolate) {
   Object* hash = GetSimpleHash(this);
   if (hash->IsSmi()) return Smi::cast(hash);
