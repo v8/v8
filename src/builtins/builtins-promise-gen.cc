@@ -1552,18 +1552,12 @@ TF_BUILTIN(InternalPromiseReject, PromiseBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
-Node* PromiseBuiltinsAssembler::CreatePromiseFinallyContext(
-    Node* on_finally, Node* native_context) {
-  Node* const context =
-      CreatePromiseContext(native_context, kOnFinallyContextLength);
-  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, on_finally);
-  return context;
-}
-
 std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
     Node* on_finally, Node* native_context) {
   Node* const promise_context =
-      CreatePromiseFinallyContext(on_finally, native_context);
+      CreatePromiseContext(native_context, kPromiseFinallyContextLength);
+  StoreContextElementNoWriteBarrier(promise_context, kOnFinallySlot,
+                                    on_finally);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const then_finally_info = LoadContextElement(
@@ -1580,22 +1574,15 @@ std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
 TF_BUILTIN(PromiseValueThunkFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const value = LoadContextElement(context, kOnFinallySlot);
+  Node* const value = LoadContextElement(context, kValueSlot);
   Return(value);
-}
-
-Node* PromiseBuiltinsAssembler::CreateValueThunkFunctionContext(
-    Node* value, Node* native_context) {
-  Node* const context =
-      CreatePromiseContext(native_context, kOnFinallyContextLength);
-  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, value);
-  return context;
 }
 
 Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
                                                          Node* native_context) {
-  Node* const value_thunk_context =
-      CreateValueThunkFunctionContext(value, native_context);
+  Node* const value_thunk_context = CreatePromiseContext(
+      native_context, kPromiseValueThunkOrReasonContextLength);
+  StoreContextElementNoWriteBarrier(value_thunk_context, kValueSlot, value);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const value_thunk_info = LoadContextElement(
@@ -1640,23 +1627,16 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const reason = LoadContextElement(context, kOnFinallySlot);
+  Node* const reason = LoadContextElement(context, kValueSlot);
   CallRuntime(Runtime::kThrow, context, reason);
   Unreachable();
 }
 
-Node* PromiseBuiltinsAssembler::CreateThrowerFunctionContext(
-    Node* reason, Node* native_context) {
-  Node* const context =
-      CreatePromiseContext(native_context, kOnFinallyContextLength);
-  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, reason);
-  return context;
-}
-
 Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
                                                       Node* native_context) {
-  Node* const thrower_context =
-      CreateThrowerFunctionContext(reason, native_context);
+  Node* const thrower_context = CreatePromiseContext(
+      native_context, kPromiseValueThunkOrReasonContextLength);
+  StoreContextElementNoWriteBarrier(thrower_context, kValueSlot, reason);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const thrower_info = LoadContextElement(

@@ -55,16 +55,23 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kCapabilitiesContextLength,
   };
 
-  // This is used by the PromiseThenFinally and PromiseCatchFinally
-  // builtins to store the onFinally in the onFinallySlot.
-  //
-  // This is also used by the PromiseValueThunkFinally to store the
-  // value in the onFinallySlot and PromiseThrowerFinally to store the
-  // reason in the onFinallySlot.
+  // This is used by the Promise.prototype.finally builtin to store
+  // onFinally callback and the Promise constructor.
+  // TODO(gsathya): Add extra slot for Promise constructor.
+  // TODO(gsathya): For native promises we can create a variant of
+  // this without extra space for the constructor to save memory.
   enum PromiseFinallyContextSlot {
     kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
 
-    kOnFinallyContextLength,
+    kPromiseFinallyContextLength,
+  };
+
+  // This is used by the ThenFinally and CatchFinally builtins to
+  // store the value to return or reason to throw.
+  enum PromiseValueThunkOrReasonContextSlot {
+    kValueSlot = Context::MIN_CONTEXT_SLOTS,
+
+    kPromiseValueThunkOrReasonContextLength,
   };
 
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -149,12 +156,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                              Node* debug_event);
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
                                                         Node* native_context);
-  Node* CreatePromiseFinallyContext(Node* on_finally, Node* native_context);
-
   Node* CreateValueThunkFunction(Node* value, Node* native_context);
-  Node* CreateValueThunkFunctionContext(Node* value, Node* native_context);
 
-  Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
   Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
