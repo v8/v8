@@ -399,13 +399,6 @@ class Deoptimizer : public Malloced {
                                                         int jsframe_index,
                                                         Isolate* isolate);
 
-  // Makes sure that there is enough room in the relocation
-  // information of a code object to perform lazy deoptimization
-  // patching. If there is not enough room a new relocation
-  // information object is allocated and comments are added until it
-  // is big enough.
-  static void EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code);
-
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
@@ -425,9 +418,6 @@ class Deoptimizer : public Malloced {
       Isolate* isolate, OptimizedFunctionVisitor* visitor);
 
   static void UnlinkOptimizedCode(Code* code, Context* native_context);
-
-  // The size in bytes of the code required at a lazy deopt patch site.
-  static int patch_size();
 
   ~Deoptimizer();
 
@@ -551,9 +541,6 @@ class Deoptimizer : public Malloced {
 
   // Deoptimizes all code marked in the given context.
   static void DeoptimizeMarkedCodeForContext(Context* native_context);
-
-  // Patch the given code so that it will deoptimize itself.
-  static void PatchCodeForDeoptimization(Isolate* isolate, Code* code);
 
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than

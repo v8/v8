@@ -3559,9 +3559,8 @@ class DeoptimizationInputData: public FixedArray {
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
   static const int kTranslationIndexOffset = 1;
-  static const int kTrampolinePcOffset = 2;
-  static const int kPcOffset = 3;
-  static const int kDeoptEntrySize = 4;
+  static const int kPcOffset = 2;
+  static const int kDeoptEntrySize = 3;
 
   // Simple element accessors.
 #define DECL_ELEMENT_ACCESSORS(name, type) \
@@ -3587,7 +3586,6 @@ class DeoptimizationInputData: public FixedArray {
 
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
-  DECL_ENTRY_ACCESSORS(TrampolinePc, Smi)
   DECL_ENTRY_ACCESSORS(Pc, Smi)
 
 #undef DECL_ENTRY_ACCESSORS
@@ -3597,8 +3595,6 @@ class DeoptimizationInputData: public FixedArray {
   inline void SetBytecodeOffset(int i, BailoutId value);
 
   inline int DeoptCount();
-
-  int TrampolinePcToReturnPc(int pc_offset);
 
   static const int kNotInlinedIndex = -1;
 

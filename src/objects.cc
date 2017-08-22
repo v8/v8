@@ -14425,16 +14425,6 @@ void Code::PrintExtraICState(std::ostream& os,  // NOLINT
 
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
-int DeoptimizationInputData::TrampolinePcToReturnPc(int pc_offset) {
-  int deopt_total = DeoptCount();
-  for (int i = 0; i < deopt_total; i++) {
-    if (TrampolinePc(i)->value() == pc_offset) {
-      return Pc(i)->value();
-    }
-  }
-  return -1;
-}
-
 #ifdef ENABLE_DISASSEMBLER
 
 namespace {
@@ -14460,16 +14450,13 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
-    os << " index  bytecode-offset  trampoline_pc     pc";
+    os << " index  bytecode-offset    pc";
     if (FLAG_print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << BytecodeOffset(i).ToInt() << "  " << std::setw(13);
-
-    print_pc(os, TrampolinePc(i)->value());
-    os << std::setw(7);
+       << BytecodeOffset(i).ToInt() << "  " << std::setw(4);
     print_pc(os, Pc(i)->value());
     os << std::setw(2);
 
@@ -14493,7 +14480,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
     while (iterator.HasNext() &&
            Translation::BEGIN !=
            (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
-      os << std::setw(47) << "    " << Translation::StringFor(opcode) << " ";
+      os << std::setw(31) << "    " << Translation::StringFor(opcode) << " ";
 
       switch (opcode) {
         case Translation::BEGIN:
@@ -14792,7 +14779,10 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
-      os << std::setw(4) << std::hex << pc_offset << std::dec << "  ";
+      os << std::setw(6) << std::hex << pc_offset << "  " << std::setw(4);
+      int trampoline_pc = table.GetTrampolinePcOffset(i);
+      print_pc(os, trampoline_pc);
+      os << std::dec << "  ";
       table.PrintEntry(i, os);
       os << " (sp -> fp)  ";
       SafepointEntry entry = table.GetEntry(i);

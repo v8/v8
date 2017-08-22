@@ -48,6 +48,17 @@ SafepointTable::SafepointTable(Code* code) {
                 Safepoint::kNoDeoptimizationIndex);
 }
 
+unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
+  for (unsigned i = 0; i < length(); i++) {
+    if (GetTrampolinePcOffset(i) == static_cast<int>(pc_offset)) {
+      return GetPcOffset(i);
+    } else if (GetPcOffset(i) == pc_offset) {
+      return pc_offset;
+    }
+  }
+  UNREACHABLE();
+  return 0;
+}
 
 SafepointEntry SafepointTable::FindEntry(Address pc) const {
   unsigned pc_offset = static_cast<unsigned>(pc - code_->instruction_start());
@@ -58,7 +69,8 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   if (len == 1 && GetPcOffset(0) == kMaxUInt32) return GetEntry(0);
   for (unsigned i = 0; i < len; i++) {
     // TODO(kasperl): Replace the linear search with binary search.
-    if (GetPcOffset(i) == pc_offset || GetTrampolinePcOffset(i) == pc_offset) {
+    if (GetPcOffset(i) == pc_offset ||
+        GetTrampolinePcOffset(i) == static_cast<int>(pc_offset)) {
       return GetEntry(i);
     }
   }
@@ -143,19 +155,19 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
   return offset_;
 }
 
-void SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline) {
+int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
+                                                    int start) {
   int index = -1;
-  for (int i = 0; i < deoptimization_info_.length(); i++) {
+  for (int i = start; i < deoptimization_info_.length(); i++) {
     if (static_cast<int>(deoptimization_info_[i].pc) == pc) {
       index = i;
       break;
     }
   }
-  DCHECK(index >= 0);
+  CHECK(index >= 0);
   DCHECK(index < deoptimization_info_.length());
-  if (index >= 0) {
-    deoptimization_info_[index].trampoline = trampoline;
-  }
+  deoptimization_info_[index].trampoline = trampoline;
+  return index;
 }
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {

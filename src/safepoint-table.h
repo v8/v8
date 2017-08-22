@@ -102,10 +102,12 @@ class SafepointTable BASE_EMBEDDED {
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
-  unsigned GetTrampolinePcOffset(unsigned index) const {
+  int GetTrampolinePcOffset(unsigned index) const {
     DCHECK(index < length_);
     return Memory::int_at(GetTrampolineLocation(index));
   }
+
+  unsigned find_return_pc(unsigned pc_offset);
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
@@ -228,7 +230,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // trampoline field. Calling this function ensures that the safepoint
   // table contains the trampoline PC (trampoline} that replaced the
   // return PC {pc} on the stack.
-  void UpdateDeoptimizationInfo(int pc, int trampoline);
+  int UpdateDeoptimizationInfo(int pc, int trampoline, int start);
 
  private:
   struct DeoptimizationInfo {

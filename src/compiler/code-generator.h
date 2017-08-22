@@ -267,7 +267,6 @@ class CodeGenerator final : public GapResolver::Assembler {
                                              Translation* translation);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op, MachineType type);
-  void EnsureSpaceForLazyDeopt();
   void MarkLazyDeoptSite();
 
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
@@ -283,16 +282,13 @@ class CodeGenerator final : public GapResolver::Assembler {
           translation_id_(translation_id),
           pc_offset_(pc_offset),
           kind_(kind),
-          reason_(reason),
-          trampoline_pc_(-1) {}
+          reason_(reason) {}
 
     BailoutId bailout_id() const { return bailout_id_; }
     int translation_id() const { return translation_id_; }
     int pc_offset() const { return pc_offset_; }
     DeoptimizeKind kind() const { return kind_; }
     DeoptimizeReason reason() const { return reason_; }
-    int trampoline_pc() { return trampoline_pc_; }
-    void set_trampoline_pc(int t_pc) { trampoline_pc_ = t_pc; }
 
    private:
     BailoutId bailout_id_;
@@ -300,7 +296,6 @@ class CodeGenerator final : public GapResolver::Assembler {
     int pc_offset_;
     DeoptimizeKind kind_;
     DeoptimizeReason reason_;
-    int trampoline_pc_;
   };
 
   struct HandlerInfo {

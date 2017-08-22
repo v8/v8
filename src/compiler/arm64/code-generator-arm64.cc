@@ -670,7 +670,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       internal::Assembler::BlockCodeTargetSharingScope scope;
       if (info()->IsWasm()) scope.Open(tasm());
 
-      EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
@@ -727,7 +726,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -2791,29 +2789,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   UNREACHABLE();
 }
 
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
-    return;
-  }
-
-  int space_needed = Deoptimizer::patch_size();
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  intptr_t current_pc = tasm()->pc_offset();
-
-  if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
-    intptr_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    DCHECK((padding_size % kInstructionSize) == 0);
-    InstructionAccurateScope instruction_accurate(
-        tasm(), padding_size / kInstructionSize);
-
-    while (padding_size > 0) {
-      __ nop();
-      padding_size -= kInstructionSize;
-    }
-  }
-}
 
 #undef __
 
