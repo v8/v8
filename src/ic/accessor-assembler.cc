@@ -1083,7 +1083,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   BIND(&if_property_array);
   {
     Node* length_and_hash_int32 = LoadAndUntagToWord32ObjectField(
-        var_properties.value(), PropertyArray::kLengthAndHashOffset);
+        var_properties.value(), PropertyArray::kLengthOffset);
     var_hash.Bind(Word32And(length_and_hash_int32,
                             Int32Constant(PropertyArray::kHashMask)));
     Node* length_intptr = ChangeInt32ToIntPtr(Word32And(
@@ -1134,7 +1134,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
         TruncateWordToWord32(ParameterToWord(new_capacity, mode));
     Node* new_length_and_hash_int32 =
         Word32Or(var_hash.value(), new_capacity_int32);
-    StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,
+    StoreObjectField(new_properties, PropertyArray::kLengthOffset,
                      SmiFromWord32(new_length_and_hash_int32));
     StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
     Comment("] Extend storage");

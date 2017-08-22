@@ -1947,8 +1947,9 @@ class PropertyArray : public HeapObject {
   DECL_VERIFIER(PropertyArray)
 
   // Layout description.
-  static const int kLengthAndHashOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthAndHashOffset + kPointerSize;
+  // TODO(gsathya): Rename kLengthOffset to kLengthAndHashOffset.
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
 
   // Garbage collection support.
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
