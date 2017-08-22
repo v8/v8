@@ -88,9 +88,9 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    List<AccessorInfo*>* accessor_infos) {
+    const std::vector<AccessorInfo*>& accessor_infos) {
   // Restore wiped accessor infos.
-  for (AccessorInfo* info : *accessor_infos) {
+  for (AccessorInfo* info : accessor_infos) {
     Foreign::cast(info->js_getter())
         ->set_foreign_address(info->redirected_getter());
   }

@@ -88,7 +88,8 @@ class SerializerDeserializer : public RootVisitor {
  protected:
   static bool CanBeDeferred(HeapObject* o);
 
-  void RestoreExternalReferenceRedirectors(List<AccessorInfo*>* accessor_infos);
+  void RestoreExternalReferenceRedirectors(
+      const std::vector<AccessorInfo*>& accessor_infos);
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.

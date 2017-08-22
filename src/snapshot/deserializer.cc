@@ -35,7 +35,7 @@ void Deserializer::DecodeReservation(
 
 void Deserializer::RegisterDeserializedObjectsForBlackAllocation() {
   isolate_->heap()->RegisterDeserializedObjectsForBlackAllocation(
-      reservations_, &deserialized_large_objects_, &allocated_maps_);
+      reservations_, deserialized_large_objects_, allocated_maps_);
 }
 
 bool Deserializer::ReserveSpace() {
@@ -44,7 +44,7 @@ bool Deserializer::ReserveSpace() {
     CHECK(reservations_[i].size() > 0);
   }
 #endif  // DEBUG
-  DCHECK(allocated_maps_.is_empty());
+  DCHECK(allocated_maps_.empty());
   if (!isolate_->heap()->ReserveSpace(reservations_, &allocated_maps_))
     return false;
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
@@ -87,7 +87,7 @@ Deserializer::~Deserializer() {
     CHECK_EQ(reservations_[space].size(), chunk_index + 1);
     CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
   }
-  CHECK_EQ(allocated_maps_.length(), next_map_index_);
+  CHECK_EQ(allocated_maps_.size(), next_map_index_);
 #endif  // DEBUG
 }
 
@@ -165,7 +165,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         StringTableInsertionKey key(string);
         String* canonical = StringTable::LookupKeyIfExists(isolate_, &key);
         if (canonical == NULL) {
-          new_internalized_strings_.Add(handle(string));
+          new_internalized_strings_.push_back(handle(string));
           return string;
         } else {
           string->SetForwardedInternalizedString(canonical);
@@ -173,7 +173,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         }
       }
     } else if (obj->IsScript()) {
-      new_scripts_.Add(handle(Script::cast(obj)));
+      new_scripts_.push_back(handle(Script::cast(obj)));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
@@ -196,11 +196,11 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     // case, we only need to remember code objects in the large object space.
     // When deserializing user code, remember each individual code object.
     if (deserializing_user_code() || space == LO_SPACE) {
-      new_code_objects_.Add(Code::cast(obj));
+      new_code_objects_.push_back(Code::cast(obj));
     }
   } else if (obj->IsAccessorInfo()) {
     if (isolate_->external_reference_redirector()) {
-      accessor_infos_.Add(AccessorInfo::cast(obj));
+      accessor_infos_.push_back(AccessorInfo::cast(obj));
     }
   } else if (obj->IsExternalOneByteString()) {
     DCHECK(obj->map() == isolate_->heap()->native_source_string_map());
@@ -238,7 +238,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       string->set_hash_field(String::kEmptyHashField);
     } else if (obj->IsTransitionArray() &&
                TransitionArray::cast(obj)->number_of_entries() > 1) {
-      transition_arrays_.Add(TransitionArray::cast(obj));
+      transition_arrays_.push_back(TransitionArray::cast(obj));
     }
   }
   // Check alignment.
@@ -345,7 +345,7 @@ Address Deserializer::Allocate(int space_index, int size) {
     Executability exec = static_cast<Executability>(source_.Get());
     AllocationResult result = lo_space->AllocateRaw(size, exec);
     HeapObject* obj = result.ToObjectChecked();
-    deserialized_large_objects_.Add(obj);
+    deserialized_large_objects_.push_back(obj);
     return obj->address();
   } else if (space_index == MAP_SPACE) {
     DCHECK_EQ(Map::kSize, size);

@@ -78,7 +78,7 @@ class StartupSerializer : public Serializer {
   bool serializing_immortal_immovables_roots_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
-  List<AccessorInfo*> accessor_infos_;
+  std::vector<AccessorInfo*> accessor_infos_;
   // Indicates whether we only serialized hash tables that we can rehash.
   // TODO(yangguo): generalize rehashing, and remove this flag.
   bool can_be_rehashed_;

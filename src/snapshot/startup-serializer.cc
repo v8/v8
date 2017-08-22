@@ -22,7 +22,7 @@ StartupSerializer::StartupSerializer(
 }
 
 StartupSerializer::~StartupSerializer() {
-  RestoreExternalReferenceRedirectors(&accessor_infos_);
+  RestoreExternalReferenceRedirectors(accessor_infos_);
   OutputStatistics("StartupSerializer");
 }
 
@@ -72,7 +72,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     AccessorInfo* info = AccessorInfo::cast(obj);
     Address original_address = Foreign::cast(info->getter())->foreign_address();
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
-    accessor_infos_.Add(info);
+    accessor_infos_.push_back(info);
   } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
     Script::cast(obj)->set_context_data(
         isolate_->heap()->uninitialized_symbol());

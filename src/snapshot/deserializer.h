@@ -35,7 +35,7 @@ class Deserializer : public SerializerDeserializer {
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
   void AddAttachedObject(Handle<HeapObject> attached_object) {
-    attached_objects_.Add(attached_object);
+    attached_objects_.push_back(attached_object);
   }
 
   void SetRehashability(bool v) { can_rehash_ = v; }
@@ -74,13 +74,21 @@ class Deserializer : public SerializerDeserializer {
 
   Isolate* isolate() const { return isolate_; }
   SnapshotByteSource* source() { return &source_; }
-  List<Code*>& new_code_objects() { return new_code_objects_; }
-  List<AccessorInfo*>* accessor_infos() { return &accessor_infos_; }
-  List<Handle<String>>& new_internalized_strings() {
+  const std::vector<Code*>& new_code_objects() const {
+    return new_code_objects_;
+  }
+  const std::vector<AccessorInfo*>& accessor_infos() const {
+    return accessor_infos_;
+  }
+  const std::vector<Handle<String>>& new_internalized_strings() const {
     return new_internalized_strings_;
   }
-  List<Handle<Script>>& new_scripts() { return new_scripts_; }
-  List<TransitionArray*>& transition_arrays() { return transition_arrays_; }
+  const std::vector<Handle<Script>>& new_scripts() const {
+    return new_scripts_;
+  }
+  const std::vector<TransitionArray*>& transition_arrays() const {
+    return transition_arrays_;
+  }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
@@ -128,7 +136,7 @@ class Deserializer : public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  List<Handle<HeapObject>> attached_objects_;
+  std::vector<Handle<HeapObject>> attached_objects_;
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
@@ -142,16 +150,16 @@ class Deserializer : public SerializerDeserializer {
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
   int next_map_index_;
-  List<Address> allocated_maps_;
+  std::vector<Address> allocated_maps_;
 
   ExternalReferenceTable* external_reference_table_;
 
-  List<HeapObject*> deserialized_large_objects_;
-  List<Code*> new_code_objects_;
-  List<AccessorInfo*> accessor_infos_;
-  List<Handle<String>> new_internalized_strings_;
-  List<Handle<Script>> new_scripts_;
-  List<TransitionArray*> transition_arrays_;
+  std::vector<HeapObject*> deserialized_large_objects_;
+  std::vector<Code*> new_code_objects_;
+  std::vector<AccessorInfo*> accessor_infos_;
+  std::vector<Handle<String>> new_internalized_strings_;
+  std::vector<Handle<Script>> new_scripts_;
+  std::vector<TransitionArray*> transition_arrays_;
   std::vector<byte*> off_heap_backing_stores_;
 
   const bool deserializing_user_code_;

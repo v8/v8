@@ -1324,7 +1324,7 @@ static void VerifyStringTable(Heap* heap) {
 }
 #endif  // VERIFY_HEAP
 
-bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
+bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
@@ -1338,7 +1338,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
       bool perform_gc = false;
       if (space == MAP_SPACE) {
         // We allocate each map individually to avoid fragmentation.
-        maps->Clear();
+        maps->clear();
         DCHECK_EQ(1, reservation->size());
         int num_maps = reservation->at(0).size / Map::kSize;
         for (int i = 0; i < num_maps; i++) {
@@ -1352,7 +1352,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, Map::kSize,
                                  ClearRecordedSlots::kNo);
-            maps->Add(free_space_address);
+            maps->push_back(free_space_address);
           } else {
             perform_gc = true;
             break;
@@ -4537,8 +4537,8 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
 }
 
 void Heap::RegisterDeserializedObjectsForBlackAllocation(
-    Reservation* reservations, List<HeapObject*>* large_objects,
-    List<Address>* maps) {
+    Reservation* reservations, const std::vector<HeapObject*>& large_objects,
+    const std::vector<Address>& maps) {
   // TODO(ulan): pause black allocation during deserialization to avoid
   // iterating all these objects in one go.
 
@@ -4568,12 +4568,12 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 
   // Large object space doesn't use reservations, so it needs custom handling.
-  for (HeapObject* object : *large_objects) {
+  for (HeapObject* object : large_objects) {
     incremental_marking()->ProcessBlackAllocatedObject(object);
   }
 
   // Map space doesn't use reservations, so it needs custom handling.
-  for (Address addr : *maps) {
+  for (Address addr : maps) {
     incremental_marking()->ProcessBlackAllocatedObject(
         HeapObject::FromAddress(addr));
   }

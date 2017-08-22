@@ -99,8 +99,9 @@ void ObjectDeserializer::
 }
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
+  CHECK(new_internalized_strings().size() <= kMaxInt);
   StringTable::EnsureCapacityForDeserialization(
-      isolate(), new_internalized_strings().length());
+      isolate(), static_cast<int>(new_internalized_strings().size()));
   for (Handle<String> string : new_internalized_strings()) {
     StringTableInsertionKey key(*string);
     DCHECK_NULL(StringTable::LookupKeyIfExists(isolate(), &key));

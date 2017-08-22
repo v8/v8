@@ -776,7 +776,7 @@ class Heap {
   inline AllocationMemento* FindAllocationMemento(Map* map, HeapObject* object);
 
   // Returns false if not able to reserve.
-  bool ReserveSpace(Reservation* reservations, List<Address>* maps);
+  bool ReserveSpace(Reservation* reservations, std::vector<Address>* maps);
 
   //
   // Support for the API.
@@ -1177,8 +1177,8 @@ class Heap {
   void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
 
   void RegisterDeserializedObjectsForBlackAllocation(
-      Reservation* reservations, List<HeapObject*>* large_objects,
-      List<Address>* maps);
+      Reservation* reservations, const std::vector<HeapObject*>& large_objects,
+      const std::vector<Address>& maps);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
