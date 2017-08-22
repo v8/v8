@@ -513,6 +513,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
   F(GetSubstitution, 5, 1)                \
   F(StringReplaceOneCharWithString, 3, 1) \
+  F(StringIncludes, 3, 1)                 \
   F(StringIndexOf, 3, 1)                  \
   F(StringIndexOfUnchecked, 3, 1)         \
   F(StringLastIndexOf, 2, 1)              \

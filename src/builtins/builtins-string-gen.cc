@@ -769,9 +769,8 @@ TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
 }
 
 void StringBuiltinsAssembler::StringIndexOf(
-    Node* const subject_string, Node* const subject_instance_type,
-    Node* const search_string, Node* const search_instance_type,
-    Node* const position, std::function<void(Node*)> f_return) {
+    Node* const subject_string, Node* const search_string, Node* const position,
+    std::function<void(Node*)> f_return) {
   CSA_ASSERT(this, IsString(subject_string));
   CSA_ASSERT(this, IsString(search_string));
   CSA_ASSERT(this, TaggedIsSmi(position));
@@ -949,84 +948,89 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* search_string = Parameter(Descriptor::kSearchString);
   Node* position = Parameter(Descriptor::kPosition);
-
-  Node* instance_type = LoadInstanceType(receiver);
-  Node* search_string_instance_type = LoadInstanceType(search_string);
-
-  StringIndexOf(receiver, instance_type, search_string,
-                search_string_instance_type, position,
+  StringIndexOf(receiver, search_string, position,
                 [this](Node* result) { this->Return(result); });
+}
+
+// ES6 String.prototype.includes(searchString [, position])
+// #sec-string.prototype.includes
+TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
+  Generate(kIncludes);
 }
 
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
-TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
-  VARIABLE(search_string, MachineRepresentation::kTagged);
-  VARIABLE(position, MachineRepresentation::kTagged);
-  Label call_runtime(this), call_runtime_unchecked(this), argc_0(this),
-      no_argc_0(this), argc_1(this), no_argc_1(this), argc_2(this),
-      fast_path(this), return_minus_1(this);
+TF_BUILTIN(StringPrototypeIndexOf, StringIncludesIndexOfAssembler) {
+  Generate(kIndexOf);
+}
 
+void StringIncludesIndexOfAssembler::Generate(SearchVariant variant) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
-  Node* receiver = arguments.GetReceiver();
+  Node* const receiver = arguments.GetReceiver();
   // From now on use word-size argc value.
   argc = arguments.GetLength();
 
-  GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &argc_0);
+  VARIABLE(var_search_string, MachineRepresentation::kTagged);
+  VARIABLE(var_position, MachineRepresentation::kTagged);
+  Label argc_1(this), argc_2(this), call_runtime(this, Label::kDeferred),
+      fast_path(this);
+
   GotoIf(IntPtrEqual(argc, IntPtrConstant(1)), &argc_1);
-  Goto(&argc_2);
-  BIND(&argc_0);
+  GotoIf(IntPtrGreaterThan(argc, IntPtrConstant(1)), &argc_2);
   {
     Comment("0 Argument case");
-    Node* undefined = UndefinedConstant();
-    search_string.Bind(undefined);
-    position.Bind(undefined);
+    CSA_ASSERT(this, IntPtrEqual(argc, IntPtrConstant(0)));
+    Node* const undefined = UndefinedConstant();
+    var_search_string.Bind(undefined);
+    var_position.Bind(undefined);
     Goto(&call_runtime);
   }
   BIND(&argc_1);
   {
     Comment("1 Argument case");
-    search_string.Bind(arguments.AtIndex(0));
-    position.Bind(SmiConstant(0));
+    var_search_string.Bind(arguments.AtIndex(0));
+    var_position.Bind(SmiConstant(0));
     Goto(&fast_path);
   }
   BIND(&argc_2);
   {
     Comment("2 Argument case");
-    search_string.Bind(arguments.AtIndex(0));
-    position.Bind(arguments.AtIndex(1));
-    GotoIfNot(TaggedIsSmi(position.value()), &call_runtime);
+    var_search_string.Bind(arguments.AtIndex(0));
+    var_position.Bind(arguments.AtIndex(1));
+    GotoIfNot(TaggedIsSmi(var_position.value()), &call_runtime);
     Goto(&fast_path);
   }
-
   BIND(&fast_path);
   {
     Comment("Fast Path");
+    Node* const search = var_search_string.value();
+    Node* const position = var_position.value();
     GotoIf(TaggedIsSmi(receiver), &call_runtime);
-    Node* needle = search_string.value();
-    GotoIf(TaggedIsSmi(needle), &call_runtime);
+    GotoIf(TaggedIsSmi(search), &call_runtime);
+    GotoIfNot(IsString(receiver), &call_runtime);
+    GotoIfNot(IsString(search), &call_runtime);
 
-    Node* instance_type = LoadInstanceType(receiver);
-    GotoIfNot(IsStringInstanceType(instance_type), &call_runtime);
-
-    Node* needle_instance_type = LoadInstanceType(needle);
-    GotoIfNot(IsStringInstanceType(needle_instance_type), &call_runtime);
-
-    StringIndexOf(
-        receiver, instance_type, needle, needle_instance_type, position.value(),
-        [&arguments](Node* result) { arguments.PopAndReturn(result); });
+    StringIndexOf(receiver, search, position, [&](Node* result) {
+      CSA_ASSERT(this, TaggedIsSmi(result));
+      arguments.PopAndReturn((variant == kIndexOf)
+                                 ? result
+                                 : SelectBooleanConstant(SmiGreaterThanOrEqual(
+                                       result, SmiConstant(0))));
+    });
   }
-
   BIND(&call_runtime);
   {
     Comment("Call Runtime");
-    Node* result = CallRuntime(Runtime::kStringIndexOf, context, receiver,
-                               search_string.value(), position.value());
+    Runtime::FunctionId runtime = variant == kIndexOf
+                                      ? Runtime::kStringIndexOf
+                                      : Runtime::kStringIncludes;
+    Node* const result =
+        CallRuntime(runtime, context, receiver, var_search_string.value(),
+                    var_position.value());
     arguments.PopAndReturn(result);
   }
 }

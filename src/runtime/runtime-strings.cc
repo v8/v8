@@ -9,6 +9,7 @@
 #include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/regexp/jsregexp-inl.h"
+#include "src/regexp/regexp-utils.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 
@@ -134,6 +135,49 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
   // In case of empty handle and no pending exception we have stack overflow.
   return isolate->StackOverflow();
+}
+
+// ES6 #sec-string.prototype.includes
+// String.prototype.includes(searchString [, position])
+RUNTIME_FUNCTION(Runtime_StringIncludes) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  Handle<Object> receiver = args.at(0);
+  if (receiver->IsNullOrUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "String.prototype.includes")));
+  }
+  Handle<String> receiver_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver_string,
+                                     Object::ToString(isolate, receiver));
+
+  // Check if the search string is a regExp and fail if it is.
+  Handle<Object> search = args.at(1);
+  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
+  if (is_reg_exp.IsNothing()) {
+    DCHECK(isolate->has_pending_exception());
+    return isolate->heap()->exception();
+  }
+  if (is_reg_exp.FromJust()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "String.prototype.includes")));
+  }
+  Handle<String> search_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
+                                     Object::ToString(isolate, args.at(1)));
+  Handle<Object> position;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
+                                     Object::ToInteger(isolate, args.at(2)));
+
+  uint32_t index = receiver_string->ToValidIndex(*position);
+  int index_in_str =
+      String::IndexOf(isolate, receiver_string, search_string, index);
+  return *isolate->factory()->ToBoolean(index_in_str != -1);
 }
 
 // ES6 #sec-string.prototype.indexof

@@ -172,38 +172,6 @@ BUILTIN(StringPrototypeEndsWith) {
   return isolate->heap()->true_value();
 }
 
-// ES6 section 21.1.3.7
-// String.prototype.includes ( searchString [ , position ] )
-BUILTIN(StringPrototypeIncludes) {
-  HandleScope handle_scope(isolate);
-  TO_THIS_STRING(str, "String.prototype.includes");
-
-  // Check if the search string is a regExp and fail if it is.
-  Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
-  if (is_reg_exp.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
-  }
-  if (is_reg_exp.FromJust()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "String.prototype.includes")));
-  }
-  Handle<String> search_string;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
-                                     Object::ToString(isolate, search));
-  Handle<Object> position;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, position,
-      Object::ToInteger(isolate, args.atOrUndefined(isolate, 2)));
-
-  uint32_t index = str->ToValidIndex(*position);
-  int index_in_str = String::IndexOf(isolate, str, search_string, index);
-  return *isolate->factory()->ToBoolean(index_in_str != -1);
-}
-
 // ES6 section 21.1.3.9
 // String.prototype.lastIndexOf ( searchString [ , position ] )
 BUILTIN(StringPrototypeLastIndexOf) {

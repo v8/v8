@@ -300,6 +300,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* Strings */                      \
   V(StringCharCodeAt)                \
   V(StringIndexOf)                   \
+  V(StringIncludes)                  \
   V(StringReplaceOneCharWithString)  \
   V(SubString)                       \
   V(RegExpInternalReplace)           \
