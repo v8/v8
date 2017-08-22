@@ -1607,6 +1607,90 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   __ JumpToJSEntry(ip);
 }
 
+static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
+  // For now, we are relying on the fact that make_code_young doesn't do any
+  // garbage collection which allows us to save/restore the registers without
+  // worrying about which of them contain pointers. We also don't build an
+  // internal frame to make the code faster, since we shouldn't have to do stack
+  // crawls in MakeCodeYoung. This seems a bit fragile.
+
+  // Point r2 at the start of the PlatformCodeAge sequence.
+  __ CleanseP(r14);
+  __ SubP(r14, Operand(kCodeAgingSequenceLength));
+  __ LoadRR(r2, r14);
+
+  __ pop(r14);
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   r2 - contains return address (beginning of patch sequence)
+  //   r3 - isolate
+  //   r5 - new target
+  //   lr - return address
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ MultiPush(r14.bit() | r2.bit() | r3.bit() | r5.bit() | fp.bit());
+  __ PrepareCallCFunction(2, 0, r4);
+  __ mov(r3, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(
+      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+  __ MultiPop(r14.bit() | r2.bit() | r3.bit() | r5.bit() | fp.bit());
+  __ LoadRR(ip, r2);
+  __ Jump(ip);
+}
+
+#define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                              \
+  void Builtins::Generate_Make##C##CodeYoungAgain(MacroAssembler* masm) { \
+    GenerateMakeCodeYoungAgainCommon(masm);                               \
+  }
+CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
+#undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
+
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, we are relying on the fact that make_code_young doesn't do any
+  // garbage collection which allows us to save/restore the registers without
+  // worrying about which of them contain pointers. We also don't build an
+  // internal frame to make the code faster, since we shouldn't have to do stack
+  // crawls in MakeCodeYoung. This seems a bit fragile.
+
+  // Point r2 at the start of the PlatformCodeAge sequence.
+  __ CleanseP(r14);
+  __ SubP(r14, Operand(kCodeAgingSequenceLength));
+  __ LoadRR(r2, r14);
+
+  __ pop(r14);
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   r2 - contains return address (beginning of patch sequence)
+  //   r3 - isolate
+  //   r5 - new target
+  //   lr - return address
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ MultiPush(r14.bit() | r2.bit() | r3.bit() | r5.bit() | fp.bit());
+  __ PrepareCallCFunction(2, 0, r4);
+  __ mov(r3, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(
+      ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
+      2);
+  __ MultiPop(r14.bit() | r2.bit() | r3.bit() | r5.bit() | fp.bit());
+  __ LoadRR(ip, r2);
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ PushStandardFrame(r3);
+
+  // Jump to point after the code-age stub.
+  __ AddP(r2, ip, Operand(kNoCodeAgeSequenceLength));
+  __ Jump(r2);
+}
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
+
+void Builtins::Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm) {
+  Generate_MarkCodeAsExecutedOnce(masm);
+}
+
 void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);

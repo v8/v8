@@ -5143,6 +5143,16 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
+  void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) override {
+    Object* target = rinfo->code_age_stub();
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(
+          InTypedSet(CODE_TARGET_SLOT, rinfo->pc()) ||
+          (rinfo->IsInConstantPool() &&
+           InTypedSet(CODE_ENTRY_SLOT, rinfo->constant_pool_entry_address())));
+    }
+  }
+
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     Object* target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, target)) {
@@ -6798,6 +6808,14 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
     *object_sub_type = #name;                          \
     return true;
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
+#undef COMPARE_AND_RETURN_NAME
+#define COMPARE_AND_RETURN_NAME(name)                                  \
+  case ObjectStats::FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - \
+      Code::kFirstCodeAge:                                             \
+    *object_type = "CODE_TYPE";                                        \
+    *object_sub_type = "CODE_AGE/" #name;                              \
+    return true;
+    CODE_AGE_LIST_COMPLETE(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
   }
   return false;

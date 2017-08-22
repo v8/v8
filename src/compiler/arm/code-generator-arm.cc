@@ -2728,7 +2728,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Push(lr, fp);
       __ mov(fp, sp);
     } else if (descriptor->IsJSFunctionCall()) {
-      __ Prologue();
+      __ Prologue(this->info()->GeneratePreagedPrologue());
       if (descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
@@ -2736,7 +2736,9 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
 
-    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
+    if (!info()->GeneratePreagedPrologue()) {
+      unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
+    }
   }
 
   int shrink_slots =

@@ -4777,14 +4777,20 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
       !serializer_enabled() && !emit_debug_code()) {
     return;
+  } else if (rmode == RelocInfo::CODE_AGE_SEQUENCE) {
+    // Don't record pseudo relocation info for code age sequence mode.
+    return;
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 
+
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-                                  1 << RelocInfo::RUNTIME_ENTRY |
-                                  1 << RelocInfo::INTERNAL_REFERENCE;
+    1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::INTERNAL_REFERENCE |
+    1 << RelocInfo::CODE_AGE_SEQUENCE;
+
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being

@@ -51,6 +51,7 @@ class BasicBlockProfiler;
 class Bootstrapper;
 class CallInterfaceDescriptorData;
 class CancelableTaskManager;
+class CodeAgingHelper;
 class CodeEventDispatcher;
 class CodeGenerator;
 class CodeRange;
@@ -901,6 +902,7 @@ class Isolate {
   Heap* heap() { return &heap_; }
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
+  CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
   void set_deoptimizer_lazy_throw(bool value) {
@@ -1455,6 +1457,7 @@ class Isolate {
   StackGuard stack_guard_;
   StubCache* load_stub_cache_;
   StubCache* store_stub_cache_;
+  CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
   bool deoptimizer_lazy_throw_;
   MaterializedObjectStore* materialized_object_store_;

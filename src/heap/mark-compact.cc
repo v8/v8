@@ -1487,6 +1487,14 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 
+  inline void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) override {
+    DCHECK_EQ(host, rinfo->host());
+    DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+    Code* stub = rinfo->code_age_stub();
+    USE(stub);
+    DCHECK(!Page::FromAddress(stub->address())->IsEvacuationCandidate());
+  }
+
   // Entries that are skipped for recording.
   inline void VisitExternalReference(Code* host, RelocInfo* rinfo) final {}
   inline void VisitExternalReference(Foreign* host, Address* p) final {}
@@ -1571,6 +1579,9 @@ class YoungGenerationRecordMigratedSlotVisitor final
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final {
+    UNREACHABLE();
+  }
+  void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) final {
     UNREACHABLE();
   }
 

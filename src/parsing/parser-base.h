@@ -4245,6 +4245,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   // handling in Scope::ResolveVariable needs to change.
   bool is_lazy_top_level_function =
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  bool should_be_used_once_hint = false;
   bool has_braces = true;
   ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
   {
@@ -4339,6 +4340,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());
+  if (should_be_used_once_hint) {
+    function_literal->set_should_be_used_once_hint();
+  }
 
   impl()->AddFunctionForNameInference(function_literal);
 

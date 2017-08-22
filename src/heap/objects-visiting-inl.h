@@ -287,6 +287,9 @@ int MarkingVisitor<ConcreteVisitor>::VisitBytecodeArray(Map* map,
 
 template <typename ConcreteVisitor>
 int MarkingVisitor<ConcreteVisitor>::VisitCode(Map* map, Code* code) {
+  if (FLAG_age_code && !heap_->isolate()->serializer_enabled()) {
+    code->MakeOlder();
+  }
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   int size = Code::BodyDescriptor::SizeOf(map, code);
   Code::BodyDescriptor::IterateBody(code, size, visitor);
@@ -387,6 +390,17 @@ void MarkingVisitor<ConcreteVisitor>::VisitCodeTarget(Code* host,
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  collector_->RecordRelocSlot(host, rinfo, target);
+  visitor->MarkObject(host, target);
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitor<ConcreteVisitor>::VisitCodeAgeSequence(Code* host,
+                                                           RelocInfo* rinfo) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+  Code* target = rinfo->code_age_stub();
+  DCHECK_NOT_NULL(target);
   collector_->RecordRelocSlot(host, rinfo, target);
   visitor->MarkObject(host, target);
 }

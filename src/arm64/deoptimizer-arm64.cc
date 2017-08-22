@@ -36,9 +36,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   code->InvalidateRelocation();
 
   // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
+
   {
-    PatchingAssembler patcher(Assembler::IsolateData(isolate),
-                              code_start_address, 1);
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
     patcher.brk(0);
   }
 
