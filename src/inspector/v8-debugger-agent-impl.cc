@@ -335,6 +335,11 @@ void V8DebuggerAgentImpl::enableImpl() {
 
   m_breakpointsActive = true;
   m_debugger->setBreakpointsActive(true);
+
+  if (isPaused()) {
+    didPause(0, v8::Local<v8::Value>(), std::vector<v8::debug::BreakpointId>(),
+             false, false, false, false);
+  }
 }
 
 Response V8DebuggerAgentImpl::enable() {

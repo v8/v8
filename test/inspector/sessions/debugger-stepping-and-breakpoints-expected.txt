@@ -1,4 +1,20 @@
 Tests how multiple sessions interact while pausing, stepping, setting breakpoints and blackboxing.
+Connecting session 1
+Pausing in 1
+Paused in 1:
+  reason: other
+  hit breakpoints: 
+  location: <anonymous>@0
+  data: null
+Connecting session 2
+Paused in 2:
+  reason: other
+  hit breakpoints: 
+  location: <anonymous>@0
+  data: null
+Resuming in 2
+Resumed in 1
+Resumed in 2
 Setting breakpoints in 1
 Setting breakpoints in 2
 Evaluating common breakpoint in 1
