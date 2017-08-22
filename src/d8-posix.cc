@@ -4,10 +4,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/ip.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -747,6 +749,107 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   unsetenv(*var);
 }
 
+char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
+  DCHECK_GE(Shell::options.read_from_tcp_port, 0);
+
+  int sockfd = socket(PF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) {
+    fprintf(stderr, "Failed to create IPv4 socket\n");
+    return nullptr;
+  }
+
+  // Create an address for localhost:PORT where PORT is specified by the shell
+  // option --read-from-tcp-port.
+  sockaddr_in serv_addr;
+  memset(&serv_addr, 0, sizeof(sockaddr_in));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  serv_addr.sin_port = htons(Shell::options.read_from_tcp_port);
+
+  if (connect(sockfd, reinterpret_cast<sockaddr*>(&serv_addr),
+              sizeof(serv_addr)) < 0) {
+    fprintf(stderr, "Failed to connect to localhost:%d\n",
+            Shell::options.read_from_tcp_port);
+    close(sockfd);
+    return nullptr;
+  }
+
+  // The file server follows the simple protocol for requesting and receiving
+  // a file with a given filename:
+  //
+  //   REQUEST client -> server: {filename}"\0"
+  //   RESPONSE server -> client: {4-byte file-length}{file contents}
+  //
+  // i.e. the request sends the filename with a null terminator, and response
+  // sends the file contents by sending the length (as a 4-byte big-endian
+  // value) and the contents.
+
+  // If the file length is <0, there was an error sending the file, and the
+  // rest of the response is undefined (and may, in the future, contain an error
+  // message). The socket should be closed to avoid trying to interpret the
+  // undefined data.
+
+  // REQUEST
+  // Send the filename.
+  size_t sent_len = 0;
+  size_t name_len = strlen(name) + 1;  // Includes the null terminator
+  while (sent_len < name_len) {
+    ssize_t sent_now = send(sockfd, name + sent_len, name_len - sent_len, 0);
+    if (sent_now < 0) {
+      fprintf(stderr, "Failed to send %s to localhost:%d\n", name,
+              Shell::options.read_from_tcp_port);
+      close(sockfd);
+      return nullptr;
+    }
+    sent_len += sent_now;
+  }
+
+  // RESPONSE
+  // Receive the file.
+  ssize_t received = 0;
+
+  // First, read the (zero-terminated) file length.
+  uint32_t big_endian_file_length;
+  received = recv(sockfd, &big_endian_file_length, 4, 0);
+  // We need those 4 bytes to read off the file length.
+  if (received < 4) {
+    fprintf(stderr, "Failed to receive %s's length from localhost:%d\n", name,
+            Shell::options.read_from_tcp_port);
+    close(sockfd);
+    return nullptr;
+  }
+  // Reinterpretet the received file length as a signed big-endian integer.
+  int32_t file_length = bit_cast<int32_t>(htonl(big_endian_file_length));
+
+  if (file_length < 0) {
+    fprintf(stderr, "Received length %d for %s from localhost:%d\n",
+            file_length, name, Shell::options.read_from_tcp_port);
+    close(sockfd);
+    return NULL;
+  }
+
+  // Allocate the output array.
+  char* chars = new char[file_length];
+
+  // Now keep receiving and copying until the whole file is received.
+  ssize_t total_received = 0;
+  while (total_received < file_length) {
+    received =
+        recv(sockfd, chars + total_received, file_length - total_received, 0);
+    if (received < 0) {
+      fprintf(stderr, "Failed to receive %s from localhost:%d\n", name,
+              Shell::options.read_from_tcp_port);
+      close(sockfd);
+      delete[] chars;
+      return NULL;
+    }
+    total_received += received;
+  }
+
+  close(sockfd);
+  *size_out = file_length;
+  return chars;
+}
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
   if (options.enable_os_system) {
