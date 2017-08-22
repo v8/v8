@@ -345,16 +345,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   Bytecode bytecode_;
   OperandScale operand_scale_;
-  CodeStubAssembler::Variable bytecode_offset_;
   CodeStubAssembler::Variable interpreted_frame_pointer_;
   CodeStubAssembler::Variable bytecode_array_;
-  bool bytecode_array_valid_;
+  CodeStubAssembler::Variable bytecode_offset_;
   CodeStubAssembler::Variable dispatch_table_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
   bool made_call_;
   bool reloaded_frame_ptr_;
-  bool saved_bytecode_offset_;
+  bool bytecode_array_valid_;
 
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;

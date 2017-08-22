@@ -1889,16 +1889,18 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   { #name, __FILE__, __LINE__ }
 #define BIND(label) Bind(label, CSA_DEBUG_INFO(label))
 #define VARIABLE(name, ...) \
-  Variable name(this, CSA_DEBUG_INFO(name), __VA_ARGS__);
+  Variable name(this, CSA_DEBUG_INFO(name), __VA_ARGS__)
+#define VARIABLE_CONSTRUCTOR(name, ...) \
+  name(this, CSA_DEBUG_INFO(name), __VA_ARGS__)
 #define TYPED_VARIABLE_DEF(type, name, ...) \
-  TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__);
-
+  TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #else  // DEBUG
 #define CSA_ASSERT(csa, ...) ((void)0)
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
-#define BIND(label) Bind(label);
-#define VARIABLE(name, ...) Variable name(this, __VA_ARGS__);
-#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__);
+#define BIND(label) Bind(label)
+#define VARIABLE(name, ...) Variable name(this, __VA_ARGS__)
+#define VARIABLE_CONSTRUCTOR(name, ...) name(this, __VA_ARGS__)
+#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__)
 #endif  // DEBUG
 
 #define TVARIABLE(...) EXPAND(TYPED_VARIABLE_DEF(__VA_ARGS__, this))

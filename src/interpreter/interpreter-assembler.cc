@@ -30,34 +30,36 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
     : CodeStubAssembler(state),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
-      bytecode_offset_(this, MachineType::PointerRepresentation()),
-      interpreted_frame_pointer_(this, MachineType::PointerRepresentation()),
-      bytecode_array_(this, MachineRepresentation::kTagged),
-      bytecode_array_valid_(true),
-      dispatch_table_(this, MachineType::PointerRepresentation()),
-      accumulator_(this, MachineRepresentation::kTagged),
+      VARIABLE_CONSTRUCTOR(interpreted_frame_pointer_,
+                           MachineType::PointerRepresentation()),
+      VARIABLE_CONSTRUCTOR(
+          bytecode_array_, MachineRepresentation::kTagged,
+          Parameter(InterpreterDispatchDescriptor::kBytecodeArray)),
+      VARIABLE_CONSTRUCTOR(
+          bytecode_offset_, MachineType::PointerRepresentation(),
+          Parameter(InterpreterDispatchDescriptor::kBytecodeOffset)),
+      VARIABLE_CONSTRUCTOR(
+          dispatch_table_, MachineType::PointerRepresentation(),
+          Parameter(InterpreterDispatchDescriptor::kDispatchTable)),
+      VARIABLE_CONSTRUCTOR(
+          accumulator_, MachineRepresentation::kTagged,
+          Parameter(InterpreterDispatchDescriptor::kAccumulator)),
       accumulator_use_(AccumulatorUse::kNone),
       made_call_(false),
       reloaded_frame_ptr_(false),
-      saved_bytecode_offset_(false),
+      bytecode_array_valid_(true),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
-  accumulator_.Bind(Parameter(InterpreterDispatchDescriptor::kAccumulator));
-  bytecode_offset_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kBytecodeOffset));
-  bytecode_array_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kBytecodeArray));
-  dispatch_table_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kDispatchTable));
-
 #ifdef V8_TRACE_IGNITION
   TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
 #endif
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
 
+  // Save the bytecode offset immediately if bytecode will make a call along the
+  // critical path.
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode)) {
-    SaveBytecodeOffset();
+    StoreAndTagRegister(BytecodeOffset(), Register::bytecode_offset());
   }
 }
 
@@ -78,6 +80,35 @@ Node* InterpreterAssembler::GetInterpretedFramePointer() {
     reloaded_frame_ptr_ = true;
   }
   return interpreted_frame_pointer_.value();
+}
+
+Node* InterpreterAssembler::BytecodeOffset() {
+  if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
+      (bytecode_offset_.value() ==
+       Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))) {
+    bytecode_offset_.Bind(LoadAndUntagRegister(Register::bytecode_offset()));
+  }
+  return bytecode_offset_.value();
+}
+
+Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
+  // Force a re-load of the bytecode array after every call in case the debugger
+  // has been activated.
+  if (!bytecode_array_valid_) {
+    bytecode_array_.Bind(LoadRegister(Register::bytecode_array()));
+    bytecode_array_valid_ = true;
+  }
+  return bytecode_array_.value();
+}
+
+Node* InterpreterAssembler::DispatchTableRawPointer() {
+  if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
+      (dispatch_table_.value() ==
+       Parameter(InterpreterDispatchDescriptor::kDispatchTable))) {
+    dispatch_table_.Bind(ExternalConstant(
+        ExternalReference::interpreter_dispatch_table_address(isolate())));
+  }
+  return dispatch_table_.value();
 }
 
 Node* InterpreterAssembler::GetAccumulatorUnchecked() {
@@ -167,35 +198,6 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
     GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
            &context_search);
   }
-}
-
-Node* InterpreterAssembler::BytecodeOffset() {
-  if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
-      (bytecode_offset_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))) {
-    bytecode_offset_.Bind(LoadAndUntagRegister(Register::bytecode_offset()));
-  }
-  return bytecode_offset_.value();
-}
-
-Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
-  // Force a re-load of the bytecode array after every call in case the debugger
-  // has been activated.
-  if (!bytecode_array_valid_) {
-    bytecode_array_.Bind(LoadRegister(Register::bytecode_array()));
-    bytecode_array_valid_ = true;
-  }
-  return bytecode_array_.value();
-}
-
-Node* InterpreterAssembler::DispatchTableRawPointer() {
-  if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
-      (dispatch_table_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kDispatchTable))) {
-    dispatch_table_.Bind(ExternalConstant(
-        ExternalReference::interpreter_dispatch_table_address(isolate())));
-  }
-  return dispatch_table_.value();
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
@@ -520,18 +522,13 @@ Node* InterpreterAssembler::LoadFeedbackVector() {
   return vector;
 }
 
-void InterpreterAssembler::SaveBytecodeOffset() {
-  DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  StoreAndTagRegister(BytecodeOffset(), Register::bytecode_offset());
-  saved_bytecode_offset_ = true;
-}
-
 void InterpreterAssembler::CallPrologue() {
-  if (!saved_bytecode_offset_) {
-    // If there are multiple calls in the bytecode handler, you need to spill
+  if (!Bytecodes::MakesCallAlongCriticalPath(bytecode_)) {
+    // Bytecodes that make a call along the critical path save the bytecode
+    // offset in the bytecode handler's prologue. For other bytecodes, if
+    // there are multiple calls in the bytecode handler, you need to spill
     // before each of them, unless SaveBytecodeOffset has explicitly been called
-    // in a path that dominates _all_ of those calls. Therefore don't set
-    // saved_bytecode_offset_ to true or call SaveBytecodeOffset.
+    // in a path that dominates _all_ of those calls (which we don't track).
     StoreAndTagRegister(BytecodeOffset(), Register::bytecode_offset());
   }
 

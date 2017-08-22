@@ -1092,9 +1092,9 @@ IGNITION_HANDLER(ShiftRightLogical, InterpreterBitwiseBinaryOpAssembler) {
   BitwiseBinaryOpWithFeedback(Token::SHR);
 }
 
-// BitwiseOr <imm>
+// BitwiseOrSmi <imm>
 //
-// BitwiseOr accumulator with <imm>.
+// BitwiseOrSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
   Node* left = GetAccumulator();
   Node* right = BytecodeOperandImmSmi(0);
@@ -1118,9 +1118,9 @@ IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
   Dispatch();
 }
 
-// BitwiseXor <imm>
+// BitwiseXorSmi <imm>
 //
-// BitwiseXor accumulator with <imm>.
+// BitwiseXorSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
   Node* left = GetAccumulator();
   Node* right = BytecodeOperandImmSmi(0);
@@ -1144,9 +1144,9 @@ IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
   Dispatch();
 }
 
-// BitwiseAnd <imm>
+// BitwiseAndSmi <imm>
 //
-// BitwiseAnd accumulator with <imm>.
+// BitwiseAndSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseAndSmi, InterpreterAssembler) {
   Node* left = GetAccumulator();
   Node* right = BytecodeOperandImmSmi(0);
