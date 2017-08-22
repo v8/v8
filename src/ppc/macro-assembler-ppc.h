@@ -414,6 +414,10 @@ class TurboAssembler : public Assembler {
             Condition cond = al);
   void Call(Label* target);
 
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    Call(target, rmode);
+  }
+
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
   void Drop(int count);

@@ -203,6 +203,9 @@ class TurboAssembler : public Assembler {
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    Call(target, rmode);
+  }
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
