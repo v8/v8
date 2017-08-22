@@ -269,6 +269,7 @@
 #define INCREMENTAL_SCOPES(F)                                      \
   /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
   F(MC_INCREMENTAL)                                                \
+  F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)                                       \
   F(MC_INCREMENTAL_WRAPPER_PROLOGUE)                               \
   F(MC_INCREMENTAL_WRAPPER_TRACING)                                \

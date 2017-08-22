@@ -19,7 +19,7 @@ const double ScavengeJob::kMaxAllocationLimitAsFractionOfNewSpace = 0.8;
 
 void ScavengeJob::IdleTask::RunInternal(double deadline_in_seconds) {
   VMState<GC> state(isolate());
-  TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8.gc", "V8.Task");
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8", "V8.Task");
   Heap* heap = isolate()->heap();
   double deadline_in_ms =
       deadline_in_seconds *

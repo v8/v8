@@ -481,6 +481,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   HistogramTimerScope incremental_marking_scope(
       counters->gc_incremental_marking_start());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingStart");
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_START);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();

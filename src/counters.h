@@ -781,7 +781,6 @@ class RuntimeCallTimer final {
   V(FunctionPrototypeGetter)                        \
   V(FunctionPrototypeSetter)                        \
   V(GC_Custom_AllAvailableGarbage)                  \
-  V(GC_Custom_IncrementalMarkingJob)                \
   V(GC_Custom_IncrementalMarkingObserver)           \
   V(GC_Custom_SlowAllocateRaw)                      \
   V(GCEpilogueCallback)                             \
