@@ -1121,13 +1121,6 @@ class MarkCompactMarkingVisitor final
 
   V8_INLINE void VisitPointers(HeapObject* host, Object** start,
                                Object** end) final {
-    // Mark all objects pointed to in [start, end).
-    const int kMinRangeForMarkingRecursion = 64;
-    if (end - start >= kMinRangeForMarkingRecursion &&
-        V8_LIKELY(!FLAG_track_retaining_path)) {
-      if (VisitUnmarkedObjects(host, start, end)) return;
-      // We are close to a stack overflow, so just mark the objects.
-    }
     for (Object** p = start; p < end; p++) {
       MarkObjectByPointer(host, p);
     }
@@ -1155,37 +1148,6 @@ class MarkCompactMarkingVisitor final
     HeapObject* target_object = HeapObject::cast(*p);
     collector_->RecordSlot(host, p, target_object);
     collector_->MarkObject(host, target_object);
-  }
-
- protected:
-  // Visit all unmarked objects pointed to by [start, end).
-  // Returns false if the operation fails (lack of stack space).
-  inline bool VisitUnmarkedObjects(HeapObject* host, Object** start,
-                                   Object** end) {
-    // Return false is we are close to the stack limit.
-    StackLimitCheck check(heap_->isolate());
-    if (check.HasOverflowed()) return false;
-
-    // Visit the unmarked objects.
-    for (Object** p = start; p < end; p++) {
-      Object* o = *p;
-      if (!o->IsHeapObject()) continue;
-      collector_->RecordSlot(host, p, o);
-      HeapObject* obj = HeapObject::cast(o);
-      VisitUnmarkedObject(obj);
-    }
-    return true;
-  }
-
-  // Visit an unmarked object.
-  V8_INLINE void VisitUnmarkedObject(HeapObject* obj) {
-    DCHECK(heap_->Contains(obj));
-    if (collector_->non_atomic_marking_state()->WhiteToBlack(obj)) {
-      Map* map = obj->map();
-      // Mark the map pointer and the body.
-      collector_->MarkObject(obj, map);
-      Visit(map, obj);
-    }
   }
 };
 
