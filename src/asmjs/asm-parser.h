@@ -208,6 +208,14 @@ class AsmJsParser {
   // aforementioned {call_coercion_deferred} is allowed.
   size_t call_coercion_deferred_position_;
 
+  // The code position of the last heap access shift by an immediate value.
+  // For `heap[expr >> value:NumericLiteral]` this indicates from where to
+  // delete code when the expression is used as part of a valid heap access.
+  // Will be set to {kNoHeapAccessShift} if heap access shift wasn't matched.
+  size_t heap_access_shift_position_;
+  uint32_t heap_access_shift_value_;
+  static const size_t kNoHeapAccessShift = -1;
+
   // Used to track the last label we've seen so it can be matched to later
   // statements it's attached to.
   AsmJsScanner::token_t pending_label_;
