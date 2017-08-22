@@ -376,6 +376,21 @@ bool Scope::IsAsmModule() const {
   return is_function_scope() && AsDeclarationScope()->asm_module();
 }
 
+bool Scope::ContainsAsmModule() const {
+  if (IsAsmModule()) return true;
+
+  // Check inner scopes recursively
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    // Don't check inner functions which won't be eagerly compiled.
+    if (!scope->is_function_scope() ||
+        scope->AsDeclarationScope()->ShouldEagerCompile()) {
+      if (scope->ContainsAsmModule()) return true;
+    }
+  }
+
+  return false;
+}
+
 Scope* Scope::DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,

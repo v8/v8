@@ -8,6 +8,7 @@
 #include "src/asmjs/asm-parser.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
+#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -16,6 +17,7 @@
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 
@@ -175,7 +177,7 @@ void ReportInstantiationFailure(Handle<Script> script, int position,
 }  // namespace
 
 // The compilation of asm.js modules is split into two distinct steps:
-//  [1] PrepareJobImpl: The asm.js module source is parsed, validated, and
+//  [1] ExecuteJobImpl: The asm.js module source is parsed, validated, and
 //      translated to a valid WebAssembly module. The result are two vectors
 //      representing the encoded module as well as encoded source position
 //      information and a StdlibSet bit set.
@@ -213,14 +215,10 @@ class AsmJsCompilationJob final : public CompilationJob {
 };
 
 CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
-  // TODO(rmcilroy): Temporarily allow heap access here until we use a
-  // off-heap ScannerStream.
-  DCHECK(
-      ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
-  AllowHeapAllocation allow_allocation;
-  AllowHandleAllocation allow_handles;
-  AllowHandleDereference allow_deref;
+  return SUCCEEDED;
+}
 
+CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   // Step 1: Translate asm.js module to WebAssembly module.
   HistogramTimerScope translate_time_scope(
       compilation_info()->isolate()->counters()->asm_wasm_translation_time());
@@ -231,14 +229,24 @@ CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
   Zone* compile_zone = compilation_info()->zone();
   Zone translate_zone(compilation_info()->isolate()->allocator(), ZONE_NAME);
 
-  // TODO(mstarzinger): In order to move translation to the non-main thread
-  // ExecuteJob phase, the scanner stream needs to be off-heap.
-  std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-      handle(String::cast(compilation_info()->script()->source())),
-      compilation_info()->literal()->start_position(),
-      compilation_info()->literal()->end_position()));
-  wasm::AsmJsParser parser(&translate_zone, stack_limit(), std::move(stream));
+  Utf16CharacterStream* stream = parse_info()->character_stream();
+  base::Optional<AllowHandleDereference> allow_deref;
+  if (stream->can_access_heap()) {
+    DCHECK(
+        ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
+    allow_deref.emplace();
+  }
+  stream->Seek(compilation_info()->literal()->start_position());
+  wasm::AsmJsParser parser(&translate_zone, stack_limit(), stream);
   if (!parser.Run()) {
+    // TODO(rmcilroy): Temporarily allow heap access here until we have a
+    // mechanism for delaying pending messages.
+    DCHECK(
+        ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
+    AllowHeapAllocation allow_allocation;
+    AllowHandleAllocation allow_handles;
+    allow_deref.emplace();
+
     DCHECK(!compilation_info()->isolate()->has_pending_exception());
     ReportCompilationFailure(compilation_info()->script(),
                              parser.failure_location(),
@@ -266,12 +274,6 @@ CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl() {
         "translate_zone=%" PRIuS "KB, compile_zone+=%" PRIuS "KB]\n",
         translate_time_, translate_zone_size / KB, compile_zone_size / KB);
   }
-  return SUCCEEDED;
-}
-
-CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
-  // TODO(mstarzinger): Move translation to the Execute phase (see comment about
-  // scanner stream above.
   return SUCCEEDED;
 }
 

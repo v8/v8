@@ -548,6 +548,19 @@ void Parser::DeserializeScopeChain(
   original_scope_ = scope;
 }
 
+namespace {
+
+void MaybeResetCharacterStream(ParseInfo* info, FunctionLiteral* literal) {
+  // Don't reset the character stream if there is an asm.js module since it will
+  // be used again by the asm-parser.
+  if (!FLAG_stress_validate_asm &&
+      (literal == nullptr || !literal->scope()->ContainsAsmModule())) {
+    info->ResetCharacterStream();
+  }
+}
+
+}  // namespace
+
 FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
@@ -582,7 +595,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 
   scanner_.Initialize(info->character_stream(), info->is_module());
   FunctionLiteral* result = DoParseProgram(info);
-  info->ResetCharacterStream();  // Character stream no longer used.
+  MaybeResetCharacterStream(info, result);
 
   HandleSourceURLComments(isolate, info->script());
 
@@ -742,7 +755,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   scanner_.Initialize(info->character_stream(), info->is_module());
 
   FunctionLiteral* result = DoParseFunction(info, info->function_name());
-  info->ResetCharacterStream();  // Character stream no longer used.
+  MaybeResetCharacterStream(info, result);
   if (result != nullptr) {
     Handle<String> inferred_name(shared_info->inferred_name());
     result->set_inferred_name(inferred_name);
@@ -3389,7 +3402,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   } else {
     result = DoParseFunction(info, info->function_name());
   }
-  info->ResetCharacterStream();  // Character stream no longer used.
+  MaybeResetCharacterStream(info, result);
 
   info->set_literal(result);
 

@@ -267,7 +267,7 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
   if (FLAG_stress_validate_asm) return true;
 
   // In general, we respect the "use asm" directive.
-  return literal->scope()->asm_module();
+  return literal->scope()->IsAsmModule();
 }
 
 void InstallUnoptimizedCode(CompilationInfo* compilation_info) {
@@ -430,6 +430,9 @@ std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
     if (!inner_job) return std::unique_ptr<CompilationJob>();
     inner_function_jobs->emplace_front(std::move(inner_job));
   }
+
+  // Character stream shouldn't be used again.
+  parse_info->ResetCharacterStream();
 
   return outer_function_job;
 }

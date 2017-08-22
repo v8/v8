@@ -68,8 +68,9 @@ namespace wasm {
 #define TOK(name) AsmJsScanner::kToken_##name
 
 AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
-                         std::unique_ptr<Utf16CharacterStream> stream)
+                         Utf16CharacterStream* stream)
     : zone_(zone),
+      scanner_(stream),
       module_builder_(new (zone) WasmModuleBuilder(zone)),
       return_type_(nullptr),
       stack_limit_(stack_limit),
@@ -88,7 +89,6 @@ AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
       pending_label_(0),
       global_imports_(zone) {
   InitializeStdlibTypes();
-  scanner_.SetStream(std::move(stream));
 }
 
 void AsmJsParser::InitializeStdlibTypes() {

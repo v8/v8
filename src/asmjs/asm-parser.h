@@ -50,7 +50,7 @@ class AsmJsParser {
   typedef EnumSet<StandardMember, uint64_t> StdlibSet;
 
   explicit AsmJsParser(Zone* zone, uintptr_t stack_limit,
-                       std::unique_ptr<Utf16CharacterStream> stream);
+                       Utf16CharacterStream* stream);
   bool Run();
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
