@@ -246,13 +246,6 @@ Counters::Counters(Isolate* isolate)
     "c:" "V8.SizeOf_FIXED_ARRAY-" #name},
       FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
-#define SC(name)                           \
-  {&Counters::count_of_CODE_AGE_##name##_, \
-    "c:" "V8.CountOf_CODE_AGE-" #name},     \
-  {&Counters::size_of_CODE_AGE_##name##_,  \
-    "c:" "V8.SizeOf_CODE_AGE-" #name},
-      CODE_AGE_LIST_COMPLETE(SC)
-#undef SC
   };
   // clang-format on
   for (const auto& counter : kStatsCounters) {
@@ -288,12 +281,6 @@ void Counters::ResetCounterFunction(CounterLookupCallback f) {
   count_of_FIXED_ARRAY_##name##_.Reset(); \
   size_of_FIXED_ARRAY_##name##_.Reset();
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
-#undef SC
-
-#define SC(name)                       \
-  count_of_CODE_AGE_##name##_.Reset(); \
-  size_of_CODE_AGE_##name##_.Reset();
-  CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 }
 

@@ -161,8 +161,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "date_cache_stamp");
   Add(ExternalReference::address_of_pending_message_obj(isolate).address(),
       "address_of_pending_message_obj");
-  Add(ExternalReference::get_make_code_young_function(isolate).address(),
-      "Code::MakeCodeYoung");
   Add(ExternalReference::cpu_features().address(), "cpu_features");
   Add(ExternalReference::old_space_allocation_top_address(isolate).address(),
       "Heap::OldSpaceAllocationTopAddress");
@@ -171,8 +169,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::allocation_sites_list_address(isolate).address(),
       "Heap::allocation_sites_list_address()");
   Add(ExternalReference::address_of_uint32_bias().address(), "uint32_bias");
-  Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
-      "Code::MarkCodeAsExecuted");
   Add(ExternalReference::is_profiling_address(isolate).address(),
       "Isolate::is_profiling");
   Add(ExternalReference::scheduled_exception_address(isolate).address(),

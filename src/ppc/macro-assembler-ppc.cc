@@ -876,35 +876,9 @@ void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
   }
 }
 
-void TurboAssembler::Prologue(bool code_pre_aging, Register base,
-                              int prologue_offset) {
+void TurboAssembler::Prologue(Register base, int prologue_offset) {
   DCHECK(!base.is(no_reg));
-  {
-    PredictableCodeSizeScope predictible_code_size_scope(
-        this, kNoCodeAgeSequenceLength);
-    Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-    // The following instructions must remain together and unmodified
-    // for code aging to work properly.
-    if (code_pre_aging) {
-      // Pre-age the code.
-      // This matches the code found in PatchPlatformCodeAge()
-      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      intptr_t target = reinterpret_cast<intptr_t>(stub->instruction_start());
-      // Don't use Call -- we need to preserve ip and lr
-      nop();  // marker to detect sequence (see IsOld)
-      mov(r3, Operand(target));
-      Jump(r3);
-      for (int i = 0; i < kCodeAgingSequenceNops; i++) {
-        nop();
-      }
-    } else {
-      // This matches the code found in GetNoCodeAgeSequence()
-      PushStandardFrame(r4);
-      for (int i = 0; i < kNoCodeAgeSequenceNops; i++) {
-        nop();
-      }
-    }
-  }
+  PushStandardFrame(r4);
   if (FLAG_enable_embedded_constant_pool) {
     // base contains prologue address
     LoadConstantPoolPointerRegister(base, -prologue_offset);

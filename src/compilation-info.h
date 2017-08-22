@@ -151,14 +151,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // Code getters and setters.
 
-  bool GeneratePreagedPrologue() const {
-    // Generate a pre-aged prologue if we are optimizing for size, which
-    // will make code old more aggressive. Only apply to Code::FUNCTION,
-    // since only functions are aged in the compilation cache.
-    return FLAG_optimize_for_size && FLAG_age_code &&
-           output_code_kind() == Code::FUNCTION;
-  }
-
   void SetCode(Handle<Code> code) { code_ = code; }
 
   void SetBytecodeArray(Handle<BytecodeArray> bytecode_array) {

@@ -329,7 +329,6 @@ bool ConstPool::AddSharedEntry(SharedEntryMap& entry_map, uint64_t data,
 bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
-         mode != RelocInfo::CODE_AGE_SEQUENCE &&
          mode != RelocInfo::DEOPT_SCRIPT_OFFSET &&
          mode != RelocInfo::DEOPT_INLINING_ID &&
          mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);

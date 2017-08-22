@@ -5056,31 +5056,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
   PushCommonFrame(scratch);
 }
 
-void TurboAssembler::Prologue(bool code_pre_aging) {
-  PredictableCodeSizeScope predictible_code_size_scope(
-      this, kNoCodeAgeSequenceLength);
-  // The following three instructions must remain together and unmodified
-  // for code aging to work properly.
-  if (code_pre_aging) {
-    // Pre-age the code.
-    Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-    nop(Assembler::CODE_AGE_MARKER_NOP);
-    // Load the stub address to t9 and call it,
-    // GetCodeAge() extracts the stub address from this instruction.
-    li(t9,
-       Operand(reinterpret_cast<uint64_t>(stub->instruction_start())),
-       ADDRESS_LOAD);
-    nop();  // Prevent jalr to jal optimization.
-    jalr(t9, a0);
-    nop();  // Branch delay slot nop.
-    nop();  // Pad the empty space.
-  } else {
-    PushStandardFrame(a1);
-    nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-    nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-    nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-  }
-}
+void TurboAssembler::Prologue() { PushStandardFrame(a1); }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   int stack_offset, fp_offset;

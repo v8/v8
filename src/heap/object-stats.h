@@ -27,9 +27,8 @@ class ObjectStats {
     FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
     FIRST_FIXED_ARRAY_SUB_TYPE =
         FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    FIRST_CODE_AGE_SUB_TYPE =
+    OBJECT_STATS_COUNT =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kCodeAgeCount + 1
   };
 
   void ClearObjectStats(bool clear_last_time_stats = false);
@@ -45,21 +44,14 @@ class ObjectStats {
     size_histogram_[type][HistogramIndexFromSize(size)]++;
   }
 
-  void RecordCodeSubTypeStats(int code_sub_type, int code_age, size_t size) {
+  void RecordCodeSubTypeStats(int code_sub_type, size_t size) {
     int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
-    int code_age_index =
-        FIRST_CODE_AGE_SUB_TYPE + code_age - Code::kFirstCodeAge;
     DCHECK(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
-           code_sub_type_index < FIRST_CODE_AGE_SUB_TYPE);
-    DCHECK(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
-           code_age_index < OBJECT_STATS_COUNT);
+           code_sub_type_index < FIRST_FIXED_ARRAY_SUB_TYPE);
     object_counts_[code_sub_type_index]++;
     object_sizes_[code_sub_type_index] += size;
-    object_counts_[code_age_index]++;
-    object_sizes_[code_age_index] += size;
     const int idx = HistogramIndexFromSize(size);
     size_histogram_[code_sub_type_index][idx]++;
-    size_histogram_[code_age_index][idx]++;
   }
 
   bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,

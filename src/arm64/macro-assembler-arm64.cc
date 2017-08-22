@@ -23,9 +23,6 @@
 namespace v8 {
 namespace internal {
 
-// Define a fake double underscore to use with the ASM_UNIMPLEMENTED macros.
-#define __
-
 MacroAssembler::MacroAssembler(Isolate* isolate, byte* buffer,
                                unsigned buffer_size,
                                CodeObjectRequired create_code_object)
@@ -1157,11 +1154,11 @@ void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
     Register temp = temps.AcquireX();
 
     Label loop;
-    __ Mov(temp, count / 2);
-    __ Bind(&loop);
+    Mov(temp, count / 2);
+    Bind(&loop);
     PushHelper(2, size, src, src, NoReg, NoReg);
-    __ Subs(temp, temp, 1);
-    __ B(ne, &loop);
+    Subs(temp, temp, 1);
+    B(ne, &loop);
 
     count %= 2;
   }
@@ -2088,9 +2085,9 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // after we drop current frame. We add kPointerSize to count the receiver
   // argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  __ add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
-  __ add(dst_reg, dst_reg,
-         Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+  add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
+  add(dst_reg, dst_reg,
+      Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
 
   Register src_reg = caller_args_count_reg;
   // Calculate the end of source area. +kPointerSize is for the receiver.
@@ -2103,14 +2100,14 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   }
 
   if (FLAG_debug_code) {
-    __ Cmp(src_reg, dst_reg);
-    __ Check(lo, kStackAccessBelowStackPointer);
+    Cmp(src_reg, dst_reg);
+    Check(lo, kStackAccessBelowStackPointer);
   }
 
   // Restore caller's frame pointer and return address now as they will be
   // overwritten by the copying loop.
-  __ Ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  Ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 
   // Now copy callee arguments to the caller frame going backwards to avoid
   // callee arguments corruption (source and destination areas could overlap).
@@ -2119,18 +2116,18 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // so they must be pre-decremented in the loop.
   Register tmp_reg = scratch1;
   Label loop, entry;
-  __ B(&entry);
-  __ bind(&loop);
-  __ Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
-  __ Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
-  __ bind(&entry);
-  __ Cmp(jssp, src_reg);
-  __ B(ne, &loop);
+  B(&entry);
+  bind(&loop);
+  Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
+  Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
+  bind(&entry);
+  Cmp(jssp, src_reg);
+  B(ne, &loop);
 
   // Leave current frame.
-  __ Mov(jssp, dst_reg);
-  __ SetStackPointer(jssp);
-  __ AssertStackConsistency();
+  Mov(jssp, dst_reg);
+  SetStackPointer(jssp);
+  AssertStackConsistency();
 }
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
@@ -2336,7 +2333,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     InvokeFlag flag) {
   // Contract with called JS functions requires that function is passed in x1.
   // (See FullCodeGenerator::Generate().)
-  __ LoadObject(x1, function);
+  LoadObject(x1, function);
   InvokeFunction(x1, expected, actual, flag);
 }
 
@@ -2407,13 +2404,9 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   Uxtw(result.W(), result.W());
 }
 
-void TurboAssembler::Prologue(bool code_pre_aging) {
-  if (code_pre_aging) {
-    Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-    __ EmitCodeAgeSequence(stub);
-  } else {
-    __ EmitFrameSetupForCodeAgePatching();
-  }
+void TurboAssembler::Prologue() {
+  Push(lr, fp, cp, x1);
+  Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
@@ -2888,7 +2881,7 @@ void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
 
 void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   // Load the map's "bit field 2".
-  __ Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
+  Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
   DecodeField<Map::ElementsKindBits>(result);
 }
@@ -3151,7 +3144,7 @@ void MacroAssembler::RecordWriteForMap(Register object,
                                        Register dst,
                                        LinkRegisterStatus lr_status,
                                        SaveFPRegsMode fp_mode) {
-  ASM_LOCATION("MacroAssembler::RecordWrite");
+  ASM_LOCATION_IN_ASSEMBLER("MacroAssembler::RecordWrite");
   DCHECK(!AreAliased(object, map));
 
   if (emit_debug_code()) {
@@ -3230,7 +3223,7 @@ void MacroAssembler::RecordWrite(
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
-  ASM_LOCATION("MacroAssembler::RecordWrite");
+  ASM_LOCATION_IN_ASSEMBLER("MacroAssembler::RecordWrite");
   DCHECK(!AreAliased(object, value));
 
   if (emit_debug_code()) {
@@ -3517,7 +3510,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
                                       const CPURegister& arg3) {
   // We cannot handle a caller-saved stack pointer. It doesn't make much sense
   // in most cases anyway, so this restriction shouldn't be too serious.
-  DCHECK(!kCallerSaved.IncludesAliasOf(__ StackPointer()));
+  DCHECK(!kCallerSaved.IncludesAliasOf(StackPointer()));
 
   // The provided arguments, and their proper procedure-call standard registers.
   CPURegister args[kPrintfMaxArgCount] = {arg0, arg1, arg2, arg3};
@@ -3746,77 +3739,6 @@ void MacroAssembler::Printf(const char * format,
   FPTmpList()->set_list(old_fp_tmp_list);
 }
 
-void TurboAssembler::EmitFrameSetupForCodeAgePatching() {
-  // TODO(jbramley): Other architectures use the internal memcpy to copy the
-  // sequence. If this is a performance bottleneck, we should consider caching
-  // the sequence and copying it in the same way.
-  InstructionAccurateScope scope(this,
-                                 kNoCodeAgeSequenceLength / kInstructionSize);
-  DCHECK(jssp.Is(StackPointer()));
-  EmitFrameSetupForCodeAgePatching(this);
-}
-
-void TurboAssembler::EmitCodeAgeSequence(Code* stub) {
-  InstructionAccurateScope scope(this,
-                                 kNoCodeAgeSequenceLength / kInstructionSize);
-  DCHECK(jssp.Is(StackPointer()));
-  EmitCodeAgeSequence(this, stub);
-}
-
-
-#undef __
-#define __ assm->
-
-void TurboAssembler::EmitFrameSetupForCodeAgePatching(Assembler* assm) {
-  Label start;
-  __ bind(&start);
-
-  // We can do this sequence using four instructions, but the code ageing
-  // sequence that patches it needs five, so we use the extra space to try to
-  // simplify some addressing modes and remove some dependencies (compared to
-  // using two stp instructions with write-back).
-  __ sub(jssp, jssp, 4 * kXRegSize);
-  __ sub(csp, csp, 4 * kXRegSize);
-  __ stp(x1, cp, MemOperand(jssp, 0 * kXRegSize));
-  __ stp(fp, lr, MemOperand(jssp, 2 * kXRegSize));
-  __ add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
-
-  __ AssertSizeOfCodeGeneratedSince(&start, kNoCodeAgeSequenceLength);
-}
-
-void TurboAssembler::EmitCodeAgeSequence(Assembler* assm, Code* stub) {
-  Label start;
-  __ bind(&start);
-  // When the stub is called, the sequence is replaced with the young sequence
-  // (as in EmitFrameSetupForCodeAgePatching). After the code is replaced, the
-  // stub jumps to &start, stored in x0. The young sequence does not call the
-  // stub so there is no infinite loop here.
-  //
-  // A branch (br) is used rather than a call (blr) because this code replaces
-  // the frame setup code that would normally preserve lr.
-  __ ldr_pcrel(ip0, kCodeAgeStubEntryOffset >> kLoadLiteralScaleLog2);
-  __ adr(x0, &start);
-  __ br(ip0);
-  // IsCodeAgeSequence in codegen-arm64.cc assumes that the code generated up
-  // until now (kCodeAgeStubEntryOffset) is the same for all code age sequences.
-  __ AssertSizeOfCodeGeneratedSince(&start, kCodeAgeStubEntryOffset);
-  if (stub) {
-    __ dc64(reinterpret_cast<uint64_t>(stub->instruction_start()));
-    __ AssertSizeOfCodeGeneratedSince(&start, kNoCodeAgeSequenceLength);
-  }
-}
-
-
-bool MacroAssembler::IsYoungSequence(Isolate* isolate, byte* sequence) {
-  bool is_young = isolate->code_aging_helper()->IsYoung(sequence);
-  DCHECK(is_young ||
-         isolate->code_aging_helper()->IsOld(sequence));
-  return is_young;
-}
-
-#undef __
-
-
 UseScratchRegisterScope::~UseScratchRegisterScope() {
   available_->set_list(old_available_);
   availablefp_->set_list(old_availablefp_);
@@ -3852,7 +3774,6 @@ MemOperand NativeContextMemOperand() {
 }
 
 #define __ masm->
-
 
 void InlineSmiCheckInfo::Emit(MacroAssembler* masm, const Register& reg,
                               const Label* smi_check) {

@@ -8,26 +8,6 @@
 namespace v8 {
 namespace internal {
 
-#define CODE_AGE_LIST_WITH_ARG(V, A) \
-  V(Quadragenarian, A)               \
-  V(Quinquagenarian, A)              \
-  V(Sexagenarian, A)                 \
-  V(Septuagenarian, A)               \
-  V(Octogenarian, A)
-
-#define CODE_AGE_LIST_IGNORE_ARG(X, V) V(X)
-
-#define CODE_AGE_LIST(V) CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
-
-#define CODE_AGE_LIST_COMPLETE(V) \
-  V(ToBeExecutedOnce)             \
-  V(NotExecuted)                  \
-  V(ExecutedOnce)                 \
-  V(NoAge)                        \
-  CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
-
-#define DECLARE_CODE_AGE_BUILTIN(C, V) V(Make##C##CodeYoungAgain)
-
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
 //      Args: name
 // API: Builtin in C++ for API callbacks. Entered via EXIT frame.
@@ -44,9 +24,6 @@ namespace internal {
 //      Args: name
 
 #define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                   \
-  /* Code aging */                                                             \
-  CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                        \
-                                                                               \
   /* GC write barrirer */                                                      \
   TFC(RecordWrite, RecordWrite, 1)                                             \
                                                                                \
@@ -144,9 +121,6 @@ namespace internal {
   ASM(CompileLazy)                                                             \
   ASM(CheckOptimizationMarker)                                                 \
   ASM(InstantiateAsmJs)                                                        \
-  ASM(MarkCodeAsToBeExecutedOnce)                                              \
-  ASM(MarkCodeAsExecutedOnce)                                                  \
-  ASM(MarkCodeAsExecutedTwice)                                                 \
   ASM(NotifyDeoptimized)                                                       \
   ASM(NotifySoftDeoptimized)                                                   \
   ASM(NotifyLazyDeoptimized)                                                   \

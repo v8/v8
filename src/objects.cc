@@ -13930,16 +13930,6 @@ void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
-void ObjectVisitor::VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) {
-  DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
-  Object* old_pointer = rinfo->code_age_stub();
-  Object* new_pointer = old_pointer;
-  if (old_pointer != nullptr) {
-    VisitPointer(host, &new_pointer);
-    DCHECK_EQ(old_pointer, new_pointer);
-  }
-}
-
 void ObjectVisitor::VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   Object* old_pointer = rinfo->target_object();
@@ -14024,10 +14014,6 @@ void Code::CopyFrom(const CodeDesc& desc) {
       Address p = it.rinfo()->target_runtime_entry(origin);
       it.rinfo()->set_target_runtime_entry(
           GetIsolate(), p, UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-    } else if (mode == RelocInfo::CODE_AGE_SEQUENCE) {
-      Handle<Object> p = it.rinfo()->code_age_stub_handle(origin);
-      Code* code = Code::cast(*p);
-      it.rinfo()->set_code_age_stub(code, SKIP_ICACHE_FLUSH);
     } else {
       intptr_t delta = instruction_start() - desc.buffer;
       it.rinfo()->apply(delta);
@@ -14191,136 +14177,6 @@ void JSFunction::ClearTypeFeedbackInfo() {
     vector->ClearSlots(this);
   }
 }
-
-void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
-  PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge);
-}
-
-
-void Code::MarkCodeAsExecuted(byte* sequence, Isolate* isolate) {
-  PatchPlatformCodeAge(isolate, sequence, kExecutedOnceCodeAge);
-}
-
-
-// NextAge defines the Code::Age state transitions during a GC cycle.
-static Code::Age NextAge(Code::Age age) {
-  switch (age) {
-    case Code::kNotExecutedCodeAge:  // Keep, until we've been executed.
-    case Code::kToBeExecutedOnceCodeAge:  // Keep, until we've been executed.
-    case Code::kLastCodeAge:  // Clamp at last Code::Age value.
-      return age;
-    case Code::kExecutedOnceCodeAge:
-      // Pre-age code that has only been executed once.
-      return static_cast<Code::Age>(Code::kPreAgedCodeAge + 1);
-    default:
-      return static_cast<Code::Age>(age + 1);  // Default case: Increase age.
-  }
-}
-
-
-// IsOldAge defines the collection criteria for a Code object.
-static bool IsOldAge(Code::Age age) {
-  return age >= Code::kIsOldCodeAge || age == Code::kNotExecutedCodeAge;
-}
-
-
-void Code::MakeYoung(Isolate* isolate) {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, isolate);
-}
-
-void Code::PreAge(Isolate* isolate) {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) {
-    PatchPlatformCodeAge(isolate, sequence, kPreAgedCodeAge);
-  }
-}
-
-void Code::MarkToBeExecutedOnce(Isolate* isolate) {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) {
-    PatchPlatformCodeAge(isolate, sequence, kToBeExecutedOnceCodeAge);
-  }
-}
-
-void Code::MakeOlder() {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) {
-    Isolate* isolate = GetIsolate();
-    Age age = GetCodeAge(isolate, sequence);
-    Age next_age = NextAge(age);
-    if (age != next_age) {
-      PatchPlatformCodeAge(isolate, sequence, next_age);
-    }
-  }
-}
-
-
-bool Code::IsOld() {
-  return IsOldAge(GetAge());
-}
-
-
-byte* Code::FindCodeAgeSequence() {
-  return FLAG_age_code && prologue_offset() != Code::kPrologueOffsetNotSet &&
-                 kind() == OPTIMIZED_FUNCTION
-             ? instruction_start() + prologue_offset()
-             : NULL;
-}
-
-
-Code::Age Code::GetAge() {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence == NULL) {
-    return kNoAgeCodeAge;
-  }
-  return GetCodeAge(GetIsolate(), sequence);
-}
-
-Code::Age Code::GetAgeOfCodeAgeStub(Code* code) {
-  Isolate* isolate = code->GetIsolate();
-#define HANDLE_CODE_AGE(AGE)                                       \
-  if (code == *BUILTIN_CODE(isolate, Make##AGE##CodeYoungAgain)) { \
-    return k##AGE##CodeAge;                                        \
-  }
-  CODE_AGE_LIST(HANDLE_CODE_AGE)
-#undef HANDLE_CODE_AGE
-  if (code == *BUILTIN_CODE(isolate, MarkCodeAsExecutedOnce)) {
-    return kNotExecutedCodeAge;
-  }
-  if (code == *BUILTIN_CODE(isolate, MarkCodeAsExecutedTwice)) {
-    return kExecutedOnceCodeAge;
-  }
-  if (code == *BUILTIN_CODE(isolate, MarkCodeAsToBeExecutedOnce)) {
-    return kToBeExecutedOnceCodeAge;
-  }
-  UNREACHABLE();
-}
-
-Code* Code::GetCodeAgeStub(Isolate* isolate, Age age) {
-  switch (age) {
-#define HANDLE_CODE_AGE(AGE)                                  \
-  case k##AGE##CodeAge: {                                     \
-    return *BUILTIN_CODE(isolate, Make##AGE##CodeYoungAgain); \
-  }
-    CODE_AGE_LIST(HANDLE_CODE_AGE)
-#undef HANDLE_CODE_AGE
-    case kNotExecutedCodeAge: {
-      return *BUILTIN_CODE(isolate, MarkCodeAsExecutedOnce);
-    }
-    case kExecutedOnceCodeAge: {
-      return *BUILTIN_CODE(isolate, MarkCodeAsExecutedTwice);
-    }
-    case kToBeExecutedOnceCodeAge: {
-      return *BUILTIN_CODE(isolate, MarkCodeAsToBeExecutedOnce);
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
-  return NULL;
-}
-
 
 void Code::PrintDeoptLocation(FILE* out, Address pc) {
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
@@ -17629,11 +17485,7 @@ void CompilationCacheTable::Age() {
       }
     } else if (get(entry_index)->IsFixedArray()) {
       SharedFunctionInfo* info = SharedFunctionInfo::cast(get(value_index));
-      bool is_old =
-          info->IsInterpreted()
-              ? info->bytecode_array()->IsOld()
-              : info->code()->kind() != Code::FUNCTION || info->code()->IsOld();
-      if (is_old) {
+      if (info->IsInterpreted() && info->bytecode_array()->IsOld()) {
         for (int i = 0; i < kEntrySize; i++) {
           NoWriteBarrierSet(this, entry_index + i, the_hole_value);
         }

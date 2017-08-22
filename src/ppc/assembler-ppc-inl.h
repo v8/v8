@@ -220,44 +220,6 @@ void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
     set_target_address(isolate, target, write_barrier_mode, icache_flush_mode);
 }
 
-
-static const int kNoCodeAgeInstructions =
-    FLAG_enable_embedded_constant_pool ? 7 : 6;
-static const int kCodeAgingInstructions =
-    Assembler::kMovInstructionsNoConstantPool + 3;
-static const int kNoCodeAgeSequenceInstructions =
-    ((kNoCodeAgeInstructions >= kCodeAgingInstructions)
-         ? kNoCodeAgeInstructions
-         : kCodeAgingInstructions);
-static const int kNoCodeAgeSequenceNops =
-    (kNoCodeAgeSequenceInstructions - kNoCodeAgeInstructions);
-static const int kCodeAgingSequenceNops =
-    (kNoCodeAgeSequenceInstructions - kCodeAgingInstructions);
-static const int kCodeAgingTargetDelta = 1 * Assembler::kInstrSize;
-static const int kNoCodeAgeSequenceLength =
-    (kNoCodeAgeSequenceInstructions * Assembler::kInstrSize);
-
-Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
-  UNREACHABLE();  // This should never be reached on PPC.
-  return Handle<Code>();
-}
-
-
-Code* RelocInfo::code_age_stub() {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  return Code::GetCodeFromTargetAddress(
-      Assembler::target_address_at(pc_ + kCodeAgingTargetDelta, host_));
-}
-
-
-void RelocInfo::set_code_age_stub(Code* stub,
-                                  ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(
-      stub->GetIsolate(), pc_ + kCodeAgingTargetDelta, host_,
-      stub->instruction_start(), icache_flush_mode);
-}
-
 void RelocInfo::WipeOut(Isolate* isolate) {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
@@ -287,8 +249,6 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   } else if (mode == RelocInfo::INTERNAL_REFERENCE ||
              mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
     visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
-    visitor->VisitCodeAgeSequence(host(), this);
   } else if (IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
   }
@@ -307,8 +267,6 @@ void RelocInfo::Visit(Heap* heap) {
   } else if (mode == RelocInfo::INTERNAL_REFERENCE ||
              mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
     StaticVisitor::VisitInternalReference(this);
-  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
-    StaticVisitor::VisitCodeAgeSequence(heap, this);
   } else if (IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }

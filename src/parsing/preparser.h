@@ -341,7 +341,6 @@ class PreParserExpression {
 
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
-  void set_should_be_used_once_hint() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}

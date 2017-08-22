@@ -350,7 +350,7 @@ class TurboAssembler : public Assembler {
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
-  void Prologue(bool code_pre_aging);
+  void Prologue();
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.

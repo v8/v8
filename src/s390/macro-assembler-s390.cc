@@ -906,35 +906,9 @@ void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
   }
 }
 
-void TurboAssembler::Prologue(bool code_pre_aging, Register base,
-                              int prologue_offset) {
+void TurboAssembler::Prologue(Register base, int prologue_offset) {
   DCHECK(!base.is(no_reg));
-  {
-    PredictableCodeSizeScope predictible_code_size_scope(
-        this, kNoCodeAgeSequenceLength);
-    // The following instructions must remain together and unmodified
-    // for code aging to work properly.
-    if (code_pre_aging) {
-      // Pre-age the code.
-      // This matches the code found in PatchPlatformCodeAge()
-      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      intptr_t target = reinterpret_cast<intptr_t>(stub->instruction_start());
-      nop();
-      CleanseP(r14);
-      Push(r14);
-      mov(r2, Operand(target));
-      Call(r2);
-      for (int i = 0; i < kNoCodeAgeSequenceLength - kCodeAgingSequenceLength;
-           i += 2) {
-        // TODO(joransiu): Create nop function to pad
-        //         (kNoCodeAgeSequenceLength - kCodeAgingSequenceLength) bytes.
-        nop();  // 2-byte nops().
-      }
-    } else {
-      // This matches the code found in GetNoCodeAgeSequence()
-      PushStandardFrame(r3);
-    }
-  }
+  PushStandardFrame(r3);
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type,

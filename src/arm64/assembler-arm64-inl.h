@@ -810,34 +810,6 @@ void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
   }
 }
 
-
-static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
-
-Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
-  UNREACHABLE();  // This should never be reached on ARM64.
-  return Handle<Code>();
-}
-
-
-Code* RelocInfo::code_age_stub() {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  // Read the stub entry point from the code age sequence.
-  Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
-  return Code::GetCodeFromTargetAddress(Memory::Address_at(stub_entry_address));
-}
-
-
-void RelocInfo::set_code_age_stub(Code* stub,
-                                  ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  DCHECK(!Code::IsYoungSequence(stub->GetIsolate(), pc_));
-  // Overwrite the stub entry point in the code age sequence. This is loaded as
-  // a literal so there is no need to call FlushICache here.
-  Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
-  Memory::Address_at(stub_entry_address) = stub->instruction_start();
-}
-
-
 void RelocInfo::WipeOut(Isolate* isolate) {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||

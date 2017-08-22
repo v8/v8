@@ -117,7 +117,7 @@ class TurboAssembler : public Assembler {
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
-  void Prologue(bool code_pre_aging);
+  void Prologue();
 
   // Push a standard frame, consisting of lr, fp, context and JS function
   void PushStandardFrame(Register function_reg);

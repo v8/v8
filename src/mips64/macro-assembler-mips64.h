@@ -187,7 +187,7 @@ class TurboAssembler : public Assembler {
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
-  void Prologue(bool code_pre_aging);
+  void Prologue();
 
   void InitializeRootRegister() {
     ExternalReference roots_array_start =
