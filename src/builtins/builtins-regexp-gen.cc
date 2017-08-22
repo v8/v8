@@ -20,6 +20,54 @@ using compiler::Node;
 // -----------------------------------------------------------------------------
 // ES6 section 21.2 RegExp Objects
 
+Node* RegExpBuiltinsAssembler::AllocateRegExpResult(Node* context, Node* length,
+                                                    Node* index, Node* input) {
+  CSA_ASSERT(this, IsFixedArray(context));
+  CSA_ASSERT(this, TaggedIsSmi(index));
+  CSA_ASSERT(this, TaggedIsSmi(length));
+  CSA_ASSERT(this, IsString(input));
+
+#ifdef DEBUG
+  Node* const max_length = SmiConstant(JSArray::kInitialMaxFastElementArray);
+  CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
+#endif  // DEBUG
+
+  // Allocate the JSRegExpResult.
+  // TODO(jgruber): Fold JSArray and FixedArray allocations, then remove
+  // unneeded store of elements.
+  Node* const result = Allocate(JSRegExpResult::kSize);
+
+  // TODO(jgruber): Store map as Heap constant?
+  Node* const native_context = LoadNativeContext(context);
+  Node* const map =
+      LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
+  StoreMapNoWriteBarrier(result, map);
+
+  // Initialize the header before allocating the elements.
+  Node* const empty_array = EmptyFixedArrayConstant();
+  DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
+                                 empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
+
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
+  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
+
+  Node* const zero = IntPtrConstant(0);
+  Node* const length_intptr = SmiUntag(length);
+  const ElementsKind elements_kind = PACKED_ELEMENTS;
+
+  Node* const elements = AllocateFixedArray(elements_kind, length_intptr);
+  StoreObjectField(result, JSArray::kElementsOffset, elements);
+
+  // Fill in the elements with undefined.
+  FillFixedArrayWithValue(elements_kind, elements, zero, length_intptr,
+                          Heap::kUndefinedValueRootIndex);
+
+  return result;
+}
+
 Node* RegExpBuiltinsAssembler::FastLoadLastIndex(Node* regexp) {
   // Load the in-object field.
   static const int field_offset =
@@ -156,6 +204,8 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Allocate a new object to store the named capture properties.
     // TODO(jgruber): Could be optimized by adding the object map to the heap
     // root list.
+    // TODO(jgruber): Replace CreateDataProperty runtime calls once we have
+    // equivalent functionality in CSA.
 
     Node* const native_context = LoadNativeContext(context);
     Node* const map = LoadContextElement(

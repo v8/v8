@@ -679,13 +679,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* NewConsString(Node* context, Node* length, Node* left, Node* right,
                       AllocationFlags flags = kNone);
 
-  // Allocate a RegExpResult with the given length (the number of captures,
-  // including the match itself), index (the index where the match starts),
-  // and input string. |length| and |index| are expected to be tagged, and
-  // |input| must be a string.
-  Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
-                             Node* input);
-
   Node* AllocateNameDictionary(int at_least_space_for);
   Node* AllocateNameDictionary(Node* at_least_space_for);
   Node* AllocateNameDictionaryWithCapacity(Node* capacity);
