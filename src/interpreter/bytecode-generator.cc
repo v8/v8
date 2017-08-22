@@ -3476,45 +3476,36 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     Variable* variable = proxy->var();
     DCHECK(is_sloppy(language_mode()) || variable->is_this());
-    switch (variable->location()) {
-      case VariableLocation::UNALLOCATED: {
-        // Global var, let, const or variables not explicitly declared.
-        Register native_context = register_allocator()->NewRegister();
-        Register global_object = register_allocator()->NewRegister();
-        builder()
-            ->LoadContextSlot(execution_context()->reg(),
-                              Context::NATIVE_CONTEXT_INDEX, 0,
-                              BytecodeArrayBuilder::kImmutableSlot)
-            .StoreAccumulatorInRegister(native_context)
-            .LoadContextSlot(native_context, Context::EXTENSION_INDEX, 0,
-                             BytecodeArrayBuilder::kImmutableSlot)
-            .StoreAccumulatorInRegister(global_object)
-            .LoadLiteral(variable->raw_name())
-            .Delete(global_object, language_mode());
-        break;
-      }
-      case VariableLocation::PARAMETER:
-      case VariableLocation::LOCAL:
-      case VariableLocation::CONTEXT: {
-        // Deleting local var/let/const, context variables, and arguments
-        // does not have any effect.
-        if (variable->is_this()) {
-          builder()->LoadTrue();
-        } else {
+    if (variable->is_this()) {
+      builder()->LoadTrue();
+    } else {
+      switch (variable->location()) {
+        case VariableLocation::PARAMETER:
+        case VariableLocation::LOCAL:
+        case VariableLocation::CONTEXT: {
+          // Deleting local var/let/const, context variables, and arguments
+          // does not have any effect.
           builder()->LoadFalse();
+          break;
         }
-        break;
+        case VariableLocation::UNALLOCATED:
+        // TODO(adamk): Falling through to the runtime results in correct
+        // behavior, but does unnecessary context-walking (since scope
+        // analysis has already proven that the variable doesn't exist in
+        // any non-global scope). Consider adding a DeleteGlobal bytecode
+        // that knows how to deal with ScriptContexts as well as global
+        // object properties.
+        case VariableLocation::LOOKUP: {
+          Register name_reg = register_allocator()->NewRegister();
+          builder()
+              ->LoadLiteral(variable->raw_name())
+              .StoreAccumulatorInRegister(name_reg)
+              .CallRuntime(Runtime::kDeleteLookupSlot, name_reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
       }
-      case VariableLocation::LOOKUP: {
-        Register name_reg = register_allocator()->NewRegister();
-        builder()
-            ->LoadLiteral(variable->raw_name())
-            .StoreAccumulatorInRegister(name_reg)
-            .CallRuntime(Runtime::kDeleteLookupSlot, name_reg);
-        break;
-      }
-      default:
-        UNREACHABLE();
     }
   } else {
     // Delete of an unresolvable reference returns true.
