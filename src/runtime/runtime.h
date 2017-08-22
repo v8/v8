@@ -658,7 +658,6 @@ namespace internal {
 // Most intrinsics are implemented in the runtime/ directory, but ICs are
 // implemented in ic.cc for now.
 #define FOR_EACH_INTRINSIC_IC(F)             \
-  F(CompareIC_Miss, 3, 1)                    \
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \

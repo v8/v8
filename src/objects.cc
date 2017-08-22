@@ -14097,18 +14097,6 @@ void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
 }
 
 
-void Code::ClearInlineCaches() {
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
-    if (target->is_inline_cache_stub()) {
-      ICUtility::Clear(this->GetIsolate(), info->pc(),
-                       info->host()->constant_pool());
-    }
-  }
-}
-
 namespace {
 template <typename Code>
 void SetStackFrameCacheCommon(Handle<Code> code,
@@ -14683,21 +14671,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   if (IsCodeStubOrIC()) {
     const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this));
     os << "major_key = " << (n == NULL ? "null" : n) << "\n";
-  }
-  if (is_inline_cache_stub()) {
-    if (is_compare_ic_stub()) {
-      InlineCacheState ic_state = IC::StateFromCode(this);
-      os << "ic_state = " << ICState2String(ic_state) << "\n";
-      PrintExtraICState(os, kind(), extra_ic_state());
-    }
-    if (is_compare_ic_stub()) {
-      DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
-      CompareICStub stub(stub_key(), GetIsolate());
-      os << "compare_state = " << CompareICState::GetStateName(stub.left())
-         << "*" << CompareICState::GetStateName(stub.right()) << " -> "
-         << CompareICState::GetStateName(stub.state()) << "\n";
-      os << "compare_operation = " << Token::Name(stub.op()) << "\n";
-    }
   }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";

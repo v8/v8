@@ -3725,11 +3725,6 @@ bool Code::IsCodeStubOrIC() const {
   }
 }
 
-ExtraICState Code::extra_ic_state() const {
-  DCHECK(is_compare_ic_stub());
-  return ExtractExtraICStateFromFlags(flags());
-}
-
 
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
@@ -3938,8 +3933,6 @@ bool Code::back_edges_patched_for_osr() const {
 }
 
 
-uint16_t Code::to_boolean_state() { return extra_ic_state(); }
-
 bool Code::marked_for_deoptimization() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   return MarkedForDeoptimizationField::decode(
@@ -3981,7 +3974,6 @@ bool Code::is_inline_cache_stub() const {
 
 bool Code::is_handler() const { return kind() == HANDLER; }
 bool Code::is_stub() const { return kind() == STUB; }
-bool Code::is_compare_ic_stub() const { return kind() == COMPARE_IC; }
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 

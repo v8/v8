@@ -44,11 +44,6 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     } else if (obj->IsBytecodeArray()) {
       obj = isolate()->heap()->undefined_value();
     }
-  } else if (obj->IsCode()) {
-    Code* code = Code::cast(obj);
-    if (code->kind() == Code::FUNCTION) {
-      code->ClearInlineCaches();
-    }
   }
 
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;

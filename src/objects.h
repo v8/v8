@@ -3663,8 +3663,7 @@ class Code: public HeapObject {
   V(KEYED_LOAD_IC)      \
   V(STORE_IC)           \
   V(STORE_GLOBAL_IC)    \
-  V(KEYED_STORE_IC)     \
-  V(COMPARE_IC)
+  V(KEYED_STORE_IC)
 
 #define CODE_KIND_LIST(V) \
   NON_IC_KIND_LIST(V)     \
@@ -3753,13 +3752,11 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind() const;
-  inline ExtraICState extra_ic_state() const;  // Only valid for IC stubs.
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub() const;
   inline bool is_handler() const;
   inline bool is_stub() const;
-  inline bool is_compare_ic_stub() const;
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
 
@@ -3831,9 +3828,6 @@ class Code: public HeapObject {
   inline void set_back_edge_table_offset(unsigned offset);
 
   inline bool back_edges_patched_for_osr() const;
-
-  // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
-  inline uint16_t to_boolean_state();
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
@@ -4001,8 +3995,6 @@ class Code: public HeapObject {
 
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
-
-  void ClearInlineCaches();
 
 #define DECL_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {

@@ -11,7 +11,6 @@
 #include "src/factory.h"
 #include "src/find-and-replace-pattern.h"
 #include "src/globals.h"
-#include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -35,7 +34,6 @@ class Node;
   V(CallApiCallback)                          \
   V(CallApiGetter)                            \
   V(CEntry)                                   \
-  V(CompareIC)                                \
   V(DoubleToI)                                \
   V(InternalArrayConstructor)                 \
   V(JSEntry)                                  \
@@ -755,84 +753,6 @@ class StringAddStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
   DEFINE_TURBOFAN_CODE_STUB(StringAdd, TurboFanCodeStub);
-};
-
-
-class CompareICStub : public PlatformCodeStub {
- public:
-  CompareICStub(Isolate* isolate, Token::Value op, CompareICState::State left,
-                CompareICState::State right, CompareICState::State state)
-      : PlatformCodeStub(isolate) {
-    DCHECK(Token::IsCompareOp(op));
-    DCHECK(OpBits::is_valid(op - Token::EQ));
-    minor_key_ = OpBits::encode(op - Token::EQ) |
-                 LeftStateBits::encode(left) | RightStateBits::encode(right) |
-                 StateBits::encode(state);
-  }
-  // Creates uninitialized compare stub.
-  CompareICStub(Isolate* isolate, Token::Value op)
-      : CompareICStub(isolate, op, CompareICState::UNINITIALIZED,
-                      CompareICState::UNINITIALIZED,
-                      CompareICState::UNINITIALIZED) {}
-
-  CompareICStub(Isolate* isolate, ExtraICState extra_ic_state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = extra_ic_state;
-  }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  void set_known_map(Handle<Map> map) { known_map_ = map; }
-
-  InlineCacheState GetICState() const;
-
-  Token::Value op() const {
-    return static_cast<Token::Value>(Token::EQ + OpBits::decode(minor_key_));
-  }
-
-  CompareICState::State left() const {
-    return LeftStateBits::decode(minor_key_);
-  }
-  CompareICState::State right() const {
-    return RightStateBits::decode(minor_key_);
-  }
-  CompareICState::State state() const { return StateBits::decode(minor_key_); }
-
- private:
-  Code::Kind GetCodeKind() const override { return Code::COMPARE_IC; }
-
-  void GenerateBooleans(MacroAssembler* masm);
-  void GenerateSmis(MacroAssembler* masm);
-  void GenerateNumbers(MacroAssembler* masm);
-  void GenerateInternalizedStrings(MacroAssembler* masm);
-  void GenerateStrings(MacroAssembler* masm);
-  void GenerateUniqueNames(MacroAssembler* masm);
-  void GenerateReceivers(MacroAssembler* masm);
-  void GenerateMiss(MacroAssembler* masm);
-  void GenerateKnownReceivers(MacroAssembler* masm);
-  void GenerateGeneric(MacroAssembler* masm);
-
-  bool strict() const { return op() == Token::EQ_STRICT; }
-  Condition GetCondition() const;
-
-  // Although we don't cache anything in the special cache we have to define
-  // this predicate to avoid appearance of code stubs with embedded maps in
-  // the global stub cache.
-  bool UseSpecialCache() override {
-    return state() == CompareICState::KNOWN_RECEIVER;
-  }
-
-  class OpBits : public BitField<int, 0, 3> {};
-  class LeftStateBits : public BitField<CompareICState::State, 3, 4> {};
-  class RightStateBits : public BitField<CompareICState::State, 7, 4> {};
-  class StateBits : public BitField<CompareICState::State, 11, 4> {};
-
-  Handle<Map> known_map_;
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_PLATFORM_CODE_STUB(CompareIC, PlatformCodeStub);
 };
 
 

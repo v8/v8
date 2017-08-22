@@ -85,17 +85,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           old_state, new_state, map, slow_reason));
 
       }
-
-      processCompareIC(pc, line, column, stub, op, old_left, old_right,
-          old_state, new_left, new_right, new_state) {
-        let fnName = this.functionName(pc);
-        this.entries.push(new Entry("CompareIC", fnName, line, column, name,
-          old_state, new_state));
-      }
-
-      processPatchIC(pc, test, delta) {
-
-      }
     };
 
 

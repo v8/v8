@@ -3143,19 +3143,6 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
 }
 
 
-static Code* FindFirstIC(Code* code, Code::Kind kind) {
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-  for (RelocIterator it(code, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    Code* target = Code::GetCodeFromTargetAddress(info->target_address());
-    if (target->is_inline_cache_stub() && target->kind() == kind) {
-      return target;
-    }
-  }
-  return NULL;
-}
-
-
 static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>(f->feedback_vector());
@@ -4512,20 +4499,15 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
              InlineCacheState state) {
-  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
-    FeedbackVector* vector = function->feedback_vector();
-    FeedbackSlot slot(slot_index);
-    if (kind == Code::LOAD_IC) {
-      LoadICNexus nexus(vector, slot);
-      CHECK_EQ(nexus.StateFromFeedback(), state);
-    } else if (kind == Code::KEYED_LOAD_IC) {
-      KeyedLoadICNexus nexus(vector, slot);
-      CHECK_EQ(nexus.StateFromFeedback(), state);
-    }
-  } else {
-    Code* ic = FindFirstIC(function->code(), kind);
-    CHECK(ic->is_inline_cache_stub());
-    CHECK_EQ(state, IC::StateFromCode(ic));
+  CHECK(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
+  FeedbackVector* vector = function->feedback_vector();
+  FeedbackSlot slot(slot_index);
+  if (kind == Code::LOAD_IC) {
+    LoadICNexus nexus(vector, slot);
+    CHECK_EQ(nexus.StateFromFeedback(), state);
+  } else if (kind == Code::KEYED_LOAD_IC) {
+    KeyedLoadICNexus nexus(vector, slot);
+    CHECK_EQ(nexus.StateFromFeedback(), state);
   }
 }
 

@@ -6,7 +6,6 @@
 #include "src/code-stubs.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/ic-inl.h"
-#include "src/ic/ic-state.h"
 #include "src/objects.h"
 #include "src/objects/object-macros.h"
 

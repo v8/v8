@@ -7,7 +7,6 @@
 
 #include "src/factory.h"
 #include "src/feedback-vector.h"
-#include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects/map.h"
@@ -26,6 +25,8 @@ class IC {
   // The IC code is either invoked with no extra frames on the stack
   // or with a single extra frame for supporting calls.
   enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
+
+  static constexpr int kMaxKeyedPolymorphism = 4;
 
   // A polymorphic IC can handle at most 4 distinct maps before transitioning
   // to megamorphic state.
@@ -49,9 +50,6 @@ class IC {
     state_ = RECOMPUTE_HANDLER;
   }
 
-  // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate, Address address, Address constant_pool);
-
   bool IsAnyLoad() const {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
@@ -63,8 +61,6 @@ class IC {
   // The ICs that don't pass slot and vector through the stack have to
   // save/restore them in the dispatcher.
   static bool ShouldPushPopSlotAndVector(Code::Kind kind);
-
-  static InlineCacheState StateFromCode(Code* code);
 
   static inline bool IsHandler(Object* object);
 
@@ -88,8 +84,6 @@ class IC {
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
                                               Address address);
 
-  // Set the call-site target.
-  inline void set_target(Code* code);
   bool is_vector_set() { return vector_set_; }
 
   // Configure for most states.
@@ -109,13 +103,6 @@ class IC {
   MaybeHandle<Object> TypeError(MessageTemplate::Template,
                                 Handle<Object> object, Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
-
-  // Access the target code for the given IC address.
-  static inline Code* GetTargetAtAddress(Address address,
-                                         Address constant_pool);
-  static inline void SetTargetAtAddress(Address address, Code* target,
-                                        Address constant_pool);
-  static void PostPatching(Address address, Code* target, Code* old_target);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
@@ -187,8 +174,6 @@ class IC {
     return static_cast<NexusClass*>(nexus_);
   }
   FeedbackNexus* nexus() const { return nexus_; }
-
-  inline Code* target() const;
 
  private:
   inline Address constant_pool() const;
@@ -423,39 +408,6 @@ class KeyedStoreIC : public StoreIC {
 
   friend class IC;
 };
-
-
-class CompareIC : public IC {
- public:
-  CompareIC(Isolate* isolate, Token::Value op)
-      : IC(EXTRA_CALL_FRAME, isolate), op_(op) {}
-
-  // Update the inline cache for the given operands.
-  Code* UpdateCaches(Handle<Object> x, Handle<Object> y);
-
-  // Helper function for computing the condition for a compare operation.
-  static Condition ComputeCondition(Token::Value op);
-
- private:
-  static bool HasInlinedSmiCode(Address address);
-
-  bool strict() const { return op_ == Token::EQ_STRICT; }
-  Condition GetCondition() const { return ComputeCondition(op_); }
-
-  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
-  Token::Value op_;
-
-  friend class IC;
-};
-
-// Helper for CompareIC.
-enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
-void PatchInlinedSmiCode(Isolate* isolate, Address address,
-                         InlinedSmiCheck check);
 
 }  // namespace internal
 }  // namespace v8

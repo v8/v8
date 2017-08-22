@@ -149,12 +149,6 @@ Callable CodeFactory::KeyedStoreIC_Megamorphic(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
-  CompareICStub stub(isolate, op);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::BinaryOperation(Isolate* isolate, Token::Value op) {
   switch (op) {
     case Token::SAR:

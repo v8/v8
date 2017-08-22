@@ -1481,34 +1481,6 @@ void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
   msg.WriteToLogFile();
 }
 
-void Logger::CompareIC(const Address pc, int line, int column, Code* stub,
-                       const char* op, const char* old_left,
-                       const char* old_right, const char* old_state,
-                       const char* new_left, const char* new_right,
-                       const char* new_state) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("CompareIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",%d,%d,", line, column);
-  msg.AppendAddress(reinterpret_cast<Address>(stub));
-  msg.Append(",%s,%s,%s,%s,%s,%s,%s", op, old_left, old_right, old_state,
-             new_left, new_right, new_state);
-  msg.WriteToLogFile();
-}
-
-void Logger::PatchIC(const Address pc, const Address test, int delta) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("PatchIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",");
-  msg.AppendAddress(test);
-  msg.Append(",");
-  msg.Append("%d,", delta);
-  msg.WriteToLogFile();
-}
-
 void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;
   if (profiler_ != NULL) {
@@ -1615,8 +1587,6 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log this later using LogCompiledFunctions.
     case AbstractCode::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case AbstractCode::COMPARE_IC:      // fall through
-
     case AbstractCode::STUB:
       description =
           CodeStub::MajorName(CodeStub::GetMajorKey(code_object->GetCode()));

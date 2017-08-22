@@ -41,7 +41,6 @@
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
   V(column_string, "column")                                       \
-  V(compare_ic_string, "==")                                       \
   V(configurable_string, "configurable")                           \
   V(constructor_string, "constructor")                             \
   V(construct_string, "construct")                                 \
@@ -167,7 +166,6 @@
   V(stackTraceLimit_string, "stackTraceLimit")                     \
   V(star_default_star_string, "*default*")                         \
   V(sticky_string, "sticky")                                       \
-  V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \

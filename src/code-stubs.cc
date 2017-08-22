@@ -318,68 +318,6 @@ TF_STUB(StringAddStub, CodeStubAssembler) {
   }
 }
 
-InlineCacheState CompareICStub::GetICState() const {
-  CompareICState::State state = Max(left(), right());
-  switch (state) {
-    case CompareICState::UNINITIALIZED:
-      return ::v8::internal::UNINITIALIZED;
-    case CompareICState::BOOLEAN:
-    case CompareICState::SMI:
-    case CompareICState::NUMBER:
-    case CompareICState::INTERNALIZED_STRING:
-    case CompareICState::STRING:
-    case CompareICState::UNIQUE_NAME:
-    case CompareICState::RECEIVER:
-    case CompareICState::KNOWN_RECEIVER:
-      return MONOMORPHIC;
-    case CompareICState::GENERIC:
-      return ::v8::internal::GENERIC;
-  }
-  UNREACHABLE();
-}
-
-
-Condition CompareICStub::GetCondition() const {
-  return CompareIC::ComputeCondition(op());
-}
-
-
-void CompareICStub::Generate(MacroAssembler* masm) {
-  switch (state()) {
-    case CompareICState::UNINITIALIZED:
-      GenerateMiss(masm);
-      break;
-    case CompareICState::BOOLEAN:
-      GenerateBooleans(masm);
-      break;
-    case CompareICState::SMI:
-      GenerateSmis(masm);
-      break;
-    case CompareICState::NUMBER:
-      GenerateNumbers(masm);
-      break;
-    case CompareICState::STRING:
-      GenerateStrings(masm);
-      break;
-    case CompareICState::INTERNALIZED_STRING:
-      GenerateInternalizedStrings(masm);
-      break;
-    case CompareICState::UNIQUE_NAME:
-      GenerateUniqueNames(masm);
-      break;
-    case CompareICState::RECEIVER:
-      GenerateReceivers(masm);
-      break;
-    case CompareICState::KNOWN_RECEIVER:
-      DCHECK(*known_map_ != NULL);
-      GenerateKnownReceivers(masm);
-      break;
-    case CompareICState::GENERIC:
-      GenerateGeneric(masm);
-      break;
-  }
-}
-
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
