@@ -16,7 +16,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
-#include "src/objects/module-info.h"
+#include "src/objects/module.h"
 #include "src/objects/scope-info.h"
 
 namespace v8 {

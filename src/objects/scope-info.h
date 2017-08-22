@@ -20,6 +20,7 @@ class Handle;
 class Isolate;
 template <typename T>
 class MaybeHandle;
+class ModuleInfo;
 class Scope;
 class Zone;
 

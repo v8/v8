@@ -25,6 +25,7 @@ class BoilerplateDescription;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;
+class JSModuleNamespace;
 struct SourceRange;
 class PreParsedScopeData;
 
