@@ -1383,8 +1383,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ sub(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                  LeaveOE, i.OutputRCBit());
         } else {
-          __ subi(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1));
-          DCHECK_EQ(LeaveRC, i.OutputRCBit());
+          if (is_int16(i.InputImmediate(1).immediate())) {
+            __ subi(i.OutputRegister(), i.InputRegister(0),
+                    i.InputImmediate(1));
+            DCHECK_EQ(LeaveRC, i.OutputRCBit());
+          } else {
+            __ mov(kScratchReg, i.InputImmediate(1));
+            __ sub(i.OutputRegister(), i.InputRegister(0), kScratchReg, LeaveOE,
+                   i.OutputRCBit());
+          }
         }
 #if V8_TARGET_ARCH_PPC64
       }
