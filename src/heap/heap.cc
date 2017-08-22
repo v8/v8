@@ -1982,6 +1982,15 @@ void Heap::Scavenge() {
 
   incremental_marking()->UpdateMarkingWorklistAfterScavenge();
 
+  if (FLAG_concurrent_marking) {
+    // Ensure that concurrent marker does not track pages that are
+    // going to be unmapped.
+    for (Page* p : PageRange(new_space()->FromSpaceStart(),
+                             new_space()->FromSpaceEnd())) {
+      concurrent_marking()->ClearLiveness(p);
+    }
+  }
+
   ScavengeWeakObjectRetainer weak_object_retainer(this);
   ProcessYoungWeakReferences(&weak_object_retainer);
 

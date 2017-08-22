@@ -2529,6 +2529,11 @@ void MinorMarkCompactCollector::CollectGarbage() {
                              heap()->new_space()->FromSpaceEnd())) {
       DCHECK(!p->IsFlagSet(Page::SWEEP_TO_ITERATE));
       non_atomic_marking_state()->ClearLiveness(p);
+      if (FLAG_concurrent_marking) {
+        // Ensure that concurrent marker does not track pages that are
+        // going to be unmapped.
+        heap()->concurrent_marking()->ClearLiveness(p);
+      }
     }
   }
 
