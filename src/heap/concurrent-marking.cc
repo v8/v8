@@ -474,7 +474,11 @@ void ConcurrentMarking::FlushLiveBytes(
   for (int i = 1; i <= kTasks; i++) {
     LiveBytesMap& live_bytes = task_state_[i].live_bytes;
     for (auto pair : live_bytes) {
-      marking_state->IncrementLiveBytes(pair.first, pair.second);
+      // ClearLiveness sets the live bytes to zero.
+      // Pages with zero live bytes might be already unmapped.
+      if (pair.second != 0) {
+        marking_state->IncrementLiveBytes(pair.first, pair.second);
+      }
     }
     live_bytes.clear();
   }
