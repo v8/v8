@@ -6349,12 +6349,14 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
     return Smi::cast(hash_obj);
   }
 
-  int hash;
+  int masked_hash;
+  // TODO(gsathya): Remove the loop and pass kHashMask directly to
+  // GenerateIdentityHash.
   do {
-    hash = isolate->GenerateIdentityHash(Smi::kMaxValue);
-  } while (hash == PropertyArray::kNoHashSentinel);
+    int hash = isolate->GenerateIdentityHash(Smi::kMaxValue);
+    masked_hash = hash & JSReceiver::kHashMask;
+  } while (masked_hash == PropertyArray::kNoHashSentinel);
 
-  int masked_hash = hash & JSReceiver::kHashMask;
   SetIdentityHash(masked_hash);
   return Smi::FromInt(masked_hash);
 }
