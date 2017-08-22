@@ -557,7 +557,8 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   {
     Label two_byte(this);
     // Assume that the resulting string contains only one-byte characters.
-    Node* one_byte_result = AllocateSeqOneByteString(context, argc);
+    Node* one_byte_result = AllocateSeqOneByteString(
+        context, argc, INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
 
     VARIABLE(max_index, MachineType::PointerRepresentation());
     max_index.Bind(IntPtrConstant(0));
@@ -591,7 +592,8 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     // At least one of the characters in the string requires a 16-bit
     // representation.  Allocate a SeqTwoByteString to hold the resulting
     // string.
-    Node* two_byte_result = AllocateSeqTwoByteString(context, argc);
+    Node* two_byte_result = AllocateSeqTwoByteString(
+        context, argc, INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
 
     // Copy the characters that have already been put in the 8-bit string into
     // their corresponding positions in the new 16-bit string.

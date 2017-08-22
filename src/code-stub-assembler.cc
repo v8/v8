@@ -959,6 +959,8 @@ Node* CodeStubAssembler::AllocateInNewSpace(int size_in_bytes,
 }
 
 Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
+  DCHECK_IMPLIES(size_in_bytes > kMaxRegularHeapObjectSize,
+                 (flags & kAllowLargeObjectAllocation) != 0);
   return CodeStubAssembler::Allocate(IntPtrConstant(size_in_bytes), flags);
 }
 
@@ -1978,22 +1980,18 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
   CSA_SLOW_ASSERT(this, MatchesParameterMode(length, mode));
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
-  // Compute the SeqOneByteString size and check if it fits into new space.
-  Label if_lengthiszero(this), if_sizeissmall(this),
-      if_notsizeissmall(this, Label::kDeferred), if_join(this);
+  Label if_lengthiszero(this), out(this);
   GotoIf(WordEqual(length, IntPtrOrSmiConstant(0, mode)), &if_lengthiszero);
 
-  Node* raw_size = GetArrayAllocationSize(
-      length, UINT8_ELEMENTS, mode,
-      SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  Node* size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
-  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
-         &if_sizeissmall, &if_notsizeissmall);
-
-  BIND(&if_sizeissmall);
   {
-    // Just allocate the SeqOneByteString in new space.
-    Node* result = AllocateInNewSpace(size, flags);
+    // Compute the SeqOneByteString size.
+    Node* raw_size = GetArrayAllocationSize(
+        length, UINT8_ELEMENTS, mode,
+        SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
+    Node* size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+
+    // Just allocate the SeqOneByteString.
+    Node* result = Allocate(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
     StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
@@ -2003,25 +2001,16 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
                                    IntPtrConstant(String::kEmptyHashField),
                                    MachineType::PointerRepresentation());
     var_result.Bind(result);
-    Goto(&if_join);
-  }
-
-  BIND(&if_notsizeissmall);
-  {
-    // We might need to allocate in large object space, go to the runtime.
-    Node* result = CallRuntime(Runtime::kAllocateSeqOneByteString, context,
-                               ParameterToTagged(length, mode));
-    var_result.Bind(result);
-    Goto(&if_join);
+    Goto(&out);
   }
 
   BIND(&if_lengthiszero);
   {
     var_result.Bind(LoadRoot(Heap::kempty_stringRootIndex));
-    Goto(&if_join);
+    Goto(&out);
   }
 
-  BIND(&if_join);
+  BIND(&out);
   return var_result.value();
 }
 
@@ -2051,22 +2040,18 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
   Comment("AllocateSeqTwoByteString");
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
-  // Compute the SeqTwoByteString size and check if it fits into new space.
-  Label if_lengthiszero(this), if_sizeissmall(this),
-      if_notsizeissmall(this, Label::kDeferred), if_join(this);
+  Label if_lengthiszero(this), out(this);
   GotoIf(WordEqual(length, IntPtrOrSmiConstant(0, mode)), &if_lengthiszero);
 
-  Node* raw_size = GetArrayAllocationSize(
-      length, UINT16_ELEMENTS, mode,
-      SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  Node* size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
-  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
-         &if_sizeissmall, &if_notsizeissmall);
-
-  BIND(&if_sizeissmall);
   {
+    // Compute the SeqTwoByteString size.
+    Node* raw_size = GetArrayAllocationSize(
+        length, UINT16_ELEMENTS, mode,
+        SeqTwoByteString::kHeaderSize + kObjectAlignmentMask);
+    Node* size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+
     // Just allocate the SeqTwoByteString in new space.
-    Node* result = AllocateInNewSpace(size, flags);
+    Node* result = Allocate(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
     StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(
@@ -2077,26 +2062,16 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
                                    IntPtrConstant(String::kEmptyHashField),
                                    MachineType::PointerRepresentation());
     var_result.Bind(result);
-    Goto(&if_join);
-  }
-
-  BIND(&if_notsizeissmall);
-  {
-    // We might need to allocate in large object space, go to the runtime.
-    Node* result =
-        CallRuntime(Runtime::kAllocateSeqTwoByteString, context,
-                    mode == SMI_PARAMETERS ? length : SmiFromWord(length));
-    var_result.Bind(result);
-    Goto(&if_join);
+    Goto(&out);
   }
 
   BIND(&if_lengthiszero);
   {
     var_result.Bind(LoadRoot(Heap::kempty_stringRootIndex));
-    Goto(&if_join);
+    Goto(&out);
   }
 
-  BIND(&if_join);
+  BIND(&out);
   return var_result.value();
 }
 
@@ -4013,8 +3988,8 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(Node* context, Node* from,
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
   {
-    Node* result =
-        AllocateSeqOneByteString(context, SmiToWord(character_count));
+    Node* result = AllocateSeqOneByteString(
+        context, character_count, SMI_PARAMETERS, kAllowLargeObjectAllocation);
     CopyStringCharacters(from, result, from_index, smi_zero, character_count,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING,
                          CodeStubAssembler::SMI_PARAMETERS);
@@ -4026,8 +4001,8 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(Node* context, Node* from,
   // The subject string is a sequential two-byte string.
   BIND(&two_byte_sequential);
   {
-    Node* result =
-        AllocateSeqTwoByteString(context, SmiToWord(character_count));
+    Node* result = AllocateSeqTwoByteString(
+        context, character_count, SMI_PARAMETERS, kAllowLargeObjectAllocation);
     CopyStringCharacters(from, result, from_index, smi_zero, character_count,
                          String::TWO_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
                          CodeStubAssembler::SMI_PARAMETERS);
@@ -4477,7 +4452,7 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
            &two_byte);
     // One-byte sequential string case
     Node* new_string =
-        AllocateSeqOneByteString(context, new_length, SMI_PARAMETERS);
+        AllocateSeqOneByteString(context, new_length, SMI_PARAMETERS, flags);
     CopyStringCharacters(var_left.value(), new_string, SmiConstant(0),
                          SmiConstant(0), left_length, String::ONE_BYTE_ENCODING,
                          String::ONE_BYTE_ENCODING, SMI_PARAMETERS);
@@ -4491,7 +4466,7 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
     {
       // Two-byte sequential string case
       new_string =
-          AllocateSeqTwoByteString(context, new_length, SMI_PARAMETERS);
+          AllocateSeqTwoByteString(context, new_length, SMI_PARAMETERS, flags);
       CopyStringCharacters(var_left.value(), new_string, SmiConstant(0),
                            SmiConstant(0), left_length,
                            String::TWO_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
