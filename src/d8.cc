@@ -2048,10 +2048,6 @@ static FILE* FOpen(const char* path, const char* mode) {
 }
 
 static char* ReadChars(const char* name, int* size_out) {
-  if (Shell::options.read_from_tcp_port >= 0) {
-    return Shell::ReadCharsFromTcpPort(name, size_out);
-  }
-
   FILE* file = FOpen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -2721,11 +2717,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--disable-in-process-stack-traces") == 0) {
       options.disable_in_process_stack_traces = true;
       argv[i] = NULL;
-#ifdef V8_OS_POSIX
-    } else if (strncmp(argv[i], "--read-from-tcp-port=", 21) == 0) {
-      options.read_from_tcp_port = atoi(argv[i] + 21);
-      argv[i] = NULL;
-#endif  // V8_OS_POSIX
     } else if (strcmp(argv[i], "--enable-os-system") == 0) {
       options.enable_os_system = true;
       argv[i] = NULL;
