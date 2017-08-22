@@ -665,6 +665,7 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   if (scope->must_use_preparsed_scope_data_) {
     DCHECK(FLAG_preparser_scope_analysis);
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
+    allow_deref.emplace();
     info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
   }
 

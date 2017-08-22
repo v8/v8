@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --preparser-scope-analysis
+// Flags: --preparser-scope-analysis --enable-slow-asserts
 
 (function TestBasicSkipping() {
   var result = 0;
@@ -82,7 +82,7 @@
 })();
 
 // Skippable top level functions.
-let result = 0;
+var result = 0;
 function lazy_top_level(ctxt_alloc_param) {
   let ctxt_alloc_var = 24;
   function skip_me() {

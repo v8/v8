@@ -407,6 +407,9 @@ std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
   DisallowHandleDereference no_deref;
   DCHECK(inner_function_jobs->empty());
 
+  DCHECK_IMPLIES(parse_info->consumed_preparsed_scope_data()->HasData(),
+                 ThreadId::Current().Equals(isolate->thread_id()));
+
   Compiler::EagerInnerFunctionLiterals inner_literals;
   if (!Compiler::Analyze(parse_info, &inner_literals)) {
     return std::unique_ptr<CompilationJob>();
