@@ -433,7 +433,7 @@ class FloatingPointHelper : public AllStatic {
   // r1: Left value (sign, exponent, top of mantissa).
   // r2: Right value (least significant part of mantissa).
   // r3: Right value (sign, exponent, top of mantissa).
-  static void CallCCodeForDoubleOperation(MacroAssembler* masm, Token::Value op,
+  static void CallCCodeForDoubleOperation(MacroAssembler* masm,
                                           Register heap_number_result,
                                           Register scratch);
 
