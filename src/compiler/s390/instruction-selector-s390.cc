@@ -708,6 +708,11 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
+void InstructionSelector::VisitDebugAbort(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), r3));
+}
+
 void InstructionSelector::VisitLoad(Node* node) {
   S390OperandGenerator g(this);
   ArchOpcode opcode = SelectLoadOpcode(node);

@@ -508,6 +508,7 @@
   MACHINE_FLOAT32_UNOP_LIST(V)  \
   MACHINE_FLOAT64_BINOP_LIST(V) \
   MACHINE_FLOAT64_UNOP_LIST(V)  \
+  V(DebugAbort)                 \
   V(DebugBreak)                 \
   V(Comment)                    \
   V(Load)                       \

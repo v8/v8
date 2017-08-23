@@ -2564,6 +2564,17 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kAbort);
 }
 
+// static
+void Builtins::Generate_AbortJS(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : message as String object
+  //  -- lr : return address
+  // -----------------------------------
+  __ push(r3);
+  __ LoadSmiLiteral(cp, Smi::kZero);
+  __ TailCallRuntime(Runtime::kAbortJS);
+}
+
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2 : actual number of arguments

@@ -228,6 +228,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
           AlignmentRequirements::FullUnalignedAccessSupport());
 
   const Operator* Comment(const char* msg);
+  const Operator* DebugAbort();
   const Operator* DebugBreak();
   const Operator* UnsafePointerAdd();
 

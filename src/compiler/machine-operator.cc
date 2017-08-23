@@ -648,6 +648,13 @@ struct MachineOperatorGlobalCache {
   };
   BitcastWordToTaggedOperator kBitcastWordToTagged;
 
+  struct DebugAbortOperator : public Operator {
+    DebugAbortOperator()
+        : Operator(IrOpcode::kDebugAbort, Operator::kNoThrow, "DebugAbort", 1,
+                   1, 1, 0, 1, 0) {}
+  };
+  DebugAbortOperator kDebugAbort;
+
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
         : Operator(IrOpcode::kDebugBreak, Operator::kNoThrow, "DebugBreak", 0,
@@ -814,6 +821,10 @@ const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
 
 const Operator* MachineOperatorBuilder::BitcastWordToTagged() {
   return &cache_.kBitcastWordToTagged;
+}
+
+const Operator* MachineOperatorBuilder::DebugAbort() {
+  return &cache_.kDebugAbort;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {

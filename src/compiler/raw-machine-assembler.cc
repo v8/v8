@@ -164,6 +164,10 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
   current_block_ = nullptr;
 }
 
+void RawMachineAssembler::DebugAbort(Node* message) {
+  AddNode(machine()->DebugAbort(), message);
+}
+
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
 
 void RawMachineAssembler::Unreachable() {

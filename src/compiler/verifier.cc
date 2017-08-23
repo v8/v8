@@ -770,6 +770,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
 
     case IrOpcode::kComment:
+    case IrOpcode::kDebugAbort:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kRetain:
     case IrOpcode::kUnsafePointerAdd:

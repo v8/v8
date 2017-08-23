@@ -1006,6 +1006,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RecordComment(reinterpret_cast<const char*>(comment_string));
       break;
     }
+    case kArchDebugAbort:
+      DCHECK(i.InputRegister(0).is(edx));
+      if (!frame_access_state()->has_frame()) {
+        // We don't actually want to generate a pile of code for this, so just
+        // claim there is a stack frame, without generating one.
+        FrameScope scope(tasm(), StackFrame::NONE);
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      }
+      __ int3();
+      break;
     case kArchDebugBreak:
       __ int3();
       break;

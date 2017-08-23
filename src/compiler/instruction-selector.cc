@@ -1113,6 +1113,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
       return;
+    case IrOpcode::kDebugAbort:
+      VisitDebugAbort(node);
+      return;
     case IrOpcode::kDebugBreak:
       VisitDebugBreak(node);
       return;

@@ -363,6 +363,11 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
 }
 
+void InstructionSelector::VisitDebugAbort(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+}
+
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
               Node* output = nullptr) {
   Mips64OperandGenerator g(selector);

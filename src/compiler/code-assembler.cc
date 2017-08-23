@@ -338,6 +338,10 @@ void CodeAssembler::ReturnIf(Node* condition, Node* value) {
   Bind(&if_continue);
 }
 
+void CodeAssembler::DebugAbort(Node* message) {
+  raw_assembler()->DebugAbort(message);
+}
+
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
 
 void CodeAssembler::Unreachable() {

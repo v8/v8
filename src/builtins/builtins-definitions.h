@@ -232,6 +232,7 @@ namespace internal {
                                                                                \
   /* Abort */                                                                  \
   ASM(Abort)                                                                   \
+  ASM(AbortJS)                                                                 \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \

@@ -549,6 +549,11 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
+void InstructionSelector::VisitDebugAbort(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
+}
+
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
               ImmediateMode immediate_mode, MachineRepresentation rep,
               Node* output = nullptr) {

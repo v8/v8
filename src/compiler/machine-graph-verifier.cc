@@ -450,6 +450,9 @@ class MachineRepresentationChecker {
           case IrOpcode::kParameter:
           case IrOpcode::kProjection:
             break;
+          case IrOpcode::kDebugAbort:
+            CheckValueInputIsTagged(node, 0);
+            break;
           case IrOpcode::kLoad:
           case IrOpcode::kAtomicLoad:
             CheckValueInputIsTaggedOrPointer(node, 0);
