@@ -2686,7 +2686,7 @@ SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 int PropertyArray::length() const {
-  Object* value_obj = READ_FIELD(this, kLengthOffset);
+  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   return value & kLengthMask;
 }
@@ -2694,17 +2694,17 @@ int PropertyArray::length() const {
 void PropertyArray::initialize_length(int len) {
   SLOW_DCHECK(len >= 0);
   SLOW_DCHECK(len < kMaxLength);
-  WRITE_FIELD(this, kLengthOffset, Smi::FromInt(len));
+  WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(len));
 }
 
 int PropertyArray::synchronized_length() const {
-  Object* value_obj = ACQUIRE_READ_FIELD(this, kLengthOffset);
+  Object* value_obj = ACQUIRE_READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   return value & kLengthMask;
 }
 
 int PropertyArray::Hash() const {
-  Object* value_obj = READ_FIELD(this, kLengthOffset);
+  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   int hash = value & kHashMask;
   return hash;
@@ -2712,10 +2712,10 @@ int PropertyArray::Hash() const {
 
 void PropertyArray::SetHash(int masked_hash) {
   DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
-  Object* value_obj = READ_FIELD(this, kLengthOffset);
+  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   value = (value & kLengthMask) | masked_hash;
-  WRITE_FIELD(this, kLengthOffset, Smi::FromInt(value));
+  WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(value));
 }
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)

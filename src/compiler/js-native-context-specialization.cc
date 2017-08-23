@@ -2278,7 +2278,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
                             control);
   } else {
     hash = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForPropertyArrayLength()),
+        simplified()->LoadField(AccessBuilder::ForPropertyArrayLengthAndHash()),
         properties, effect, control);
     effect = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
@@ -2295,7 +2295,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       simplified()->StoreField(AccessBuilder::ForMap()), new_properties,
       jsgraph()->PropertyArrayMapConstant(), effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForPropertyArrayLength()),
+      simplified()->StoreField(AccessBuilder::ForPropertyArrayLengthAndHash()),
       new_properties, new_length_and_hash, effect, control);
   for (int i = 0; i < new_length; ++i) {
     effect = graph()->NewNode(

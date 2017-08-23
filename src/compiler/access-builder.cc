@@ -477,12 +477,12 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
 }
 
 // static
-// TODO(gsathya): Rename this to PropertyArrayLengthAndHash.
-FieldAccess AccessBuilder::ForPropertyArrayLength() {
-  FieldAccess access = {kTaggedBase,         PropertyArray::kLengthOffset,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::SignedSmall(), MachineType::TaggedSigned(),
-                        kNoWriteBarrier};
+FieldAccess AccessBuilder::ForPropertyArrayLengthAndHash() {
+  FieldAccess access = {
+      kTaggedBase,         PropertyArray::kLengthAndHashOffset,
+      MaybeHandle<Name>(), MaybeHandle<Map>(),
+      Type::SignedSmall(), MachineType::TaggedSigned(),
+      kNoWriteBarrier};
   return access;
 }
 
