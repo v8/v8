@@ -698,7 +698,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
-  void RecordCodeTargetPatch(Address pc, Code* target);
   V8_INLINE static void RecordSlot(HeapObject* object, Object** slot,
                                    Object* target);
   void RecordLiveSlotsOnPage(Page* page);

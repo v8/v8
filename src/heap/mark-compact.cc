@@ -4619,22 +4619,5 @@ void MarkCompactCollector::StartSweepSpaces() {
   heap_->lo_space()->FreeUnmarkedObjects();
 }
 
-
-void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
-  DCHECK(heap()->gc_state() == Heap::MARK_COMPACT);
-  if (is_compacting()) {
-    Code* host =
-        isolate()->inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(
-            pc);
-    if (non_atomic_marking_state()->IsBlack(host)) {
-      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
-      // The target is always in old space, we don't have to record the slot in
-      // the old-to-new remembered set.
-      DCHECK(!heap()->InNewSpace(target));
-      RecordRelocSlot(host, &rinfo, target);
-    }
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

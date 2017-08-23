@@ -233,8 +233,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
-  void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
-  void RecordCodeTargetPatch(Address pc, HeapObject* value);
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
