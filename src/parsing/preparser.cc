@@ -396,7 +396,7 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
 }
 
 PreParserExpression PreParser::ExpressionFromIdentifier(
-    PreParserIdentifier name, int start_position, InferName infer) {
+    const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
   if (track_unresolved_variables_) {
     DCHECK_NOT_NULL(name.string_);
