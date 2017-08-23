@@ -2306,7 +2306,6 @@ Isolate::Isolate(bool enable_serializer)
       logger_(NULL),
       load_stub_cache_(NULL),
       store_stub_cache_(NULL),
-      code_aging_helper_(NULL),
       deoptimizer_data_(NULL),
       deoptimizer_lazy_throw_(false),
       materialized_object_store_(NULL),
@@ -2559,8 +2558,6 @@ Isolate::~Isolate() {
   load_stub_cache_ = NULL;
   delete store_stub_cache_;
   store_stub_cache_ = NULL;
-  delete code_aging_helper_;
-  code_aging_helper_ = NULL;
 
   delete materialized_object_store_;
   materialized_object_store_ = NULL;
@@ -2753,8 +2750,6 @@ bool Isolate::Init(StartupDeserializer* des) {
     V8::FatalProcessOutOfMemory("heap setup");
     return false;
   }
-
-  code_aging_helper_ = new CodeAgingHelper(this);
 
 // Initialize the interface descriptors ahead of time.
 #define INTERFACE_DESCRIPTOR(Name, ...) \

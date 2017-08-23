@@ -636,20 +636,11 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
   push(Immediate(StackFrame::TypeToMarker(type)));
 }
 
-void TurboAssembler::Prologue(bool code_pre_aging) {
-  PredictableCodeSizeScope predictible_code_size_scope(this,
-      kNoCodeAgeSequenceLength);
-  if (code_pre_aging) {
-    // Pre-age the code.
-    call(BUILTIN_CODE(isolate(), MarkCodeAsExecutedOnce),
-         RelocInfo::CODE_AGE_SEQUENCE);
-    Nop(kNoCodeAgeSequenceLength - Assembler::kCallInstructionLength);
-  } else {
-    push(ebp);  // Caller's frame pointer.
-    mov(ebp, esp);
-    push(esi);  // Callee's context.
-    push(edi);  // Callee's JS function.
-  }
+void TurboAssembler::Prologue() {
+  push(ebp);  // Caller's frame pointer.
+  mov(ebp, esp);
+  push(esi);  // Callee's context.
+  push(edi);  // Callee's JS function.
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {

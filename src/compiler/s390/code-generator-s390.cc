@@ -2596,7 +2596,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Push(r14, fp);
       __ LoadRR(fp, sp);
     } else if (descriptor->IsJSFunctionCall()) {
-      __ Prologue(this->info()->GeneratePreagedPrologue(), ip);
+      __ Prologue(ip);
       if (descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }

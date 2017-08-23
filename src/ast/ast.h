@@ -2587,15 +2587,6 @@ class FunctionLiteral final : public Expression {
   bool ShouldEagerCompile() const;
   void SetShouldEagerCompile();
 
-  // A hint that we expect this function to be called (exactly) once,
-  // i.e. we suspect it's an initialization function.
-  bool should_be_used_once_hint() const {
-    return ShouldNotBeUsedOnceHintField::decode(bit_field_);
-  }
-  void set_should_be_used_once_hint() {
-    bit_field_ = ShouldNotBeUsedOnceHintField::update(bit_field_, true);
-  }
-
   FunctionType function_type() const {
     return FunctionTypeBits::decode(bit_field_);
   }
@@ -2665,7 +2656,6 @@ class FunctionLiteral final : public Expression {
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
-                  ShouldNotBeUsedOnceHintField::encode(false) |
                   DontOptimizeReasonField::encode(kNoReason);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);
@@ -2675,11 +2665,8 @@ class FunctionLiteral final : public Expression {
       : public BitField<FunctionType, Expression::kNextBitFieldIndex, 2> {};
   class Pretenure : public BitField<bool, FunctionTypeBits::kNext, 1> {};
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
-  class ShouldNotBeUsedOnceHintField
-      : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
   class DontOptimizeReasonField
-      : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
-  };
+      : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
 
   int expected_property_count_;
   int parameter_count_;

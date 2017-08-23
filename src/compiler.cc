@@ -278,13 +278,6 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info) {
   // Ensure feedback metadata is installed.
   EnsureFeedbackMetadata(compilation_info);
 
-  // Mark code to be executed once before being aged if necessary.
-  // TODO(6409): Remove when full-codegen dies.
-  DCHECK(!compilation_info->code().is_null());
-  if (compilation_info->literal()->should_be_used_once_hint()) {
-    compilation_info->code()->MarkToBeExecutedOnce(compilation_info->isolate());
-  }
-
   // Update the shared function info with the scope info.
   Handle<ScopeInfo> scope_info = compilation_info->scope()->scope_info();
   shared->set_scope_info(*scope_info);

@@ -1153,23 +1153,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
   PushCommonFrame(scratch);
 }
 
-void TurboAssembler::Prologue(bool code_pre_aging) {
-  { PredictableCodeSizeScope predictible_code_size_scope(
-        this, kNoCodeAgeSequenceLength);
-    // The following three instructions must remain together and unmodified
-    // for code aging to work properly.
-    if (code_pre_aging) {
-      // Pre-age the code.
-      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      add(r0, pc, Operand(-8));
-      ldr(pc, MemOperand(pc, -4));
-      emit_code_stub_address(stub);
-    } else {
-      PushStandardFrame(r1);
-      nop(ip.code());
-    }
-  }
-}
+void TurboAssembler::Prologue() { PushStandardFrame(r1); }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {

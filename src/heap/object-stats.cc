@@ -104,20 +104,14 @@ void ObjectStats::PrintJSON(const char* key) {
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name)           \
   PrintInstanceTypeJSON(key, gc_count, "*FIXED_ARRAY_" #name, \
                         FIRST_FIXED_ARRAY_SUB_TYPE + name);
-#define CODE_AGE_WRAPPER(name)           \
-  PrintInstanceTypeJSON(                 \
-      key, gc_count, "*CODE_AGE_" #name, \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge);
 
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER)
   CODE_KIND_LIST(CODE_KIND_WRAPPER)
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER)
-  CODE_AGE_LIST_COMPLETE(CODE_AGE_WRAPPER)
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
 #undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
-#undef CODE_AGE_WRAPPER
 #undef PRINT_INSTANCE_TYPE_DATA
 #undef PRINT_KEY_AND_ID
 }
@@ -161,21 +155,14 @@ void ObjectStats::Dump(std::stringstream& stream) {
   DumpInstanceTypeData(stream, "*FIXED_ARRAY_" #name, \
                        FIRST_FIXED_ARRAY_SUB_TYPE + name);
 
-#define CODE_AGE_WRAPPER(name)    \
-  DumpInstanceTypeData(           \
-      stream, "*CODE_AGE_" #name, \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge);
-
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER);
   CODE_KIND_LIST(CODE_KIND_WRAPPER);
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER);
-  CODE_AGE_LIST_COMPLETE(CODE_AGE_WRAPPER);
   stream << "\"END\":{}}}";
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
 #undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
-#undef CODE_AGE_WRAPPER
 #undef PRINT_INSTANCE_TYPE_DATA
 }
 
@@ -217,19 +204,6 @@ void ObjectStats::CheckpointObjectStats() {
   counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
       static_cast<int>(object_sizes_last_time_[index]));
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                   \
-  index =                                                                     \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
-  counters->count_of_CODE_AGE_##name()->Increment(                            \
-      static_cast<int>(object_counts_[index]));                               \
-  counters->count_of_CODE_AGE_##name()->Decrement(                            \
-      static_cast<int>(object_counts_last_time_[index]));                     \
-  counters->size_of_CODE_AGE_##name()->Increment(                             \
-      static_cast<int>(object_sizes_[index]));                                \
-  counters->size_of_CODE_AGE_##name()->Decrement(                             \
-      static_cast<int>(object_sizes_last_time_[index]));
-  CODE_AGE_LIST_COMPLETE(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
@@ -518,7 +492,7 @@ void ObjectStatsCollector::RecordBytecodeArrayDetails(BytecodeArray* obj) {
 }
 
 void ObjectStatsCollector::RecordCodeDetails(Code* code) {
-  stats_->RecordCodeSubTypeStats(code->kind(), code->GetAge(), code->Size());
+  stats_->RecordCodeSubTypeStats(code->kind(), code->Size());
   RecordFixedArrayHelper(code, code->deoptimization_data(),
                          DEOPTIMIZATION_DATA_SUB_TYPE, 0);
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {

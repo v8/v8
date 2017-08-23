@@ -397,8 +397,6 @@ class RelocInfo {
     NUMBER_OF_MODES,
     NONE32,             // never recorded 32-bit value
     NONE64,             // never recorded 64-bit value
-    CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explicitly by
-                        // code aging.
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
@@ -459,9 +457,6 @@ class RelocInfo {
   }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
-  }
-  static inline bool IsCodeAgeSequence(Mode mode) {
-    return mode == CODE_AGE_SEQUENCE;
   }
   static inline bool IsWasmMemoryReference(Mode mode) {
     return mode == WASM_MEMORY_REFERENCE;
@@ -561,10 +556,6 @@ class RelocInfo {
   INLINE(void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Handle<Code> code_age_stub_handle(Assembler* origin));
-  INLINE(Code* code_age_stub());
-  INLINE(void set_code_age_stub(
-      Code* stub, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.
@@ -746,7 +737,6 @@ class RelocIterator: public Malloced {
 
   byte* pos_;
   byte* end_;
-  byte* code_age_sequence_;
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
@@ -857,9 +847,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference get_date_field_function(Isolate* isolate);
   static ExternalReference date_cache_stamp(Isolate* isolate);
-
-  static ExternalReference get_make_code_young_function(Isolate* isolate);
-  static ExternalReference get_mark_code_as_executed_function(Isolate* isolate);
 
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);

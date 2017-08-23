@@ -2590,7 +2590,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   ZoneList<Statement*>* body = nullptr;
   int expected_property_count = -1;
-  bool should_be_used_once_hint = false;
   int num_parameters = -1;
   int function_length = -1;
   bool has_duplicate_parameters = false;
@@ -2644,10 +2643,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         DCHECK(is_lazy_top_level_function);
         bookmark.Apply();
         // This is probably an initialization function. Inform the compiler it
-        // should also eager-compile this function, and that we expect it to be
-        // used once.
+        // should also eager-compile this function.
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
-        should_be_used_once_hint = true;
         scope->ResetAfterPreparsing(ast_value_factory(), true);
         zone_scope.Reset();
         // Trigger eager (re-)parsing, just below this block.
@@ -2713,8 +2710,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_length, duplicate_parameters, function_type, eager_compile_hint,
       pos, true, function_literal_id, produced_preparsed_scope_data);
   function_literal->set_function_token_position(function_token_pos);
-  if (should_be_used_once_hint)
-    function_literal->set_should_be_used_once_hint();
 
   if (should_infer_name) {
     DCHECK_NOT_NULL(fni_);

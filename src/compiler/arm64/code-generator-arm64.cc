@@ -2413,14 +2413,12 @@ void CodeGenerator::AssembleConstructFrame() {
     // Link the frame
     if (descriptor->IsJSFunctionCall()) {
       DCHECK(!descriptor->UseNativeStack());
-      __ Prologue(this->info()->GeneratePreagedPrologue());
+      __ Prologue();
     } else {
       __ Push(lr, fp);
       __ Mov(fp, __ StackPointer());
     }
-    if (!info()->GeneratePreagedPrologue()) {
-      unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
-    }
+    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
 
     // Create OSR entry if applicable
     if (info()->is_osr()) {

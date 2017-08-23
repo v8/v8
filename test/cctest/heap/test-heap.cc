@@ -1284,9 +1284,8 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 }
 
 TEST(CompilationCacheCachingBehavior) {
-  // If we do not age code, or have the compilation cache turned off, this
-  // test is invalid.
-  if (!FLAG_age_code || !FLAG_compilation_cache) {
+  // If we do not have the compilation cache turned off, this test is invalid.
+  if (!FLAG_compilation_cache) {
     return;
   }
   CcTest::InitializeVM();
@@ -1331,10 +1330,8 @@ TEST(CompilationCacheCachingBehavior) {
   // Progress code age until it's old and ready for GC.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    pair.shared()->code()->MakeOlder();
-    if (pair.shared()->HasBytecodeArray()) {
-      pair.shared()->bytecode_array()->MakeOlder();
-    }
+    CHECK(pair.shared()->HasBytecodeArray());
+    pair.shared()->bytecode_array()->MakeOlder();
   }
 
   CcTest::CollectAllGarbage();
@@ -3397,114 +3394,6 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
   isolate->Dispose();
 }
 
-
-TEST(Regress159140) {
-  if (!FLAG_incremental_marking) return;
-  FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext env;
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Perform one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage();
-
-  // Prepare several closures that are all eligible for code flushing
-  // because all reachable ones are not optimized. Make sure that the
-  // optimized code object is directly reachable through a handle so
-  // that it is marked black during incremental marking.
-  Handle<Code> code;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function h(x) {}"
-               "function mkClosure() {"
-               "  return function(x) { return x + 1; };"
-               "}"
-               "var f = mkClosure();"
-               "var g = mkClosure();"
-               "f(1); f(2);"
-               "g(1); g(2);"
-               "h(1); h(2);"
-               "%OptimizeFunctionOnNextCall(f); f(3);"
-               "%OptimizeFunctionOnNextCall(h); h(3);");
-
-    Handle<JSFunction> f = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
-    CHECK(f->is_compiled());
-    CompileRun("f = null;");
-
-    Handle<JSFunction> g = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
-    CHECK(g->is_compiled());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      g->code()->MakeOlder();
-    }
-
-    code = inner_scope.CloseAndEscape(Handle<Code>(f->code()));
-  }
-
-  // Simulate incremental marking so that the functions are enqueued as
-  // code flushing candidates. Then optimize one function. Finally
-  // finish the GC to complete code flushing.
-  heap::SimulateIncrementalMarking(heap);
-  CompileRun("%OptimizeFunctionOnNextCall(g); g(3);");
-  CcTest::CollectAllGarbage();
-
-  // Unoptimized code is missing and the deoptimizer will go ballistic.
-  CompileRun("g('bozo');");
-}
-
-
-TEST(Regress165495) {
-  if (!FLAG_incremental_marking) return;
-  FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Perform one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage();
-
-  // Prepare an optimized closure that the optimized code map will get
-  // populated. Then age the unoptimized code to trigger code flushing
-  // but make sure the optimized code is unreachable.
-  {
-    HandleScope inner_scope(isolate);
-    LocalContext env;
-    CompileRun("function mkClosure() {"
-               "  return function(x) { return x + 1; };"
-               "}"
-               "var f = mkClosure();"
-               "f(1); f(2);"
-               "%OptimizeFunctionOnNextCall(f); f(3);");
-
-    Handle<JSFunction> f = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
-    CHECK(f->is_compiled());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder();
-    }
-
-    CompileRun("f = null;");
-  }
-
-  // Simulate incremental marking so that unoptimized code is flushed
-  // even though it still is cached in the optimized code map.
-  heap::SimulateIncrementalMarking(heap);
-  CcTest::CollectAllGarbage();
-
-  // Make a new closure that will get code installed from the code map.
-  // Unoptimized code is missing and the deoptimizer will go ballistic.
-  CompileRun("var g = mkClosure(); g('bozo');");
-}
-
 TEST(Regress169928) {
   FLAG_allow_natives_syntax = true;
   FLAG_opt = false;
@@ -3584,67 +3473,6 @@ TEST(Regress169928) {
       ->Run(env.local())
       .ToLocalChecked();
 }
-
-
-TEST(Regress513496) {
-  FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  // Perfrom one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage();
-
-  // Prepare an optimized closure with containing an inlined function. Then age
-  // the inlined unoptimized code to trigger code flushing but make sure the
-  // outer optimized code is kept in the optimized code map.
-  Handle<SharedFunctionInfo> optimized_code;
-  {
-    LocalContext context;
-    HandleScope inner_scope(isolate);
-    CompileRun(
-        "function g(x) { return x + 1 }"
-        "function mkClosure() {"
-        "  return function(x) { return g(x); };"
-        "}"
-        "var f = mkClosure();"
-        "f(1); f(2);"
-        "%OptimizeFunctionOnNextCall(f); f(3);");
-
-    Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CcTest::global()
-                                           ->Get(context.local(), v8_str("g"))
-                                           .ToLocalChecked())));
-    CHECK(g->shared()->is_compiled());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      g->shared()->code()->MakeOlder();
-    }
-
-    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CcTest::global()
-                                           ->Get(context.local(), v8_str("f"))
-                                           .ToLocalChecked())));
-    CHECK(f->is_compiled());
-
-    // Lookup the optimized code and keep it alive.
-    Code* result = f->feedback_vector()->optimized_code();
-    Handle<Code> optimized_code(result, isolate);
-    optimized_code = inner_scope.CloseAndEscape(handle(result, isolate));
-
-    CompileRun("f = null");
-  }
-
-
-  // Finish a full GC cycle so that the unoptimized code of 'g' is flushed even
-  // though the optimized code for 'f' is reachable via the optimized code map.
-  CcTest::CollectAllGarbage();
-
-  // Make a new closure that will get code installed from the code map.
-  // Unoptimized code is missing and the deoptimizer will go ballistic.
-  CompileRun("var h = mkClosure(); h('bozo');");
-}
-
 
 TEST(LargeObjectSlotRecording) {
   if (!FLAG_incremental_marking) return;

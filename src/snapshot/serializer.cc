@@ -837,8 +837,6 @@ Address Serializer::ObjectSerializer::PrepareCode() {
     // relocations, because some of these fields are needed for the latter.
     code->WipeOutHeader();
   }
-  // Code age headers are not serializable.
-  code->MakeYoung(serializer_->isolate());
   return code->address();
 }
 

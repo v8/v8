@@ -2978,7 +2978,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ pushq(rbp);
       __ movq(rbp, rsp);
     } else if (descriptor->IsJSFunctionCall()) {
-      __ Prologue(this->info()->GeneratePreagedPrologue());
+      __ Prologue();
       if (descriptor->PushArgumentCount()) {
         __ pushq(kJavaScriptCallArgCountRegister);
       }
@@ -2986,7 +2986,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
 
-    if (!descriptor->IsJSFunctionCall() || !info()->GeneratePreagedPrologue()) {
+    if (!descriptor->IsJSFunctionCall()) {
       unwinding_info_writer_.MarkFrameConstructed(pc_base);
     }
   }

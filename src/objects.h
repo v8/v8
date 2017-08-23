@@ -3259,16 +3259,19 @@ class PodArray : public ByteArray {
 // BytecodeArray represents a sequence of interpreter bytecodes.
 class BytecodeArray : public FixedArrayBase {
  public:
-#define DECL_BYTECODE_AGE_ENUM(X) k##X##BytecodeAge,
   enum Age {
     kNoAgeBytecodeAge = 0,
-    CODE_AGE_LIST(DECL_BYTECODE_AGE_ENUM) kAfterLastBytecodeAge,
+    kQuadragenarianBytecodeAge,
+    kQuinquagenarianBytecodeAge,
+    kSexagenarianBytecodeAge,
+    kSeptuagenarianBytecodeAge,
+    kOctogenarianBytecodeAge,
+    kAfterLastBytecodeAge,
     kFirstBytecodeAge = kNoAgeBytecodeAge,
     kLastBytecodeAge = kAfterLastBytecodeAge - 1,
     kBytecodeAgeCount = kAfterLastBytecodeAge - kFirstBytecodeAge - 1,
     kIsOldBytecodeAge = kSexagenarianBytecodeAge
   };
-#undef DECL_BYTECODE_AGE_ENUM
 
   static int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
@@ -3996,37 +3999,6 @@ class Code: public HeapObject {
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
-#define DECL_CODE_AGE_ENUM(X) k##X##CodeAge,
-  enum Age {
-    kToBeExecutedOnceCodeAge = -3,
-    kNotExecutedCodeAge = -2,
-    kExecutedOnceCodeAge = -1,
-    kNoAgeCodeAge = 0,
-    CODE_AGE_LIST(DECL_CODE_AGE_ENUM) kAfterLastCodeAge,
-    kFirstCodeAge = kToBeExecutedOnceCodeAge,
-    kLastCodeAge = kAfterLastCodeAge - 1,
-    kCodeAgeCount = kAfterLastCodeAge - kFirstCodeAge - 1,
-    kIsOldCodeAge = kSexagenarianCodeAge,
-    kPreAgedCodeAge = kIsOldCodeAge - 1
-  };
-#undef DECL_CODE_AGE_ENUM
-
-  // Code aging.  Indicates how many full GCs this code has survived without
-  // being entered through the prologue.  Used to determine when to flush code
-  // held in the compilation cache.
-  static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
-  static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
-  void MakeYoung(Isolate* isolate);
-  void PreAge(Isolate* isolate);
-  void MarkToBeExecutedOnce(Isolate* isolate);
-  void MakeOlder();
-  static bool IsYoungSequence(Isolate* isolate, byte* sequence);
-  bool IsOld();
-  Age GetAge();
-  static inline Code* GetPreAgedCodeAgeStub(Isolate* isolate) {
-    return GetCodeAgeStub(isolate, kNotExecutedCodeAge);
-  }
-
   void PrintDeoptLocation(FILE* out, Address pc);
   bool CanDeoptAt(Address pc);
 
@@ -4164,16 +4136,6 @@ class Code: public HeapObject {
 
  private:
   friend class RelocIterator;
-  friend class Deoptimizer;  // For FindCodeAgeSequence.
-
-  // Code aging
-  byte* FindCodeAgeSequence();
-  static Age GetCodeAge(Isolate* isolate, byte* sequence);
-  static Age GetAgeOfCodeAgeStub(Code* code);
-  static Code* GetCodeAgeStub(Isolate* isolate, Age age);
-
-  // Code aging -- platform-specific
-  static void PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Age age);
 
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
@@ -7396,10 +7358,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) {}
-
-  // Visits the byte sequence in a function's prologue that contains information
-  // about the code's age.
-  virtual void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo);
 
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo);
