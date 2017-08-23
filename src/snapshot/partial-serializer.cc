@@ -101,7 +101,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     JSObject* jsobj = JSObject::cast(obj);
     if (jsobj->GetEmbedderFieldCount() > 0) {
       DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
-      embedder_field_holders_.Add(jsobj);
+      embedder_field_holders_.push_back(jsobj);
     }
   }
 
@@ -126,16 +126,16 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
 }
 
 void PartialSerializer::SerializeEmbedderFields() {
-  int count = embedder_field_holders_.length();
-  if (count == 0) return;
+  if (embedder_field_holders_.empty()) return;
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
   DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
   sink_.Put(kEmbedderFieldsData, "embedder fields data");
-  while (embedder_field_holders_.length() > 0) {
+  while (!embedder_field_holders_.empty()) {
     HandleScope scope(isolate());
-    Handle<JSObject> obj(embedder_field_holders_.RemoveLast(), isolate());
+    Handle<JSObject> obj(embedder_field_holders_.back(), isolate());
+    embedder_field_holders_.pop_back();
     SerializerReference reference = reference_map_.Lookup(*obj);
     DCHECK(reference.is_back_reference());
     int embedder_fields_count = obj->GetEmbedderFieldCount();

@@ -20,7 +20,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   // No active handles.
   DCHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
   // Partial snapshot cache is not yet populated.
-  DCHECK(isolate->partial_snapshot_cache()->is_empty());
+  DCHECK(isolate->partial_snapshot_cache()->empty());
   // Builtins are not yet created.
   DCHECK(!isolate->builtins()->is_initialized());
 

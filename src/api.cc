@@ -708,7 +708,8 @@ StartupData SnapshotCreator::CreateBlob(
   startup_serializer.SerializeStrongReferences();
 
   // Serialize each context with a new partial serializer.
-  i::List<i::SnapshotData*> context_snapshots(num_additional_contexts + 1);
+  std::vector<i::SnapshotData*> context_snapshots;
+  context_snapshots.reserve(num_additional_contexts + 1);
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_be_rehashed = true;
@@ -721,7 +722,7 @@ StartupData SnapshotCreator::CreateBlob(
         data->default_embedder_fields_serializer_);
     partial_serializer.Serialize(&default_context, false);
     can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
-    context_snapshots.Add(new i::SnapshotData(&partial_serializer));
+    context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
   }
 
   for (int i = 0; i < num_additional_contexts; i++) {
@@ -729,7 +730,7 @@ StartupData SnapshotCreator::CreateBlob(
         isolate, &startup_serializer, data->embedder_fields_serializers_[i]);
     partial_serializer.Serialize(&contexts[i], true);
     can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
-    context_snapshots.Add(new i::SnapshotData(&partial_serializer));
+    context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
   }
 
   startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -743,10 +744,10 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::SnapshotData startup_snapshot(&startup_serializer);
   StartupData result = i::Snapshot::CreateSnapshotBlob(
-      &startup_snapshot, &context_snapshots, can_be_rehashed);
+      &startup_snapshot, context_snapshots, can_be_rehashed);
 
   // Delete heap-allocated context snapshot instances.
-  for (const auto& context_snapshot : context_snapshots) {
+  for (const auto context_snapshot : context_snapshots) {
     delete context_snapshot;
   }
   data->created_ = true;

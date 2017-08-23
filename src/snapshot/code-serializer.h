@@ -22,7 +22,7 @@ class CodeSerializer : public Serializer {
   MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
-  const List<uint32_t>* stub_keys() const { return &stub_keys_; }
+  const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
 
   uint32_t source_hash() const { return source_hash_; }
 
@@ -51,7 +51,7 @@ class CodeSerializer : public Serializer {
 
   DisallowHeapAllocation no_gc_;
   uint32_t source_hash_;
-  List<uint32_t> stub_keys_;
+  std::vector<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
@@ -122,7 +122,8 @@ class SerializedCodeData : public SerializedData {
                                            SanityCheckResult* rejection_result);
 
   // Used when producing.
-  SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);
+  SerializedCodeData(const std::vector<byte>* payload,
+                     const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();

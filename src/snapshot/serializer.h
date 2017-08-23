@@ -125,7 +125,7 @@ class Serializer : public SerializerDeserializer {
   explicit Serializer(Isolate* isolate);
   ~Serializer() override;
 
-  void EncodeReservations(List<SerializedData::Reservation>* out) const;
+  void EncodeReservations(std::vector<SerializedData::Reservation>* out) const;
 
   void SerializeDeferredObjects();
 
@@ -220,14 +220,14 @@ class Serializer : public SerializerDeserializer {
 
   void QueueDeferredObject(HeapObject* obj) {
     DCHECK(reference_map_.Lookup(obj).is_back_reference());
-    deferred_objects_.Add(obj);
+    deferred_objects_.push_back(obj);
   }
 
   void OutputStatistics(const char* name);
 
 #ifdef DEBUG
-  void PushStack(HeapObject* o) { stack_.Add(o); }
-  void PopStack() { stack_.RemoveLast(); }
+  void PushStack(HeapObject* o) { stack_.push_back(o); }
+  void PopStack() { stack_.pop_back(); }
   void PrintStack();
 
   bool BackReferenceIsAlreadyAllocated(SerializerReference back_reference);
@@ -255,7 +255,7 @@ class Serializer : public SerializerDeserializer {
   // page. So we track the chunk size in pending_chunk_ of a space, but
   // when it exceeds a page, we complete the current chunk and start a new one.
   uint32_t pending_chunk_[kNumberOfPreallocatedSpaces];
-  List<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
+  std::vector<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
   uint32_t max_chunk_size_[kNumberOfPreallocatedSpaces];
   // Number of maps that we need to allocate.
   uint32_t num_maps_;
@@ -271,10 +271,10 @@ class Serializer : public SerializerDeserializer {
   // from index 0.
   uint32_t seen_backing_stores_index_;
 
-  List<byte> code_buffer_;
+  std::vector<byte> code_buffer_;
 
   // To handle stack overflow.
-  List<HeapObject*> deferred_objects_;
+  std::vector<HeapObject*> deferred_objects_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = 256;
@@ -283,7 +283,7 @@ class Serializer : public SerializerDeserializer {
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
-  List<HeapObject*> stack_;
+  std::vector<HeapObject*> stack_;
 #endif  // DEBUG
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);

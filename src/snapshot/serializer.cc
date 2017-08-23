@@ -93,8 +93,9 @@ void Serializer::OutputStatistics(const char* name) {
 }
 
 void Serializer::SerializeDeferredObjects() {
-  while (deferred_objects_.length() > 0) {
-    HeapObject* obj = deferred_objects_.RemoveLast();
+  while (!deferred_objects_.empty()) {
+    HeapObject* obj = deferred_objects_.back();
+    deferred_objects_.pop_back();
     ObjectSerializer obj_serializer(this, obj, &sink_, kPlain, kStartOfObject);
     obj_serializer.SerializeDeferred();
   }
@@ -114,21 +115,21 @@ void Serializer::VisitRootPointers(Root root, Object** start, Object** end) {
 }
 
 void Serializer::EncodeReservations(
-    List<SerializedData::Reservation>* out) const {
+    std::vector<SerializedData::Reservation>* out) const {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    for (int j = 0; j < completed_chunks_[i].length(); j++) {
-      out->Add(SerializedData::Reservation(completed_chunks_[i][j]));
+    for (size_t j = 0; j < completed_chunks_[i].size(); j++) {
+      out->push_back(SerializedData::Reservation(completed_chunks_[i][j]));
     }
 
-    if (pending_chunk_[i] > 0 || completed_chunks_[i].length() == 0) {
-      out->Add(SerializedData::Reservation(pending_chunk_[i]));
+    if (pending_chunk_[i] > 0 || completed_chunks_[i].size() == 0) {
+      out->push_back(SerializedData::Reservation(pending_chunk_[i]));
     }
-    out->last().mark_as_last();
+    out->back().mark_as_last();
   }
-  out->Add(SerializedData::Reservation(num_maps_ * Map::kSize));
-  out->last().mark_as_last();
-  out->Add(SerializedData::Reservation(large_objects_total_size_));
-  out->last().mark_as_last();
+  out->push_back(SerializedData::Reservation(num_maps_ * Map::kSize));
+  out->back().mark_as_last();
+  out->push_back(SerializedData::Reservation(large_objects_total_size_));
+  out->back().mark_as_last();
 }
 
 #ifdef DEBUG
@@ -141,18 +142,18 @@ bool Serializer::BackReferenceIsAlreadyAllocated(
   } else if (space == MAP_SPACE) {
     return reference.map_index() < num_maps_;
   } else {
-    int chunk_index = reference.chunk_index();
-    if (chunk_index == completed_chunks_[space].length()) {
+    size_t chunk_index = reference.chunk_index();
+    if (chunk_index == completed_chunks_[space].size()) {
       return reference.chunk_offset() < pending_chunk_[space];
     } else {
-      return chunk_index < completed_chunks_[space].length() &&
+      return chunk_index < completed_chunks_[space].size() &&
              reference.chunk_offset() < completed_chunks_[space][chunk_index];
     }
   }
 }
 
 void Serializer::PrintStack() {
-  for (const auto& o : stack_) {
+  for (const auto o : stack_) {
     o->Print();
     PrintF("\n");
   }
@@ -310,14 +311,14 @@ SerializerReference Serializer::Allocate(AllocationSpace space, int size) {
     // current chunk and start a new one.
     sink_.Put(kNextChunk, "NextChunk");
     sink_.Put(space, "NextChunkSpace");
-    completed_chunks_[space].Add(pending_chunk_[space]);
+    completed_chunks_[space].push_back(pending_chunk_[space]);
     pending_chunk_[space] = 0;
     new_chunk_size = size;
   }
   uint32_t offset = pending_chunk_[space];
   pending_chunk_[space] = new_chunk_size;
   return SerializerReference::BackReference(
-      space, completed_chunks_[space].length(), offset);
+      space, static_cast<uint32_t>(completed_chunks_[space].size()), offset);
 }
 
 void Serializer::Pad() {
@@ -338,15 +339,16 @@ void Serializer::InitializeCodeAddressMap() {
 }
 
 Code* Serializer::CopyCode(Code* code) {
-  code_buffer_.Rewind(0);  // Clear buffer without deleting backing store.
+  code_buffer_.clear();  // Clear buffer without deleting backing store.
   int size = code->CodeSize();
-  code_buffer_.AddAll(Vector<byte>(code->address(), size));
-  return Code::cast(HeapObject::FromAddress(&code_buffer_.first()));
+  code_buffer_.insert(code_buffer_.end(), code->address(),
+                      code->address() + size);
+  return Code::cast(HeapObject::FromAddress(&code_buffer_.front()));
 }
 
 bool Serializer::HasNotExceededFirstPageOfEachSpace() {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    if (!completed_chunks_[i].is_empty()) return false;
+    if (!completed_chunks_[i].empty()) return false;
   }
   return true;
 }

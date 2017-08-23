@@ -80,8 +80,9 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   return result;
 }
 
-void ProfileDeserialization(const SnapshotData* startup_snapshot,
-                            const List<SnapshotData*>* context_snapshots) {
+void ProfileDeserialization(
+    const SnapshotData* startup_snapshot,
+    const std::vector<SnapshotData*>& context_snapshots) {
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
     PrintF("Deserialization will reserve:\n");
@@ -89,24 +90,24 @@ void ProfileDeserialization(const SnapshotData* startup_snapshot,
       startup_total += reservation.chunk_size();
     }
     PrintF("%10d bytes per isolate\n", startup_total);
-    for (int i = 0; i < context_snapshots->length(); i++) {
+    for (size_t i = 0; i < context_snapshots.size(); i++) {
       int context_total = 0;
-      for (const auto& reservation : context_snapshots->at(i)->Reservations()) {
+      for (const auto& reservation : context_snapshots[i]->Reservations()) {
         context_total += reservation.chunk_size();
       }
-      PrintF("%10d bytes per context #%d\n", context_total, i);
+      PrintF("%10d bytes per context #%zu\n", context_total, i);
     }
   }
 }
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
     const SnapshotData* startup_snapshot,
-    const List<SnapshotData*>* context_snapshots, bool can_be_rehashed) {
-  int num_contexts = context_snapshots->length();
+    const std::vector<SnapshotData*>& context_snapshots, bool can_be_rehashed) {
+  int num_contexts = static_cast<int>(context_snapshots.size());
   int startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
   int total_length = startup_snapshot_offset;
   total_length += startup_snapshot->RawData().length();
-  for (const auto& context_snapshot : *context_snapshots) {
+  for (const auto context_snapshot : context_snapshots) {
     total_length += context_snapshot->RawData().length();
   }
 
@@ -127,7 +128,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   payload_offset += payload_length;
   for (int i = 0; i < num_contexts; i++) {
     memcpy(data + ContextSnapshotOffsetOffset(i), &payload_offset, kInt32Size);
-    SnapshotData* context_snapshot = context_snapshots->at(i);
+    SnapshotData* context_snapshot = context_snapshots[i];
     payload_length = context_snapshot->RawData().length();
     memcpy(data + payload_offset, context_snapshot->RawData().start(),
            payload_length);
@@ -194,13 +195,13 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
 
 SnapshotData::SnapshotData(const Serializer* serializer) {
   DisallowHeapAllocation no_gc;
-  List<Reservation> reservations;
+  std::vector<Reservation> reservations;
   serializer->EncodeReservations(&reservations);
-  const List<byte>* payload = serializer->sink()->data();
+  const std::vector<byte>* payload = serializer->sink()->data();
 
   // Calculate sizes.
-  int reservation_size = reservations.length() * kInt32Size;
-  int size = kHeaderSize + reservation_size + payload->length();
+  int reservation_size = static_cast<int>(reservations.size()) * kInt32Size;
+  int size = kHeaderSize + reservation_size + static_cast<int>(payload->size());
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -208,16 +209,16 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
   // Set header values.
   SetMagicNumber(serializer->isolate());
   SetHeaderValue(kVersionHashOffset, Version::Hash());
-  SetHeaderValue(kNumReservationsOffset, reservations.length());
-  SetHeaderValue(kPayloadLengthOffset, payload->length());
+  SetHeaderValue(kNumReservationsOffset, static_cast<int>(reservations.size()));
+  SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
 
   // Copy reservation chunk sizes.
-  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.data()),
             reservation_size);
 
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize + reservation_size, payload->begin(),
-            static_cast<size_t>(payload->length()));
+  CopyBytes(data_ + kHeaderSize + reservation_size, payload->data(),
+            static_cast<size_t>(payload->size()));
 }
 
 bool SnapshotData::IsSane() {

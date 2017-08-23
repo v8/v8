@@ -2767,7 +2767,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   if (create_heap_objects) {
     // Terminate the partial snapshot cache so we can iterate.
-    partial_snapshot_cache_.Add(heap_.undefined_value());
+    partial_snapshot_cache_.push_back(heap_.undefined_value());
   }
 
   InitializeThreadLocal();

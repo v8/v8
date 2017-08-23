@@ -71,7 +71,8 @@ class Snapshot : public AllStatic {
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
-      const List<SnapshotData*>* context_snapshots, bool can_be_rehashed);
+      const std::vector<SnapshotData*>& context_snapshots,
+      bool can_be_rehashed);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);

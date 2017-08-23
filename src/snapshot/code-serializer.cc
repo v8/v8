@@ -162,7 +162,7 @@ void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
   uint32_t stub_key = code_stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
   DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
-  stub_keys_.Add(stub_key);
+  stub_keys_.push_back(stub_key);
 
   SerializerReference reference =
       reference_map()->AddAttachedReference(code_stub);
@@ -333,21 +333,21 @@ class Checksum {
   DISALLOW_COPY_AND_ASSIGN(Checksum);
 };
 
-SerializedCodeData::SerializedCodeData(const List<byte>* payload,
+SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
-  const List<uint32_t>* stub_keys = cs->stub_keys();
+  const std::vector<uint32_t>* stub_keys = cs->stub_keys();
 
-  List<Reservation> reservations;
+  std::vector<Reservation> reservations;
   cs->EncodeReservations(&reservations);
 
   // Calculate sizes.
-  int reservation_size = reservations.length() * kInt32Size;
-  int num_stub_keys = stub_keys->length();
-  int stub_keys_size = stub_keys->length() * kInt32Size;
+  int reservation_size = static_cast<int>(reservations.size()) * kInt32Size;
+  int num_stub_keys = static_cast<int>(stub_keys->size());
+  int stub_keys_size = num_stub_keys * kInt32Size;
   int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
   int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  int size = padded_payload_offset + payload->length();
+  int size = padded_payload_offset + static_cast<int>(payload->size());
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -359,27 +359,28 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
-  SetHeaderValue(kNumReservationsOffset, reservations.length());
+  SetHeaderValue(kNumReservationsOffset, static_cast<int>(reservations.size()));
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
-  SetHeaderValue(kPayloadLengthOffset, payload->length());
+  SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
 
   // Zero out any padding in the header.
   memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);
 
   // Copy reservation chunk sizes.
-  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+  CopyBytes(data_ + kHeaderSize,
+            reinterpret_cast<const byte*>(reservations.data()),
             reservation_size);
 
   // Copy code stub keys.
   CopyBytes(data_ + kHeaderSize + reservation_size,
-            reinterpret_cast<byte*>(stub_keys->begin()), stub_keys_size);
+            reinterpret_cast<const byte*>(stub_keys->data()), stub_keys_size);
 
   // Zero out any padding before the payload.
   memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
 
   // Copy serialized data.
-  CopyBytes(data_ + padded_payload_offset, payload->begin(),
-            static_cast<size_t>(payload->length()));
+  CopyBytes(data_ + padded_payload_offset, payload->data(),
+            static_cast<size_t>(payload->size()));
 
   Checksum checksum(DataWithoutHeader());
   SetHeaderValue(kChecksum1Offset, checksum.a());
