@@ -3366,7 +3366,9 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
       *ok = false;
       return impl()->NullExpression();
     } else if (peek() == Token::PERIOD) {
-      return ParseNewTargetExpression(CHECK_OK);
+      *is_async = false;
+      result = ParseNewTargetExpression(CHECK_OK);
+      return ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
     } else {
       result = ParseMemberWithNewPrefixesExpression(is_async, CHECK_OK);
     }
