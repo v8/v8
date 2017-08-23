@@ -3550,6 +3550,7 @@ TEST(DeferredHandles) {
 
 TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   CompileRun("function f(n) {"
@@ -4825,7 +4826,7 @@ void CheckMapRetainingFor(int n) {
 
 TEST(MapRetaining) {
   if (!FLAG_incremental_marking) return;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   CheckMapRetainingFor(FLAG_retain_maps_for_n_gc);
