@@ -2246,12 +2246,6 @@ HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
   return object;
 }
 
-
-HeapObject* Heap::DoubleAlignForDeserialization(HeapObject* object, int size) {
-  return AlignWithFiller(object, size - kPointerSize, size, kDoubleAligned);
-}
-
-
 void Heap::RegisterNewArrayBuffer(JSArrayBuffer* buffer) {
   ArrayBufferTracker::RegisterNew(this, buffer);
 }

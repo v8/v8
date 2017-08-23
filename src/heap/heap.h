@@ -1734,8 +1734,6 @@ class Heap {
 
   void CreateFixedStubs();
 
-  HeapObject* DoubleAlignForDeserialization(HeapObject* object, int size);
-
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 
