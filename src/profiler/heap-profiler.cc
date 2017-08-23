@@ -12,19 +12,6 @@
 #include "src/profiler/sampling-heap-profiler.h"
 
 namespace v8 {
-
-v8::MaybeLocal<v8::Function> debug::QueryObjectPredicate::GetConstructor(
-    v8::Object* v8_object) {
-  internal::Handle<internal::JSReceiver> object(Utils::OpenHandle(v8_object));
-  internal::Handle<internal::Map> map(object->map());
-  internal::Object* maybe_constructor = map->GetConstructor();
-  if (maybe_constructor->IsJSFunction()) {
-    return Utils::ToLocal(
-        internal::handle(internal::JSFunction::cast(maybe_constructor)));
-  }
-  return v8::MaybeLocal<v8::Function>();
-}
-
 namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
@@ -225,11 +212,11 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
                                 PersistentValueVector<v8::Object>* objects) {
   // We should return accurate information about live objects, so we need to
   // collect all garbage first.
-  isolate()->heap()->CollectAllAvailableGarbage(
+  heap()->CollectAllAvailableGarbage(
       GarbageCollectionReason::kLowMemoryNotification);
   heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                             GarbageCollectionReason::kHeapProfiler);
-  HeapIterator heap_iterator(heap(), HeapIterator::kFilterUnreachable);
+  HeapIterator heap_iterator(heap());
   HeapObject* heap_obj;
   while ((heap_obj = heap_iterator.next()) != nullptr) {
     if (!heap_obj->IsJSObject() || heap_obj->IsExternal()) continue;

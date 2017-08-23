@@ -4,8 +4,6 @@
 
 #include "src/inspector/v8-debugger.h"
 
-#include <unordered_set>
-
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/script-breakpoint.h"
@@ -132,63 +130,30 @@ void cleanupExpiredWeakPointers(Map& map) {
   }
 }
 
-class QueryObjectPredicate : public v8::debug::QueryObjectPredicate {
+class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
  public:
-  QueryObjectPredicate(v8::Local<v8::Context> context,
-                       v8::Local<v8::Function> constructor)
-      : m_context(context), m_constructor(constructor) {}
+  MatchPrototypePredicate(V8InspectorImpl* inspector,
+                          v8::Local<v8::Context> context,
+                          v8::Local<v8::Object> prototype)
+      : m_inspector(inspector), m_context(context), m_prototype(prototype) {}
 
   bool Filter(v8::Local<v8::Object> object) override {
-    if (CheckObject(*object)) return true;
-    std::vector<v8::Object*> prototypeChain;
-    v8::Local<v8::Value> prototype;
+    v8::Local<v8::Context> objectContext = object->CreationContext();
+    if (objectContext != m_context) return false;
+    if (!m_inspector->client()->isInspectableHeapObject(object)) return false;
     // Get prototype chain for current object until first visited prototype.
-    for (prototype = object->GetPrototype(); IsUnvisitedPrototype(prototype);
+    for (v8::Local<v8::Value> prototype = object->GetPrototype();
+         prototype->IsObject();
          prototype = prototype.As<v8::Object>()->GetPrototype()) {
-      prototypeChain.push_back(v8::Object::Cast(*prototype));
+      if (m_prototype == prototype) return true;
     }
-    // Include first visited prototype if any.
-    if (prototype->IsObject()) {
-      prototypeChain.push_back(v8::Object::Cast(*prototype));
-    }
-    bool hasMatched = false;
-    // Go from last prototype to first one, mark all prototypes as matched after
-    // first matched prototype.
-    for (auto it = prototypeChain.rbegin(); it != prototypeChain.rend(); ++it) {
-      hasMatched = hasMatched || CheckObject(*it);
-      if (hasMatched) m_matchedPrototypes.insert(*it);
-      m_visitedPrototypes.insert(*it);
-    }
-    return hasMatched;
+    return false;
   }
 
  private:
-  bool CheckObject(v8::Object* object) {
-    if (m_matchedPrototypes.find(object) != m_matchedPrototypes.end())
-      return true;
-    if (m_visitedPrototypes.find(object) != m_visitedPrototypes.end())
-      return false;
-    v8::Local<v8::Context> objectContext = object->CreationContext();
-    if (objectContext != m_context) return false;
-    v8::Local<v8::Function> constructor;
-    if (!GetConstructor(object).ToLocal(&constructor)) return false;
-    return constructor == m_constructor;
-  }
-
-  bool IsUnvisitedPrototype(v8::Local<v8::Value> prototypeValue) {
-    if (!prototypeValue->IsObject()) return false;
-    v8::Object* prototypeObject = v8::Object::Cast(*prototypeValue);
-    v8::Local<v8::Context> prototypeContext =
-        prototypeObject->CreationContext();
-    if (prototypeContext != m_context) return false;
-    return m_visitedPrototypes.find(prototypeObject) ==
-           m_visitedPrototypes.end();
-  }
-
+  V8InspectorImpl* m_inspector;
   v8::Local<v8::Context> m_context;
-  v8::Local<v8::Function> m_constructor;
-  std::unordered_set<v8::Object*> m_visitedPrototypes;
-  std::unordered_set<v8::Object*> m_matchedPrototypes;
+  v8::Local<v8::Value> m_prototype;
 };
 
 }  // namespace
@@ -722,11 +687,11 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
   return properties;
 }
 
-v8::Local<v8::Array> V8Debugger::queryObjects(
-    v8::Local<v8::Context> context, v8::Local<v8::Function> constructor) {
+v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
+                                              v8::Local<v8::Object> prototype) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::PersistentValueVector<v8::Object> v8Objects(isolate);
-  QueryObjectPredicate predicate(context, constructor);
+  MatchPrototypePredicate predicate(m_inspector, context, prototype);
   v8::debug::QueryObjects(context, &predicate, &v8Objects);
 
   v8::MicrotasksScope microtasksScope(isolate,

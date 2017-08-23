@@ -594,7 +594,7 @@ void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 
 void V8Console::queryObjectsCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
-  if (info.Length() < 1 || !info[0]->IsFunction()) return;
+  if (info.Length() < 1 || !info[0]->IsObject()) return;
   inspectImpl(info, sessionId, kQueryObjects, m_inspector);
 }
 

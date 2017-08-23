@@ -89,7 +89,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
                                                v8::Local<v8::Value>);
 
   v8::Local<v8::Array> queryObjects(v8::Local<v8::Context> context,
-                                    v8::Local<v8::Function> constructor);
+                                    v8::Local<v8::Object> prototype);
 
   void asyncTaskScheduled(const StringView& taskName, void* task,
                           bool recurring);

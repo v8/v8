@@ -395,10 +395,6 @@ class QueryObjectPredicate {
  public:
   virtual ~QueryObjectPredicate() = default;
   virtual bool Filter(v8::Local<v8::Object> object) = 0;
-
- protected:
-  // This method can be used only inside of Filter function.
-  v8::MaybeLocal<v8::Function> GetConstructor(v8::Object* object);
 };
 
 void QueryObjects(v8::Local<v8::Context> context,

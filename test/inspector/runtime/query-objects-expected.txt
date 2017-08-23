@@ -3,71 +3,78 @@ Checks Runtime.queryObjects
 Running test: testClass
 Declare class Foo & store its constructor.
 Create object with class Foo.
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Foo
-    [1] : Foo
+    [0] : Foo,object
 ]
 Create object with class Foo.
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Foo
-    [1] : Foo
-    [2] : Foo
+    [0] : Foo,object
+    [1] : Foo,object
 ]
 
 Running test: testDerivedNewClass
 Declare class Foo & store its constructor.
 Declare class Boo extends Foo & store its constructor.
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Boo
-    [1] : Foo
+    [0] : Boo,object
 ]
-Query objects with Boo constructor.
+Query objects with Boo prototype.
 Dump each object constructor name.
 [
-    [0] : Boo
 ]
 Create object with class Foo
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Boo
-    [1] : Foo
-    [2] : Foo
+    [0] : Boo,object
+    [1] : Foo,object
 ]
 Create object with class Boo
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Boo
-    [1] : Boo
-    [2] : Foo
-    [3] : Foo
+    [0] : Boo,object
+    [1] : Boo,object
+    [2] : Foo,object
 ]
-Query objects with Boo constructor.
+Query objects with Boo prototype.
 Dump each object constructor name.
 [
-    [0] : Boo
-    [1] : Boo
+    [0] : Boo,object
 ]
 
 Running test: testNewFunction
 Declare Foo & store it.
 Create object using Foo.
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Foo
+    [0] : Foo,object
 ]
 Create object using Foo.
-Query objects with Foo constructor.
+Query objects with Foo prototype.
 Dump each object constructor name.
 [
-    [0] : Foo
-    [1] : Foo
+    [0] : Foo,object
+    [1] : Foo,object
+]
+
+Running test: testNonInspectable
+Declare Foo & store it.
+Create object using Foo.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Foo,object
+]
+Mark object as not inspectable.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
 ]

@@ -16,7 +16,7 @@ InspectorTest.runAsyncTestSuite([
       expression: 'class Foo{constructor(){}};'
     });
     let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
-      expression: 'Foo'
+      expression: 'Foo.prototype'
     });
 
     for (let i = 0; i < 2; ++i) {
@@ -36,14 +36,14 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.log('Declare class Foo & store its constructor.');
     Protocol.Runtime.evaluate({expression: 'class Foo{};'});
     let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
-      expression: 'Foo'
+      expression: 'Foo.prototype'
     });
     let fooConstructorId = objectId;
 
     InspectorTest.log('Declare class Boo extends Foo & store its constructor.');
     Protocol.Runtime.evaluate({expression: 'class Boo extends Foo{};'});
     ({result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
-      expression: 'Boo'
+      expression: 'Boo.prototype'
     }));
     let booConstructorId = objectId;
 
@@ -70,7 +70,7 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.log('Declare Foo & store it.');
     Protocol.Runtime.evaluate({expression: 'function Foo(){}'});
     let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
-      expression: 'Foo'
+      expression: 'Foo.prototype'
     });
 
     for (let i = 0; i < 2; ++i) {
@@ -79,19 +79,39 @@ InspectorTest.runAsyncTestSuite([
       await queryObjects(session, objectId, 'Foo');
     }
     session.disconnect();
+  },
+
+  async function testNonInspectable() {
+    let contextGroup = new InspectorTest.ContextGroup();
+    let session = contextGroup.connect();
+    let Protocol = session.Protocol;
+
+    InspectorTest.log('Declare Foo & store it.');
+    Protocol.Runtime.evaluate({expression: 'function Foo(){}'});
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
+      expression: 'Foo.prototype'
+    });
+
+    InspectorTest.log('Create object using Foo.');
+    Protocol.Runtime.evaluate({expression: 'a = new Foo()'});
+    await queryObjects(session, objectId, 'Foo');
+    InspectorTest.log('Mark object as not inspectable.')
+    Protocol.Runtime.evaluate({expression: 'inspector.markObjectAsNotInspectable(a)'});
+    await queryObjects(session, objectId, 'Foo');
+    session.disconnect();
   }
 ]);
 
 const constructorsNameFunction = `
 function() {
-  return this.map(o => o.constructor.name).sort();
+  return this.map(o => o.constructor.name + ',' + typeof o).sort();
 }`;
 
-async function queryObjects(sesion, constructorObjectId, name) {
+async function queryObjects(sesion, prototypeObjectId, name) {
   let {result:{objects}} = await sesion.Protocol.Runtime.queryObjects({
-    constructorObjectId
+    prototypeObjectId
   });
-  InspectorTest.log(`Query objects with ${name} constructor.`);
+  InspectorTest.log(`Query objects with ${name} prototype.`);
   let {result:{result:{value}}} = await sesion.Protocol.Runtime.callFunctionOn({
     objectId: objects.objectId,
     functionDeclaration: constructorsNameFunction,

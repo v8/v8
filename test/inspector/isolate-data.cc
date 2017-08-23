@@ -70,6 +70,12 @@ IsolateData::IsolateData(TaskRunner* task_runner,
     isolate_->SetPromiseRejectCallback(&IsolateData::PromiseRejectHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
   }
+  v8::HandleScope handle_scope(isolate_);
+  not_inspectable_private_.Reset(
+      isolate_, v8::Private::ForApi(isolate_, v8::String::NewFromUtf8(
+                                                  isolate_, "notInspectable",
+                                                  v8::NewStringType::kNormal)
+                                                  .ToLocalChecked()));
 }
 
 IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
@@ -330,6 +336,15 @@ bool IsolateData::formatAccessorsAsProperties(v8::Local<v8::Value> object) {
   return object.As<v8::Object>()
       ->HasPrivate(context, shouldFormatAccessorsPrivate)
       .FromMaybe(false);
+}
+
+bool IsolateData::isInspectableHeapObject(v8::Local<v8::Object> object) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::MicrotasksScope microtasks_scope(
+      isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  return !object->HasPrivate(context, not_inspectable_private_.Get(isolate))
+              .FromMaybe(false);
 }
 
 v8::Local<v8::Context> IsolateData::ensureDefaultContextInGroup(

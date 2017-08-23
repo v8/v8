@@ -523,16 +523,16 @@ void V8RuntimeAgentImpl::runScript(
 }
 
 Response V8RuntimeAgentImpl::queryObjects(
-    const String16& constructorObjectId,
+    const String16& prototypeObjectId,
     std::unique_ptr<protocol::Runtime::RemoteObject>* objects) {
-  InjectedScript::ObjectScope scope(m_session, constructorObjectId);
+  InjectedScript::ObjectScope scope(m_session, prototypeObjectId);
   Response response = scope.initialize();
   if (!response.isSuccess()) return response;
-  if (!scope.object()->IsFunction()) {
-    return Response::Error("Constructor should be instance of Function");
+  if (!scope.object()->IsObject()) {
+    return Response::Error("Prototype should be instance of Object");
   }
   v8::Local<v8::Array> resultArray = m_inspector->debugger()->queryObjects(
-      scope.context(), v8::Local<v8::Function>::Cast(scope.object()));
+      scope.context(), v8::Local<v8::Object>::Cast(scope.object()));
   return scope.injectedScript()->wrapObject(
       resultArray, scope.objectGroupName(), false, false, objects);
 }

@@ -98,7 +98,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                  Maybe<bool> generatePreview, Maybe<bool> awaitPromise,
                  std::unique_ptr<RunScriptCallback>) override;
   Response queryObjects(
-      const String16& constructorObjectId,
+      const String16& prototypeObjectId,
       std::unique_ptr<protocol::Runtime::RemoteObject>* objects) override;
 
   void reset();
