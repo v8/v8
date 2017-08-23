@@ -598,15 +598,31 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Node* right = current->ValueInput(1);
       const VirtualObject* left_object = current->GetVirtualObject(left);
       const VirtualObject* right_object = current->GetVirtualObject(right);
+      Node* replacement = nullptr;
       if (left_object && !left_object->HasEscaped()) {
         if (right_object && !right_object->HasEscaped() &&
             left_object->id() == right_object->id()) {
-          current->SetReplacement(jsgraph->TrueConstant());
+          replacement = jsgraph->TrueConstant();
         } else {
-          current->SetReplacement(jsgraph->FalseConstant());
+          replacement = jsgraph->FalseConstant();
         }
       } else if (right_object && !right_object->HasEscaped()) {
-        current->SetReplacement(jsgraph->FalseConstant());
+        replacement = jsgraph->FalseConstant();
+      }
+      if (replacement) {
+        // TODO(tebbi) This is a workaround for uninhabited types. If we
+        // replaced a value of uninhabited type with a constant, we would
+        // widen the type of the node. This could produce inconsistent
+        // types (which might confuse representation selection). We get
+        // around this by refusing to constant-fold and escape-analyze
+        // if the type is not inhabited.
+        if (NodeProperties::GetType(left)->IsInhabited() &&
+            NodeProperties::GetType(right)->IsInhabited()) {
+          current->SetReplacement(replacement);
+        } else {
+          current->SetEscaped(left);
+          current->SetEscaped(right);
+        }
       }
       break;
     }

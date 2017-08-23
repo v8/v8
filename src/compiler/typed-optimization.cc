@@ -301,7 +301,12 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
   Type* const lhs_type = NodeProperties::GetType(lhs);
   Type* const rhs_type = NodeProperties::GetType(rhs);
   if (!lhs_type->Maybe(rhs_type)) {
-    return Replace(jsgraph()->FalseConstant());
+    Node* replacement = jsgraph()->FalseConstant();
+    // Make sure we do not widen the type.
+    if (NodeProperties::GetType(replacement)
+            ->Is(NodeProperties::GetType(node))) {
+      return Replace(jsgraph()->FalseConstant());
+    }
   }
   return NoChange();
 }
