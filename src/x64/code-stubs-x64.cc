@@ -1686,6 +1686,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- rsp[argc * 8]       : first argument
   //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[(argc + 2) * 8] : accessor_holder
   // -----------------------------------
 
   Register callee = rdi;
@@ -1697,6 +1698,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   typedef FunctionCallbackArguments FCA;
 
+  STATIC_ASSERT(FCA::kArgsLength == 8);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
   STATIC_ASSERT(FCA::kContextSaveIndex == 6);
   STATIC_ASSERT(FCA::kCalleeIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
@@ -1704,8 +1707,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
-  STATIC_ASSERT(FCA::kArgsLength == 8);
 
   __ PopReturnAddressTo(return_address);
 
@@ -1732,14 +1733,42 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // holder
   __ Push(holder);
 
-  __ movp(scratch, rsp);
-  // Push return address back on stack.
-  __ PushReturnAddressFrom(return_address);
+  // enter a new context
+  int argc = this->argc();
+  if (this->is_lazy()) {
+    // ----------- S t a t e -------------------------------------
+    //  -- rsp[0]                                 : holder
+    //  -- ...
+    //  -- rsp[(FCA::kArgsLength - 1) * 8]        : new_target
+    //  -- rsp[FCA::kArgsLength * 8]              : last argument
+    //  -- ...
+    //  -- rsp[(FCA::kArgsLength + argc - 1) * 8] : first argument
+    //  -- rsp[(FCA::kArgsLength + argc) * 8]     : receiver
+    //  -- rsp[(FCA::kArgsLength + argc + 1) * 8] : accessor_holder
+    // -----------------------------------------------------------
 
-  if (!this->is_lazy()) {
+    // load context from accessor_holder
+    Register accessor_holder = context;
+    Register scratch2 = callee;
+    __ movp(accessor_holder,
+            MemOperand(rsp, (argc + FCA::kArgsLength + 1) * kPointerSize));
+    // Look for the constructor if |accessor_holder| is not a function.
+    Label skip_looking_for_constructor;
+    __ movp(scratch, FieldOperand(accessor_holder, HeapObject::kMapOffset));
+    __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsConstructor));
+    __ j(not_zero, &skip_looking_for_constructor, Label::kNear);
+    __ GetMapConstructor(context, scratch, scratch2);
+    __ bind(&skip_looking_for_constructor);
+    __ movp(context, FieldOperand(context, JSFunction::kContextOffset));
+  } else {
     // load context from callee
     __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
   }
+
+  __ movp(scratch, rsp);
+  // Push return address back on stack.
+  __ PushReturnAddressFrom(return_address);
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -1748,7 +1777,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   PrepareCallApiFunction(masm, kApiStackSpace);
 
   // FunctionCallbackInfo::implicit_args_.
-  int argc = this->argc();
   __ movp(StackSpaceOperand(0), scratch);
   __ addp(scratch, Immediate((argc + FCA::kArgsLength - 1) * kPointerSize));
   // FunctionCallbackInfo::values_.
@@ -1779,13 +1807,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
                                        ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Operand context_restore_operand = args_from_rbp.GetArgumentOperand(
       FCA::kArgsLength - FCA::kContextSaveIndex);
-  Operand length_operand = StackSpaceOperand(2);
   Operand return_value_operand = args_from_rbp.GetArgumentOperand(
       this->is_store() ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
-  int stack_space = 0;
-  Operand* stack_space_operand = &length_operand;
-  stack_space = argc + FCA::kArgsLength + 1;
-  stack_space_operand = nullptr;
+  const int stack_space = argc + FCA::kArgsLength + 2;
+  Operand* stack_space_operand = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, callback_arg,
                            stack_space, stack_space_operand,
                            return_value_operand, &context_restore_operand);

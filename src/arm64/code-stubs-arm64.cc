@@ -1790,6 +1790,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- sp[(argc - 1) * 8]  : first argument
   //  -- sp[argc * 8]        : receiver
+  //  -- sp[(argc + 1) * 8]  : accessor_holder
   // -----------------------------------
 
   Register callee = x0;
@@ -1800,6 +1801,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   typedef FunctionCallbackArguments FCA;
 
+  STATIC_ASSERT(FCA::kArgsLength == 8);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
   STATIC_ASSERT(FCA::kContextSaveIndex == 6);
   STATIC_ASSERT(FCA::kCalleeIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
@@ -1807,10 +1810,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
-  STATIC_ASSERT(FCA::kArgsLength == 8);
-
-  // FunctionCallbackArguments
 
   // new target
   __ PushRoot(Heap::kUndefinedValueRootIndex);
@@ -1818,18 +1817,47 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // context, callee and call data.
   __ Push(context, callee, call_data);
 
-  if (!is_lazy()) {
-    // Load context from callee
-    __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
-
-  __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
+  Register scratch = call_data;
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   Register isolate_reg = x5;
   __ Mov(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 
   // FunctionCallbackArguments:
   //    return value, return value default, isolate, holder.
-  __ Push(call_data, call_data, isolate_reg, holder);
+  __ Push(scratch, scratch, isolate_reg, holder);
+
+  // Enter a new context
+  if (is_lazy()) {
+    // ----------- S t a t e -------------------------------------
+    //  -- sp[0]                                 : holder
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength - 1) * 8]        : new_target
+    //  -- sp[FCA::kArgsLength * 8]              : last argument
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength + argc - 1) * 8] : first argument
+    //  -- sp[(FCA::kArgsLength + argc) * 8]     : receiver
+    //  -- sp[(FCA::kArgsLength + argc + 1) * 8] : accessor_holder
+    // -----------------------------------------------------------
+
+    // Load context from accessor_holder
+    Register accessor_holder = context;
+    Register scratch2 = callee;
+    __ Ldr(accessor_holder,
+           MemOperand(__ StackPointer(),
+                      (FCA::kArgsLength + 1 + argc()) * kPointerSize));
+    // Look for the constructor if |accessor_holder| is not a function.
+    Label skip_looking_for_constructor;
+    __ Ldr(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
+    __ Ldr(scratch2, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ Tst(scratch2, Operand(1 << Map::kIsConstructor));
+    __ B(ne, &skip_looking_for_constructor);
+    __ GetMapConstructor(context, scratch, scratch, scratch2);
+    __ bind(&skip_looking_for_constructor);
+    __ Ldr(context, FieldMemOperand(context, JSFunction::kContextOffset));
+  } else {
+    // Load context from callee
+    __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+  }
 
   // Prepare arguments.
   Register args = x6;
@@ -1871,12 +1899,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  int stack_space = 0;
-  MemOperand length_operand =
-      MemOperand(masm->StackPointer(), 3 * kPointerSize);
-  MemOperand* stack_space_operand = &length_operand;
-  stack_space = argc() + FCA::kArgsLength + 1;
-  stack_space_operand = NULL;
+  const int stack_space = argc() + FCA::kArgsLength + 2;
+  MemOperand* stack_space_operand = nullptr;
 
   const int spill_offset = 1 + kApiStackSpace;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,

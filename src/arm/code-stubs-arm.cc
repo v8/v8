@@ -1606,8 +1606,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  --
   //  -- sp[0]               : last argument
   //  -- ...
-  //  -- sp[(argc - 1)* 4]   : first argument
+  //  -- sp[(argc - 1) * 4]  : first argument
   //  -- sp[argc * 4]        : receiver
+  //  -- sp[(argc + 1) * 4]  : accessor_holder
   // -----------------------------------
 
   Register callee = r0;
@@ -1618,6 +1619,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   typedef FunctionCallbackArguments FCA;
 
+  STATIC_ASSERT(FCA::kArgsLength == 8);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
   STATIC_ASSERT(FCA::kContextSaveIndex == 6);
   STATIC_ASSERT(FCA::kCalleeIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
@@ -1625,18 +1628,12 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
-  STATIC_ASSERT(FCA::kArgsLength == 8);
 
   // new target
   __ PushRoot(Heap::kUndefinedValueRootIndex);
 
   // context save
   __ push(context);
-  if (!is_lazy()) {
-    // load context from callee
-    __ ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
 
   // callee
   __ push(callee);
@@ -1657,6 +1654,37 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ push(scratch1);
   // holder
   __ push(holder);
+
+  // enter a new context
+  if (is_lazy()) {
+    // ----------- S t a t e -------------------------------------
+    //  -- sp[0]                                 : holder
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength - 1) * 4]        : new_target
+    //  -- sp[FCA::kArgsLength * 4]              : last argument
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength + argc - 1) * 4] : first argument
+    //  -- sp[(FCA::kArgsLength + argc) * 4]     : receiver
+    //  -- sp[(FCA::kArgsLength + argc + 1) * 4] : accessor_holder
+    // -----------------------------------------------------------
+
+    // load context from accessor_holder
+    Register accessor_holder = context;
+    __ ldr(accessor_holder,
+           MemOperand(sp, (FCA::kArgsLength + 1 + argc()) * kPointerSize));
+    // Look for the constructor if |accessor_holder| is not a function.
+    Label skip_looking_for_constructor;
+    __ ldr(scratch0, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
+    __ ldr(scratch1, FieldMemOperand(scratch0, Map::kBitFieldOffset));
+    __ tst(scratch1, Operand(1 << Map::kIsConstructor));
+    __ b(ne, &skip_looking_for_constructor);
+    __ GetMapConstructor(context, scratch0, scratch0, scratch1);
+    __ bind(&skip_looking_for_constructor);
+    __ ldr(context, FieldMemOperand(context, JSFunction::kContextOffset));
+  } else {
+    // load context from callee
+    __ ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+  }
 
   // Prepare arguments.
   __ mov(scratch0, sp);
@@ -1696,11 +1724,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  int stack_space = 0;
-  MemOperand length_operand = MemOperand(sp, 3 * kPointerSize);
-  MemOperand* stack_space_operand = &length_operand;
-  stack_space = argc() + FCA::kArgsLength + 1;
-  stack_space_operand = NULL;
+  const int stack_space = argc() + FCA::kArgsLength + 2;
+  MemOperand* stack_space_operand = nullptr;
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            stack_space_operand, return_value_operand,
