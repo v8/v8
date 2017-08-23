@@ -32,36 +32,52 @@ Node* RegExpBuiltinsAssembler::AllocateRegExpResult(Node* context, Node* length,
   CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
 #endif  // DEBUG
 
-  // Allocate the JSRegExpResult.
-  // TODO(jgruber): Fold JSArray and FixedArray allocations, then remove
-  // unneeded store of elements.
-  Node* const result = Allocate(JSRegExpResult::kSize);
+  // Allocate the JSRegExpResult together with its elements fixed array.
+  // Initial preparations first.
 
-  // TODO(jgruber): Store map as Heap constant?
+  Node* const length_intptr = SmiUntag(length);
+  const ElementsKind elements_kind = PACKED_ELEMENTS;
+
+  Node* const elements_size = GetFixedArrayAllocationSize(
+      length_intptr, elements_kind, INTPTR_PARAMETERS);
+  Node* const total_size =
+      IntPtrAdd(elements_size, IntPtrConstant(JSRegExpResult::kSize));
+
+  static const int kRegExpResultOffset = 0;
+  static const int kElementsOffset =
+      kRegExpResultOffset + JSRegExpResult::kSize;
+
+  // The folded allocation.
+
+  Node* const result = Allocate(total_size);
+  Node* const elements = InnerAllocate(result, kElementsOffset);
+
+  // Initialize the JSRegExpResult.
+
   Node* const native_context = LoadNativeContext(context);
   Node* const map =
       LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
   StoreMapNoWriteBarrier(result, map);
 
-  // Initialize the header before allocating the elements.
   Node* const empty_array = EmptyFixedArrayConstant();
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
   StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
                                  empty_array);
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
   StoreObjectField(result, JSRegExpResult::kInputOffset, input);
 
+  // Initialize the elements.
+
+  DCHECK(!IsDoubleElementsKind(elements_kind));
+  const Heap::RootListIndex map_index = Heap::kFixedArrayMapRootIndex;
+  DCHECK(Heap::RootIsImmortalImmovable(map_index));
+  StoreMapNoWriteBarrier(elements, map_index);
+  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+
   Node* const zero = IntPtrConstant(0);
-  Node* const length_intptr = SmiUntag(length);
-  const ElementsKind elements_kind = PACKED_ELEMENTS;
-
-  Node* const elements = AllocateFixedArray(elements_kind, length_intptr);
-  StoreObjectField(result, JSArray::kElementsOffset, elements);
-
-  // Fill in the elements with undefined.
   FillFixedArrayWithValue(elements_kind, elements, zero, length_intptr,
                           Heap::kUndefinedValueRootIndex);
 
