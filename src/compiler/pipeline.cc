@@ -142,7 +142,8 @@ class PipelineData {
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Graph* graph,
-               Schedule* schedule, SourcePositionTable* source_positions)
+               Schedule* schedule, SourcePositionTable* source_positions,
+               JumpOptimizationInfo* jump_opt)
       : isolate_(info->isolate()),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -156,8 +157,8 @@ class PipelineData {
         codegen_zone_scope_(zone_stats_, ZONE_NAME),
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()) {
-  }
+        register_allocation_zone_(register_allocation_zone_scope_.zone()),
+        jump_optimization_info_(jump_opt) {}
   // For register allocation testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info,
                InstructionSequence* sequence)
@@ -254,6 +255,10 @@ class PipelineData {
     return protected_instructions_;
   }
 
+  JumpOptimizationInfo* jump_optimization_info() const {
+    return jump_optimization_info_;
+  }
+
   void DeleteGraphZone() {
     if (graph_zone_ == nullptr) return;
     graph_zone_scope_.Destroy();
@@ -333,9 +338,9 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-    code_generator_ =
-        new CodeGenerator(codegen_zone(), frame(), linkage, sequence(), info(),
-                          osr_helper_, start_source_position_);
+    code_generator_ = new CodeGenerator(
+        codegen_zone(), frame(), linkage, sequence(), info(), osr_helper_,
+        start_source_position_, jump_optimization_info_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -408,6 +413,8 @@ class PipelineData {
 
   ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions_ =
       nullptr;
+
+  JumpOptimizationInfo* jump_optimization_info_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -1752,14 +1759,16 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                CallDescriptor* call_descriptor,
                                                Graph* graph, Schedule* schedule,
                                                Code::Flags flags,
-                                               const char* debug_name) {
+                                               const char* debug_name,
+                                               JumpOptimizationInfo* jump_opt) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
   if (isolate->serializer_enabled()) info.MarkAsSerializing();
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
-  PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
+  PipelineData data(&zone_stats, &info, graph, schedule, &source_positions,
+                    jump_opt);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -1824,7 +1833,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
   // table, then remove this conditional allocation.
   if (!source_positions)
     source_positions = new (info->zone()) SourcePositionTable(graph);
-  PipelineData data(&zone_stats, info, graph, schedule, source_positions);
+  PipelineData data(&zone_stats, info, graph, schedule, source_positions,
+                    nullptr);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(info, &zone_stats));
@@ -1901,6 +1911,14 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
   }
 
   bool verify_stub_graph = data->verify_graph();
+  // Jump optimization runs instruction selection twice, but the instruction
+  // selector mutates nodes like swapping the inputs of a load, which can
+  // violate the machine graph verification rules. So we skip the second
+  // verification on a graph that already verified before.
+  auto jump_opt = data->jump_optimization_info();
+  if (jump_opt && jump_opt->is_optimizing()) {
+    verify_stub_graph = false;
+  }
   if (verify_stub_graph ||
       (FLAG_turbo_verify_machine_graph != nullptr &&
        (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||

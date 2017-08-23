@@ -66,6 +66,26 @@ void SetUpJSCallerSavedCodeData();
 int JSCallerSavedCode(int n);
 
 // -----------------------------------------------------------------------------
+// Optimization for far-jmp like instructions that can be replaced by shorter.
+
+class JumpOptimizationInfo {
+ public:
+  bool is_collecting() const { return stage_ == kCollection; }
+  bool is_optimizing() const { return stage_ == kOptimization; }
+  void set_optimizing() { stage_ = kOptimization; }
+
+  bool is_optimizable() const { return optimizable_; }
+  void set_optimizable() { optimizable_ = true; }
+
+  std::vector<uint32_t>& farjmp_bitmap() { return farjmp_bitmap_; }
+
+ private:
+  enum { kCollection, kOptimization } stage_ = kCollection;
+  bool optimizable_ = false;
+  std::vector<uint32_t> farjmp_bitmap_;
+};
+
+// -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
 enum class CodeObjectRequired { kNo, kYes };
@@ -119,6 +139,13 @@ class AssemblerBase: public Malloced {
     }
   }
 
+  JumpOptimizationInfo* jump_optimization_info() {
+    return jump_optimization_info_;
+  }
+  void set_jump_optimization_info(JumpOptimizationInfo* jump_opt) {
+    jump_optimization_info_ = jump_opt;
+  }
+
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
@@ -164,6 +191,8 @@ class AssemblerBase: public Malloced {
   // Indicates whether the constant pool can be accessed, which is only possible
   // if the pp register points to the current code object's constant pool.
   bool constant_pool_available_;
+
+  JumpOptimizationInfo* jump_optimization_info_;
 
   // Constant pool.
   friend class FrameAndConstantPoolScope;

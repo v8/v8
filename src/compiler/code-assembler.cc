@@ -154,9 +154,21 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
   Schedule* schedule = rasm->Export();
+  JumpOptimizationInfo jump_opt;
+
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->flags_, state->name_);
+      state->flags_, state->name_,
+      rasm->isolate()->serializer_enabled() ? &jump_opt : nullptr);
+
+  if (jump_opt.is_optimizable()) {
+    jump_opt.set_optimizing();
+
+    // Regenerate machine code
+    code = Pipeline::GenerateCodeForCodeStub(
+        rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
+        state->flags_, state->name_, &jump_opt);
+  }
 
   state->code_generated_ = true;
   return code;

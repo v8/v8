@@ -2494,6 +2494,11 @@ class Assembler : public AssemblerBase {
   void bmi2l(SIMDPrefix pp, byte op, Register reg, Register vreg,
              const Operand& rm);
 
+  // record the position of jmp/jcc instruction
+  void record_farjmp_position(Label* L, int pos);
+
+  bool is_optimizable_farjmp(int idx);
+
   friend class CodePatcher;
   friend class EnsureSpace;
   friend class RegExpMacroAssemblerX64;
@@ -2520,6 +2525,11 @@ class Assembler : public AssemblerBase {
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   std::forward_list<HeapObjectRequest> heap_object_requests_;
+
+  // Variables for this instance of assembler
+  int farjmp_num_ = 0;
+  std::deque<int> farjmp_positions_;
+  std::map<Label*, std::vector<int>> label_farjmp_maps_;
 };
 
 

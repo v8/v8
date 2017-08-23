@@ -159,7 +159,8 @@ AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
-      constant_pool_available_(false) {
+      constant_pool_available_(false),
+      jump_optimization_info_(nullptr) {
   own_buffer_ = buffer == NULL;
   if (buffer_size == 0) buffer_size = kMinimalBufferSize;
   DCHECK(buffer_size > 0);

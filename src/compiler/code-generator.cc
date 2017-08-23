@@ -38,7 +38,8 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info,
                              base::Optional<OsrHelper> osr_helper,
-                             int start_source_position)
+                             int start_source_position,
+                             JumpOptimizationInfo* jump_opt)
     : zone_(codegen_zone),
       frame_access_state_(nullptr),
       linkage_(linkage),
@@ -72,6 +73,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
   }
   CreateFrameAccessState(frame);
   CHECK_EQ(info->is_osr(), osr_helper_.has_value());
+  tasm_.set_jump_optimization_info(jump_opt);
 }
 
 Isolate* CodeGenerator::isolate() const { return info_->isolate(); }
@@ -152,8 +154,11 @@ void CodeGenerator::AssembleCode() {
       if (block->IsDeferred() == (deferred == 0)) {
         continue;
       }
+
       // Align loop headers on 16-byte boundaries.
-      if (block->IsLoopHeader()) tasm()->Align(16);
+      if (block->IsLoopHeader() && !tasm()->jump_optimization_info()) {
+        tasm()->Align(16);
+      }
       // Bind a label for a block.
       current_block_ = block->rpo_number();
       unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);

@@ -1807,6 +1807,11 @@ class Assembler : public AssemblerBase {
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
+  // record the position of jmp/jcc instruction
+  void record_farjmp_position(Label* L, int pos);
+
+  bool is_optimizable_farjmp(int idx);
+
   friend class CodePatcher;
   friend class EnsureSpace;
 
@@ -1830,6 +1835,11 @@ class Assembler : public AssemblerBase {
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   std::forward_list<HeapObjectRequest> heap_object_requests_;
+
+  // Variables for this instance of assembler
+  int farjmp_num_ = 0;
+  std::deque<int> farjmp_positions_;
+  std::map<Label*, std::vector<int>> label_farjmp_maps_;
 };
 
 

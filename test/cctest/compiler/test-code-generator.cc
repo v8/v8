@@ -28,7 +28,7 @@ class CodeGeneratorTester : public InitializedHandleScope {
         sequence_(main_isolate(), &zone_, &blocks_),
         frame_(descriptor_->CalculateFixedFrameSize()),
         generator_(&zone_, &frame_, &linkage_, &sequence_, &info_,
-                   base::Optional<OsrHelper>(), kNoSourcePosition) {
+                   base::Optional<OsrHelper>(), kNoSourcePosition, nullptr) {
     info_.set_prologue_offset(generator_.tasm()->pc_offset());
   }
 

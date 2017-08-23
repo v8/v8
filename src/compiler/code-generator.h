@@ -82,7 +82,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info,
                          base::Optional<OsrHelper> osr_helper,
-                         int start_source_position);
+                         int start_source_position,
+                         JumpOptimizationInfo* jump_opt);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
