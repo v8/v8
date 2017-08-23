@@ -397,7 +397,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       kNoCalleeSaved,                   // callee-saved fp
       CallDescriptor::kCanUseRoots |    // flags
           flags,                        // flags
-      descriptor.DebugName(isolate));
+      descriptor.DebugName(isolate), descriptor.allocatable_registers());
 }
 
 // static

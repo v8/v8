@@ -107,11 +107,6 @@ void RecordWriteDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void RecordWriteDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
 void LoadDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kName, kSlot

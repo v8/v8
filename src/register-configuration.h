@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/reglist.h"
 
 namespace v8 {
 namespace internal {
@@ -29,6 +30,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
 
   // Default RegisterConfigurations for the target architecture.
   static const RegisterConfiguration* Default();
+
+  static const RegisterConfiguration* RestrictGeneralRegisters(
+      RegList registers);
 
   RegisterConfiguration(int num_general_registers, int num_double_registers,
                         int num_allocatable_general_registers,
@@ -131,6 +135,8 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   // kFloat64, or kSimd128 reps.
   bool AreAliases(MachineRepresentation rep, int index,
                   MachineRepresentation other_rep, int other_index) const;
+
+  virtual ~RegisterConfiguration() {}
 
  private:
   const int num_general_registers_;

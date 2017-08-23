@@ -20,6 +20,13 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
                                    default_stub_registers);
 }
 
+void RecordWriteDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // TODO(albertnetymk): Use default for now; should call
+  // RestrictAllocatableRegisters like src/x64/interface-descriptors-x64.cc
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 const Register FastNewFunctionContextDescriptor::FunctionRegister() {
   return a1;
 }

@@ -242,6 +242,24 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         mode_(mode),
         zone_(gen->zone()) {}
 
+  void SaveRegisters(RegList registers) {
+    DCHECK(NumRegs(registers) > 0);
+    for (int i = 0; i < Register::kNumRegisters; ++i) {
+      if ((registers >> i) & 1u) {
+        __ pushq(Register::from_code(i));
+      }
+    }
+  }
+
+  void RestoreRegisters(RegList registers) {
+    DCHECK(NumRegs(registers) > 0);
+    for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
+      if ((registers >> i) & 1u) {
+        __ popq(Register::from_code(i));
+      }
+    }
+  }
+
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
@@ -249,20 +267,15 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
-    RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
-                                             : OMIT_REMEMBERED_SET;
-    SaveFPRegsMode const save_fp_mode =
-        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     __ leap(scratch1_, operand_);
 
 #ifdef V8_CSA_WRITE_BARRIER
-    (void)remembered_set_action;
-    // TODO(albertnetymk): Come up with a better way instead of blindly saving
-    // all registers.
-    __ PushCallerSaved(save_fp_mode);
     Callable const callable =
         Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
+    RegList registers = callable.descriptor().allocatable_registers();
+
+    SaveRegisters(registers);
+
     Register object_parameter(callable.descriptor().GetRegisterParameter(
         RecordWriteDescriptor::kObject));
     Register slot_parameter(callable.descriptor().GetRegisterParameter(
@@ -280,8 +293,14 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                    ExternalReference::isolate_address(__ isolate()));
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
 
-    __ PopCallerSaved(save_fp_mode);
+    RestoreRegisters(registers);
 #else
+    RememberedSetAction const remembered_set_action =
+        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
+                                             : OMIT_REMEMBERED_SET;
+    SaveFPRegsMode const save_fp_mode =
+        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+
     __ CallStubDelayed(
         new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                     remembered_set_action, save_fp_mode));

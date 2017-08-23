@@ -87,7 +87,10 @@ class PlatformInterfaceDescriptor;
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
-  CallInterfaceDescriptorData() : register_param_count_(-1), param_count_(-1) {}
+  CallInterfaceDescriptorData()
+      : register_param_count_(-1),
+        param_count_(-1),
+        allocatable_registers_(0) {}
 
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptorData.
@@ -120,9 +123,23 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
     return platform_specific_descriptor_;
   }
 
+  void RestrictAllocatableRegisters(const Register* registers, int num) {
+    DCHECK(allocatable_registers_ == 0);
+    for (int i = 0; i < num; ++i) {
+      allocatable_registers_ |= registers[i].bit();
+    }
+    DCHECK(NumRegs(allocatable_registers_) > 0);
+  }
+
+  RegList allocatable_registers() const { return allocatable_registers_; }
+
  private:
   int register_param_count_;
   int param_count_;
+
+  // Specifying the set of registers that could be used by the register
+  // allocator. Currently, it's only used by RecordWrite code stub.
+  RegList allocatable_registers_;
 
   // The Register params are allocated dynamically by the
   // InterfaceDescriptor, and freed on destruction. This is because static
@@ -177,6 +194,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   // Some platforms have extra information to associate with the descriptor.
   PlatformInterfaceDescriptor* platform_specific_descriptor() const {
     return data()->platform_specific_descriptor();
+  }
+
+  RegList allocatable_registers() const {
+    return data()->allocatable_registers();
   }
 
   static const Register ContextRegister();

@@ -1602,6 +1602,8 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
                                  operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
     DCHECK(!IsFloatingPoint(rep));
+    DCHECK(data()->config()->IsAllocatableGeneralCode(
+        operand->fixed_register_index()));
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
                                  operand->fixed_register_index());
   } else if (operand->HasFixedFPRegisterPolicy()) {
