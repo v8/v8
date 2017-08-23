@@ -55,6 +55,7 @@ Page* FindLastPageInNewSpace(std::vector<Handle<FixedArray>>& handles) {
 UNINITIALIZED_TEST(PagePromotion_NewToOld) {
   if (!i::FLAG_incremental_marking) return;
   if (!i::FLAG_page_promotion) return;
+  ManualGCScope manual_gc_scope;
 
   v8::Isolate* isolate = NewIsolateForPagePromotion();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

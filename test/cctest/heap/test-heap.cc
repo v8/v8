@@ -2184,7 +2184,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 TEST(InstanceOfStubWriteBarrier) {
   if (!FLAG_incremental_marking) return;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
@@ -2277,7 +2277,7 @@ HEAP_TEST(GCFlags) {
 
 TEST(IdleNotificationFinishMarking) {
   if (!FLAG_incremental_marking) return;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   const int initial_gc_count = CcTest::heap()->gc_count();
@@ -6005,6 +6005,7 @@ HEAP_TEST(Regress5831) {
 
 HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

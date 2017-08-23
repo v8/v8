@@ -1328,7 +1328,7 @@ TEST(CodeSerializerLargeCodeObject) {
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   if (FLAG_never_compact) return;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
