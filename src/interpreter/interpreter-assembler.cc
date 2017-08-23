@@ -1191,7 +1191,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
         var_result.Bind(TruncateHeapNumberValueToWord32(value));
         var_type_feedback->Bind(
             SmiOr(var_type_feedback->value(),
-                  SmiConstant(BinaryOperationFeedback::kNumber)));
+                  SmiConstant(BinaryOperationFeedback::kNumberOrOddball)));
         Goto(&done_loop);
       }
 

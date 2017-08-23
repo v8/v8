@@ -1017,9 +1017,9 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
         UNREACHABLE();
     }
 
-    Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                          BinaryOperationFeedback::kSignedSmall,
-                                          BinaryOperationFeedback::kNumber);
+    Node* result_type = SelectSmiConstant(
+        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+        BinaryOperationFeedback::kNumberOrOddball);
 
     if (FLAG_debug_code) {
       Label ok(this);
@@ -1108,9 +1108,9 @@ IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
   Node* rhs_value = SmiToWord32(right);
   Node* value = Word32Or(lhs_value, rhs_value);
   Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  Node* result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumberOrOddball);
   Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
                  feedback_vector, slot_index, function);
@@ -1134,9 +1134,9 @@ IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
   Node* rhs_value = SmiToWord32(right);
   Node* value = Word32Xor(lhs_value, rhs_value);
   Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  Node* result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumberOrOddball);
   Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
                  feedback_vector, slot_index, function);
@@ -1160,9 +1160,9 @@ IGNITION_HANDLER(BitwiseAndSmi, InterpreterAssembler) {
   Node* rhs_value = SmiToWord32(right);
   Node* value = Word32And(lhs_value, rhs_value);
   Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  Node* result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumberOrOddball);
   Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
                  feedback_vector, slot_index, function);
@@ -1189,9 +1189,9 @@ IGNITION_HANDLER(ShiftLeftSmi, InterpreterAssembler) {
   Node* shift_count = Word32And(rhs_value, Int32Constant(0x1f));
   Node* value = Word32Shl(lhs_value, shift_count);
   Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  Node* result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumberOrOddball);
   Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
                  feedback_vector, slot_index, function);
@@ -1218,9 +1218,9 @@ IGNITION_HANDLER(ShiftRightSmi, InterpreterAssembler) {
   Node* shift_count = Word32And(rhs_value, Int32Constant(0x1f));
   Node* value = Word32Sar(lhs_value, shift_count);
   Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  Node* result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumberOrOddball);
   Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
                  feedback_vector, slot_index, function);
@@ -1247,9 +1247,9 @@ IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterAssembler) {
   Node* shift_count = Word32And(rhs_value, Int32Constant(0x1f));
   Node* value = Word32Shr(lhs_value, shift_count);
   Node* result = ChangeUint32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  Node* result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumberOrOddball);
   Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
                  feedback_vector, slot_index, function);
@@ -1294,7 +1294,8 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
   BIND(&if_objectisnumber);
   {
     var_result.Bind(object);
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    var_type_feedback.Bind(
+        SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     Goto(&if_done);
   }
 
@@ -1443,7 +1444,7 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
     Node* finc_result = Float64Add(finc_value, one);
     var_type_feedback.Bind(
         SmiOr(var_type_feedback.value(),
-              SmiConstant(BinaryOperationFeedback::kNumber)));
+              SmiConstant(BinaryOperationFeedback::kNumberOrOddball)));
     result_var.Bind(AllocateHeapNumberWithValue(finc_result));
     Goto(&end);
   }
@@ -1568,7 +1569,7 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
     Node* fdec_result = Float64Sub(fdec_value, one);
     var_type_feedback.Bind(
         SmiOr(var_type_feedback.value(),
-              SmiConstant(BinaryOperationFeedback::kNumber)));
+              SmiConstant(BinaryOperationFeedback::kNumberOrOddball)));
     result_var.Bind(AllocateHeapNumberWithValue(fdec_result));
     Goto(&end);
   }
