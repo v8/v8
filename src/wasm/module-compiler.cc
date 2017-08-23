@@ -2094,7 +2094,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     int code_table_size = static_cast<int>(module_->functions.size() +
                                            module_->num_exported_functions);
     job_->code_table_ = factory->NewFixedArray(code_table_size, TENURED);
-
+    for (int i = 0, e = module_->num_imported_functions; i < e; ++i) {
+      job_->code_table_->set(i, *illegal_builtin);
+    }
     // Transfer ownership of the {WasmModule} to the {ModuleCompiler}, but
     // keep a pointer.
     WasmModule* module = module_.get();
