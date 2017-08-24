@@ -6,7 +6,6 @@
 #define V8_HEAP_WORKLIST_
 
 #include <cstddef>
-#include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
@@ -57,14 +56,14 @@ class Worklist {
   };
 
   static const int kMaxNumTasks = 8;
-  static const int kSegmentCapacity = SEGMENT_SIZE;
+  static const size_t kSegmentCapacity = SEGMENT_SIZE;
 
   Worklist() : Worklist(kMaxNumTasks) {}
 
   explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
     for (int i = 0; i < num_tasks_; i++) {
-      private_push_segment(i) = new Segment();
-      private_pop_segment(i) = new Segment();
+      private_push_segment(i) = NewSegment();
+      private_pop_segment(i) = NewSegment();
     }
   }
 
@@ -183,7 +182,7 @@ class Worklist {
 
   class Segment {
    public:
-    static const int kCapacity = kSegmentCapacity;
+    static const size_t kCapacity = kSegmentCapacity;
 
     Segment() : index_(0) {}
 
@@ -244,14 +243,14 @@ class Worklist {
     V8_INLINE void Push(Segment* segment) {
       base::LockGuard<base::Mutex> guard(&lock_);
       segment->set_next(top_);
-      SetTop(segment);
+      set_top(segment);
     }
 
     V8_INLINE bool Pop(Segment** segment) {
       base::LockGuard<base::Mutex> guard(&lock_);
       if (top_ != nullptr) {
         *segment = top_;
-        SetTop(top_->next());
+        set_top(top_->next());
         return true;
       }
       return false;
@@ -269,7 +268,7 @@ class Worklist {
         current = current->next();
         delete tmp;
       }
-      SetTop(nullptr);
+      set_top(nullptr);
     }
 
     // See Worklist::Update.
@@ -307,9 +306,10 @@ class Worklist {
     }
 
    private:
-    void SetTop(Segment* segment) {
+    void set_top(Segment* segment) {
       base::AsAtomicPointer::Relaxed_Store(&top_, segment);
     }
+
     base::Mutex lock_;
     Segment* top_;
   };
@@ -325,14 +325,14 @@ class Worklist {
   V8_INLINE void PublishPushSegmentToGlobal(int task_id) {
     if (!private_push_segment(task_id)->IsEmpty()) {
       global_pool_.Push(private_push_segment(task_id));
-      private_push_segment(task_id) = new Segment();
+      private_push_segment(task_id) = NewSegment();
     }
   }
 
   V8_INLINE void PublishPopSegmentToGlobal(int task_id) {
     if (!private_pop_segment(task_id)->IsEmpty()) {
       global_pool_.Push(private_pop_segment(task_id));
-      private_pop_segment(task_id) = new Segment();
+      private_pop_segment(task_id) = NewSegment();
     }
   }
 
@@ -347,6 +347,11 @@ class Worklist {
     return false;
   }
 
+  V8_INLINE Segment* NewSegment() {
+    // Bottleneck for filtering in crash dumps.
+    return new Segment();
+  }
+
   PrivateSegmentHolder private_segments_[kMaxNumTasks];
   GlobalPool global_pool_;
   int num_tasks_;
@@ -355,4 +360,4 @@ class Worklist {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_WORKSTEALING_BAG_
+#endif  // V8_HEAP_WORKLIST_
