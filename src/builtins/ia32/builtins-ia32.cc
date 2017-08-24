@@ -17,8 +17,24 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
+  __ mov(ebx, Immediate(ExternalReference(address, masm->isolate())));
+  if (exit_frame_type == BUILTIN_EXIT) {
+    __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
+            RelocInfo::CODE_TARGET);
+  } else {
+    DCHECK(exit_frame_type == EXIT);
+    __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithExitFrame),
+            RelocInfo::CODE_TARGET);
+  }
+}
+
+namespace {
+
+void AdaptorWithExitFrameType(MacroAssembler* masm,
+                              Builtins::ExitFrameType exit_frame_type) {
   // ----------- S t a t e -------------
   //  -- eax                : number of arguments excluding receiver
+  //  -- ebx                : entry point
   //  -- edi                : target
   //  -- edx                : new.target
   //  -- esp[0]             : return address
@@ -35,8 +51,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
   // ordinary functions).
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // JumpToExternalReference expects eax to contain the number of arguments
-  // including the receiver and the extra arguments.
+  // CEntryStub expects eax to contain the number of arguments including the
+  // receiver and the extra arguments.
   const int num_extra_args = 3;
   __ add(eax, Immediate(num_extra_args + 1));
 
@@ -49,8 +65,20 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
   __ Push(edx);
   __ PushReturnAddressFrom(ecx);
 
-  __ JumpToExternalReference(ExternalReference(address, masm->isolate()),
-                             exit_frame_type == BUILTIN_EXIT);
+  // Jump to the C entry runtime stub directly here instead of using
+  // JumpToExternalReference because ebx is loaded by Generate_adaptor.
+  CEntryStub ces(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                 exit_frame_type == Builtins::BUILTIN_EXIT);
+  __ jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+}
+}  // namespace
+
+void Builtins::Generate_AdaptorWithExitFrame(MacroAssembler* masm) {
+  AdaptorWithExitFrameType(masm, EXIT);
+}
+
+void Builtins::Generate_AdaptorWithBuiltinExitFrame(MacroAssembler* masm) {
+  AdaptorWithExitFrameType(masm, BUILTIN_EXIT);
 }
 
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
