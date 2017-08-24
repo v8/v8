@@ -51,7 +51,6 @@ macro IS_DATE(arg)              = (%IsDate(arg));
 macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
 macro IS_FUNCTION(arg)          = (%IsFunction(arg));
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
-macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro IS_MAP(arg)               = (%_IsJSMap(arg));
 macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_NULL(arg)              = (arg === null);

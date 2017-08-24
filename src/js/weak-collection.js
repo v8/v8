@@ -16,23 +16,6 @@ var GlobalWeakSet = global.WeakSet;
 var MathRandom = global.Math.random;
 
 // -------------------------------------------------------------------
-
-function GetExistingHash(key) {
-  if (IS_RECEIVER(key) && !IS_PROXY(key) && !IS_GLOBAL(key)) {
-    return %GetExistingHash(key);
-  }
-  return %GenericHash(key);
-}
-%SetForceInlineFlag(GetExistingHash);
-
-
-function GetHash(key) {
-  return %GenericHash(key);
-}
-%SetForceInlineFlag(GetHash);
-
-
-// -------------------------------------------------------------------
 // Harmony WeakMap
 
 function WeakMapConstructor(iterable) {
@@ -67,7 +50,7 @@ DEFINE_METHODS(
                             'WeakMap.prototype.set', this);
       }
       if (!IS_RECEIVER(key)) throw %make_type_error(kInvalidWeakMapKey);
-      return %WeakCollectionSet(this, key, value, GetHash(key));
+      return %WeakCollectionSet(this, key, value, %GenericHash(key));
     }
 
     delete(key) {
@@ -76,7 +59,7 @@ DEFINE_METHODS(
                             'WeakMap.prototype.delete', this);
       }
       if (!IS_RECEIVER(key)) return false;
-      var hash = GetExistingHash(key);
+      var hash = %GetExistingHash(key);
       if (IS_UNDEFINED(hash)) return false;
       return %WeakCollectionDelete(this, key, hash);
     }
@@ -120,7 +103,7 @@ DEFINE_METHODS(
                             'WeakSet.prototype.add', this);
       }
       if (!IS_RECEIVER(value)) throw %make_type_error(kInvalidWeakSetValue);
-      return %WeakCollectionSet(this, value, true, GetHash(value));
+      return %WeakCollectionSet(this, value, true, %GenericHash(value));
     }
 
     delete(value) {
@@ -129,7 +112,7 @@ DEFINE_METHODS(
                             'WeakSet.prototype.delete', this);
       }
       if (!IS_RECEIVER(value)) return false;
-      var hash = GetExistingHash(value);
+      var hash = %GetExistingHash(value);
       if (IS_UNDEFINED(hash)) return false;
       return %WeakCollectionDelete(this, value, hash);
     }

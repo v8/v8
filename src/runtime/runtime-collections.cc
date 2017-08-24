@@ -20,7 +20,7 @@ RUNTIME_FUNCTION(Runtime_TheHole) {
 RUNTIME_FUNCTION(Runtime_GetExistingHash) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   return object->GetHash();
 }
 
