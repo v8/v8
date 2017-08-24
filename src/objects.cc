@@ -3330,11 +3330,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case JS_MESSAGE_OBJECT_TYPE:
       os << "<JSMessageObject>";
       break;
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-  case NAME##_TYPE:                        \
-    os << "<" #Name ">";                   \
+#define MAKE_STRUCT_CASE(NAME, Name, name)   \
+  case NAME##_TYPE:                          \
+    os << "<" #Name;                         \
+    Name::cast(this)->BriefPrintDetails(os); \
+    os << ">";                               \
     break;
-  STRUCT_LIST(MAKE_STRUCT_CASE)
+      STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
     case CODE_TYPE: {
       Code* code = Code::cast(this);
@@ -3418,6 +3420,16 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
   }
 }
 
+void Struct::BriefPrintDetails(std::ostream& os) {}
+
+void Tuple2::BriefPrintDetails(std::ostream& os) {
+  os << " " << Brief(value1()) << ", " << Brief(value2());
+}
+
+void Tuple3::BriefPrintDetails(std::ostream& os) {
+  os << " " << Brief(value1()) << ", " << Brief(value2()) << ", "
+     << Brief(value3());
+}
 
 void HeapObject::Iterate(ObjectVisitor* v) { IterateFast<ObjectVisitor>(v); }
 

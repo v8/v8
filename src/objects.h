@@ -4326,6 +4326,7 @@ class Struct: public HeapObject {
  public:
   inline void InitializeBody(int object_size);
   DECL_CAST(Struct)
+  void BriefPrintDetails(std::ostream& os);
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
@@ -4479,6 +4480,7 @@ class Tuple2 : public Struct {
   // Dispatched behavior.
   DECL_PRINTER(Tuple2)
   DECL_VERIFIER(Tuple2)
+  void BriefPrintDetails(std::ostream& os);
 
   static const int kValue1Offset = HeapObject::kHeaderSize;
   static const int kValue2Offset = kValue1Offset + kPointerSize;
@@ -4497,6 +4499,7 @@ class Tuple3 : public Tuple2 {
   // Dispatched behavior.
   DECL_PRINTER(Tuple3)
   DECL_VERIFIER(Tuple3)
+  void BriefPrintDetails(std::ostream& os);
 
   static const int kValue3Offset = Tuple2::kSize;
   static const int kSize = kValue3Offset + kPointerSize;
