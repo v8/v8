@@ -498,10 +498,17 @@ TEST(Regress6377) {
       "\x80"            // second chunk - one-byte end of 4-byte seq
       "a\xc3\0"         // and an 'a' + start of 2-byte seq
       "\xbf\0",         // third chunk - end of 2-byte seq
+
+      // Regression test for
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=758508
+      "X\xef\xbb\xbfX\0",  // first chunk - no BOM but U+feff in the middle
   };
   const std::vector<std::vector<uint16_t>> unicode = {
-      {0xd800, 0xdc00, 97}, {0xfff, 97}, {0xff, 97}, {0xd800, 0xdc00, 97, 0xff},
-  };
+      {0xd800, 0xdc00, 97},
+      {0xfff, 97},
+      {0xff, 97},
+      {0xd800, 0xdc00, 97, 0xff},
+      {88, 0xfeff, 88}};
   CHECK_EQ(unicode.size(), sizeof(cases) / sizeof(cases[0]));
   for (size_t c = 0; c < unicode.size(); ++c) {
     ChunkSource chunk_source(cases[c]);

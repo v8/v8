@@ -507,6 +507,9 @@ class Utf8ChunkSource : public ChunkSource {
     // surrogate pair, hence addition of 1.
     uc16* decoded_data = new uc16[byte_length + 1];
     i::CopyCharsUnsigned(decoded_data, data, ascii_prefix_len);
+    if (ascii_prefix_len > 0) {
+      is_at_first_char_ = false;
+    }
     size_t decoded_len = ascii_prefix_len;
     for (size_t i = ascii_prefix_len; i < byte_length; ++i) {
       unibrow::uchar t =
