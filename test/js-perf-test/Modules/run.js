@@ -5,7 +5,6 @@
 
 load('../base.js');
 
-
 new BenchmarkSuite('BasicExport', [100], [
   new Benchmark('BasicExport', false, false, 0, BasicExport)
 ]);
@@ -18,8 +17,7 @@ new BenchmarkSuite('BasicNamespace', [100], [
   new Benchmark('BasicNamespace', false, false, 0, BasicNamespace)
 ]);
 
-
-const iterations = 3000000;
+const iterations = 1000000;
 
 
 function BasicExport() {
