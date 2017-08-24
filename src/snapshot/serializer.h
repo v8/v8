@@ -321,8 +321,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
 
  private:
-  bool TryEncodeDeoptimizationEntry(HowToCode how_to_code, Address target,
-                                    int skip);
   void SerializePrologue(AllocationSpace space, int size, Map* map);
 
 

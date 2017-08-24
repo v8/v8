@@ -353,25 +353,6 @@ bool Serializer::HasNotExceededFirstPageOfEachSpace() {
   return true;
 }
 
-bool Serializer::ObjectSerializer::TryEncodeDeoptimizationEntry(
-    HowToCode how_to_code, Address target, int skip) {
-  for (int bailout_type = 0; bailout_type <= Deoptimizer::kLastBailoutType;
-       ++bailout_type) {
-    int id = Deoptimizer::GetDeoptimizationId(
-        serializer_->isolate(), target,
-        static_cast<Deoptimizer::BailoutType>(bailout_type));
-    if (id == Deoptimizer::kNotDeoptimizationEntry) continue;
-    sink_->Put(how_to_code == kPlain ? kDeoptimizerEntryPlain
-                                     : kDeoptimizerEntryFromCode,
-               "DeoptimizationEntry");
-    sink_->PutInt(skip, "SkipB4DeoptimizationEntry");
-    sink_->Put(bailout_type, "BailoutType");
-    sink_->PutInt(id, "EntryId");
-    return true;
-  }
-  return false;
-}
-
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                                      int size, Map* map) {
   if (serializer_->code_address_map_) {
@@ -746,11 +727,9 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
   int skip = OutputRawData(reinterpret_cast<Address>(p),
                            kCanReturnSkipInsteadOfSkipping);
   Address target = *p;
-  if (!TryEncodeDeoptimizationEntry(kPlain, target, skip)) {
-    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
-  }
+  sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += kPointerSize;
 }
 
@@ -760,13 +739,10 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_external_reference();
-  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
-    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
-               "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    DCHECK_NOT_NULL(target);  // Code does not reference null.
-    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
-  }
+  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  DCHECK_NOT_NULL(target);  // Code does not reference null.
+  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -801,12 +777,9 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_address();
-  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
-    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
-               "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
-  }
+  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
