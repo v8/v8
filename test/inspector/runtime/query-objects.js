@@ -99,6 +99,23 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Runtime.evaluate({expression: 'inspector.markObjectAsNotInspectable(a)'});
     await queryObjects(session, objectId, 'Foo');
     session.disconnect();
+  },
+
+  async function testObjectCreate() {
+    let contextGroup = new InspectorTest.ContextGroup();
+    let session = contextGroup.connect();
+    let Protocol = session.Protocol;
+
+    InspectorTest.log('Declare Object p & store it.');
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
+      expression: 'p = {a:1}'
+    });
+    for (let i = 0; i < 2; ++i) {
+      InspectorTest.log('Create object using Object.create(p).');
+      Protocol.Runtime.evaluate({expression: 'Object.create(p)'});
+      await queryObjects(session, objectId, 'p');
+    }
+    session.disconnect();
   }
 ]);
 

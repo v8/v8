@@ -78,3 +78,19 @@ Query objects with Foo prototype.
 Dump each object constructor name.
 [
 ]
+
+Running test: testObjectCreate
+Declare Object p & store it.
+Create object using Object.create(p).
+Query objects with p prototype.
+Dump each object constructor name.
+[
+    [0] : Object,object
+]
+Create object using Object.create(p).
+Query objects with p prototype.
+Dump each object constructor name.
+[
+    [0] : Object,object
+    [1] : Object,object
+]
