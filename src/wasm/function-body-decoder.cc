@@ -1565,7 +1565,7 @@ class WasmFullDecoder : public WasmDecoder {
     Value val = Pop(1, type);
     Value index = Pop(0, kWasmI32);
     BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
-          val.node, position());
+          val.node, position(), type);
     return operand.length;
   }
 
