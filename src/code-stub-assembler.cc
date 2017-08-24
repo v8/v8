@@ -91,20 +91,17 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
   Node* condition = condition_body();
   DCHECK_NOT_NULL(condition);
   Branch(condition, &ok, &not_ok);
+
   BIND(&not_ok);
-  Node* message_node;
-  if (message != nullptr) {
-    char chars[1024];
-    Vector<char> buffer(chars);
-    if (file != nullptr) {
-      SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
-    } else {
-      SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
-    }
-    message_node = StringConstant(&(buffer[0]));
+  DCHECK_NOT_NULL(message);
+  char chars[1024];
+  Vector<char> buffer(chars);
+  if (file != nullptr) {
+    SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
   } else {
-    message_node = EmptyStringConstant();
+    SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
   }
+  Node* message_node = StringConstant(&(buffer[0]));
 
 #ifdef DEBUG
   // Only print the extra nodes in debug builds.
@@ -116,7 +113,8 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
 #endif
 
   DebugAbort(message_node);
-  Goto(&ok);
+  Unreachable();
+
   BIND(&ok);
   Comment("] Assert");
 }
