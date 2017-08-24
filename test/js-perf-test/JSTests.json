@@ -122,6 +122,17 @@
       ]
     },
     {
+      "name": "ManyClosures",
+      "path": ["ManyClosures"],
+      "main": "run.js",
+      "resources": ["create-many-closures.js"],
+      "flags": [ "--allow-natives-syntax", "--expose-gc" ],
+      "results_regexp": "^%s\\-ManyClosures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ManyClosures"}
+      ]
+    },
+    {
       "name": "Collections",
       "path": ["Collections"],
       "main": "run.js",
