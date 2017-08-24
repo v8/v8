@@ -744,6 +744,52 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, ElementSectionWithInternalTable) {
+  static const byte data[] = {
+      // table ---------------------------------------------------------------
+      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeForm, 0, 1,
+      // elements ------------------------------------------------------------
+      SECTION(Element, 1),
+      0  // entry count
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionWithImportedTable) {
+  static const byte data[] = {
+      // imports -------------------------------------------------------------
+      SECTION(Import, 9), ENTRY_COUNT(1),
+      NAME_LENGTH(1),            // --
+      'm',                       // module name
+      NAME_LENGTH(1),            // --
+      't',                       // table name
+      kExternalTable,            // import kind
+      kWasmAnyFunctionTypeForm,  // elem_type
+      0,                         // no maximum field
+      1,                         // initial size
+      // elements ------------------------------------------------------------
+      SECTION(Element, 1),
+      0  // entry count
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionWithoutTable) {
+  // Test that an element section without a table causes a validation error.
+  static const byte data[] = {
+      // elements ------------------------------------------------------------
+      SECTION(Element, 4),
+      1,  // entry count
+      0,  // table index
+      0,  // offset
+      0   // number of elements
+  };
+
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, Regression_735887) {
   // Test with an invalid function index in the element section.
   static const byte data[] = {

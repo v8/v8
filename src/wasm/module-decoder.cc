@@ -666,6 +666,10 @@ class ModuleDecoder : public Decoder {
   void DecodeElementSection() {
     uint32_t element_count =
         consume_count("element count", FLAG_wasm_max_table_size);
+
+    if (element_count > 0 && module_->function_tables.size() == 0) {
+      error(pc_, "The element section requires a table");
+    }
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
       const byte* pos = pc();
       uint32_t table_index = consume_u32v("table index");
