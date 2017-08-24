@@ -12,6 +12,7 @@
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/startup-deserializer.h"
+#include "src/utils.h"
 #include "src/version.h"
 
 namespace v8 {
@@ -61,7 +62,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
   Vector<const byte> context_data =
-      ExtractContextData(blob, static_cast<int>(context_index));
+      ExtractContextData(blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(context_data);
 
   MaybeHandle<Context> maybe_result = PartialDeserializer::DeserializeContext(
@@ -103,93 +104,98 @@ void ProfileDeserialization(
 v8::StartupData Snapshot::CreateSnapshotBlob(
     const SnapshotData* startup_snapshot,
     const std::vector<SnapshotData*>& context_snapshots, bool can_be_rehashed) {
-  int num_contexts = static_cast<int>(context_snapshots.size());
-  int startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
-  int total_length = startup_snapshot_offset;
-  total_length += startup_snapshot->RawData().length();
+  uint32_t num_contexts = static_cast<uint32_t>(context_snapshots.size());
+  uint32_t startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
+  uint32_t total_length = startup_snapshot_offset;
+  total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
   for (const auto context_snapshot : context_snapshots) {
-    total_length += context_snapshot->RawData().length();
+    total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
   }
 
   ProfileDeserialization(startup_snapshot, context_snapshots);
 
   char* data = new char[total_length];
-  memcpy(data + kNumberOfContextsOffset, &num_contexts, kInt32Size);
-  int rehashability = can_be_rehashed ? 1 : 0;
-  memcpy(data + kRehashabilityOffset, &rehashability, kInt32Size);
-  int payload_offset = StartupSnapshotOffset(num_contexts);
-  int payload_length = startup_snapshot->RawData().length();
-  memcpy(data + payload_offset, startup_snapshot->RawData().start(),
-         payload_length);
+  SetHeaderValue(data, kNumberOfContextsOffset, num_contexts);
+  SetHeaderValue(data, kRehashabilityOffset, can_be_rehashed ? 1 : 0);
+  uint32_t payload_offset = StartupSnapshotOffset(num_contexts);
+  uint32_t payload_length =
+      static_cast<uint32_t>(startup_snapshot->RawData().length());
+  CopyBytes(data + payload_offset,
+            reinterpret_cast<const char*>(startup_snapshot->RawData().start()),
+            payload_length);
   if (FLAG_profile_deserialization) {
     PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
            payload_length);
   }
   payload_offset += payload_length;
-  for (int i = 0; i < num_contexts; i++) {
-    memcpy(data + ContextSnapshotOffsetOffset(i), &payload_offset, kInt32Size);
+  for (uint32_t i = 0; i < num_contexts; i++) {
+    SetHeaderValue(data, ContextSnapshotOffsetOffset(i), payload_offset);
     SnapshotData* context_snapshot = context_snapshots[i];
     payload_length = context_snapshot->RawData().length();
-    memcpy(data + payload_offset, context_snapshot->RawData().start(),
-           payload_length);
+    CopyBytes(
+        data + payload_offset,
+        reinterpret_cast<const char*>(context_snapshot->RawData().start()),
+        payload_length);
     if (FLAG_profile_deserialization) {
       PrintF("%10d bytes for context #%d\n", payload_length, i);
     }
     payload_offset += payload_length;
   }
 
-  v8::StartupData result = {data, total_length};
+  v8::StartupData result = {data, static_cast<int>(total_length)};
   return result;
 }
 
-int Snapshot::ExtractNumContexts(const v8::StartupData* data) {
+uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
   CHECK_LT(kNumberOfContextsOffset, data->raw_size);
-  int num_contexts;
-  memcpy(&num_contexts, data->data + kNumberOfContextsOffset, kInt32Size);
+  uint32_t num_contexts = GetHeaderValue(data, kNumberOfContextsOffset);
   return num_contexts;
 }
 
+uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,
+                                        uint32_t index) {
+  // Extract the offset of the context at a given index from the StartupData,
+  // and check that it is within bounds.
+  uint32_t context_offset =
+      GetHeaderValue(data, ContextSnapshotOffsetOffset(index));
+  CHECK_LT(context_offset, static_cast<uint32_t>(data->raw_size));
+  return context_offset;
+}
+
 bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
-  CHECK_LT(kRehashabilityOffset, data->raw_size);
-  int rehashability;
-  memcpy(&rehashability, data->data + kRehashabilityOffset, kInt32Size);
-  return rehashability != 0;
+  CHECK_LT(kRehashabilityOffset, static_cast<uint32_t>(data->raw_size));
+  return GetHeaderValue(data, kRehashabilityOffset) != 0;
 }
 
 Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
-  int num_contexts = ExtractNumContexts(data);
-  int startup_offset = StartupSnapshotOffset(num_contexts);
+  uint32_t num_contexts = ExtractNumContexts(data);
+  uint32_t startup_offset = StartupSnapshotOffset(num_contexts);
   CHECK_LT(startup_offset, data->raw_size);
-  int first_context_offset;
-  memcpy(&first_context_offset, data->data + ContextSnapshotOffsetOffset(0),
-         kInt32Size);
+  uint32_t first_context_offset = ExtractContextOffset(data, 0);
   CHECK_LT(first_context_offset, data->raw_size);
-  int startup_length = first_context_offset - startup_offset;
+  uint32_t startup_length = first_context_offset - startup_offset;
   const byte* startup_data =
       reinterpret_cast<const byte*>(data->data + startup_offset);
   return Vector<const byte>(startup_data, startup_length);
 }
 
 Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
-                                                int index) {
-  int num_contexts = ExtractNumContexts(data);
+                                                uint32_t index) {
+  uint32_t num_contexts = ExtractNumContexts(data);
   CHECK_LT(index, num_contexts);
 
-  int context_offset;
-  memcpy(&context_offset, data->data + ContextSnapshotOffsetOffset(index),
-         kInt32Size);
-  int next_context_offset;
+  uint32_t context_offset = ExtractContextOffset(data, index);
+  uint32_t next_context_offset;
   if (index == num_contexts - 1) {
     next_context_offset = data->raw_size;
   } else {
-    memcpy(&next_context_offset,
-           data->data + ContextSnapshotOffsetOffset(index + 1), kInt32Size);
+    next_context_offset = ExtractContextOffset(data, index + 1);
     CHECK_LT(next_context_offset, data->raw_size);
   }
 
   const byte* context_data =
       reinterpret_cast<const byte*>(data->data + context_offset);
-  int context_length = next_context_offset - context_offset;
+  uint32_t context_length = next_context_offset - context_offset;
   return Vector<const byte>(context_data, context_length);
 }
 
@@ -200,8 +206,10 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
   const std::vector<byte>* payload = serializer->sink()->data();
 
   // Calculate sizes.
-  int reservation_size = static_cast<int>(reservations.size()) * kInt32Size;
-  int size = kHeaderSize + reservation_size + static_cast<int>(payload->size());
+  uint32_t reservation_size =
+      static_cast<uint32_t>(reservations.size()) * kUInt32Size;
+  uint32_t size =
+      kHeaderSize + reservation_size + static_cast<uint32_t>(payload->size());
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -232,9 +240,10 @@ Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
 }
 
 Vector<const byte> SnapshotData::Payload() const {
-  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
+  uint32_t reservations_size =
+      GetHeaderValue(kNumReservationsOffset) * kUInt32Size;
   const byte* payload = data_ + kHeaderSize + reservations_size;
-  int length = GetHeaderValue(kPayloadLengthOffset);
+  uint32_t length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
 }

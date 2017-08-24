@@ -57,7 +57,7 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
       maybe_index.FromJust());
 }
 
-void SerializedData::AllocateData(int size) {
+void SerializedData::AllocateData(uint32_t size) {
   DCHECK(!owns_data_);
   data_ = NewArray<byte>(size);
   size_ = size;

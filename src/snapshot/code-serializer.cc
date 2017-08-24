@@ -342,12 +342,14 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   cs->EncodeReservations(&reservations);
 
   // Calculate sizes.
-  int reservation_size = static_cast<int>(reservations.size()) * kInt32Size;
-  int num_stub_keys = static_cast<int>(stub_keys->size());
-  int stub_keys_size = num_stub_keys * kInt32Size;
-  int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
-  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  int size = padded_payload_offset + static_cast<int>(payload->size());
+  uint32_t reservation_size =
+      static_cast<uint32_t>(reservations.size()) * kUInt32Size;
+  uint32_t num_stub_keys = static_cast<uint32_t>(stub_keys->size());
+  uint32_t stub_keys_size = num_stub_keys * kUInt32Size;
+  uint32_t payload_offset = kHeaderSize + reservation_size + stub_keys_size;
+  uint32_t padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
+  uint32_t size =
+      padded_payload_offset + static_cast<uint32_t>(payload->size());
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -359,9 +361,10 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
-  SetHeaderValue(kNumReservationsOffset, static_cast<int>(reservations.size()));
+  SetHeaderValue(kNumReservationsOffset,
+                 static_cast<uint32_t>(reservations.size()));
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
-  SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
+  SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
   memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);

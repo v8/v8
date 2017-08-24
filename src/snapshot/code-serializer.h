@@ -104,16 +104,18 @@ class SerializedCodeData : public SerializedData {
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
-  static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
-  static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
-  static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
-  static const int kNumReservationsOffset = kFlagHashOffset + kInt32Size;
-  static const int kNumCodeStubKeysOffset = kNumReservationsOffset + kInt32Size;
-  static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
-  static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
-  static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
-  static const int kUnalignedHeaderSize = kChecksum2Offset + kInt32Size;
-  static const int kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
+  static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
+  static const uint32_t kCpuFeaturesOffset = kSourceHashOffset + kUInt32Size;
+  static const uint32_t kFlagHashOffset = kCpuFeaturesOffset + kUInt32Size;
+  static const uint32_t kNumReservationsOffset = kFlagHashOffset + kUInt32Size;
+  static const uint32_t kNumCodeStubKeysOffset =
+      kNumReservationsOffset + kUInt32Size;
+  static const uint32_t kPayloadLengthOffset =
+      kNumCodeStubKeysOffset + kUInt32Size;
+  static const uint32_t kChecksum1Offset = kPayloadLengthOffset + kUInt32Size;
+  static const uint32_t kChecksum2Offset = kChecksum1Offset + kUInt32Size;
+  static const uint32_t kUnalignedHeaderSize = kChecksum2Offset + kUInt32Size;
+  static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
   static SerializedCodeData FromCachedData(Isolate* isolate,
