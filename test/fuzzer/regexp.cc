@@ -40,7 +40,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   i::MaybeHandle<i::String> maybe_source = factory->NewStringFromOneByte(
       i::Vector<const uint8_t>(data, static_cast<int>(size)));
   i::Handle<i::String> source;
-  if (!maybe_source.ToHandle(&source)) return 0;
+  if (!maybe_source.ToHandle(&source)) {
+    i_isolate->clear_pending_exception();
+    return 0;
+  }
 
   static const int kAllFlags = i::JSRegExp::kGlobal | i::JSRegExp::kIgnoreCase |
                                i::JSRegExp::kMultiline | i::JSRegExp::kSticky |
