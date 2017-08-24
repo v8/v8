@@ -197,17 +197,11 @@ RUNTIME_FUNCTION(Runtime_WasmSetCaughtExceptionValue) {
 
 RUNTIME_FUNCTION(Runtime_SetThreadInWasm) {
   trap_handler::SetThreadInWasm();
-  if (!isolate->counters()->wasm_execution_time()->Running()) {
-    isolate->counters()->wasm_execution_time()->Start();
-  }
   return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_ClearThreadInWasm) {
   trap_handler::ClearThreadInWasm();
-  if (isolate->counters()->wasm_execution_time()->Running()) {
-    isolate->counters()->wasm_execution_time()->Stop();
-  }
   return isolate->heap()->undefined_value();
 }
 

@@ -1225,7 +1225,6 @@ Object* Isolate::UnwindAndFindHandler() {
         }
 
         if (!FLAG_experimental_wasm_eh || !is_catchable_by_wasm(exception)) {
-          counters()->wasm_execution_time()->Stop();
           break;
         }
         int stack_slots = 0;  // Will contain stack slot count of frame.
