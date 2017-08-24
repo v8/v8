@@ -3775,28 +3775,6 @@ int MarkCompactCollector::Sweeper::RawSweep(
   return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
 }
 
-void MarkCompactCollector::InvalidateCode(Code* code) {
-  Page* page = Page::FromAddress(code->address());
-  Address start = code->instruction_start();
-  Address end = code->address() + code->Size();
-
-  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, start, end);
-
-  if (heap_->incremental_marking()->IsCompacting() &&
-      !page->ShouldSkipEvacuationSlotRecording()) {
-    DCHECK(compacting_);
-
-    // If the object is white than no slots were recorded on it yet.
-    if (non_atomic_marking_state()->IsWhite(code)) return;
-
-    // Ignore all slots that might have been recorded in the body of the
-    // deoptimized code object. Assumption: no slots will be recorded for
-    // this object after invalidating it.
-    RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(page, start, end);
-  }
-}
-
-
 // Return true if the given code is deoptimized or will be deoptimized.
 bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
   return code->is_optimized_code() && code->marked_for_deoptimization();

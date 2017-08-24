@@ -705,8 +705,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
 
-  void InvalidateCode(Code* code);
-
   void ClearMarkbits();
 
   bool is_compacting() const { return compacting_; }
