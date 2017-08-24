@@ -58,6 +58,9 @@ declare_args() {
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
 
+  # Enable fast mksnapshot runs.
+  v8_enable_fast_mksnapshot = false
+
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -800,6 +803,13 @@ action("run_mksnapshot") {
   if (v8_embed_script != "") {
     sources += [ v8_embed_script ]
     args += [ rebase_path(v8_embed_script, root_build_dir) ]
+  }
+
+  if (v8_enable_fast_mksnapshot) {
+    args += [
+      "--no-turbo-rewrite-far-jumps",
+      "--no-turbo-verify-allocation",
+    ]
   }
 }
 

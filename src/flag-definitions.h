@@ -449,6 +449,8 @@ DEFINE_BOOL(turbo_store_elimination, true,
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_experimental, false,
             "enable crashing features, for testing purposes only")
+DEFINE_BOOL(turbo_rewrite_far_jumps, true,
+            "rewrite far to near jumps (ia32,x64)")
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,
