@@ -370,6 +370,12 @@ TEST(LargeObjectSpace) {
   CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE).IsRetry());
 }
 
+#ifndef DEBUG
+// The test verifies that committed size of a space is less then some threshold.
+// Debug builds pull in all sorts of additional instrumentation that increases
+// heap sizes. E.g. CSA_ASSERT creates on-heap strings for error messages. These
+// messages are also not stable if files are moved and modified during the build
+// process (jumbo builds).
 TEST(SizeOfInitialHeap) {
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
@@ -424,6 +430,7 @@ TEST(SizeOfInitialHeap) {
   CHECK_EQ(initial_lo_space,
            static_cast<size_t>(isolate->heap()->lo_space()->Size()));
 }
+#endif  // DEBUG
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRawUnaligned(size);
