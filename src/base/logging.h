@@ -14,7 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/template-utils.h"
 
-[[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT
+[[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
