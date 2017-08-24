@@ -225,16 +225,6 @@ void BreakIterator::ClearDebugBreak() {
   bytecode_array->set(code_offset(), original->get(code_offset()));
 }
 
-bool BreakIterator::IsDebugBreak() {
-  DebugBreakType debug_break_type = GetDebugBreakType();
-  if (debug_break_type == DEBUGGER_STATEMENT) return false;
-  DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  BytecodeArray* bytecode_array = debug_info_->DebugBytecodeArray();
-  interpreter::Bytecode bytecode =
-      interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
-  return interpreter::Bytecodes::IsDebugBreak(bytecode);
-}
-
 BreakLocation BreakIterator::GetBreakLocation() {
   Handle<AbstractCode> code(
       AbstractCode::cast(debug_info_->DebugBytecodeArray()));
@@ -1036,14 +1026,6 @@ void Debug::ClearOneShot() {
     ApplyBreakPoints(debug_info);
   }
 }
-
-
-bool MatchingCodeTargets(Code* target1, Code* target2) {
-  if (target1 == target2) return true;
-  if (target1->kind() != target2->kind()) return false;
-  return target1->is_handler() || target1->is_inline_cache_stub();
-}
-
 
 class RedirectActiveFunctions : public ThreadVisitor {
  public:

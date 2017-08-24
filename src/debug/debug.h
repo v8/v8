@@ -128,7 +128,6 @@ class BreakIterator {
   inline int position() const { return position_; }
   inline int statement_position() const { return statement_position_; }
 
-  bool IsDebugBreak();
   void ClearDebugBreak();
   void SetDebugBreak();
 
