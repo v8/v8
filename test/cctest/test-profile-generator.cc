@@ -585,7 +585,8 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
                                            const char* name) {
   for (int i = 0; i < parent->GetChildrenCount(); ++i) {
     const v8::CpuProfileNode* child = parent->GetChild(i);
-    v8::String::Utf8Value function_name(child->GetFunctionName());
+    v8::String::Utf8Value function_name(CcTest::isolate(),
+                                        child->GetFunctionName());
     if (strcmp(*function_name, name) == 0) return child;
   }
   return NULL;

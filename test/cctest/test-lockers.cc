@@ -661,7 +661,7 @@ TEST(Regress1433) {
       v8::Local<Script> script =
           v8::Script::Compile(context, source).ToLocalChecked();
       v8::Local<Value> result = script->Run(context).ToLocalChecked();
-      v8::String::Utf8Value utf8(result);
+      v8::String::Utf8Value utf8(isolate, result);
     }
     isolate->Dispose();
   }

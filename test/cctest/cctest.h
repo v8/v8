@@ -508,7 +508,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsString());
-  v8::String::Utf8Value utf8(result);
+  v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(), result);
   CHECK_EQ(0, strcmp(expected, *utf8));
 }
 

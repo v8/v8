@@ -9181,37 +9181,37 @@ bool MicrotasksScope::IsRunningMicrotasks(Isolate* v8Isolate) {
   return isolate->IsRunningMicrotasks();
 }
 
-String::Utf8Value::Utf8Value(v8::Local<v8::Value> obj)
+String::Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
     : str_(NULL), length_(0) {
   if (obj.IsEmpty()) return;
-  i::Isolate* isolate = i::Isolate::Current();
-  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  ENTER_V8_DO_NOT_USE(isolate);
-  i::HandleScope scope(isolate);
-  Local<Context> context = v8_isolate->GetCurrentContext();
-  TryCatch try_catch(v8_isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_DO_NOT_USE(i_isolate);
+  i::HandleScope scope(i_isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  TryCatch try_catch(isolate);
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
-  length_ = v8::Utf8Length(*i_str, isolate);
+  length_ = v8::Utf8Length(*i_str, i_isolate);
   str_ = i::NewArray<char>(length_ + 1);
   str->WriteUtf8(str_);
 }
 
+String::Utf8Value::Utf8Value(v8::Local<v8::Value> obj)
+    : String::Utf8Value::Utf8Value(Isolate::GetCurrent(), obj) {}
 
 String::Utf8Value::~Utf8Value() {
   i::DeleteArray(str_);
 }
 
-
-String::Value::Value(v8::Local<v8::Value> obj) : str_(NULL), length_(0) {
+String::Value::Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
+    : str_(NULL), length_(0) {
   if (obj.IsEmpty()) return;
-  i::Isolate* isolate = i::Isolate::Current();
-  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  ENTER_V8_DO_NOT_USE(isolate);
-  i::HandleScope scope(isolate);
-  Local<Context> context = v8_isolate->GetCurrentContext();
-  TryCatch try_catch(v8_isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_DO_NOT_USE(i_isolate);
+  i::HandleScope scope(i_isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  TryCatch try_catch(isolate);
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
@@ -9219,6 +9219,8 @@ String::Value::Value(v8::Local<v8::Value> obj) : str_(NULL), length_(0) {
   str->Write(str_);
 }
 
+String::Value::Value(v8::Local<v8::Value> obj)
+    : String::Value::Value(v8::Isolate::GetCurrent(), obj) {}
 
 String::Value::~Value() {
   i::DeleteArray(str_);

@@ -51,12 +51,13 @@ namespace {
 
 bool ExtractStringSetting(Isolate* isolate, Handle<JSObject> options,
                           const char* key, icu::UnicodeString* setting) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
       JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
-        v8::Utils::ToLocal(Handle<String>::cast(object)));
+        v8_isolate, v8::Utils::ToLocal(Handle<String>::cast(object)));
     *setting = icu::UnicodeString::fromUTF8(*utf8_string);
     return true;
   }
@@ -790,12 +791,13 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
 icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
@@ -839,12 +841,14 @@ void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
@@ -890,12 +894,13 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
                                             Handle<String> locale,
                                             Handle<JSObject> options,
                                             Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
@@ -997,12 +1002,13 @@ void PluralRules::DeletePluralRules(const v8::WeakCallbackInfo<void>& data) {
 icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);

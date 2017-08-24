@@ -39,10 +39,11 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(Handle<Object> exc,
+void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
   CHECK(exc->IsJSError());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
 
   exc->Print();
   // Extract stack frame from the exception.
@@ -53,7 +54,7 @@ void CheckExceptionInfos(Handle<Object> exc,
 
   for (int frameNr = 0; frameNr < N; ++frameNr) {
     v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
-    v8::String::Utf8Value funName(frame->GetFunctionName());
+    v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
     CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
@@ -93,7 +94,8 @@ TEST(Unreachable) {
       {"main", static_cast<int>(wasm_index) + 1, 2},  // --
       {"callFn", 1, 24}                               // --
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }
 
 // Trigger a trap for loading from out-of-bounds.
@@ -136,5 +138,6 @@ TEST(IllegalLoad) {
       {"call_main", static_cast<int>(wasm_index_2) + 1, 3},  // --
       {"callFn", 1, 24}                                      // --
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }

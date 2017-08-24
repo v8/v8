@@ -1099,7 +1099,8 @@ TEST(JSONStringifySliceMadeExternal) {
 
   CHECK_EQ(0,
            strcmp("\"bcdefghijklmnopqrstuvwxyz\"",
-                  *v8::String::Utf8Value(CompileRun("JSON.stringify(slice)"))));
+                  *v8::String::Utf8Value(CcTest::isolate(),
+                                         CompileRun("JSON.stringify(slice)"))));
 }
 
 

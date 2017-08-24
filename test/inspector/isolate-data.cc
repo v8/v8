@@ -35,7 +35,7 @@ v8::Local<v8::String> ToString(v8::Isolate* isolate,
 
 void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
   v8::Local<v8::String> v8_string = ToString(isolate, string);
-  v8::String::Utf8Value utf8_string(v8_string);
+  v8::String::Utf8Value utf8_string(isolate, v8_string);
   fwrite(*utf8_string, sizeof(**utf8_string), utf8_string.length(), stdout);
 }
 
@@ -133,8 +133,8 @@ void IsolateData::RegisterModule(v8::Local<v8::Context> context,
 v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
     v8::Local<v8::Module> referrer) {
-  std::string str = *v8::String::Utf8Value(specifier);
   IsolateData* data = IsolateData::FromContext(context);
+  std::string str = *v8::String::Utf8Value(data->isolate_, specifier);
   return data->modules_[ToVector(specifier)].Get(data->isolate_);
 }
 

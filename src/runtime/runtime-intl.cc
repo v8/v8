@@ -58,12 +58,15 @@ namespace internal {
 // ECMA 402 6.2.3
 RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
   Factory* factory = isolate->factory();
 
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
 
-  v8::String::Utf8Value locale_id(v8::Utils::ToLocal(locale_id_str));
+  v8::String::Utf8Value locale_id(v8_isolate,
+                                  v8::Utils::ToLocal(locale_id_str));
 
   // Return value which denotes invalid language tag.
   // TODO(jshin): Can uloc_{for,to}TanguageTag fail even for structually valid
@@ -172,6 +175,7 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
 
 RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Factory* factory = isolate->factory();
 
   DCHECK_EQ(1, args.length());
@@ -194,7 +198,7 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
     }
 
     v8::String::Utf8Value utf8_locale_id(
-        v8::Utils::ToLocal(Handle<String>::cast(locale_id)));
+        v8_isolate, v8::Utils::ToLocal(Handle<String>::cast(locale_id)));
 
     UErrorCode error = U_ZERO_ERROR;
 
@@ -547,11 +551,13 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
 
 RUNTIME_FUNCTION(Runtime_CurrencyDigits) {
   DCHECK_EQ(1, args.length());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
   CONVERT_ARG_HANDLE_CHECKED(String, currency, 0);
 
   // TODO(littledan): Avoid transcoding the string twice
-  v8::String::Utf8Value currency_string(v8::Utils::ToLocal(currency));
+  v8::String::Utf8Value currency_string(v8_isolate,
+                                        v8::Utils::ToLocal(currency));
   icu::UnicodeString currency_icu =
       icu::UnicodeString::fromUTF8(*currency_string);
 

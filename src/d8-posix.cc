@@ -165,7 +165,7 @@ class ExecArgs {
     exec_args_[0] = NULL;
   }
   bool Init(Isolate* isolate, Local<Value> arg0, Local<Array> command_args) {
-    String::Utf8Value prog(arg0);
+    String::Utf8Value prog(isolate, arg0);
     if (*prog == NULL) {
       const char* message =
           "os.system(): String conversion of program name failed";
@@ -183,7 +183,7 @@ class ExecArgs {
       Local<Value> arg(
           command_args->Get(isolate->GetCurrentContext(),
                             Integer::New(isolate, j)).ToLocalChecked());
-      String::Utf8Value utf8_arg(arg);
+      String::Utf8Value utf8_arg(isolate, arg);
       if (*utf8_arg == NULL) {
         exec_args_[i] = NULL;  // Consistent state for destructor.
         const char* message =
@@ -553,7 +553,7 @@ void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
             .ToLocalChecked());
     return;
   }
-  String::Utf8Value directory(args[0]);
+  String::Utf8Value directory(args.GetIsolate(), args[0]);
   if (*directory == NULL) {
     const char* message = "os.chdir(): String conversion of argument failed.";
     args.GetIsolate()->ThrowException(
@@ -667,7 +667,7 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
             .ToLocalChecked());
     return;
   }
-  String::Utf8Value directory(args[0]);
+  String::Utf8Value directory(args.GetIsolate(), args[0]);
   if (*directory == NULL) {
     const char* message = "os.mkdirp(): String conversion of argument failed.";
     args.GetIsolate()->ThrowException(
@@ -687,7 +687,7 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
             .ToLocalChecked());
     return;
   }
-  String::Utf8Value directory(args[0]);
+  String::Utf8Value directory(args.GetIsolate(), args[0]);
   if (*directory == NULL) {
     const char* message = "os.rmdir(): String conversion of argument failed.";
     args.GetIsolate()->ThrowException(
@@ -707,8 +707,8 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
             .ToLocalChecked());
     return;
   }
-  String::Utf8Value var(args[0]);
-  String::Utf8Value value(args[1]);
+  String::Utf8Value var(args.GetIsolate(), args[0]);
+  String::Utf8Value value(args.GetIsolate(), args[1]);
   if (*var == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
@@ -737,7 +737,7 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
             .ToLocalChecked());
     return;
   }
-  String::Utf8Value var(args[0]);
+  String::Utf8Value var(args.GetIsolate(), args[0]);
   if (*var == NULL) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";

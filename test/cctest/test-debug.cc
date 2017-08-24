@@ -690,7 +690,7 @@ static void DebugEventEvaluate(
           evaluate_check_function->Call(context, exec_state, argc, argv)
               .ToLocalChecked();
       if (!result->IsTrue()) {
-        v8::String::Utf8Value utf8(checks[i].expected);
+        v8::String::Utf8Value utf8(isolate, checks[i].expected);
         V8_Fatal(__FILE__, __LINE__, "%s != %s", checks[i].expr, *utf8);
       }
     }
@@ -766,7 +766,7 @@ static void DebugEventStepSequence(
             .ToLocalChecked();
     CHECK(result->IsString());
     v8::String::Utf8Value function_name(
-        result->ToString(context).ToLocalChecked());
+        CcTest::isolate(), result->ToString(context).ToLocalChecked());
     CHECK_EQ(1, StrLength(*function_name));
     CHECK_EQ((*function_name)[0],
               expected_step_sequence[break_point_hit_count]);
@@ -4077,7 +4077,7 @@ static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
 static void NamedGetter(v8::Local<v8::Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   if (name->IsSymbol()) return;
-  v8::String::Utf8Value n(v8::Local<v8::String>::Cast(name));
+  v8::String::Utf8Value n(CcTest::isolate(), v8::Local<v8::String>::Cast(name));
   if (strcmp(*n, "a") == 0) {
     info.GetReturnValue().Set(v8_str(info.GetIsolate(), "AA"));
     return;
@@ -5521,7 +5521,7 @@ v8::Local<v8::Context> debugger_context;
 static void NamedGetterWithCallingContextCheck(
     v8::Local<v8::String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(name), "a"));
+  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(info.GetIsolate(), name), "a"));
   v8::Local<v8::Context> current = info.GetIsolate()->GetCurrentContext();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);
@@ -6120,7 +6120,7 @@ TEST(PrecompiledFunction) {
       "bar();                          \n";
   v8::Local<v8::Value> result = ParserCacheCompileRun(source);
   CHECK(result->IsString());
-  v8::String::Utf8Value utf8(result);
+  v8::String::Utf8Value utf8(env->GetIsolate(), result);
   CHECK_EQ(0, strcmp("bar", *utf8));
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
