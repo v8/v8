@@ -543,11 +543,21 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
       Label done_element(this, &to_);
       // a. Let Pk be ToString(k).
-      Node* p_k = ToString(context(), k());
+      // We never have to perform a ToString conversion for Smi keys because
+      // they are guaranteed to be stored as elements. We easily hit this case
+      // when using any iteration builtin on a dictionary elements Array.
+      VARIABLE(p_k, MachineRepresentation::kTagged, k());
+      {
+        Label continue_with_key(this);
+        GotoIf(TaggedIsSmi(p_k.value()), &continue_with_key);
+        p_k.Bind(ToString(context(), p_k.value()));
+        Goto(&continue_with_key);
+        BIND(&continue_with_key);
+      }
 
       // b. Let kPresent be HasProperty(O, Pk).
       // c. ReturnIfAbrupt(kPresent).
-      Node* k_present = HasProperty(o(), p_k, context(), kHasProperty);
+      Node* k_present = HasProperty(o(), p_k.value(), context(), kHasProperty);
 
       // d. If kPresent is true, then
       GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
