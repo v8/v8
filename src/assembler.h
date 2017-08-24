@@ -596,8 +596,6 @@ class RelocInfo {
   // reproducible.
   INLINE(void WipeOut(Isolate* isolate));
 
-  template<typename StaticVisitor> inline void Visit(Heap* heap);
-
   template <typename ObjectVisitor>
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
 

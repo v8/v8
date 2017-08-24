@@ -54,28 +54,6 @@ void BodyDescriptorBase::IterateBodyImpl(HeapObject* obj, int start_offset,
   }
 }
 
-template <typename StaticVisitor>
-void BodyDescriptorBase::IterateBodyImpl(Heap* heap, HeapObject* obj,
-                                         int start_offset, int end_offset) {
-  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
-    IteratePointers<StaticVisitor>(heap, obj, start_offset, end_offset);
-  } else {
-    DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(start_offset, kPointerSize) &&
-           IsAligned(end_offset, kPointerSize));
-
-    LayoutDescriptorHelper helper(obj->map());
-    DCHECK(!helper.all_fields_tagged());
-    for (int offset = start_offset; offset < end_offset;) {
-      int end_of_region_offset;
-      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
-        IteratePointers<StaticVisitor>(heap, obj, offset, end_of_region_offset);
-      }
-      offset = end_of_region_offset;
-    }
-  }
-}
-
 template <typename ObjectVisitor>
 DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(HeapObject* obj,
                                                           int start_offset,
@@ -85,26 +63,10 @@ DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(HeapObject* obj,
                    HeapObject::RawField(obj, end_offset));
 }
 
-template <typename StaticVisitor>
-DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(Heap* heap,
-                                                          HeapObject* obj,
-                                                          int start_offset,
-                                                          int end_offset) {
-  StaticVisitor::VisitPointers(heap, obj,
-                               HeapObject::RawField(obj, start_offset),
-                               HeapObject::RawField(obj, end_offset));
-}
-
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IteratePointer(HeapObject* obj, int offset,
                                         ObjectVisitor* v) {
   v->VisitPointer(obj, HeapObject::RawField(obj, offset));
-}
-
-template <typename StaticVisitor>
-void BodyDescriptorBase::IteratePointer(Heap* heap, HeapObject* obj,
-                                        int offset) {
-  StaticVisitor::VisitPointer(heap, obj, HeapObject::RawField(obj, offset));
 }
 
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
@@ -120,12 +82,6 @@ class JSObject::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IterateBodyImpl(obj, kStartOffset, object_size, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IterateBodyImpl<StaticVisitor>(heap, obj, kStartOffset, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -145,12 +101,6 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, kStartOffset, object_size, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, kStartOffset, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -180,17 +130,6 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
     IterateBodyImpl(obj, kSize, object_size, v);
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
-                                   kNonWeakFieldsEndOffset);
-    if (body_visiting_policy == kIgnoreWeakness) {
-      IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
-    }
-    IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) {
     return map->instance_size();
   }
@@ -218,17 +157,6 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     IterateBodyImpl(obj, kSize, object_size, v);
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    // Array buffers contain raw pointers that the GC does not know about. These
-    // are stored at kBackStoreOffset and later, so we do not iterate over
-    // those.
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
-                                   kBackingStoreOffset);
-    IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) {
     return map->instance_size();
   }
@@ -254,16 +182,6 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
     }
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    Derived* table = reinterpret_cast<Derived*>(obj);
-    int start = table->GetDataTableStartOffset();
-    for (int i = 0; i < table->Capacity(); i++) {
-      IteratePointer<StaticVisitor>(heap, obj, start + (i * kPointerSize));
-    }
-  }
-
   static inline int SizeOf(Map* map, HeapObject* obj) {
     Derived* table = reinterpret_cast<Derived*>(obj);
     return table->Size();
@@ -277,9 +195,6 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {}
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {}
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     return ByteArray::SizeFor(ByteArray::cast(obj)->synchronized_length());
@@ -301,14 +216,6 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointer(obj, kSourcePositionTableOffset, v);
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointer<StaticVisitor>(heap, obj, kConstantPoolOffset);
-    IteratePointer<StaticVisitor>(heap, obj, kHandlerTableOffset);
-    IteratePointer<StaticVisitor>(heap, obj, kSourcePositionTableOffset);
-  }
-
   static inline int SizeOf(Map* map, HeapObject* obj) {
     return BytecodeArray::SizeFor(
         BytecodeArray::cast(obj)->synchronized_length());
@@ -322,9 +229,6 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {}
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {}
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     return FixedDoubleArray::SizeFor(
@@ -342,12 +246,6 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointer(obj, kBasePointerOffset, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointer<StaticVisitor>(heap, obj, kBasePointerOffset);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -368,15 +266,6 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointer(obj, kSharedFunctionInfoOffset, v);
     IteratePointer(obj, kOptimizedCodeOffset, v);
     IteratePointers(obj, kFeedbackSlotsOffset, object_size, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointer<StaticVisitor>(heap, obj, kSharedFunctionInfoOffset);
-    IteratePointer<StaticVisitor>(heap, obj, kOptimizedCodeOffset);
-    IteratePointers<StaticVisitor>(heap, obj, kFeedbackSlotsOffset,
-                                   object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
@@ -405,19 +294,6 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
     }
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    if (body_visiting_policy == kIgnoreWeakness) {
-      IterateBodyImpl<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
-                                     object_size);
-    } else {
-      IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
-                                     kTableOffset);
-      IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
-    }
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) {
     return map->instance_size();
   }
@@ -435,12 +311,6 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
                                   obj, kForeignAddressOffset)));
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    StaticVisitor::VisitExternalReference(reinterpret_cast<Address*>(
-        HeapObject::RawField(obj, kForeignAddressOffset)));
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
 };
 
@@ -453,10 +323,6 @@ class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
 };
 
@@ -467,10 +333,6 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
@@ -519,32 +381,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     IterateBody(obj, v);
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj) {
-    int mode_mask = RelocInfo::kCodeTargetMask |
-                    RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                    RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-
-    Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, kRelocationInfoOffset,
-                                   kNextCodeLinkOffset);
-    StaticVisitor::VisitNextCodeLink(
-        heap, HeapObject::RawField(obj, kNextCodeLinkOffset));
-
-    RelocIterator it(Code::cast(obj), mode_mask);
-    for (; !it.done(); it.next()) {
-      it.rinfo()->template Visit<StaticVisitor>(heap);
-    }
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    IterateBody<StaticVisitor>(obj);
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) {
     return reinterpret_cast<Code*>(object)->CodeSize();
   }
@@ -557,9 +393,6 @@ class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {}
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {}
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     SeqOneByteString* string = SeqOneByteString::cast(obj);
@@ -574,9 +407,6 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {}
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {}
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     SeqTwoByteString* string = SeqTwoByteString::cast(obj);
