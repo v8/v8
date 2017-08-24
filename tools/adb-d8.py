@@ -9,12 +9,13 @@
 # forwarding a simple TCP file server from the computer to the android device.
 #
 # Usage:
-#    adb-d8.py [-v|--verbose] <build_dir> [<d8_args>...]
+#    adb-d8.py <build_dir> [<d8_args>...]
 #
 # Options:
-#    -v|--verbose   Print verbose information.
 #    <build_dir>    The directory containing the android build of d8.
 #    <d8_args>...   The arguments passed through to d8.
+#
+# Run adb-d8.py --help for complete usage information.
 
 from __future__ import print_function
 
@@ -25,7 +26,7 @@ import threading
 import subprocess
 import SocketServer # TODO(leszeks): python 3 compatibility
 
-def CreateFileHandlerClass(root_path, verbose):
+def CreateFileHandlerClass(root_dirs, verbose):
   class FileHandler(SocketServer.BaseRequestHandler):
     def handle(self):
       data = self.request.recv(1024);
@@ -37,8 +38,8 @@ def CreateFileHandlerClass(root_path, verbose):
       try:
         filename = os.path.abspath(filename)
 
-        if not filename.startswith(root_path):
-          raise Exception("{} not in root {}".format(filename, root_path))
+        if not any(filename.startswith(root) for root in root_dirs):
+          raise Exception("{} not in roots {}".format(filename, root_dirs))
         if not os.path.isfile(filename):
           raise Exception("{} is not a file".format(filename))
 
@@ -114,11 +115,15 @@ def AdbRunD8(adb, device_d8_dir, device_port, d8_args, verbose):
   # the host os.
   d8_str = "{}/d8 {}".format(device_d8_dir, d8_arg_str)
 
-  if verbose:
-    print("Running adb shell -t \"{}\"".format(d8_str))
+  if sys.stdout.isatty():
+    # Run adb shell with -t to have a tty if we run d8 without a script.
+    cmd = [adb, "shell", "-t", d8_str]
+  else:
+    cmd = [adb, "shell", d8_str]
 
-  # Run adb shell with -t to have a tty if we run d8 without a script.
-  return subprocess.call([adb, "shell", "-t", d8_str])
+  if verbose:
+    print("Running {}".format(" ".join(cmd)))
+  return subprocess.call(cmd)
 
 
 def PrintUsage(file=sys.stdout):
@@ -128,14 +133,19 @@ def PrintUsage(file=sys.stdout):
 
 def PrintHelp(file=sys.stdout):
   print("""Usage:
-   adb-d8.py [-v|--verbose] [--] <build_dir> [<d8_args>...]
+   adb-d8.py [options] [--] <build_dir> [<d8_args>...]
    adb-d8.py -h|--help
 
 Options:
-   -h|--help      Show this help message and exit
-   -v|--verbose   Print verbose output
-   <build_dir>    The directory containing the android build of d8
-   <d8_args>...   The arguments passed through to d8""", file=file)
+   -h|--help             Show this help message and exit.
+   -v|--verbose          Print verbose output.
+   --device-dir=DIR      Specify which directory on the device should be used
+                         for the d8 binary. [default: /data/local/tmp/v8]
+   --extra-root-dir=DIR  In addition to the current directory, allow d8 to
+                         access files inside DIR. Multiple additional roots
+                         can be specified.
+   <build_dir>           The directory containing the android build of d8.
+   <d8_args>...          The arguments passed through to d8.""", file=file)
 
 
 def Main():
@@ -155,7 +165,11 @@ def Main():
   # manually, rather than using something like argparse, to be able to split
   # the adb-d8 options from the passthrough d8 options.
   verbose = False
-  for arg_index,arg in enumerate(sys.argv[1:], start=1):
+  device_d8_dir = '/data/local/tmp/v8'
+  root_dirs = []
+  arg_index = 1
+  while arg_index < len(sys.argv):
+    arg = sys.argv[arg_index]
     if not arg.startswith("-"):
       break
     elif arg == "--":
@@ -166,22 +180,37 @@ def Main():
       return 0
     elif arg == "-v" or arg == "--verbose":
       verbose = True
+
+    elif arg == "--device-dir":
+      arg_index += 1
+      device_d8_dir = sys.argv[arg_index]
+    elif arg.startswith("--device-dir="):
+      device_d8_dir = arg[len("--device-dir="):]
+
+    elif arg == "--extra-root-dir":
+      arg_index += 1
+      root_dirs.append(sys.argv[arg_index])
+    elif arg.startswith("--extra-root-dir="):
+      root_dirs.append(arg[len("--extra-root-dir="):])
+
     else:
       print("ERROR: Unrecognised option: {}".format(arg))
       PrintUsage(sys.stderr)
       return 1
 
+    arg_index += 1
+
   # Transfer d8 (and dependencies) to the device.
   build_dir = os.path.abspath(sys.argv[arg_index])
-  device_d8_dir = '/data/local/tmp/v8'
 
   TransferD8ToDevice(adb, build_dir, device_d8_dir, verbose)
 
   # Start a file server for the files d8 might need.
   script_root_dir = os.path.abspath(os.curdir)
+  root_dirs.append(script_root_dir)
   server = SocketServer.TCPServer(
     ("localhost", 0), # 0 means an arbitrary unused port.
-    CreateFileHandlerClass(script_root_dir, verbose)
+    CreateFileHandlerClass(root_dirs, verbose)
   )
 
   try:
