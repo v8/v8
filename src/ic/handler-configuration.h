@@ -26,7 +26,8 @@ class LoadHandler {
     kAccessor,
     kInterceptor,
     kProxy,
-    kNonExistent
+    kNonExistent,
+    kModuleExport
   };
   class KindBits : public BitField<Kind, 0, 4> {};
 
@@ -77,6 +78,12 @@ class LoadHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(ElementsKindBits::kNext <= kSmiValueSize);
 
+  //
+  // Encoding when KindBits contains kModuleExport.
+  //
+  class ExportsIndexBits : public BitField<unsigned, KindBits::kNext,
+                                           kSmiValueSize - KindBits::kNext> {};
+
   // The layout of an Tuple3 handler representing a load of a field from
   // prototype when prototype chain checks do not include non-existing lookups
   // or access checks.
@@ -119,6 +126,11 @@ class LoadHandler {
 
   // Creates a Smi-handler for loading an Api getter property from fast object.
   static inline Handle<Smi> LoadApiGetter(Isolate* isolate, int descriptor);
+
+  // Creates a Smi-handler for loading a Module export.
+  // |index| is the index to the "value" slot in the Module's "exports"
+  // dictionary.
+  static inline Handle<Smi> LoadModuleExport(Isolate* isolate, int index);
 
   // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
   // check is a part of a prototype chain check.

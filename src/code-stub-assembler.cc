@@ -3460,6 +3460,10 @@ Node* CodeStubAssembler::IsCallable(Node* object) {
   return IsCallableMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsCell(Node* object) {
+  return WordEqual(LoadMap(object), LoadRoot(Heap::kCellMapRootIndex));
+}
+
 Node* CodeStubAssembler::IsConstructorMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsConstructor);

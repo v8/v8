@@ -1020,6 +1020,17 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
         return SimpleFieldLoad(isolate(), index);
       }
+      if (holder->IsJSModuleNamespace()) {
+        Handle<ObjectHashTable> exports(
+            Handle<JSModuleNamespace>::cast(holder)->module()->exports(),
+            isolate());
+        int entry = exports->FindEntry(isolate(), lookup->name(),
+                                       Smi::ToInt(lookup->name()->GetHash()));
+        // We found the accessor, so the entry must exist.
+        DCHECK(entry != ObjectHashTable::kNotFound);
+        int index = ObjectHashTable::EntryToValueIndex(entry);
+        return LoadHandler::LoadModuleExport(isolate(), index);
+      }
 
       Handle<Object> accessors = lookup->GetAccessors();
       if (accessors->IsAccessorPair()) {

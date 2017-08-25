@@ -262,7 +262,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   Label constant(this), field(this), normal(this, Label::kDeferred),
       interceptor(this, Label::kDeferred), nonexistent(this),
       accessor(this, Label::kDeferred), proxy(this, Label::kDeferred),
-      global(this, Label::kDeferred);
+      global(this, Label::kDeferred), module_export(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
@@ -277,10 +277,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kAccessor)),
          &accessor);
 
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)),
+         &global);
+
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kProxy)), &proxy);
 
-  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)), &global,
-         &interceptor);
+  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kModuleExport)),
+         &module_export, &interceptor);
 
   BIND(&field);
   HandleLoadField(holder, handler_word, &var_double_value, &rebox_double,
@@ -391,6 +394,31 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     exit_point->ReturnCallRuntime(Runtime::kLoadPropertyWithInterceptor,
                                   p->context, p->name, p->receiver, holder,
                                   p->slot, p->vector);
+  }
+
+  BIND(&module_export);
+  {
+    Comment("module export");
+    Node* index = DecodeWord<LoadHandler::ExportsIndexBits>(handler_word);
+    Node* module =
+        LoadObjectField(p->receiver, JSModuleNamespace::kModuleOffset,
+                        MachineType::TaggedPointer());
+    Node* exports = LoadObjectField(module, Module::kExportsOffset,
+                                    MachineType::TaggedPointer());
+    Node* cell = LoadFixedArrayElement(exports, index);
+    // The handler is only installed for exports that exist.
+    CSA_ASSERT(this, IsCell(cell));
+    Node* value = LoadCellValue(cell);
+    Label is_the_hole(this, Label::kDeferred);
+    GotoIf(IsTheHole(value), &is_the_hole);
+    exit_point->Return(value);
+
+    BIND(&is_the_hole);
+    {
+      Node* message = SmiConstant(MessageTemplate::kNotDefined);
+      exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError, p->context,
+                                    message, p->name);
+    }
   }
 
   BIND(&rebox_double);
@@ -1653,6 +1681,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   BIND(&special_receiver);
   {
+    // TODO(jkummerow): Consider supporting JSModuleNamespace.
     GotoIfNot(Word32Equal(instance_type, Int32Constant(JS_PROXY_TYPE)), slow);
 
     direct_exit.ReturnCallStub(

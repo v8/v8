@@ -64,6 +64,12 @@ Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadModuleExport(Isolate* isolate, int index) {
+  int config =
+      KindBits::encode(kModuleExport) | ExportsIndexBits::encode(index);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::EnableAccessCheckOnReceiver(Isolate* isolate,
                                                      Handle<Smi> smi_handler) {
   int config = smi_handler->value();

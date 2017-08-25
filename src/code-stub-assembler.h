@@ -869,6 +869,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsExtensibleMap(Node* map);
   Node* IsCallableMap(Node* map);
   Node* IsCallable(Node* object);
+  Node* IsCell(Node* object);
   Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsConstructorMap(Node* map);
   Node* IsConstructor(Node* object);
