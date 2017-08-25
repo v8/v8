@@ -248,13 +248,9 @@ void V8InjectedScriptHost::getInternalPropertiesCallback(
     allowedProperties.insert(String16("[[PromiseValue]]"));
   } else if (info[0]->IsGeneratorObject()) {
     allowedProperties.insert(String16("[[GeneratorStatus]]"));
-  } else if (info[0]->IsMapIterator() || info[0]->IsSetIterator()) {
-    allowedProperties.insert(String16("[[IteratorHasMore]]"));
-    allowedProperties.insert(String16("[[IteratorIndex]]"));
-    allowedProperties.insert(String16("[[IteratorKind]]"));
-    allowedProperties.insert(String16("[[Entries]]"));
   } else if (info[0]->IsMap() || info[0]->IsWeakMap() || info[0]->IsSet() ||
-             info[0]->IsWeakSet()) {
+             info[0]->IsWeakSet() || info[0]->IsMapIterator() ||
+             info[0]->IsSetIterator()) {
     allowedProperties.insert(String16("[[Entries]]"));
   }
   if (!allowedProperties.size()) return;
