@@ -134,7 +134,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 414
+bytecode array length: 416
 bytecodes: [
                 B(Ldar), R(2),
                 B(JumpIfUndefined), U8(25),
@@ -221,7 +221,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(11),
                 B(Mov), R(15), R(12),
-                B(Jump), U8(56),
+                B(Jump), U8(58),
                 B(LdaZero),
                 B(Star), R(6),
                 B(JumpLoop), U8(120), I8(0),
@@ -241,6 +241,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kReThrow), R(16), U8(1),
                 B(PopContext), R(15),
                 B(LdaSmi), I8(-1),
+                B(Star), R(12),
                 B(Star), R(11),
                 B(Jump), U8(8),
                 B(Star), R(12),
@@ -327,9 +328,9 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [84, 271, 277],
+  [84, 271, 279],
   [87, 235, 237],
-  [338, 348, 350],
+  [340, 350, 352],
 ]
 
 ---

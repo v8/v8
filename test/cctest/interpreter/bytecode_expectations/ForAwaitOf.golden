@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 1
-bytecode array length: 614
+bytecode array length: 618
 bytecodes: [
                 B(Ldar), R(2),
                 B(JumpIfUndefined), U8(25),
@@ -125,6 +125,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kReThrow), R(21), U8(1),
                 B(PopContext), R(20),
                 B(LdaSmi), I8(-1),
+                B(Star), R(17),
                 B(Star), R(16),
                 B(Jump), U8(7),
                 B(Star), R(17),
@@ -230,7 +231,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(12),
                 B(Mov), R(10), R(13),
-                B(Jump), U8(59),
+                B(Jump), U8(61),
                 B(Jump), U8(45),
                 B(Star), R(16),
                 B(Ldar), R(closure),
@@ -252,8 +253,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(12),
                 B(Mov), R(10), R(13),
-                B(Jump), U8(14),
+                B(Jump), U8(16),
                 B(LdaSmi), I8(-1),
+                B(Star), R(13),
                 B(Star), R(12),
                 B(Jump), U8(8),
                 B(Star), R(13),
@@ -280,8 +282,8 @@ bytecodes: [
 ]
 constant pool: [
   Smi [99],
-  Smi [354],
-  Smi [434],
+  Smi [356],
+  Smi [436],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -299,11 +301,11 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [56, 569, 575],
-  [59, 524, 526],
-  [65, 274, 280],
+  [56, 571, 579],
+  [59, 526, 528],
+  [65, 274, 282],
   [68, 234, 236],
-  [340, 398, 400],
+  [342, 400, 402],
 ]
 
 ---
@@ -315,7 +317,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 1
-bytecode array length: 646
+bytecode array length: 650
 bytecodes: [
                 B(Ldar), R(2),
                 B(JumpIfUndefined), U8(25),
@@ -405,7 +407,7 @@ bytecodes: [
   /*   56 S> */ B(LdaZero),
                 B(Star), R(16),
                 B(Mov), R(7), R(17),
-                B(Jump), U8(54),
+                B(Jump), U8(56),
                 B(Jump), U8(40),
                 B(Star), R(20),
                 B(Ldar), R(closure),
@@ -425,6 +427,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kReThrow), R(21), U8(1),
                 B(PopContext), R(20),
                 B(LdaSmi), I8(-1),
+                B(Star), R(17),
                 B(Star), R(16),
                 B(Jump), U8(8),
                 B(Star), R(17),
@@ -522,7 +525,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(12),
                 B(Mov), R(17), R(13),
-                B(Jump), U8(85),
+                B(Jump), U8(87),
                 B(Ldar), R(17),
                 B(ReThrow),
                 B(LdaUndefined),
@@ -534,7 +537,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star), R(12),
                 B(Mov), R(10), R(13),
-                B(Jump), U8(60),
+                B(Jump), U8(62),
                 B(Jump), U8(46),
                 B(Star), R(16),
                 B(Ldar), R(closure),
@@ -556,8 +559,9 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star), R(12),
                 B(Mov), R(10), R(13),
-                B(Jump), U8(14),
+                B(Jump), U8(16),
                 B(LdaSmi), I8(-1),
+                B(Star), R(13),
                 B(Star), R(12),
                 B(Jump), U8(8),
                 B(Star), R(13),
@@ -591,8 +595,8 @@ bytecodes: [
 ]
 constant pool: [
   Smi [99],
-  Smi [357],
-  Smi [437],
+  Smi [359],
+  Smi [439],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -613,11 +617,11 @@ constant pool: [
   Smi [25],
 ]
 handlers: [
-  [56, 585, 591],
-  [59, 539, 541],
-  [65, 276, 282],
+  [56, 587, 595],
+  [59, 541, 543],
+  [65, 276, 284],
   [68, 236, 238],
-  [343, 401, 403],
+  [345, 403, 405],
 ]
 
 ---
@@ -632,7 +636,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 1
-bytecode array length: 632
+bytecode array length: 636
 bytecodes: [
                 B(Ldar), R(2),
                 B(JumpIfUndefined), U8(25),
@@ -749,6 +753,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kReThrow), R(21), U8(1),
                 B(PopContext), R(20),
                 B(LdaSmi), I8(-1),
+                B(Star), R(17),
                 B(Star), R(16),
                 B(Jump), U8(7),
                 B(Star), R(17),
@@ -854,7 +859,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(12),
                 B(Mov), R(10), R(13),
-                B(Jump), U8(59),
+                B(Jump), U8(61),
                 B(Jump), U8(45),
                 B(Star), R(16),
                 B(Ldar), R(closure),
@@ -876,8 +881,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(12),
                 B(Mov), R(10), R(13),
-                B(Jump), U8(14),
+                B(Jump), U8(16),
                 B(LdaSmi), I8(-1),
+                B(Star), R(13),
                 B(Star), R(12),
                 B(Jump), U8(8),
                 B(Star), R(13),
@@ -904,8 +910,8 @@ bytecodes: [
 ]
 constant pool: [
   Smi [99],
-  Smi [372],
-  Smi [452],
+  Smi [374],
+  Smi [454],
   TUPLE2_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -923,11 +929,11 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [56, 587, 593],
-  [59, 542, 544],
-  [65, 292, 298],
+  [56, 589, 597],
+  [59, 544, 546],
+  [65, 292, 300],
   [68, 252, 254],
-  [358, 416, 418],
+  [360, 418, 420],
 ]
 
 ---
@@ -940,7 +946,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 431
+bytecode array length: 435
 bytecodes: [
   /*   16 E> */ B(StackCheck),
                 B(LdaUndefined),
@@ -984,7 +990,7 @@ bytecodes: [
                 B(Star), R(14),
                 B(LdaZero),
                 B(Star), R(13),
-                B(Jump), U8(54),
+                B(Jump), U8(56),
                 B(Jump), U8(40),
                 B(Star), R(17),
                 B(Ldar), R(closure),
@@ -1004,6 +1010,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kReThrow), R(18), U8(1),
                 B(PopContext), R(17),
                 B(LdaSmi), I8(-1),
+                B(Star), R(14),
                 B(Star), R(13),
                 B(Jump), U8(8),
                 B(Star), R(14),
@@ -1064,7 +1071,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(9),
                 B(Mov), R(14), R(10),
-                B(Jump), U8(85),
+                B(Jump), U8(87),
                 B(Ldar), R(14),
                 B(ReThrow),
                 B(LdaUndefined),
@@ -1076,7 +1083,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star), R(9),
                 B(Mov), R(8), R(10),
-                B(Jump), U8(60),
+                B(Jump), U8(62),
                 B(Jump), U8(46),
                 B(Star), R(13),
                 B(Ldar), R(closure),
@@ -1098,8 +1105,9 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star), R(9),
                 B(Mov), R(8), R(10),
-                B(Jump), U8(14),
+                B(Jump), U8(16),
                 B(LdaSmi), I8(-1),
+                B(Star), R(10),
                 B(Star), R(9),
                 B(Jump), U8(8),
                 B(Star), R(10),
@@ -1152,10 +1160,10 @@ constant pool: [
   Smi [25],
 ]
 handlers: [
-  [13, 370, 376],
-  [16, 324, 326],
-  [30, 156, 162],
+  [13, 372, 380],
+  [16, 326, 328],
+  [30, 156, 164],
   [33, 116, 118],
-  [223, 233, 235],
+  [225, 235, 237],
 ]
 
