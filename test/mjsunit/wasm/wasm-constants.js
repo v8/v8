@@ -342,6 +342,12 @@ let kExprI32AtomicOr16U = 0x36;
 let kExprI32AtomicXor = 0x3a;
 let kExprI32AtomicXor8U = 0x3c;
 let kExprI32AtomicXor16U = 0x3d;
+let kExprI32AtomicExchange = 0x41;
+let kExprI32AtomicExchange8U = 0x43;
+let kExprI32AtomicExchange16U = 0x44;
+let kExprI32AtomicCompareExchange = 0x48
+let kExprI32AtomicCompareExchange8U = 0x4a
+let kExprI32AtomicCompareExchange16U = 0x4b
 
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;

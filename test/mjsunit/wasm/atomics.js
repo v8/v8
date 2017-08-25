@@ -16,6 +16,7 @@ function Sub(a, b) { return a - b; }
 function And(a, b) { return a & b; }
 function Or(a, b) { return a | b; }
 function Xor(a, b) { return a ^ b; }
+function Exchange(a, b) { return b; }
 
 let maxSize = 10;
 let memory = new WebAssembly.Memory({initial: 1, maximum: maxSize, shared: true});
@@ -38,15 +39,35 @@ function GetAtomicBinOpFunction(wasmExpression) {
   return instance.exports.main;
 }
 
+function GetAtomicCmpExchangeFunction(wasmExpression) {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  builder.addFunction("main", kSig_i_iii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprGetLocal, 2,
+      kAtomicPrefix,
+      wasmExpression])
+    .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = (new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}}));
+  return instance.exports.main;
+}
+
+
 function VerifyBoundsCheck(func, memtype_size) {
   const kPageSize = 65536;
   // Test out of bounds at boundary
   for (let i = memory.buffer.byteLength - memtype_size + 1;
        i < memory.buffer.byteLength + memtype_size + 4; i++) {
-    assertTraps(kTrapMemOutOfBounds, () => func(i, 5));
+    assertTraps(kTrapMemOutOfBounds, () => func(i, 5, 10));
   }
   // Test out of bounds at maximum + 1
-  assertTraps(kTrapMemOutOfBounds, () => func((maxSize + 1) * kPageSize, 5));
+  assertTraps(kTrapMemOutOfBounds, () => func((maxSize + 1) * kPageSize, 5, 1));
 }
 
 function Test32Op(operation, func) {
@@ -173,4 +194,64 @@ function Test8Op(operation, func) {
   print("TestAtomicXor8U");
   let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor8U);
   Test8Op(Xor, wasmXor);
+})();
+
+(function TestAtomicExchange() {
+  print("TestAtomicExchange");
+  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange);
+  Test32Op(Exchange, wasmExchange);
+})();
+
+(function TestAtomicExchange16U() {
+  print("TestAtomicExchange16U");
+  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange16U);
+  Test16Op(Exchange, wasmExchange);
+})();
+
+(function TestAtomicExchange8U() {
+  print("TestAtomicExchange8U");
+  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange8U);
+  Test8Op(Exchange, wasmExchange);
+})();
+
+function TestCmpExchange(func, buffer, params, size) {
+  for (let i = 0; i < buffer.length; i++) {
+    for (let j = 0; j < params.length; j++) {
+      for (let k = 0; k < params.length; k++) {
+        buffer[i] = params[j];
+        let loaded = func(i * size, params[k], params[j]) >>> 0;
+        let expected = (params[k] == loaded) ? params[j] : loaded;
+        assertEquals(loaded, params[j]);
+        assertEquals(expected, buffer[i]);
+      }
+    }
+  }
+  VerifyBoundsCheck(func, size);
+}
+
+(function TestAtomicCompareExchange() {
+  print("TestAtomicCompareExchange");
+  let wasmCmpExchange =
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange);
+  let i32 = new Uint32Array(memory.buffer);
+  let params = [0x00000001, 0x00000555, 0x00099999, 0xffffffff];
+  TestCmpExchange(wasmCmpExchange, i32, params, kMemtypeSize32);
+})();
+
+(function TestAtomicCompareExchange16U() {
+  print("TestAtomicCompareExchange16U");
+  let wasmCmpExchange =
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange16U);
+  let i16 = new Uint16Array(memory.buffer);
+  let params = [0x0001, 0x0555, 0x9999];
+  TestCmpExchange(wasmCmpExchange, i16, params, kMemtypeSize16);
+})();
+
+(function TestAtomicCompareExchange8U() {
+  print("TestAtomicCompareExchange8U");
+  let wasmCmpExchange =
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange8U);
+  let i8 = new Uint8Array(memory.buffer);
+  let params = [0x01, 0x0d, 0xf9];
+  TestCmpExchange(wasmCmpExchange, i8, params, kMemtypeSize8);
 })();
