@@ -129,7 +129,7 @@ class Scavenger {
   Heap* const heap_;
   PromotionList::View promotion_list_;
   CopiedList::View copied_list_;
-  base::HashMap local_pretenuring_feedback_;
+  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;
   LocalAllocator allocator_;

@@ -518,9 +518,9 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   UNREACHABLE();
 }
 
-template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
-                                base::HashMap* pretenuring_feedback) {
+                                PretenuringFeedbackMap* pretenuring_feedback) {
+  DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
   DCHECK(InFromSpace(object) ||
          (InToSpace(object) &&
           Page::FromAddress(object->address())
@@ -535,37 +535,16 @@ void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
       FindAllocationMemento<kForGC>(map, object);
   if (memento_candidate == nullptr) return;
 
-  if (mode == kGlobal) {
-    DCHECK_EQ(pretenuring_feedback, global_pretenuring_feedback_);
-    // Entering global pretenuring feedback is only used in the scavenger, where
-    // we are allowed to actually touch the allocation site.
-    if (!memento_candidate->IsValid()) return;
-    AllocationSite* site = memento_candidate->GetAllocationSite();
-    DCHECK(!site->IsZombie());
-    // For inserting in the global pretenuring storage we need to first
-    // increment the memento found count on the allocation site.
-    if (site->IncrementMementoFoundCount()) {
-      global_pretenuring_feedback_->LookupOrInsert(site,
-                                                   ObjectHash(site->address()));
-    }
-  } else {
-    DCHECK_EQ(mode, kCached);
-    DCHECK_NE(pretenuring_feedback, global_pretenuring_feedback_);
-    // Entering cached feedback is used in the parallel case. We are not allowed
-    // to dereference the allocation site and rather have to postpone all checks
-    // till actually merging the data.
-    Address key = memento_candidate->GetAllocationSiteUnchecked();
-    base::HashMap::Entry* e =
-        pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
-    DCHECK(e != nullptr);
-    (*bit_cast<intptr_t*>(&e->value))++;
-  }
+  // Entering cached feedback is used in the parallel case. We are not allowed
+  // to dereference the allocation site and rather have to postpone all checks
+  // till actually merging the data.
+  Address key = memento_candidate->GetAllocationSiteUnchecked();
+  (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
 }
 
 
 void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
-  global_pretenuring_feedback_->Remove(
-      site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
+  global_pretenuring_feedback_.erase(site);
 }
 
 Isolate* Heap::isolate() {

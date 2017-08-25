@@ -164,7 +164,7 @@ Heap::Heap()
       new_space_allocation_counter_(0),
       old_generation_allocation_counter_at_last_gc_(0),
       old_generation_size_at_last_gc_(0),
-      global_pretenuring_feedback_(nullptr),
+      global_pretenuring_feedback_(kInitialFeedbackCapacity),
       is_marking_flag_(false),
       ring_buffer_full_(false),
       ring_buffer_end_(0),
@@ -603,13 +603,11 @@ void Heap::RepairFreeListsAfterDeserialization() {
 }
 
 void Heap::MergeAllocationSitePretenuringFeedback(
-    const base::HashMap& local_pretenuring_feedback) {
+    const PretenuringFeedbackMap& local_pretenuring_feedback) {
   AllocationSite* site = nullptr;
-  for (base::HashMap::Entry* local_entry = local_pretenuring_feedback.Start();
-       local_entry != nullptr;
-       local_entry = local_pretenuring_feedback.Next(local_entry)) {
-    site = reinterpret_cast<AllocationSite*>(local_entry->key);
-    MapWord map_word = site->map_word();
+  for (auto& site_and_count : local_pretenuring_feedback) {
+    site = site_and_count.first;
+    MapWord map_word = site_and_count.first->map_word();
     if (map_word.IsForwardingAddress()) {
       site = AllocationSite::cast(map_word.ToForwardingAddress());
     }
@@ -619,13 +617,11 @@ void Heap::MergeAllocationSitePretenuringFeedback(
     // This is an inlined check of AllocationMemento::IsValid.
     if (!site->IsAllocationSite() || site->IsZombie()) continue;
 
-    int value =
-        static_cast<int>(reinterpret_cast<intptr_t>(local_entry->value));
-    DCHECK_GT(value, 0);
-
+    const int value = static_cast<int>(site_and_count.second);
+    DCHECK_LT(0, value);
     if (site->IncrementMementoFoundCount(value)) {
-      global_pretenuring_feedback_->LookupOrInsert(site,
-                                                   ObjectHash(site->address()));
+      // For sites in the global map the count is accessed through the site.
+      global_pretenuring_feedback_.insert(std::make_pair(site, 0));
     }
   }
 }
@@ -645,22 +641,6 @@ class Heap::SkipStoreBufferScope {
 
  private:
   StoreBuffer* store_buffer_;
-};
-
-class Heap::PretenuringScope {
- public:
-  explicit PretenuringScope(Heap* heap) : heap_(heap) {
-    heap_->global_pretenuring_feedback_ =
-        new base::HashMap(kInitialFeedbackCapacity);
-  }
-
-  ~PretenuringScope() {
-    delete heap_->global_pretenuring_feedback_;
-    heap_->global_pretenuring_feedback_ = nullptr;
-  }
-
- private:
-  Heap* heap_;
 };
 
 namespace {
@@ -736,10 +716,11 @@ void Heap::ProcessPretenuringFeedback() {
 
     // Step 1: Digest feedback for recorded allocation sites.
     bool maximum_size_scavenge = MaximumSizeScavenge();
-    for (base::HashMap::Entry* e = global_pretenuring_feedback_->Start();
-         e != nullptr; e = global_pretenuring_feedback_->Next(e)) {
+    for (auto& site_and_count : global_pretenuring_feedback_) {
       allocation_sites++;
-      site = reinterpret_cast<AllocationSite*>(e->key);
+      site = site_and_count.first;
+      // Count is always access through the site.
+      DCHECK_EQ(0, site_and_count.second);
       int found_count = site->memento_found_count();
       // An entry in the storage does not imply that the count is > 0 because
       // allocation sites might have been reset due to too many objects dying
@@ -790,6 +771,9 @@ void Heap::ProcessPretenuringFeedback() {
                    active_allocation_sites, allocation_mementos_found,
                    tenure_decisions, dont_tenure_decisions);
     }
+
+    global_pretenuring_feedback_.clear();
+    global_pretenuring_feedback_.reserve(kInitialFeedbackCapacity);
   }
 }
 
@@ -1516,7 +1500,6 @@ bool Heap::PerformGarbageCollection(
   int start_new_space_size = static_cast<int>(Heap::new_space()->Size());
 
   {
-    Heap::PretenuringScope pretenuring_scope(this);
     Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_);
 
     switch (collector) {

@@ -1680,9 +1680,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
-  explicit EvacuateNewSpaceVisitor(Heap* heap, LocalAllocator* local_allocator,
-                                   RecordMigratedSlotVisitor* record_visitor,
-                                   base::HashMap* local_pretenuring_feedback)
+  explicit EvacuateNewSpaceVisitor(
+      Heap* heap, LocalAllocator* local_allocator,
+      RecordMigratedSlotVisitor* record_visitor,
+      Heap::PretenuringFeedbackMap* local_pretenuring_feedback)
       : EvacuateVisitorBase(heap, local_allocator, record_visitor),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         promoted_size_(0),
@@ -1696,8 +1697,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       promoted_size_ += size;
       return true;
     }
-    heap_->UpdateAllocationSite<Heap::kCached>(object->map(), object,
-                                               local_pretenuring_feedback_);
+    heap_->UpdateAllocationSite(object->map(), object,
+                                local_pretenuring_feedback_);
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, size, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
@@ -1739,7 +1740,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   LocalAllocationBuffer buffer_;
   intptr_t promoted_size_;
   intptr_t semispace_copied_size_;
-  base::HashMap* local_pretenuring_feedback_;
+  Heap::PretenuringFeedbackMap* local_pretenuring_feedback_;
 };
 
 template <PageEvacuationMode mode>
@@ -1747,7 +1748,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateNewSpacePageVisitor(
       Heap* heap, RecordMigratedSlotVisitor* record_visitor,
-      base::HashMap* local_pretenuring_feedback)
+      Heap::PretenuringFeedbackMap* local_pretenuring_feedback)
       : heap_(heap),
         record_visitor_(record_visitor),
         moved_bytes_(0),
@@ -1771,8 +1772,8 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(HeapObject* object, int size) {
     if (mode == NEW_TO_NEW) {
-      heap_->UpdateAllocationSite<Heap::kCached>(object->map(), object,
-                                                 local_pretenuring_feedback_);
+      heap_->UpdateAllocationSite(object->map(), object,
+                                  local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
       object->IterateBodyFast(record_visitor_);
     }
@@ -1786,7 +1787,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   Heap* heap_;
   RecordMigratedSlotVisitor* record_visitor_;
   intptr_t moved_bytes_;
-  base::HashMap* local_pretenuring_feedback_;
+  Heap::PretenuringFeedbackMap* local_pretenuring_feedback_;
 };
 
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
@@ -3290,7 +3291,7 @@ class Evacuator : public Malloced {
   // Locally cached collector data.
   LocalAllocator local_allocator_;
   CompactionSpaceCollection compaction_spaces_;
-  base::HashMap local_pretenuring_feedback_;
+  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
 
   // Visitors for the corresponding spaces.
   EvacuateNewSpaceVisitor new_space_visitor_;

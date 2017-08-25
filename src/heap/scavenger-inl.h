@@ -70,8 +70,7 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
   if (is_incremental_marking_) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
-  heap()->UpdateAllocationSite<Heap::kCached>(map, source,
-                                              &local_pretenuring_feedback_);
+  heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);
   return true;
 }
 

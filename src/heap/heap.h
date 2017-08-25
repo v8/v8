@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_H_
 
 #include <cmath>
+#include <unordered_map>
 #include <vector>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
@@ -554,7 +555,7 @@ class Heap {
 
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT, MINOR_MARK_COMPACT };
 
-  enum UpdateAllocationSiteMode { kGlobal, kCached };
+  using PretenuringFeedbackMap = std::unordered_map<AllocationSite*, size_t>;
 
   // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
@@ -1473,14 +1474,11 @@ class Heap {
   // Allocation site tracking. =================================================
   // ===========================================================================
 
-  // Updates the AllocationSite of a given {object}. If the global prenuring
-  // storage is passed as {pretenuring_feedback} the memento found count on
-  // the corresponding allocation site is immediately updated and an entry
-  // in the hash map is created. Otherwise the entry (including a the count
-  // value) is cached on the local pretenuring feedback.
-  template <UpdateAllocationSiteMode mode>
-  inline void UpdateAllocationSite(Map* map, HeapObject* object,
-                                   base::HashMap* pretenuring_feedback);
+  // Updates the AllocationSite of a given {object}. The entry (including the
+  // count) is cached on the local pretenuring feedback.
+  inline void UpdateAllocationSite(
+      Map* map, HeapObject* object,
+      PretenuringFeedbackMap* pretenuring_feedback);
 
   // Removes an entry from the global pretenuring storage.
   inline void RemoveAllocationSitePretenuringFeedback(AllocationSite* site);
@@ -1489,7 +1487,7 @@ class Heap {
   // method needs to be called after evacuation, as allocation sites may be
   // evacuated and this method resolves forward pointers accordingly.
   void MergeAllocationSitePretenuringFeedback(
-      const base::HashMap& local_pretenuring_feedback);
+      const PretenuringFeedbackMap& local_pretenuring_feedback);
 
   // ===========================================================================
   // Retaining path tracking. ==================================================
@@ -2375,7 +2373,7 @@ class Heap {
   // storage is only alive temporary during a GC. The invariant is that all
   // pointers in this map are already fixed, i.e., they do not point to
   // forwarding pointers.
-  base::HashMap* global_pretenuring_feedback_;
+  PretenuringFeedbackMap global_pretenuring_feedback_;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
 
