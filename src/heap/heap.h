@@ -18,7 +18,6 @@
 #include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
-#include "src/list.h"
 #include "src/objects.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/string-table.h"
@@ -1545,11 +1544,16 @@ class Heap {
   class SkipStoreBufferScope;
   class PretenuringScope;
 
+  typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
+                                                        Object** pointer);
+
   // External strings table is a place where all external strings are
   // registered.  We need to keep track of such strings to properly
   // finalize them.
   class ExternalStringTable {
    public:
+    explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
+
     // Registers an external string.
     inline void AddString(String* string);
 
@@ -1565,24 +1569,22 @@ class Heap {
     // Destroys all allocated memory.
     void TearDown();
 
-   private:
-    explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
+    void UpdateNewSpaceReferences(
+        Heap::ExternalStringTableUpdaterCallback updater_func);
+    void UpdateReferences(
+        Heap::ExternalStringTableUpdaterCallback updater_func);
 
+   private:
     inline void Verify();
 
     inline void AddOldString(String* string);
 
-    // Notifies the table that only a prefix of the new list is valid.
-    inline void ShrinkNewStrings(int position);
+    Heap* const heap_;
 
     // To speed up scavenge collections new space string are kept
     // separate from old space strings.
-    List<Object*> new_space_strings_;
-    List<Object*> old_space_strings_;
-
-    Heap* heap_;
-
-    friend class Heap;
+    std::vector<Object*> new_space_strings_;
+    std::vector<Object*> old_space_strings_;
 
     DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
   };
@@ -1618,9 +1620,6 @@ class Heap {
     GCType gc_type;
     bool pass_isolate;
   };
-
-  typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
-                                                        Object** pointer);
 
   static const int kInitialStringTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

@@ -2052,47 +2052,59 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
   return string->IsExternalString() ? string : nullptr;
 }
 
+void Heap::ExternalStringTable::UpdateNewSpaceReferences(
+    Heap::ExternalStringTableUpdaterCallback updater_func) {
+  if (new_space_strings_.empty()) return;
 
-void Heap::UpdateNewSpaceReferencesInExternalStringTable(
-    ExternalStringTableUpdaterCallback updater_func) {
-  if (external_string_table_.new_space_strings_.is_empty()) return;
-
-  Object** start = &external_string_table_.new_space_strings_[0];
-  Object** end = start + external_string_table_.new_space_strings_.length();
+  Object** start = new_space_strings_.data();
+  Object** end = start + new_space_strings_.size();
   Object** last = start;
 
   for (Object** p = start; p < end; ++p) {
-    String* target = updater_func(this, p);
+    String* target = updater_func(heap_, p);
 
     if (target == NULL) continue;
 
     DCHECK(target->IsExternalString());
 
-    if (InNewSpace(target)) {
+    if (heap_->InNewSpace(target)) {
       // String is still in new space.  Update the table entry.
       *last = target;
       ++last;
     } else {
       // String got promoted.  Move it to the old string list.
-      external_string_table_.AddOldString(target);
+      AddOldString(target);
     }
   }
 
-  DCHECK(last <= end);
-  external_string_table_.ShrinkNewStrings(static_cast<int>(last - start));
+  DCHECK_LE(last, end);
+  new_space_strings_.resize(static_cast<size_t>(last - start));
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    Verify();
+  }
+#endif
 }
 
+void Heap::UpdateNewSpaceReferencesInExternalStringTable(
+    ExternalStringTableUpdaterCallback updater_func) {
+  external_string_table_.UpdateNewSpaceReferences(updater_func);
+}
+
+void Heap::ExternalStringTable::UpdateReferences(
+    Heap::ExternalStringTableUpdaterCallback updater_func) {
+  if (old_space_strings_.size() > 0) {
+    Object** start = old_space_strings_.data();
+    Object** end = start + old_space_strings_.size();
+    for (Object** p = start; p < end; ++p) *p = updater_func(heap_, p);
+  }
+
+  UpdateNewSpaceReferences(updater_func);
+}
 
 void Heap::UpdateReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
-  // Update old space string references.
-  if (external_string_table_.old_space_strings_.length() > 0) {
-    Object** start = &external_string_table_.old_space_strings_[0];
-    Object** end = start + external_string_table_.old_space_strings_.length();
-    for (Object** p = start; p < end; ++p) *p = updater_func(this, p);
-  }
-
-  UpdateNewSpaceReferencesInExternalStringTable(updater_func);
+  external_string_table_.UpdateReferences(updater_func);
 }
 
 
@@ -6650,7 +6662,7 @@ void Heap::UpdateTotalGCTime(double duration) {
 void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
-  for (int i = 0; i < new_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
     Object* o = new_space_strings_[i];
     if (o->IsTheHole(isolate)) {
       continue;
@@ -6663,18 +6675,17 @@ void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
     if (heap_->InNewSpace(o)) {
       new_space_strings_[last++] = o;
     } else {
-      old_space_strings_.Add(o);
+      old_space_strings_.push_back(o);
     }
   }
-  new_space_strings_.Rewind(last);
-  new_space_strings_.Trim();
+  new_space_strings_.resize(last);
 }
 
 void Heap::ExternalStringTable::CleanUpAll() {
   CleanUpNewSpaceStrings();
   int last = 0;
   Isolate* isolate = heap_->isolate();
-  for (int i = 0; i < old_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     Object* o = old_space_strings_[i];
     if (o->IsTheHole(isolate)) {
       continue;
@@ -6687,8 +6698,7 @@ void Heap::ExternalStringTable::CleanUpAll() {
     DCHECK(!heap_->InNewSpace(o));
     old_space_strings_[last++] = o;
   }
-  old_space_strings_.Rewind(last);
-  old_space_strings_.Trim();
+  old_space_strings_.resize(last);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -6697,7 +6707,7 @@ void Heap::ExternalStringTable::CleanUpAll() {
 }
 
 void Heap::ExternalStringTable::TearDown() {
-  for (int i = 0; i < new_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
     Object* o = new_space_strings_[i];
     if (o->IsThinString()) {
       o = ThinString::cast(o)->actual();
@@ -6705,8 +6715,8 @@ void Heap::ExternalStringTable::TearDown() {
     }
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
-  new_space_strings_.Free();
-  for (int i = 0; i < old_space_strings_.length(); ++i) {
+  new_space_strings_.clear();
+  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     Object* o = old_space_strings_[i];
     if (o->IsThinString()) {
       o = ThinString::cast(o)->actual();
@@ -6714,7 +6724,7 @@ void Heap::ExternalStringTable::TearDown() {
     }
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
-  old_space_strings_.Free();
+  old_space_strings_.clear();
 }
 
 

@@ -554,33 +554,34 @@ Isolate* Heap::isolate() {
 }
 
 void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
-  old_space_strings_.AddAll(new_space_strings_);
-  new_space_strings_.Clear();
+  old_space_strings_.reserve(old_space_strings_.size() +
+                             new_space_strings_.size());
+  std::move(std::begin(new_space_strings_), std::end(new_space_strings_),
+            std::back_inserter(old_space_strings_));
+  new_space_strings_.clear();
 }
 
 void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
   if (heap_->InNewSpace(string)) {
-    new_space_strings_.Add(string);
+    new_space_strings_.push_back(string);
   } else {
-    old_space_strings_.Add(string);
+    old_space_strings_.push_back(string);
   }
 }
 
 void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
-  if (!new_space_strings_.is_empty()) {
-    Object** start = &new_space_strings_[0];
-    v->VisitRootPointers(Root::kExternalStringsTable, start,
-                         start + new_space_strings_.length());
+  if (!new_space_strings_.empty()) {
+    v->VisitRootPointers(Root::kExternalStringsTable, new_space_strings_.data(),
+                         new_space_strings_.data() + new_space_strings_.size());
   }
 }
 
 void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   IterateNewSpaceStrings(v);
-  if (!old_space_strings_.is_empty()) {
-    Object** start = &old_space_strings_[0];
-    v->VisitRootPointers(Root::kExternalStringsTable, start,
-                         start + old_space_strings_.length());
+  if (!old_space_strings_.empty()) {
+    v->VisitRootPointers(Root::kExternalStringsTable, old_space_strings_.data(),
+                         old_space_strings_.data() + old_space_strings_.size());
   }
 }
 
@@ -589,12 +590,12 @@ void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
 // mode.
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
-  for (int i = 0; i < new_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
     DCHECK(heap_->InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
-  for (int i = 0; i < old_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
     DCHECK(!heap_->InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
@@ -606,17 +607,7 @@ void Heap::ExternalStringTable::Verify() {
 void Heap::ExternalStringTable::AddOldString(String* string) {
   DCHECK(string->IsExternalString());
   DCHECK(!heap_->InNewSpace(string));
-  old_space_strings_.Add(string);
-}
-
-
-void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
-  new_space_strings_.Rewind(position);
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    Verify();
-  }
-#endif
+  old_space_strings_.push_back(string);
 }
 
 Oddball* Heap::ToBoolean(bool condition) {
