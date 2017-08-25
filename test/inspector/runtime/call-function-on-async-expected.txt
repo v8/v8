@@ -13,6 +13,17 @@ Running test: testArguments
     }
 }
 
+Running test: testComplexArguments
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : bar
+        }
+    }
+}
+
 Running test: testSyntaxErrorInFunction
 {
     id : <messageId>

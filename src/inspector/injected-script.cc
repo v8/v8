@@ -564,7 +564,7 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value =
         callArgument->hasValue()
-            ? callArgument->getValue(nullptr)->serialize()
+            ? "(" + callArgument->getValue(nullptr)->serialize() + ")"
             : "Number(\"" + callArgument->getUnserializableValue("") + "\")";
     if (!m_context->inspector()
              ->compileAndRunInternalScript(

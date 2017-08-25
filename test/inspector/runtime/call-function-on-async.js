@@ -27,6 +27,17 @@ InspectorTest.runAsyncTestSuite([
     }));
   },
 
+  async function testComplexArguments() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: 'function(arg) { return arg.foo; }',
+      arguments: prepareArguments([{foo: 'bar'}]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: false
+    }));
+  },
+
   async function testSyntaxErrorInFunction() {
     InspectorTest.logMessage(await callFunctionOn({
       objectId: remoteObject1.objectId,
