@@ -39,8 +39,6 @@ class CodeSerializer : public Serializer {
   virtual bool ElideObject(Object* obj) { return false; }
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
                         WhereToPoint where_to_point);
-  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
 
  private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,

@@ -183,6 +183,18 @@ class Serializer : public SerializerDeserializer {
   bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
                               WhereToPoint where_to_point, int skip);
 
+  // Determines whether the interpreter trampoline is replaced by CompileLazy.
+  enum BuiltinReferenceSerializationMode {
+    kDefault,
+    kCanonicalizeCompileLazy,
+  };
+
+  // Returns true if the object was successfully serialized as a builtin
+  // reference.
+  bool SerializeBuiltinReference(
+      HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
+      int skip, BuiltinReferenceSerializationMode mode = kDefault);
+
   inline void FlushSkip(int skip) {
     if (skip != 0) {
       sink_.Put(kSkip, "SkipFromSerializeObject");
