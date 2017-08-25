@@ -639,12 +639,12 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
-  int old_size = old_array->length();
   int64_t new_size64 = 0;
   if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
     return;
   }
+  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
+  int old_size = old_array->length();
   new_size64 += old_size;
 
   int64_t max_size64 = receiver->maximum_length()->Number();
