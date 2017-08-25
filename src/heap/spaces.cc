@@ -3168,13 +3168,16 @@ HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
         free_list_.Allocate(static_cast<size_t>(size_in_bytes));
     if (object != NULL) return object;
 
-    // If sweeping is still in progress try to sweep pages on the main thread.
-    int max_freed = collector->sweeper().ParallelSweepSpace(
-        identity(), size_in_bytes, kMaxPagesToSweep);
-    RefillFreeList();
-    if (max_freed >= size_in_bytes) {
-      object = free_list_.Allocate(static_cast<size_t>(size_in_bytes));
-      if (object != nullptr) return object;
+    // TODO(v8:6754): Resolve the race with sweeping during scavenge.
+    if (heap()->gc_state() != Heap::SCAVENGE) {
+      // If sweeping is still in progress try to sweep pages on the main thread.
+      int max_freed = collector->sweeper().ParallelSweepSpace(
+          identity(), size_in_bytes, kMaxPagesToSweep);
+      RefillFreeList();
+      if (max_freed >= size_in_bytes) {
+        object = free_list_.Allocate(static_cast<size_t>(size_in_bytes));
+        if (object != nullptr) return object;
+      }
     }
   } else if (is_local()) {
     // Sweeping not in progress and we are on a {CompactionSpace}. This can
