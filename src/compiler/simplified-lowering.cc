@@ -1312,11 +1312,13 @@ class RepresentationSelector {
                    Type::Signed32());
       }
       if (lower()) {
-        if (CanOverflowSigned32(node->op(), left_feedback_type,
-                                right_feedback_type, graph_zone())) {
-          ChangeToInt32OverflowOp(node);
-        } else {
+        if (truncation.IsUsedAsWord32() ||
+            !CanOverflowSigned32(node->op(), left_feedback_type,
+                                 right_feedback_type, graph_zone())) {
           ChangeToPureOp(node, Int32Op(node));
+
+        } else {
+          ChangeToInt32OverflowOp(node);
         }
       }
       return;
