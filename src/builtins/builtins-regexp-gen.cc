@@ -2559,7 +2559,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
     GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
     GotoIf(TaggedIsPositiveSmi(maybe_limit), &next);
 
-    Node* const limit = ToUint32(context, maybe_limit);
+    var_limit.Bind(ToUint32(context, maybe_limit));
     {
       // ToUint32(limit) could potentially change the shape of the RegExp
       // object. Recheck that we are still on the fast path and bail to runtime
@@ -2570,10 +2570,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
         BIND(&next);
       }
 
-      GotoIfNot(TaggedIsPositiveSmi(limit), &if_limitissmimax);
-
-      var_limit.Bind(limit);
-      Goto(&next);
+      Branch(TaggedIsPositiveSmi(var_limit.value()), &next, &if_limitissmimax);
     }
 
     BIND(&if_limitissmimax);
