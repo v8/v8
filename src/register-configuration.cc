@@ -136,7 +136,7 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 };
 
 struct RegisterConfigurationInitializer {
-  static void Construct(ArchDefaultRegisterConfiguration* config) {
+  static void Construct(void* config) {
     new (config) ArchDefaultRegisterConfiguration();
   }
 };
