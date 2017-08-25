@@ -1,5 +1,7 @@
 Tests that Runtime.callFunctionOn works with awaitPromise flag.
 
+Running test: prepareTestSuite
+
 Running test: testArguments
 {
     id : <messageId>
