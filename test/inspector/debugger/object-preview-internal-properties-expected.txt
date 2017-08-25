@@ -235,4 +235,14 @@ expression: ({})
 
 Running test: overridenArrayGetter
 expression: Promise.resolve(42)
+{
+    name : [[PromiseStatus]]
+    type : string
+    value : resolved
+}
+{
+    name : [[PromiseValue]]
+    type : number
+    value : 42
+}
 

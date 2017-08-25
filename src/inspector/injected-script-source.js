@@ -856,6 +856,7 @@ InjectedScript.RemoteObject.prototype = {
             properties: [],
             __proto__: null
         };
+        InjectedScriptHost.nullifyPrototype(preview.properties);
         if (this.subtype)
             preview.subtype = /** @type {!RuntimeAgent.ObjectPreviewSubtype.<string>} */ (this.subtype);
         return preview;
@@ -1041,6 +1042,7 @@ InjectedScript.RemoteObject.prototype = {
             return;
         }
         preview.entries = [];
+        InjectedScriptHost.nullifyPrototype(preview.entries);
         var entriesThreshold = 5;
         for (var i = 0; i < entries.length; ++i) {
             if (preview.entries.length >= entriesThreshold) {

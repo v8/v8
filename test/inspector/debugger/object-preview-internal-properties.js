@@ -8,6 +8,8 @@ Protocol.Debugger.enable();
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(dumpInternalPropertiesAndEntries);
 
+contextGroup.setupInjectedScriptEnvironment();
+
 InspectorTest.runTestSuite([
   function boxedObjects(next)
   {
