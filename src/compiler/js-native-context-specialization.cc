@@ -2344,10 +2344,12 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     // Try to filter impossible candidates based on inferred root map.
     Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
+      DCHECK(!receiver_map->is_abandoned_prototype_map());
       receiver_maps->erase(
           std::remove_if(receiver_maps->begin(), receiver_maps->end(),
                          [receiver_map](const Handle<Map>& map) {
-                           return map->FindRootMap() != *receiver_map;
+                           return map->is_abandoned_prototype_map() ||
+                                  map->FindRootMap() != *receiver_map;
                          }),
           receiver_maps->end());
     }
