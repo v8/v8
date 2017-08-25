@@ -975,16 +975,17 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
 // we keep the GC informed.  The word in the object where the value has been
 // written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  Label skip_to_incremental_noncompacting;
-  Label skip_to_incremental_compacting;
+  Label skip_to_incremental;
+  Label second_instr;
 
   // The first two instructions are generated with labels so as to get the
   // offset fixed up correctly by the bind(Label*) call.  We patch it back and
   // forth between a compare instructions (a nop in this position) and the
   // real branch when we start and stop incremental heap marking.
   // See RecordWriteStub::Patch for details.
-  __ jmp(&skip_to_incremental_noncompacting, Label::kNear);
-  __ jmp(&skip_to_incremental_compacting, Label::kFar);
+  __ jmp(&skip_to_incremental, Label::kNear);
+  __ bind(&second_instr);
+  __ jmp(&skip_to_incremental, Label::kNear);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
     __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
@@ -993,20 +994,18 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
     __ ret(0);
   }
 
-  __ bind(&skip_to_incremental_noncompacting);
-  GenerateIncremental(masm, INCREMENTAL);
+  __ bind(&skip_to_incremental);
 
-  __ bind(&skip_to_incremental_compacting);
-  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+  GenerateIncremental(masm, &second_instr);
 
   // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
   // Will be checked in IncrementalMarking::ActivateGeneratedStub.
   masm->set_byte_at(0, kTwoByteNopInstruction);
-  masm->set_byte_at(2, kFiveByteNopInstruction);
+  masm->set_byte_at(2, kTwoByteNopInstruction);
 }
 
-
-void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm,
+                                          Label* second_instr) {
   regs_.Save(masm);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
@@ -1023,7 +1022,8 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
     // First notify the incremental marker if necessary, then update the
     // remembered set.
     CheckNeedsToInformIncrementalMarker(
-        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker,
+        second_instr);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
     __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
@@ -1033,7 +1033,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   }
 
   CheckNeedsToInformIncrementalMarker(
-      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
+      masm, kReturnOnNoNeedToInformIncrementalMarker, second_instr);
   InformIncrementalMarker(masm);
   regs_.Restore(masm);
   __ ret(0);
@@ -1067,9 +1067,8 @@ void RecordWriteStub::Activate(Code* code) {
 }
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
-    MacroAssembler* masm,
-    OnNoNeedToInformIncrementalMarker on_no_need,
-    Mode mode) {
+    MacroAssembler* masm, OnNoNeedToInformIncrementalMarker on_no_need,
+    Label* second_instr) {
   Label need_incremental;
   Label need_incremental_pop_object;
 
@@ -1097,24 +1096,22 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Get the value from the slot.
   __ movp(regs_.scratch0(), Operand(regs_.address(), 0));
 
-  if (mode == INCREMENTAL_COMPACTION) {
-    Label ensure_not_white;
+  Label ensure_not_white;
+  // If second instruction is TwoByteNopInstruction, we're in noncompacting
+  // mode.
+  __ cmpb(Operand(second_instr), Immediate(kTwoByteNopInstruction));
+  __ j(equal, &ensure_not_white, Label::kNear);
+  __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                   regs_.scratch1(),  // Scratch.
+                   MemoryChunk::kEvacuationCandidateMask, zero,
+                   &ensure_not_white, Label::kNear);
 
-    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
-                     regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kEvacuationCandidateMask,
-                     zero,
-                     &ensure_not_white,
-                     Label::kNear);
+  __ CheckPageFlag(regs_.object(),
+                   regs_.scratch1(),  // Scratch.
+                   MemoryChunk::kSkipEvacuationSlotsRecordingMask, zero,
+                   &need_incremental);
 
-    __ CheckPageFlag(regs_.object(),
-                     regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
-                     zero,
-                     &need_incremental);
-
-    __ bind(&ensure_not_white);
-  }
+  __ bind(&ensure_not_white);
 
   // We need an extra register for this, so we push the object register
   // temporarily.
