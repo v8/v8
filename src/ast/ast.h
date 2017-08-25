@@ -13,7 +13,6 @@
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/label.h"
-#include "src/list.h"
 #include "src/objects/literal-objects.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"

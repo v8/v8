@@ -19,7 +19,6 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
-#include "src/list.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"
 

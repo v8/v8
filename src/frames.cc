@@ -944,9 +944,9 @@ bool JavaScriptFrame::IsConstructor() const {
 
 
 bool JavaScriptFrame::HasInlinedFrames() const {
-  List<SharedFunctionInfo*> functions(1);
+  std::vector<SharedFunctionInfo*> functions;
   GetFunctions(&functions);
-  return functions.length() > 1;
+  return functions.size() > 1;
 }
 
 
@@ -977,18 +977,19 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-void JavaScriptFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
-  DCHECK(functions->length() == 0);
-  functions->Add(function()->shared());
+void JavaScriptFrame::GetFunctions(
+    std::vector<SharedFunctionInfo*>* functions) const {
+  DCHECK(functions->empty());
+  functions->push_back(function()->shared());
 }
 
 void JavaScriptFrame::GetFunctions(
-    List<Handle<SharedFunctionInfo>>* functions) const {
-  DCHECK(functions->length() == 0);
-  List<SharedFunctionInfo*> raw_functions;
+    std::vector<Handle<SharedFunctionInfo>>* functions) const {
+  DCHECK(functions->empty());
+  std::vector<SharedFunctionInfo*> raw_functions;
   GetFunctions(&raw_functions);
   for (const auto& raw_function : raw_functions) {
-    functions->Add(Handle<SharedFunctionInfo>(raw_function));
+    functions->push_back(Handle<SharedFunctionInfo>(raw_function));
   }
 }
 
@@ -1493,8 +1494,9 @@ Object* OptimizedFrame::receiver() const {
   }
 }
 
-void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
-  DCHECK(functions->length() == 0);
+void OptimizedFrame::GetFunctions(
+    std::vector<SharedFunctionInfo*>* functions) const {
+  DCHECK(functions->empty());
   DCHECK(is_optimized());
 
   // Delegate to JS frame in absence of turbofan deoptimization.
@@ -1530,7 +1532,7 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
 
       // The second operand of the frame points to the function.
       Object* shared = literal_array->get(it.Next());
-      functions->Add(SharedFunctionInfo::cast(shared));
+      functions->push_back(SharedFunctionInfo::cast(shared));
 
       // Skip over remaining operands to advance to the next opcode.
       it.Skip(Translation::NumberOfOperandsFor(opcode) - 2);

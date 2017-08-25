@@ -737,9 +737,9 @@ class JavaScriptFrame : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Return a list with {SharedFunctionInfo} objects of this frame.
-  virtual void GetFunctions(List<SharedFunctionInfo*>* functions) const;
+  virtual void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const;
 
-  void GetFunctions(List<Handle<SharedFunctionInfo>>* functions) const;
+  void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -827,7 +827,7 @@ class OptimizedFrame : public JavaScriptFrame {
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  void GetFunctions(List<SharedFunctionInfo*>* functions) const override;
+  void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const override;
 
   void Summarize(
       List<FrameSummary>* frames,

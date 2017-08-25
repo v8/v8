@@ -964,7 +964,7 @@ class Isolate {
     total_regexp_code_generated_ += size;
   }
 
-  List<int>* regexp_indices() { return &regexp_indices_; }
+  std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
@@ -1482,7 +1482,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
-  List<int> regexp_indices_;
+  std::vector<int> regexp_indices_;
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   AccessCompilerData* access_compiler_data_;

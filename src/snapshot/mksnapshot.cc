@@ -10,7 +10,6 @@
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
-#include "src/list.h"
 #include "src/msan.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-serializer.h"

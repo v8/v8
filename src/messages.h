@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "src/handles.h"
-#include "src/list.h"
 
 namespace v8 {
 namespace internal {

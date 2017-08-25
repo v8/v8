@@ -791,9 +791,9 @@ void Debug::PrepareStepOnThrow() {
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
-    List<SharedFunctionInfo*> infos;
+    std::vector<SharedFunctionInfo*> infos;
     frame->GetFunctions(&infos);
-    current_frame_count -= infos.length();
+    current_frame_count -= infos.size();
     it.Advance();
   }
 
@@ -942,10 +942,11 @@ void Debug::PrepareStep(StepAction step_action) {
           Deoptimizer::DeoptimizeFunction(frame->function());
         }
         HandleScope scope(isolate_);
-        List<Handle<SharedFunctionInfo>> infos;
+        std::vector<Handle<SharedFunctionInfo>> infos;
         frame->GetFunctions(&infos);
-        for (; !infos.is_empty(); current_frame_count--) {
-          Handle<SharedFunctionInfo> info = infos.RemoveLast();
+        for (; !infos.empty(); current_frame_count--) {
+          Handle<SharedFunctionInfo> info = infos.back();
+          infos.pop_back();
           if (in_current_frame) {
             // We want to skip out, so skip the current frame.
             in_current_frame = false;
@@ -1075,8 +1076,6 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
                                       GarbageCollectionReason::kDebugger);
 
   DCHECK(shared->is_compiled());
-
-  List<Handle<JSFunction>> functions;
   {
     // TODO(yangguo): with bytecode, we still walk the heap to find all
     // optimized code for the function to deoptimize. We can probably be
@@ -1096,11 +1095,6 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         }
       }
     }
-  }
-
-  for (Handle<JSFunction> const function : functions) {
-    function->ReplaceCode(shared->code());
-    JSFunction::EnsureLiterals(function);
   }
 
   // Update PCs on the stack to point to recompiled code.
@@ -1154,7 +1148,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
 
   while (true) {
     HandleScope scope(isolate_);
-    List<Handle<SharedFunctionInfo>> candidates;
+    std::vector<Handle<SharedFunctionInfo>> candidates;
     SharedFunctionInfo::ScriptIterator iterator(script);
     for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
          info = iterator.Next()) {
@@ -1164,27 +1158,27 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       }
       if (!info->IsSubjectToDebugging()) continue;
       if (!info->is_compiled() && !info->allows_lazy_compilation()) continue;
-      candidates.Add(i::handle(info));
+      candidates.push_back(i::handle(info));
     }
 
     bool was_compiled = false;
-    for (int i = 0; i < candidates.length(); ++i) {
+    for (const auto& candidate : candidates) {
       // Code that cannot be compiled lazily are internal and not debuggable.
-      DCHECK(candidates[i]->allows_lazy_compilation());
-      if (!candidates[i]->is_compiled()) {
-        if (!Compiler::Compile(candidates[i], Compiler::CLEAR_EXCEPTION)) {
+      DCHECK(candidate->allows_lazy_compilation());
+      if (!candidate->is_compiled()) {
+        if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION)) {
           return false;
         } else {
           was_compiled = true;
         }
       }
-      if (!EnsureBreakInfo(candidates[i])) return false;
+      if (!EnsureBreakInfo(candidate)) return false;
     }
     if (was_compiled) continue;
 
-    for (int i = 0; i < candidates.length(); ++i) {
-      CHECK(candidates[i]->HasBreakInfo());
-      Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
+    for (const auto& candidate : candidates) {
+      CHECK(candidate->HasBreakInfo());
+      Handle<DebugInfo> debug_info(candidate->GetDebugInfo());
       FindBreakablePositions(debug_info, start_position, end_position,
                              locations);
     }
@@ -1596,7 +1590,7 @@ bool Debug::IsExceptionBlackboxed(bool uncaught) {
 
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
-  List<Handle<SharedFunctionInfo>> infos;
+  std::vector<Handle<SharedFunctionInfo>> infos;
   frame->GetFunctions(&infos);
   for (const auto& info : infos) {
     if (!IsBlackboxed(info)) return false;
@@ -1925,9 +1919,9 @@ int Debug::CurrentFrameCount() {
   int counter = 0;
   while (!it.done()) {
     if (it.frame()->is_optimized()) {
-      List<SharedFunctionInfo*> infos;
+      std::vector<SharedFunctionInfo*> infos;
       OptimizedFrame::cast(it.frame())->GetFunctions(&infos);
-      counter += infos.length();
+      counter += infos.size();
     } else {
       counter++;
     }

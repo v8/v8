@@ -5,8 +5,6 @@
 #include "src/snapshot/natives.h"
 
 #include "src/base/logging.h"
-#include "src/list.h"
-#include "src/list-inl.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/vector.h"
 
