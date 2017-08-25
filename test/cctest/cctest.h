@@ -677,6 +677,10 @@ class TestPlatform : public v8::Platform {
     return old_platform_->MonotonicallyIncreasingTime();
   }
 
+  double CurrentClockTimeMillis() override {
+    return old_platform_->CurrentClockTimeMillis();
+  }
+
   void CallIdleOnForegroundThread(v8::Isolate* isolate,
                                   v8::IdleTask* task) override {
     old_platform_->CallIdleOnForegroundThread(isolate, task);

@@ -18737,9 +18737,7 @@ double JSDate::CurrentTimeValue(Isolate* isolate) {
   // the number in a Date object representing a particular instant in
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
-  return Floor(FLAG_verify_predictable
-                   ? isolate->heap()->MonotonicallyIncreasingTimeInMs()
-                   : base::OS::TimeCurrentMillis());
+  return Floor(V8::GetCurrentPlatform()->CurrentClockTimeMillis());
 }
 
 

@@ -1358,7 +1358,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
   if (base::OS::GetUserTime(&sec, &usec) != -1) {
     msg.Append("%d,%d,", sec, usec);
   }
-  msg.Append("%.0f", base::OS::TimeCurrentMillis());
+  msg.Append("%.0f", V8::GetCurrentPlatform()->CurrentClockTimeMillis());
   msg.WriteToLogFile();
 }
 
@@ -1389,7 +1389,7 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
   // Using non-relative system time in order to be able to synchronize with
   // external memory profiling events (e.g. DOM memory size).
   msg.Append("heap-sample-begin,\"%s\",\"%s\",%.0f", space, kind,
-             base::OS::TimeCurrentMillis());
+             V8::GetCurrentPlatform()->CurrentClockTimeMillis());
   msg.WriteToLogFile();
 }
 
@@ -1818,7 +1818,8 @@ static void PrepareLogFileName(std::ostream& os,  // NOLINT
           break;
         case 't':
           // %t expands to the current time in milliseconds.
-          os << static_cast<int64_t>(base::OS::TimeCurrentMillis());
+          os << static_cast<int64_t>(
+              V8::GetCurrentPlatform()->CurrentClockTimeMillis());
           break;
         case '%':
           // %% expands (contracts really) to %.

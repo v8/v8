@@ -398,7 +398,8 @@ void PerfJitLogger::LogWriteHeader() {
   header.reserved_ = 0xdeadbeef;
   header.process_id_ = base::OS::GetCurrentProcessId();
   header.time_stamp_ =
-      static_cast<uint64_t>(base::OS::TimeCurrentMillis() * 1000.0);
+      static_cast<uint64_t>(V8::GetCurrentPlatform()->CurrentClockTimeMillis() *
+                            base::Time::kMicrosecondsPerMillisecond);
   header.flags_ = 0;
 
   LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));

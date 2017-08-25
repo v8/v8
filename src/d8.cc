@@ -228,6 +228,10 @@ class PredictablePlatform : public Platform {
     return synthetic_time_in_sec_ += 0.00001;
   }
 
+  double CurrentClockTimeMillis() override {
+    return MonotonicallyIncreasingTime() * base::Time::kMillisecondsPerSecond;
+  }
+
   v8::TracingController* GetTracingController() override {
     return platform_->GetTracingController();
   }

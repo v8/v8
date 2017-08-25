@@ -355,8 +355,9 @@ void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
     PrintStringProperty("name", name.get());
     PrintStringProperty("method", "stub");
   }
-  PrintLongProperty("date",
-                    static_cast<int64_t>(base::OS::TimeCurrentMillis()));
+  PrintLongProperty(
+      "date",
+      static_cast<int64_t>(V8::GetCurrentPlatform()->CurrentClockTimeMillis()));
 }
 
 

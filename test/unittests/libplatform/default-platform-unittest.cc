@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/libplatform/default-platform.h"
+#include "src/base/platform/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using testing::InSequence;
@@ -30,6 +31,9 @@ class DefaultPlatformWithMockTime : public DefaultPlatform {
   DefaultPlatformWithMockTime()
       : DefaultPlatform(IdleTaskSupport::kEnabled), time_(0) {}
   double MonotonicallyIncreasingTime() override { return time_; }
+  double CurrentClockTimeMillis() override {
+    return time_ * base::Time::kMillisecondsPerSecond;
+  }
   void IncreaseTime(double seconds) { time_ += seconds; }
 
  private:
