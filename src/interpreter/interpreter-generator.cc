@@ -1723,10 +1723,8 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     // Collect the {function} feedback.
     CollectCallFeedback(function, context, feedback_vector, slot_id);
 
-    Node* result =
-        CallJS(function, context, first_arg, args_count, receiver_mode);
-    SetAccumulator(result);
-    Dispatch();
+    // Call the function and dispatch to the next handler.
+    CallJSAndDispatch(function, context, first_arg, args_count, receiver_mode);
   }
 
   // Generates code to perform a JS call with a known number of arguments that
@@ -1736,14 +1734,9 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     const int kFirstArgumentOperandIndex = 1;
     const int kReceiverOperandCount =
         (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
+    const int kRecieverAndArgOperandCount = kReceiverOperandCount + arg_count;
     const int kSlotOperandIndex =
-        kFirstArgumentOperandIndex + kReceiverOperandCount + arg_count;
-    // Indices and counts of parameters to the call stub.
-    const int kBoilerplateParameterCount = 5;
-    const int kReceiverParameterIndex = 3;
-    const int kReceiverParameterCount = 1;
-    // Only used in a DCHECK.
-    USE(kReceiverParameterCount);
+        kFirstArgumentOperandIndex + kRecieverAndArgOperandCount;
 
     Node* function_reg = BytecodeOperandReg(0);
     Node* function = LoadRegister(function_reg);
@@ -1754,35 +1747,32 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     // Collect the {function} feedback.
     CollectCallFeedback(function, context, feedback_vector, slot_id);
 
-    std::array<Node*, Bytecodes::kMaxOperands + kBoilerplateParameterCount>
-        temp;
-    Callable callable = CodeFactory::Call(isolate());
-    temp[0] = HeapConstant(callable.code());
-    temp[1] = function;
-    temp[2] = Int32Constant(arg_count);
-
-    int parameter_index = kReceiverParameterIndex;
-    if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-      // The first argument parameter (the receiver) is implied to be undefined.
-      Node* undefined_value =
-          HeapConstant(isolate()->factory()->undefined_value());
-      temp[parameter_index++] = undefined_value;
+    switch (kRecieverAndArgOperandCount) {
+      case 0:
+        CallJSAndDispatch(function, context, Int32Constant(arg_count),
+                          receiver_mode);
+        break;
+      case 1:
+        CallJSAndDispatch(
+            function, context, Int32Constant(arg_count), receiver_mode,
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex)));
+        break;
+      case 2:
+        CallJSAndDispatch(
+            function, context, Int32Constant(arg_count), receiver_mode,
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex)),
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex + 1)));
+        break;
+      case 3:
+        CallJSAndDispatch(
+            function, context, Int32Constant(arg_count), receiver_mode,
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex)),
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex + 1)),
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex + 2)));
+        break;
+      default:
+        UNREACHABLE();
     }
-    // The bytecode argument operands are copied into the remaining argument
-    // parameters.
-    for (int i = 0; i < (kReceiverOperandCount + arg_count); ++i) {
-      Node* reg = BytecodeOperandReg(kFirstArgumentOperandIndex + i);
-      temp[parameter_index++] = LoadRegister(reg);
-    }
-
-    DCHECK_EQ(parameter_index,
-              kReceiverParameterIndex + kReceiverParameterCount + arg_count);
-    temp[parameter_index] = context;
-
-    Node* result = CallStubN(callable.descriptor(), 1,
-                             arg_count + kBoilerplateParameterCount, &temp[0]);
-    SetAccumulator(result);
-    Dispatch();
   }
 };
 
@@ -1902,10 +1892,8 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
   Node* function = LoadContextElement(native_context, context_index);
 
   // Call the function.
-  Node* result = CallJS(function, context, first_arg, args_count,
-                        ConvertReceiverMode::kAny);
-  SetAccumulator(result);
-  Dispatch();
+  CallJSAndDispatch(function, context, first_arg, args_count,
+                    ConvertReceiverMode::kAny);
 }
 
 // CallWithSpread <callable> <first_arg> <arg_count>
@@ -1927,10 +1915,8 @@ IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
   Node* context = GetContext();
 
   // Call into Runtime function CallWithSpread which does everything.
-  Node* result = CallJSWithSpread(callable, context, receiver_arg, args_count,
-                                  slot_id, feedback_vector);
-  SetAccumulator(result);
-  Dispatch();
+  CallJSWithSpreadAndDispatch(callable, context, receiver_arg, args_count,
+                              slot_id, feedback_vector);
 }
 
 // ConstructWithSpread <first_arg> <arg_count>
@@ -2976,8 +2962,10 @@ IGNITION_HANDLER(ReThrow, InterpreterAssembler) {
 // Return the value in the accumulator.
 IGNITION_HANDLER(Return, InterpreterAssembler) {
   UpdateInterruptBudgetOnReturn();
+  Callable exit_trampoline = CodeFactory::InterpreterExitTrampoline(isolate());
+  Node* context = GetContext();
   Node* accumulator = GetAccumulator();
-  Return(accumulator);
+  TailCallStub(exit_trampoline, context, accumulator);
 }
 
 // ThrowReferenceErrorIfHole <variable_name>

@@ -660,9 +660,9 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
   BIND(&done);
 }
 
-Node* InterpreterAssembler::CallJS(Node* function, Node* context,
-                                   Node* first_arg, Node* arg_count,
-                                   ConvertReceiverMode receiver_mode) {
+void InterpreterAssembler::CallJSAndDispatch(
+    Node* function, Node* context, Node* first_arg, Node* arg_count,
+    ConvertReceiverMode receiver_mode) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
          bytecode_ == Bytecode::kInvokeIntrinsic);
@@ -671,14 +671,55 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* context,
       isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
   Node* code_target = HeapConstant(callable.code());
 
-  return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  first_arg, function);
+  TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
+                                   arg_count, first_arg, function);
+  // TailCallStubThenDispatch updates accumulator with result.
+  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
 }
 
-Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
-                                             Node* first_arg, Node* arg_count,
-                                             Node* slot_id,
-                                             Node* feedback_vector) {
+template <class... TArgs>
+void InterpreterAssembler::CallJSAndDispatch(Node* function, Node* context,
+                                             Node* arg_count,
+                                             ConvertReceiverMode receiver_mode,
+                                             TArgs... args) {
+  DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
+  DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
+         bytecode_ == Bytecode::kInvokeIntrinsic);
+  DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
+  Callable callable = CodeFactory::Call(isolate());
+  Node* code_target = HeapConstant(callable.code());
+
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // The first argument parameter (the receiver) is implied to be undefined.
+    TailCallStubThenBytecodeDispatch(
+        callable.descriptor(), code_target, context, function, arg_count,
+        static_cast<Node*>(UndefinedConstant()), args...);
+  } else {
+    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
+                                     context, function, arg_count, args...);
+  }
+  // TailCallStubThenDispatch updates accumulator with result.
+  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+}
+
+// Instantiate CallJSAndDispatch() for argument counts used by interpreter
+// generator.
+template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
+    Node* function, Node* context, Node* arg_count,
+    ConvertReceiverMode receiver_mode);
+template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
+    Node* function, Node* context, Node* arg_count,
+    ConvertReceiverMode receiver_mode, Node*);
+template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
+    Node* function, Node* context, Node* arg_count,
+    ConvertReceiverMode receiver_mode, Node*, Node*);
+template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
+    Node* function, Node* context, Node* arg_count,
+    ConvertReceiverMode receiver_mode, Node*, Node*, Node*);
+
+void InterpreterAssembler::CallJSWithSpreadAndDispatch(
+    Node* function, Node* context, Node* first_arg, Node* arg_count,
+    Node* slot_id, Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
   CollectCallFeedback(function, context, feedback_vector, slot_id);
@@ -688,8 +729,10 @@ Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
       InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
 
-  return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  first_arg, function);
+  TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
+                                   arg_count, first_arg, function);
+  // TailCallStubThenDispatch updates accumulator with result.
+  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
 }
 
 Node* InterpreterAssembler::Construct(Node* target, Node* context,

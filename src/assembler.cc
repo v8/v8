@@ -55,6 +55,7 @@
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/ostreams.h"
@@ -821,6 +822,12 @@ ExternalReference ExternalReference::interpreter_dispatch_counters(
     Isolate* isolate) {
   return ExternalReference(
       isolate->interpreter()->bytecode_dispatch_counters_table());
+}
+
+ExternalReference ExternalReference::bytecode_size_table_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      interpreter::Bytecodes::bytecode_size_table_address());
 }
 
 ExternalReference::ExternalReference(StatsCounter* counter)

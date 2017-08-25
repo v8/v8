@@ -312,6 +312,12 @@ void ApiCallbackDescriptor::InitializePlatformSpecific(
                                    &default_descriptor);
 }
 
+void InterpreterExitTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {kInterpreterAccumulatorRegister};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void InterpreterDispatchDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {

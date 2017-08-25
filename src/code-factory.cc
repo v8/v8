@@ -362,6 +362,12 @@ Callable CodeFactory::ConstructFunctionForwardVarargs(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::InterpreterExitTrampoline(Isolate* isolate) {
+  return Callable(BUILTIN_CODE(isolate, InterpreterExitTrampoline),
+                  InterpreterExitTrampolineDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::InterpreterPushArgsThenCall(
     Isolate* isolate, ConvertReceiverMode receiver_mode,
     InterpreterPushArgsMode mode) {

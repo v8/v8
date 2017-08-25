@@ -775,6 +775,51 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ bind(&fallthrough);
 }
 
+// Advance the current bytecode offset. This simulates what all bytecode
+// handlers do upon completion of the underlying operation.
+static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
+                                  Register bytecode_offset, Register scratch1,
+                                  Register scratch2) {
+  Register bytecode_size_table = scratch1;
+  Register bytecode = scratch2;
+  DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
+                     bytecode));
+
+  __ Move(bytecode_size_table,
+          Immediate(
+              ExternalReference::bytecode_size_table_address(masm->isolate())));
+
+  // Load the current bytecode.
+  __ movzx_b(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
+
+  // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
+  Label load_size, extra_wide;
+  STATIC_ASSERT(0 == static_cast<int>(interpreter::Bytecode::kWide));
+  STATIC_ASSERT(1 == static_cast<int>(interpreter::Bytecode::kExtraWide));
+  __ cmpb(bytecode, Immediate(0x1));
+  __ j(above, &load_size, Label::kNear);
+  __ j(equal, &extra_wide, Label::kNear);
+
+  // Load the next bytecode and update table to the wide scaled table.
+  __ inc(bytecode_offset);
+  __ movzx_b(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
+  __ add(bytecode_size_table,
+         Immediate(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+  __ jmp(&load_size, Label::kNear);
+
+  __ bind(&extra_wide);
+  // Load the next bytecode and update table to the extra wide scaled table.
+  __ inc(bytecode_offset);
+  __ movzx_b(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
+  __ add(bytecode_size_table,
+         Immediate(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+  __ jmp(&load_size, Label::kNear);
+
+  // Load the size of the current bytecode.
+  __ bind(&load_size);
+  __ add(bytecode_offset, Operand(bytecode_size_table, bytecode, times_4, 0));
+}
+
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
 // stack left to right.  The actual argument count matches the formal parameter
@@ -884,15 +929,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(Operand(ebp, eax, times_pointer_size, 0), edx);
   __ bind(&no_incoming_new_target_or_generator_register);
 
-  // Load accumulator, bytecode offset and dispatch table into registers.
+  // Load accumulator and bytecode offset into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ mov(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
+
+  // Load the dispatch table into a register and dispatch to the bytecode
+  // handler at the current bytecode offset.
+  Label do_dispatch;
+  __ bind(&do_dispatch);
   __ mov(kInterpreterDispatchTableRegister,
          Immediate(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-
-  // Dispatch to the first bytecode handler for the function.
   __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
   __ mov(ebx, Operand(kInterpreterDispatchTableRegister, ebx,
@@ -900,9 +948,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ call(ebx);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
-  // The return value is in eax.
-  LeaveInterpreterFrame(masm, ebx, ecx);
-  __ ret(0);
+  // Any returns to the entry trampoline are due to the interpreter tail calling
+  // a builtin and then a dispatch, so advance the bytecode offset here and
+  // dispatch to the next handler.
+
+  // Get bytecode array and bytecode offset from the stack frame.
+  __ mov(kInterpreterBytecodeArrayRegister,
+         Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+
+  // Advance to the next bytecode and dispatch.
+  AdvanceBytecodeOffset(masm, kInterpreterBytecodeArrayRegister,
+                        kInterpreterBytecodeOffsetRegister, ebx, edx);
+  __ jmp(&do_dispatch);
 
   // Load debug copy of the bytecode array if it exists.
   // kInterpreterBytecodeArrayRegister is already loaded with
@@ -918,6 +978,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(ecx, DebugInfo::kDebugBytecodeArrayOffset));
   __ jmp(&bytecode_array_loaded);
+}
+
+void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
+  // The return value is in eax.
+  LeaveInterpreterFrame(masm, ebx, ecx);
+  __ ret(0);
 }
 
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
@@ -1232,22 +1298,21 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
-  // Advance the current bytecode offset stored within the given interpreter
-  // stack frame. This simulates what all bytecode handlers do upon completion
-  // of the underlying operation.
-  __ mov(ebx, Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ mov(edx, Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(kInterpreterAccumulatorRegister);
-    __ Push(ebx);  // First argument is the bytecode array.
-    __ Push(edx);  // Second argument is the bytecode offset.
-    __ CallRuntime(Runtime::kInterpreterAdvanceBytecodeOffset);
-    __ Move(edx, eax);  // Result is the new bytecode offset.
-    __ Pop(kInterpreterAccumulatorRegister);
-  }
-  __ mov(Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp), edx);
+  // Get bytecode array and bytecode offset from the stack frame.
+  __ mov(kInterpreterBytecodeArrayRegister,
+         Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+
+  // Advance to the next bytecode.
+  AdvanceBytecodeOffset(masm, kInterpreterBytecodeArrayRegister,
+                        kInterpreterBytecodeOffsetRegister, ebx, edx);
+
+  // Convert new bytecode offset to a Smi and save in the stackframe.
+  __ mov(ebx, kInterpreterBytecodeOffsetRegister);
+  __ SmiTag(ebx);
+  __ mov(Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp), ebx);
 
   Generate_InterpreterEnterBytecode(masm);
 }

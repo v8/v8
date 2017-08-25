@@ -441,6 +441,9 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // The maximum number of operands a bytecode may have.
   static const int kMaxOperands = 5;
 
+  // The total number of bytecodes used.
+  static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
+
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
 
@@ -728,7 +731,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
-    return kOperandSizes[static_cast<size_t>(bytecode)][scale_index];
+    return kOperandSizes[scale_index][static_cast<size_t>(bytecode)];
   }
 
   // Returns the offset of the i-th operand of |bytecode| relative to the start
@@ -743,7 +746,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
-    return kBytecodeSizes[static_cast<size_t>(bytecode)][scale_index];
+    return kBytecodeSizes[scale_index][static_cast<size_t>(bytecode)];
   }
 
   // Returns a debug break bytecode to replace |bytecode|.
@@ -831,7 +834,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
-    return kOperandKindSizes[static_cast<size_t>(operand_type)][scale_index];
+    return kOperandKindSizes[scale_index][static_cast<size_t>(operand_type)];
   }
 
   // Returns true if |operand_type| is a runtime-id operand (kRuntimeId).
@@ -879,6 +882,10 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     }
   }
 
+  static Address bytecode_size_table_address() {
+    return reinterpret_cast<Address>(const_cast<int*>(&kBytecodeSizes[0][0]));
+  }
+
  private:
   static const OperandType* const kOperandTypes[];
   static const OperandTypeInfo* const kOperandTypeInfos[];
@@ -886,9 +893,10 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   static const int kNumberOfRegisterOperands[];
   static const AccumulatorUse kAccumulatorUse[];
   static const bool kIsScalable[];
-  static const int kBytecodeSizes[][3];
-  static const OperandSize* const kOperandSizes[][3];
-  static OperandSize const kOperandKindSizes[][3];
+  static const int kBytecodeSizes[3][kBytecodeCount];
+  static const OperandSize* const kOperandSizes[3][kBytecodeCount];
+  static OperandSize const
+      kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount];
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

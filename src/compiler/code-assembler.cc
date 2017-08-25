@@ -725,6 +725,33 @@ REPEAT_1_TO_12(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 template <class... TArgs>
+Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
+    const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
+    TArgs... args) {
+  DCHECK_LE(descriptor.GetParameterCount(), sizeof...(args));
+  // Extra arguments not mentioned in the descriptor are passed on the stack.
+  int stack_parameter_count =
+      sizeof...(args) - descriptor.GetRegisterParameterCount();
+  DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, stack_parameter_count,
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), 0);
+
+  Node* nodes[] = {target, args..., context};
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
+}
+
+// Instantiate TailCallJSAndBytecodeDispatch() for argument counts used by
+// CSA-generated code
+#define INSTANTIATE(...)                           \
+  template V8_EXPORT_PRIVATE Node*                 \
+  CodeAssembler::TailCallStubThenBytecodeDispatch( \
+      const CallInterfaceDescriptor&, Node*, Node*, Node*, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, Node*)
+#undef INSTANTIATE
+
+template <class... TArgs>
 Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, TArgs... args) {
   DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));

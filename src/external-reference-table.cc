@@ -106,6 +106,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
+  Add(ExternalReference::bytecode_size_table_address(isolate).address(),
+      "Bytecodes::bytecode_size_table_address");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),

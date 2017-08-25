@@ -16,73 +16,74 @@ namespace internal {
 
 class PlatformInterfaceDescriptor;
 
-#define INTERFACE_DESCRIPTOR_LIST(V)       \
-  V(Void)                                  \
-  V(ContextOnly)                           \
-  V(Load)                                  \
-  V(LoadWithVector)                        \
-  V(LoadField)                             \
-  V(LoadICProtoArray)                      \
-  V(LoadGlobal)                            \
-  V(LoadGlobalWithVector)                  \
-  V(Store)                                 \
-  V(StoreWithVector)                       \
-  V(StoreNamedTransition)                  \
-  V(StoreTransition)                       \
-  V(FastNewClosure)                        \
-  V(FastNewFunctionContext)                \
-  V(FastNewObject)                         \
-  V(FastNewArguments)                      \
-  V(RecordWrite)                           \
-  V(TypeConversion)                        \
-  V(TypeConversionStackParameter)          \
-  V(Typeof)                                \
-  V(FastCloneRegExp)                       \
-  V(FastCloneShallowArray)                 \
-  V(FastCloneShallowObject)                \
-  V(CallFunction)                          \
-  V(CallVarargs)                           \
-  V(CallForwardVarargs)                    \
-  V(CallWithSpread)                        \
-  V(CallWithArrayLike)                     \
-  V(CallTrampoline)                        \
-  V(ConstructStub)                         \
-  V(ConstructVarargs)                      \
-  V(ConstructForwardVarargs)               \
-  V(ConstructWithSpread)                   \
-  V(ConstructWithArrayLike)                \
-  V(ConstructTrampoline)                   \
-  V(TransitionElementsKind)                \
-  V(AllocateHeapNumber)                    \
-  V(Builtin)                               \
-  V(ArrayConstructor)                      \
-  V(IteratingArrayBuiltin)                 \
-  V(ArrayNoArgumentConstructor)            \
-  V(ArraySingleArgumentConstructor)        \
-  V(ArrayNArgumentsConstructor)            \
-  V(Compare)                               \
-  V(BinaryOp)                              \
-  V(StringAdd)                             \
-  V(StringCharAt)                          \
-  V(StringCharCodeAt)                      \
-  V(StringCompare)                         \
-  V(SubString)                             \
-  V(ForInPrepare)                          \
-  V(GetProperty)                           \
-  V(ArgumentAdaptor)                       \
-  V(ApiCallback)                           \
-  V(ApiGetter)                             \
-  V(MathPowTagged)                         \
-  V(MathPowInteger)                        \
-  V(GrowArrayElements)                     \
-  V(NewArgumentsElements)                  \
-  V(InterpreterDispatch)                   \
-  V(InterpreterPushArgsThenCall)           \
-  V(InterpreterPushArgsThenConstruct)      \
-  V(InterpreterCEntry)                     \
-  V(ResumeGenerator)                       \
-  V(FrameDropperTrampoline)                \
-  V(WasmRuntimeCall)                       \
+#define INTERFACE_DESCRIPTOR_LIST(V)  \
+  V(Void)                             \
+  V(ContextOnly)                      \
+  V(Load)                             \
+  V(LoadWithVector)                   \
+  V(LoadField)                        \
+  V(LoadICProtoArray)                 \
+  V(LoadGlobal)                       \
+  V(LoadGlobalWithVector)             \
+  V(Store)                            \
+  V(StoreWithVector)                  \
+  V(StoreNamedTransition)             \
+  V(StoreTransition)                  \
+  V(FastNewClosure)                   \
+  V(FastNewFunctionContext)           \
+  V(FastNewObject)                    \
+  V(FastNewArguments)                 \
+  V(RecordWrite)                      \
+  V(TypeConversion)                   \
+  V(TypeConversionStackParameter)     \
+  V(Typeof)                           \
+  V(FastCloneRegExp)                  \
+  V(FastCloneShallowArray)            \
+  V(FastCloneShallowObject)           \
+  V(CallFunction)                     \
+  V(CallVarargs)                      \
+  V(CallForwardVarargs)               \
+  V(CallWithSpread)                   \
+  V(CallWithArrayLike)                \
+  V(CallTrampoline)                   \
+  V(ConstructStub)                    \
+  V(ConstructVarargs)                 \
+  V(ConstructForwardVarargs)          \
+  V(ConstructWithSpread)              \
+  V(ConstructWithArrayLike)           \
+  V(ConstructTrampoline)              \
+  V(TransitionElementsKind)           \
+  V(AllocateHeapNumber)               \
+  V(Builtin)                          \
+  V(ArrayConstructor)                 \
+  V(IteratingArrayBuiltin)            \
+  V(ArrayNoArgumentConstructor)       \
+  V(ArraySingleArgumentConstructor)   \
+  V(ArrayNArgumentsConstructor)       \
+  V(Compare)                          \
+  V(BinaryOp)                         \
+  V(StringAdd)                        \
+  V(StringCharAt)                     \
+  V(StringCharCodeAt)                 \
+  V(StringCompare)                    \
+  V(SubString)                        \
+  V(ForInPrepare)                     \
+  V(GetProperty)                      \
+  V(ArgumentAdaptor)                  \
+  V(ApiCallback)                      \
+  V(ApiGetter)                        \
+  V(MathPowTagged)                    \
+  V(MathPowInteger)                   \
+  V(GrowArrayElements)                \
+  V(NewArgumentsElements)             \
+  V(InterpreterExitTrampoline)        \
+  V(InterpreterDispatch)              \
+  V(InterpreterPushArgsThenCall)      \
+  V(InterpreterPushArgsThenConstruct) \
+  V(InterpreterCEntry)                \
+  V(ResumeGenerator)                  \
+  V(FrameDropperTrampoline)           \
+  V(WasmRuntimeCall)                  \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -837,6 +838,14 @@ class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kFrame, kLength)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(NewArgumentsElementsDescriptor,
                                                CallInterfaceDescriptor)
+};
+
+class V8_EXPORT_PRIVATE InterpreterExitTrampolineDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kAccumulator)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      InterpreterExitTrampolineDescriptor, CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor

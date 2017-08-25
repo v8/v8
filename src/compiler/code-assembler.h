@@ -730,6 +730,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                  Node* target, TArgs... args);
 
   template <class... TArgs>
+  Node* TailCallStubThenBytecodeDispatch(
+      const CallInterfaceDescriptor& descriptor, Node* context, Node* target,
+      TArgs... args);
+
+  template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));

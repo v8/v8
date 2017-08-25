@@ -88,13 +88,18 @@ Node* IntrinsicsGenerator::InvokeIntrinsic(Node* function_id, Node* context,
 #undef CASE
 
   __ Switch(function_id, &abort, cases, labels, arraysize(cases));
-#define HANDLE_CASE(name, lower_case, expected_arg_count)   \
-  __ BIND(&lower_case);                                     \
-  if (FLAG_debug_code && expected_arg_count >= 0) {         \
-    AbortIfArgCountMismatch(expected_arg_count, arg_count); \
-  }                                                         \
-  result.Bind(name(first_arg_reg, arg_count, context));     \
-  __ Goto(&end);
+#define HANDLE_CASE(name, lower_case, expected_arg_count)     \
+  __ BIND(&lower_case);                                       \
+  {                                                           \
+    if (FLAG_debug_code && expected_arg_count >= 0) {         \
+      AbortIfArgCountMismatch(expected_arg_count, arg_count); \
+    }                                                         \
+    Node* value = name(first_arg_reg, arg_count, context);    \
+    if (value) {                                              \
+      result.Bind(value);                                     \
+      __ Goto(&end);                                          \
+    }                                                         \
+  }
   INTRINSICS_LIST(HANDLE_CASE)
 #undef HANDLE_CASE
 
@@ -334,9 +339,9 @@ Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,
     __ BIND(&arg_count_positive);
   }
 
-  Node* result = __ CallJS(function, context, receiver_arg, target_args_count,
-                           ConvertReceiverMode::kAny);
-  return result;
+  __ CallJSAndDispatch(function, context, receiver_arg, target_args_count,
+                       ConvertReceiverMode::kAny);
+  return nullptr;  // We never return from the CallJSAndDispatch above.
 }
 
 Node* IntrinsicsGenerator::ClassOf(Node* args_reg, Node* arg_count,
