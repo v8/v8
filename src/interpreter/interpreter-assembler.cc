@@ -640,6 +640,10 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
                 &mark_megamorphic);
 
       CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id), target);
+      // Reset profiler ticks.
+      StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                     FeedbackVector::kProfilerTicksOffset,
+                                     SmiConstant(0));
       Goto(&done);
     }
 
@@ -653,6 +657,10 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
+      // Reset profiler ticks.
+      StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                     FeedbackVector::kProfilerTicksOffset,
+                                     SmiConstant(0));
       Goto(&done);
     }
   }
@@ -826,6 +834,10 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       {
         var_site.Bind(CreateAllocationSiteInFeedbackVector(feedback_vector,
                                                            SmiTag(slot_id)));
+        // Reset profiler ticks.
+        StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                       FeedbackVector::kProfilerTicksOffset,
+                                       SmiConstant(0));
         Goto(&construct_array);
       }
 
@@ -833,6 +845,10 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       {
         CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
                                        new_target);
+        // Reset profiler ticks.
+        StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                       FeedbackVector::kProfilerTicksOffset,
+                                       SmiConstant(0));
         Goto(&construct);
       }
     }
@@ -847,6 +863,10 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
+      // Reset profiler ticks.
+      StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                     FeedbackVector::kProfilerTicksOffset,
+                                     SmiConstant(0));
       Goto(&construct);
     }
   }
@@ -948,6 +968,10 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
 
       CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
                                      new_target);
+      // Reset profiler ticks.
+      StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                     FeedbackVector::kProfilerTicksOffset,
+                                     SmiConstant(0));
       Goto(&construct);
     }
 
@@ -961,6 +985,10 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
+      // Reset profiler ticks.
+      StoreObjectFieldNoWriteBarrier(feedback_vector,
+                                     FeedbackVector::kProfilerTicksOffset,
+                                     SmiConstant(0));
       Goto(&construct);
     }
   }
