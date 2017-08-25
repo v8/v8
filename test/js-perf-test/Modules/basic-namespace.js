@@ -20,10 +20,14 @@ for (let i = 0; i < iterations; ++i) {
   accumulator += m.a12;
   accumulator += m.a13;
   accumulator += m.a14;
+  accumulator += m.a15;
   accumulator += m.a16;
   accumulator += m.a17;
   accumulator += m.a18;
   accumulator += m.a19;
   m.set(accumulator);
 }
+
+if (m.value !== 190 * iterations) throw new Error;
+
 m.set(0);
