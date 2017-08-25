@@ -272,20 +272,13 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       int loop_header = iterator.GetJumpTargetOffset();
       PushLoop(loop_header, loop_end);
 
-      // Normally prefixed bytecodes are treated as if the prefix's offset was
-      // the actual bytecode's offset. However, the OSR id is the offset of the
-      // actual JumpLoop bytecode, so we need to find the location of that
-      // bytecode ignoring the prefix.
-      int jump_loop_offset = current_offset + iterator.current_prefix_offset();
-      bool is_osr_loop = (jump_loop_offset == osr_loop_end_offset);
-
-      // Check that is_osr_loop is set iff the osr_loop_end_offset is within
-      // this bytecode.
-      DCHECK(!is_osr_loop ||
-             iterator.OffsetWithinBytecode(osr_loop_end_offset));
-
-      if (is_osr_loop) {
+      if (current_offset == osr_loop_end_offset) {
         osr_entry_point_ = loop_header;
+      } else if (current_offset < osr_loop_end_offset) {
+        // Check we've found the osr_entry_point if we've gone past the
+        // osr_loop_end_offset. Note, we are iterating the bytecode in reverse,
+        // so the less than in the check is correct.
+        DCHECK_NE(-1, osr_entry_point_);
       }
 
       // Save the index so that we can do another pass later.

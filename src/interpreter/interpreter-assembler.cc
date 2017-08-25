@@ -59,7 +59,7 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
   // Save the bytecode offset immediately if bytecode will make a call along the
   // critical path.
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode)) {
-    StoreAndTagRegister(BytecodeOffset(), Register::bytecode_offset());
+    SaveBytecodeOffset();
   }
 }
 
@@ -86,9 +86,29 @@ Node* InterpreterAssembler::BytecodeOffset() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (bytecode_offset_.value() ==
        Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))) {
-    bytecode_offset_.Bind(LoadAndUntagRegister(Register::bytecode_offset()));
+    bytecode_offset_.Bind(ReloadBytecodeOffset());
   }
   return bytecode_offset_.value();
+}
+
+Node* InterpreterAssembler::ReloadBytecodeOffset() {
+  Node* offset = LoadAndUntagRegister(Register::bytecode_offset());
+  if (operand_scale() != OperandScale::kSingle) {
+    // Add one to the offset such that it points to the actual bytecode rather
+    // than the Wide / ExtraWide prefix bytecode.
+    offset = IntPtrAdd(offset, IntPtrConstant(1));
+  }
+  return offset;
+}
+
+void InterpreterAssembler::SaveBytecodeOffset() {
+  Node* offset = BytecodeOffset();
+  if (operand_scale() != OperandScale::kSingle) {
+    // Subtract one from the offset such that it points to the Wide / ExtraWide
+    // prefix bytecode.
+    offset = IntPtrSub(BytecodeOffset(), IntPtrConstant(1));
+  }
+  StoreAndTagRegister(offset, Register::bytecode_offset());
 }
 
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
@@ -529,7 +549,7 @@ void InterpreterAssembler::CallPrologue() {
     // there are multiple calls in the bytecode handler, you need to spill
     // before each of them, unless SaveBytecodeOffset has explicitly been called
     // in a path that dominates _all_ of those calls (which we don't track).
-    StoreAndTagRegister(BytecodeOffset(), Register::bytecode_offset());
+    SaveBytecodeOffset();
   }
 
   if (FLAG_debug_code && !disable_stack_check_across_call_) {
