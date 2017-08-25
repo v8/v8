@@ -971,20 +971,9 @@ class RuntimeCallTimerScope {
                                RuntimeCallStats::CounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallStats::CounterId counter_id);
-
-  inline ~RuntimeCallTimerScope() {
-    if (V8_UNLIKELY(stats_ != nullptr)) {
-      RuntimeCallStats::Leave(stats_, &timer_);
-    }
-  }
+  inline ~RuntimeCallTimerScope();
 
  private:
-  V8_INLINE void Initialize(RuntimeCallStats* stats,
-                            RuntimeCallStats::CounterId counter_id) {
-    stats_ = stats;
-    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
-  }
-
   RuntimeCallStats* stats_ = nullptr;
   RuntimeCallTimer timer_;
 };

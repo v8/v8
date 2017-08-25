@@ -65,20 +65,25 @@ base::TimeTicks RuntimeCallTimer::Now() {
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
     Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    Initialize(isolate->counters()->runtime_call_stats(), counter_id);
-  }
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  stats_ = isolate->counters()->runtime_call_stats();
+  RuntimeCallStats::Enter(stats_, &timer_, counter_id);
 }
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
-    HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
-  RuntimeCallTimerScope(heap_object->GetIsolate(), counter_id);
-}
+    HeapObject* heap_object, RuntimeCallStats::CounterId counter_id)
+    : RuntimeCallTimerScope(heap_object->GetIsolate(), counter_id) {}
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
     RuntimeCallStats* stats, RuntimeCallStats::CounterId counter_id) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    Initialize(stats, counter_id);
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  stats_ = stats;
+  RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+}
+
+RuntimeCallTimerScope::~RuntimeCallTimerScope() {
+  if (V8_UNLIKELY(stats_ != nullptr)) {
+    RuntimeCallStats::Leave(stats_, &timer_);
   }
 }
 

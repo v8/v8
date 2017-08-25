@@ -36,31 +36,32 @@ class InterpreterCompilationJob final : public CompilationJob {
   class TimerScope final {
    public:
     TimerScope(RuntimeCallStats* stats, RuntimeCallStats::CounterId counter_id)
-        : stats_(stats) {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
+        : stats_(stats), runtime_stats_enabled_(FLAG_runtime_stats) {
+      if (V8_UNLIKELY(runtime_stats_enabled_)) {
         RuntimeCallStats::Enter(stats_, &timer_, counter_id);
       }
     }
 
-    explicit TimerScope(RuntimeCallCounter* counter) : stats_(nullptr) {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
+    explicit TimerScope(RuntimeCallCounter* counter)
+        : stats_(nullptr), runtime_stats_enabled_(FLAG_runtime_stats) {
+      if (V8_UNLIKELY(runtime_stats_enabled_)) {
         timer_.Start(counter, nullptr);
       }
     }
 
     ~TimerScope() {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
-        if (stats_) {
-          RuntimeCallStats::Leave(stats_, &timer_);
-        } else {
-          timer_.Stop();
-        }
+      if (V8_LIKELY(!runtime_stats_enabled_)) return;
+      if (stats_) {
+        RuntimeCallStats::Leave(stats_, &timer_);
+      } else {
+        timer_.Stop();
       }
     }
 
    private:
     RuntimeCallStats* stats_;
     RuntimeCallTimer timer_;
+    bool runtime_stats_enabled_;
   };
 
   BytecodeGenerator* generator() { return &generator_; }
