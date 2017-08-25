@@ -544,6 +544,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
             FeedbackVector* vector = FeedbackVector::cast(current_obj);
             SharedFunctionInfo* shared = vector->shared_function_info();
             if (!shared->IsSubjectToDebugging()) continue;
+            vector->clear_invocation_count();
             vectors.emplace_back(vector, isolate);
           }
         }
