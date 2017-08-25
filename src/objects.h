@@ -6742,13 +6742,12 @@ class AccessorInfo: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };
 
-
 // Support for JavaScript accessors: A pair of a getter and a setter. Each
 // accessor can either be
-//   * a pointer to a JavaScript function or proxy: a real accessor
+//   * a JavaScript function or proxy: a real accessor
+//   * a FunctionTemplateInfo: a real (lazy) accessor
 //   * undefined: considered an accessor by the spec, too, strangely enough
-//   * the hole: an accessor which has not been set
-//   * a pointer to a map: a transition used to ensure map sharing
+//   * null: an accessor which has not been set
 class AccessorPair: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
@@ -6761,7 +6760,7 @@ class AccessorPair: public Struct {
   inline Object* get(AccessorComponent component);
   inline void set(AccessorComponent component, Object* value);
 
-  // Note: Returns undefined instead in case of a hole.
+  // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Handle<AccessorPair> accessor_pair,
                                      AccessorComponent component);
 
