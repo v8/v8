@@ -849,7 +849,7 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
-    Handle<FixedArray> code_table,
+    Handle<FixedArray> code_table, Handle<FixedArray> export_wrappers,
     const std::vector<wasm::GlobalHandleAddress>& function_tables,
     const std::vector<wasm::GlobalHandleAddress>& signature_tables) {
   DCHECK_EQ(function_tables.size(), signature_tables.size());
@@ -862,6 +862,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_shared(shared);
   compiled_module->set_native_context(isolate->native_context());
   compiled_module->set_code_table(code_table);
+  compiled_module->set_export_wrappers(export_wrappers);
   // TODO(mtrofin): we copy these because the order of finalization isn't
   // reliable, and we need these at Reset (which is called at
   // finalization). If the order were reliable, and top-down, we could instead

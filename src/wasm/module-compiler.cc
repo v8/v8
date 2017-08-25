@@ -557,9 +557,11 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
 
 Handle<WasmCompiledModule> NewCompiledModule(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
-    Handle<FixedArray> code_table, compiler::ModuleEnv* env) {
-  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate, shared, code_table, env->function_tables, env->signature_tables);
+    Handle<FixedArray> code_table, Handle<FixedArray> export_wrappers,
+    compiler::ModuleEnv* env) {
+  Handle<WasmCompiledModule> compiled_module =
+      WasmCompiledModule::New(isolate, shared, code_table, export_wrappers,
+                              env->function_tables, env->signature_tables);
   return compiled_module;
 }
 
@@ -594,13 +596,19 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
 
   // The {code_table} array contains import wrappers and functions (which
   // are both included in {functions.size()}, and export wrappers).
-  int code_table_size = static_cast<int>(module_->functions.size() +
-                                         module_->num_exported_functions);
+  int code_table_size = static_cast<int>(module_->functions.size());
+  int export_wrappers_size = static_cast<int>(module_->num_exported_functions);
   Handle<FixedArray> code_table =
       factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
+  Handle<FixedArray> export_wrappers =
+      factory->NewFixedArray(static_cast<int>(export_wrappers_size), TENURED);
   // Initialize the code table.
   for (int i = 0, e = code_table->length(); i < e; ++i) {
     code_table->set(i, *init_builtin);
+  }
+
+  for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
+    export_wrappers->set(i, *init_builtin);
   }
 
   if (!lazy_compile) {
@@ -681,8 +689,8 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate_, shared, code_table, env.get());
+  Handle<WasmCompiledModule> compiled_module = NewCompiledModule(
+      isolate_, shared, code_table, export_wrappers, env.get());
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
@@ -693,17 +701,16 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
 
   // Compile JS->wasm wrappers for exported functions.
   JSToWasmWrapperCache js_to_wasm_cache;
-  int func_index = 0;
+  int wrapper_index = 0;
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Handle<Code> wasm_code = EnsureExportedLazyDeoptData(
         isolate_, Handle<WasmInstanceObject>::null(), code_table, exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
         isolate_, module, wasm_code, exp.index);
-    int export_index = static_cast<int>(module->functions.size() + func_index);
-    code_table->set(export_index, *wrapper_code);
+    export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters());
-    func_index++;
+    ++wrapper_index;
   }
 
   // Now we can relinquish control to the global handles, because the
@@ -779,6 +786,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Reuse the compiled module (if no owner), otherwise clone.
   //--------------------------------------------------------------------------
   Handle<FixedArray> code_table;
+  Handle<FixedArray> wrapper_table;
   // We keep around a copy of the old code table, because we'll be replacing
   // imports for the new instance, and then we need the old imports to be
   // able to relocate.
@@ -813,6 +821,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       old_code_table = original->code_table();
       compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
       code_table = compiled_module_->code_table();
+      wrapper_table = compiled_module_->export_wrappers();
       // Avoid creating too many handles in the outer scope.
       HandleScope scope(isolate_);
 
@@ -836,7 +845,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
               code_table->set(i, *code);
             }
             break;
-          case Code::JS_TO_WASM_FUNCTION:
           case Code::WASM_FUNCTION: {
             Handle<Code> code = factory->CopyCode(orig_code);
             code_table->set(i, *code);
@@ -846,12 +854,21 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             UNREACHABLE();
         }
       }
+      for (int i = 0; i < wrapper_table->length(); ++i) {
+        Handle<Code> orig_code(Code::cast(wrapper_table->get(i)), isolate_);
+        DCHECK_EQ(orig_code->kind(), Code::JS_TO_WASM_FUNCTION);
+        Handle<Code> code = factory->CopyCode(orig_code);
+        wrapper_table->set(i, *code);
+      }
+
       RecordStats(code_table, counters());
+      RecordStats(wrapper_table, counters());
     } else {
       // There was no owner, so we can reuse the original.
       compiled_module_ = original;
       old_code_table = factory->CopyFixedArray(compiled_module_->code_table());
       code_table = compiled_module_->code_table();
+      wrapper_table = compiled_module_->export_wrappers();
       TRACE("Reusing existing instance %d\n", compiled_module_->instance_id());
     }
     compiled_module_->set_native_context(isolate_->native_context());
@@ -1029,7 +1046,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the exports object for the new instance.
   //--------------------------------------------------------------------------
-  ProcessExports(code_table, instance, compiled_module_);
+  ProcessExports(instance, compiled_module_);
   if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
@@ -1567,8 +1584,9 @@ bool InstanceBuilder::NeedsWrappers() const {
 // Process the exports, creating wrappers for functions, tables, memories,
 // and globals.
 void InstanceBuilder::ProcessExports(
-    Handle<FixedArray> code_table, Handle<WasmInstanceObject> instance,
+    Handle<WasmInstanceObject> instance,
     Handle<WasmCompiledModule> compiled_module) {
+  Handle<FixedArray> wrapper_table = compiled_module->export_wrappers();
   if (NeedsWrappers()) {
     // Fill the table to cache the exported JSFunction wrappers.
     js_wrappers_.insert(js_wrappers_.begin(), module_->functions.size(),
@@ -1627,13 +1645,11 @@ void InstanceBuilder::ProcessExports(
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
         WasmFunction& function = module_->functions[exp.index];
-        int func_index =
-            static_cast<int>(module_->functions.size() + export_index);
         Handle<JSFunction> js_function = js_wrappers_[exp.index];
         if (js_function.is_null()) {
           // Wrap the exported code as a JSFunction.
           Handle<Code> export_code =
-              code_table->GetValueChecked<Code>(isolate_, func_index);
+              wrapper_table->GetValueChecked<Code>(isolate_, export_index);
           MaybeHandle<String> func_name;
           if (module_->is_asm_js()) {
             // For modules arising from asm.js, honor the names section.
@@ -2087,13 +2103,16 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
         isolate, module_.get(), illegal_builtin, &job_->globals_manager_);
 
     // The {code_table} array contains import wrappers and functions (which
-    // are both included in {functions.size()}, and export wrappers.
+    // are both included in {functions.size()}.
     // The results of compilation will be written into it.
     // Initialize {code_table_} with the illegal builtin. All call sites
     // will be patched at instantiation.
-    int code_table_size = static_cast<int>(module_->functions.size() +
-                                           module_->num_exported_functions);
+    int code_table_size = static_cast<int>(module_->functions.size());
+    int export_wrapper_size = static_cast<int>(module_->num_exported_functions);
     job_->code_table_ = factory->NewFixedArray(code_table_size, TENURED);
+    job_->export_wrappers_ =
+        factory->NewFixedArray(export_wrapper_size, TENURED);
+
     for (int i = 0, e = module_->num_imported_functions; i < e; ++i) {
       job_->code_table_->set(i, *illegal_builtin);
     }
@@ -2109,6 +2128,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
       centry_stub = Handle<Code>(*centry_stub, isolate);
       job_->code_table_ = Handle<FixedArray>(*job_->code_table_, isolate);
+      job_->export_wrappers_ =
+          Handle<FixedArray>(*job_->export_wrappers_, isolate);
       compiler::ModuleEnv* env = job_->module_env_.get();
       ReopenHandles(isolate, env->function_code);
       Handle<Code>* mut =
@@ -2300,8 +2321,9 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of
     // this object.
-    job_->compiled_module_ = NewCompiledModule(
-        job_->isolate_, shared, job_->code_table_, job_->module_env_.get());
+    job_->compiled_module_ =
+        NewCompiledModule(job_->isolate_, shared, job_->code_table_,
+                          job_->export_wrappers_, job_->module_env_.get());
     // Finish the wasm script now and make it public to the debugger.
     script->set_wasm_compiled_module(*job_->compiled_module_);
     job_->isolate_->debug()->OnAfterCompile(script);
@@ -2323,7 +2345,7 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
     // Compile JS->wasm wrappers for exported functions.
     HandleScope scope(job_->isolate_);
     JSToWasmWrapperCache js_to_wasm_cache;
-    int func_index = 0;
+    int wrapper_index = 0;
     WasmModule* module = job_->compiled_module_->module();
     for (auto exp : module->export_table) {
       if (exp.kind != kExternalFunction) continue;
@@ -2332,11 +2354,9 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
       Handle<Code> wrapper_code =
           js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(job_->isolate_, module,
                                                          wasm_code, exp.index);
-      int export_index =
-          static_cast<int>(module->functions.size() + func_index);
-      job_->code_table_->set(export_index, *wrapper_code);
+      job_->export_wrappers_->set(wrapper_index, *wrapper_code);
       RecordStats(*wrapper_code, job_->counters());
-      func_index++;
+      ++wrapper_index;
     }
 
     job_->DoSync<FinishModule>();

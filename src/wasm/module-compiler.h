@@ -297,8 +297,7 @@ class InstanceBuilder {
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
-  void ProcessExports(Handle<FixedArray> code_table,
-                      Handle<WasmInstanceObject> instance,
+  void ProcessExports(Handle<WasmInstanceObject> instance,
                       Handle<WasmCompiledModule> compiled_module);
 
   void InitializeTables(Handle<WasmInstanceObject> instance,
@@ -354,6 +353,7 @@ class AsyncCompileJob {
   Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
   Handle<FixedArray> code_table_;
+  Handle<FixedArray> export_wrappers_;
   size_t outstanding_units_ = 0;
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;

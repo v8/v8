@@ -131,9 +131,9 @@ bool CodeSpecialization::ApplyToWholeInstance(
   WasmModule* module = compiled_module->module();
   std::vector<WasmFunction>* wasm_functions =
       &compiled_module->module()->functions;
-  DCHECK_EQ(wasm_functions->size() +
-                compiled_module->module()->num_exported_functions,
-            code_table->length());
+  DCHECK_EQ(wasm_functions->size(), code_table->length());
+  DCHECK_EQ(compiled_module->export_wrappers()->length(),
+            compiled_module->module()->num_exported_functions);
 
   bool changed = false;
   int func_index = module->num_imported_functions;
@@ -151,10 +151,12 @@ bool CodeSpecialization::ApplyToWholeInstance(
     // If we patch direct calls, the instance registered for that
     // (relocate_direct_calls_instance) should match the instance we currently
     // patch (instance).
+    int wrapper_index = 0;
     DCHECK_EQ(instance, *relocate_direct_calls_instance);
     for (auto exp : module->export_table) {
       if (exp.kind != kExternalFunction) continue;
-      Code* export_wrapper = Code::cast(code_table->get(func_index));
+      Code* export_wrapper =
+          Code::cast(compiled_module->export_wrappers()->get(wrapper_index));
       DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
       // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
       for (RelocIterator it(export_wrapper,
@@ -170,9 +172,10 @@ bool CodeSpecialization::ApplyToWholeInstance(
         break;
       }
       changed = true;
-      func_index++;
+      ++wrapper_index;
     }
     DCHECK_EQ(code_table->length(), func_index);
+    DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
   }
   return changed;
 }

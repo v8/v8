@@ -393,10 +393,10 @@ class TestingModuleBuilder {
         WasmSharedModuleData::New(isolate_, module_wrapper, empty_string,
                                   script, Handle<ByteArray>::null());
     Handle<FixedArray> code_table = isolate_->factory()->NewFixedArray(0);
-
-    Handle<WasmCompiledModule> compiled_module =
-        WasmCompiledModule::New(isolate_, shared_module_data, code_table,
-                                function_tables_, signature_tables_);
+    Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
+    Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
+        isolate_, shared_module_data, code_table, export_wrappers,
+        function_tables_, signature_tables_);
     // This method is called when we initialize TestEnvironment. We don't
     // have a memory yet, so we won't create it here. We'll update the
     // interpreter when we get a memory. We do have globals, though.

@@ -413,6 +413,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, Context, native_context)                      \
   MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
   MACRO(CONST_OBJECT, FixedArray, code_table)                 \
+  MACRO(CONST_OBJECT, FixedArray, export_wrappers)            \
   MACRO(OBJECT, FixedArray, weak_exported_functions)          \
   MACRO(OBJECT, FixedArray, function_tables)                  \
   MACRO(OBJECT, FixedArray, signature_tables)                 \
@@ -450,7 +451,7 @@ class WasmCompiledModule : public FixedArray {
  public:
   static Handle<WasmCompiledModule> New(
       Isolate* isolate, Handle<WasmSharedModuleData> shared,
-      Handle<FixedArray> code_table,
+      Handle<FixedArray> code_table, Handle<FixedArray> export_wrappers,
       const std::vector<wasm::GlobalHandleAddress>& function_tables,
       const std::vector<wasm::GlobalHandleAddress>& signature_tables);
 
