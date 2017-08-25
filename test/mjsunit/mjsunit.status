@@ -435,7 +435,7 @@
 }],  # 'arch == mipsel or arch == mips or arch == mips64el or arch == mips64'
 
 ##############################################################################
-['arch == mipsel or arch == mips or arch == mips64el or arch == mips64', {
+['arch == mipsel or arch == mips or arch == mips64el or arch == mips64 or arch == ppc or arch == ppc64', {
   # These tests fail because qNaN and sNaN values are encoded differently on
   # MIPS and ARM/x86 architectures
   'wasm/float-constant-folding': [SKIP],
