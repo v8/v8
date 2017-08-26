@@ -256,6 +256,7 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
     InspectedContext* inspectedContext, int sessionId) {
   v8::Isolate* isolate = inspectedContext->isolate();
   v8::HandleScope handles(isolate);
+  v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
   v8::Context::Scope scope(context);
   v8::MicrotasksScope microtasksScope(isolate,
