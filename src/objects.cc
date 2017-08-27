@@ -15918,8 +15918,14 @@ class StringSharedKey : public HashTableKey {
   int position_;
 };
 
+v8::Promise::PromiseState JSPromise::status() const {
+  int value = flags() & kStatusMask;
+  DCHECK(value == 0 || value == 1 || value == 2);
+  return static_cast<v8::Promise::PromiseState>(value);
+}
+
 // static
-const char* JSPromise::Status(int status) {
+const char* JSPromise::Status(v8::Promise::PromiseState status) {
   switch (status) {
     case v8::Promise::kFulfilled:
       return "resolved";

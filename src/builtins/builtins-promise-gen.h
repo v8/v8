@@ -88,7 +88,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   // This allocates and initializes a promise with the given state and
   // fields.
-  Node* AllocateAndSetJSPromise(Node* context, Node* status, Node* result);
+  Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
+                                Node* result);
 
   Node* AllocatePromiseResolveThenableJobInfo(Node* result, Node* then,
                                               Node* resolve, Node* reject,
@@ -177,7 +178,12 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
                                  const NodeGenerator& handled_by);
 
+  Node* PromiseStatus(Node* promise);
+
  private:
+  Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
+  void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
+
   Node* AllocateJSPromise(Node* context);
 };
 

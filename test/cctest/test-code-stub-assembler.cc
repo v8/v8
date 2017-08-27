@@ -1972,7 +1972,7 @@ TEST(AllocateAndSetJSPromise) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const promise = m.AllocateAndSetJSPromise(
-      context, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+      context, v8::Promise::kRejected, m.SmiConstant(1));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -1980,7 +1980,7 @@ TEST(AllocateAndSetJSPromise) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result->IsJSPromise());
   Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
-  CHECK_EQ(v8::Promise::kPending, js_promise->status());
+  CHECK_EQ(v8::Promise::kRejected, js_promise->status());
   CHECK_EQ(Smi::FromInt(1), js_promise->result());
   CHECK(!js_promise->has_handler());
 }

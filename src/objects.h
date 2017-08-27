@@ -5357,7 +5357,6 @@ class JSPromiseCapability : public JSObject {
 
 class JSPromise : public JSObject {
  public:
-  DECL_INT_ACCESSORS(status)
   DECL_ACCESSORS(result, Object)
 
   // There are 3 possible states for these fields --
@@ -5388,7 +5387,8 @@ class JSPromise : public JSObject {
   // block in an async function.
   DECL_BOOLEAN_ACCESSORS(handled_hint)
 
-  static const char* Status(int status);
+  static const char* Status(v8::Promise::PromiseState status);
+  v8::Promise::PromiseState status() const;
 
   DECL_CAST(JSPromise)
 
@@ -5397,8 +5397,7 @@ class JSPromise : public JSObject {
   DECL_VERIFIER(JSPromise)
 
   // Layout description.
-  static const int kStatusOffset = JSObject::kHeaderSize;
-  static const int kResultOffset = kStatusOffset + kPointerSize;
+  static const int kResultOffset = JSObject::kHeaderSize;
   static const int kDeferredPromiseOffset = kResultOffset + kPointerSize;
   static const int kDeferredOnResolveOffset =
       kDeferredPromiseOffset + kPointerSize;
@@ -5414,8 +5413,16 @@ class JSPromise : public JSObject {
       kSize + v8::Promise::kEmbedderFieldCount * kPointerSize;
 
   // Flags layout.
-  static const int kHasHandlerBit = 0;
-  static const int kHandledHintBit = 1;
+  // The first two bits store the v8::Promise::PromiseState.
+  static const int kStatusBits = 2;
+  static const int kHasHandlerBit = 2;
+  static const int kHandledHintBit = 3;
+
+  static const int kStatusShift = 0;
+  static const int kStatusMask = 0x3;
+  STATIC_ASSERT(v8::Promise::kPending == 0);
+  STATIC_ASSERT(v8::Promise::kFulfilled == 1);
+  STATIC_ASSERT(v8::Promise::kRejected == 2);
 };
 
 // Regular expressions

@@ -229,9 +229,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 #if defined(DEBUG) && defined(ENABLE_SLOW_DCHECKS)
   Node* const awaited_promise = LoadGeneratorAwaitedPromise(generator);
   CSA_SLOW_ASSERT(this, HasInstanceType(awaited_promise, JS_PROMISE_TYPE));
-  CSA_SLOW_ASSERT(this, SmiNotEqual(LoadObjectField(awaited_promise,
-                                                    JSPromise::kStatusOffset),
-                                    SmiConstant(v8::Promise::kPending)));
+  CSA_SLOW_ASSERT(this, Word32NotEqual(PromiseStatus(awaited_promise),
+                                       Int32Constant(v8::Promise::kPending)));
 #endif
 
   ClearAwaitedPromise(generator);

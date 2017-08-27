@@ -5250,7 +5250,6 @@ ACCESSORS(JSPromiseCapability, promise, Object, kPromiseOffset)
 ACCESSORS(JSPromiseCapability, resolve, Object, kResolveOffset)
 ACCESSORS(JSPromiseCapability, reject, Object, kRejectOffset)
 
-SMI_ACCESSORS(JSPromise, status, kStatusOffset)
 ACCESSORS(JSPromise, result, Object, kResultOffset)
 ACCESSORS(JSPromise, deferred_promise, Object, kDeferredPromiseOffset)
 ACCESSORS(JSPromise, deferred_on_resolve, Object, kDeferredOnResolveOffset)
