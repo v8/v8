@@ -3142,6 +3142,8 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   Node* cache_type = LoadRegister(cache_type_reg);
   Node* cache_array_reg = NextRegister(cache_type_reg);
   Node* cache_array = LoadRegister(cache_array_reg);
+  Node* vector_index = BytecodeOperandIdx(3);
+  Node* feedback_vector = LoadFeedbackVector();
 
   // Load the next key from the enumeration array.
   Node* key = LoadFixedArrayElement(cache_array, index, 0,
@@ -3153,18 +3155,33 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   Branch(WordEqual(receiver_map, cache_type), &if_fast, &if_slow);
   BIND(&if_fast);
   {
+    // Check if we need to transition to megamorphic state.
+    Node* feedback_value =
+        LoadFeedbackVectorSlot(feedback_vector, vector_index);
+    Node* uninitialized_sentinel =
+        HeapConstant(FeedbackVector::UninitializedSentinel(isolate()));
+    Label if_done(this);
+    GotoIfNot(WordEqual(feedback_value, uninitialized_sentinel), &if_done);
+    {
+      // Transition to megamorphic state.
+      Node* megamorphic_sentinel =
+          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate()));
+      StoreFeedbackVectorSlot(feedback_vector, vector_index,
+                              megamorphic_sentinel, SKIP_WRITE_BARRIER);
+    }
+    Goto(&if_done);
+
     // Enum cache in use for {receiver}, the {key} is definitely valid.
+    BIND(&if_done);
     SetAccumulator(key);
     Dispatch();
   }
   BIND(&if_slow);
   {
     // Record the fact that we hit the for-in slow path.
-    Node* vector_index = BytecodeOperandIdx(3);
-    Node* feedback_vector = LoadFeedbackVector();
-    Node* megamorphic_sentinel =
-        HeapConstant(FeedbackVector::MegamorphicSentinel(isolate()));
-    StoreFeedbackVectorSlot(feedback_vector, vector_index, megamorphic_sentinel,
+    Node* generic_sentinel =
+        HeapConstant(FeedbackVector::GenericSentinel(isolate()));
+    StoreFeedbackVectorSlot(feedback_vector, vector_index, generic_sentinel,
                             SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.

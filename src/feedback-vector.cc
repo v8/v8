@@ -922,6 +922,16 @@ CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
   return CompareOperationHintFromFeedback(feedback);
 }
 
+InlineCacheState ForInICNexus::StateFromFeedback() const {
+  Object* feedback = GetFeedback();
+  if (feedback == *FeedbackVector::UninitializedSentinel(GetIsolate())) {
+    return UNINITIALIZED;
+  } else if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
+    return MEGAMORPHIC;
+  }
+  return GENERIC;
+}
+
 InlineCacheState StoreDataPropertyInLiteralICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();

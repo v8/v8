@@ -229,6 +229,9 @@ class FeedbackVector : public HeapObject {
   // The object that indicates an uninitialized cache.
   static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
 
+  // The object that indicates a generic state.
+  static inline Handle<Symbol> GenericSentinel(Isolate* isolate);
+
   // The object that indicates a megamorphic state.
   static inline Handle<Symbol> MegamorphicSentinel(Isolate* isolate);
 
@@ -539,6 +542,8 @@ class FeedbackNexus {
 
   InlineCacheState ic_state() const { return StateFromFeedback(); }
   bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
+  bool IsMegamorphic() const { return StateFromFeedback() == MEGAMORPHIC; }
+  bool IsGeneric() const { return StateFromFeedback() == GENERIC; }
   Map* FindFirstMap() const {
     MapHandles maps;
     ExtractMaps(&maps);
@@ -778,6 +783,25 @@ class CompareICNexus final : public FeedbackNexus {
     // CompareICs don't record map feedback.
     return 0;
   }
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
+    return MaybeHandle<Code>();
+  }
+  bool FindHandlers(List<Handle<Object>>* code_list,
+                    int length = -1) const final {
+    return length == 0;
+  }
+};
+
+class ForInICNexus final : public FeedbackNexus {
+ public:
+  ForInICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kGeneral, vector->GetKind(slot));
+  }
+
+  InlineCacheState StateFromFeedback() const final;
+
+  int ExtractMaps(MapHandles* maps) const final { return 0; }
   MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
     return MaybeHandle<Code>();
   }

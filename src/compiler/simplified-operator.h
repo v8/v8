@@ -395,6 +395,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckIf();
   const Operator* CheckBounds();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
+  const Operator* CheckMapValue();
 
   const Operator* CheckHeapObject();
   const Operator* CheckInternalizedString();

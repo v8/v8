@@ -1373,7 +1373,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           "__defineSetter__", Builtins::kObjectDefineSetter, 2,
                           true);
     SimpleInstallFunction(isolate->initial_object_prototype(), "hasOwnProperty",
-                          Builtins::kObjectHasOwnProperty, 1, true);
+                          Builtins::kObjectPrototypeHasOwnProperty, 1, true);
     SimpleInstallFunction(isolate->initial_object_prototype(),
                           "__lookupGetter__", Builtins::kObjectLookupGetter, 1,
                           true);

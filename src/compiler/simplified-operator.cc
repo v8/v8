@@ -691,6 +691,16 @@ struct SimplifiedOperatorGlobalCache final {
   CheckedTruncateTaggedToWord32Operator<CheckTaggedInputMode::kNumberOrOddball>
       kCheckedTruncateTaggedToWord32NumberOrOddballOperator;
 
+  struct CheckMapValueOperator final : public Operator {
+    CheckMapValueOperator()
+        : Operator(                                     // --
+              IrOpcode::kCheckMapValue,                 // opcode
+              Operator::kNoThrow | Operator::kNoWrite,  // flags
+              "CheckMapValue",                          // name
+              2, 1, 1, 0, 1, 0) {}                      // counts
+  };
+  CheckMapValueOperator kCheckMapValue;
+
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
       : public Operator1<CheckFloat64HoleMode> {
@@ -769,6 +779,7 @@ GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
 GET_FROM_CACHE(LookupHashStorageIndex)
 GET_FROM_CACHE(LoadHashMapValue)
+GET_FROM_CACHE(CheckMapValue)
 GET_FROM_CACHE(NewUnmappedArgumentsElements)
 #undef GET_FROM_CACHE
 

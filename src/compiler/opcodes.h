@@ -328,6 +328,7 @@
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \
+  V(CheckMapValue)                  \
   V(CheckNumber)                    \
   V(CheckInternalizedString)        \
   V(CheckReceiver)                  \

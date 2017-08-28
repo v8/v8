@@ -381,6 +381,95 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   return ReduceObjectGetPrototype(node, receiver);
 }
 
+// ES #sec-object.prototype.hasownproperty
+Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& params = CallParametersOf(node->op());
+  int const argc = static_cast<int>(params.arity() - 2);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* name = (argc >= 1) ? NodeProperties::GetValueInput(node, 2)
+                           : jsgraph()->UndefinedConstant();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // We can optimize a call to Object.prototype.hasOwnProperty if it's being
+  // used inside a fast-mode for..in, so for code like this:
+  //
+  //   for (name in receiver) {
+  //     if (receiver.hasOwnProperty(name)) {
+  //        ...
+  //     }
+  //   }
+  //
+  // If the for..in is in fast-mode, we know that the {receiver} has {name}
+  // as own property, otherwise the enumeration wouldn't include it. The graph
+  // constructed by the BytecodeGraphBuilder in this case looks like this:
+
+  // receiver
+  //  ^    ^
+  //  |    |
+  //  |    +-+
+  //  |      |
+  //  |   JSToObject
+  //  |    ^     ^
+  //  |    |     |
+  //  |    |     +--- JSForInPrepare
+  //  |    |                ^ ^
+  //  |    |                | |
+  //  |    |           +----+ +------+
+  //  |    |           |             |
+  //  |    |      Projection[0]  Projection[1]
+  //  |    |      (cache_type)   (cache_array)
+  //  |    |           ^             ^
+  //  |    |           |             |
+  //  |    |  +--------+             |
+  //  |    |  |                      |
+  //  |  CheckMapValue               |
+  //  |      ^                       |
+  //  |      :    +------------------+
+  //  |      :    |
+  //  |     LoadElement
+  //  |         ^
+  //  +----+    |
+  //       |    |
+  //  JSCall[hasOwnProperty]
+
+  // We can constant-fold the {node} to True in this case, and insert a
+  // (potentially redundant) CheckMapValue to guard the fact that the
+  // {receiver} map didn't change since the initial CheckMapValue, which
+  // was inserted by the BytecodeGraphBuilder for the ForInNext bytecode.
+  //
+  // Also note that it's safe to look through the {JSToObject}, since the
+  // Object.prototype.hasOwnProperty does an implicit ToObject anyway, and
+  // these operations are not observable.
+  if (name->opcode() == IrOpcode::kLoadElement) {
+    Node* cache_array = NodeProperties::GetValueInput(name, 0);
+    Node* check_map = NodeProperties::GetEffectInput(name);
+    if (cache_array->opcode() == IrOpcode::kProjection &&
+        ProjectionIndexOf(cache_array->op()) == 1 &&
+        check_map->opcode() == IrOpcode::kCheckMapValue) {
+      Node* prepare = NodeProperties::GetValueInput(cache_array, 0);
+      Node* object = NodeProperties::GetValueInput(check_map, 0);
+      Node* cache_type = NodeProperties::GetValueInput(check_map, 1);
+      if (cache_type->opcode() == IrOpcode::kProjection &&
+          prepare->opcode() == IrOpcode::kJSForInPrepare &&
+          ProjectionIndexOf(cache_type->op()) == 0 &&
+          NodeProperties::GetValueInput(cache_type, 0) == prepare &&
+          (object == receiver ||
+           (object->opcode() == IrOpcode::kJSToObject &&
+            receiver == NodeProperties::GetValueInput(object, 0)))) {
+        effect = graph()->NewNode(check_map->op(), object, cache_type, effect,
+                                  control);
+        Node* value = jsgraph()->TrueConstant();
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+    }
+  }
+
+  return NoChange();
+}
+
 // ES #sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -1241,6 +1330,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceObjectGetPrototypeOf(node);
         case Builtins::kObjectPrototypeGetProto:
           return ReduceObjectPrototypeGetProto(node);
+        case Builtins::kObjectPrototypeHasOwnProperty:
+          return ReduceObjectPrototypeHasOwnProperty(node);
         case Builtins::kObjectPrototypeIsPrototypeOf:
           return ReduceObjectPrototypeIsPrototypeOf(node);
         case Builtins::kReflectApply:

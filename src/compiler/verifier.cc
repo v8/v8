@@ -1187,11 +1187,12 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::InternalizedString());
       break;
     case IrOpcode::kCheckMaps:
-      // (Any, Internal, ..., Internal) -> Any
       CheckValueInputIs(node, 0, Type::Any());
-      for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
-        CheckValueInputIs(node, i, Type::Internal());
-      }
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kCheckMapValue:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
       CheckNotTyped(node);
       break;
     case IrOpcode::kCheckNumber:

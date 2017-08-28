@@ -1908,15 +1908,6 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // We know that the {index} is in Unsigned32 range here, otherwise executing
-  // the JSForInNext wouldn't be valid. Unfortunately due to OSR and generators
-  // this is not always reflected in the types, hence we might need to rename
-  // the {index} here.
-  if (!NodeProperties::GetType(index)->Is(Type::Unsigned32())) {
-    index = graph()->NewNode(common()->TypeGuard(Type::Unsigned32()), index,
-                             control);
-  }
-
   // Load the next {key} from the {cache_array}.
   Node* key = effect = graph()->NewNode(
       simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),

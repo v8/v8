@@ -35,7 +35,7 @@ void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
                   rhs));
 }
 
-TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
+TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);

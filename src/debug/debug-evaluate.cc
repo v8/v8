@@ -477,7 +477,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kObjectIsSealed:
     case Builtins::kObjectPrototypeValueOf:
     case Builtins::kObjectValues:
-    case Builtins::kObjectHasOwnProperty:
+    case Builtins::kObjectPrototypeHasOwnProperty:
     case Builtins::kObjectPrototypeIsPrototypeOf:
     case Builtins::kObjectPrototypePropertyIsEnumerable:
     case Builtins::kObjectPrototypeToString:

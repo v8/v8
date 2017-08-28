@@ -529,7 +529,6 @@ FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForMapBitField() {
   FieldAccess access = {
@@ -940,6 +939,13 @@ ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {
   return access;
 }
 
+// static
+ElementAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCacheElement() {
+  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize,
+                          Type::InternalizedString(),
+                          MachineType::TaggedPointer(), kPointerWriteBarrier};
+  return access;
+}
 
 // static
 ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,

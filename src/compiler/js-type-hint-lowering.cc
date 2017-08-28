@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-type-hint-lowering.h"
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -236,6 +237,29 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
     default:
       UNREACHABLE();
       break;
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceForInNextOperation(
+    Node* receiver, Node* cache_array, Node* cache_type, Node* index,
+    Node* effect, Node* control, FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
+  ForInICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForForIn)) {
+    return Reduction(node);
+  }
+  if (!nexus.IsGeneric()) {
+    effect =
+        jsgraph()->graph()->NewNode(jsgraph()->simplified()->CheckMapValue(),
+                                    receiver, cache_type, effect, control);
+    Node* node = jsgraph()->graph()->NewNode(
+        jsgraph()->simplified()->LoadElement(
+            AccessBuilder::ForDescriptorArrayEnumCacheBridgeCacheElement()),
+        cache_array, index, effect, control);
+    return Reduction(node);
   }
   return Reduction();
 }

@@ -318,6 +318,10 @@ Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->uninitialized_symbol();
 }
 
+Handle<Symbol> FeedbackVector::GenericSentinel(Isolate* isolate) {
+  return isolate->factory()->generic_symbol();
+}
+
 Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }

@@ -629,6 +629,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckMaps:
       result = LowerCheckMaps(node, frame_state);
       break;
+    case IrOpcode::kCheckMapValue:
+      LowerCheckMapValue(node, frame_state);
+      break;
     case IrOpcode::kCheckNumber:
       result = LowerCheckNumber(node, frame_state);
       break;
@@ -1282,6 +1285,19 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     __ Bind(&done);
   }
   return value;
+}
+
+void EffectControlLinearizer::LowerCheckMapValue(Node* node,
+                                                 Node* frame_state) {
+  Node* value = node->InputAt(0);
+  Node* map = node->InputAt(1);
+
+  // Load the current map of the {value}.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+  // Check if the {value}s map matches the expected {map}.
+  Node* check = __ WordEqual(value_map, map);
+  __ DeoptimizeUnless(DeoptimizeReason::kWrongMap, check, frame_state);
 }
 
 Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {

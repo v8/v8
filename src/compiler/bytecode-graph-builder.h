@@ -184,6 +184,9 @@ class BytecodeGraphBuilder {
   // any other invocation of {NewNode} would do.
   Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
                                    FeedbackSlot slot);
+  Node* TryBuildSimplifiedForInNext(Node* receiver, Node* cache_array,
+                                    Node* cache_type, Node* index,
+                                    FeedbackSlot slot);
   Node* TryBuildSimplifiedToNumber(Node* input, FeedbackSlot slot);
   Node* TryBuildSimplifiedCall(const Operator* op, Node* const* args,
                                int arg_count, FeedbackSlot slot);
