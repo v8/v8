@@ -306,10 +306,9 @@ TF_STUB(StringAddStub, CodeStubAssembler) {
   }
 
   if ((flags & STRING_ADD_CHECK_BOTH) == 0) {
-    CodeStubAssembler::AllocationFlags allocation_flags =
+    CodeStubAssembler::AllocationFlag allocation_flags =
         (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
                                     : CodeStubAssembler::kNone;
-    allocation_flags |= CodeStubAssembler::kAllowLargeObjectAllocation;
     Return(StringAdd(context, left, right, allocation_flags));
   } else {
     Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,

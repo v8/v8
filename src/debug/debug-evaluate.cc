@@ -320,7 +320,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(GenerateRandomNumbers)           \
   V(GlobalPrint)                     \
   V(AllocateInNewSpace)              \
-  V(AllocateInTargetSpace)           \
+  V(AllocateSeqOneByteString)        \
+  V(AllocateSeqTwoByteString)        \
   V(ObjectCreate)                    \
   V(ObjectHasOwnProperty)            \
   V(ArrayIndexOf)                    \

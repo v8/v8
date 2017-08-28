@@ -43,8 +43,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   // For short strings, do the conversion in CSA through the lookup table.
 
-  Node* const dst = AllocateSeqOneByteString(context, length, INTPTR_PARAMETERS,
-                                             kAllowLargeObjectAllocation);
+  Node* const dst = AllocateSeqOneByteString(context, length);
 
   const int kMaxShortStringLength = 24;  // Determined empirically.
   GotoIf(IntPtrGreaterThan(length, IntPtrConstant(kMaxShortStringLength)),
