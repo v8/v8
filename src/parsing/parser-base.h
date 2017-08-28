@@ -1870,7 +1870,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
       BindingPatternUnexpectedToken();
-      return ParseTemplateLiteral(impl()->NoTemplateTag(), beg_pos, false, ok);
+      return ParseTemplateLiteral(impl()->NullExpression(), beg_pos, false, ok);
 
     case Token::MOD:
       if (allow_natives() || extension_ != NULL) {

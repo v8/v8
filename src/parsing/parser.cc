@@ -3178,7 +3178,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
                                   ClassInfo* class_info, bool* ok) {
   if (is_constructor) {
     DCHECK(!class_info->constructor);
-    class_info->constructor = GetPropertyValue(property)->AsFunctionLiteral();
+    class_info->constructor = property->value()->AsFunctionLiteral();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
         class_name != nullptr ? ast_value_factory()->NewConsString(class_name)

@@ -694,10 +694,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return arg == nullptr || literal->raw_value()->AsString() == arg;
   }
 
-  V8_INLINE static Expression* GetPropertyValue(LiteralProperty* property) {
-    return property->value();
-  }
-
   V8_INLINE void GetDefaultStrings(
       const AstRawString** default_string,
       const AstRawString** star_default_star_string) {
@@ -985,11 +981,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                             const Scanner::Location& params_loc,
                                             Scanner::Location* duplicate_loc,
                                             bool* ok);
-
-  V8_INLINE Expression* NoTemplateTag() { return NULL; }
-  V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
-    return tag != NULL;
-  }
 
   Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
 
