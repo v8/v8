@@ -215,11 +215,11 @@ bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
   right = Type::Intersect(right, Type::Signed32(), type_zone);
   if (!left->IsInhabited() || !right->IsInhabited()) return false;
   switch (op->opcode()) {
-    case IrOpcode::kSpeculativeNumberAdd:
+    case IrOpcode::kSpeculativeSafeIntegerAdd:
       return (left->Max() + right->Max() > kMaxInt) ||
              (left->Min() + right->Min() < kMinInt);
 
-    case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeSafeIntegerSubtract:
       return (left->Max() - right->Min() > kMaxInt) ||
              (left->Min() - right->Max() < kMinInt);
 
@@ -1255,15 +1255,11 @@ class RepresentationSelector {
     NodeProperties::ChangeOp(node, Uint32OverflowOp(node));
   }
 
-  void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
-                                  SimplifiedLowering* lowering) {
-    // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we can
-    // only eliminate an unused speculative number operation if we know that
-    // the inputs are PlainPrimitive, which excludes everything that's might
-    // have side effects or throws during a ToNumber conversion. We are only
-    // allowed to perform a number addition if neither input is a String, even
-    // if the value is never used, so we further limit to NumberOrOddball in
-    // order to explicitly exclude String inputs.
+  void VisitSpeculativeIntegerAdditiveOp(Node* node, Truncation truncation,
+                                         SimplifiedLowering* lowering) {
+    // Only eliminate eliminate the node if the ToNumber conversion cannot
+    // cause any observable side-effect and if we know for sure that it
+    // is a number addition (we must exclude strings).
     if (BothInputsAre(node, Type::NumberOrOddball())) {
       if (truncation.IsUnused()) return VisitUnused(node);
     }
@@ -1300,7 +1296,7 @@ class RepresentationSelector {
         // right-hand side is not minus zero, we do not have to distinguish
         // between 0 and -0.
         IdentifyZeros left_identify_zeros = truncation.identify_zeros();
-        if (node->opcode() == IrOpcode::kSpeculativeNumberAdd &&
+        if (node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd &&
             !right_feedback_type->Maybe(Type::MinusZero())) {
           left_identify_zeros = kIdentifyZeros;
         }
@@ -1323,6 +1319,38 @@ class RepresentationSelector {
           ChangeToPureOp(node, Int32Op(node));
         }
       }
+      return;
+    }
+
+    // default case => Float64Add/Sub
+    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+               MachineRepresentation::kFloat64, Type::Number());
+    if (lower()) {
+      ChangeToPureOp(node, Float64Op(node));
+    }
+    return;
+  }
+
+  void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
+                                  SimplifiedLowering* lowering) {
+    // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we can
+    // only eliminate an unused speculative number operation if we know that
+    // the inputs are PlainPrimitive, which excludes everything that's might
+    // have side effects or throws during a ToNumber conversion. We are only
+    // allowed to perform a number addition if neither input is a String, even
+    // if the value is never used, so we further limit to NumberOrOddball in
+    // order to explicitly exclude String inputs.
+    if (BothInputsAre(node, Type::NumberOrOddball())) {
+      if (truncation.IsUnused()) return VisitUnused(node);
+    }
+
+    if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
+        (GetUpperBound(node)->Is(Type::Signed32()) ||
+         GetUpperBound(node)->Is(Type::Unsigned32()) ||
+         truncation.IsUsedAsWord32())) {
+      // => Int32Add/Sub
+      VisitWord32TruncatingBinop(node);
+      if (lower()) ChangeToPureOp(node, Int32Op(node));
       return;
     }
 
@@ -1614,6 +1642,10 @@ class RepresentationSelector {
         }
         return;
       }
+
+      case IrOpcode::kSpeculativeSafeIntegerAdd:
+      case IrOpcode::kSpeculativeSafeIntegerSubtract:
+        return VisitSpeculativeIntegerAdditiveOp(node, truncation, lowering);
 
       case IrOpcode::kSpeculativeNumberAdd:
       case IrOpcode::kSpeculativeNumberSubtract:

@@ -97,9 +97,19 @@ class JSSpeculativeBinopBuilder final {
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
-        return simplified()->SpeculativeNumberAdd(hint);
+        if (hint == NumberOperationHint::kSignedSmall ||
+            hint == NumberOperationHint::kSigned32) {
+          return simplified()->SpeculativeSafeIntegerAdd(hint);
+        } else {
+          return simplified()->SpeculativeNumberAdd(hint);
+        }
       case IrOpcode::kJSSubtract:
-        return simplified()->SpeculativeNumberSubtract(hint);
+        if (hint == NumberOperationHint::kSignedSmall ||
+            hint == NumberOperationHint::kSigned32) {
+          return simplified()->SpeculativeSafeIntegerSubtract(hint);
+        } else {
+          return simplified()->SpeculativeNumberSubtract(hint);
+        }
       case IrOpcode::kJSMultiply:
         return simplified()->SpeculativeNumberMultiply(hint);
       case IrOpcode::kJSDivide:

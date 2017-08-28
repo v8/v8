@@ -273,7 +273,9 @@
   V(SpeculativeNumberBitwiseXor)                    \
   V(SpeculativeNumberShiftLeft)                     \
   V(SpeculativeNumberShiftRight)                    \
-  V(SpeculativeNumberShiftRightLogical)
+  V(SpeculativeNumberShiftRightLogical)             \
+  V(SpeculativeSafeIntegerAdd)                      \
+  V(SpeculativeSafeIntegerSubtract)
 
 #define SIMPLIFIED_NUMBER_UNOP_LIST(V) \
   V(NumberAbs)                         \

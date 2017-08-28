@@ -987,6 +987,18 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
+Type* OperationTyper::SpeculativeSafeIntegerAdd(Type* lhs, Type* rhs) {
+  lhs = SpeculativeToNumber(lhs);
+  rhs = SpeculativeToNumber(rhs);
+  return NumberAdd(lhs, rhs);
+}
+
+Type* OperationTyper::SpeculativeSafeIntegerSubtract(Type* lhs, Type* rhs) {
+  lhs = SpeculativeToNumber(lhs);
+  rhs = SpeculativeToNumber(rhs);
+  return NumberSubtract(lhs, rhs);
+}
+
 Type* OperationTyper::SpeculativeToNumber(Type* type) {
   return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
 }

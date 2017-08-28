@@ -382,7 +382,9 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberBitwiseXor ||
          op->opcode() == IrOpcode::kSpeculativeNumberEqual ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThan ||
-         op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual);
+         op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual ||
+         op->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
+         op->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract);
   return OpParameter<NumberOperationHint>(op);
 }
 
