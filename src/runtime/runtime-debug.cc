@@ -427,13 +427,14 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     return Smi::kZero;
   }
 
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  std::vector<FrameSummary> frames;
+  frames.reserve(FLAG_max_inlining_levels + 1);
   for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
-    frames.Clear();
+    frames.clear();
     it.frame()->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0; i--) {
+    for (size_t i = frames.size(); i != 0; i--) {
       // Omit functions from native and extension scripts.
-      if (frames[i].is_subject_to_debugging()) n++;
+      if (frames[i - 1].is_subject_to_debugging()) n++;
     }
   }
   return Smi::FromInt(n);

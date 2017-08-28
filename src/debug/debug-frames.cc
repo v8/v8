@@ -210,12 +210,13 @@ int DebugFrameHelper::FindIndexedNonNativeFrame(StackTraceFrameIterator* it,
                                                 int index) {
   int count = -1;
   for (; !it->done(); it->Advance()) {
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    std::vector<FrameSummary> frames;
+    frames.reserve(FLAG_max_inlining_levels + 1);
     it->frame()->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0; i--) {
+    for (size_t i = frames.size(); i != 0; i--) {
       // Omit functions from native and extension scripts.
-      if (!frames[i].is_subject_to_debugging()) continue;
-      if (++count == index) return i;
+      if (!frames[i - 1].is_subject_to_debugging()) continue;
+      if (++count == index) return static_cast<int>(i) - 1;
     }
   }
   return -1;

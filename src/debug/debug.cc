@@ -809,20 +809,20 @@ void Debug::PrepareStepOnThrow() {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function());
     }
-    List<FrameSummary> summaries;
+    std::vector<FrameSummary> summaries;
     frame->Summarize(&summaries);
-    for (int i = summaries.length() - 1; i >= 0; i--, current_frame_count--) {
+    for (size_t i = summaries.size(); i != 0; i--, current_frame_count--) {
+      const FrameSummary& summary = summaries[i - 1];
       if (!found_handler) {
         // We have yet to find the handler. If the frame inlines multiple
         // functions, we have to check each one for the handler.
         // If it only contains one function, we already found the handler.
-        if (summaries.length() > 1) {
-          Handle<AbstractCode> code =
-              summaries[i].AsJavaScript().abstract_code();
+        if (summaries.size() > 1) {
+          Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
           CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
           BytecodeArray* bytecode = code->GetBytecodeArray();
           HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
-          int code_offset = summaries[i].code_offset();
+          int code_offset = summary.code_offset();
           HandlerTable::CatchPrediction prediction;
           int index = table->LookupRange(code_offset, nullptr, &prediction);
           if (index > 0) found_handler = true;
@@ -839,7 +839,7 @@ void Debug::PrepareStepOnThrow() {
           continue;
         }
         Handle<SharedFunctionInfo> info(
-            summaries[i].AsJavaScript().function()->shared());
+            summary.AsJavaScript().function()->shared());
         if (IsBlackboxed(info)) continue;
         FloodWithOneShot(info);
         return;

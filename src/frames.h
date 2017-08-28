@@ -636,7 +636,7 @@ class StandardFrame : public StackFrame {
   // The functions are ordered bottom-to-top (i.e. summaries.last() is the
   // top-most activation; caller comes before callee).
   virtual void Summarize(
-      List<FrameSummary>* frames,
+      std::vector<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
 
   static StandardFrame* cast(StackFrame* frame) {
@@ -689,7 +689,7 @@ class JavaScriptFrame : public StandardFrame {
   Type type() const override { return JAVA_SCRIPT; }
 
   void Summarize(
-      List<FrameSummary>* frames,
+      std::vector<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Accessors.
@@ -830,7 +830,7 @@ class OptimizedFrame : public JavaScriptFrame {
   void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const override;
 
   void Summarize(
-      List<FrameSummary>* frames,
+      std::vector<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
@@ -884,7 +884,7 @@ class InterpretedFrame : public JavaScriptFrame {
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(
-      List<FrameSummary>* frames,
+      std::vector<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   static int GetBytecodeOffset(Address fp);
@@ -975,7 +975,7 @@ class WasmCompiledFrame final : public StandardFrame {
   int position() const override;
   bool at_to_number_conversion() const;
 
-  void Summarize(List<FrameSummary>* frames,
+  void Summarize(std::vector<FrameSummary>* frames,
                  FrameSummary::Mode mode) const override;
 
   static WasmCompiledFrame* cast(StackFrame* frame) {
@@ -1004,7 +1004,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
              int index) const override;
 
   void Summarize(
-      List<FrameSummary>* frames,
+      std::vector<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Determine the code for the frame.

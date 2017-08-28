@@ -768,7 +768,7 @@ void StandardFrame::ComputeCallerState(State* state) const {
 
 bool StandardFrame::IsConstructor() const { return false; }
 
-void StandardFrame::Summarize(List<FrameSummary>* functions,
+void StandardFrame::Summarize(std::vector<FrameSummary>* functions,
                               FrameSummary::Mode mode) const {
   // This should only be called on frames which override this method.
   UNREACHABLE();
@@ -993,16 +993,16 @@ void JavaScriptFrame::GetFunctions(
   }
 }
 
-void JavaScriptFrame::Summarize(List<FrameSummary>* functions,
+void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions,
                                 FrameSummary::Mode mode) const {
-  DCHECK(functions->length() == 0);
+  DCHECK(functions->empty());
   Code* code = LookupCode();
   int offset = static_cast<int>(pc() - code->instruction_start());
   AbstractCode* abstract_code = AbstractCode::cast(code);
   FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
                                                function(), abstract_code,
                                                offset, IsConstructor(), mode);
-  functions->Add(summary);
+  functions->push_back(summary);
 }
 
 JSFunction* JavaScriptFrame::function() const {
@@ -1299,10 +1299,11 @@ FrameSummary::~FrameSummary() {
 }
 
 FrameSummary FrameSummary::GetTop(const StandardFrame* frame) {
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  std::vector<FrameSummary> frames;
+  frames.reserve(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
-  DCHECK_LT(0, frames.length());
-  return frames.last();
+  DCHECK_LT(0, frames.size());
+  return frames.back();
 }
 
 FrameSummary FrameSummary::GetBottom(const StandardFrame* frame) {
@@ -1310,17 +1311,18 @@ FrameSummary FrameSummary::GetBottom(const StandardFrame* frame) {
 }
 
 FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
-  List<FrameSummary> frames(1);
+  std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
-  DCHECK_EQ(1, frames.length());
-  return frames.first();
+  DCHECK_EQ(1, frames.size());
+  return frames.front();
 }
 
 FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
   DCHECK_LE(0, index);
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  std::vector<FrameSummary> frames;
+  frames.reserve(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
-  DCHECK_GT(frames.length(), index);
+  DCHECK_GT(frames.size(), index);
   return frames[index];
 }
 
@@ -1351,9 +1353,9 @@ FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
 
 #undef FRAME_SUMMARY_DISPATCH
 
-void OptimizedFrame::Summarize(List<FrameSummary>* frames,
+void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames,
                                FrameSummary::Mode mode) const {
-  DCHECK(frames->length() == 0);
+  DCHECK(frames->empty());
   DCHECK(is_optimized());
 
   // Delegate to JS frame in absence of turbofan deoptimization.
@@ -1421,7 +1423,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
       FrameSummary::JavaScriptFrameSummary summary(isolate(), *receiver,
                                                    *function, *abstract_code,
                                                    code_offset, is_constructor);
-      frames->Add(summary);
+      frames->push_back(summary);
       is_constructor = false;
     } else if (it->kind() == TranslatedFrame::kConstructStub) {
       // The next encountered JS frame will be marked as a constructor call.
@@ -1629,15 +1631,15 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
   return SetExpression(index + register_index, value);
 }
 
-void InterpretedFrame::Summarize(List<FrameSummary>* functions,
+void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions,
                                  FrameSummary::Mode mode) const {
-  DCHECK(functions->length() == 0);
+  DCHECK(functions->empty());
   AbstractCode* abstract_code =
       AbstractCode::cast(function()->shared()->bytecode_array());
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
       IsConstructor());
-  functions->Add(summary);
+  functions->push_back(summary);
 }
 
 int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
@@ -1728,15 +1730,15 @@ int WasmCompiledFrame::position() const {
   return FrameSummary::GetSingle(this).SourcePosition();
 }
 
-void WasmCompiledFrame::Summarize(List<FrameSummary>* functions,
+void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions,
                                   FrameSummary::Mode mode) const {
-  DCHECK_EQ(0, functions->length());
+  DCHECK(functions->empty());
   Handle<Code> code(LookupCode(), isolate());
   int offset = static_cast<int>(pc() - code->instruction_start());
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   FrameSummary::WasmCompiledFrameSummary summary(
       isolate(), instance, code, offset, at_to_number_conversion());
-  functions->Add(summary);
+  functions->push_back(summary);
 }
 
 bool WasmCompiledFrame::at_to_number_conversion() const {
@@ -1775,7 +1777,7 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-void WasmInterpreterEntryFrame::Summarize(List<FrameSummary>* functions,
+void WasmInterpreterEntryFrame::Summarize(std::vector<FrameSummary>* functions,
                                           FrameSummary::Mode mode) const {
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   std::vector<std::pair<uint32_t, int>> interpreted_stack =
@@ -1784,7 +1786,7 @@ void WasmInterpreterEntryFrame::Summarize(List<FrameSummary>* functions,
   for (auto& e : interpreted_stack) {
     FrameSummary::WasmInterpretedFrameSummary summary(isolate(), instance,
                                                       e.first, e.second);
-    functions->Add(summary);
+    functions->push_back(summary);
   }
 }
 
