@@ -25,31 +25,33 @@ import { value,
          a18,
          a19 } from "value.js";
 
-for (let i = 0; i < iterations; ++i) {
-  let accumulator = value;
-  accumulator += a0;
-  accumulator += a1;
-  accumulator += a2;
-  accumulator += a3;
-  accumulator += a4;
-  accumulator += a5;
-  accumulator += a6;
-  accumulator += a7;
-  accumulator += a8;
-  accumulator += a9;
-  accumulator += a10;
-  accumulator += a11;
-  accumulator += a12;
-  accumulator += a13;
-  accumulator += a14;
-  accumulator += a15;
-  accumulator += a16;
-  accumulator += a17;
-  accumulator += a18;
-  accumulator += a19;
-  set(accumulator);
+export function bench() {
+  for (let i = 0; i < iterations; ++i) {
+    let accumulator = value;
+    accumulator += a0;
+    accumulator += a1;
+    accumulator += a2;
+    accumulator += a3;
+    accumulator += a4;
+    accumulator += a5;
+    accumulator += a6;
+    accumulator += a7;
+    accumulator += a8;
+    accumulator += a9;
+    accumulator += a10;
+    accumulator += a11;
+    accumulator += a12;
+    accumulator += a13;
+    accumulator += a14;
+    accumulator += a15;
+    accumulator += a16;
+    accumulator += a17;
+    accumulator += a18;
+    accumulator += a19;
+    set(accumulator);
+  }
+
+  if (value !== 190 * iterations) throw new Error;
+
+  set(0);
 }
-
-if (value !== 190 * iterations) throw new Error;
-
-set(0);
