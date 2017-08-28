@@ -1368,11 +1368,6 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 }
 
-void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
-  // Handled entirely in VisitSwitchStatement.
-  UNREACHABLE();
-}
-
 void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
   loop_builder->LoopBody();

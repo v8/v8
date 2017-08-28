@@ -5419,14 +5419,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         default_seen = true;
       }
       Expect(Token::COLON, CHECK_OK);
-      int clause_pos = position();
       StatementListT statements = impl()->NewStatementList(5);
       while (peek() != Token::CASE && peek() != Token::DEFAULT &&
              peek() != Token::RBRACE) {
         StatementT stat = ParseStatementListItem(CHECK_OK);
         statements->Add(stat, zone());
       }
-      auto clause = factory()->NewCaseClause(label, statements, clause_pos);
+      auto clause = factory()->NewCaseClause(label, statements);
       impl()->RecordCaseClauseSourceRange(clause, range_scope.Finalize());
       cases->Add(clause, zone());
     }

@@ -1045,9 +1045,8 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
-                       int pos)
-    : Expression(pos, kCaseClause), label_(label), statements_(statements) {}
+CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
+    : label_(label), statements_(statements) {}
 
 void CaseClause::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                      LanguageMode language_mode,

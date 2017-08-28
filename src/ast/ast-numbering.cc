@@ -400,17 +400,11 @@ void AstNumberingVisitor::VisitIfStatement(IfStatement* node) {
 
 void AstNumberingVisitor::VisitSwitchStatement(SwitchStatement* node) {
   Visit(node->tag());
-  ZoneList<CaseClause*>* cases = node->cases();
-  for (int i = 0; i < cases->length(); i++) {
-    VisitCaseClause(cases->at(i));
+  for (CaseClause* clause : *node->cases()) {
+    if (!clause->is_default()) Visit(clause->label());
+    VisitStatements(clause->statements());
+    ReserveFeedbackSlots(clause);
   }
-}
-
-
-void AstNumberingVisitor::VisitCaseClause(CaseClause* node) {
-  if (!node->is_default()) Visit(node->label());
-  VisitStatements(node->statements());
-  ReserveFeedbackSlots(node);
 }
 
 

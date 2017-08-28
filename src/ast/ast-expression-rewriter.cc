@@ -116,9 +116,11 @@ void AstExpressionRewriter::VisitWithStatement(WithStatement* node) {
 
 void AstExpressionRewriter::VisitSwitchStatement(SwitchStatement* node) {
   AST_REWRITE_PROPERTY(Expression, node, tag);
-  ZoneList<CaseClause*>* clauses = node->cases();
-  for (int i = 0; i < clauses->length(); i++) {
-    AST_REWRITE_LIST_ELEMENT(CaseClause, clauses, i);
+  for (CaseClause* clause : *node->cases()) {
+    if (!clause->is_default()) {
+      AST_REWRITE_PROPERTY(Expression, clause, label);
+    }
+    VisitStatements(clause->statements());
   }
 }
 
@@ -369,14 +371,6 @@ void AstExpressionRewriter::VisitSuperCallReference(SuperCallReference* node) {
   AST_REWRITE_PROPERTY(VariableProxy, node, this_var);
   AST_REWRITE_PROPERTY(VariableProxy, node, new_target_var);
   AST_REWRITE_PROPERTY(VariableProxy, node, this_function_var);
-}
-
-
-void AstExpressionRewriter::VisitCaseClause(CaseClause* node) {
-  if (!node->is_default()) {
-    AST_REWRITE_PROPERTY(Expression, node, label);
-  }
-  VisitStatements(node->statements());
 }
 
 

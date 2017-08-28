@@ -718,7 +718,7 @@ class PreParserFactory {
   }
 
   PreParserStatement NewCaseClause(const PreParserExpression& label,
-                                   PreParserStatementList statements, int pos) {
+                                   PreParserStatementList statements) {
     return PreParserStatement::Default();
   }
 

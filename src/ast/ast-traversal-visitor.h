@@ -211,11 +211,6 @@ void AstTraversalVisitor<Subclass>::VisitSwitchStatement(
 }
 
 template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitCaseClause(CaseClause* clause) {
-  UNREACHABLE();
-}
-
-template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitDoWhileStatement(
     DoWhileStatement* stmt) {
   PROCESS_NODE(stmt);
