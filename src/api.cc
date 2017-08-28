@@ -62,7 +62,6 @@
 #include "src/runtime-profiler.h"
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"
-#include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -734,12 +733,6 @@ StartupData SnapshotCreator::CreateBlob(
     context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
   }
 
-  // Builtin serialization places additional objects into the partial snapshot
-  // cache and thus needs to happen before SerializeWeakReferencesAndDeferred
-  // is called below.
-  i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
-  builtin_serializer.SerializeBuiltins();
-
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
@@ -750,9 +743,8 @@ StartupData SnapshotCreator::CreateBlob(
 #endif  // DEBUG
 
   i::SnapshotData startup_snapshot(&startup_serializer);
-  i::SnapshotData builtin_snapshot(&builtin_serializer);
   StartupData result = i::Snapshot::CreateSnapshotBlob(
-      &startup_snapshot, &builtin_snapshot, context_snapshots, can_be_rehashed);
+      &startup_snapshot, context_snapshots, can_be_rehashed);
 
   // Delete heap-allocated context snapshot instances.
   for (const auto context_snapshot : context_snapshots) {
