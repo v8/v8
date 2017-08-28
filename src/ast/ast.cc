@@ -1080,5 +1080,20 @@ const char* CallRuntime::debug_name() {
 #endif  // DEBUG
 }
 
+#define RETURN_LABELS(NodeType) \
+  case k##NodeType:             \
+    return static_cast<const NodeType*>(this)->labels();
+
+ZoneList<const AstRawString*>* BreakableStatement::labels() const {
+  switch (node_type()) {
+    BREAKABLE_NODE_LIST(RETURN_LABELS)
+    ITERATION_NODE_LIST(RETURN_LABELS)
+    default:
+      UNREACHABLE();
+  }
+}
+
+#undef RETURN_LABELS
+
 }  // namespace internal
 }  // namespace v8

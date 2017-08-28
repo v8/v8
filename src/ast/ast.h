@@ -326,9 +326,7 @@ class BreakableStatement : public Statement {
     TARGET_FOR_NAMED_ONLY
   };
 
-  // The labels associated with this statement. May be NULL;
-  // if it is != NULL, guaranteed to contain at least one entry.
-  ZoneList<const AstRawString*>* labels() const { return labels_; }
+  ZoneList<const AstRawString*>* labels() const;
 
   // Testers.
   bool is_target_for_anonymous() const {
@@ -336,34 +334,26 @@ class BreakableStatement : public Statement {
   }
 
  private:
-  BreakableType breakableType() const {
-    return BreakableTypeField::decode(bit_field_);
-  }
-
-  ZoneList<const AstRawString*>* labels_;
-
   class BreakableTypeField
       : public BitField<BreakableType, Statement::kNextBitFieldIndex, 1> {};
 
  protected:
-  BreakableStatement(ZoneList<const AstRawString*>* labels,
-                     BreakableType breakable_type, int position, NodeType type)
-      : Statement(position, type),
-        labels_(labels) {
-    DCHECK(labels == NULL || labels->length() > 0);
+  BreakableStatement(BreakableType breakable_type, int position, NodeType type)
+      : Statement(position, type) {
     bit_field_ |= BreakableTypeField::encode(breakable_type);
   }
 
   static const uint8_t kNextBitFieldIndex = BreakableTypeField::kNext;
 };
 
-
-class Block final : public BreakableStatement {
+class Block : public BreakableStatement {
  public:
   ZoneList<Statement*>* statements() { return &statements_; }
   bool ignore_completion_value() const {
     return IgnoreCompletionField::decode(bit_field_);
   }
+
+  inline ZoneList<const AstRawString*>* labels() const;
 
   bool IsJump() const {
     return !statements_.is_empty() && statements_.last()->IsJump()
@@ -376,21 +366,47 @@ class Block final : public BreakableStatement {
  private:
   friend class AstNodeFactory;
 
-  Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
-        bool ignore_completion_value, int pos)
-      : BreakableStatement(labels, TARGET_FOR_NAMED_ONLY, pos, kBlock),
-        statements_(capacity, zone),
-        scope_(NULL) {
-    bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value);
-  }
-
   ZoneList<Statement*> statements_;
   Scope* scope_;
 
   class IgnoreCompletionField
       : public BitField<bool, BreakableStatement::kNextBitFieldIndex, 1> {};
+  class IsLabeledField
+      : public BitField<bool, IgnoreCompletionField::kNext, 1> {};
+
+ protected:
+  Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
+        bool ignore_completion_value, int pos)
+      : BreakableStatement(TARGET_FOR_NAMED_ONLY, pos, kBlock),
+        statements_(capacity, zone),
+        scope_(NULL) {
+    bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
+                  IsLabeledField::encode(labels != nullptr);
+  }
 };
 
+class LabeledBlock final : public Block {
+ private:
+  friend class AstNodeFactory;
+  friend class Block;
+
+  LabeledBlock(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
+               bool ignore_completion_value, int pos)
+      : Block(zone, labels, capacity, ignore_completion_value, pos),
+        labels_(labels) {
+    DCHECK_NOT_NULL(labels);
+    DCHECK_GT(labels->length(), 0);
+  }
+
+  ZoneList<const AstRawString*>* labels_;
+};
+
+inline ZoneList<const AstRawString*>* Block::labels() const {
+  if (IsLabeledField::decode(bit_field_)) {
+    return static_cast<const LabeledBlock*>(this)->labels_;
+  }
+  return nullptr;
+}
 
 class DoExpression final : public Expression {
  public:
@@ -495,6 +511,8 @@ class IterationStatement : public BreakableStatement {
   Statement* body() const { return body_; }
   void set_body(Statement* s) { body_ = s; }
 
+  ZoneList<const AstRawString*>* labels() const { return labels_; }
+
   int suspend_count() const { return suspend_count_; }
   int first_suspend_id() const { return first_suspend_id_; }
   void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
@@ -511,7 +529,8 @@ class IterationStatement : public BreakableStatement {
  protected:
   IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
-      : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, type),
+      : BreakableStatement(TARGET_FOR_ANONYMOUS, pos, type),
+        labels_(labels),
         osr_id_(BailoutId::None()),
         body_(NULL),
         suspend_count_(0),
@@ -522,6 +541,7 @@ class IterationStatement : public BreakableStatement {
       BreakableStatement::kNextBitFieldIndex;
 
  private:
+  ZoneList<const AstRawString*>* labels_;
   BailoutId osr_id_;
   Statement* body_;
   int suspend_count_;
@@ -877,6 +897,7 @@ class SwitchStatement final : public BreakableStatement {
     cases_ = cases;
   }
 
+  ZoneList<const AstRawString*>* labels() const { return labels_; }
   Expression* tag() const { return tag_; }
   ZoneList<CaseClause*>* cases() const { return cases_; }
 
@@ -886,10 +907,12 @@ class SwitchStatement final : public BreakableStatement {
   friend class AstNodeFactory;
 
   SwitchStatement(ZoneList<const AstRawString*>* labels, int pos)
-      : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, kSwitchStatement),
+      : BreakableStatement(TARGET_FOR_ANONYMOUS, pos, kSwitchStatement),
+        labels_(labels),
         tag_(NULL),
         cases_(NULL) {}
 
+  ZoneList<const AstRawString*>* labels_;
   Expression* tag_;
   ZoneList<CaseClause*>* cases_;
 };
@@ -3148,8 +3171,11 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
                   bool ignore_completion_value, int pos) {
-    return new (zone_)
-        Block(zone_, labels, capacity, ignore_completion_value, pos);
+    return labels != nullptr ? new (zone_)
+                                   LabeledBlock(zone_, labels, capacity,
+                                                ignore_completion_value, pos)
+                             : new (zone_) Block(zone_, labels, capacity,
+                                                 ignore_completion_value, pos);
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                     \
