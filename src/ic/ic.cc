@@ -1020,7 +1020,9 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
         return SimpleFieldLoad(isolate(), index);
       }
-      if (holder->IsJSModuleNamespace()) {
+      // TODO(jkummerow): Re-enable this after performance bots have
+      // picked up the baseline.
+      if (false && holder->IsJSModuleNamespace()) {
         Handle<ObjectHashTable> exports(
             Handle<JSModuleNamespace>::cast(holder)->module()->exports(),
             isolate());
